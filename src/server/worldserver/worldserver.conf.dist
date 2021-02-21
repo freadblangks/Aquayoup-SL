@@ -1,7 +1,12 @@
 ################################################
 # Trinity Core World Server configuration file #
 ################################################
+# Creature.CheckInvalidPosition = 0
+# Calculate.Creature.Zone.Area.Data = 0
 [worldserver]
+
+Guild.SaveInterval = 15
+CleanOldMailTime = 4
 
 ###################################################################################################
 # REGLAGES CUSTOM DU REPACK
