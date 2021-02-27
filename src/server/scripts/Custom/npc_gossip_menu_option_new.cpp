@@ -1,6 +1,6 @@
 //########################################################################################################################
-//Stitch Fevrier 2021 - npc_gossip_menu_option_new - version 1.0 , wow 9.0.2.37142 
-// Remplacement des gossip_menu_option des Maitres des professions
+//Stitch Fevrier 2021 - npc_gossip_menu_option_new - version 1.0 , wow 9.0.2.37474
+// Remplacement des gossip_menu_option des Maitres des professions & Montes
 //########################################################################################################################
 
 /*
