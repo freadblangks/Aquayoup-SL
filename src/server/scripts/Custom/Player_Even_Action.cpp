@@ -51,9 +51,9 @@ public:
         if (firstLogin)
         {
         Guilde_Par_Defaut_Pour_Tous(player);
-        Apprentissage_Rez_sur_son_corp(player);
         }
-	}
+        Apprentissage_Rez_sur_son_corp(player);
+    }
 
     // Au level up
     virtual void OnLevelChanged(Player* player, uint8 /*oldLevel*/) 
