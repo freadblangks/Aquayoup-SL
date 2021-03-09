@@ -1,6 +1,14 @@
 @ECHO OFF
 CLS
 
+md maps
+md vmaps
+md mmaps
+md Buildings
+md dbc
+md gt
+md cameras
+
 :MENU
 ECHO.
 ECHO ...............................................
@@ -53,5 +61,5 @@ start /b /w mapextractor.exe
 start /b /w vmap4extractor.exe
 start /b /w vmap4assembler.exe
 rmdir Buildings /s /q
-start /b /w mmaps_generator.exe
+start /b /w mmaps_generator.exe --threads 12
 GOTO MENU
