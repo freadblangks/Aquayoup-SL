@@ -26,7 +26,7 @@ void Trinity::Banner::Show(char const* applicationName, void(*log)(char const* t
     log("\n");
     log("################################################################################");
     log("################################################################################");
-    log(" Core 902-37474 Shadowlands  - Stitch Décembre 2020 - fevrier 2021");
+    log(" Core 905-38134 Shadowlands  - Stitch Décembre 2020 - Avril 2021");
     log(" Basé sur le core Trinity http://TrinityCore.org");
     log(" Remerciements a Noc et Galathil pour leurs aides");
     log("\n");
