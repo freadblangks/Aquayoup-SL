@@ -16545,7 +16545,6 @@ void Player::ItemRemovedQuestCheck(uint32 entry, uint32 count)
                     m_QuestStatusSave[questid] = QUEST_DEFAULT_SAVE_TYPE;
                     IncompleteQuest(questid);
                 }
-                return;
             }
         }
     }
