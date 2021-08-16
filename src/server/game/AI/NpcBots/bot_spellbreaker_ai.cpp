@@ -172,10 +172,10 @@ public:
             {
                 pctbonus *= 3.f;
                 if (_doCrit == false && urand(1,100) < 2 * GetBotCritChance())
-                    const_cast<spellbreaker_botAI*>(this)->_doCrit = true;
+                    _doCrit = true;
             }
             else if (_doCrit == true)
-                const_cast<spellbreaker_botAI*>(this)->_doCrit = false;
+                _doCrit = false;
 
             damageinfo.Damages[0].Damage *= pctbonus;
         }
@@ -249,7 +249,7 @@ public:
             bot_ai::DamageDealt(victim, damage, damageType);
         }
 
-        void DamageTaken(Unit* u, uint32& /*damage*/) override
+        void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo*/) override
         {
             if (!u)
                 return;
@@ -320,7 +320,7 @@ public:
 
     private:
 
-        bool _doCrit;
+        mutable bool _doCrit;
 
         void ProcessSpellsteal(Unit* target)
         {

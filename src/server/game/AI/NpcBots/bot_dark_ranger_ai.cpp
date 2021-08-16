@@ -198,6 +198,8 @@ public:
 
             CheckBlackArrow(diff);
 
+            MoveBehind(opponent);
+
             float dist = me->GetDistance(opponent);
             float maxRangeLong = 30.f;
 
@@ -392,7 +394,7 @@ public:
             bot_ai::DamageDealt(victim, damage, damageType);
         }
 
-        void DamageTaken(Unit* u, uint32& /*damage*/) override
+        void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo*/) override
         {
             if (!u)
                 return;

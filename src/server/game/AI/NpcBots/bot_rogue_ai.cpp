@@ -1082,7 +1082,7 @@ public:
 
             //Glyph of Sinister Strike: 50% chance to add 1 cp on crit
             if (baseId == SINISTER_STRIKE_1)
-                const_cast<rogue_botAI*>(this)->glyphSSProc = crit && lvl >= 15 && urand(1,100) <= 50;
+                glyphSSProc = crit && lvl >= 15 && urand(1,100) <= 50;
 
             damage = int32(fdamage * (1.0f + pctbonus));
         }
@@ -1676,7 +1676,7 @@ public:
             bot_ai::DamageDealt(victim, damage, damageType);
         }
 
-        void DamageTaken(Unit* u, uint32& /*damage*/) override
+        void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo*/) override
         {
             if (!u)
                 return;
@@ -2013,7 +2013,7 @@ public:
         }
 
     private:
-        bool glyphSSProc;
+        mutable bool glyphSSProc;
         int32 energy;
         uint8 comboPoints;
         bool combopointsSpent;

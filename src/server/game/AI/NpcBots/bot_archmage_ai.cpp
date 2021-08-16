@@ -166,6 +166,8 @@ public:
         {
             StartAttack(opponent, IsMelee());
 
+            MoveBehind(opponent);
+
             if (!HasRole(BOT_ROLE_DPS))
                 return;
 
@@ -248,7 +250,7 @@ public:
             bot_ai::DamageDealt(victim, damage, damageType);
         }
 
-        void DamageTaken(Unit* u, uint32& /*damage*/) override
+        void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo*/) override
         {
             if (!u)
                 return;

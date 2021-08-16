@@ -28,7 +28,7 @@ class bot_ai : public CreatureAI
         void JustEnteredCombat(Unit* u) override;
         void MoveInLineOfSight(Unit* u) override;
         void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType) override;
-        void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/) override { }
+        void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo*/) override { }
         void ReceiveEmote(Player* player, uint32 emote) override;
         void EnterEvadeMode(EvadeReason/* why*/ = EVADE_REASON_OTHER) override { }
 
@@ -535,7 +535,8 @@ class bot_ai : public CreatureAI
 
         //timers
         uint32 _reviveTimer, _powersTimer, _chaseTimer, _engageTimer, _potionTimer;
-        uint32 lastdiff, checkAurasTimer, checkMasterTimer, roleTimer, ordersTimer, waitTimer, regenTimer, _updateTimerMedium, _updateTimerEx1;
+        uint32 lastdiff, checkAurasTimer, checkMasterTimer, roleTimer, ordersTimer, regenTimer, _updateTimerMedium, _updateTimerEx1;
+        mutable uint32 waitTimer;
         //save timers
         uint32 _saveDisabledSpellsTimer;
 

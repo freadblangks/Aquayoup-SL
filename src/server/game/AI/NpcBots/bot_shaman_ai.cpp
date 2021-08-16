@@ -1616,7 +1616,7 @@ public:
                 if (maelstrom)
                 {
                     pctbonus += 0.2f * maelstrom->GetStackAmount();
-                    const_cast<shaman_botAI*>(this)->maelUseUp = true;
+                    maelUseUp = true;
                 }
             }
             //Tidal Waves (Healing Wave cast time)
@@ -2020,7 +2020,7 @@ public:
             bot_ai::DamageDealt(victim, damage, damageType);
         }
 
-        void DamageTaken(Unit* u, uint32& /*damage*/) override
+        void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo*/) override
         {
             if (!u)
                 return;
@@ -2711,7 +2711,7 @@ public:
         uint32 HexyCheckTimer, EarthyCheckTimer, ShieldCheckTimer, BloodlustCheckTimer, MaelstromTimer;
         uint8 MaelstromCount;
         bool Hexy, Earthy;
-        bool maelUseUp;
+        mutable bool maelUseUp;
         uint32 mhEnchantExpireTimer, ohEnchantExpireTimer;
         uint32 mhEnchant, ohEnchant;
         bool needChooseMHEnchant, needChooseOHEnchant;

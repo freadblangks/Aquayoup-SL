@@ -3988,6 +3988,11 @@ void bot_ai::CalculateAttackPos(Unit* target, Position& pos, bool& force) const
     if ((target->m_movementInfo.GetMovementFlags() & MOVEMENTFLAG_FORWARD) && target->HasInArc(float(M_PI)/2, me))
         dist = std::min<float>(dist + 10, 30);
 
+    //if ranged try to acquire a position in the back (will be ignored if too far away from master)
+    static const float rangedAngleDelta = float(M_PI) * 0.62f;
+    if (HasRole(BOT_ROLE_RANGED) && !IAmFree() && target->GetTypeId() != TYPEID_PLAYER && target->HasInArc(float(M_PI), me))
+        angle += (target->GetRelativeAngle(master) > 0.f) ? rangedAngleDelta : -rangedAngleDelta;
+
     float clockwise = (me->GetEntry() % 2) ? 1.f : -1.f;
     float angleDelta1 = ((IsTank(master) && !IsTank(me)) ? frand(float(M_PI)*0.40f, float(M_PI)*0.60f) : frand(0.0f, float(M_PI)*0.15f)) * clockwise;
     float angleDelta2 = frand(0.0f, float(M_PI)*0.08f) * clockwise;
@@ -4288,28 +4293,32 @@ void bot_ai::CheckAttackState()
             DoMeleeAttackIfReady();
     }
 }
-
+//Move behind current target if needed (avoid cleaves and dodges/parries, also rogues/ferals)
 void bot_ai::MoveBehind(Unit const* target) const
 {
-    if (HasBotCommandState(BOT_COMMAND_MASK_UNMOVING)) return;
-    if (me->GetVehicle()) return;
-    if (HasRole(BOT_ROLE_RANGED) || (IsTank() && target->GetVictim() == me) || CCed(me, true)) return;
-    if (JumpingOrFalling()) return;
-    if (((_botclass == BOT_CLASS_ROGUE || GetBotStance() == DRUID_CAT_FORM) ?
-        target->GetVictim() != me || CCed(target) || target->GetTypeId() == TYPEID_PLAYER :
-        target->GetVictim() != me && !CCed(target))      &&
-        target->IsWithinCombatRange(me, ATTACK_DISTANCE) &&
-        target->HasInArc(float(M_PI), me))
+    if (HasBotCommandState(BOT_COMMAND_MASK_UNMOVING) || HasRole(BOT_ROLE_RANGED) || JumpingOrFalling() ||
+        /*(me->isMoving() && target->GetTypeId() != TYPEID_PLAYER) ||*/
+        me->GetVehicle() || (IsTank() && target->GetVictim() == me) || CCed(me, true) ||
+        !target->IsWithinCombatRange(me, ATTACK_DISTANCE) || !target->HasInArc(float(M_PI), me))
+        return;
+
+    bool targetMe = target->GetVictim() == me;
+    bool cced = CCed(target);
+    bool isPlayer = target->GetTypeId() == TYPEID_PLAYER;
+
+    if ((_botclass == BOT_CLASS_ROGUE || GetBotStance() == DRUID_CAT_FORM) ? (!targetMe || cced || isPlayer) : (!targetMe && (!cced || isPlayer)))
     {
+        float myangle = Position::NormalizeOrientation(target->GetAbsoluteAngle(me) + float(M_PI));
+        float mydist = me->GetCombatReach();
         Position position;
-        target->GetNearPoint(me, position.m_positionX, position.m_positionY, position.m_positionZ, me->GetCombatReach(), target->GetAbsoluteAngle(me) + M_PI);
+        target->GetNearPoint(me, position.m_positionX, position.m_positionY, position.m_positionZ, mydist, myangle);
 
         if (IsWithinAoERadius(position))
             return;
 
         BotMovement(BOT_MOVE_POINT, &position);
         //me->GetMotionMaster()->MovePoint(me->GetMapId(), x, y, z);
-        const_cast<bot_ai*>(this)->waitTimer = 500;
+        waitTimer = 500;
     }
 }
 //MOUNT SUPPORT
@@ -5066,19 +5075,18 @@ void bot_ai::InitSpellMap(uint32 basespell, bool forceadd, bool forwardRank)
     if (!newSpell)
     {
         newSpell = new BotSpell();
-
-        NpcBotData const* npcBotData = BotDataMgr::SelectNpcBotData(me->GetEntry());
-        if (npcBotData->disabled_spells.find(basespell) != npcBotData->disabled_spells.end())
-        {
-            newSpell->enabled = false;
-            //TC_LOG_ERROR("entities.player", "bot_ai::InitSpellMap(): %s (%u -> %u) is disabled for %s!",
-            //    sSpellMgr->GetSpellInfo(basespell)->SpellName[0], basespell, spellId, me->GetName().c_str());
-        }
-
         _spells[basespell] = newSpell;
     }
 
     newSpell->spellId = spellId;
+
+    NpcBotData const* npcBotData = BotDataMgr::SelectNpcBotData(me->GetEntry());
+    if (npcBotData->disabled_spells.find(basespell) != npcBotData->disabled_spells.end())
+    {
+        newSpell->enabled = false;
+        //TC_LOG_ERROR("entities.player", "bot_ai::InitSpellMap(): %s (%u -> %u) is disabled for %s!",
+        //    sSpellMgr->GetSpellInfo(basespell)->SpellName[0], basespell, spellId, me->GetName().c_str());
+    }
 }
 //Using first-rank spell as source, return true if spell is inited
 bool bot_ai::HasSpell(uint32 basespell) const

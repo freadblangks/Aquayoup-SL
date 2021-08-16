@@ -743,6 +743,8 @@ public:
             Counter(diff);
             CheckTranquil(diff);
 
+            MoveBehind(opponent);
+
             float dist = me->GetDistance(opponent);
             float maxRangeLong = me->GetLevel() >= 10 ? 51.f : 45.f;
             float maxRangeNormal = me->GetLevel() >= 10 ? 41.f : 35.f;
@@ -1903,7 +1905,7 @@ public:
             bot_ai::DamageDealt(victim, damage, damageType);
         }
 
-        void DamageTaken(Unit* u, uint32& /*damage*/) override
+        void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo*/) override
         {
             if (!u)
                 return;
