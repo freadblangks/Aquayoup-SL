@@ -539,7 +539,7 @@ public:
                             oldAura->ModCharges(aura->GetCharges());
                         else
                             oldAura->ModStackAmount(aura->GetStackAmount());
-                        oldAura->SetDuration(std::max<int32>(dur, oldAura->GetDuration()));
+                        oldAura->SetDuration(dur);
                     }
                     else
                     {
@@ -550,6 +550,9 @@ public:
                         AuraCreateInfo createInfo(aura->GetSpellInfo(), effMask, newTarget);
                         createInfo.SetCasterGUID(aura->GetCasterGUID());
                         createInfo.SetBaseAmount(baseDamage);
+                        //Auras created by scripts may have no caster, prevent crash in Aura::TryRefreshStackOrCreate()
+                        if (!createInfo.CasterGUID)
+                            createInfo.SetCasterGUID(me->GetGUID());
                         if (Aura* newAura = Aura::TryRefreshStackOrCreate(createInfo))
                         {
                             // created aura must not be single target aura,, so stealer won't loose it on recast
