@@ -1210,7 +1210,7 @@ bool bot_pet_ai::IsInBotParty(Unit const* unit) const
         //pointed target case
         for (uint8 i = 0; i != TARGETICONCOUNT; ++i)
             if (BotMgr::GetHealTargetIconFlags() & GroupIconsFlags[i] &&
-                !((BotMgr::GetTankTargetIconFlags() | BotMgr::GetDPSTargetIconFlags()) & GroupIconsFlags[i]))
+                !((BotMgr::GetOffTankTargetIconFlags() | BotMgr::GetDPSTargetIconFlags()) & GroupIconsFlags[i]))
                 if (ObjectGuid guid = gr->GetTargetIcons()[i])
                     if (guid == unit->GetGUID())
                         return true;
@@ -1297,16 +1297,32 @@ Unit* bot_pet_ai::_getTarget(bool &reset) const
     }
 
     uint8 followdist = IAmFree() ? BotMgr::GetBotFollowDistDefault() : petOwner->GetBotOwner()->GetBotMgr()->GetBotFollowDist();
-    float foldist = _getAttackDistance(float(followdist));
-    if ((!u || IAmFree()) && petOwner->GetBotOwner()->IsAlive() && (me->GetDistance(petOwner->GetBotOwner()) > foldist ||
-        (IAmFree() && mytar && me->GetDistance(mytar) > followdist) ||
-        (mytar && petOwner->GetBotOwner()->GetDistance(mytar) > followdist / 2 && !mytar->IsWithinLOSInMap(me)) ||
-        (mytar && petOwner->GetBotOwner()->GetDistance(mytar) > foldist && me->GetDistance(petOwner->GetBotOwner()) > foldist)))
-    {
-        return nullptr;
-    }
 
-    if (mytar && (!IAmFree() || me->GetDistance(mytar) < BOT_MAX_CHASE_RANGE) && me->IsValidAttackTarget(mytar))
+    if (followdist == 0)
+        return nullptr;
+
+    float foldist = _getAttackDistance(float(followdist));
+    if (!IAmFree() && !IsPetMelee())
+    {
+        float spelldist;
+        uint8 rangeMode = petOwner->GetBotOwner()->GetBotMgr()->GetBotAttackRangeMode();
+        if (rangeMode == BOT_ATTACK_RANGE_EXACT)
+            spelldist = petOwner->GetBotOwner()->GetBotMgr()->GetBotExactAttackRange();
+        else
+            spelldist = GetSpellAttackRange(rangeMode == BOT_ATTACK_RANGE_LONG);
+        foldist = std::max<float>(foldist, spelldist + 4.f);
+    }
+    bool dropTarget = false;
+    if (!dropTarget && mytar)
+    {
+        dropTarget = IAmFree() ?
+            petOwner->GetDistance(mytar) > foldist :
+            (petOwner->GetBotOwner()->GetDistance(mytar) > foldist || (petOwner->GetBotOwner()->GetDistance(mytar) > foldist * 0.75f && !mytar->IsWithinLOSInMap(petOwner)));
+    }
+    if (dropTarget)
+        return nullptr;
+
+    if (mytar && (!IAmFree() || me->GetDistance(mytar) < BOT_MAX_CHASE_RANGE) && me->IsValidAttackTarget(mytar) && !petOwner->GetBotAI()->IsPointedNoDPSTarget(mytar))
     {
         if (me->GetDistance(mytar) > (!IsPetMelee() ? 20.f : 5.f) && m_botCommandState != COMMAND_STAY && m_botCommandState != COMMAND_FOLLOW)
             reset = true;
@@ -1946,6 +1962,27 @@ bool bot_pet_ai::IsTank(Unit const* unit) const
                 for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
                     if (itr->guid == unit->GetGUID())
                         return itr->flags & MEMBER_FLAG_MAINTANK;
+            }
+        }
+    }
+
+    return false;
+}
+//Unused
+bool bot_pet_ai::IsOffTank(Unit const* unit) const
+{
+    if (Creature const* bot = unit->ToCreature())
+        return bot->GetBotAI() && bot->GetBotAI()->HasRole(BOT_ROLE_TANK_OFF);
+    else if (Player const* player = unit->ToPlayer())
+    {
+        if (Group const* gr = player->GetGroup())
+        {
+            if (gr->isRaidGroup())
+            {
+                Group::MemberSlotList const& slots = gr->GetMemberSlots();
+                for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
+                    if (itr->guid == unit->GetGUID())
+                        return itr->flags & MEMBER_FLAG_MAINASSIST;
             }
         }
     }

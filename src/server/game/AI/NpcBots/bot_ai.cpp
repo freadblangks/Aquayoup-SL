@@ -671,13 +671,37 @@ bool bot_ai::doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags)
 
     //select aura level
     if (victim->isType(TYPEMASK_UNIT))
+    {
         if (SpellInfo const* actualSpellInfo = m_botSpellInfo->GetAuraRankForLevel(victim->GetLevel()))
             m_botSpellInfo = actualSpellInfo;
 
-    if (victim->isType(TYPEMASK_UNIT) && (flags & TRIGGERED_FULL_MASK) != TRIGGERED_FULL_MASK &&
-        !(m_botSpellInfo->AttributesEx2 & SPELL_ATTR2_CAN_TARGET_NOT_IN_LOS) &&
-        !IsInBotParty(victim) && !me->IsWithinLOSInMap(victim))
-        return false;
+        if (!m_botSpellInfo->IsTargetingArea())
+        {
+            uint8 approximateAuraEffectMask = 0;
+            uint8 nonAuraEffectMask = 0;
+            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+            {
+                if (m_botSpellInfo->Effects[i].IsAura())
+                    approximateAuraEffectMask |= 1 << i;
+                else if (m_botSpellInfo->Effects[i].IsEffect())
+                    nonAuraEffectMask |= 1 << i;
+            }
+
+            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+            {
+                // check if target already has the same type, but more powerful aura
+                if (!nonAuraEffectMask && (approximateAuraEffectMask & (1 << i)))
+                    if (!victim->IsHighestExclusiveAuraEffect(m_botSpellInfo, AuraType(m_botSpellInfo->Effects[i].ApplyAuraName),
+                        m_botSpellInfo->Effects[i].CalcValue(me, &m_botSpellInfo->Effects[i].BasePoints), approximateAuraEffectMask, false))
+                        return false;
+            }
+        }
+
+        if ((flags & TRIGGERED_FULL_MASK) != TRIGGERED_FULL_MASK &&
+            !(m_botSpellInfo->AttributesEx2 & SPELL_ATTR2_CAN_TARGET_NOT_IN_LOS) &&
+            !IsInBotParty(victim) && !me->IsWithinLOSInMap(victim))
+            return false;
+    }
 
     //check wrong spell interruption attempts
     if (/*victim->isType(TYPEMASK_UNIT) && */!HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) &&
@@ -696,6 +720,7 @@ bool bot_ai::doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags)
         //return false;
     }
 
+    //spells with cast time
     if (me->isMoving() && !HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) &&
         ((m_botSpellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_MOVEMENT)
         //autorepeat spells missing SPELL_INTERRUPT_FLAG_MOVEMENT
@@ -704,9 +729,11 @@ bool bot_ai::doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags)
         //Mind Flay (Rank 8)
         || spellId == 48155) &&
         !(m_botSpellInfo->Attributes & SPELL_ATTR0_ON_NEXT_SWING) && !m_botSpellInfo->IsAutoRepeatRangedSpell() &&
-        !(flags & TRIGGERED_FULL_MASK) && (m_botSpellInfo->IsChanneled() || m_botSpellInfo->CalcCastTime()))
+        !(flags & TRIGGERED_CAST_DIRECTLY) && (m_botSpellInfo->IsChanneled() || m_botSpellInfo->CalcCastTime()))
     {
         if (JumpingOrFalling())
+            return false;
+        if (!me->GetVictim() && me->IsInWorld() && (me->GetMap()->IsRaid() || me->GetMap()->IsHeroic()))
             return false;
         if (!m_botSpellInfo->HasEffect(SPELL_EFFECT_HEAL) && Rand() > (IAmFree() ? 80 : 50))
             return false;
@@ -1063,7 +1090,7 @@ bool bot_ai::IsPointedHealTarget(Unit const* target) const
 bool bot_ai::IsPointedTankingTarget(Unit const* target) const
 {
     if (Group const* gr = (IAmFree() ? nullptr : master->GetGroup()))
-        if (uint8 tankFlags = BotMgr::GetTankTargetIconFlags())
+        if (uint8 tankFlags = BotMgr::GetOffTankTargetIconFlags())
             for (uint8 i = 0; i != TARGETICONCOUNT; ++i)
                 if (tankFlags & GroupIconsFlags[i])
                     if (target->GetGUID() == gr->GetTargetIcons()[i])
@@ -1076,6 +1103,29 @@ bool bot_ai::IsPointedDPSTarget(Unit const* target) const
 {
     if (Group const* gr = (IAmFree() ? nullptr : master->GetGroup()))
         if (uint8 dpsFlags = BotMgr::GetDPSTargetIconFlags())
+            for (uint8 i = 0; i != TARGETICONCOUNT; ++i)
+                if (dpsFlags & GroupIconsFlags[i])
+                    if (target->GetGUID() == gr->GetTargetIcons()[i])
+                        return true;
+
+    return false;
+}
+//unused
+bool bot_ai::IsPointedRangedDPSTarget(Unit const* target) const
+{
+    if (Group const* gr = (IAmFree() ? nullptr : master->GetGroup()))
+        if (uint8 dpsFlags = BotMgr::GetRangedDPSTargetIconFlags())
+            for (uint8 i = 0; i != TARGETICONCOUNT; ++i)
+                if (dpsFlags & GroupIconsFlags[i])
+                    if (target->GetGUID() == gr->GetTargetIcons()[i])
+                        return true;
+
+    return false;
+}
+bool bot_ai::IsPointedNoDPSTarget(Unit const* target) const
+{
+    if (Group const* gr = (IAmFree() ? nullptr : master->GetGroup()))
+        if (uint8 dpsFlags = BotMgr::GetNoDPSTargetIconFlags())
             for (uint8 i = 0; i != TARGETICONCOUNT; ++i)
                 if (dpsFlags & GroupIconsFlags[i])
                     if (target->GetGUID() == gr->GetTargetIcons()[i])
@@ -3150,7 +3200,7 @@ bool bot_ai::IsInBotParty(Unit const* unit) const
         //pointed target case
         for (uint8 i = 0; i != TARGETICONCOUNT; ++i)
             if ((BotMgr::GetHealTargetIconFlags() & GroupIconsFlags[i]) &&
-                !((BotMgr::GetTankTargetIconFlags() | BotMgr::GetDPSTargetIconFlags()) & GroupIconsFlags[i]))
+                !((BotMgr::GetOffTankTargetIconFlags() | BotMgr::GetDPSTargetIconFlags()) & GroupIconsFlags[i]))
                 if (ObjectGuid guid = gr->GetTargetIcons()[i])
                     if (guid == unit->GetGUID())
                         return true;
@@ -3206,7 +3256,7 @@ bool bot_ai::IsInBotParty(ObjectGuid guid) const
         //pointed target case
         for (uint8 i = 0; i != TARGETICONCOUNT; ++i)
             if ((BotMgr::GetHealTargetIconFlags() & GroupIconsFlags[i]) &&
-                !((BotMgr::GetTankTargetIconFlags() | BotMgr::GetDPSTargetIconFlags()) & GroupIconsFlags[i]))
+                !((BotMgr::GetOffTankTargetIconFlags() | BotMgr::GetDPSTargetIconFlags()) & GroupIconsFlags[i]))
                 if (ObjectGuid gguid = gr->GetTargetIcons()[i])
                     if (gguid == guid)
                         return true;
@@ -3290,6 +3340,8 @@ bool bot_ai::CanBotAttack(Unit const* target, int8 byspell) const
         return false;
     if (!CanBotAttackOnVehicle())
         return false;
+    if (IsPointedNoDPSTarget(target))
+        return false;
 
     uint8 followdist = IAmFree() ? BotMgr::GetBotFollowDistDefault() : master->GetBotMgr()->GetBotFollowDist();
     float foldist = _getAttackDistance(float(followdist));
@@ -3362,12 +3414,12 @@ Unit* bot_ai::_getVehicleTarget(BotVehicleStrats /*strat*/) const
 
     Group const* gr = !IAmFree() ? master->GetGroup() : nullptr;
 
-    if (gr && IsTank())
+    if (gr && IsOffTank())
     {
         Unit* tankTar = nullptr;
         for (int8 i = TARGETICONCOUNT - 1; i >= 0; --i)
         {
-            if (BotMgr::GetTankTargetIconFlags() & GroupIconsFlags[i])
+            if (BotMgr::GetOffTankTargetIconFlags() & GroupIconsFlags[i])
             {
                 if (ObjectGuid guid = gr->GetTargetIcons()[i])
                 {
@@ -3399,9 +3451,25 @@ Unit* bot_ai::_getVehicleTarget(BotVehicleStrats /*strat*/) const
     {
         for (int8 i = TARGETICONCOUNT - 1; i >= 0; --i)
         {
-            if (BotMgr::GetDPSTargetIconFlags() & GroupIconsFlags[i])
+            if (ObjectGuid guid = gr->GetTargetIcons()[i])
             {
-                if (ObjectGuid guid = gr->GetTargetIcons()[i])
+                if ((HasRole(BOT_ROLE_RANGED)|| HasVehicleRoleOverride(BOT_ROLE_RANGED)) &&
+                    (BotMgr::GetRangedDPSTargetIconFlags() & GroupIconsFlags[i]))
+                {
+                    if (mytar && mytar->GetGUID() == guid)
+                        return mytar;
+
+                    if (Unit* unit = ObjectAccessor::GetUnit(*me, guid))
+                    {
+                        if (unit->IsVisible() && unit->isTargetableForAttack(false) && me->IsValidAttackTarget(unit) &&
+                            unit->IsInCombat() && (CanSeeEveryone() || (me->CanSeeOrDetect(unit) && unit->InSamePhase(me))))
+                        {
+                            //TC_LOG_ERROR("entities.unit", "_getTarget: found dps icon target %s", unit->GetName().c_str());
+                            return unit;
+                        }
+                    }
+                }
+                if (BotMgr::GetDPSTargetIconFlags() & GroupIconsFlags[i])
                 {
                     if (mytar && mytar->GetGUID() == guid)
                         return mytar;
@@ -3432,8 +3500,8 @@ Unit* bot_ai::_getVehicleTarget(BotVehicleStrats /*strat*/) const
 
     if (mmover->IsAlive())
     {
-        if (followdist == 0 || veh->GetDistance(mmover) > followdist ||
-            (mytar && mmover->GetDistance(mytar) > followdist / 2 && !mytar->IsWithinLOSInMap(veh)))
+        if (followdist == 0 || (mytar &&
+            (mmover->GetDistance(mytar) > followdist || (mmover->GetDistance(mytar) > followdist * 0.75f && !mytar->IsWithinLOSInMap(veh)))))
         {
             //if (mytar)
             //{
@@ -3475,12 +3543,12 @@ Unit* bot_ai::_getTarget(bool byspell, bool ranged, bool &reset) const
 
     Group const* gr = !IAmFree() ? master->GetGroup() : nullptr;
 
-    if (gr && IsTank())
+    if (gr && IsOffTank())
     {
         Unit* tankTar = nullptr;
         for (int8 i = TARGETICONCOUNT - 1; i >= 0; --i)
         {
-            if (BotMgr::GetTankTargetIconFlags() & GroupIconsFlags[i])
+            if (BotMgr::GetOffTankTargetIconFlags() & GroupIconsFlags[i])
             {
                 if (ObjectGuid guid = gr->GetTargetIcons()[i])
                 {
@@ -3520,9 +3588,24 @@ Unit* bot_ai::_getTarget(bool byspell, bool ranged, bool &reset) const
     {
         for (int8 i = TARGETICONCOUNT - 1; i >= 0; --i)
         {
-            if (BotMgr::GetDPSTargetIconFlags() & GroupIconsFlags[i])
+            if (ObjectGuid guid = gr->GetTargetIcons()[i])
             {
-                if (ObjectGuid guid = gr->GetTargetIcons()[i])
+                if (HasRole(BOT_ROLE_RANGED) && (BotMgr::GetRangedDPSTargetIconFlags() & GroupIconsFlags[i]))
+                {
+                    if (mytar && mytar->GetGUID() == guid)
+                        return mytar;
+
+                    if (Unit* unit = ObjectAccessor::GetUnit(*me, guid))
+                    {
+                        if (unit->IsVisible() && unit->isTargetableForAttack(false) && me->IsValidAttackTarget(unit) &&
+                            unit->IsInCombat() && (CanSeeEveryone() || (me->CanSeeOrDetect(unit) && unit->InSamePhase(me))))
+                        {
+                            //TC_LOG_ERROR("entities.unit", "_getTarget: found dps icon target %s", unit->GetName().c_str());
+                            return unit;
+                        }
+                    }
+                }
+                if (BotMgr::GetDPSTargetIconFlags() & GroupIconsFlags[i])
                 {
                     if (mytar && mytar->GetGUID() == guid)
                         return mytar;
@@ -3587,9 +3670,9 @@ Unit* bot_ai::_getTarget(bool byspell, bool ranged, bool &reset) const
     //Follow if...
     uint8 followdist = IAmFree() ? BotMgr::GetBotFollowDistDefault() / 2 : master->GetBotMgr()->GetBotFollowDist();
     float foldist = _getAttackDistance(float(followdist));
-    float spelldist;
     if (!IAmFree() && (HasRole(BOT_ROLE_RANGED) || HasVehicleRoleOverride(BOT_ROLE_RANGED)))
     {
+        float spelldist;
         uint8 rangeMode = master->GetBotMgr()->GetBotAttackRangeMode();
         if (rangeMode == BOT_ATTACK_RANGE_EXACT)
             spelldist = master->GetBotMgr()->GetBotExactAttackRange();
@@ -8289,6 +8372,9 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                                 case BOT_ROLE_TANK:
                                     ch.SendSysMessage("BOT_ROLE_TANK");
                                     break;
+                                case BOT_ROLE_TANK_OFF:
+                                    ch.SendSysMessage("BOT_ROLE_TANK_OFF");
+                                    break;
                                 case BOT_ROLE_DPS:
                                     ch.SendSysMessage("BOT_ROLE_DPS");
                                     break;
@@ -11397,6 +11483,7 @@ uint32 bot_ai::GetRoleString(uint32 role)
     switch (role)
     {
         case BOT_ROLE_TANK:                 return BOT_TEXT_TANK;
+        case BOT_ROLE_TANK_OFF:             return BOT_TEXT_TANK_OFF;
         case BOT_ROLE_DPS:                  return BOT_TEXT_DPS;
         case BOT_ROLE_HEAL:                 return BOT_TEXT_HEAL;
         case BOT_ROLE_RANGED:               return BOT_TEXT_RANGED;
@@ -11422,7 +11509,22 @@ void bot_ai::ToggleRole(uint32 role, bool force)
 
     roleTimer = 350; //delay next attempt (prevent abuse)
 
-    HasRole(role) ? _roleMask &= ~role : _roleMask |= role;
+    if (HasRole(role))
+    {
+        //linked roles
+        if (role & BOT_ROLE_TANK)
+            role |= BOT_ROLE_TANK_OFF;
+
+        _roleMask &= ~role;
+    }
+    else
+    {
+        //linked roles
+        if (role & BOT_ROLE_TANK_OFF)
+            role |= BOT_ROLE_TANK;
+
+        _roleMask |= role;
+    }
 
     BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_ROLES, &_roleMask);
 
@@ -11450,24 +11552,42 @@ bool bot_ai::IsTank(Unit const* unit) const
     if (Creature const* bot = unit->ToCreature())
         return bot->GetBotAI() && bot->GetBotAI()->HasRole(BOT_ROLE_TANK);
 
-    //Maybe use highest hp? TODO: a way to find multiple tanks
     if (Player const* player = unit->ToPlayer())
     {
         if (Group const* gr = player->GetGroup())
         {
-            /*//player role in lfg group
-            if (gr->isLFGGroup())
-            {
-                if (sLFGMgr->GetRoles(unit->GetGUID()) & lfg::PLAYER_ROLE_TANK)
-                    return true;
-            }
-            //raid group Main Tank (/mt)
-            else */if (gr->isRaidGroup())
+            if (gr->isRaidGroup())
             {
                 Group::MemberSlotList const& slots = gr->GetMemberSlots();
                 for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
                     if (itr->guid == unit->GetGUID())
                         return itr->flags & MEMBER_FLAG_MAINTANK;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool bot_ai::IsOffTank(Unit const* unit) const
+{
+    if (!unit || unit == me)
+        return HasRole(BOT_ROLE_TANK_OFF);
+
+    if (Creature const* bot = unit->ToCreature())
+        return bot->GetBotAI() && bot->GetBotAI()->HasRole(BOT_ROLE_TANK_OFF);
+
+    //Unused part
+    if (Player const* player = unit->ToPlayer())
+    {
+        if (Group const* gr = player->GetGroup())
+        {
+            if (gr->isRaidGroup())
+            {
+                Group::MemberSlotList const& slots = gr->GetMemberSlots();
+                for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
+                    if (itr->guid == unit->GetGUID())
+                        return itr->flags & MEMBER_FLAG_MAINASSIST;
             }
         }
     }
@@ -15400,6 +15520,31 @@ bool bot_ai::OnGossipSelectCode(Player* player, uint32 /*menuId*/, uint32 gossip
     uint32 sender = player->PlayerTalkClass->GetGossipOptionSender(gossipListId);
     uint32 action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
     return OnGossipSelectCode(player, me, sender, action, code);
+}
+
+bool bot_ai::IsDamagingSpell(SpellInfo const* spellInfo)
+{
+    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+    {
+        if (spellInfo->Effects[i].IsEffect())
+        {
+            switch (spellInfo->Effects[i].Effect)
+            {
+                case SPELL_EFFECT_WEAPON_DAMAGE:
+                case SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL:
+                case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+                case SPELL_EFFECT_WEAPON_PERCENT_DAMAGE:
+                case SPELL_EFFECT_SCHOOL_DAMAGE:
+                case SPELL_EFFECT_ENVIRONMENTAL_DAMAGE:
+                case SPELL_EFFECT_HEALTH_LEECH:
+                    return true;
+                default:
+                    break;
+            }
+        }
+    }
+
+    return false;
 }
 
 bool bot_ai::IsBotCustomSpell(uint32 spellId)

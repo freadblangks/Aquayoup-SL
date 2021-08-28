@@ -777,7 +777,8 @@ public:
                     return;
             }
             //GROWL 2 (distant)
-            if (IsSpellReady(GROWL_1, diff, false) && u == me && IsTank() && Rand() < 20 &&
+            if (IsSpellReady(GROWL_1, diff, false) && !IAmFree() && u == me &&  Rand() < 20 &&IsTank() &&
+                (IsOffTank() || master->GetBotMgr()->GetNpcBotsCountByRole(BOT_ROLE_TANK_OFF) == 0) &&
                 !(me->GetLevel() >= 40 && opponent->GetTypeId() == TYPEID_UNIT &&
                 (opponent->ToCreature()->IsDungeonBoss() || opponent->ToCreature()->isWorldBoss())))
             {
@@ -1367,8 +1368,9 @@ public:
 
         void CheckTravelForm(uint32 diff)
         {
-            if (!IsSpellReady(TRAVEL_FORM_1, diff) || !HasBotCommandState(BOT_COMMAND_FOLLOW) || Rand() > 15 ||
-                me->GetShapeshiftForm() == FORM_TRAVEL || me->GetVictim() || me->IsMounted() || IAmFree() || IsCasting())
+            if (!IsSpellReady(TRAVEL_FORM_1, diff) || !HasBotCommandState(BOT_COMMAND_FOLLOW) || Rand() > 15 || !me->IsInCombat() ||
+                me->GetShapeshiftForm() == FORM_TRAVEL || me->GetVictim() || me->IsMounted() || IAmFree() || IsCasting() ||
+                me->HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING))
                 return;
 
             if (me->GetExactDist2d(master) > std::max<uint8>(master->GetBotMgr()->GetBotFollowDist(), 30))
