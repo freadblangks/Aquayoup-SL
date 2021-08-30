@@ -2547,11 +2547,6 @@ void Creature::SaveRespawnTime(uint32 forceDelay)
     if (IsSummon() || !m_spawnId || (m_creatureData && !m_creatureData->dbData))
         return;
 
-    //npcbots: do not save respawn time for bots
-    if (IsNPCBotOrPet())
-        return;
-    //end npcbots
-
     if (m_respawnCompatibilityMode)
     {
         RespawnInfo ri;
@@ -3806,10 +3801,10 @@ MeleeHitOutcome Creature::BotRollMeleeOutcomeAgainst(Unit const* victim, WeaponA
     return bot_AI ? bot_AI->BotRollCustomMeleeOutcomeAgainst(victim, attType) : RollMeleeOutcomeAgainst(victim, attType);
 }
 
-void Creature::CastCreatureItemCombatSpell(Unit* target, WeaponAttackType attType, uint32 procVictim, uint32 procEx)
+void Creature::CastCreatureItemCombatSpell(DamageInfo const& damageInfo)
 {
     if (bot_AI)
-        bot_AI->CastBotItemCombatSpell(target, attType, procVictim, procEx);
+        bot_AI->CastBotItemCombatSpell(damageInfo);
 }
 
 bool Creature::HasSpellCooldown(uint32 spell_id) const
