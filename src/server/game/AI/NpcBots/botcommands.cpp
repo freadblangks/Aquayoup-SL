@@ -491,7 +491,7 @@ public:
     {
         Player* owner = handler->GetSession()->GetPlayer();
 
-        if (!owner->HaveBot() || !dist || !*dist)
+        if (!owner->HaveBot() || !dist)
         {
             handler->SendSysMessage(".npcbot distance #[attack] #newdist");
             handler->SendSysMessage("Sets follow / attack distance for bots");
@@ -541,7 +541,7 @@ public:
     {
         Player* owner = handler->GetSession()->GetPlayer();
 
-        if (!owner->HaveBot() || !dist || !*dist)
+        if (!owner->HaveBot() || !dist)
         {
             handler->SendSysMessage(".npcbot distance attack #newdist");
             handler->SendSysMessage("Sets attack distance for bots");
@@ -702,7 +702,7 @@ public:
                 setFlags = UNIT_FLAG_CANNOT_SWIM;
                 break;
             case 15:
-                setFlags = UNIT_FLAG_SWIMMING;
+                setFlags = UNIT_FLAG_CAN_SWIM;
                 break;
             case 16:
                 setFlags = UNIT_FLAG_NON_ATTACKABLE_2;
@@ -846,9 +846,10 @@ public:
             return false;
         }
 
-        if (spec < BOT_SPEC_BEGIN || spec > BOT_SPEC_END)
+        if (!bot_ai::IsValidSpecForClass(bot->GetBotClass(), *spec))
         {
-            handler->SendSysMessage("Spec is out of range (1 to 3)!");
+            handler->PSendSysMessage("%s is not a valid spec for bot class %u!",
+                bot_ai::LocalizedNpcText(chr, bot_ai::TextForSpec(*spec)), uint32(bot->GetBotClass()));
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -1014,7 +1015,6 @@ public:
         bot->GetBotAI()->Reset();
         bot->GetBotAI()->canUpdate = false;
         Creature::DeleteFromDB(bot->GetSpawnId());
-        bot->AddObjectToRemoveList();
 
         BotDataMgr::UpdateNpcBotData(bot->GetEntry(), NPCBOT_UPDATE_ERASE);
 

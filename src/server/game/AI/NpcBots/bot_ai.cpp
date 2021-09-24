@@ -7019,8 +7019,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
             BotWhisper(msg.str(), player);
 
             //break; //no break here - return to menu
-            [[fallthrough]];
         }
+        [[fallthrough]];
         case GOSSIP_SENDER_EQUIPMENT_SHOW: //equips change s2: send list of equippable items
         {
             subMenu = true;
@@ -7281,9 +7281,9 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
 
             if (found && _equip(sender - GOSSIP_SENDER_EQUIP_AUTOEQUIP_EQUIP, item, player->GetGUID().GetCounter())){}
 
-            [[fallthrough]];
             //break; //no break: update list
         }
+        [[fallthrough]];
         case GOSSIP_SENDER_EQUIP_AUTOEQUIP:
         {
             subMenu = true;
@@ -7705,8 +7705,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                     ASSERT(false);
             }
             sender = newSender;
-            [[fallthrough]];
         }
+        [[fallthrough]];
         case GOSSIP_SENDER_ABILITIES_USAGE_LIST_DAMAGE:
         case GOSSIP_SENDER_ABILITIES_USAGE_LIST_CC:
         case GOSSIP_SENDER_ABILITIES_USAGE_LIST_HEAL:
@@ -7791,8 +7791,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 BotWhisper(LocalizedNpcText(player, BOT_TEXT_CHANGING_MY_SPEC_TO_) + LocalizedNpcText(player, TextForSpec(_newspec)));
                 break;
             }
-            [[fallthrough]];
         }
+        [[fallthrough]];
         case GOSSIP_SENDER_SPEC:
         {
             subMenu = true;
@@ -8194,9 +8194,9 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 player->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_LONG);
             }
 
-            [[fallthrough]];
             //break; //return to menu
         }
+        [[fallthrough]];
         case GOSSIP_SENDER_FORMATION_ATTACK:
         {
             subMenu = true;
@@ -8281,8 +8281,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
 
             //break;
             action = GOSSIP_ACTION_INFO_DEF + 2; //return to the list and update
-            [[fallthrough]];
         }
+        [[fallthrough]];
         case GOSSIP_SENDER_TROUBLESHOOTING_FIX:
         {
             uint32 option = action - GOSSIP_ACTION_INFO_DEF;
@@ -8482,9 +8482,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
 
             if (close)
                 break;
-
-            [[fallthrough]];
         }
+        [[fallthrough]];
         case GOSSIP_SENDER_DEBUG:
         {
             //!!! player != owner !!!
@@ -12005,6 +12004,133 @@ uint32 bot_ai::TextForSpec(uint8 spec)
     }
 }
 
+bool bot_ai::IsValidSpecForClass(uint8 m_class, uint8 spec)
+{
+    switch (m_class)
+    {
+        case BOT_CLASS_WARRIOR:
+            switch (spec)
+            {
+                case BOT_SPEC_WARRIOR_ARMS:
+                case BOT_SPEC_WARRIOR_FURY:
+                case BOT_SPEC_WARRIOR_PROTECTION:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_PALADIN:
+            switch (spec)
+            {
+                case BOT_SPEC_PALADIN_HOLY:
+                case BOT_SPEC_PALADIN_PROTECTION:
+                case BOT_SPEC_PALADIN_RETRIBUTION:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_HUNTER:
+            switch (spec)
+            {
+                case BOT_SPEC_HUNTER_BEASTMASTERY:
+                case BOT_SPEC_HUNTER_MARKSMANSHIP:
+                case BOT_SPEC_HUNTER_SURVIVAL:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_ROGUE:
+            switch (spec)
+            {
+                case BOT_SPEC_ROGUE_ASSASINATION:
+                case BOT_SPEC_ROGUE_COMBAT:
+                case BOT_SPEC_ROGUE_SUBTLETY:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_PRIEST:
+            switch (spec)
+            {
+                case BOT_SPEC_PRIEST_DISCIPLINE:
+                case BOT_SPEC_PRIEST_HOLY:
+                case BOT_SPEC_PRIEST_SHADOW:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_DEATH_KNIGHT:
+            switch (spec)
+            {
+                case BOT_SPEC_DK_BLOOD:
+                case BOT_SPEC_DK_FROST:
+                case BOT_SPEC_DK_UNHOLY:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_SHAMAN:
+            switch (spec)
+            {
+                case BOT_SPEC_SHAMAN_ELEMENTAL:
+                case BOT_SPEC_SHAMAN_ENHANCEMENT:
+                case BOT_SPEC_SHAMAN_RESTORATION:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_MAGE:
+            switch (spec)
+            {
+                case BOT_SPEC_MAGE_ARCANE:
+                case BOT_SPEC_MAGE_FIRE:
+                case BOT_SPEC_MAGE_FROST:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_WARLOCK:
+            switch (spec)
+            {
+                case BOT_SPEC_WARLOCK_AFFLICTION:
+                case BOT_SPEC_WARLOCK_DEMONOLOGY:
+                case BOT_SPEC_WARLOCK_DESTRUCTION:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_DRUID:
+            switch (spec)
+            {
+                case BOT_SPEC_DRUID_BALANCE:
+                case BOT_SPEC_DRUID_FERAL:
+                case BOT_SPEC_DRUID_RESTORATION:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case BOT_CLASS_BM:
+        case BOT_CLASS_SPHYNX:
+        case BOT_CLASS_ARCHMAGE:
+        case BOT_CLASS_DREADLORD:
+        case BOT_CLASS_SPELLBREAKER:
+        case BOT_CLASS_DARK_RANGER:
+            return spec == BOT_SPEC_DEFAULT;
+        default:
+            break;
+    }
+    return false;
+}
+
 void bot_ai::InitEquips()
 {
     int8 id = 1;
@@ -13354,6 +13480,7 @@ void bot_ai::DoRubyDrakeVehicleStrats(uint32 diff)
         return;
 
     Creature* drake = me->GetVehicleCreatureBase();
+    ASSERT(drake);
     Unit* target = nullptr;
     uint32 drakespell = 0;
 
@@ -13578,6 +13705,7 @@ void bot_ai::DoAmberDrakeVehicleStrats(uint32 diff)
         return;
 
     Creature* drake = me->GetVehicleCreatureBase();
+    ASSERT(drake);
     Unit const* mmover = master->GetVehicle() ? master->GetVehicleBase() : master;
     Unit* target = nullptr;
     uint32 drakespell = 0;
@@ -15167,7 +15295,7 @@ void bot_ai::BuildGrouUpdatePacket(WorldPacket* data)
         if (mask & (1 << i))
             byteCount += GroupUpdateLength[i];
 
-    data->Initialize(SMSG_PARTY_MEMBER_STATS, 8 + 4 + byteCount);
+    data->Initialize(SMSG_PARTY_MEMBER_STATS, size_t(8) + 4u + byteCount);
     *data << me->GetGUID().WriteAsPacked();
     *data << uint32(mask);
 
