@@ -182,7 +182,7 @@ class boss_sapphiron : public CreatureScript
                 me->CastSpell(me, SPELL_FROST_AURA, true);
 
                 events.SetPhase(PHASE_GROUND);
-                events.ScheduleEvent(EVENT_CHECK_RESISTS, Seconds(0));
+                events.ScheduleEvent(EVENT_CHECK_RESISTS, 0s);
                 events.ScheduleEvent(EVENT_BERSERK, Minutes(15));
                 EnterPhaseGround(true);
             }
@@ -207,7 +207,7 @@ class boss_sapphiron : public CreatureScript
             void MovementInform(uint32 /*type*/, uint32 id) override
             {
                 if (id == 1)
-                    events.ScheduleEvent(EVENT_LIFTOFF, Seconds(0), 0, PHASE_FLIGHT);
+                    events.ScheduleEvent(EVENT_LIFTOFF, 0s, 0, PHASE_FLIGHT);
             }
 
             void DoAction(int32 param) override
@@ -299,10 +299,7 @@ class boss_sapphiron : public CreatureScript
                                 events.ScheduleEvent(EVENT_TAIL, randtime(Seconds(7), Seconds(10)), 0, PHASE_GROUND);
                                 return;
                             case EVENT_DRAIN:
-                                if (events.IsInPhase(PHASE_FLIGHT))
-                                    _delayedDrain = true;
-                                else
-                                    CastDrain();
+                                CastDrain();
                                 return;
                             case EVENT_BLIZZARD:
                                 DoCastAOE(SPELL_SUMMON_BLIZZARD);
@@ -403,6 +400,9 @@ class boss_sapphiron : public CreatureScript
                                 me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                                 me->SetReactState(REACT_AGGRESSIVE);
                                 return;
+                            case EVENT_DRAIN:
+                                _delayedDrain = true;
+                                break;
                         }
                     }
                 }

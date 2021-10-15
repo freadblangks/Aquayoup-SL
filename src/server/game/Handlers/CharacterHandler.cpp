@@ -438,6 +438,9 @@ void WorldSession::HandleCharEnum(CharacterDatabaseQueryHolder* holder)
         WorldPackets::Character::EnumCharactersResult::RaceUnlock raceUnlock;
         raceUnlock.RaceID = requirement.first;
         raceUnlock.HasExpansion = GetAccountExpansion() >= requirement.second.Expansion;
+        raceUnlock.HasAchievement = requirement.second.AchievementId != 0
+            && (sWorld->getBoolConfig(CONFIG_CHARACTER_CREATING_DISABLE_ALLIED_RACE_ACHIEVEMENT_REQUIREMENT)
+                /* || HasAccountAchievement(requirement.second.AchievementId)*/);
         charEnum.RaceUnlockData.push_back(raceUnlock);
     }
 
@@ -828,6 +831,13 @@ void WorldSession::HandleCharCreateOpcode(WorldPackets::Character::CreateCharact
                 return;
             }
 
+            // Check name uniqueness in the same step as saving to database
+            if (sCharacterCache->GetCharacterCacheByName(createInfo->Name))
+            {
+                SendCharCreate(CHAR_CREATE_NAME_IN_USE);
+                return;
+            }
+
             std::shared_ptr<Player> newChar(new Player(this), [](Player* ptr)
             {
                 ptr->CleanupsBeforeDelete();
@@ -1118,19 +1128,32 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     {
         pCurrChar->setCinematic(1);
 
-        if (ChrClassesEntry const* cEntry = sChrClassesStore.LookupEntry(pCurrChar->getClass()))
+        if (PlayerInfo const* playerInfo = sObjectMgr->GetPlayerInfo(pCurrChar->getRace(), pCurrChar->getClass()))
         {
-            if (pCurrChar->getClass() == CLASS_DEMON_HUNTER) /// @todo: find a more generic solution
-                pCurrChar->SendMovieStart(469);
-            else if (cEntry->CinematicSequenceID)
-                pCurrChar->SendCinematicStart(cEntry->CinematicSequenceID);
-            else if (ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(pCurrChar->getRace()))
-                pCurrChar->SendCinematicStart(rEntry->CinematicSequenceID);
-
-            // send new char string if not empty
-            if (!sWorld->GetNewCharString().empty())
-                chH.PSendSysMessage("%s", sWorld->GetNewCharString().c_str());
+            switch (pCurrChar->GetCreateMode())
+            {
+                case PlayerCreateMode::Normal:
+                    if (playerInfo->introMovieId)
+                        pCurrChar->SendMovieStart(playerInfo->introMovieId.get());
+                    else if (playerInfo->introSceneId)
+                        pCurrChar->GetSceneMgr().PlayScene(*playerInfo->introSceneId);
+                    else if (sChrClassesStore.AssertEntry(pCurrChar->getClass())->CinematicSequenceID)
+                        pCurrChar->SendCinematicStart(sChrClassesStore.AssertEntry(pCurrChar->getClass())->CinematicSequenceID);
+                    else if (sChrRacesStore.AssertEntry(pCurrChar->getRace())->CinematicSequenceID)
+                        pCurrChar->SendCinematicStart(sChrRacesStore.AssertEntry(pCurrChar->getRace())->CinematicSequenceID);
+                    break;
+                case PlayerCreateMode::NPE:
+                    if (playerInfo->introSceneIdNPE)
+                        pCurrChar->GetSceneMgr().PlayScene(*playerInfo->introSceneIdNPE);
+                    break;
+                default:
+                    break;
+            }
         }
+
+        // send new char string if not empty
+        if (!sWorld->GetNewCharString().empty())
+            chH.PSendSysMessage("%s", sWorld->GetNewCharString().c_str());
     }
 
     if (!pCurrChar->GetMap()->AddPlayerToMap(pCurrChar))
@@ -1370,7 +1393,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     m_playerLoading.Clear();
 
     // Handle Login-Achievements (should be handled after loading)
-    _player->UpdateCriteria(CRITERIA_TYPE_ON_LOGIN, 1);
+    _player->UpdateCriteria(CriteriaType::Login, 1);
 
     sScriptMgr->OnPlayerLogin(pCurrChar, firstLogin);
 
@@ -1698,7 +1721,7 @@ void WorldSession::HandleAlterAppearance(WorldPackets::Character::AlterApperance
     SendPacket(WorldPackets::Character::BarberShopResult(WorldPackets::Character::BarberShopResult::ResultEnum::Success).Write());
 
     _player->ModifyMoney(-cost);                     // it isn't free
-    _player->UpdateCriteria(CRITERIA_TYPE_GOLD_SPENT_AT_BARBER, cost);
+    _player->UpdateCriteria(CriteriaType::MoneySpentAtBarberShop, cost);
 
     if (_player->GetNativeSex() != packet.NewSex)
     {
@@ -1709,7 +1732,7 @@ void WorldSession::HandleAlterAppearance(WorldPackets::Character::AlterApperance
 
     _player->SetCustomizations(Trinity::Containers::MakeIteratorPair(packet.Customizations.begin(), packet.Customizations.end()));
 
-    _player->UpdateCriteria(CRITERIA_TYPE_VISIT_BARBER_SHOP, 1);
+    _player->UpdateCriteria(CriteriaType::GotHaircut, 1);
 
     _player->SetStandState(UNIT_STAND_STATE_STAND);
 
@@ -1965,7 +1988,7 @@ void WorldSession::HandleUseEquipmentSet(WorldPackets::EquipmentSet::UseEquipmen
             InventoryResult inventoryResult = _player->CanStoreItem(NULL_BAG, NULL_SLOT, itemPosCountVec, uItem, false);
             if (inventoryResult == EQUIP_ERR_OK)
             {
-                if (_player->CanEquipItem(NULL_SLOT, dstPos, uItem, false) != EQUIP_ERR_OK)
+                if (_player->CanUnequipItem(dstPos, true) != EQUIP_ERR_OK)
                     continue;
 
                 _player->RemoveItem(INVENTORY_SLOT_BAG_0, i, true);
@@ -1979,7 +2002,7 @@ void WorldSession::HandleUseEquipmentSet(WorldPackets::EquipmentSet::UseEquipmen
         if (item->GetPos() == dstPos)
             continue;
 
-        if (_player->CanUnequipItem(dstPos, true) != EQUIP_ERR_OK)
+        if (_player->CanEquipItem(i, dstPos, item, true) != EQUIP_ERR_OK)
             continue;
 
         _player->SwapItem(item->GetPos(), dstPos);

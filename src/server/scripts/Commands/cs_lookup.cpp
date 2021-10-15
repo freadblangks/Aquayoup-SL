@@ -886,10 +886,12 @@ public:
 
                     bool known = target && target->HasSpell(spellInfo->Id);
 
-                    SpellEffectInfo const* effect = spellInfo->GetEffect(EFFECT_0);
-                    bool learn = effect ? (effect->Effect == SPELL_EFFECT_LEARN_SPELL) : false;
+                    auto spellEffectInfo = std::find_if(spellInfo->GetEffects().begin(), spellInfo->GetEffects().end(), [](SpellEffectInfo const& spelleffectInfo)
+                    {
+                        return spelleffectInfo.IsEffect(SPELL_EFFECT_LEARN_SPELL);
+                    });
 
-                    SpellInfo const* learnSpellInfo = effect ? sSpellMgr->GetSpellInfo(effect->TriggerSpell, spellInfo->Difficulty) : nullptr;
+                    SpellInfo const* learnSpellInfo = spellEffectInfo != spellInfo->GetEffects().end() ? sSpellMgr->GetSpellInfo(spellEffectInfo->TriggerSpell, spellInfo->Difficulty) : nullptr;
 
                     bool talent = spellInfo->HasAttribute(SPELL_ATTR0_CU_IS_TALENT);
                     bool passive = spellInfo->IsPassive();
@@ -897,7 +899,7 @@ public:
 
                     // unit32 used to prevent interpreting uint8 as char at output
                     // find rank of learned spell for learning spell, or talent rank
-                    uint32 rank = learn && learnSpellInfo ? learnSpellInfo->GetRank() : spellInfo->GetRank();
+                    uint32 rank = learnSpellInfo ? learnSpellInfo->GetRank() : spellInfo->GetRank();
 
                     // send spell in "id - [name, rank N] [talent] [passive] [learn] [known]" format
                     std::ostringstream ss;
@@ -917,7 +919,7 @@ public:
                         ss << handler->GetTrinityString(LANG_TALENT);
                     if (passive)
                         ss << handler->GetTrinityString(LANG_PASSIVE);
-                    if (learn)
+                    if (learnSpellInfo)
                         ss << handler->GetTrinityString(LANG_LEARN);
                     if (known)
                         ss << handler->GetTrinityString(LANG_KNOWN);
@@ -959,10 +961,12 @@ public:
 
             bool known = target && target->HasSpell(id);
 
-            SpellEffectInfo const* effect = spellInfo->GetEffect(EFFECT_0);
-            bool learn = effect? (effect->Effect == SPELL_EFFECT_LEARN_SPELL) : false;
+            auto spellEffectInfo = std::find_if(spellInfo->GetEffects().begin(), spellInfo->GetEffects().end(), [](SpellEffectInfo const& spelleffectInfo)
+            {
+                return spelleffectInfo.IsEffect(SPELL_EFFECT_LEARN_SPELL);
+            });
 
-            SpellInfo const* learnSpellInfo = effect ? sSpellMgr->GetSpellInfo(effect->TriggerSpell, DIFFICULTY_NONE) : nullptr;
+            SpellInfo const* learnSpellInfo = spellEffectInfo != spellInfo->GetEffects().end() ? sSpellMgr->GetSpellInfo(spellEffectInfo->TriggerSpell, spellInfo->Difficulty) : nullptr;
 
             bool talent = spellInfo->HasAttribute(SPELL_ATTR0_CU_IS_TALENT);
             bool passive = spellInfo->IsPassive();
@@ -970,7 +974,7 @@ public:
 
             // unit32 used to prevent interpreting uint8 as char at output
             // find rank of learned spell for learning spell, or talent rank
-            uint32 rank = learn && learnSpellInfo ? learnSpellInfo->GetRank() : spellInfo->GetRank();
+            uint32 rank = learnSpellInfo ? learnSpellInfo->GetRank() : spellInfo->GetRank();
 
             // send spell in "id - [name, rank N] [talent] [passive] [learn] [known]" format
             std::ostringstream ss;
@@ -992,7 +996,7 @@ public:
                 ss << handler->GetTrinityString(LANG_TALENT);
             if (passive)
                 ss << handler->GetTrinityString(LANG_PASSIVE);
-            if (learn)
+            if (learnSpellInfo)
                 ss << handler->GetTrinityString(LANG_LEARN);
             if (known)
                 ss << handler->GetTrinityString(LANG_KNOWN);

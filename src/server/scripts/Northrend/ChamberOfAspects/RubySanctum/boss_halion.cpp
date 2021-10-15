@@ -355,7 +355,8 @@ class boss_halion : public CreatureScript
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true, true, -SPELL_TWILIGHT_REALM))
                             {
                                 _meteorStrikePos = target->GetPosition();
-                                me->CastSpell(_meteorStrikePos, SPELL_METEOR_STRIKE, me->GetGUID());
+                                me->CastSpell(_meteorStrikePos, SPELL_METEOR_STRIKE, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
+                                    .SetOriginalCaster(me->GetGUID()));
                                 Talk(SAY_METEOR_STRIKE);
                             }
                             events.ScheduleEvent(EVENT_METEOR_STRIKE, Seconds(38));
@@ -1030,7 +1031,7 @@ class npc_meteor_strike_initial : public CreatureScript
                     Position const* ownerPos = halionAI->GetMeteorStrikePosition();
                     float randomAdjustment = frand(static_cast<float>(M_PI / 5.0f), static_cast<float>(M_PI / 2.0f));
                     float angle[4];
-                    angle[0] = me->GetAngle(ownerPos);
+                    angle[0] = me->GetAbsoluteAngle(ownerPos);
                     angle[1] = angle[0] + randomAdjustment;
                     angle[2] = angle[0] + static_cast<float>(M_PI);
                     angle[3] = angle[2] + randomAdjustment;
@@ -1500,7 +1501,7 @@ class spell_halion_combustion_consumption_periodic : public SpellScriptLoader
 
             bool Validate(SpellInfo const* spellInfo) override
             {
-                return ValidateSpellInfo({ spellInfo->GetEffect(EFFECT_0)->TriggerSpell });
+                return !spellInfo->GetEffects().empty() && ValidateSpellInfo({ spellInfo->GetEffect(EFFECT_0).TriggerSpell });
             }
 
             void HandleTick(AuraEffect const* aurEff)
@@ -1510,7 +1511,7 @@ class spell_halion_combustion_consumption_periodic : public SpellScriptLoader
                 if (!caster)
                     return;
 
-                uint32 triggerSpell = aurEff->GetSpellEffectInfo()->TriggerSpell;
+                uint32 triggerSpell = aurEff->GetSpellEffectInfo().TriggerSpell;
                 int32 radius = caster->GetObjectScale() * M_PI * 10000 / 3;
 
                 CastSpellExtraArgs args(aurEff);
@@ -1568,7 +1569,8 @@ class spell_halion_marks : public SpellScriptLoader
                     return;
 
                 // Stacks marker
-                CastSpellExtraArgs args(GetCasterGUID());
+                CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
+                args.SetOriginalCaster(GetCasterGUID());
                 args.AddSpellMod(SPELLVALUE_BASE_POINT1, aurEff->GetBase()->GetStackAmount());
                 GetTarget()->CastSpell(GetTarget(), _summonSpellId, args);
             }
@@ -1606,8 +1608,8 @@ class spell_halion_damage_aoe_summon : public SpellScriptLoader
             {
                 PreventHitDefaultEffect(effIndex);
                 Unit* caster = GetCaster();
-                uint32 entry = uint32(GetSpellInfo()->GetEffect(effIndex)->MiscValue);
-                SummonPropertiesEntry const* properties = sSummonPropertiesStore.LookupEntry(uint32(GetSpellInfo()->GetEffect(effIndex)->MiscValueB));
+                uint32 entry = uint32(GetEffectInfo().MiscValue);
+                SummonPropertiesEntry const* properties = sSummonPropertiesStore.LookupEntry(uint32(GetEffectInfo().MiscValueB));
                 uint32 duration = uint32(GetSpellInfo()->GetDuration());
 
                 Position pos = caster->GetPosition();
@@ -1707,10 +1709,10 @@ class spell_halion_clear_debuffs : public SpellScriptLoader
                 return ValidateSpellInfo({ SPELL_CLEAR_DEBUFFS, SPELL_TWILIGHT_REALM });
             }
 
-            void HandleScript(SpellEffIndex effIndex)
+            void HandleScript(SpellEffIndex /*effIndex*/)
             {
-                if (GetHitUnit()->HasAura(GetSpellInfo()->GetEffect(effIndex)->CalcValue()))
-                    GetHitUnit()->RemoveAurasDueToSpell(GetSpellInfo()->GetEffect(effIndex)->CalcValue());
+                if (GetHitUnit()->HasAura(GetEffectInfo().CalcValue()))
+                    GetHitUnit()->RemoveAurasDueToSpell(GetEffectInfo().CalcValue());
             }
 
             void Register() override
@@ -1891,7 +1893,7 @@ class spell_halion_blazing_aura : public SpellScriptLoader
             void HandleScript(SpellEffIndex effIndex)
             {
                 PreventHitDefaultEffect(effIndex);
-                GetHitUnit()->CastSpell(GetHitUnit(), GetSpellInfo()->GetEffect(EFFECT_1)->TriggerSpell);
+                GetHitUnit()->CastSpell(GetHitUnit(), GetEffectInfo().TriggerSpell);
             }
 
             void Register() override

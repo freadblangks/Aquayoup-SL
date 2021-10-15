@@ -27,20 +27,25 @@ EndScriptData */
 #include "CreatureAI.h"
 #include "CreatureGroups.h"
 #include "DatabaseEnv.h"
+#include "DB2Stores.h"
+#include "FollowMovementGenerator.h"
 #include "GameTime.h"
 #include "Language.h"
 #include "Log.h"
 #include "Map.h"
+#include "MotionMaster.h"
+#include "MovementDefines.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "RBAC.h"
-#include "TargetedMovementGenerator.h"                      // for HandleNpcUnFollowCommand
 #include "Transport.h"
 #include "World.h"
 #include "WorldSession.h"
+#include <boost/core/demangle.hpp>
+#include <typeinfo>
 
 template<typename E, typename T = char const*>
 struct EnumName
@@ -51,10 +56,7 @@ struct EnumName
 
 #define CREATE_NAMED_ENUM(VALUE) { VALUE, STRINGIZE(VALUE) }
 
-#define NPC_FLAG_COUNT    24
-#define FLAGS_EXTRA_COUNT 21
-
-EnumName<NPCFlags, uint32> const npcFlagTexts[NPC_FLAG_COUNT] =
+EnumName<NPCFlags, int32> const npcFlagTexts[] =
 {
     { UNIT_NPC_FLAG_AUCTIONEER,         LANG_NPCINFO_AUCTIONEER         },
     { UNIT_NPC_FLAG_BANKER,             LANG_NPCINFO_BANKER             },
@@ -81,6 +83,8 @@ EnumName<NPCFlags, uint32> const npcFlagTexts[NPC_FLAG_COUNT] =
     { UNIT_NPC_FLAG_VENDOR_POISON,      LANG_NPCINFO_VENDOR_POISON      },
     { UNIT_NPC_FLAG_VENDOR_REAGENT,     LANG_NPCINFO_VENDOR_REAGENT     }
 };
+
+uint32 const NPCFLAG_COUNT = std::extent<decltype(npcFlagTexts)>::value;
 
 EnumName<Mechanics> const mechanicImmunes[MAX_MECHANIC] =
 {
@@ -124,7 +128,7 @@ EnumName<UnitFlags> const unitFlags[MAX_UNIT_FLAGS] =
     CREATE_NAMED_ENUM(UNIT_FLAG_SERVER_CONTROLLED),
     CREATE_NAMED_ENUM(UNIT_FLAG_NON_ATTACKABLE),
     CREATE_NAMED_ENUM(UNIT_FLAG_REMOVE_CLIENT_CONTROL),
-    CREATE_NAMED_ENUM(UNIT_FLAG_PVP_ATTACKABLE),
+    CREATE_NAMED_ENUM(UNIT_FLAG_PLAYER_CONTROLLED),
     CREATE_NAMED_ENUM(UNIT_FLAG_RENAME),
     CREATE_NAMED_ENUM(UNIT_FLAG_PREPARATION),
     CREATE_NAMED_ENUM(UNIT_FLAG_UNK_6),
@@ -137,7 +141,7 @@ EnumName<UnitFlags> const unitFlags[MAX_UNIT_FLAGS] =
     CREATE_NAMED_ENUM(UNIT_FLAG_SILENCED),
     CREATE_NAMED_ENUM(UNIT_FLAG_CANNOT_SWIM),
     CREATE_NAMED_ENUM(UNIT_FLAG_UNK_15),
-    CREATE_NAMED_ENUM(UNIT_FLAG_UNK_16),
+    CREATE_NAMED_ENUM(UNIT_FLAG_NON_ATTACKABLE_2),
     CREATE_NAMED_ENUM(UNIT_FLAG_PACIFIED),
     CREATE_NAMED_ENUM(UNIT_FLAG_STUNNED),
     CREATE_NAMED_ENUM(UNIT_FLAG_IN_COMBAT),
@@ -145,7 +149,7 @@ EnumName<UnitFlags> const unitFlags[MAX_UNIT_FLAGS] =
     CREATE_NAMED_ENUM(UNIT_FLAG_DISARMED),
     CREATE_NAMED_ENUM(UNIT_FLAG_CONFUSED),
     CREATE_NAMED_ENUM(UNIT_FLAG_FLEEING),
-    CREATE_NAMED_ENUM(UNIT_FLAG_PLAYER_CONTROLLED),
+    CREATE_NAMED_ENUM(UNIT_FLAG_POSSESSED),
     CREATE_NAMED_ENUM(UNIT_FLAG_NOT_SELECTABLE),
     CREATE_NAMED_ENUM(UNIT_FLAG_SKINNABLE),
     CREATE_NAMED_ENUM(UNIT_FLAG_MOUNT),
@@ -183,7 +187,7 @@ EnumName<UnitFlags3> const unitFlags3[MAX_UNIT_FLAGS_3] =
     CREATE_NAMED_ENUM(UNIT_FLAG3_UNK1)
 };
 
-EnumName<CreatureFlagsExtra> const flagsExtra[FLAGS_EXTRA_COUNT] =
+EnumName<CreatureFlagsExtra> const flagsExtra[] =
 {
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_INSTANCE_BIND),
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_CIVILIAN),
@@ -195,6 +199,7 @@ EnumName<CreatureFlagsExtra> const flagsExtra[FLAGS_EXTRA_COUNT] =
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_TRIGGER),
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_NO_TAUNT),
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE),
+    CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_NO_SELL_VENDOR),
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_WORLDEVENT),
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_GUARD),
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_NO_CRIT),
@@ -207,6 +212,8 @@ EnumName<CreatureFlagsExtra> const flagsExtra[FLAGS_EXTRA_COUNT] =
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_IMMUNITY_KNOCKBACK),
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_USE_OFFHAND_ATTACK)
 };
+
+uint32 const FLAGS_EXTRA_COUNT = std::extent<decltype(flagsExtra)>::value;
 
 bool HandleNpcSpawnGroup(ChatHandler* handler, char const* args)
 {
@@ -381,13 +388,11 @@ public:
             data.spawnId = guid;
             data.id = id;
             data.spawnPoint.Relocate(chr->GetTransOffsetX(), chr->GetTransOffsetY(), chr->GetTransOffsetZ(), chr->GetTransOffsetO());
-            /// @todo: add phases
-
-            Creature* creature = trans->CreateNPCPassenger(guid, &data);
-
-            creature->SaveToDB(trans->GetGOInfo()->moTransport.SpawnMap, { map->GetDifficultyID() });
-
-            sObjectMgr->AddCreatureToGrid(guid, &data);
+            if (Creature* creature = trans->CreateNPCPassenger(guid, &data))
+            {
+                creature->SaveToDB(trans->GetGOInfo()->moTransport.SpawnMap, { map->GetDifficultyID() });
+                sObjectMgr->AddCreatureToGrid(guid, &data);
+            }
             return true;
         }
 
@@ -872,13 +877,15 @@ public:
         handler->PSendSysMessage(LANG_NPCINFO_ARMOR, target->GetArmor());
         handler->PSendSysMessage(LANG_NPCINFO_POSITION, target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
         handler->PSendSysMessage(LANG_OBJECTINFO_AIINFO, target->GetAIName().c_str(), target->GetScriptName().c_str());
+        if (CreatureAI const* ai = target->AI())
+            handler->PSendSysMessage(LANG_OBJECTINFO_AITYPE, boost::core::demangle(typeid(*ai).name()).c_str());
         handler->PSendSysMessage(LANG_NPCINFO_FLAGS_EXTRA, cInfo->flags_extra);
         for (uint8 i = 0; i < FLAGS_EXTRA_COUNT; ++i)
             if (cInfo->flags_extra & flagsExtra[i].Value)
                 handler->PSendSysMessage("%s (0x%X)", flagsExtra[i].Name, flagsExtra[i].Value);
 
         handler->PSendSysMessage(LANG_NPCINFO_NPC_FLAGS, target->m_unitData->NpcFlags[0]);
-        for (uint8 i = 0; i < NPC_FLAG_COUNT; i++)
+        for (uint8 i = 0; i < NPCFLAG_COUNT; i++)
             if (npcflags & npcFlagTexts[i].Value)
                 handler->PSendSysMessage(npcFlagTexts[i].Name, npcFlagTexts[i].Value);
 
@@ -1368,7 +1375,7 @@ public:
         return true;
     }
 
-    //npc unfollow handling
+    // npc unfollow handling
     static bool HandleNpcUnFollowCommand(ChatHandler* handler, char const* /*args*/)
     {
         Player* player = handler->GetSession()->GetPlayer();
@@ -1381,26 +1388,24 @@ public:
             return false;
         }
 
-        if (/*creature->GetMotionMaster()->empty() ||*/
-            creature->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
+        MovementGenerator* movement = creature->GetMotionMaster()->GetMovementGenerator([player](MovementGenerator const* a) -> bool
+        {
+            if (a->GetMovementGeneratorType() == FOLLOW_MOTION_TYPE)
+            {
+                FollowMovementGenerator const* followMovement = dynamic_cast<FollowMovementGenerator const*>(a);
+                return followMovement && followMovement->GetTarget() == player;
+            }
+            return false;
+        });
+
+        if (!movement)
         {
             handler->PSendSysMessage(LANG_CREATURE_NOT_FOLLOW_YOU, creature->GetName().c_str());
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        FollowMovementGenerator<Creature> const* mgen = static_cast<FollowMovementGenerator<Creature> const*>((creature->GetMotionMaster()->top()));
-
-        if (mgen->GetTarget() != player)
-        {
-            handler->PSendSysMessage(LANG_CREATURE_NOT_FOLLOW_YOU, creature->GetName().c_str());
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        // reset movement
-        creature->GetMotionMaster()->MovementExpired(true);
-
+        creature->GetMotionMaster()->Remove(movement);
         handler->PSendSysMessage(LANG_CREATURE_NOT_FOLLOW_YOU_NOW, creature->GetName().c_str());
         return true;
     }
@@ -1731,7 +1736,7 @@ public:
 
         Player* chr = handler->GetSession()->GetPlayer();
 
-        float  followAngle = (creature->GetAngle(chr) - chr->GetOrientation()) * 180.0f / float(M_PI);
+        float  followAngle = (creature->GetAbsoluteAngle(chr) - chr->GetOrientation()) * 180.0f / float(M_PI);
         float  followDist  = std::sqrt(std::pow(chr->GetPositionX() - creature->GetPositionX(), 2.f) + std::pow(chr->GetPositionY() - creature->GetPositionY(), 2.f));
         uint32 groupAI     = 0;
         sFormationMgr->AddFormationMember(lowguid, followAngle, followDist, leaderGUID, groupAI);

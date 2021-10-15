@@ -632,8 +632,6 @@ class boss_thorim : public CreatureScript
                         summon->SetReactState(REACT_PASSIVE);
                         summon->CastSpell(summon, SPELL_LIGHTNING_DESTRUCTION, true);
 
-                        summon->GetMotionMaster()->MovePoint(EVENT_CHARGE_PREPATH, LightningOrbPath[LightningOrbPathSize - 1], false);
-
                         Movement::PointsArray path;
                         path.reserve(LightningOrbPathSize);
                         std::transform(std::begin(LightningOrbPath), std::end(LightningOrbPath), std::back_inserter(path), [](Position const& pos)
@@ -643,7 +641,7 @@ class boss_thorim : public CreatureScript
 
                         Movement::MoveSplineInit init(summon);
                         init.MovebyPath(path);
-                        init.Launch();
+                        summon->GetMotionMaster()->LaunchMoveSpline(std::move(init), 0, MOTION_PRIORITY_NORMAL, POINT_MOTION_TYPE);
                         break;
                     }
                     case NPC_DARK_RUNE_CHAMPION:
@@ -959,13 +957,13 @@ struct npc_thorim_trashAI : public ScriptedAI
         static uint32 GetTotalHeal(SpellInfo const* spellInfo, Unit const* caster)
         {
             uint32 heal = 0;
-            for (SpellEffectInfo const* effect : spellInfo->GetEffects())
+            for (SpellEffectInfo const& spellEffectInfo : spellInfo->GetEffects())
             {
-                if (effect->IsEffect(SPELL_EFFECT_HEAL))
-                    heal += effect->CalcValue(caster);
+                if (spellEffectInfo.IsEffect(SPELL_EFFECT_HEAL))
+                    heal += spellEffectInfo.CalcValue(caster);
 
-                if (effect->IsEffect(SPELL_EFFECT_APPLY_AURA) && effect->IsAura(SPELL_AURA_PERIODIC_HEAL))
-                    heal += spellInfo->GetMaxTicks() * effect->CalcValue(caster);
+                if (spellEffectInfo.IsEffect(SPELL_EFFECT_APPLY_AURA) && spellEffectInfo.IsAura(SPELL_AURA_PERIODIC_HEAL))
+                    heal += spellInfo->GetMaxTicks() * spellEffectInfo.CalcValue(caster);
             }
             return heal;
         }

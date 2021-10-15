@@ -969,7 +969,7 @@ void npc_doctor::npc_doctorAI::UpdateAI(uint32 diff)
             if (Creature* Patient = me->SummonCreature(patientEntry, **point, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 5000))
             {
                 //303, this flag appear to be required for client side item->spell to work (TARGET_SINGLE_FRIEND)
-                Patient->AddUnitFlag(UNIT_FLAG_PVP_ATTACKABLE);
+                Patient->AddUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED);
 
                 Patients.push_back(Patient->GetGUID());
                 ENSURE_AI(npc_injured_patient::npc_injured_patientAI, Patient->AI())->DoctorGUID = me->GetGUID();
@@ -2220,10 +2220,10 @@ public:
                     break;
             }
 
-            if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE))
-                if (SpellEffectInfo const* effect0 = spellInfo->GetEffect(EFFECT_0))
-                    if (effect0->Effect == SPELL_EFFECT_SUMMON_OBJECT_WILD)
-                        return effect0->MiscValue;
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE);
+
+            if (spellInfo && spellInfo->GetEffect(EFFECT_0).Effect == SPELL_EFFECT_SUMMON_OBJECT_WILD)
+                return spellInfo->GetEffect(EFFECT_0).MiscValue;
 
             return 0;
         }
@@ -2481,7 +2481,7 @@ class npc_train_wrecker : public CreatureScript
                             _isSearching = false;
                             _target = target->GetGUID();
                             me->SetWalk(true);
-                            me->GetMotionMaster()->MovePoint(MOVEID_CHASE, target->GetNearPosition(3.0f, target->GetAngle(me)));
+                            me->GetMotionMaster()->MovePoint(MOVEID_CHASE, target->GetNearPosition(3.0f, target->GetAbsoluteAngle(me)));
                         }
                         else
                             _timer = 3 * IN_MILLISECONDS;
@@ -2821,7 +2821,7 @@ public:
             init.DisableTransportPathTransformations();
             init.MoveTo(x, y, z, false);
             init.SetFacing(o);
-            init.Launch();
+            who->GetMotionMaster()->LaunchMoveSpline(std::move(init), EVENT_VEHICLE_BOARD, MOTION_PRIORITY_HIGHEST);
             who->m_Events.AddEvent(new CastFoodSpell(who, _chairSpells.at(who->GetEntry())), who->m_Events.CalculateTime(1000));
             if (Creature* creature = who->ToCreature())
                 creature->SetDisplayFromModel(0);

@@ -257,9 +257,15 @@ class spell_item_anger_capacitor : public SpellScriptLoader
                 caster->CastSpell(target, spellId, aurEff);
             }
 
+            void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                GetTarget()->RemoveAurasDueToSpell(SPELL_MOTE_OF_ANGER);
+            }
+
             void Register() override
             {
                 OnEffectProc += AuraEffectProcFn(spell_item_anger_capacitor_AuraScript::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+                AfterEffectRemove += AuraEffectRemoveFn(spell_item_anger_capacitor_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
             }
         };
 
@@ -1121,12 +1127,12 @@ class spell_item_crystal_spire_of_karabor : public AuraScript
 
     bool Validate(SpellInfo const* spellInfo) override
     {
-        return spellInfo->GetEffect(EFFECT_0) != nullptr;
+        return !spellInfo->GetEffects().empty();
     }
 
     bool CheckProc(ProcEventInfo& eventInfo)
     {
-        int32 pct = GetSpellInfo()->GetEffect(EFFECT_0)->CalcValue();
+        int32 pct = GetSpellInfo()->GetEffect(EFFECT_0).CalcValue();
         if (HealInfo* healInfo = eventInfo.GetHealInfo())
             if (Unit* healTarget = healInfo->GetTarget())
                 if (healTarget->GetHealth() - healInfo->GetEffectiveHeal() <= healTarget->CountPctFromMaxHealth(pct))
@@ -1774,10 +1780,16 @@ class spell_item_shadowmourne : public AuraScript
         }
     }
 
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_SHADOWMOURNE_SOUL_FRAGMENT);
+    }
+
     void Register() override
     {
         DoCheckProc += AuraCheckProcFn(spell_item_shadowmourne::CheckProc);
         OnEffectProc += AuraEffectProcFn(spell_item_shadowmourne::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_item_shadowmourne::OnRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
@@ -3432,9 +3444,15 @@ public:
                 caster->CastSpell(target, _triggerSpell, aurEff);
         }
 
+        void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+        {
+            GetTarget()->RemoveAurasDueToSpell(_stackSpell);
+        }
+
         void Register() override
         {
             OnEffectProc += AuraEffectProcFn(spell_item_trinket_stack_AuraScript::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+            AfterEffectRemove += AuraEffectRemoveFn(spell_item_trinket_stack_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
         }
 
         uint32 _stackSpell;
@@ -3765,7 +3783,7 @@ class spell_item_artifical_stamina : public AuraScript
 
     bool Validate(SpellInfo const* spellInfo) override
     {
-        return spellInfo->GetEffect(EFFECT_1) != nullptr;
+        return spellInfo->GetEffects().size() > EFFECT_1;
     }
 
     bool Load() override
@@ -3776,7 +3794,7 @@ class spell_item_artifical_stamina : public AuraScript
     void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
     {
         if (Item* artifact = GetOwner()->ToPlayer()->GetItemByGuid(GetAura()->GetCastItemGUID()))
-            amount = GetSpellInfo()->GetEffect(EFFECT_1)->BasePoints * artifact->GetTotalPurchasedArtifactPowers() / 100;
+            amount = GetEffectInfo(EFFECT_1).BasePoints * artifact->GetTotalPurchasedArtifactPowers() / 100;
     }
 
     void Register() override
@@ -3791,7 +3809,7 @@ class spell_item_artifical_damage : public AuraScript
 
     bool Validate(SpellInfo const* spellInfo) override
     {
-        return spellInfo->GetEffect(EFFECT_1) != nullptr;
+        return spellInfo->GetEffects().size() > EFFECT_1;
     }
 
     bool Load() override
@@ -3802,7 +3820,7 @@ class spell_item_artifical_damage : public AuraScript
     void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
     {
         if (Item* artifact = GetOwner()->ToPlayer()->GetItemByGuid(GetAura()->GetCastItemGUID()))
-            amount = GetSpellInfo()->GetEffect(EFFECT_1)->BasePoints * artifact->GetTotalPurchasedArtifactPowers() / 100;
+            amount = GetSpellInfo()->GetEffect(EFFECT_1).BasePoints * artifact->GetTotalPurchasedArtifactPowers() / 100;
     }
 
     void Register() override
@@ -3817,11 +3835,6 @@ enum AuraProcRemoveSpells
     SPELL_JOM_GABBAR                = 29602,
     SPELL_BATTLE_TRANCE             = 45040,
     SPELL_WORLD_QUELLER_FOCUS       = 90900,
-    SPELL_AZURE_WATER_STRIDER       = 118089,
-    SPELL_CRIMSON_WATER_STRIDER     = 127271,
-    SPELL_ORANGE_WATER_STRIDER      = 127272,
-    SPELL_JADE_WATER_STRIDER        = 127274,
-    SPELL_GOLDEN_WATER_STRIDER      = 127278,
     SPELL_BRUTAL_KINSHIP_1          = 144671,
     SPELL_BRUTAL_KINSHIP_2          = 145738
 };
@@ -3838,7 +3851,7 @@ class spell_item_talisman_of_ascendance : public AuraScript
 
     void OnRemove(AuraEffect const* effect, AuraEffectHandleModes /*mode*/)
     {
-        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo()->TriggerSpell);
+        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo().TriggerSpell);
     }
 
     void Register() override
@@ -3859,7 +3872,7 @@ class spell_item_jom_gabbar : public AuraScript
 
     void OnRemove(AuraEffect const* effect, AuraEffectHandleModes /*mode*/)
     {
-        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo()->TriggerSpell);
+        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo().TriggerSpell);
     }
 
     void Register() override
@@ -3880,7 +3893,7 @@ class spell_item_battle_trance : public AuraScript
 
     void OnRemove(AuraEffect const* effect, AuraEffectHandleModes /*mode*/)
     {
-        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo()->TriggerSpell);
+        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo().TriggerSpell);
     }
 
     void Register() override
@@ -3901,7 +3914,7 @@ class spell_item_world_queller_focus : public AuraScript
 
     void OnRemove(AuraEffect const* effect, AuraEffectHandleModes /*mode*/)
     {
-        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo()->TriggerSpell);
+        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo().TriggerSpell);
     }
 
     void Register() override
@@ -3919,21 +3932,14 @@ class spell_item_water_strider : public AuraScript
 {
     PrepareAuraScript(spell_item_water_strider);
 
-    bool Validate(SpellInfo const* /*spell*/) override
+    bool Validate(SpellInfo const* spellInfo) override
     {
-        return ValidateSpellInfo(
-        {
-            SPELL_AZURE_WATER_STRIDER,
-            SPELL_CRIMSON_WATER_STRIDER,
-            SPELL_ORANGE_WATER_STRIDER,
-            SPELL_JADE_WATER_STRIDER,
-            SPELL_GOLDEN_WATER_STRIDER
-        });
+        return spellInfo->GetEffects().size() > EFFECT_1;
     }
 
     void OnRemove(AuraEffect const* /*effect*/, AuraEffectHandleModes /*mode*/)
     {
-        GetTarget()->RemoveAurasDueToSpell(GetSpellInfo()->GetEffect(EFFECT_1)->TriggerSpell);
+        GetTarget()->RemoveAurasDueToSpell(GetSpellInfo()->GetEffect(EFFECT_1).TriggerSpell);
     }
 
     void Register() override
@@ -3955,7 +3961,7 @@ class spell_item_brutal_kinship : public AuraScript
 
     void OnRemove(AuraEffect const* effect, AuraEffectHandleModes /*mode*/)
     {
-        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo()->TriggerSpell);
+        GetTarget()->RemoveAurasDueToSpell(effect->GetSpellEffectInfo().TriggerSpell);
     }
 
     void Register() override

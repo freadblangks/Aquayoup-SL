@@ -354,6 +354,12 @@ enum SpellCategory
     SPELL_CATEGORY_DRINK            = 59
 };
 
+enum SpellVisualKit
+{
+    SPELL_VISUAL_KIT_FOOD           = 406,
+    SPELL_VISUAL_KIT_DRINK          = 438
+};
+
 const uint32 ItemQualityColors[MAX_ITEM_QUALITY] =
 {
     0xff9d9d9d, // GREY
@@ -747,7 +753,7 @@ enum SpellAttr10
     SPELL_ATTR10_HERB_GATHERING_MINING           = 0x00000800, // 11 Only Herb Gathering and Mining
     SPELL_ATTR10_USE_SPELL_BASE_LEVEL_FOR_SCALING= 0x00001000, // 12
     SPELL_ATTR10_RESET_COOLDOWN_ON_ENCOUNTER_END = 0x00002000, // 13
-    SPELL_ATTR10_UNK14                           = 0x00004000, // 14
+    SPELL_ATTR10_ROLLING_PERIODIC                = 0x00004000, // 14 Add remaining periodic damage to new aura when refreshed
     SPELL_ATTR10_UNK15                           = 0x00008000, // 15
     SPELL_ATTR10_UNK16                           = 0x00010000, // 16
     SPELL_ATTR10_CAN_DODGE_PARRY_WHILE_CASTING   = 0x00020000, // 17
@@ -1089,6 +1095,7 @@ enum Team
 
 enum SpellEffectName
 {
+    SPELL_EFFECT_NONE                               = 0,
     SPELL_EFFECT_INSTAKILL                          = 1,
     SPELL_EFFECT_SCHOOL_DAMAGE                      = 2,
     SPELL_EFFECT_DUMMY                              = 3,
@@ -5759,7 +5766,12 @@ enum EventId
     /// Special charge event which is used for charge spells that have explicit targets
     /// and had a path already generated - using it in PointMovementGenerator will not
     /// create a new spline and launch it
-    EVENT_CHARGE_PREPATH    = 1005
+    EVENT_CHARGE_PREPATH    = 1005,
+
+    EVENT_FACE              = 1006,
+    EVENT_VEHICLE_BOARD     = 1007,
+    EVENT_VEHICLE_EXIT      = 1008,
+    EVENT_ASSIST_MOVE       = 1009,
 };
 
 enum ResponseCodes

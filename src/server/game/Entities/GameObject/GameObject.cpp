@@ -50,12 +50,8 @@
 
 void GameObjectTemplate::InitializeQueryData()
 {
-    WorldPacket queryTemp;
     for (uint8 loc = LOCALE_enUS; loc < TOTAL_LOCALES; ++loc)
-    {
-        queryTemp = BuildQueryData(static_cast<LocaleConstant>(loc));
-        QueryData[loc] = queryTemp;
-    }
+        QueryData[loc] = BuildQueryData(static_cast<LocaleConstant>(loc));
 }
 
 WorldPacket GameObjectTemplate::BuildQueryData(LocaleConstant loc) const
@@ -92,7 +88,8 @@ WorldPacket GameObjectTemplate::BuildQueryData(LocaleConstant loc) const
     memcpy(stats.Data, raw.data, MAX_GAMEOBJECT_DATA * sizeof(int32));
     stats.ContentTuningId = ContentTuningId;
 
-    return *queryTemp.Write();
+    queryTemp.Write();
+    return queryTemp.Move();
 }
 
 bool QuaternionData::isUnit() const
@@ -529,7 +526,10 @@ void GameObject::Update(uint32 diff)
         if (m_despawnDelay > diff)
             m_despawnDelay -= diff;
         else
+        {
+            m_despawnDelay = 0;
             DespawnOrUnsummon(0ms, m_despawnRespawnTime);
+        }
     }
 
     switch (m_lootState)
@@ -656,10 +656,6 @@ void GameObject::Update(uint32 diff)
                         m_respawnTime = 0;
                         m_SkillupList.clear();
                         m_usetimes = 0;
-
-                        // If nearby linked trap exists, respawn it
-                        if (GameObject* linkedTrap = GetLinkedTrap())
-                            linkedTrap->SetLootState(GO_READY);
 
                         switch (GetGoType())
                         {
@@ -857,7 +853,7 @@ void GameObject::Update(uint32 diff)
         {
             // If nearby linked trap exists, despawn it
             if (GameObject* linkedTrap = GetLinkedTrap())
-                linkedTrap->SetLootState(GO_JUST_DEACTIVATED);
+                linkedTrap->DespawnOrUnsummon();
 
             //if Gameobject should cast spell, then this, but some GOs (type = 10) should be destroyed
             if (GetGoType() == GAMEOBJECT_TYPE_GOOBER)
@@ -972,7 +968,7 @@ void GameObject::AddUniqueUse(Player* player)
     m_unique_users.insert(player->GetGUID());
 }
 
-void GameObject::DespawnOrUnsummon(Milliseconds const& delay, Seconds const& forceRespawnTime)
+void GameObject::DespawnOrUnsummon(Milliseconds delay, Seconds forceRespawnTime)
 {
     if (delay > 0ms)
     {
@@ -984,9 +980,11 @@ void GameObject::DespawnOrUnsummon(Milliseconds const& delay, Seconds const& for
     }
     else
     {
-        uint32 const respawnDelay = (forceRespawnTime > 0s) ? forceRespawnTime.count() : m_respawnDelayTime;
-        if (m_goData && respawnDelay)
+        if (m_goData)
+        {
+            uint32 const respawnDelay = (forceRespawnTime > 0s) ? forceRespawnTime.count() : m_goData->spawntimesecs;
             SaveRespawnTime(respawnDelay);
+        }
         Delete();
     }
 }
@@ -2050,7 +2048,7 @@ void GameObject::Use(Unit* user)
             Player* player = user->ToPlayer();
 
             player->SendLoot(GetGUID(), LOOT_FISHINGHOLE);
-            player->UpdateCriteria(CRITERIA_TYPE_FISH_IN_GAMEOBJECT, GetGOInfo()->entry);
+            player->UpdateCriteria(CriteriaType::CatchFishInFishingHole, GetGOInfo()->entry);
             return;
         }
 
@@ -2410,9 +2408,9 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, WorldOb
             EventInform(m_goInfo->destructibleBuilding.DestroyedEvent, attackerOrHealer);
             AI()->Destroyed(attackerOrHealer, m_goInfo->destructibleBuilding.DestroyedEvent);
 
-            if (attackerOrHealer && attackerOrHealer->GetTypeId() == TYPEID_PLAYER)
-                if (Battleground* bg = attackerOrHealer->ToPlayer()->GetBattleground())
-                    bg->DestroyGate(attackerOrHealer->ToPlayer(), this);
+            if (Player* player = attackerOrHealer ? attackerOrHealer->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr)
+                if (Battleground* bg = player->GetBattleground())
+                    bg->DestroyGate(player, this);
 
             RemoveFlag(GO_FLAG_DAMAGED);
             AddFlag(GO_FLAG_DESTROYED);

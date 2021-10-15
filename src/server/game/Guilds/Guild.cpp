@@ -3357,8 +3357,9 @@ void Guild::_SendBankContentUpdate(uint8 tabId, SlotIds slots) const
             itemInfo.Slot = int32(*itr);
             itemInfo.Item.ItemID = int32(tabItem ? tabItem->GetEntry() : 0);
             itemInfo.Count = int32(tabItem ? tabItem->GetCount() : 0);
+            itemInfo.EnchantmentID = int32(tabItem ? tabItem->GetEnchantmentId(PERM_ENCHANTMENT_SLOT) : 0);
             itemInfo.Charges = int32(tabItem ? abs(tabItem->GetSpellCharges()) : 0);
-            itemInfo.OnUseEnchantmentID = 0/*int32(tabItem->GetItemSuffixFactor())*/;
+            itemInfo.OnUseEnchantmentID = int32(tabItem ? tabItem->GetEnchantmentId(USE_ENCHANTMENT_SLOT) : 0);
             itemInfo.Flags = 0;
             itemInfo.Locked = false;
 
@@ -3521,7 +3522,7 @@ bool Guild::HasAchieved(uint32 achievementId) const
     return m_achievementMgr.HasAchieved(achievementId);
 }
 
-void Guild::UpdateCriteria(CriteriaTypes type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, WorldObject* ref, Player* player)
+void Guild::UpdateCriteria(CriteriaType type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, WorldObject* ref, Player* player)
 {
     m_achievementMgr.UpdateCriteria(type, miscValue1, miscValue2, miscValue3, ref, player);
 }

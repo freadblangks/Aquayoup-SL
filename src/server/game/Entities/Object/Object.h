@@ -50,6 +50,7 @@ class Player;
 class Scenario;
 class Spell;
 class SpellCastTargets;
+class SpellEffectInfo;
 class SpellInfo;
 class TempSummon;
 class Transport;
@@ -418,9 +419,9 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
-        void GetNearPoint2D(float &x, float &y, float distance, float absAngle) const;
-        void GetNearPoint(WorldObject const* searcher, float &x, float &y, float &z, float searcher_size, float distance2d, float absAngle) const;
-        void GetClosePoint(float &x, float &y, float &z, float size, float distance2d = 0, float angle = 0) const;
+        void GetNearPoint2D(WorldObject const* searcher, float &x, float &y, float distance, float absAngle) const;
+        void GetNearPoint(WorldObject const* searcher, float &x, float &y, float &z, float distance2d, float absAngle) const;
+        void GetClosePoint(float &x, float &y, float &z, float size, float distance2d = 0, float relAngle = 0) const;
         void MovePosition(Position &pos, float dist, float angle);
         Position GetNearPosition(float dist, float angle);
         void MovePositionToFirstCollision(Position &pos, float dist, float angle);
@@ -540,8 +541,8 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         Scenario* GetScenario() const;
 
-        TempSummon* SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, uint32 despawnTime = 0, uint32 vehId = 0, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
-        TempSummon* SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType, Milliseconds const& despawnTime, uint32 vehId = 0, ObjectGuid privateObjectOwner = ObjectGuid::Empty) { return SummonCreature(entry, pos, despawnType, uint32(despawnTime.count()), vehId, privateObjectOwner); }
+        TempSummon* SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, uint32 despawnTime = 0, uint32 vehId = 0, uint32 spellId = 0, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
+        TempSummon* SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType, Milliseconds despawnTime, uint32 vehId = 0, uint32 spellId = 0, ObjectGuid privateObjectOwner = ObjectGuid::Empty) { return SummonCreature(entry, pos, despawnType, uint32(despawnTime.count()), vehId, spellId, privateObjectOwner); }
         TempSummon* SummonCreature(uint32 entry, float x, float y, float z, float o = 0, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, uint32 despawnTime = 0, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
         GameObject* SummonGameObject(uint32 entry, Position const& pos, QuaternionData const& rot, uint32 respawnTime /* s */, GOSummonType summonType = GO_SUMMON_TIMED_OR_CORPSE_DESPAWN);
         GameObject* SummonGameObject(uint32 entry, float x, float y, float z, float ang, QuaternionData const& rot, uint32 respawnTime /* s */);
@@ -564,7 +565,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         Player* GetAffectingPlayer() const;
 
         Player* GetSpellModOwner() const;
-        int32 CalculateSpellDamage(Unit const* target, SpellInfo const* spellInfo, uint8 effIndex, int32 const* basePoints = nullptr, float* variance = nullptr, uint32 castItemId = 0, int32 itemLevel = -1) const;
+        int32 CalculateSpellDamage(Unit const* target, SpellEffectInfo const& spellEffectInfo, int32 const* basePoints = nullptr, float* variance = nullptr, uint32 castItemId = 0, int32 itemLevel = -1) const;
 
         // target dependent range checks
         float GetSpellMaxRangeForTarget(Unit const* target, SpellInfo const* spellInfo) const;
@@ -580,6 +581,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         virtual SpellMissInfo MeleeSpellHitResult(Unit* victim, SpellInfo const* spellInfo) const;
         SpellMissInfo MagicSpellHitResult(Unit* victim, SpellInfo const* spellInfo) const;
         SpellMissInfo SpellHitResult(Unit* victim, SpellInfo const* spellInfo, bool canReflect = false) const;
+        void SendSpellMiss(Unit* target, uint32 spellID, SpellMissInfo missInfo);
 
         virtual uint32 GetFaction() const = 0;
         virtual void SetFaction(uint32 /*faction*/) { }
@@ -594,15 +596,10 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         bool IsNeutralToAll() const;
 
         // CastSpell's third arg can be a variety of things - check out CastSpellExtraArgs' constructors!
-        void CastSpell(SpellCastTargets const& targets, uint32 spellId, CastSpellExtraArgs const& args = { });
-        void CastSpell(WorldObject* target, uint32 spellId, CastSpellExtraArgs const& args = { });
-        void CastSpell(Position const& dest, uint32 spellId, CastSpellExtraArgs const& args = { });
+        void CastSpell(CastSpellTargetArg const& targets, uint32 spellId, CastSpellExtraArgs const& args = { });
 
-        bool IsValidAttackTarget(WorldObject const* target, SpellInfo const* bySpell = nullptr, bool spellCheck = true) const;
-        bool IsValidSpellAttackTarget(WorldObject const* target, SpellInfo const* bySpell) const;
-
-        bool IsValidAssistTarget(WorldObject const* target, SpellInfo const* bySpell = nullptr, bool spellCheck = true) const;
-        bool IsValidSpellAssistTarget(WorldObject const* target, SpellInfo const* bySpell) const;
+        bool IsValidAttackTarget(WorldObject const* target, SpellInfo const* bySpell = nullptr) const;
+        bool IsValidAssistTarget(WorldObject const* target, SpellInfo const* bySpell = nullptr) const;
 
         Unit* GetMagicHitRedirectTarget(Unit* victim, SpellInfo const* spellInfo);
 

@@ -343,7 +343,8 @@ class spell_ulduar_rubble_summon : public SpellScriptLoader
                 ObjectGuid originalCaster = caster->GetInstanceScript() ? caster->GetInstanceScript()->GetGuidData(BOSS_KOLOGARN) : ObjectGuid::Empty;
                 uint32 spellId = GetEffectValue();
                 for (uint8 i = 0; i < 5; ++i)
-                    caster->CastSpell(caster, spellId, originalCaster);
+                    caster->CastSpell(caster, spellId, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
+                        .SetOriginalCaster(originalCaster));
             }
 
             void Register() override
@@ -448,23 +449,22 @@ class spell_ulduar_cancel_stone_grip : public SpellScriptLoader
         {
             PrepareSpellScript(spell_ulduar_cancel_stone_gripSpellScript);
 
+            bool Validate(SpellInfo const* spellInfo) override
+            {
+                return spellInfo->GetEffects().size() > EFFECT_1;
+            }
+
             void HandleScript(SpellEffIndex /*effIndex*/)
             {
                 Unit* target = GetHitUnit();
                 if (!target || !target->GetVehicle())
                     return;
 
-                switch (target->GetMap()->GetDifficultyID())
-                {
-                    case DIFFICULTY_10_N:
-                        target->RemoveAura(GetSpellInfo()->GetEffect(EFFECT_0)->CalcValue());
-                        break;
-                    case DIFFICULTY_25_N:
-                        target->RemoveAura(GetSpellInfo()->GetEffect(EFFECT_1)->CalcValue());
-                        break;
-                    default:
-                        break;
-                }
+                SpellEffIndex effectIndexToCancel = EFFECT_0;
+                if (target->GetMap()->Is25ManRaid())
+                    effectIndexToCancel = EFFECT_1;
+
+                target->RemoveAura(GetEffectInfo(effectIndexToCancel).CalcValue());
             }
 
             void Register() override
@@ -647,7 +647,7 @@ class spell_kologarn_summon_focused_eyebeam : public SpellScriptLoader
             void HandleForceCast(SpellEffIndex effIndex)
             {
                 PreventHitDefaultEffect(effIndex);
-                GetCaster()->CastSpell(GetCaster(), GetSpellInfo()->GetEffect(effIndex)->TriggerSpell, true);
+                GetCaster()->CastSpell(GetCaster(), GetEffectInfo().TriggerSpell, true);
             }
 
             void Register() override

@@ -139,7 +139,8 @@ class boss_trollgore : public CreatureScript
                         case EVENT_SPAWN:
                             for (uint8 i = 0; i < 3; ++i)
                                 if (Creature* trigger = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_TROLLGORE_INVADER_SUMMONER_1 + i)))
-                                    trigger->CastSpell(trigger, RAND(SPELL_SUMMON_INVADER_A, SPELL_SUMMON_INVADER_B, SPELL_SUMMON_INVADER_C), me->GetGUID());
+                                    trigger->CastSpell(trigger, RAND(SPELL_SUMMON_INVADER_A, SPELL_SUMMON_INVADER_B, SPELL_SUMMON_INVADER_C), CastSpellExtraArgs(TRIGGERED_FULL_MASK)
+                                        .SetOriginalCaster(me->GetGUID()));
 
                             events.ScheduleEvent(EVENT_SPAWN, urand(30000, 40000));
                             break;
@@ -311,7 +312,7 @@ class spell_trollgore_invader_taunt : public SpellScriptLoader
 
             bool Validate(SpellInfo const* spellInfo) override
             {
-                return spellInfo->GetEffect(EFFECT_0) && ValidateSpellInfo({ static_cast<uint32>(spellInfo->GetEffect(EFFECT_0)->CalcValue()) });
+                return !spellInfo->GetEffects().empty() && ValidateSpellInfo({ static_cast<uint32>(spellInfo->GetEffect(EFFECT_0).CalcValue()) });
             }
 
             void HandleTaunt(SpellEffIndex /*effIndex*/)
