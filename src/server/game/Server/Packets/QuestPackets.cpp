@@ -749,9 +749,8 @@ WorldPacket const* DisplayPlayerChoice::Write()
     _worldPacket.WriteString(Question);
     return &_worldPacket;
 }
-
 void ChoiceResponse::Read()
-{
+    {
     _worldPacket >> ChoiceID;
     _worldPacket >> ResponseID;
     IsReroll = _worldPacket.ReadBit();

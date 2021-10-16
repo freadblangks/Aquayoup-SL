@@ -17,10 +17,36 @@
 
 // This is where scripts' loading functions should be declared:
 void AddSC_orderhall_warrior();
+void AddSC_zone_mardum();
+void AddSC_zone_vault_of_wardens();
+void AddSC_valsharah();
+void AddSC_suramar();
+void AddSC_stormheim();
+void AddSC_highmountain();
+void AddSC_azsuna();
+void AddSC_dalaran_legion();
+void AddSC_broken_shore();
+void AddSC_zone_argus();
+void AddSC_zone_argus_antoran_wastes();
+void AddSC_zone_argus_krokuun();
+void AddSC_zone_argus_macaree();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
 void AddBrokenIslesScripts()
 {
     AddSC_orderhall_warrior();
+    AddSC_zone_mardum();
+    AddSC_zone_vault_of_wardens();
+    AddSC_valsharah();
+    AddSC_suramar();
+    AddSC_stormheim();
+    AddSC_highmountain();
+    AddSC_azsuna();
+    AddSC_dalaran_legion();
+    AddSC_broken_shore();
+    AddSC_zone_argus();
+    AddSC_zone_argus_antoran_wastes();
+    AddSC_zone_argus_krokuun();
+    AddSC_zone_argus_macaree();
 }

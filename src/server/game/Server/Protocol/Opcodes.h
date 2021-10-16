@@ -1973,7 +1973,7 @@ enum OpcodeServer : uint16
     SMSG_BF_MGR_ENTERING                              = 0xBADD,
     SMSG_BF_MGR_ENTRY_INVITE                          = 0xBADD,
     SMSG_BF_MGR_QUEUE_INVITE                          = 0xBADD,
-    SMSG_BF_MGR_QUEUE_REQUEST_RESPONSE                = 0xBADD,
+    SMSG_BF_MGR_QUEUE_REQUEST_RESPONSE                = 0xBADD
 };
 
 inline bool IsInstanceOnlyOpcode(uint32 opcode)
@@ -2049,34 +2049,34 @@ public:
 
 class OpcodeTable
 {
-    public:
-        OpcodeTable();
+public:
+    OpcodeTable();
 
-        OpcodeTable(OpcodeTable const&) = delete;
-        OpcodeTable& operator=(OpcodeTable const&) = delete;
+    OpcodeTable(OpcodeTable const&) = delete;
+    OpcodeTable& operator=(OpcodeTable const&) = delete;
 
-        ~OpcodeTable();
+    ~OpcodeTable();
 
-        void Initialize();
+    void Initialize();
 
-        ClientOpcodeHandler const* operator[](OpcodeClient index) const
-        {
-            return _internalTableClient[index];
-        }
+    ClientOpcodeHandler const* operator[](OpcodeClient index) const
+    {
+        return _internalTableClient[index];
+    }
 
-        ServerOpcodeHandler const* operator[](OpcodeServer index) const
-        {
-            return _internalTableServer[index];
-        }
+    ServerOpcodeHandler const* operator[](OpcodeServer index) const
+    {
+        return _internalTableServer[index];
+    }
 
-    private:
-        template<typename Handler, Handler HandlerFunction>
-        void ValidateAndSetClientOpcode(OpcodeClient opcode, char const* name, SessionStatus status, PacketProcessing processing);
+private:
+    template<typename Handler, Handler HandlerFunction>
+    void ValidateAndSetClientOpcode(OpcodeClient opcode, char const* name, SessionStatus status, PacketProcessing processing);
 
-        void ValidateAndSetServerOpcode(OpcodeServer opcode, char const* name, SessionStatus status, ConnectionType conIdx);
+    void ValidateAndSetServerOpcode(OpcodeServer opcode, char const* name, SessionStatus status, ConnectionType conIdx);
 
-        ClientOpcodeHandler* _internalTableClient[NUM_OPCODE_HANDLERS];
-        ServerOpcodeHandler* _internalTableServer[NUM_OPCODE_HANDLERS];
+    ClientOpcodeHandler* _internalTableClient[NUM_OPCODE_HANDLERS];
+    ServerOpcodeHandler* _internalTableServer[NUM_OPCODE_HANDLERS];
 };
 
 extern OpcodeTable opcodeTable;
@@ -2084,6 +2084,5 @@ extern OpcodeTable opcodeTable;
 /// Lookup opcode name for human understandable logging
 std::string GetOpcodeNameForLogging(OpcodeClient opcode);
 std::string GetOpcodeNameForLogging(OpcodeServer opcode);
-
 #endif
 /// @}

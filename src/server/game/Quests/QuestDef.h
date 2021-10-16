@@ -476,7 +476,6 @@ class TC_GAME_API Quest
 
         bool IsAutoPush() const { return HasFlagEx(QUEST_FLAGS_EX_AUTO_PUSH); }
         bool IsWorldQuest() const { return HasFlagEx(QUEST_FLAGS_EX_IS_WORLD_QUEST); }
-
         // Possibly deprecated flag
         bool IsUnavailable() const { return HasFlag(QUEST_FLAGS_UNAVAILABLE); }
 
@@ -572,6 +571,7 @@ class TC_GAME_API Quest
         bool   IsRaidQuest(Difficulty difficulty) const;
         bool   IsAllowedInRaid(Difficulty difficulty) const;
         bool   IsDFQuest() const { return (_specialFlags & QUEST_SPECIAL_FLAGS_DF_QUEST) != 0; }
+        bool   IsEmissaryQuest() const { return QuestInfoID == QUEST_INFO_EMISSARY_QUEST; }
         uint32 CalculateHonorGain(uint8 level) const;
         bool   CanIncreaseRewardedQuestCounters() const;
 
@@ -596,7 +596,7 @@ class TC_GAME_API Quest
         std::array<uint32, QUEST_EMOTE_COUNT> DetailsEmoteDelay = { };
         std::array<uint32, QUEST_EMOTE_COUNT> OfferRewardEmote = { };
         std::array<uint32, QUEST_EMOTE_COUNT> OfferRewardEmoteDelay = { };
-
+        int32 _expansion = 0;
         uint32 GetRewChoiceItemsCount() const { return _rewChoiceItemsCount; }
         uint32 GetRewItemsCount() const { return _rewItemsCount; }
         uint32 GetRewCurrencyCount() const { return _rewCurrencyCount; }
@@ -662,7 +662,6 @@ class TC_GAME_API Quest
         uint32 _limitTime = 0;
         Trinity::RaceMask<uint64> _allowableRaces;
         int32 _treasurePickerID = 0;
-        int32 _expansion = 0;
         int32 _managedWorldStateID = 0;
         int32 _questSessionBonus = 0;
         std::string _logTitle;
@@ -708,6 +707,8 @@ class TC_GAME_API Quest
 
         // Helpers
         static uint32 RoundXPValue(uint32 xp);
+        public:
+        uint32 QuestInfoID = 0;
 };
 
 struct QuestStatusData

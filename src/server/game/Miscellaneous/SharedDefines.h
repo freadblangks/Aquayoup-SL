@@ -7524,4 +7524,14 @@ enum class MountResult : uint32
     Ok             = 10 // never sent
 };
 
+enum AreaName : uint32
+{
+    ZONE_KROKUUN = 8574,
+    AREA_KROKUUN_VINDICAAR = 8714,
+    ZONE_ANTORAN_WASTES = 8899,
+    AREA_ANTORAN_WASTES_VINDICAAR = 8916,
+    ZONE_MACARE = 8701,
+    AREA_MACAREE_VINDICAAR = 8915
+};
+
 #endif

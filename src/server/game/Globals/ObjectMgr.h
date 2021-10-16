@@ -793,7 +793,7 @@ typedef std::pair<GraveyardContainer::iterator, GraveyardContainer::iterator> Gr
 typedef std::unordered_map<uint32, VendorItemData> CacheVendorItemContainer;
 
 typedef std::unordered_map<uint32, std::string> RealmNameContainer;
-
+typedef std::unordered_map<uint32, std::vector<uint32>> WorldQuestContainer;
 struct SceneTemplate
 {
     uint32 SceneId = 0;
@@ -1672,7 +1672,7 @@ class TC_GAME_API ObjectMgr
                 return &itr->second;
             return nullptr;
         }
-
+        WorldQuestContainer const& GetWorldQuestStore() const { return _worldQuestStore; }
         std::vector<RaceClassAvailability> const& GetClassExpansionRequirements() const { return _classExpansionRequirementStore; }
         ClassAvailability const* GetClassExpansionRequirement(uint8 raceId, uint8 classId) const;
 
@@ -1860,7 +1860,7 @@ class TC_GAME_API ObjectMgr
         std::unordered_map<uint8, RaceUnlockRequirement> _raceUnlockRequirementStore;
         std::vector<RaceClassAvailability> _classExpansionRequirementStore;
         RealmNameContainer _realmNameStore;
-
+        WorldQuestContainer _worldQuestStore;
         SceneTemplateContainer _sceneTemplateStore;
 
         std::set<uint32> _transportMaps; // Helper container storing map ids that are for transports only, loaded from gameobject_template

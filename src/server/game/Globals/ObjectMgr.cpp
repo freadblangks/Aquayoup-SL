@@ -62,6 +62,7 @@
 #include "Vehicle.h"
 #include "VMapFactory.h"
 #include "World.h"
+#include "WorldQuestMgr.h"
 #include <G3D/g3dmath.h>
 #include <numeric>
 
@@ -230,6 +231,52 @@ ObjectMgr* ObjectMgr::instance()
 {
     static ObjectMgr instance;
     return &instance;
+}
+
+void WorldQuestMgr::LoadWorldQuestTemplates()
+{
+    CleanWorldQuestTemplates();
+
+    QueryResult result = WorldDatabase.Query("SELECT id, duration, variable, value FROM world_quest");
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 questId = fields[0].GetUInt32();
+        Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+
+        if (!quest)
+        {
+            TC_LOG_ERROR("sql.sql", "World Quest: %u exist but no quest template found. Skip.", questId);
+            continue;
+        }
+
+        WorldQuestTemplate* worldQuestTemplate = new WorldQuestTemplate(questId, fields[1].GetUInt32(), fields[2].GetUInt32(), fields[3].GetUInt8());
+        AddWorldQuestTemplate(quest, worldQuestTemplate);
+
+    } while (result->NextRow());
+
+    WorldQuestContainer worldQuests = sObjectMgr->GetWorldQuestStore();
+    for (auto quests : worldQuests)
+    {
+        for (uint32 questId : quests.second)
+        {
+            if (Quest const* quest = sObjectMgr->GetQuestTemplate(questId))
+            {
+                auto itr = _worldQuestTemplates[quest->_expansion].find(questId);
+                if (itr == _worldQuestTemplates[quest->_expansion].end())
+                {
+                    WorldQuestTemplate* worldQuestTemplate = new WorldQuestTemplate(questId, 7200, 12506, 1);
+                    AddWorldQuestTemplate(quest, worldQuestTemplate);
+                }
+            }
+        }
+    }
+
+    if (_emissaryWorldQuestTemplates.size() < WORLD_QUEST_EMISSARY)
+        TC_LOG_ERROR("sql.sql", "World Quest: There is %lu emissary quests but %u needed...", _emissaryWorldQuestTemplates.size(), uint32(WORLD_QUEST_EMISSARY));
 }
 
 ObjectMgr::~ObjectMgr()
