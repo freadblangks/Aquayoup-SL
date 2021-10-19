@@ -3200,6 +3200,15 @@ void WorldObject::PlayDirectMusic(uint32 musicId, Player* target /*= nullptr*/)
         SendMessageToSet(WorldPackets::Misc::PlayMusic(musicId).Write(), true);
 }
 
+void WorldObject::GetCreatureListWithEntryInGridAppend(std::list<Creature*>& creatureList, uint32 entry, float maxSearchRange) const
+{
+    std::list<Creature*> tempList;
+    GetCreatureListWithEntryInGrid(tempList, entry, maxSearchRange);
+    creatureList.sort();
+    tempList.sort();
+    creatureList.merge(tempList);
+}
+
 void WorldObject::DestroyForNearbyPlayers()
 {
     if (!IsInWorld())

@@ -1041,8 +1041,12 @@ class TC_GAME_API Unit : public WorldObject
         static void DealDamageMods(Unit const* attacker, Unit const* victim, uint32& damage, uint32* absorb);
         static uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage = nullptr, DamageEffectType damagetype = DIRECT_DAMAGE, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL, SpellInfo const* spellProto = nullptr, bool durabilityLoss = true);
         static void Kill(Unit* attacker, Unit* victim, bool durabilityLoss = true, bool skipSettingDeathState = false);
+        void Kill2(Unit* victim, bool durabilityLoss = true, bool skipSettingDeathState = false);
         void KillSelf(bool durabilityLoss = true, bool skipSettingDeathState = false) { Unit::Kill(this, this, durabilityLoss, skipSettingDeathState); }
         static void DealHeal(HealInfo& healInfo);
+        void ProcSkillsAndAuras2(Unit* actionTarget, uint32 typeMaskActor, uint32 typeMaskActionTarget,
+            uint32 spellTypeMask, uint32 spellPhaseMask, uint32 hitMask, Spell* spell,
+            DamageInfo* damageInfo, HealInfo* healInfo);
 
         static void ProcSkillsAndAuras(Unit* actor, Unit* actionTarget, uint32 typeMaskActor, uint32 typeMaskActionTarget,
                                 uint32 spellTypeMask, uint32 spellPhaseMask, uint32 hitMask, Spell* spell,

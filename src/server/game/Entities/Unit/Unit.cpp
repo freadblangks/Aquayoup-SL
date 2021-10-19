@@ -10627,6 +10627,285 @@ void Unit::SetMeleeAnimKitId(uint16 animKitId)
     }
 }
 
+void Unit::Kill2(Unit* victim, bool durabilityLoss /*= true*/, bool skipSettingDeathState /*= false*/)
+{
+    // Prevent killing unit twice (and giving reward from kill twice)
+    if (!victim->GetHealth())
+        return;
+
+    // find player: owner of controlled `this` or `this` itself maybe
+    Player* player = GetCharmerOrOwnerPlayerOrPlayerItself();
+    Creature* creature = victim->ToCreature();
+
+    bool isRewardAllowed = true;
+    if (creature)
+    {
+        isRewardAllowed = creature->IsDamageEnoughForLootingAndReward();
+        if (!isRewardAllowed)
+            creature->SetLootRecipient(nullptr);
+    }
+
+    if (isRewardAllowed && creature && creature->GetLootRecipient())
+        player = creature->GetLootRecipient();
+
+    // Exploit fix
+    if (creature && creature->IsPet() && creature->GetOwnerGUID().IsPlayer())
+        isRewardAllowed = false;
+
+    // Reward player, his pets, and group/raid members
+    // call kill spell proc event (before real die and combat stop to triggering auras removed at death/combat stop)
+    if (isRewardAllowed && player && player != victim)
+    {
+        WorldPackets::Party::PartyKillLog partyKillLog;
+        partyKillLog.Player = player->GetGUID();
+        partyKillLog.Victim = victim->GetGUID();
+
+        Player* looter = player;
+        Group* group = player->GetGroup();
+        bool hasLooterGuid = false;
+
+        if (group)
+        {
+            group->BroadcastPacket(partyKillLog.Write(), group->GetMemberGroup(player->GetGUID()) != 0);
+
+            if (creature)
+            {
+                group->UpdateLooterGuid(creature, true);
+                if (!group->GetLooterGuid().IsEmpty())
+                {
+                    looter = ObjectAccessor::FindPlayer(group->GetLooterGuid());
+                    if (looter)
+                    {
+                        hasLooterGuid = true;
+                        creature->SetLootRecipient(looter);   // update creature loot recipient to the allowed looter.
+                    }
+                }
+            }
+        }
+        else
+        {
+            player->SendDirectMessage(partyKillLog.Write());
+
+            if (creature)
+            {
+                WorldPackets::Loot::LootList lootList;
+                lootList.Owner = creature->GetGUID();
+                lootList.LootObj = creature->loot.GetGUID();
+
+                player->SendMessageToSet(lootList.Write(), true);
+            }
+        }
+
+        // Generate loot before updating looter
+        if (creature)
+        {
+            Loot* loot = &creature->loot;
+            loot->clear();
+            if (uint32 lootid = creature->GetCreatureTemplate()->lootid)
+                loot->FillLoot(lootid, LootTemplates_Creature, looter, false, false, creature->GetLootMode(), GetMap()->GetDifficultyLootItemContext());
+
+            if (creature->GetLootMode() > 0)
+                loot->generateMoneyLoot(creature->GetCreatureTemplate()->mingold, creature->GetCreatureTemplate()->maxgold);
+
+            if (group)
+            {
+                if (hasLooterGuid)
+                    group->SendLooter(creature, looter);
+                else
+                    group->SendLooter(creature, nullptr);
+
+                // Update round robin looter only if the creature had loot
+                if (!loot->empty())
+                    group->UpdateLooterGuid(creature);
+            }
+        }
+
+        player->RewardPlayerAndGroupAtKill(victim, false);
+    }
+
+    // Do KILL and KILLED procs. KILL proc is called only for the unit who landed the killing blow (and its owner - for pets and totems) regardless of who tapped the victim
+    if (IsPet() || IsTotem())
+    {
+        // proc only once for victim
+        if (Unit* owner = GetOwner())
+            owner->ProcSkillsAndAuras2(victim, PROC_FLAG_KILL, PROC_FLAG_NONE, PROC_SPELL_TYPE_MASK_ALL, PROC_SPELL_PHASE_NONE, PROC_HIT_NONE, nullptr, nullptr, nullptr);
+    }
+
+    if (!victim->IsCritter())
+        ProcSkillsAndAuras2(victim, PROC_FLAG_KILL, PROC_FLAG_KILLED, PROC_SPELL_TYPE_MASK_ALL, PROC_SPELL_PHASE_NONE, PROC_HIT_NONE, nullptr, nullptr, nullptr);
+
+    // Proc auras on death - must be before aura/combat remove
+    victim->ProcSkillsAndAuras2(victim, PROC_FLAG_NONE, PROC_FLAG_DEATH, PROC_SPELL_TYPE_MASK_ALL, PROC_SPELL_PHASE_NONE, PROC_HIT_NONE, nullptr, nullptr, nullptr);
+
+    // update get killing blow achievements, must be done before setDeathState to be able to require auras on target
+    // and before Spirit of Redemption as it also removes auras
+    if (Player* killerPlayer = GetCharmerOrOwnerPlayerOrPlayerItself())
+        killerPlayer->UpdateCriteria(CriteriaType::DeliveredKillingBlow, 1, 0, 0, victim);
+
+    if (!skipSettingDeathState)
+    {
+        TC_LOG_DEBUG("entities.unit", "SET JUST_DIED");
+        victim->setDeathState(JUST_DIED);
+    }
+
+    // Inform pets (if any) when player kills target)
+    // MUST come after victim->setDeathState(JUST_DIED); or pet next target
+    // selection will get stuck on same target and break pet react state
+    if (player)
+    {
+        Pet* pet = player->GetPet();
+        if (pet && pet->IsAlive() && pet->isControlled())
+            pet->AI()->KilledUnit(victim);
+    }
+
+    // 10% durability loss on death
+    if (Player* plrVictim = victim->ToPlayer())
+    {
+        // remember victim PvP death for corpse type and corpse reclaim delay
+        // at original death (not at SpiritOfRedemtionTalent timeout)
+        plrVictim->SetPvPDeath(player != nullptr);
+
+        // only if not player and not controlled by player pet. And not at BG
+        if ((durabilityLoss && !player && !victim->ToPlayer()->InBattleground()) || (player && sWorld->getBoolConfig(CONFIG_DURABILITY_LOSS_IN_PVP)))
+        {
+            double baseLoss = sWorld->getRate(RATE_DURABILITY_LOSS_ON_DEATH);
+            uint32 loss = uint32(baseLoss - (baseLoss * plrVictim->GetTotalAuraMultiplier(SPELL_AURA_MOD_DURABILITY_LOSS)));
+            TC_LOG_DEBUG("entities.unit", "We are dead, losing %u percent durability", loss);
+            // Durability loss is calculated more accurately again for each item in Player::DurabilityLoss
+            plrVictim->DurabilityLossAll(baseLoss, false);
+            // durability lost message
+            SendDurabilityLoss(plrVictim, loss);
+        }
+        // Call KilledUnit for creatures
+        if (GetTypeId() == TYPEID_UNIT && IsAIEnabled)
+            ToCreature()->AI()->KilledUnit(victim);
+
+        // last damage from non duel opponent or opponent controlled creature
+        if (plrVictim->duel)
+        {
+            plrVictim->duel->opponent->CombatStopWithPets(true);
+            plrVictim->CombatStopWithPets(true);
+            plrVictim->DuelComplete(DUEL_INTERRUPTED);
+        }
+    }
+    else                                                // creature died
+    {
+        TC_LOG_DEBUG("entities.unit", "DealDamageNotPlayer");
+
+        if (!creature->IsPet())
+        {
+            creature->GetThreatManager().ClearAllThreat();
+
+            // must be after setDeathState which resets dynamic flags
+            if (!creature->loot.isLooted())
+                creature->AddDynamicFlag(UNIT_DYNFLAG_LOOTABLE);
+            else
+                creature->AllLootRemovedFromCorpse();
+        }
+
+        // Call KilledUnit for creatures, this needs to be called after the lootable flag is set
+        if (GetTypeId() == TYPEID_UNIT && IsAIEnabled)
+            ToCreature()->AI()->KilledUnit(victim);
+
+        // Call creature just died function
+        if (creature->IsAIEnabled)
+            creature->AI()->JustDied(this);
+
+        if (TempSummon* summon = creature->ToTempSummon())
+            if (Unit* summoner = summon->GetSummoner())
+                if (summoner->ToCreature() && summoner->IsAIEnabled)
+                    summoner->ToCreature()->AI()->SummonedCreatureDies(creature, this);
+
+        // Dungeon specific stuff, only applies to players killing creatures
+        if (creature->GetInstanceId())
+        {
+            Map* instanceMap = creature->GetMap();
+            Player* creditedPlayer = GetCharmerOrOwnerPlayerOrPlayerItself();
+            /// @todo do instance binding anyway if the charmer/owner is offline
+
+            if (instanceMap->IsDungeon() && (creditedPlayer || this == victim))
+            {
+                if (instanceMap->IsRaidOrHeroicDungeon())
+                {
+                    if (creature->GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_INSTANCE_BIND)
+                        ((InstanceMap*)instanceMap)->PermBindAllPlayers();
+                }
+                else
+                {
+                    // the reset time is set but not added to the scheduler
+                    // until the players leave the instance
+                    time_t resettime = GameTime::GetGameTime() + 2 * HOUR;
+                    if (InstanceSave* save = sInstanceSaveMgr->GetInstanceSave(creature->GetInstanceId()))
+                        if (save->GetResetTime() < resettime)
+                            save->SetResetTime(resettime);
+                }
+            }
+        }
+    }
+
+    // outdoor pvp things, do these after setting the death state, else the player activity notify won't work... doh...
+    // handle player kill only if not suicide (spirit of redemption for example)
+    if (player && this != victim)
+    {
+        if (OutdoorPvP* pvp = player->GetOutdoorPvP())
+            pvp->HandleKill(player, victim);
+
+        if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(player->GetZoneId()))
+            bf->HandleKill(player, victim);
+    }
+
+    //if (victim->GetTypeId() == TYPEID_PLAYER)
+    //    if (OutdoorPvP* pvp = victim->ToPlayer()->GetOutdoorPvP())
+    //        pvp->HandlePlayerActivityChangedpVictim->ToPlayer();
+
+    // battleground things (do this at the end, so the death state flag will be properly set to handle in the bg->handlekill)
+    if (player && player->InBattleground())
+    {
+        if (Battleground* bg = player->GetBattleground())
+        {
+            if (Player* playerVictim = victim->ToPlayer())
+                bg->HandleKillPlayer(playerVictim, player);
+            else
+                bg->HandleKillUnit(victim->ToCreature(), player);
+        }
+    }
+
+    // achievement stuff
+    if (victim->GetTypeId() == TYPEID_PLAYER)
+    {
+        if (GetTypeId() == TYPEID_UNIT)
+            victim->ToPlayer()->UpdateCriteria(CriteriaType::KilledByCreature, GetEntry());
+        else if (GetTypeId() == TYPEID_PLAYER && victim != this)
+            victim->ToPlayer()->UpdateCriteria(CriteriaType::KilledByPlayer, 1, ToPlayer()->GetTeam());
+    }
+
+    // Hook for OnPVPKill Event
+    if (Player* killerPlr = ToPlayer())
+    {
+        if (Player* killedPlr = victim->ToPlayer())
+            sScriptMgr->OnPVPKill(killerPlr, killedPlr);
+        else if (Creature* killedCre = victim->ToCreature())
+            sScriptMgr->OnCreatureKill(killerPlr, killedCre);
+    }
+    else if (Creature* killerCre = ToCreature())
+    {
+        if (Player* killed = victim->ToPlayer())
+            sScriptMgr->OnPlayerKilledByCreature(killerCre, killed);
+    }
+}
+
+void Unit::ProcSkillsAndAuras2(Unit* actionTarget, uint32 typeMaskActor, uint32 typeMaskActionTarget, uint32 spellTypeMask, uint32 spellPhaseMask, uint32 hitMask, Spell* spell, DamageInfo* damageInfo, HealInfo* healInfo)
+{
+    WeaponAttackType attType = damageInfo ? damageInfo->GetAttackType() : BASE_ATTACK;
+    if (typeMaskActor)
+        ProcSkillsAndReactives(false, actionTarget, typeMaskActor, hitMask, attType);
+
+    if (typeMaskActionTarget && actionTarget)
+        actionTarget->ProcSkillsAndReactives(true, this, typeMaskActionTarget, hitMask, attType);
+
+    TriggerAurasProcOnEvent(nullptr, nullptr, actionTarget, typeMaskActor, typeMaskActionTarget, spellTypeMask, spellPhaseMask, hitMask, spell, damageInfo, healInfo);
+}
+
 void Unit::SetControlled(bool apply, UnitState state)
 {
     if (apply)

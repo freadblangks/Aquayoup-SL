@@ -1164,16 +1164,6 @@ class TC_GAME_API ScriptMgr
         std::string _currentContext;
 };
 
-#define RegisterCreatureAI(ai_name) new GenericCreatureScript<ai_name>(#ai_name)
-
-#define RegisterCreatureScript(script) new script()
-#define RegisterSceneScript(script) new script()
-#define RegisterQuestScript(script) new script()
-#define RegisterConversationScript(script) new script()
-#define RegisterPlayerScript(script) new script()
-#define RegisterZoneScript(script) new script()
-#define RegisterItemScript(script) new script()
-
 template <class S>
 class GenericSpellScriptLoader : public SpellScriptLoader
 {

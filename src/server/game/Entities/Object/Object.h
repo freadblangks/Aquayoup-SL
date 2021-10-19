@@ -614,7 +614,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         template <typename Container>
         void GetPlayerListInGrid(Container& playerContainer, float maxSearchRange) const;
-
+        void GetCreatureListWithEntryInGridAppend(std::list<Creature*>& lList, uint32 uiEntry, float fMaxSearchRange = 250.0f) const;
         void DestroyForNearbyPlayers();
         virtual void UpdateObjectVisibility(bool forced = true);
         virtual void UpdateObjectVisibilityOnCreate() { UpdateObjectVisibility(true); }
