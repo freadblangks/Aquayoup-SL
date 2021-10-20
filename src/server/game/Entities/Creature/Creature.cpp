@@ -3463,3 +3463,15 @@ void Creature::SetInCombatWithZone()
         }
     }
 }
+
+void Creature::DespawnCreaturesInArea2(uint32 entry, float range)
+{
+    std::list<Creature*> creatures;
+    GetCreatureListWithEntryInGrid(creatures, entry, range);
+
+    if (creatures.empty())
+        return;
+
+    for (std::list<Creature*>::iterator iter = creatures.begin(); iter != creatures.end(); ++iter)
+        (*iter)->DespawnOrUnsummon();
+}

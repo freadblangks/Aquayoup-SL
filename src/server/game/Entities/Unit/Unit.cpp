@@ -4938,6 +4938,15 @@ std::vector<GameObject*> Unit::GetGameObjects(uint32 spellId) const
     return gameobjects;
 }
 
+GameObject* Unit::GetGameObjectByEntry2(uint32 entry) const
+{
+    for (GameObject* gob : m_gameObj)
+        if (gob->GetEntry() == entry)
+            return gob;
+
+    return nullptr;
+}
+
 void Unit::AddGameObject(GameObject* gameObj)
 {
     if (!gameObj || !gameObj->GetOwnerGUID().IsEmpty())
@@ -5008,6 +5017,30 @@ void Unit::RemoveGameObject(uint32 spellid, bool del)
     {
         next = i;
         if (spellid == 0 || (*i)->GetSpellId() == spellid)
+        {
+            (*i)->SetOwnerGUID(ObjectGuid::Empty);
+            if (del)
+            {
+                (*i)->SetRespawnTime(0);
+                (*i)->Delete();
+            }
+
+            next = m_gameObj.erase(i);
+        }
+        else
+            ++next;
+    }
+}
+
+void Unit::RemoveGameObjectByEntry2(uint32 entry, bool del /*= true*/)
+{
+    if (m_gameObj.empty())
+        return;
+    GameObjectList::iterator i, next;
+    for (i = m_gameObj.begin(); i != m_gameObj.end(); i = next)
+    {
+        next = i;
+        if ((*i)->GetEntry() == entry)
         {
             (*i)->SetOwnerGUID(ObjectGuid::Empty);
             if (del)
@@ -8443,6 +8476,19 @@ void Unit::SetShapeshiftForm(ShapeshiftForm form)
     SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ShapeshiftForm), form);
 }
 
+Creature* Unit::GetSummonedCreatureByEntry2(uint32 entry)
+{
+    auto itr = std::find_if(m_SummonedCreatures.begin(), m_SummonedCreatures.end(), [entry](auto& p)
+        {
+            return p.second == entry;
+        });
+
+    if (itr == m_SummonedCreatures.end())
+        return nullptr;
+
+    return ObjectAccessor::GetCreature(*this, itr->first);
+}
+
 bool Unit::IsInFeralForm() const
 {
     ShapeshiftForm form = GetShapeshiftForm();
@@ -8452,6 +8498,46 @@ bool Unit::IsInFeralForm() const
 bool Unit::IsInDisallowedMountForm() const
 {
     return IsDisallowedMountForm(getTransForm(), GetShapeshiftForm(), GetDisplayId());
+}
+/*
+void Unit::GetAreaTriggerListWithSpellIDInRange2(std::list<AreaTrigger*>& list, uint32 spellid, float fMaxSearchRange) const
+{
+    CellCoord l_Coords(Trinity::ComputeCellCoord(GetPositionX(), GetPositionY()));
+    Cell l_Cell(l_Coords);
+    l_Cell.SetNoCreate();
+
+    Trinity::AnyAreatriggerInObjectRangeCheck l_Check(this, fMaxSearchRange);
+    Trinity::AreaTriggerListSearcher<Trinity::AnyAreatriggerInObjectRangeCheck> searcher(this, list, l_Check);
+
+    TypeContainerVisitor<Trinity::AreaTriggerListSearcher<Trinity::AnyAreatriggerInObjectRangeCheck>, WorldTypeMapContainer> l_WorldSearcher(searcher);
+    TypeContainerVisitor<Trinity::AreaTriggerListSearcher<Trinity::AnyAreatriggerInObjectRangeCheck>, GridTypeMapContainer>  l_GridSearcher(searcher);
+
+    l_Cell.Visit(l_Coords, l_WorldSearcher, *GetMap(), *this, fMaxSearchRange);
+    l_Cell.Visit(l_Coords, l_GridSearcher, *GetMap(), *this, fMaxSearchRange);
+
+    if (!list.empty())
+    {
+        list.remove_if([spellid](AreaTrigger* p_AreaTrigger) -> bool
+            {
+                if (p_AreaTrigger == nullptr || p_AreaTrigger->GetSpellId() != spellid)
+                    return true;
+
+                return false;
+            });
+    }
+}
+*/
+bool Unit::SetFlying2(bool enable)
+{
+    if (enable == IsFlying())
+        return false;
+
+    if (enable)
+        AddUnitMovementFlag(MOVEMENTFLAG_FLYING);
+    else
+        RemoveUnitMovementFlag(MOVEMENTFLAG_FLYING);
+
+    return true;
 }
 
 bool Unit::IsDisallowedMountForm(uint32 spellId, ShapeshiftForm form, uint32 displayId) const

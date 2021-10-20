@@ -352,7 +352,7 @@ struct at_echoing_sonar : public AreaTriggerAI
         if (!unit->IsPlayer())
             return;
 
-        //at->GetCaster()->Kill(unit, true);
+        at->GetCaster()->Kill2(unit);
     }
 };
 

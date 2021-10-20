@@ -626,6 +626,31 @@ void InstanceScript::DoUpdateCriteria(CriteriaType type, uint32 miscValue1 /*= 0
                 player->UpdateCriteria(type, miscValue1, miscValue2, 0, unit);
 }
 
+void InstanceScript::DoCompleteAchievement2(uint32 achievement)
+{
+    AchievementEntry const* achievementEntry = sAchievementStore.LookupEntry(achievement);
+    if (!achievementEntry)
+    {
+        TC_LOG_ERROR("scripts", "DoCompleteAchievement called for not existing achievement %u", achievement);
+        return;
+    }
+
+    DoOnPlayers2([achievementEntry](Player* player)
+        {
+            player->CompletedAchievement(achievementEntry);
+        });
+}
+
+void InstanceScript::DoOnPlayers2(std::function<void(Player*)>&& function)
+{
+    Map::PlayerList const& plrList = instance->GetPlayers();
+
+    if (!plrList.isEmpty())
+        for (Map::PlayerList::const_iterator i = plrList.begin(); i != plrList.end(); ++i)
+            if (Player* player = i->GetSource())
+                function(player);
+}
+
 // Start timed achievement for all players in instance
 void InstanceScript::DoStartCriteriaTimer(CriteriaStartEvent startEvent, uint32 entry)
 {

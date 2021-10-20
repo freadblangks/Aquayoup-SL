@@ -1545,10 +1545,9 @@ class TC_GAME_API Unit : public WorldObject
 
         ObjectGuid m_SummonSlot[MAX_SUMMON_SLOT];
         ObjectGuid m_ObjectSlot[MAX_GAMEOBJECT_SLOT];
-
+        Creature* GetSummonedCreatureByEntry2(uint32 entry);
         ShapeshiftForm GetShapeshiftForm() const { return ShapeshiftForm(*m_unitData->ShapeshiftForm); }
         void SetShapeshiftForm(ShapeshiftForm form);
-
         bool IsInFeralForm() const;
 
         bool IsInDisallowedMountForm() const;
@@ -1671,8 +1670,10 @@ class TC_GAME_API Unit : public WorldObject
 
         GameObject* GetGameObject(uint32 spellId) const;
         std::vector<GameObject*> GetGameObjects(uint32 spellId) const;
+        GameObject* GetGameObjectByEntry2(uint32 entry) const;
         void AddGameObject(GameObject* gameObj);
         void RemoveGameObject(GameObject* gameObj, bool del);
+        void RemoveGameObjectByEntry2(uint32 entry, bool del = true);
         void RemoveGameObject(uint32 spellid, bool del);
         void RemoveAllGameObjects();
 
@@ -1804,7 +1805,8 @@ class TC_GAME_API Unit : public WorldObject
         ObjectGuid GetTransGUID()   const override;
         /// Returns the transport this unit is on directly (if on vehicle and transport, return vehicle)
         TransportBase* GetDirectTransport() const;
-
+        //id GetAreaTriggerListWithSpellIDInRange2(std::list<AreaTrigger*>& list, uint32 spellid, float fMaxSearchRange) const;
+        bool SetFlying2(bool enable);
         bool m_ControlledByPlayer;
 
         void HandleSpellClick(Unit* clicker, int8 seatId = -1);
@@ -1994,7 +1996,7 @@ class TC_GAME_API Unit : public WorldObject
 
         uint32 m_state;                                     // Even derived shouldn't modify
         TimeTrackerSmall m_movesplineTimer;
-
+        std::unordered_map<ObjectGuid, uint32/*entry*/> m_SummonedCreatures;
         Diminishing m_Diminishing;
         // Manage all Units that are threatened by us
         friend class CombatManager;
@@ -2014,7 +2016,7 @@ class TC_GAME_API Unit : public WorldObject
         uint16 _aiAnimKitId;
         uint16 _movementAnimKitId;
         uint16 _meleeAnimKitId;
-
+        
         SpellHistory* _spellHistory;
 
         std::unique_ptr<MovementForces> _movementForces;

@@ -231,7 +231,7 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
         void AddLootMode(uint16 lootMode) { m_LootMode |= lootMode; }
         void RemoveLootMode(uint16 lootMode) { m_LootMode &= ~lootMode; }
         void ResetLootMode() { m_LootMode = LOOT_MODE_DEFAULT; }
-
+        void DespawnCreaturesInArea2(uint32 entry, float range = 125.0f);
         uint32 m_spells[MAX_CREATURE_SPELLS];
 
         bool CanStartAttack(Unit const* u, bool force) const;

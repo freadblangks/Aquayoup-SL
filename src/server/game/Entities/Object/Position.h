@@ -92,7 +92,12 @@ public:
     ConstStreamer<XYZO> PositionXYZOStream() const { return ConstStreamer<XYZO>(*this); }
     Streamer<PackedXYZ> PositionPackedXYZStream() { return Streamer<PackedXYZ>(*this); }
     ConstStreamer<PackedXYZ> PositionPackedXYZStream() const { return ConstStreamer<PackedXYZ>(*this); }
-
+    float GetAngle2(Position const* pos) const;
+    float GetAngle2(Position const& pos) const
+    {
+        return GetAngle2(pos.m_positionX, pos.m_positionY);
+    }
+    float GetAngle2(float x, float y) const;
     bool IsPositionValid() const;
 
     float GetExactDist2dSq(const float x, const float y) const

@@ -62,6 +62,25 @@ Position Position::GetPositionWithOffset(Position const& offset) const
     return ret;
 }
 
+float Position::GetAngle2(Position const* pos) const
+{
+    if (!pos)
+        return 0;
+
+    return GetAngle2(pos->GetPositionX(), pos->GetPositionY());
+}
+
+// Return angle in range 0..2*pi
+float Position::GetAngle2(float x, float y) const
+{
+    float dx = x - GetPositionX();
+    float dy = y - GetPositionY();
+
+    float ang = std::atan2(dy, dx);
+    ang = (ang >= 0) ? ang : 2 * float(M_PI) + ang;
+    return ang;
+}
+
 void Position::GetSinCos(const float x, const float y, float &vsin, float &vcos) const
 {
     float dx = GetPositionX() - x;

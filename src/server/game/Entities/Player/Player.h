@@ -1764,7 +1764,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         uint8 GetActiveTalentGroup() const { return _specializationInfo.ActiveGroup; }
         void SetActiveTalentGroup(uint8 group){ _specializationInfo.ActiveGroup = group; }
         uint32 GetDefaultSpecId() const;
-
+        TalentSpecialization GetSpecializationId2() const { return (TalentSpecialization)GetPrimarySpecialization(); }
         bool ResetTalents(bool noCost = false);
         void ResetPvpTalents();
         uint32 GetNextResetTalentsCost() const;
@@ -2560,6 +2560,9 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
 
         bool IsAdvancedCombatLoggingEnabled() const { return _advancedCombatLoggingEnabled; }
         void SetAdvancedCombatLogging(bool enabled) { _advancedCombatLoggingEnabled = enabled; }
+        std::vector<std::pair<uint32, std::function<void()>>> MovieDelayedActions;
+        void AddMovieDelayedAction2(uint32 movieId, std::function<void()>&& function);
+        void RemoveMovieDelayedAction2(uint32 movieId);
         PlayerAchievementMgr* GetAchievementMgr() { return m_achievementMgr; }
         SceneMgr& GetSceneMgr() { return m_sceneMgr; }
         SceneMgr const& GetSceneMgr() const { return m_sceneMgr; }
@@ -2682,12 +2685,12 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void AddPlayerLocalFlag(PlayerLocalFlags flags) { SetUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::LocalFlags), flags); }
         void RemovePlayerLocalFlag(PlayerLocalFlags flags) { RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::LocalFlags), flags); }
         void SetPlayerLocalFlags(PlayerLocalFlags flags) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::LocalFlags), flags); }
-
+        uint32 GetRoleForGroup2() const;
+        static uint32 GetRoleBySpecializationId2(uint32 specializationId);
         uint8 GetNumRespecs() const { return m_activePlayerData->NumRespecs; }
         void SetNumRespecs(uint8 numRespecs) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::NumRespecs), numRespecs); }
-
+        void PlayConversation2(uint32 conversationId);
         void SetWatchedFactionIndex(int32 index) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::WatchedFactionIndex), index);  }
-
         void AddAuraVision(PlayerFieldByte2Flags flags) { SetUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::AuraVision), flags); }
         void RemoveAuraVision(PlayerFieldByte2Flags flags) { RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::AuraVision), flags); }
 

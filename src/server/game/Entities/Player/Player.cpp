@@ -28147,6 +28147,25 @@ void Player::SendMovementSetCollisionHeight(float height, WorldPackets::Movement
     SendMessageToSet(updateCollisionHeight.Write(), false);
 }
 
+void Player::AddMovieDelayedAction2(uint32 movieId, std::function<void()>&& function)
+{
+    MovieDelayedActions.push_back(std::pair<uint32, std::function<void()>>(movieId, function));
+}
+
+void Player::RemoveMovieDelayedAction2(uint32 movieId)
+{
+    auto itr = std::find_if(MovieDelayedActions.begin(), MovieDelayedActions.end(), [movieId](const std::pair<uint32, std::function<void()>>& elem) -> bool
+        {
+            return elem.first == movieId;
+        });
+
+    if (itr != MovieDelayedActions.end())
+    {
+        (*itr).second = nullptr;
+        MovieDelayedActions.erase(itr);
+    }
+}
+
 void Player::SendPlayerChoice(ObjectGuid sender, int32 choiceId)
 {
     PlayerChoice const* playerChoice = sObjectMgr->GetPlayerChoice(choiceId);
@@ -28669,6 +28688,20 @@ uint32 Player::GetDefaultSpecId() const
     return ASSERT_NOTNULL(sDB2Manager.GetDefaultChrSpecializationForClass(getClass()))->ID;
 }
 
+uint32 Player::GetRoleForGroup2() const
+{
+    return GetRoleBySpecializationId2(GetSpecializationId2());
+}
+
+uint32 Player::GetRoleBySpecializationId2(uint32 specializationId)
+{
+    if (specializationId)
+        if (ChrSpecializationEntry const* spec = sChrSpecializationStore.LookupEntry(specializationId))
+            return spec->Role;
+
+    return ROLE_DAMAGE;
+}
+
 void Player::SendSpellCategoryCooldowns() const
 {
     WorldPackets::Spells::CategoryCooldown cooldowns;
@@ -28891,6 +28924,11 @@ bool Player::CanEnableWarModeInArea() const
         return false;
 
     return area->Flags[1] & AREA_FLAG_2_CAN_ENABLE_WAR_MODE;
+}
+
+void Player::PlayConversation2(uint32 conversationId)
+{
+    Conversation::CreateConversation(conversationId, this, GetPosition(), { GetGUID() });
 }
 
 bool Player::HasWorldQuestEnabled(uint8 expansion) const
