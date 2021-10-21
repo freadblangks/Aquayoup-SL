@@ -2072,7 +2072,6 @@ namespace Trinity
                 float rB = b->GetMaxHealth() ? float(b->GetHealth()) / float(b->GetMaxHealth()) : 0.0f;
                 return _ascending ? rA < rB : rA > rB;
             }
-
         private:
             bool const _ascending;
     };

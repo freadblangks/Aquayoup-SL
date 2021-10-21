@@ -33,11 +33,6 @@
 #include "SpellMgr.h"
 #include "darkmaul_citadel.h"
 
-enum Maps
-{
-    MAP_NPE = 2175
-};
-
 const Position exile_reach_after_darkmaul_pos = { 722.804f, -1835.084f, 186.508f, 4.380f };
 
 //npc_garrick_henry_161504

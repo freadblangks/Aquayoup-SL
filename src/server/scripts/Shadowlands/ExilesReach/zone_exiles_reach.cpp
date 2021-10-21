@@ -33,11 +33,6 @@
 #include "Object.h"
 #include <AI\ScriptedAI\ScriptedGossip.h>
 
-enum Maps
-{
-    MAP_NPE = 2175
-};
-
 /******************************************************
     NOTE TO DEVS:
 

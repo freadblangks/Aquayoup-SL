@@ -329,6 +329,11 @@ class TC_GAME_API UnitAI
             m_EmptyWarned = false;
             m_TimedDelayedOperations.push_back(std::pair<uint32, std::function<void()>>(p_Timeout, p_Function));
         }
+        void ClearDelayedOperations()
+        {
+            m_TimedDelayedOperations.clear();
+            m_EmptyWarned = false;
+        }
         std::vector<std::pair<int32, std::function<void()>>>    m_TimedDelayedOperations;   ///< Delayed operations
         bool                                                    m_EmptyWarned;              ///< Warning when there are no more delayed operations
     private:

@@ -1086,9 +1086,8 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         bool HasSummonPending() const;
         void SendSummonRequestFrom(Unit* summoner);
         void SummonIfPossible(bool agree);
-
         bool Create(ObjectGuid::LowType guidlow, WorldPackets::Character::CharacterCreateInfo const* createInfo);
-
+        bool TeleportTo2(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0, uint32 optionParam = 0);
         void Update(uint32 time) override;
 
         bool IsImmunedToSpellEffect(SpellInfo const* spellInfo, SpellEffectInfo const& spellEffectInfo, WorldObject const* caster) const override;
@@ -3009,7 +3008,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         bool IsInstanceLoginGameMasterException() const;
 
         MapReference m_mapRef;
-
+        uint32 m_teleport_option_param;
         uint32 m_lastFallTime;
         float  m_lastFallZ;
 
