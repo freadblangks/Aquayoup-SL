@@ -215,7 +215,11 @@ class TC_GAME_API InstanceScript : public ZoneScript
 
         // Sends world state update to all players in instance
         void DoUpdateWorldState(uint32 worldstateId, uint32 worldstateValue);
-
+        //CreatureGroup* SummonCreatureGroup(uint32 creatureGroupID, std::list<TempSummon*>* list = nullptr);
+        void DespawnCreatureGroup(uint32 creatureGroupID);
+        void DoSendScenarioEvent(uint32 eventId);
+        void DoOnPlayers(std::function<void(Player*)>&& function);
+        void DoPlayConversation(uint32 conversationId);
         // Send Notify to all players in instance
         void DoSendNotifyToInstance(char const* format, ...);
         void DoCompleteAchievement2(uint32 achievement);
@@ -275,7 +279,7 @@ class TC_GAME_API InstanceScript : public ZoneScript
         void SendEncounterUnit(uint32 type, Unit* unit = nullptr, uint8 priority = 0);
         void SendEncounterStart(uint32 inCombatResCount = 0, uint32 maxInCombatResCount = 0, uint32 inCombatResChargeRecovery = 0, uint32 nextCombatResChargeTime = 0);
         void SendEncounterEnd();
-
+        //CreatureGroup* GetCreatureGroup(uint32 creatureGroupID);
         void SendBossKillCredit(uint32 encounterId);
 
         virtual void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& /*packet*/) { }
@@ -357,7 +361,7 @@ class TC_GAME_API InstanceScript : public ZoneScript
         uint32 _combatResurrectionTimer;
         uint8 _combatResurrectionCharges; // the counter for available battle resurrections
         bool _combatResurrectionTimerStarted;
-
+        std::map<uint32, std::list<ObjectGuid>> summonBySummonGroupIDs;
     #ifdef TRINITY_API_USE_DYNAMIC_LINKING
         // Strong reference to the associated script module
         std::shared_ptr<ModuleReference> module_reference;

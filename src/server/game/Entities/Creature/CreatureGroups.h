@@ -69,9 +69,11 @@ class TC_GAME_API FormationMgr
 class TC_GAME_API CreatureGroup
 {
     private:
+        typedef std::map<Creature*, FormationInfo*>  CreatureGroupMemberType;
         Creature* _leader; //Important do not forget sometimes to work with pointers instead synonims :D:D
         std::unordered_map<Creature*, FormationInfo*> _members;
-
+        Creature* m_leader; //Important do not forget sometimes to work with pointers instead synonims :D:D
+        CreatureGroupMemberType m_members;
         ObjectGuid::LowType _leaderSpawnId;
         bool _formed;
         bool _engaging;
@@ -80,13 +82,13 @@ class TC_GAME_API CreatureGroup
         //Group cannot be created empty
         explicit CreatureGroup(ObjectGuid::LowType leaderSpawnId);
         ~CreatureGroup();
-
+        CreatureGroup* GetCreatureGroup(uint32 creatureGroupID);
         Creature* GetLeader() const { return _leader; }
         ObjectGuid::LowType GetLeaderSpawnId() const { return _leaderSpawnId; }
         bool IsEmpty() const { return _members.empty(); }
         bool IsFormed() const { return _formed; }
         bool IsLeader(Creature const* creature) const { return _leader == creature; }
-
+        void MoveGroupTo(float x, float y, float z, bool fightMove = false);
         bool HasMember(Creature* member) const { return _members.count(member) > 0; }
         void AddMember(Creature* member);
         void RemoveMember(Creature* member);

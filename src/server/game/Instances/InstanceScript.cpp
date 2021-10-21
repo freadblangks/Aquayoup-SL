@@ -146,7 +146,63 @@ void InstanceScript::LoadBossBoundaries(BossBoundaryData const& data)
         if (entry.BossId < bosses.size())
             bosses[entry.BossId].boundary.push_back(entry.Boundary);
 }
+/*
+CreatureGroup* InstanceScript::SummonCreatureGroup(uint32 creatureGroupID, std::list<TempSummon*>* list /*= nullptr)
+{
+    bool createTempList = !list;
+    if (createTempList)
+        list = new std::list<TempSummon*>;
 
+    instance->SummonCreatureGroup(creatureGroupID, list);
+
+    for (TempSummon* summon : *list)
+        summonBySummonGroupIDs[creatureGroupID].push_back(summon->GetGUID());
+
+    if (createTempList)
+    {
+        delete list;
+        list = nullptr;
+    }
+
+    return GetCreatureGroup(creatureGroupID);
+}
+*/
+
+void InstanceScript::DespawnCreatureGroup(uint32 creatureGroupID)
+{
+    for (ObjectGuid guid : summonBySummonGroupIDs[creatureGroupID])
+        if (Creature* summon = instance->GetCreature(guid))
+            summon->DespawnOrUnsummon();
+
+    summonBySummonGroupIDs.erase(creatureGroupID);
+}
+
+void InstanceScript::DoSendScenarioEvent(uint32 eventId)
+{
+    DoOnPlayers([eventId](Player* player)
+        {
+            player->GetScenario()->SendScenarioEvent(player, eventId);
+            return;
+        });
+}
+
+void InstanceScript::DoOnPlayers(std::function<void(Player*)>&& function)
+{
+    Map::PlayerList const& plrList = instance->GetPlayers();
+
+    if (!plrList.isEmpty())
+        for (Map::PlayerList::const_iterator i = plrList.begin(); i != plrList.end(); ++i)
+            if (Player* player = i->GetSource())
+                function(player);
+}
+
+void InstanceScript::DoPlayConversation(uint32 conversationId)
+{
+    DoOnPlayers([conversationId](Player* player)
+        {
+            player->PlayConversation(conversationId);
+        });
+}
 void InstanceScript::LoadMinionData(MinionData const* data)
 {
     while (data->entry)

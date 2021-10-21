@@ -53,6 +53,12 @@ void AggressorAI::UpdateAI(uint32 /*diff*/)
 // CombatAI
 /////////////////
 
+void CombatAI::MoveCombat(Position destination)
+{
+    me->GetMotionMaster()->MovePoint(POINT_ID_COMBAT_MOVEMENT, destination);
+    combatMoveDest = destination;
+}
+
 void CombatAI::InitializeAI()
 {
     for (uint32 i = 0; i < MAX_CREATURE_SPELLS; ++i)

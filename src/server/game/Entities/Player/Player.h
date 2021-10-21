@@ -2584,7 +2584,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void SendPlayerChoice(ObjectGuid sender, int32 choiceId);
 
         bool MeetPlayerCondition(uint32 conditionId) const;
-
+        void PlayConversation(uint32 conversationId);
         bool HasPlayerFlag(PlayerFlags flags) const { return (*m_playerData->PlayerFlags & flags) != 0; }
         void AddPlayerFlag(PlayerFlags flags) { SetUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::PlayerFlags), flags); }
         void RemovePlayerFlag(PlayerFlags flags) { RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::PlayerFlags), flags); }

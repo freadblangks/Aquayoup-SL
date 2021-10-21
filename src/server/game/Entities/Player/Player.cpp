@@ -29162,6 +29162,11 @@ bool Player::CanEnableWarModeInArea() const
     return area->Flags[1] & AREA_FLAG_2_CAN_ENABLE_WAR_MODE;
 }
 
+void Player::PlayConversation(uint32 conversationId)
+{
+    Conversation::CreateConversation(conversationId, this, GetPosition(), { GetGUID() });
+}
+
 void Player::PlayConversation2(uint32 conversationId)
 {
     Conversation::CreateConversation(conversationId, this, GetPosition(), { GetGUID() });

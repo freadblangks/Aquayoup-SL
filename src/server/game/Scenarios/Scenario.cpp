@@ -138,6 +138,11 @@ ScenarioStepState Scenario::GetStepState(ScenarioStepEntry const* step)
     return itr->second;
 }
 
+void Scenario::SendScenarioEvent(Player* player, uint32 eventId)
+{
+    UpdateCriteria(CriteriaType::AnyoneTriggerGameEventScenario, eventId, 0, 0, nullptr, player);
+}
+
 void Scenario::SendCriteriaUpdate(Criteria const * criteria, CriteriaProgress const * progress, Seconds timeElapsed, bool timedCompleted) const
 {
     WorldPackets::Scenario::ScenarioProgressUpdate progressUpdate;
