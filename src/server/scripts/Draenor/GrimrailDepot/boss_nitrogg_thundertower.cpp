@@ -972,13 +972,13 @@ class grimrail_depot_nitrogg_thundertower_spell_suppressive_fire : public SpellS
                         {
                             l_NearestTrigger->SetReactState(ReactStates::REACT_PASSIVE);
                             l_NearestTrigger->AddUnitFlag(UnitFlags(UNIT_FLAG_REMOVE_CLIENT_CONTROL));
-                            l_Caster->SendPlaySpellVisual(l_NearestTrigger->GetGUID(), eNitroggThundertowerSpellVisuals::SpellFireSuppressionVisualId, 0, 0, 50.0f, false);
+                            //l_Caster->SendPlaySpellVisual(l_NearestTrigger->GetGUID(), eNitroggThundertowerSpellVisuals::SpellFireSuppressionVisualId, 0, 0, 50.0f, false);
                             l_Caster->CastSpell(l_NearestTrigger, eSuppressiveFireSpells::SpellSuppressiveFireTriggerMissile, true);
                         }
                     }
                     else
                     {
-                        l_Caster->SendPlaySpellVisual(l_Target->GetGUID(), eNitroggThundertowerSpellVisuals::SpellFireSuppressionVisualId, 0, 0, 50.0f, false);
+                        //l_Caster->SendPlaySpellVisual(l_Target->GetGUID(), eNitroggThundertowerSpellVisuals::SpellFireSuppressionVisualId, 0, 0, 50.0f, false);
                         l_Caster->CastSpell(l_Target, eSuppressiveFireSpells::SpellSuppressiveFireTriggerMissile, true);
                     }
                 }

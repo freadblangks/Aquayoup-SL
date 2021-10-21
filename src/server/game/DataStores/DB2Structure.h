@@ -2140,7 +2140,7 @@ struct ItemSparseEntry
     LocalizedString Display;
     int32 ExpansionID;
     float DmgVariance;
-    int32 InstanceBound;
+    int32 LimitCategory;
     uint32 DurationInInventory;
     float QualityModifier;
     uint32 BagFamily;
@@ -2163,7 +2163,7 @@ struct ItemSparseEntry
     uint16 ItemNameDescriptionID;
     uint16 RequiredTransmogHoliday;
     uint16 RequiredHoliday;
-    uint16 LimitCategory;
+    uint16 InstanceBound;
     uint16 GemProperties;
     uint16 SocketMatchEnchantmentId;
     uint16 TotemCategoryID;
