@@ -175,9 +175,9 @@ void SceneActionSetPhase::DoAction()
 {
     if (Creature* actor = GetActor())
     {
-        PhasingHandler::AddPhase(actor, newPhase, -1);
+        PhasingHandler::AddPhase(actor, newPhase, true);
         if (Player* player = GetPlayer())
-            PhasingHandler::AddPhase(player, newPhase, -1);
+            PhasingHandler::AddPhase(player, newPhase, true);
     }
 }
 
@@ -185,8 +185,8 @@ void SceneActionRemovePhase::DoAction()
 {
     if (Creature* actor = GetActor())
     {
-        PhasingHandler::RemovePhase(actor, oldPhase, -1);
+        PhasingHandler::RemovePhase(actor, oldPhase, true);
         if (Player* player = GetPlayer())
-            PhasingHandler::RemovePhase(player, oldPhase, -1);
+            PhasingHandler::RemovePhase(player, oldPhase, true);
     }
 }

@@ -1,4 +1,4 @@
-ï»¿/*
+/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -18,7 +18,6 @@
 #include "ScriptMgr.h"
 #include "ScriptedGossip.h"
 #include "GameObject.h"
-#include "SceneHelper.h"
 
 enum
 {
@@ -461,7 +460,7 @@ public:
     {
         if (go->GetEntry() == 250916)
         {
-            //VisiÃ³n de escala
+            //Visión de escala
             Creature* Igrul = player->SummonCreature(96387, Position(3547.78f, 4373.75f, 663.031f, 0.977324f), TEMPSUMMON_MANUAL_DESPAWN, 0, 0);
             Creature* Huln = player->SummonCreature(96318, Position(3550.959f, 4379.73f, 663.475f, 4.30743f), TEMPSUMMON_MANUAL_DESPAWN, 0, 0);
             Creature* Warbrave01 = player->SummonCreature(98788, Position(3551.889f, 4382.259f, 663.932f, 3.94186f), TEMPSUMMON_MANUAL_DESPAWN, 0, 0);
@@ -486,7 +485,7 @@ public:
         }
         if (go->GetEntry() == 250978)
         {
-            //ID - 195111 VisiÃ³n del martillo
+            //ID - 195111 Visión del martillo
             Creature* Igrul = player->SummonCreature(96387, Position(3649.409f, 4265.33f, 665.0189f, 1.53473f), TEMPSUMMON_MANUAL_DESPAWN, 0, 0);
             Creature* Huln = player->SummonCreature(96318, Position(3644.1f, 4270.6f, 665.405f, 0.4333f), TEMPSUMMON_MANUAL_DESPAWN, 0, 0);
             player->CastSpell(player, 195111, true);
@@ -499,7 +498,7 @@ public:
         }
         if (go->GetEntry() == 250979)
         {
-            //ID - 195117 VisiÃ³n de esperanza
+            //ID - 195117 Visión de esperanza
             Creature* Igrul = player->SummonCreature(96387, Position(3508.34f, 4295.92f, 682.3648f, 5.6015f), TEMPSUMMON_MANUAL_DESPAWN, 0, 0);
             Creature* Huln = player->SummonCreature(96318, Position(3514.82f, 4297.66f, 681.512f, 2.66739f), TEMPSUMMON_MANUAL_DESPAWN, 0, 0);
             Creature* Warbrave01 = player->SummonCreature(98788, Position(3507.429f, 4288.99f, 681.276f, 1.34693f), TEMPSUMMON_MANUAL_DESPAWN, 0, 0);
@@ -619,7 +618,7 @@ public:
                 });
             }
 
-            //ID - 214960 Matarï¼šAbby Xian Flashbackï¼š //ID - 195135 DiÃ¡logo de Abby Sian
+            //ID - 214960 Matar:Abby Xian Flashback: //ID - 195135 Diálogo de Abby Sian
             player->GetScheduler().Schedule(15s, [player](TaskContext /*context*/)
             {
                 player->RemoveAurasDueToSpell(191564);
@@ -742,7 +741,7 @@ struct npc_windmaster_julan_95403 : public ScriptedAI
         if (player->hasQuest(QUEST_NURSING_THE_WOUNDS))
         {
             player->KilledMonsterCredit(me->GetEntry());
-            //ID - 189182 TÃ³tem de viento ID - 189168 Viento opresivo
+            //ID - 189182 Tótem de viento ID - 189168 Viento opresivo
             player->RemoveAurasDueToSpell(189182);
             player->CastSpell(player, 189182, true);
         }

@@ -29,8 +29,8 @@
 #include "World.h"
 #include "WorldSession.h"
 #include "ScriptedGossip.h"
-#include "SceneHelper.h"
 #include "Spell.h"
+#include "SceneHelper.h"
 
  // @TODO Rewrite levels
 enum
