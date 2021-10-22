@@ -189,7 +189,7 @@ struct boss_jadefire_masters : public BossAI
                 }
                 else
                 {
-                    manceroy->AI()->DoZoneInCombat(nullptr, 250.0f);
+                    manceroy->AI()->DoZoneInCombat(nullptr);
                 }
             }
             barrier_count = 0;
@@ -213,7 +213,7 @@ struct boss_jadefire_masters : public BossAI
                 if (mestrah->IsInCombat())
                     return;
                 else
-                    mestrah->AI()->DoZoneInCombat(nullptr, 250.0f);     
+                    mestrah->AI()->DoZoneInCombat(nullptr);     
             }
             break;
        }

@@ -1695,7 +1695,7 @@ class npc_foundry_siegemaker : public CreatureScript
                 if (m_Instance != nullptr)
                     m_Instance->SendEncounterUnit(EncounterFrameType::ENCOUNTER_FRAME_ENGAGE, me, 2);
 
-                DoZoneInCombat(me, 100.0f);
+                DoZoneInCombat(me);
 
                 me->CastSpell(me, eSpells::EnergizePeriodic, true);
                 me->CastSpell(me, eSpells::FixateSearcher, true);

@@ -176,7 +176,7 @@ struct npc_demolishing_terror : public ScriptedAI
 				if (viqgoth->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE) && !viqgoth->IsInCombat())
 				{
 					viqgoth->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-					viqgoth->AI()->DoZoneInCombat(nullptr, 250.0f);
+					viqgoth->AI()->DoZoneInCombat(nullptr);
 				}
 				if (Creature* gripping_terror = me->FindNearestCreature(NPC_GRIPPING_TERROR, 100.0f, true))
 				{

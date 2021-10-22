@@ -572,7 +572,7 @@ class npc_highmaul_night_twisted_devout : public CreatureScript
                 if (Creature* l_IronGrunt = me->FindNearestCreature(eHighmaulCreatures::IronGrunt, 3.0f))
                 {
                     me->Kill2(l_IronGrunt);
-                    DoZoneInCombat(me, 40.0f);
+                    DoZoneInCombat(me);
                 }
 
                 me->SetAIAnimKitId(0);

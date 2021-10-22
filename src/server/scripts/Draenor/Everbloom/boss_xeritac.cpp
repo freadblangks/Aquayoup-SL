@@ -700,13 +700,13 @@ public:
         if (Creature* xeritac = GetClosestCreatureWithEntry(go, NPC_XERITAC, 100.0f))
         {
             xeritac->AI()->AttackStart(player);
-            xeritac->AI()->DoZoneInCombat(xeritac, 500.0f);
+            xeritac->AI()->DoZoneInCombat(xeritac);
         }
 
         if (Creature* vehicle = GetClosestCreatureWithEntry(go, NPC_XERITAC_VEHICLE, 100.0f))
         {
             vehicle->AI()->AttackStart(player);
-            vehicle->AI()->DoZoneInCombat(vehicle, 500.0f);
+            vehicle->AI()->DoZoneInCombat(vehicle);
         }
 
         go->UseDoorOrButton();

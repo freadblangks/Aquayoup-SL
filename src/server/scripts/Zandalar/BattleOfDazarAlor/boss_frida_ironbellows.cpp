@@ -210,7 +210,7 @@ private:
 
     void JustSummoned(Creature* summon) override
     {
-        summon->AI()->DoZoneInCombat(nullptr, 250.0f);
+        summon->AI()->DoZoneInCombat(nullptr);
     }
 
     void JustDied(Unit* /*unit*/) override

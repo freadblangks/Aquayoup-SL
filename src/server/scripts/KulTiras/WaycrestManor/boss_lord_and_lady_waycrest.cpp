@@ -152,7 +152,7 @@ private:
 						lady->RemoveUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
 						lady->RemoveUnitFlag(UNIT_FLAG_IMMUNE_TO_NPC);
 						lady->AI()->Talk(SAY_AGGRO);
-						lady->AI()->DoZoneInCombat(nullptr, 100.0f);
+						lady->AI()->DoZoneInCombat(nullptr);
 						instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, lady);
 					}
 				}

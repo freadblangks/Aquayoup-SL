@@ -571,6 +571,7 @@ bool SmartAIMgr::IsTargetValid(SmartScriptHolder const& e)
                 TC_LOG_ERROR("sql.sql", "SmartAIMgr: Entry " SI64FMTD " SourceType %u Event %u Action %u has invoker target, but event does not provide any invoker!", e.entryOrGuid, e.GetScriptType(), e.GetEventType(), e.GetActionType());
                 // allow this to load for now
                 // return false;
+				return false;
             }
             break;
         case SMART_TARGET_PLAYER_RANGE:
@@ -1288,6 +1289,7 @@ bool SmartAIMgr::IsEventValid(SmartScriptHolder& e)
                 TC_LOG_ERROR("sql.sql", "SmartAIMgr: Entry " SI64FMTD " SourceType %u Event %u Action %u has invoker cast action, but event does not provide any invoker!", e.entryOrGuid, e.GetScriptType(), e.GetEventType(), e.GetActionType());
                 // allow this to load for now
                 // return false;
+				return false;
             }
             // no break
         case SMART_ACTION_ADD_AURA:

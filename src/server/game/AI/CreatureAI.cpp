@@ -21,6 +21,7 @@
 #include "Creature.h"
 #include "CreatureAIImpl.h"
 #include "CreatureTextMgr.h"
+#include "Errors.h"
 #include "Language.h"
 #include "Log.h"
 #include "Map.h"
@@ -48,8 +49,11 @@ AISpellInfoType* GetAISpellInfo(uint32 spellId, Difficulty difficulty)
     return Trinity::Containers::MapGetValuePtr(UnitAI::AISpellInfo, { spellId, difficulty });
 }
 
-CreatureAI::CreatureAI(Creature* creature) : UnitAI(creature), me(creature), _boundary(nullptr), _negateBoundary(false), m_MoveInLineOfSight_locked(false)
+CreatureAI::CreatureAI(Creature* creature, uint32 scriptId)
+    : UnitAI(creature), me(creature), _boundary(nullptr),
+      _negateBoundary(false), _scriptId(scriptId ? scriptId : creature->GetScriptId()), m_MoveInLineOfSight_locked(false)
 {
+    ASSERT(_scriptId, "A CreatureAI was initialized with an invalid scriptId!");
 }
 
 CreatureAI::~CreatureAI()
@@ -61,55 +65,34 @@ void CreatureAI::Talk(uint8 id, WorldObject const* whisperTarget /*= nullptr*/)
     sCreatureTextMgr->SendChat(me, id, whisperTarget);
 }
 
-void CreatureAI::DoZoneInCombat(Creature* creature /*= nullptr*/, float maxRangeToNearestTarget /* = 250.0f*/)
+void CreatureAI::DoZoneInCombat(Creature* creature /*= nullptr*/)
 {
     if (!creature)
         creature = me;
 
     Map* map = creature->GetMap();
-    if (creature->CanHaveThreatList())
+    if (!map->IsDungeon())                                  //use IsDungeon instead of Instanceable, in case battlegrounds will be instantiated
     {
-        if (!map->IsDungeon())                                  //use IsDungeon instead of Instanceable, in case battlegrounds will be instantiated
-        {
-            TC_LOG_ERROR("misc", "DoZoneInCombat call for map that isn't an instance (creature entry = %d)", creature->GetTypeId() == TYPEID_UNIT ? creature->ToCreature()->GetEntry() : 0);
-            return;
-        }
-
-        if (!creature->HasReactState(REACT_PASSIVE) && !creature->GetVictim())
-        {
-            if (Unit* nearTarget = creature->SelectNearestTarget(maxRangeToNearestTarget))
-                creature->AI()->AttackStart(nearTarget);
-            else if (creature->IsSummon())
-            {
-                if (Unit* summoner = creature->ToTempSummon()->GetSummoner())
-                {
-                    if (creature->IsFriendlyTo(summoner))
-                    {
-                        Unit* target = summoner->getAttackerForHelper();
-                        if (target && creature->IsHostileTo(target))
-                            creature->AI()->AttackStart(target);
-                    }
-                }
-            }
-        }
-
-        // Intended duplicated check, the code above this should select a victim
-        // If it can't find a suitable attack target then we should error out.
-        if (!creature->HasReactState(REACT_PASSIVE) && !creature->GetVictim())
-        {
-            TC_LOG_ERROR("misc.dozoneincombat", "DoZoneInCombat called for creature that has empty threat list (creature entry = %u)", creature->GetEntry());
-            return;
-        }
+        TC_LOG_ERROR("misc", "DoZoneInCombat call for map that isn't an instance (creature entry = %d)", creature->GetTypeId() == TYPEID_UNIT ? creature->ToCreature()->GetEntry() : 0);
+        return;
     }
 
     Map::PlayerList const& playerList = map->GetPlayers();
     if (playerList.isEmpty())
         return;
 
-    for (Map::PlayerList::const_iterator itr = playerList.begin(); itr != playerList.end(); ++itr)
-        if (Player* player = itr->GetSource())
-            if (player->IsAlive())
-                creature->EngageWithTarget(player);
+    for (auto const& ref : playerList)
+        if (Player* player = ref.GetSource())
+        {
+            if (!player->IsAlive() || !CombatManager::CanBeginCombat(creature, player))
+                continue;
+
+            creature->EngageWithTarget(player);
+            for (Unit* pet : player->m_Controlled)
+                creature->EngageWithTarget(pet);
+            if (Unit* vehicle = player->GetVehicleBase())
+                creature->EngageWithTarget(vehicle);
+        }
 }
 
 // scripts does not take care about MoveInLineOfSight loops

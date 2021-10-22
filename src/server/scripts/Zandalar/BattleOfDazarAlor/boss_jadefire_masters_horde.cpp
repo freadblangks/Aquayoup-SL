@@ -175,7 +175,7 @@ private:
                 if (mara->IsInCombat())
                     return;
                 else
-                    mara->AI()->DoZoneInCombat(nullptr, 250.0f);
+                    mara->AI()->DoZoneInCombat(nullptr);
             }
             this->barrier_count = 0;
             break;
@@ -198,7 +198,7 @@ private:
                 if (mara->IsInCombat())
                     return;
                 else
-                    mara->AI()->DoZoneInCombat(nullptr, 250.0f);
+                    mara->AI()->DoZoneInCombat(nullptr);
             }
             break;
         }
