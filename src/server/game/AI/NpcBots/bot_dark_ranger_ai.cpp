@@ -169,6 +169,9 @@ public:
                     DrinkPotion(false);
             }
 
+            if (ProcessImmediateNonAttackTarget())
+                return;
+
             if (!CheckAttackTarget())
             {
                 me->InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
@@ -585,19 +588,19 @@ public:
         {
         }
 
-        std::vector<uint32> const* GetDamagingSpellsList() const
+        std::vector<uint32> const* GetDamagingSpellsList() const override
         {
             return &Darkranger_spells_damage;
         }
-        std::vector<uint32> const* GetCCSpellsList() const
+        std::vector<uint32> const* GetCCSpellsList() const override
         {
             return &Darkranger_spells_cc;
         }
-        //std::vector<uint32> const* GetHealingSpellsList() const
+        //std::vector<uint32> const* GetHealingSpellsList() const override
         //{
         //    return &Darkranger_spells_heal;
         //}
-        //std::vector<uint32> const* GetSupportSpellsList() const
+        //std::vector<uint32> const* GetSupportSpellsList() const override
         //{
         //    return &Darkranger_spells_support;
         //}

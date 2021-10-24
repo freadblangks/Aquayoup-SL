@@ -5,6 +5,7 @@
 #include "Spell.h"
 #include "SpellAuras.h"
 #include "TemporarySummon.h"
+#include "World.h"
 /*
 Archmage NpcBot (by Trickerer onlysuffering@gmail.com)
 Description:
@@ -154,6 +155,9 @@ public:
                 me->CastSpell(me, GetSpell(SUMMON_WATER_ELEMENTAL_1), false);
                 return;
             }
+
+            if (ProcessImmediateNonAttackTarget())
+                return;
 
             if (!CheckAttackTarget())
                 return;
@@ -373,19 +377,19 @@ public:
             }
         }
 
-        std::vector<uint32> const* GetDamagingSpellsList() const
+        std::vector<uint32> const* GetDamagingSpellsList() const override
         {
             return &Archmage_spells_damage;
         }
-        //std::vector<uint32> const* GetCCSpellsList() const
+        //std::vector<uint32> const* GetCCSpellsList() const override
         //{
         //    return &Archmage_spells_cc;
         //}
-        //std::vector<uint32> const* GetHealingSpellsList() const
+        //std::vector<uint32> const* GetHealingSpellsList() const override
         //{
         //    return &Archmage_spells_heal;
         //}
-        std::vector<uint32> const* GetSupportSpellsList() const
+        std::vector<uint32> const* GetSupportSpellsList() const override
         {
             return &Archmage_spells_support;
         }

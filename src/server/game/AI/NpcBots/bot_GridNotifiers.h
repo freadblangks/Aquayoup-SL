@@ -3,6 +3,9 @@
 
 #include "DynamicObject.h"
 #include "Corpse.h"
+#include "Creature.h"
+#include "DBCStores.h"
+#include "GameObject.h"
 #include "Group.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -163,6 +166,9 @@ class HostileDispelTargetCheck
                 //!ai->InDuel(u) &&
                 (ai->IsInBotParty(u->GetVictim()) || me->GetVictim() == u))
             {
+                if (!checksteal && u->GetEntry() == 25744 && !u->GetOwnedAuras().empty()) // Sunwell - Dark Fiend
+                    return true;
+
                 if (checksteal)
                 {
                     if (u->IsImmunedToSpell(sSpellMgr->GetSpellInfo(30449), me))

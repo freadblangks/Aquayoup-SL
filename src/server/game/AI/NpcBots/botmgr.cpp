@@ -12,6 +12,7 @@
 #include "Group.h"
 #include "InstanceScript.h"
 #include "Language.h"
+#include "Log.h"
 #include "Map.h"
 #include "MapManager.h"
 #include "MotionMaster.h"
@@ -19,6 +20,7 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
+#include "World.h"
 /*
 Npc Bot Manager by Trickerer (onlysuffering@gmail.com)
 Player NpcBots management
@@ -242,7 +244,7 @@ void BotMgr::LoadConfig(bool reload)
 uint8 BotMgr::GetNpcBotsCount() const
 {
     //if (!inWorldOnly)
-        return _bots.size();
+        return (uint8)_bots.size();
 
     //CRITICAL SECTION
     //inWorldOnly is only for one-shot cases (opcodes, etc.)
@@ -1188,13 +1190,12 @@ void BotMgr::UpdatePvPForBots()
 
 void BotMgr::PropagateEngageTimers() const
 {
-    uint32 delay;
     for (BotMap::const_iterator itr = _bots.begin(); itr != _bots.end(); ++itr)
     {
         if (itr->second->GetBotAI()->IsTank())
             continue;
 
-        delay = itr->second->GetBotAI()->HasRole(BOT_ROLE_HEAL) ? GetEngageDelayHeal() :
+        uint32 delay = itr->second->GetBotAI()->HasRole(BOT_ROLE_HEAL) ? GetEngageDelayHeal() :
             itr->second->GetBotAI()->HasRole(BOT_ROLE_DPS) ? GetEngageDelayDPS() : 0;
 
         itr->second->GetBotAI()->ResetEngageTimer(delay);
@@ -1309,9 +1310,9 @@ int32 BotMgr::GetHPSTaken(Unit const* unit) const
                 healing = unit->SpellHealingBonusTaken(u, spellInfo, healing, HEAL);
 
                 if (i == CURRENT_CHANNELED_SPELL)
-                    amount += healing / (spellInfo->_effects[j].Amplitude * 0.001f);
+                    amount += int32(healing / (spellInfo->_effects[j].Amplitude * 0.001f));
                 else
-                    amount += healing / (std::max<int32>(spell->GetTimer(), 1000) * 0.001f);
+                    amount += int32(healing / (std::max<int32>(spell->GetTimer(), 1000) * 0.001f));
 
                 //TC_LOG_ERROR("entities.player", "BotMgr:pendingHeals: found %s's %s on %s in %u (%i, total %i)",
                 //    u->GetName().c_str(), spellInfo->SpellName[0], target->GetName().c_str(), pheal->delay, healing, pheal->amount);
@@ -1324,7 +1325,7 @@ int32 BotMgr::GetHPSTaken(Unit const* unit) const
     //HoTs
     Unit::AuraEffectList const& hots = unit->GetAuraEffectsByType(SPELL_AURA_PERIODIC_HEAL);
     for (Unit::AuraEffectList::const_iterator itr = hots.begin(); itr != hots.end(); ++itr)
-        amount += (*itr)->GetAmount() / ((*itr)->GetAmplitude() * 0.001f);
+        amount += int32((*itr)->GetAmount() / ((*itr)->GetAmplitude() * 0.001f));
 
     //if (amount != 0)
     //    TC_LOG_ERROR("entities.player", "BotMgr:GetHPSTaken(): %s got %i)", unit->GetName().c_str(), amount);
@@ -1435,6 +1436,32 @@ void BotMgr::OnBotOwnerExitVehicle(Player const* passenger, Vehicle const* vehic
         if (Creature const* bot = itr->second)
             if (bot->IsInWorld() && bot->IsAlive())
                 bot->GetBotAI()->OnBotOwnerExitVehicle(vehicle);
+}
+
+void BotMgr::OnBotPartyEngage(Player const* owner)
+{
+    Group const* gr = owner->GetGroup();
+    if (gr)
+    {
+        std::vector<Player const*> affectedPlayers;
+        for (GroupReference const* itr = gr->GetFirstMember(); itr != nullptr; itr = itr->next())
+        {
+            Player const* player = itr->GetSource();
+            if (!player || owner->GetMap() != player->FindMap() ||
+                player->GetDistance(owner) > sWorld->GetMaxVisibleDistanceOnContinents() ||
+                !player->HaveBot())
+                continue;
+
+            if (player->GetBotMgr()->IsPartyInCombat())
+                return;
+
+            affectedPlayers.push_back(player);
+        }
+        for (Player const* p : affectedPlayers)
+            p->GetBotMgr()->PropagateEngageTimers();
+    }
+    else
+        owner->GetBotMgr()->PropagateEngageTimers();
 }
 
 void BotMgr::ApplyBotEffectMods(Unit const* caster, Unit const* target, SpellInfo const* spellInfo, uint8 effIndex, float& value)

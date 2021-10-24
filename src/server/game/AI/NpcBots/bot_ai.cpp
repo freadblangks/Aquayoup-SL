@@ -7,19 +7,26 @@
 #include "Bag.h"
 #include "CellImpl.h"
 #include "CharacterCache.h"
+#include "CharacterDatabase.h"
 #include "Chat.h"
+#include "DatabaseEnv.h"
+#include "DBCStores.h"
 #include "GameEventMgr.h"
+#include "GameObjectAI.h"
 #include "GridNotifiersImpl.h"
 #include "InstanceScript.h"
 #include "Item.h"
 #include "LFG.h"
 #include "LFGMgr.h"
+#include "Log.h"
 #include "Mail.h"
 #include "MapManager.h"
 #include "MotionMaster.h"
+#include "ObjectMgr.h"
 #include "ScriptedGossip.h"
 #include "SpellAuraEffects.h"
 #include "TemporarySummon.h"
+#include "World.h"
 /*
 NpcBot System by Trickerer (https://github.com/trickerer/Trinity-Bots; onlysuffering@gmail.com)
 Version 4.14.5a
@@ -129,6 +136,8 @@ bot_ai::bot_ai(Creature* creature) : CreatureAI(creature)
     //moved
     _potionTimer = 0;
 
+    _classinfo = new PlayerClassLevelInfo();
+
     for (uint8 i = BOT_SLOT_MAINHAND; i != BOT_INVENTORY_SIZE; ++i)
         for (uint8 j = 0; j != MAX_BOT_ITEM_MOD; ++j)
             _stats[i][j] = 0;
@@ -208,6 +217,9 @@ bot_ai::bot_ai(Creature* creature) : CreatureAI(creature)
 
     _lastZoneId = 0;
     _lastAreaId = 0;
+    _lastWMOAreaId = 0;
+
+    _wmoAreaUpdateTimer = 0;
 
     _ownerGuid = 0;
 
@@ -227,6 +239,8 @@ bot_ai::~bot_ai()
     for (uint8 i = BOT_SLOT_MAINHAND; i != BOT_INVENTORY_SIZE; ++i)
         if (_equips[i])
             delete _equips[i];
+
+    delete _classinfo;
 
     BotDataMgr::UnregisterBot(me);
 }
@@ -334,8 +348,8 @@ bool bot_ai::SetBotOwner(Player* newowner)
     bool takeMoney = (_ownerGuid != newowner->GetGUID().GetCounter());
     if (mgr->AddBot(me, takeMoney) & BOT_ADD_FATAL)
     {
-        //TC_LOG_ERROR("entities.player", "bot_ai::SetBotOwner(): player %s (%u) can't add bot %s (FATAL), removing...",
-        //    master->GetName().c_str(), master->GetGUID().GetCounter(), me->GetName().c_str());
+        //TC_LOG_ERROR("entities.player", "bot_ai::SetBotOwner(): player %s (%s) can't add bot %s (FATAL), removing...",
+        //    master->GetName().c_str(), master->GetGUID().ToString().c_str(), me->GetName().c_str());
         //failed to add bot
         //if (_ownerGuid)
         //{
@@ -348,8 +362,8 @@ bool bot_ai::SetBotOwner(Player* newowner)
 
         if (_ownerGuid)
         {
-            TC_LOG_ERROR("entities.player", "bot_ai::SetBotOwner(): %s's master %s (guid: %u) is found but bot failed to set owner (fatal)! Unbinding bot temporarily (until server restart)...",
-                me->GetName().c_str(), newowner->GetName().c_str(), newowner->GetGUID().GetCounter());
+            TC_LOG_ERROR("entities.player", "bot_ai::SetBotOwner(): %s's master %s (%s) is found but bot failed to set owner (fatal)! Unbinding bot temporarily (until server restart)...",
+                me->GetName().c_str(), newowner->GetName().c_str(), newowner->GetGUID().ToString().c_str());
             //_ownerGuid = 0;
 
             SetBotCommandState(BOT_COMMAND_FULLSTOP); //prevent all actions
@@ -841,7 +855,7 @@ bool bot_ai::doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags)
             {
                 ApplyClassSpellCastTimeMods(m_botSpellInfo, castTime);
                 if (castTime < gcd)
-                    gcd = castTime;
+                    gcd = float(castTime);
             }
         }
     }
@@ -888,16 +902,16 @@ void bot_ai::_calculatePos(Position& pos) const
         angle = float(M_PI) / 7.5f; //max bias (left of right) //total arc is angle * 2
         angle = (angle / dpss) * (slot); //bias
         if (slot % 2) angle *= -1.f; //bias interchange
-        angle += ((slot % 4) < 2) ? (M_PI/2.f) : -(M_PI/2.f); //sides
+        angle += float(((slot % 4) < 2) ? (M_PI/2.f) : -(M_PI/2.f)); //sides
         mydist = 2.0f;
     }
     else
     {
-        angle = (me->GetEntry() % 2) ? (M_PI/2.f) : -(M_PI/2.f);
+        angle = float((me->GetEntry() % 2) ? (M_PI/2.f) : -(M_PI/2.f));
         mydist = 0.5f;
     }
 
-    mydist += std::max<float>(int8(followdist) - 30, 5) / 7.f; //1.f-10.f
+    mydist += std::max<int32>(int32(followdist) - 30, 5) / 7.f; //1.f-10.f
     mydist = std::max<float>(mydist - 2.f, 0.0f); //get bots closer
 
     if (me->GetVehicle())
@@ -1982,7 +1996,9 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
         if (_botclass < BOT_CLASS_EX_START)
             botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_SPEC) << ": " << uint32(_spec);
 
-        //botstring << "\nBoot timer: %i", _bootTimer);
+        //debug
+        //botstring << "\n_lastWMOAreaId: " << uint32(_lastWMOAreaId);
+
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BOT_ROLEMASK_MAIN) << ": " << uint32(_roleMask & BOT_ROLE_MASK_MAIN);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BOT_ROLEMASK_GATHERING) << ": " << uint32(_roleMask & BOT_ROLE_MASK_GATHERING);
 
@@ -2094,7 +2110,7 @@ void bot_ai::SetStats(bool force)
         InitSpells(); //this must stay before class passives
         ApplyClassPassives();
 
-        sObjectMgr->GetPlayerClassLevelInfo(GetPlayerClass(), std::min<uint8>(mylevel, 80), &_classinfo);
+        sObjectMgr->GetPlayerClassLevelInfo(GetPlayerClass(), std::min<uint8>(mylevel, 80), _classinfo);
 
         PlayerLevelInfo info;
         sObjectMgr->GetPlayerLevelInfo(GetPlayerRace(), GetPlayerClass(), std::min<uint8>(mylevel, 80), &info);
@@ -2311,7 +2327,7 @@ void bot_ai::SetStats(bool force)
                 armor_mod += 0.1f;
             //Survival of the Fittest
             if (myclass == DRUID_BEAR_FORM && _spec == BOT_SPEC_DRUID_FERAL)
-                armor_mod += 0.33f + (me->GetShapeshiftForm() == FORM_BEAR ? 1.8 : 3.7f);
+                armor_mod += 0.33f + (me->GetShapeshiftForm() == FORM_BEAR ? 1.8f : 3.7f);
             //Moonkin Form innate
             else if (myclass == DRUID_MOONKIN_FORM && _spec == BOT_SPEC_DRUID_BALANCE)
                 armor_mod += 3.7f;
@@ -3511,6 +3527,53 @@ Unit* bot_ai::_getTarget(bool byspell, bool ranged, bool &reset) const
     if (mytar && me->HasAuraType(SPELL_AURA_MOD_TAUNT))
         return mytar;
 
+    //Immediate targets
+    if (!IAmFree() && !IsTank() && HasRole(BOT_ROLE_DPS) && me->GetMap()->GetEntry() && !me->GetMap()->GetEntry()->IsWorldMap())
+    {
+        static constexpr std::array<uint32, 1> WMOAreaGroupMarrowgar = { 47833 }; // The Spire
+
+        static auto isInWMOArea = [=](auto const& ids) {
+            for (auto wmoId : ids) {
+                if (wmoId == _lastWMOAreaId)
+                    return true;
+            }
+            return false;
+        };
+
+        if (me->GetMapId() == 631 && isInWMOArea(WMOAreaGroupMarrowgar) && me->IsInCombat() && // Icecrown Citadel - Lord Marrowgar
+            (!mytar || (mytar->GetEntry() != CREATURE_ICC_BONE_SPIKE1 && mytar->GetEntry() != CREATURE_ICC_BONE_SPIKE2 &&
+            mytar->GetEntry() != CREATURE_ICC_BONE_SPIKE3)))
+        {
+            static constexpr std::array<uint32, 3> BoneSpikeIds = { CREATURE_ICC_BONE_SPIKE1, CREATURE_ICC_BONE_SPIKE2, CREATURE_ICC_BONE_SPIKE3 };
+
+            auto boneSpikeCheck = [=, mydist = 50.f](Unit* unit) mutable {
+                for (uint32 bsId : BoneSpikeIds) {
+                    if (unit->GetEntry() == bsId)  {
+                        if (HasRole(BOT_ROLE_RANGED))
+                            return true;
+                        float dist = me->GetDistance2d(unit);
+                        if (dist < mydist) {
+                            mydist = dist;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
+            std::list<Creature*> cList;
+            Trinity::CreatureListSearcher searcher(me, cList, boneSpikeCheck);
+            Cell::VisitAllObjects(me, searcher, 50.f);
+
+            if (Creature* spike = cList.empty() ? nullptr : cList.size() == 1 ? cList.front() :
+                Trinity::Containers::SelectRandomContainerElement(cList))
+            {
+                // Bone spike is always attackable - no additional checks needed
+                return spike;
+            }
+        }
+    }
+
     Group const* gr = !IAmFree() ? master->GetGroup() : nullptr;
 
     if (gr && IsOffTank())
@@ -3877,6 +3940,81 @@ bool bot_ai::CheckAttackTarget()
         me->Attack(opponent, !ranged);
 
     return true;
+}
+//IMMEDIATE TARGETS
+bool bot_ai::ProcessImmediateNonAttackTarget()
+{
+    if ((me->GetMap()->GetEntry() && me->GetMap()->GetEntry()->IsWorldMap()) || IAmFree() || IsCasting())
+        return false;
+
+    static constexpr std::array<uint32, 2> WMOAreaGroupMuru = { 41736, 42759 }; // Shrine of the Eclipse
+    static constexpr std::array<uint32, 2> WMOAreaGroupNajentus = { 41129, 41130 }; // Karabor Sewers
+
+    static auto isInWMOArea = [=](auto const& ids) {
+        for (auto wmoId : ids) {
+            if (wmoId == _lastWMOAreaId)
+                return true;
+        }
+        return false;
+    };
+
+    if (me->GetMapId() == 580 && isInWMOArea(WMOAreaGroupMuru)) // Sunwell - M'uru
+    {
+        static const uint32 SPELL_PURGE_1 = 370u;
+        static const uint32 SPELL_DISPEL_MAGIC_1 = 527u;
+        uint32 dspell = 0;
+        if (_botclass == BOT_CLASS_SHAMAN)
+            dspell = SPELL_PURGE_1;
+        else if (_botclass == BOT_CLASS_PRIEST)
+            dspell = SPELL_DISPEL_MAGIC_1;
+
+        if (dspell && IsSpellReady(dspell, lastdiff))
+        {
+            std::list<Creature*> cList;
+            Trinity::AllCreaturesOfEntryInRange check(me, 25744, 30.f); // Dark Fiend
+            Trinity::CreatureListSearcher<Trinity::AllCreaturesOfEntryInRange> searcher(me, cList, check);
+            Cell::VisitAllObjects(me, searcher, 30.f);
+
+            //Dark Fiends do not die instantly, remove purged ones
+            cList.remove_if(Trinity::UnitAuraCheck(false, 45934)); // "Dark Fiend"
+
+            if (Unit* fiend = cList.empty() ? nullptr : cList.size() == 1u ? cList.front() :
+                Trinity::Containers::SelectRandomContainerElement(cList))
+            {
+                if (CheckBotCast(fiend, GetSpell(dspell)) == SPELL_CAST_OK)
+                    if (doCast(fiend, GetSpell(dspell)))
+                        return true;
+            }
+        }
+    }
+    if (me->GetMapId() == 564 && isInWMOArea(WMOAreaGroupNajentus) && Rand() < 10) // Black Temple - High Warlord Naj'entus
+    {
+        if (Group* const gr = master->GetGroup())
+        {
+            std::vector<Player*> spines;
+            //Find and free impaled player (player gets the spine)
+            for (GroupReference const* itr = gr->GetFirstMember(); itr != nullptr; itr = itr->next())
+            {
+                Player* pl = itr->GetSource();
+                //We don't make bots run to player to "click" the spine, so range is rather big
+                if (pl && pl->IsInWorld() && pl->IsAlive() && me->GetMap() == pl->FindMap() && pl->HasUnitState(UNIT_STATE_STUNNED) &&
+                    me->GetDistance(pl) < 25.f && pl->HasAura(39837)) // "Impaling Spine"
+                    spines.push_back(pl);
+            }
+
+            if (Player* pl = spines.empty() ? nullptr : spines.size() == 1u ? spines.front() :
+                Trinity::Containers::SelectRandomContainerElement(spines))
+            {
+                if (GameObject const* spine = pl->GetFirstGameObjectById(185584)) // Naj'entus Spine
+                {
+                    if (spine->AI() && spine->AI()->OnGossipHello(pl))
+                        return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 //POSITION
 AoeSpotsVec const& bot_ai::GetAoeSpots() const
@@ -5373,7 +5511,7 @@ void bot_ai::_OnHealthUpdate() const
     //TC_LOG_ERROR("entities.player", "_OnHealthUpdate(): updating bot %s", me->GetName().c_str());
     bool fullhp = me->GetHealth() == me->GetMaxHealth();
     float pct = fullhp ? 100.f : me->GetHealthPct(); // needs for regeneration
-    uint32 m_basehp = _classinfo.basehealth;
+    uint32 m_basehp = _classinfo->basehealth;
     //TC_LOG_ERROR("entities.player", "class base health: %u", m_basehp);
     me->SetCreateHealth(m_basehp);
 
@@ -5428,7 +5566,7 @@ void bot_ai::_OnManaUpdate() const
     //TC_LOG_ERROR("entities.player", "_OnManaUpdate(): updating bot %s", me->GetName().c_str());
     bool fullmana = me->GetPower(POWER_MANA) == me->GetMaxPower(POWER_MANA);
     float pct = fullmana ? 100.f : (float(me->GetPower(POWER_MANA)) * 100.f) / float(me->GetMaxPower(POWER_MANA));
-    float m_basemana = _classinfo.basemana;
+    float m_basemana = _classinfo->basemana;
     if (_botclass == BOT_CLASS_BM)
         m_basemana = BASE_MANA_1_BM + (BASE_MANA_10_BM - BASE_MANA_1_BM) * (mylevel/81.f);
     if (_botclass == BOT_CLASS_SPHYNX)
@@ -5443,7 +5581,7 @@ void bot_ai::_OnManaUpdate() const
         m_basemana = BASE_MANA_1_DARK_RANGER + (BASE_MANA_10_DARK_RANGER - BASE_MANA_1_DARK_RANGER) * ((mylevel - 40)/82.f);
     //TC_LOG_ERROR("entities.player", "classinfo base mana = %f", m_basemana);
 
-    me->SetCreateMana(uint32(_classinfo.basemana));
+    me->SetCreateMana(uint32(_classinfo->basemana));
 
     float intValue = _getTotalBotStat(BOT_STAT_MOD_INTELLECT);
 
@@ -5551,6 +5689,22 @@ void bot_ai::_OnManaRegenUpdate() const
 
     me->SetStatFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER, power_regen_mp5 + CalculatePct(value, modManaRegenInterrupt));
     me->SetStatFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER, power_regen_mp5 + value);
+}
+
+void bot_ai::_UpdateWMOArea()
+{
+    _wmoAreaUpdateTimer = urand(7000, 9000);
+
+    uint32 mogpFlags;
+    int32 adtId, rootId, groupId;
+    me->GetMap()->GetAreaInfo(me->GetPhaseMask(), me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(),
+        mogpFlags, adtId, rootId, groupId);
+
+    if (WMOAreaTableEntry const* wmoEntry = GetWMOAreaTableEntryByTripple(rootId, adtId, groupId))
+    {
+        _lastWMOAreaId = wmoEntry->ID;
+        //TC_LOG_ERROR("scripts", "_UpdateWMOArea(): bot %s: area %u, wmoarea %u", me->GetName().c_str(), _lastAreaId, _lastWMOAreaId);
+    }
 }
 
 void bot_ai::_OnZoneUpdate(uint32 zoneId, uint32 areaId)
@@ -10080,8 +10234,8 @@ bool bot_ai::_equip(uint8 slot, Item* newItem, ObjectGuid::LowType receiver)
     if (newItem->GetState() == ITEM_REMOVED)
     {
         TC_LOG_ERROR("entities.player",
-            "minion_ai::_equip(): player %s (guidLow: %u) is trying to make bot %s (id: %u) equip item: %s (id: %u, guidLow: %u) which has state ITEM_REMOVED!",
-            master->GetName().c_str(), master->GetGUID().GetCounter(), me->GetName().c_str(), me->GetEntry(), proto->Name1.c_str(), proto->ItemId, newItem->GetGUID().GetCounter());
+            "minion_ai::_equip(): player %s (%s) is trying to make bot %s (id: %u) equip item: %s (id: %u, %s) which has state ITEM_REMOVED!",
+            master->GetName().c_str(), master->GetGUID().ToString().c_str(), me->GetName().c_str(), me->GetEntry(), proto->Name1.c_str(), proto->ItemId, newItem->GetGUID().ToString().c_str());
         return false;
     }
 
@@ -10114,8 +10268,8 @@ bool bot_ai::_equip(uint8 slot, Item* newItem, ObjectGuid::LowType receiver)
             //BotWhisper(msg.str().c_str());
 
             TC_LOG_ERROR("entities.player",
-                "minion_ai::_equip(): player %s (guidLow: %u) is trying to make bot %s (id: %u) equip item: %s (id: %u, guidLow: %u) but either does not have this item or does not own it",
-                master->GetName().c_str(), master->GetGUID().GetCounter(), me->GetName().c_str(), me->GetEntry(), proto->Name1.c_str(), proto->ItemId, newItem->GetGUID().GetCounter());
+                "minion_ai::_equip(): player %s (%s) is trying to make bot %s (id: %u) equip item: %s (id: %u, %s) but either does not have this item or does not own it",
+                master->GetName().c_str(), master->GetGUID().ToString().c_str(), me->GetName().c_str(), me->GetEntry(), proto->Name1.c_str(), proto->ItemId, newItem->GetGUID().ToString().c_str());
             return false;
         }
 
@@ -10229,8 +10383,8 @@ bool bot_ai::_resetEquipment(uint8 slot, ObjectGuid::LowType receiver)
 
     if (!_equip(slot, stItem, receiver))
     {
-        TC_LOG_ERROR("entities.player", "minion_ai::_resetEquipment(): player %s (guidLow: %u) failed to reset equipment for bot %s (id: %u) in slot %u",
-            master->GetName().c_str(), master->GetGUID().GetCounter(), me->GetName().c_str(), me->GetEntry(), slot);
+        TC_LOG_ERROR("entities.player", "minion_ai::_resetEquipment(): player %s (%s) failed to reset equipment for bot %s (id: %u) in slot %u",
+            master->GetName().c_str(), master->GetGUID().ToString().c_str(), me->GetName().c_str(), me->GetEntry(), slot);
         return false;
     }
     return true;
@@ -11211,7 +11365,6 @@ float bot_ai::_getItemGearScore(Item const* item, uint8 forslot) const
 
     istats[BOT_STAT_MOD_ARMOR] += proto->Armor;
     istats[BOT_STAT_MOD_BLOCK_VALUE] += proto->Block;
-
 
     int8 id = 1;
     EquipmentInfo const* einfo = sObjectMgr->GetEquipmentInfo(me->GetEntry(), id);
@@ -12727,14 +12880,6 @@ void bot_ai::JustEnteredCombat(Unit* u)
     if (me->HasFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP))
         me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
 
-    if (!IAmFree())
-    {
-        if (u->CanHaveThreatList())
-            master->GetBotMgr()->PropagateEngageTimers();
-
-        return;
-    }
-
     _evadeMode = false;
     AbortTeleport();
 
@@ -12748,8 +12893,8 @@ void bot_ai::JustDied(Unit*)
 
     if (IsTempBot())
     {
-        //TC_LOG_ERROR("entities.player", "Unsummoning temp bot %s (guidLow: %u), owner: %s (guidLow: %u)...",
-        //    me->GetName().c_str(), me->GetGUID().GetCounter(), master->GetName().c_str(), master->GetGUID().GetCounter());
+        //TC_LOG_ERROR("entities.player", "Unsummoning temp bot %s (%s), owner: %s (%s)...",
+        //    me->GetName().c_str(), me->GetGUID().ToString().c_str(), master->GetName().c_str(), master->GetGUID().ToString().c_str());
 
         if (!IAmFree())
             master->GetBotMgr()->RemoveBot(me->GetGUID(), BOT_REMOVE_UNSUMMON);
@@ -14409,7 +14554,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         //    }
         //}
 
-        //Zone / Area
+        //Zone / Area / WMOArea
         if (me->IsInWorld())
         {
             uint32 newzone, newarea;
@@ -14419,6 +14564,9 @@ bool bot_ai::GlobalUpdate(uint32 diff)
                 _OnZoneUpdate(newzone, newarea); // also updates area
             else if (_lastAreaId != newarea)
                 _OnAreaUpdate(newarea);
+
+            if (_wmoAreaUpdateTimer <= diff)
+                _UpdateWMOArea();
         }
 
         //Gathering
@@ -14719,6 +14867,9 @@ void bot_ai::CommonTimers(uint32 diff)
 
     if (IAmFree())
         UpdateReviveTimer(diff);
+
+    if (me->IsInWorld() &&
+        _wmoAreaUpdateTimer > diff) _wmoAreaUpdateTimer -= diff;
 
     if (_updateTimerMedium > diff)  _updateTimerMedium -= diff;
     if (_updateTimerEx1 > diff)     _updateTimerEx1 -= diff;
@@ -15396,6 +15547,58 @@ uint8 bot_ai::GetExpectedHPPCT(Unit const* u, uint32 mseconds) const
 }
 
 //Moved from header
+bool bot_ai::IsChanneling(Unit const* u/* = nullptr*/) const
+{
+    if (!u)
+        u = me;
+    return u->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+}
+bool bot_ai::IsCasting(Unit const* u/* = nullptr*/) const
+{
+    if (!u)
+        u = me;
+    return (u->HasUnitState(UNIT_STATE_CASTING) || IsChanneling(u) || u->IsNonMeleeSpellCast(false, false, true, false, false));
+}
+bool bot_ai::JumpingFlyingOrFalling() const
+{
+    return Jumping() || me->IsFalling() || me->HasUnitMovementFlag(MOVEMENTFLAG_PITCH_UP|MOVEMENTFLAG_PITCH_DOWN|MOVEMENTFLAG_SPLINE_ELEVATION|MOVEMENTFLAG_FALLING_SLOW);
+}
+bool bot_ai::JumpingOrFalling() const
+{
+    return Jumping() || me->IsFalling() || me->HasUnitMovementFlag(MOVEMENTFLAG_PITCH_UP|MOVEMENTFLAG_PITCH_DOWN|MOVEMENTFLAG_FALLING_SLOW);
+}
+bool bot_ai::Jumping() const
+{
+    return me->HasUnitState(UNIT_STATE_JUMPING);
+}
+
+bool bot_ai::IsTempBot() const
+{
+    return me->GetEntry() == BOT_ENTRY_MIRROR_IMAGE_BM;
+}
+
+uint32 bot_ai::GetLostHP(Unit const* unit)
+{
+    return unit->GetMaxHealth() - unit->GetHealth();
+}
+uint8 bot_ai::GetHealthPCT(Unit const* u)
+{
+    if (!u || !u->IsAlive() || u->GetMaxHealth() <= 1)
+        return 100;
+    return uint8(((float(u->GetHealth()))/u->GetMaxHealth()) * 100);
+}
+uint8 bot_ai::GetManaPCT(Unit const* u)
+{
+    if (!u || !u->IsAlive() || u->GetMaxPower(POWER_MANA) <= 1)
+        return 100;
+    return (u->GetPower(POWER_MANA)*10/(1 + u->GetMaxPower(POWER_MANA)/10));
+}
+
+MeleeHitOutcome bot_ai::GetNextAttackMeleeOutCome() const
+{
+    return MELEE_HIT_CRUSHING;
+}
+
 uint8 bot_ai::GetBotStance() const
 {
     return BOT_STANCE_NONE;

@@ -2,11 +2,12 @@
 
 ## Build Status
 
+[![Fetch status](https://github.com/trickerer/NPCBots-cron/actions/workflows/automerge.yml/badge.svg)](https://github.com/trickerer/NPCBots-cron/actions/workflows/automerge.yml)
+
 3.3.5
 :------------:
-[![3.3.5 Build Status](https://travis-ci.org/TrinityCore/TrinityCore.svg?branch=3.3.5)](https://travis-ci.org/TrinityCore/TrinityCore)
-[![Build status](https://ci.appveyor.com/api/projects/status/54d0u1fxe50ad80o/branch/3.3.5?svg=true)](https://ci.appveyor.com/project/DDuarte/trinitycore/branch/3.3.5)
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/4656/badge.svg)](https://scan.coverity.com/projects/4656)
+[![Build status](https://ci.appveyor.com/api/projects/status/jck8c86eiti50v26/branch/npcbots_3.3.5?svg=true)](https://ci.appveyor.com/project/trickerer/trinitycore-3-3-5-with-npcbots/branch/npcbots_3.3.5)
+[![Build status](https://circleci.com/gh/trickerer/TrinityCore-3.3.5-with-NPCBots/tree/npcbots_3.3.5.svg?style=shield)](https://circleci.com/gh/trickerer/TrinityCore-3.3.5-with-NPCBots/tree/npcbots_3.3.5)
 
 ## Introduction
 

@@ -1,14 +1,17 @@
 #include "bot_ai.h"
 #include "botmgr.h"
 #include "Group.h"
+#include "Log.h"
 #include "Map.h"
 #include "MotionMaster.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
 #include "TemporarySummon.h"
+#include "World.h"
 /*
 Druid NpcBot (reworked by Trickerer onlysuffering@gmail.com)
 Complete - 85-90%
@@ -620,6 +623,9 @@ public:
                 CureGroup(GetSpell(CURE_POISON_1), diff);
                 CureGroup(GetSpell(REMOVE_CURSE_1), diff);
             }
+
+            if (ProcessImmediateNonAttackTarget())
+                return;
 
             CheckTravelForm(diff);
 
@@ -1710,7 +1716,7 @@ public:
                     pctbonus += 0.05f;
             }
 
-            damageinfo.Damages[0].Damage *= (1.0f + pctbonus);
+            damageinfo.Damages[0].Damage = uint32(damageinfo.Damages[0].Damage * (1.0f + pctbonus));
         }
 
         void ApplyClassDamageMultiplierMeleeSpell(int32& damage, SpellNonMeleeDamage& damageinfo, SpellInfo const* spellInfo, WeaponAttackType /*attackType*/, bool crit) const override
@@ -1988,7 +1994,7 @@ public:
             if (lvl >= 68 && baseId == REGROWTH_1)
                 timebonus += 400;
 
-            casttime = std::max<int32>((float(casttime) * (1.0f - pctbonus)) - timebonus, 0);
+            casttime = std::max<int32>(int32((float(casttime) * (1.0f - pctbonus)) - timebonus), 0);
         }
 
         void ApplyClassSpellCooldownMods(SpellInfo const* spellInfo, uint32& cooldown) const override
@@ -2011,7 +2017,7 @@ public:
             //if (lvl >= 24 && spellId == GetSpell(TURN_EVIL_1))
             //    timebonus -= 3000;
 
-            cooldown = std::max<int32>((float(cooldown) * (1.0f - pctbonus)) - timebonus, 0);
+            cooldown = std::max<int32>(int32((float(cooldown) * (1.0f - pctbonus)) - timebonus), 0);
         }
 
         void ApplyClassSpellCategoryCooldownMods(SpellInfo const* spellInfo, uint32& cooldown) const override
@@ -2049,7 +2055,7 @@ public:
             if (baseId == STARFALL_1)
                 timebonus -= 90000; //x2
 
-            cooldown = std::max<int32>((float(cooldown) * (1.0f - pctbonus)) - timebonus, 0);
+            cooldown = std::max<int32>(int32((float(cooldown) * (1.0f - pctbonus)) - timebonus), 0);
         }
 
         void ApplyClassSpellGlobalCooldownMods(SpellInfo const* spellInfo, float& cooldown) const override
@@ -2843,19 +2849,19 @@ public:
             }
         }
 
-        std::vector<uint32> const* GetDamagingSpellsList() const
+        std::vector<uint32> const* GetDamagingSpellsList() const override
         {
             return &Druid_spells_damage;
         }
-        std::vector<uint32> const* GetCCSpellsList() const
+        std::vector<uint32> const* GetCCSpellsList() const override
         {
             return &Druid_spells_cc;
         }
-        std::vector<uint32> const* GetHealingSpellsList() const
+        std::vector<uint32> const* GetHealingSpellsList() const override
         {
             return &Druid_spells_heal;
         }
-        std::vector<uint32> const* GetSupportSpellsList() const
+        std::vector<uint32> const* GetSupportSpellsList() const override
         {
             return &Druid_spells_support;
         }
