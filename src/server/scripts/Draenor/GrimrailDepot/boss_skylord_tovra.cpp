@@ -163,7 +163,7 @@ class boss_skylord_torva : public CreatureScript
 
                     if (Creature* l_Dragon = m_Instance->instance->GetCreature(m_Instance->GetGuidData(GrimrailDepotData::DataSkyLordTovraDragon)))
                     {
-                        if (l_Dragon->IsAIEnabled)
+                        if (l_Dragon->IsAIEnabled())
                             l_Dragon->GetAI()->DoAction(eSkylordTorvaActions::ActionCombatStopDragonFlight);
 
                         if (Vehicle* l_Vehicle = l_Dragon->GetVehicle())
@@ -197,7 +197,7 @@ class boss_skylord_torva : public CreatureScript
             {
                 if (Creature* l_Dragon = m_Instance->instance->GetCreature(m_Instance->GetGuidData(GrimrailDepotData::DataSkyLordTovraDragon)))
                 {
-                    if (l_Dragon->IsAIEnabled)
+                    if (l_Dragon->IsAIEnabled())
                         l_Dragon->GetAI()->DoAction(eSkylordTorvaActions::ActionCombatStartDragonFlight);
 
                     if (Vehicle* l_Vehicle = l_Dragon->GetVehicle())

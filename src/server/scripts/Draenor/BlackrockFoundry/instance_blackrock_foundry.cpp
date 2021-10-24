@@ -656,7 +656,7 @@ struct instance_blackrock_foundry : public InstanceScript
         {
             if (Creature* l_Garan = instance->GetCreature(m_AdmiralGaranGuid))
             {
-                if (l_Garan->IsAIEnabled)
+                if (l_Garan->IsAIEnabled())
                     l_Garan->AI()->SetGUID(l_unit->GetGUID());
             }
 
@@ -803,7 +803,7 @@ struct instance_blackrock_foundry : public InstanceScript
                 // {
                 if (Creature* l_Hansgar = instance->GetCreature(m_HansgarGuid))
                 {
-                    if (l_Hansgar->IsAIEnabled)
+                    if (l_Hansgar->IsAIEnabled())
                         l_Hansgar->AI()->Talk(8);   ///< Death
                 }
                 // });
@@ -865,7 +865,7 @@ struct instance_blackrock_foundry : public InstanceScript
                 // {
                 if (Creature* l_Blackhand = instance->GetCreature(m_CosmeticBlackhand))
                 {
-                    if (l_Blackhand->IsAIEnabled)
+                    if (l_Blackhand->IsAIEnabled())
                         l_Blackhand->AI()->Talk(12, 0);   ///< KromogKilled
                 }
                 // });
@@ -1062,7 +1062,7 @@ struct instance_blackrock_foundry : public InstanceScript
                 // {
                 if (Creature* l_Blackhand = instance->GetCreature(m_CosmeticBlackhand))
                 {
-                    if (l_Blackhand->IsAIEnabled)
+                    if (l_Blackhand->IsAIEnabled())
                         l_Blackhand->AI()->Talk(13, 0);   ///< KromogKilled
                 }
                 // });

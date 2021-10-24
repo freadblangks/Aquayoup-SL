@@ -1097,7 +1097,7 @@ class npc_foundry_iron_laborer_cosmetic : public CreatureScript
 
                 for (Creature* l_Me : l_Creatures)
                 {
-                    if (l_Me->IsAIEnabled)
+                    if (l_Me->IsAIEnabled())
                         l_Me->AI()->DoAction(eActions::ActionDisable);
                 }
 
@@ -1111,7 +1111,7 @@ class npc_foundry_iron_laborer_cosmetic : public CreatureScript
 
                 for (Creature* l_Laborer : l_Creatures)
                 {
-                    if (l_Laborer->IsAIEnabled)
+                    if (l_Laborer->IsAIEnabled())
                         l_Laborer->AI()->DoAction(eActions::ActionEvent);
                 }
             }
@@ -1177,7 +1177,7 @@ class npc_foundry_iron_laborer : public CreatureScript
 
                     for (Creature* l_Darkshard : l_Darkshards)
                     {
-                        if (l_Darkshard->IsAIEnabled)
+                        if (l_Darkshard->IsAIEnabled())
                             l_Darkshard->AI()->DoAction(eAction::ActionEvent);
                     }
 
@@ -1682,7 +1682,7 @@ class npc_foundry_slag_behemoth : public CreatureScript
                 {
                     if (Creature* l_Creature = ObjectAccessor::GetCreature(*me, l_InstanceScript->GetGuidData(eFoundryCreatures::BlackhandCosmetic)))
                     {
-                        if (l_Creature->IsAIEnabled)
+                        if (l_Creature->IsAIEnabled())
                             l_Creature->AI()->DoAction(eAction::ActionIntro);
                     }
                 }
@@ -1797,7 +1797,7 @@ class npc_foundry_blackrock_enforcer : public CreatureScript
                 {
                     if (Creature* l_Hansgar = ObjectAccessor::GetCreature(*me, l_Instance->GetGuidData(eFoundryCreatures::BossHansgar)))
                     {
-                        if (l_Hansgar->IsAIEnabled)
+                        if (l_Hansgar->IsAIEnabled())
                             l_Hansgar->AI()->SetGUID(me->GetGUID(), 0);
                     }
                 }
@@ -1891,7 +1891,7 @@ class npc_foundry_blackrock_forge_specialist : public CreatureScript
                 {
                     if (Creature* l_Hansgar = ObjectAccessor::GetCreature(*me, l_Instance->GetGuidData(eFoundryCreatures::BossHansgar)))
                     {
-                        if (l_Hansgar->IsAIEnabled)
+                        if (l_Hansgar->IsAIEnabled())
                             l_Hansgar->AI()->SetGUID(me->GetGUID(), 0);
                     }
                 }
@@ -3321,17 +3321,17 @@ class npc_foundry_gromkar_man_at_arms : public CreatureScript
 
                         if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                         {
-                            if (l_Thogar->IsAIEnabled)
+                            if (l_Thogar->IsAIEnabled())
                                 l_Thogar->AI()->SetGUID(l_Guid, 2);
                         }
                     }
                     else if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                     {
-                        if (l_Thogar->IsAIEnabled)
+                        if (l_Thogar->IsAIEnabled())
                         {
                             if (Creature* l_Wheels = ObjectAccessor::GetCreature(*me, l_Thogar->AI()->GetGUID(2)))
                             {
-                                if (l_Wheels->IsAIEnabled)
+                                if (l_Wheels->IsAIEnabled())
                                 {
                                     l_Wheels->AI()->SetGUID(me->GetGUID(), 1);
                                     l_Wheels->AI()->DoAction(eThogarActions::IntroEnd);
@@ -3355,7 +3355,7 @@ class npc_foundry_gromkar_man_at_arms : public CreatureScript
                     {
                         if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                         {
-                            if (l_Thogar->IsAIEnabled)
+                            if (l_Thogar->IsAIEnabled())
                                 l_Thogar->AI()->SetGUID(p_Summon->GetGUID(), 0);
                         }
 
@@ -3372,7 +3372,7 @@ class npc_foundry_gromkar_man_at_arms : public CreatureScript
                 {
                     if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                     {
-                        if (l_Thogar->IsAIEnabled)
+                        if (l_Thogar->IsAIEnabled())
                             l_Thogar->AI()->SetGUID(me->GetGUID(), 1);
                     }
                 }
@@ -3496,7 +3496,7 @@ class npc_foundry_iron_raider : public CreatureScript
                 {
                     if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, l_InstanceScript->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                     {
-                        if (l_Thogar->IsAIEnabled)
+                        if (l_Thogar->IsAIEnabled())
                             l_Thogar->AI()->SetGUID(me->GetGUID(), 1);
                     }
                 }
@@ -3757,7 +3757,7 @@ class npc_foundry_iron_dockworker : public CreatureScript
 
                         for (Creature* l_Chain : l_LoadingChains)
                         {
-                            if (l_Chain->IsAIEnabled)
+                            if (l_Chain->IsAIEnabled())
                                 m_LoadingChains[l_Chain->AI()->GetData(eIronMaidensDatas::LoadingChainID)] = l_Chain->GetGUID();
                         }
 
@@ -3799,7 +3799,7 @@ class npc_foundry_iron_dockworker : public CreatureScript
                             /// Set chain to unavailable state
                             if (Creature* l_Chain = ObjectAccessor::GetCreature(*me, m_LoadingChains[m_CurrentChainID]))
                             {
-                                if (l_Chain->IsAIEnabled)
+                                if (l_Chain->IsAIEnabled())
                                     l_Chain->AI()->SetData(eIronMaidensDatas::LoadingChainAvailable, 0);
                             }
 
@@ -3875,7 +3875,7 @@ class npc_foundry_iron_dockworker : public CreatureScript
                 {
                     if (Creature* l_Chain = ObjectAccessor::GetCreature(*me, l_Guid))
                     {
-                        if (l_Chain->IsAIEnabled)
+                        if (l_Chain->IsAIEnabled())
                         {
                             if (l_Chain->AI()->GetData(eIronMaidensDatas::LoadingChainAvailable))
                                 return l_Chain->AI()->GetData(eIronMaidensDatas::LoadingChainID);
@@ -4583,7 +4583,7 @@ class spell_foundry_animate_slag : public SpellScriptLoader
 
                 if (Creature* l_Creature = GetCaster()->ToCreature())
                 {
-                    if (!l_Creature->IsAIEnabled)
+                    if (!l_Creature->IsAIEnabled())
                         return;
 
                     l_Creature->AI()->DoAction(eAction::ActionRescheduleSlag);
@@ -5621,13 +5621,13 @@ class areatrigger_at_foundry_hansgar_and_franzok_entrance : public AreaTriggerSc
             {
                 if (Creature* l_Hansgar = ObjectAccessor::GetCreature(*p_Player, l_Instance->GetGuidData(eFoundryCreatures::BossHansgar)))
                 {
-                    if (l_Hansgar->IsAIEnabled)
+                    if (l_Hansgar->IsAIEnabled())
                         l_Hansgar->AI()->DoAction(eAction::ActionIntro);
                 }
 
                 if (Creature* l_Franzok = ObjectAccessor::GetCreature(*p_Player, l_Instance->GetGuidData(eFoundryCreatures::BossFranzok)))
                 {
-                    if (l_Franzok->IsAIEnabled)
+                    if (l_Franzok->IsAIEnabled())
                         l_Franzok->AI()->DoAction(eAction::ActionIntro);
                 }
             }
@@ -5662,7 +5662,7 @@ class areatrigger_at_foundry_hansgar_and_franzok_exit : public AreaTriggerScript
 
             if (Creature* l_Taskmaster = p_Player->FindNearestCreature(eCreature::IronTaskmaster, 80.0f))
             {
-                if (l_Taskmaster->IsAIEnabled)
+                if (l_Taskmaster->IsAIEnabled())
                     l_Taskmaster->AI()->DoAction(eAction::ActionIntro);
             }
 
@@ -5690,7 +5690,7 @@ class areatrigger_at_foundry_iron_maidens_entrance : public AreaTriggerScript
             {
                 if (Creature* l_Garan = ObjectAccessor::GetCreature(*p_Player, l_InstanceScript->GetGuidData(eFoundryCreatures::BossAdmiralGaran)))
                 {
-                    if (l_Garan->IsAIEnabled)
+                    if (l_Garan->IsAIEnabled())
                         l_Garan->AI()->DoAction(0);
                 }
             }
@@ -5721,7 +5721,7 @@ class areatrigger_at_foundry_blackhand_entrance : public AreaTriggerScript
 
                 if (Creature* l_Blackhand = ObjectAccessor::GetCreature(*p_Player, l_Instance->GetGuidData(eFoundryCreatures::BossBlackhand)))
                 {
-                    if (l_Blackhand->IsAIEnabled)
+                    if (l_Blackhand->IsAIEnabled())
                         l_Blackhand->AI()->DoAction(eBlackhandActions::BlackhandIntro);
                 }
             }

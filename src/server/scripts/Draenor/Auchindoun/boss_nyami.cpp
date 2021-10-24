@@ -249,7 +249,7 @@ struct boss_nyami : public BossAI
                 instance->DoRemoveAurasDueToSpellOnPlayers(eNyamiSpells::SpellSoulBubbleBuff);
                 //me->MonsterTextEmote("Soulbinder Nyami begins to cast|cffff0000[Soul Vessel]|cfffaeb00!", me->GetGUID(), true);
                 if (Creature* l_Bubble = me->SummonCreature(eNyamiCreatures::CreatureSoulVesselHackBubbleEffect, g_PositionBubble, TempSummonType::TEMPSUMMON_MANUAL_DESPAWN))
-                    if (l_Bubble->IsAIEnabled)
+                    if (l_Bubble->IsAIEnabled())
                         l_Bubble->AI()->DoAction(eNyamiActions::ActionReleaseAnimationPreSoulVessel);
             }
             events.ScheduleEvent(eNyamiEvents::EventSoulVessel, 25 * TimeConstants::IN_MILLISECONDS);
@@ -325,7 +325,7 @@ struct boss_nyami : public BossAI
                     l_Warden->AddUnitFlag(UnitFlags(UnitFlags2::UNIT_FLAG2_DISABLE_TURN | UnitFlags2::UNIT_FLAG2_FEIGN_DEATH));
                     l_Warden->SummonCreature(eAuchindounCreatures::CreatureFelborneAbyssal, l_Warden->GetPositionX(), l_Warden->GetPositionY(), l_Warden->GetPositionZ(), TempSummonType::TEMPSUMMON_MANUAL_DESPAWN);
 
-                    if (l_Warden->IsAIEnabled)
+                    if (l_Warden->IsAIEnabled())
                         l_Warden->AI()->Talk(eNyamiTalks::Auchenaiwarden2);
                 }
             }
@@ -756,7 +756,7 @@ class auchindoun_nyami_spell_soul_vessel_dummy : public AuraScript
             /// Cosmetic
             if (Creature* l_Bubble = l_Caster->FindNearestCreature(eNyamiCreatures::CreatureSoulVesselHackBubbleEffect, 150.0f))
             {
-                if (l_Bubble->IsAIEnabled)
+                if (l_Bubble->IsAIEnabled())
                     l_Bubble->AI()->DoAction(eNyamiActions::ActionReleaseAnimationPreSoulVessel);
             }
         }

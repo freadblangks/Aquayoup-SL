@@ -743,7 +743,7 @@ class boss_kargath_bladefist : public CreatureScript
                         {
                             if (Creature* l_Sweeper = ObjectAccessor::GetCreature(*me, guid))
                             {
-                                if (l_Sweeper->IsAIEnabled)
+                                if (l_Sweeper->IsAIEnabled())
                                     l_Sweeper->AI()->DoAction(0);
                             }
                         }
@@ -899,7 +899,7 @@ class boss_kargath_bladefist : public CreatureScript
 
                         for (Creature* l_Ravenous : l_TigerList)
                         {
-                            if (l_Ravenous->IsAIEnabled)
+                            if (l_Ravenous->IsAIEnabled())
                                 l_Ravenous->AI()->DoAction(eActions::FreeRavenous);
 
                             for (uint8 l_I = eHighmaulDatas::RaidGrate001; l_I < eHighmaulDatas::MaxRaidGrates; ++l_I)
@@ -935,7 +935,7 @@ class boss_kargath_bladefist : public CreatureScript
 
                 for (Creature* l_Pillar : l_Pillars)
                 {
-                    if (l_Pillar->IsAIEnabled)
+                    if (l_Pillar->IsAIEnabled())
                     {
                         l_Pillar->AI()->DoAction(0);
                         l_Pillar->AI()->Reset();
@@ -1019,7 +1019,7 @@ class boss_kargath_bladefist : public CreatureScript
                                     l_Creature->GetMotionMaster()->MoveTargetedHome();
                             });
                         }
-                        else if (itr->IsAIEnabled)
+                        else if (itr->IsAIEnabled())
                             itr->AI()->EnterEvadeMode();
                     }
                 }
@@ -3014,7 +3014,7 @@ class spell_highmaul_fire_pillar_activated : public SpellScriptLoader
 
                 if (Creature* l_Pillar = target->ToCreature())
                 {
-                    if (l_Pillar->IsAIEnabled)
+                    if (l_Pillar->IsAIEnabled())
                         l_Pillar->AI()->DoAction(0);
                 }
             }
@@ -3104,9 +3104,9 @@ class spell_highmaul_berserker_rush : public SpellScriptLoader
 
                 if (Creature* l_Kargath = target->ToCreature())
                 {
-                    if (l_Kargath->IsAIEnabled && l_RemoveMode != AuraRemoveMode::AURA_REMOVE_BY_EXPIRE)
+                    if (l_Kargath->IsAIEnabled() && l_RemoveMode != AuraRemoveMode::AURA_REMOVE_BY_EXPIRE)
                         l_Kargath->AI()->DoAction(eAction::InterruptByPillar);
-                    else if (l_Kargath->IsAIEnabled)
+                    else if (l_Kargath->IsAIEnabled())
                     {
                         if (boss_kargath_bladefist::boss_kargath_bladefistAI* l_AI = CAST_AI(boss_kargath_bladefist::boss_kargath_bladefistAI, l_Kargath->GetAI()))
                         {
@@ -3872,7 +3872,7 @@ public:
 
         if (unit->GetEntry() == eCreature::RavenousBloodmaw)
         {
-            if (unit->IsAIEnabled)
+            if (unit->IsAIEnabled())
                 unit->ToCreature()->AI()->DoAction(eAction::InterruptRavenous);
         }
     }

@@ -305,7 +305,7 @@ struct auchindoun_mob_sargerei_soulbinder : public ScriptedAI
         {
             if (Creature* l_Kaathar = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataBossKathaar)))
             {
-                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled)
+                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled())
                     l_Kaathar->AI()->DoAction(eAuchindounActions::ActionCountPre1StBossKill);
             }
         }
@@ -380,7 +380,7 @@ struct auchindoun_mob_sargerei_cleric : public ScriptedAI
         {
             if (Creature* l_Kaathar = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataBossKathaar)))
             {
-                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled)
+                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled())
                     l_Kaathar->AI()->DoAction(eAuchindounActions::ActionCountPre1StBossKill);
             }
         }
@@ -456,7 +456,7 @@ struct auchindoun_mob_sargerei_ritualist : public ScriptedAI
         {
             if (Creature* l_Kaathar = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataBossKathaar)))
             {
-                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled)
+                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled())
                     l_Kaathar->AI()->DoAction(eAuchindounActions::ActionCountPre1StBossKill);
             }
         }
@@ -522,7 +522,7 @@ struct auchindoun_mob_sargerei_zealot : public ScriptedAI
         {
             if (Creature* Kaathar = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataBossKathaar)))
             {
-                if (Kaathar->IsAlive() && Kaathar->IsAIEnabled)
+                if (Kaathar->IsAlive() && Kaathar->IsAIEnabled())
                     Kaathar->AI()->DoAction(eAuchindounActions::ActionCountPre1StBossKill);
             }
         }
@@ -595,7 +595,7 @@ struct auchindoun_mob_sargerei_spirit_tender : public ScriptedAI
         {
             if (Creature* l_Kaathar = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataBossKathaar)))
             {
-                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled)
+                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled())
                     l_Kaathar->AI()->DoAction(eAuchindounActions::ActionCountPre1StBossKill);
             }
         }
@@ -670,7 +670,7 @@ struct auchindoun_mob_sargerei_hopilite : public ScriptedAI
         {
             if (Creature* l_Kaathar = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataBossKathaar)))
             {
-                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled)
+                if (l_Kaathar->IsAlive() && l_Kaathar->IsAIEnabled())
                     l_Kaathar->AI()->DoAction(eAuchindounActions::ActionCountPre1StBossKill);
             }
         }
@@ -1159,11 +1159,11 @@ struct auchindoun_mob_cackling_pyromaniac : public ScriptedAI
         if (m_Instance != nullptr)
         {
             if (Creature* l_Azzakel = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataBossAzzakael)))
-                if (l_Azzakel->IsInCombat() && l_Azzakel->IsAlive() && l_Azzakel->IsAIEnabled)
+                if (l_Azzakel->IsInCombat() && l_Azzakel->IsAlive() && l_Azzakel->IsAIEnabled())
                     l_Azzakel->GetAI()->DoAction(eAuchindounActions::ActionDemonSoulsAchievement);
 
             if (Creature* l_Trigger = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataTriggerAzzakelController)))
-                if (l_Trigger->IsWithinDistInMap(me, 30.0f) && l_Trigger->IsAIEnabled)
+                if (l_Trigger->IsWithinDistInMap(me, 30.0f) && l_Trigger->IsAIEnabled())
                     l_Trigger->AI()->DoAction(eAuchindounActions::ActionCountPre3StBossKill);
         }
     }
@@ -1227,7 +1227,7 @@ struct auchindoun_mob_blazing_trickster : public ScriptedAI
         if (m_Instance != nullptr)
         {
             if (Creature* l_Azzakel = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataBossAzzakael)))
-                if (l_Azzakel->IsInCombat() && l_Azzakel->IsAlive() && l_Azzakel->IsAIEnabled)
+                if (l_Azzakel->IsInCombat() && l_Azzakel->IsAlive() && l_Azzakel->IsAIEnabled())
                     l_Azzakel->GetAI()->DoAction(eAuchindounActions::ActionDemonSoulsAchievement);
         }
         if (me->GetEntry() == 79510)
@@ -1296,11 +1296,11 @@ struct auchindoun_mob_felguard : public ScriptedAI
         if (m_Instance != nullptr)
         {
             if (Creature* l_Azzakel = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataBossAzzakael)))
-                if (l_Azzakel->IsInCombat() && l_Azzakel->IsAlive() && l_Azzakel->IsAIEnabled)
+                if (l_Azzakel->IsInCombat() && l_Azzakel->IsAlive() && l_Azzakel->IsAIEnabled())
                     l_Azzakel->GetAI()->DoAction(eAuchindounActions::ActionDemonSoulsAchievement);
 
             if (Creature* l_Trigger = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eAuchindounDatas::DataTriggerAzzakelController)))
-                if (l_Trigger->IsWithinDistInMap(me, 30.0f) && l_Trigger->IsAIEnabled)
+                if (l_Trigger->IsWithinDistInMap(me, 30.0f) && l_Trigger->IsAIEnabled())
                     l_Trigger->AI()->DoAction(eAuchindounActions::ActionCountPre3StBossKill);
         }
     }
@@ -1612,7 +1612,7 @@ class auchindoun_spell_arcane_bolt : public AuraScript
     {
         if (Unit* l_Caster = GetCaster())
         {
-            if (l_Caster->IsAIEnabled)
+            if (l_Caster->IsAIEnabled())
             {
                 if (Unit* l_Target = l_Caster->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_RANDOM, 0, 50.0f, true))
                     l_Caster->CastSpell(l_Target, eArcaneBoltSpells::SpellArcaneBoltProje, true);

@@ -169,7 +169,7 @@ class boss_heart_of_the_mountain : public CreatureScript
 
                     if (Creature* l_Foreman = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::ForemanFeldspar)))
                     {
-                        if (l_Foreman->IsAIEnabled && !l_Foreman->IsAlive())
+                        if (l_Foreman->IsAIEnabled() && !l_Foreman->IsAlive())
                         {
                             l_Foreman->Respawn();
                             l_Foreman->AI()->EnterEvadeMode();
@@ -282,7 +282,7 @@ class boss_heart_of_the_mountain : public CreatureScript
 
                     if (Creature* l_Blackhand = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BlackhandCosmetic)))
                     {
-                        if (l_Blackhand->IsAIEnabled)
+                        if (l_Blackhand->IsAIEnabled())
                             l_Blackhand->AI()->DoAction(eActions::ActionFuryDead);
                     }
                 }
@@ -384,7 +384,7 @@ class boss_heart_of_the_mountain : public CreatureScript
 
                         for (Creature* l_Operator : l_OperatorList)
                         {
-                            if (l_Operator->IsAIEnabled)
+                            if (l_Operator->IsAIEnabled())
                                 l_Operator->AI()->DoAction(eActions::ActionPhase2);
                         }
 
@@ -408,7 +408,7 @@ class boss_heart_of_the_mountain : public CreatureScript
                 {
                     if (Creature* l_Foreman = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::ForemanFeldspar)))
                     {
-                        if (l_Foreman->IsAIEnabled)
+                        if (l_Foreman->IsAIEnabled())
                             l_Foreman->AI()->DoAction(eActions::ActionBlastIncreased);
                     }
                 }
@@ -470,7 +470,7 @@ class boss_heart_of_the_mountain : public CreatureScript
                         {
                             if (Creature* l_Blackhand = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BlackhandCosmetic)))
                             {
-                                if (l_Blackhand->IsAIEnabled)
+                                if (l_Blackhand->IsAIEnabled())
                                     l_Blackhand->AI()->DoAction(eActions::ActionElementalistKilled);
                             }
                         }
@@ -542,7 +542,7 @@ class boss_heart_of_the_mountain : public CreatureScript
                         {
                             if (Creature* l_Foreman = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::ForemanFeldspar)))
                             {
-                                if (l_Foreman->IsAIEnabled)
+                                if (l_Foreman->IsAIEnabled())
                                     l_Foreman->AI()->DoAction(eActions::ActionBellowsOperators);
                             }
                         }
@@ -862,7 +862,7 @@ class boss_foreman_feldspar : public CreatureScript
                 {
                     if (Creature* l_Blackhand = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BlackhandCosmetic)))
                     {
-                        if (l_Blackhand->IsAIEnabled)
+                        if (l_Blackhand->IsAIEnabled())
                             l_Blackhand->AI()->Reset();
                     }
                 }
@@ -914,7 +914,7 @@ class boss_foreman_feldspar : public CreatureScript
 
                 for (Creature* l_Operator : l_BellowsOperators)
                 {
-                    if (l_Operator->IsAIEnabled)
+                    if (l_Operator->IsAIEnabled())
                         l_Operator->AI()->DoAction(eActions::ActionActivateBellows);
                 }
 
@@ -1087,7 +1087,7 @@ class boss_foreman_feldspar : public CreatureScript
                                     l_Creature->GetMotionMaster()->MoveTargetedHome();
                            // });
                         }
-                        else if (l_Iter->IsAIEnabled)
+                        else if (l_Iter->IsAIEnabled())
                             l_Iter->AI()->EnterEvadeMode();
                     }
                 }
@@ -1099,7 +1099,7 @@ class boss_foreman_feldspar : public CreatureScript
                 {
                     if (Creature* l_Iter = ObjectAccessor::GetCreature(*me, l_Guid))
                     {
-                        if (l_Iter->IsAIEnabled && !l_Iter->IsInCombat())
+                        if (l_Iter->IsAIEnabled() && !l_Iter->IsInCombat())
                         {
                             if (l_Iter->GetEntry() != eCreatures::BellowsOperator && l_Iter->GetEntry() != eCreatures::HeatRegulator)
                                 l_Iter->AI()->AttackStart(p_Attacker);
@@ -1200,7 +1200,7 @@ class npc_foundry_blackhand_cosmetic : public CreatureScript
                             {
                                 if (Creature* l_Fury = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::HeartOfTheMountain)))
                                 {
-                                    if (l_Fury->IsAIEnabled)
+                                    if (l_Fury->IsAIEnabled())
                                         l_Fury->AI()->DoAction(eActions::ActionFreeFury);
                                 }
                             }
@@ -1340,7 +1340,7 @@ class npc_foundry_primal_elementalist : public CreatureScript
 
                     if (Creature* l_Fury = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::HeartOfTheMountain)))
                     {
-                        if (l_Fury->IsAIEnabled)
+                        if (l_Fury->IsAIEnabled())
                         {
                             l_Fury->AI()->SetData(eDatas::ElementalistKilled, 0);
 
@@ -1373,7 +1373,7 @@ class npc_foundry_primal_elementalist : public CreatureScript
                             {
                                 uint8 l_MoveI = 0;
 
-                                if (l_Fury->IsAIEnabled)
+                                if (l_Fury->IsAIEnabled())
                                 {
                                     l_MoveI = l_Fury->AI()->GetData(eDatas::ElementalistMoveIndex);
                                     l_Fury->AI()->SetData(eDatas::ElementalistMoveIndex, 0);
@@ -1723,13 +1723,13 @@ class npc_foundry_heat_regulator : public CreatureScript
 
                 if (Creature* l_Foreman = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::ForemanFeldspar)))
                 {
-                    if (l_Foreman->IsAIEnabled)
+                    if (l_Foreman->IsAIEnabled())
                         l_Foreman->AI()->DoAction(eAction::RegulatorDestroyed);
                 }
 
                 if (Creature* l_Blackhand = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BlackhandCosmetic)))
                 {
-                    if (l_Blackhand->IsAIEnabled)
+                    if (l_Blackhand->IsAIEnabled())
                         l_Blackhand->AI()->DoAction(eAction::RegulatorDestroyed);
                 }
 
@@ -1935,7 +1935,7 @@ class npc_foundry_furnace_engineer : public CreatureScript
                     {
                         if (Creature* l_Creature = ObjectAccessor::GetCreature(*me, l_InstanceScript->GetGuidData(eFoundryCreatures::HeartOfTheMountain)))
                         {
-                            if (l_Creature->IsAIEnabled)
+                            if (l_Creature->IsAIEnabled())
                                 l_Creature->AI()->Talk(eTalk::BombWarning/*, p_Target->GetGUID(), TextRange::TEXT_RANGE_NORMAL*/);
                         }
                     }
@@ -2388,7 +2388,7 @@ class npc_foundry_firecaller : public CreatureScript
                     {
                         if (Creature* l_Fury = ObjectAccessor::GetCreature(*me, l_Instance->GetGuidData(eFoundryCreatures::HeartOfTheMountain)))
                         {
-                            if (l_Fury->IsAIEnabled)
+                            if (l_Fury->IsAIEnabled())
                                 l_Fury->AI()->Talk(eTalk::TalkVolatileFire/*, p_Target->GetGUID(), TextRange::TEXT_RANGE_NORMAL*/);
                         }
                     }
@@ -2679,7 +2679,7 @@ class spell_foundry_damage_shield : public SpellScriptLoader
 
                 if (Creature* l_Target = GetTarget()->ToCreature())
                 {
-                    if (!l_Target->IsAIEnabled)
+                    if (!l_Target->IsAIEnabled())
                         return;
 
                     if (npc_foundry_primal_elementalist::npc_foundry_primal_elementalistAI* l_AI = CAST_AI(npc_foundry_primal_elementalist::npc_foundry_primal_elementalistAI, l_Target->GetAI()))
@@ -2751,7 +2751,7 @@ class spell_foundry_shields_down : public SpellScriptLoader
 
                 if (Creature* l_Target = GetTarget()->ToCreature())
                 {
-                    if (!l_Target->IsAIEnabled)
+                    if (!l_Target->IsAIEnabled())
                         return;
 
                     if (npc_foundry_primal_elementalist::npc_foundry_primal_elementalistAI* l_AI = CAST_AI(npc_foundry_primal_elementalist::npc_foundry_primal_elementalistAI, l_Target->GetAI()))

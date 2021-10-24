@@ -799,8 +799,11 @@ class TC_GAME_API Unit : public WorldObject
 
         virtual ~Unit();
 
-        UnitAI* GetAI() { return i_AI; }
-        void SetAI(UnitAI* newAI) { i_AI = newAI; }
+        bool IsAIEnabled() const { return (i_AI != nullptr); }
+        void AIUpdateTick(uint32 diff, bool force = false);
+        UnitAI* GetAI() const { return i_AI.get(); }
+        void SetAI(UnitAI* newAI);
+        void ScheduleAIChange();
         TaskScheduler& GetScheduler() { return _scheduler; }
         TaskScheduler _scheduler;
         void AddToWorld() override;
@@ -1165,7 +1168,6 @@ class TC_GAME_API Unit : public WorldObject
         ThreatManager const& GetThreatManager() const { return m_threatManager; }
 
         void SendClearTarget();
-        void SendThreatListUpdate() { m_threatManager.SendThreatListToClients(); }
 
         bool HasAuraTypeWithFamilyFlags(AuraType auraType, uint32 familyName, flag128 familyFlags) const;
         bool virtual HasSpell(uint32 /*spellID*/) const { return false; }
@@ -1174,10 +1176,11 @@ class TC_GAME_API Unit : public WorldObject
 
         bool HasStealthAura()      const { return HasAuraType(SPELL_AURA_MOD_STEALTH); }
         bool HasInvisibilityAura() const { return HasAuraType(SPELL_AURA_MOD_INVISIBILITY); }
-        bool isFeared()  const { return HasAuraType(SPELL_AURA_MOD_FEAR); }
+        bool IsFeared()  const { return HasAuraType(SPELL_AURA_MOD_FEAR); }
+        bool HasRootAura() const { return HasAuraType(SPELL_AURA_MOD_ROOT) || HasAuraType(SPELL_AURA_MOD_ROOT_2); }
         bool IsPolymorphed() const;
 
-        bool isFrozen() const;
+        bool IsFrozen() const { return HasAuraState(AURA_STATE_FROZEN); }
 
         bool isTargetableForAttack(bool checkFakeDeath = true) const;
 
@@ -1271,10 +1274,6 @@ class TC_GAME_API Unit : public WorldObject
         void SetCreatorGUID(ObjectGuid creator) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::CreatedBy), creator); }
         ObjectGuid GetMinionGUID() const { return m_unitData->Summon; }
         void SetMinionGUID(ObjectGuid guid) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Summon), guid); }
-        ObjectGuid GetCharmerGUID() const { return m_unitData->CharmedBy; }
-        void SetCharmerGUID(ObjectGuid owner) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::CharmedBy), owner); }
-        ObjectGuid GetCharmGUID() const { return m_unitData->Charm; }
-        void SetCharmGUID(ObjectGuid charm) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Charm), charm); }
         ObjectGuid GetPetGUID() const { return m_SummonSlot[SUMMON_SLOT_PET]; }
         void SetPetGUID(ObjectGuid guid) { m_SummonSlot[SUMMON_SLOT_PET] = guid; }
         ObjectGuid GetCritterGUID() const { return m_unitData->Critter; }
@@ -1283,16 +1282,21 @@ class TC_GAME_API Unit : public WorldObject
         void SetBattlePetCompanionGUID(ObjectGuid guid) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::BattlePetCompanionGUID), guid); }
         ObjectGuid GetDemonCreatorGUID() const { return m_unitData->DemonCreator; }
         void SetDemonCreatorGUID(ObjectGuid guid) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::DemonCreator), guid); }
+		
+        ObjectGuid GetCharmerGUID() const { return m_unitData->CharmedBy; }
+        Unit* GetCharmer() const { return m_charmer; }
+
+        ObjectGuid GetCharmedGUID() const { return m_unitData->Charm; }
+        Unit* GetCharmed() const { return m_charmed; }
 
         bool IsControlledByPlayer() const { return m_ControlledByPlayer; }
-        ObjectGuid GetCharmerOrOwnerGUID() const override;
+        Player* GetControllingPlayer() const;
+        ObjectGuid GetCharmerOrOwnerGUID() const override { return IsCharmed() ? GetCharmerGUID() : GetOwnerGUID(); }
         bool IsCharmedOwnedByPlayerOrPlayer() const { return GetCharmerOrOwnerOrOwnGUID().IsPlayer(); }
 
         Guardian* GetGuardianPet() const;
         Minion* GetFirstMinion() const;
-        Unit* GetCharmer() const;
-        Unit* GetCharm() const;
-        Unit* GetCharmerOrOwner() const;
+        Unit* GetCharmerOrOwner() const { return IsCharmed() ? GetCharmer() : GetOwner(); }
 
         void SetMinion(Minion *minion, bool apply);
         void GetAllMinionsByEntry(std::list<TempSummon*>& Minions, uint32 entry);
@@ -1318,7 +1322,6 @@ class TC_GAME_API Unit : public WorldObject
         void DeleteCharmInfo();
         void SetPetNumberForClient(uint32 petNumber) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::PetNumber), petNumber); }
         void SetPetNameTimestamp(uint32 timestamp) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::PetNameTimestamp), timestamp); }
-        void UpdateCharmAI();
         // returns the unit that this player IS CONTROLLING
         Unit* GetUnitBeingMoved() const;
         // returns the player that this player IS CONTROLLING
@@ -1539,7 +1542,7 @@ class TC_GAME_API Unit : public WorldObject
 
         virtual bool IsFocusing(Spell const* /*focusSpell*/ = nullptr, bool /*withDelay*/ = false) { return false; }
         virtual bool IsMovementPreventedByCasting() const;
-		bool CanCastSpellWhileMoving(SpellInfo const* spellInfo) const;
+        bool CanCastSpellWhileMoving(SpellInfo const* spellInfo) const;
 
         SpellHistory* GetSpellHistory() { return _spellHistory; }
         SpellHistory const* GetSpellHistory() const { return _spellHistory; }
@@ -1658,8 +1661,8 @@ class TC_GAME_API Unit : public WorldObject
             SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::NativeDisplayID), displayId);
             SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::NativeXDisplayScale), displayScale);
         }
-        void setTransForm(uint32 spellid) { m_transform = spellid;}
-        uint32 getTransForm() const { return m_transform;}
+        void SetTransformSpell(uint32 spellid) { m_transformSpell = spellid;}
+        uint32 GetTransformSpell() const { return m_transformSpell;}
 
         // DynamicObject management
         void _RegisterDynObject(DynamicObject* dynObj);
@@ -1793,7 +1796,6 @@ class TC_GAME_API Unit : public WorldObject
         uint32 GetModelForForm(ShapeshiftForm form, uint32 spellId) const;
 
         friend class VehicleJoinEvent;
-        bool IsAIEnabled, NeedChangeAI;
         ObjectGuid LastCharmerGUID;
         bool CreateVehicleKit(uint32 id, uint32 creatureEntry, bool loading = false);
         void RemoveVehicleKit(bool onRemoveFromWorld = false);
@@ -1808,7 +1810,6 @@ class TC_GAME_API Unit : public WorldObject
         TransportBase* GetDirectTransport() const;
         //id GetAreaTriggerListWithSpellIDInRange2(std::list<AreaTrigger*>& list, uint32 spellid, float fMaxSearchRange) const;
         bool SetFlying2(bool enable);
-        bool m_ControlledByPlayer;
 
         void HandleSpellClick(Unit* clicker, int8 seatId = -1);
         void EnterVehicle(Unit* base, int8 seatId = -1);
@@ -1893,12 +1894,13 @@ class TC_GAME_API Unit : public WorldObject
     protected:
         void ClearUpdateMask(bool remove) override;
 
-        UnitAI* i_AI, *i_disabledAI;
-
         void _UpdateSpells(uint32 time);
         void _DeleteRemovedAuras();
 
         void _UpdateAutoRepeatSpell();
+		
+        bool m_ControlledByPlayer;
+
 
         bool m_AutoRepeatFirstCast;
 
@@ -1922,7 +1924,7 @@ class TC_GAME_API Unit : public WorldObject
         typedef std::vector<AreaTrigger*> AreaTriggerList;
         AreaTriggerList m_areaTrigger;
 
-        uint32 m_transform;
+        uint32 m_transformSpell;
 
         Spell* m_currentSpells[CURRENT_MAX_SPELL];
 
@@ -1949,6 +1951,9 @@ class TC_GAME_API Unit : public WorldObject
 
         float m_speed_rate[MAX_MOVE_TYPE];
 
+        Unit* m_charmer; // Unit that is charming ME
+        Unit* m_charmed; // Unit that is being charmed BY ME
+		
         CharmInfo* m_charmInfo;
         SharedVisionList m_sharedVision;
 
@@ -2004,6 +2009,10 @@ class TC_GAME_API Unit : public WorldObject
         CombatManager m_combatManager;
         friend class ThreatManager;
         ThreatManager m_threatManager;
+
+        void UpdateCharmAI();
+        void RestoreDisabledAI();
+        std::unique_ptr<UnitAI> i_AI, i_disabledAI;
 
         std::unordered_set<AbstractFollower*> m_followingMe;
 

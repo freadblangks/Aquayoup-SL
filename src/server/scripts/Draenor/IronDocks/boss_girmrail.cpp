@@ -161,7 +161,7 @@ class basicevent_aftergrimrail : public BasicEvent
                 {
                     if (Creature* l_Koramar = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eIronDocksDatas::DataKoramar)))
                     {
-                        if (l_Koramar->IsAIEnabled && l_Zoggosh->IsAIEnabled)
+                        if (l_Koramar->IsAIEnabled() && l_Zoggosh->IsAIEnabled())
                         {
                             switch (m_Modifier)
                             {
@@ -1161,7 +1161,7 @@ class iron_docks_grimrail_at_event : public AreaTriggerScript
             {
                 if (Creature* l_Skulloc = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eIronDocksDatas::DataSkulloc)))
                 {
-                    if (l_Skulloc->IsAIEnabled)
+                    if (l_Skulloc->IsAIEnabled())
                         l_Skulloc->GetAI()->DoAction(eIronDocksActions::ActionActivateGrimrailEvent);
                 }
             }

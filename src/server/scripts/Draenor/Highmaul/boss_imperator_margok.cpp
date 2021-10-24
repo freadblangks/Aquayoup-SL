@@ -2612,7 +2612,7 @@ class npc_highmaul_destructive_resonance : public CreatureScript
                 {
                     if (Creature* l_Margok = ObjectAccessor::GetCreature(*creature, l_Script->GetGuidData(eHighmaulCreatures::ImperatorMargok)))
                     {
-                        if (l_Margok->IsAIEnabled)
+                        if (l_Margok->IsAIEnabled())
                             m_Phase = l_Margok->AI()->GetData(eDatas::PhaseID);
                     }
                 }
@@ -3575,7 +3575,7 @@ class spell_highmaul_branded : public SpellScriptLoader
                 /// Caster is Mar'gok
                 if (Creature* l_Margok = GetCaster()->ToCreature())
                 {
-                    if (!l_Margok->IsAIEnabled)
+                    if (!l_Margok->IsAIEnabled())
                         return;
 
                     if (Unit* target = GetTarget())
@@ -3692,7 +3692,7 @@ class spell_highmaul_branded_displacement : public SpellScriptLoader
                 /// Caster is Mar'gok
                 if (Creature* l_Margok = GetCaster()->ToCreature())
                 {
-                    if (!l_Margok->IsAIEnabled)
+                    if (!l_Margok->IsAIEnabled())
                         return;
 
                     if (Unit* target = GetTarget())
@@ -3786,7 +3786,7 @@ class spell_highmaul_branded_fortification : public SpellScriptLoader
                 /// Caster is Mar'gok
                 if (Creature* l_Margok = GetCaster()->ToCreature())
                 {
-                    if (!l_Margok->IsAIEnabled)
+                    if (!l_Margok->IsAIEnabled())
                         return;
 
                     if (Unit* target = GetTarget())
@@ -3878,7 +3878,7 @@ class spell_highmaul_branded_replication : public SpellScriptLoader
                 /// Caster is Mar'gok
                 if (Creature* l_Margok = GetCaster()->ToCreature())
                 {
-                    if (!l_Margok->IsAIEnabled)
+                    if (!l_Margok->IsAIEnabled())
                         return;
 
                     if (Unit* target = GetTarget())
@@ -4050,7 +4050,7 @@ class spell_highmaul_transition_visuals : public SpellScriptLoader
                 {
                     if (Creature* l_Margok = target->FindNearestCreature(eHighmaulCreatures::ImperatorMargok, 40.0f))
                     {
-                        if (!l_Margok->IsAIEnabled)
+                        if (!l_Margok->IsAIEnabled())
                             return;
 
                         uint8 l_Phase = l_Margok->AI()->GetData(eDatas::PhaseID);
@@ -4301,7 +4301,7 @@ class spell_highmaul_force_nova_dot : public SpellScriptLoader
                 {
                     if (Creature* l_Margok = target->FindNearestCreature(eHighmaulCreatures::ImperatorMargok, 40.0f))
                     {
-                        if (!l_Margok->IsAIEnabled)
+                        if (!l_Margok->IsAIEnabled())
                             return;
 
                         uint8 l_Phase = l_Margok->AI()->GetData(eData::PhaseID);
@@ -4361,7 +4361,7 @@ class spell_highmaul_orbs_of_chaos_aura : public SpellScriptLoader
 
                     if (Creature* l_Margok = target->FindNearestCreature(eHighmaulCreatures::ImperatorMargok, 300.0f))
                     {
-                        if (!l_Margok->IsAIEnabled)
+                        if (!l_Margok->IsAIEnabled())
                             return;
 
                         l_Margok->AI()->SetData(eData::OrbOfChaosAngle, 0);
@@ -4427,7 +4427,7 @@ class spell_highmaul_volatile_anomalies : public SpellScriptLoader
                 {
                     if (Creature* l_Margok = target->FindNearestCreature(eHighmaulCreatures::ImperatorMargok, 150.0f))
                     {
-                        if (!l_Margok->IsAIEnabled)
+                        if (!l_Margok->IsAIEnabled())
                             return;
 
                         switch (l_Margok->AI()->GetData(eData::PhaseID))
@@ -4634,7 +4634,7 @@ class areatrigger_highmaul_orb_of_chaos : public AreaTriggerAI
             {
                 if (Creature* l_Margok = ObjectAccessor::GetCreature(*at->GetCaster(), l_InstanceScript->GetGuidData(eHighmaulCreatures::ImperatorMargok)))
                 {
-                    if (!l_Margok->IsAIEnabled)
+                    if (!l_Margok->IsAIEnabled())
                         return;
 
                     float l_Angle = 0.0f;

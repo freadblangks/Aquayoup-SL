@@ -31,9 +31,8 @@ static void DoMovementInform(Unit* owner, Unit* target)
     if (owner->GetTypeId() != TYPEID_UNIT)
         return;
 
-    Creature* creatureOwner = owner->ToCreature();
-    if (creatureOwner->IsAIEnabled && creatureOwner->AI())
-        creatureOwner->AI()->MovementInform(FOLLOW_MOTION_TYPE, target->GetGUID().GetCounter());
+    if (CreatureAI* AI = owner->ToCreature()->AI())
+        AI->MovementInform(FOLLOW_MOTION_TYPE, target->GetGUID().GetCounter());
 }
 
 FollowMovementGenerator::FollowMovementGenerator(Unit* target, float range, ChaseAngle angle) : AbstractFollower(ASSERT_NOTNULL(target)), _range(range), _angle(angle)
@@ -85,7 +84,7 @@ bool FollowMovementGenerator::Update(Unit* owner, uint32 diff)
     if (owner->HasUnitState(UNIT_STATE_NOT_MOVE) || owner->IsMovementPreventedByCasting())
     {
         owner->StopMoving();
-		_lastTargetPosition.reset();
+        _lastTargetPosition.reset();
         return true;
     }
 

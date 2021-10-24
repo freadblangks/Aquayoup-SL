@@ -176,13 +176,13 @@ class boss_admiral_garan : public CreatureScript
                           //  {
                                 if (Creature* l_Sorka = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossEnforcerSorka)))
                                 {
-                                    if (l_Sorka->IsAIEnabled)
+                                    if (l_Sorka->IsAIEnabled())
                                         l_Sorka->AI()->DoAction(eIronMaidensActions::ActionAfterTrashesIntro);
                                 }
 
                                 if (Creature* l_Marak = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossMarakTheBlooded)))
                                 {
-                                    if (l_Marak->IsAIEnabled)
+                                    if (l_Marak->IsAIEnabled())
                                         l_Marak->AI()->DoAction(eIronMaidensActions::ActionAfterTrashesIntro);
                                 }
 
@@ -219,7 +219,7 @@ class boss_admiral_garan : public CreatureScript
                 {
                     if (Creature* l_Zipline = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::ZiplineStalker)))
                     {
-                        if (l_Zipline->IsAIEnabled)
+                        if (l_Zipline->IsAIEnabled())
                             l_Zipline->AI()->Reset();
                     }
                 }
@@ -237,13 +237,13 @@ class boss_admiral_garan : public CreatureScript
                    // {
                         if (Creature* l_Sorka = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossEnforcerSorka)))
                         {
-                            if (l_Sorka->IsAIEnabled)
+                            if (l_Sorka->IsAIEnabled())
                                 l_Sorka->AI()->DoAction(eIronMaidensActions::ActionAfterTrashesIntro);
                         }
 
                         if (Creature* l_Marak = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossMarakTheBlooded)))
                         {
-                            if (l_Marak->IsAIEnabled)
+                            if (l_Marak->IsAIEnabled())
                                 l_Marak->AI()->DoAction(eIronMaidensActions::ActionAfterTrashesIntro);
                         }
 
@@ -395,7 +395,7 @@ class boss_admiral_garan : public CreatureScript
                                 l_Chain->RemoveUnitFlag(UnitFlags(UNIT_NPC_FLAG_SPELLCLICK));
                                 l_Chain->NearTeleportTo(l_Chain->GetHomePosition());
 
-                                if (l_Chain->IsAIEnabled)
+                                if (l_Chain->IsAIEnabled())
                                     l_Chain->AI()->SetData(eIronMaidensDatas::LoadingChainAvailable, uint32(true));
                             }
                         }
@@ -694,7 +694,7 @@ class boss_admiral_garan : public CreatureScript
                             if (Creature* l_Maiden = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(g_IronMaidensEntries[l_I])))
                             {
                                 /// Boss cannot go to ship
-                                if (!l_Maiden->IsAIEnabled || !l_Maiden->AI()->GetData(eIronMaidensDatas::IsAvailableForShip))
+                                if (!l_Maiden->IsAIEnabled() || !l_Maiden->AI()->GetData(eIronMaidensDatas::IsAvailableForShip))
                                     continue;
 
                                 if (l_Maiden->GetHealthPct() < l_HealthPct)
@@ -848,7 +848,7 @@ class boss_admiral_garan : public CreatureScript
                         l_Chain->RemoveUnitFlag(UnitFlags(UNIT_NPC_FLAG_SPELLCLICK));
                         l_Chain->NearTeleportTo(l_Chain->GetHomePosition());
 
-                        if (l_Chain->IsAIEnabled)
+                        if (l_Chain->IsAIEnabled())
                             l_Chain->AI()->SetData(eIronMaidensDatas::LoadingChainAvailable, uint32(true));
                     }
                 }
@@ -3400,7 +3400,7 @@ class npc_foundry_cluster_bomb_alpha : public CreatureScript
 
                     if (Creature* l_Cannon = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::IronCannon)))
                     {
-                        if (l_Cannon->IsAIEnabled)
+                        if (l_Cannon->IsAIEnabled())
                             l_Cannon->AI()->SetGUID(me->GetGUID());
                     }
                 }
@@ -3774,7 +3774,7 @@ class spell_foundry_sabotage : public SpellScriptLoader
                     {
                         if (Creature* l_Maiden = l_InstanceScript->instance->GetCreature(l_InstanceScript->GetGuidData(g_IronMaidensEntries[l_I])))
                         {
-                            if (l_Maiden->IsAIEnabled)
+                            if (l_Maiden->IsAIEnabled())
                                 l_Maiden->AI()->DoAction(eIronMaidensActions::ActionSabotageShip);
                         }
                     }
@@ -3880,7 +3880,7 @@ class spell_foundry_bombardment_pattern_alpha : public SpellScriptLoader
 
                 if (Creature* l_Caster = GetCaster()->ToCreature())
                 {
-                    if (l_Caster->IsAIEnabled)
+                    if (l_Caster->IsAIEnabled())
                         l_Caster->AI()->DoAction(eActions::SummonBombAlpha);
                 }
             }
@@ -3892,7 +3892,7 @@ class spell_foundry_bombardment_pattern_alpha : public SpellScriptLoader
 
                 if (Creature* l_Caster = GetCaster()->ToCreature())
                 {
-                    if (l_Caster->IsAIEnabled)
+                    if (l_Caster->IsAIEnabled())
                         l_Caster->AI()->DoAction(eActions::BombardmentOmega);
                 }
             }

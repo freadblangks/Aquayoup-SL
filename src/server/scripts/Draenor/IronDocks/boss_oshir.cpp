@@ -112,7 +112,7 @@ class basicevent_before_oshir : public BasicEvent
                 {
                     if (Creature* l_Koramar = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eIronDocksDatas::DataKoramar)))
                     {
-                            if (l_Zoggosh->IsAIEnabled && l_Koramar->IsAIEnabled)
+                            if (l_Zoggosh->IsAIEnabled() && l_Koramar->IsAIEnabled())
                             {
                                 switch (m_Modifier)
                                 {
@@ -273,7 +273,7 @@ class boss_oshir : public CreatureScript
                 {
                     for (auto l_Itr : l_WolfsTempList)
                     {
-                        if (l_Itr->IsAIEnabled)
+                        if (l_Itr->IsAIEnabled())
                         {
                             l_Itr->GetAI()->Reset();
                             m_WolfDests.push_back(l_Itr->GetGUID());
@@ -284,7 +284,7 @@ class boss_oshir : public CreatureScript
                 {
                     for (auto l_Iter : l_RylaksTempList)
                     {
-                        if (l_Iter->IsAIEnabled)
+                        if (l_Iter->IsAIEnabled())
                         {
                             l_Iter->GetAI()->Reset();
                             m_RylakDests.push_back(l_Iter->GetGUID());
@@ -545,7 +545,7 @@ class boss_oshir : public CreatureScript
                                 me->CastSpell(me, eOshirSpells::SpellRendingSlashVis);
                                 me->GetMotionMaster()->MovePoint(100, l_Thundler->GetPositionX(), l_Thundler->GetPositionY(), l_Thundler->GetPositionZ());
 
-                                if (l_Thundler->IsAIEnabled)
+                                if (l_Thundler->IsAIEnabled())
                                     l_Thundler->GetAI()->DoAction(eAction::ActionExplodeSelf);
                             }
 
@@ -727,7 +727,7 @@ class boss_oshir : public CreatureScript
                                 {
                                     me->GetMotionMaster()->MoveJump(*l_Wolf, 30.0f, 30.0f, eMovementInformed::MovementInformedOshirBreakOut);
 
-                                    if (l_Wolf->IsAIEnabled)
+                                    if (l_Wolf->IsAIEnabled())
                                     {
                                         l_Wolf->GetAI()->DoAction(eAction::ActionRelease);
                                         m_WolfDests.erase(l_Iter);
@@ -826,7 +826,7 @@ public:
             {
                 if (Creature* l_Oshir = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eIronDocksDatas::DataOshir)))
                 {
-                    if (l_Oshir->IsAIEnabled)
+                    if (l_Oshir->IsAIEnabled())
                     {
                         switch (p_Id)
                         {
@@ -871,7 +871,7 @@ public:
 
                 me->DespawnOrUnsummon(1 * TimeConstants::IN_MILLISECONDS);
 
-                if (p_Who->IsAIEnabled)
+                if (p_Who->IsAIEnabled())
                     p_Who->GetAI()->DoAction(eAction::ActionFinishCosmeticEvent);
 
                 if (m_Instance != nullptr)
@@ -1028,7 +1028,7 @@ class iron_docks_oshir_mob_wolf_dest : public CreatureScript
                         {
                             if (Creature* l_Oshir = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eIronDocksDatas::DataOshir)))
                             {
-                                if (l_Oshir->IsAIEnabled)
+                                if (l_Oshir->IsAIEnabled())
                                     l_Oshir->GetAI()->DoAction(eAction::ActionFinishSpell);
 
                                 if (l_ListWolvesGuid.empty())
@@ -1151,7 +1151,7 @@ class iron_docks_oshir_mob_rylak_dest : public CreatureScript
                                 if (l_ListRylaksGuid.empty())
                                     return;
 
-                                if (l_Oshir->IsAIEnabled)
+                                if (l_Oshir->IsAIEnabled())
                                     l_Oshir->GetAI()->DoAction(eAction::ActionFinishSpell);
 
                                 for (ObjectGuid l_Itr : l_ListRylaksGuid)
@@ -1449,7 +1449,7 @@ public:
         {
             if (Unit* l_Caster = GetCaster())
             {
-                if (l_Caster->IsAIEnabled)
+                if (l_Caster->IsAIEnabled())
                 {
                     if (Unit* l_Target = l_Caster->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_RANDOM, 0, 100.0f, true))
                         l_Caster->CastSpell(l_Target, eAcidSpitSpells::SpellAcidSpitTriggerMissile, true);
@@ -1558,7 +1558,7 @@ public:
                         if (!l_Oshir->HasAura(eSpells::SpellTimeToFeed))
                             l_Oshir->ToCreature()->SetReactState(ReactStates::REACT_PASSIVE);
 
-                        if (l_Oshir->IsAIEnabled)
+                        if (l_Oshir->IsAIEnabled())
                             l_Oshir->GetAI()->DoAction(eAction::ActionStartSpell);
                     }
                 }
@@ -1582,7 +1582,7 @@ public:
                         {
                             l_Oshir->ToCreature()->SetReactState(ReactStates::REACT_AGGRESSIVE);
                            
-                            if (l_Oshir->IsAIEnabled)
+                            if (l_Oshir->IsAIEnabled())
                             {
                                 l_Oshir->GetAI()->DoAction(eAction::ActionFinishSpell);
 

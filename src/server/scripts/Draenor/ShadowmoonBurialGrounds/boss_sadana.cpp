@@ -207,7 +207,7 @@ public:
             {
                 for (auto itr : l_ListShadowrunes)
                 {
-                    if (itr->IsAIEnabled)
+                    if (itr->IsAIEnabled())
                         itr->GetAI()->Reset();
                 }
             }
@@ -374,7 +374,7 @@ public:
             {
                 if (Creature* l_WeepingSoul = me->SummonCreature(eShadowmoonBurialGroundsCreatures::CreatureWeepingSpirit, l_WorldTrigger->GetPositionX(), l_WorldTrigger->GetPositionY(), l_WorldTrigger->GetPositionZ(), l_WorldTrigger->GetOrientation(), TEMPSUMMON_TIMED_DESPAWN, 15 * TimeConstants::IN_MILLISECONDS))
                 {
-                    if (l_WeepingSoul->IsAIEnabled)
+                    if (l_WeepingSoul->IsAIEnabled())
                         l_WeepingSoul->AI()->Talk(eShadowmoonBurialGroundsTalks::TalkUnknown01);
                 }
             }
@@ -481,7 +481,7 @@ public:
                     std::list<Creature*>::const_iterator l_it = l_ListShadowrunes.begin();
                     std::advance(l_it, urand(0, l_ListShadowrunes.size() - 6));
 
-                    if ((*l_it)->IsAIEnabled)
+                    if ((*l_it)->IsAIEnabled())
                         (*l_it)->GetAI()->DoAction(eSadanaActions::ActionActivateLunarTriggersActivate);
                 }
 
@@ -493,7 +493,7 @@ public:
                 {
                     for (auto itr : l_ListTriggersLunars)
                     {
-                        if (itr->IsAIEnabled)
+                        if (itr->IsAIEnabled())
                             itr->GetAI()->DoAction(eSadanaActions::ActionActivateLunarTriggersActivate);
                     }
                 }
@@ -516,7 +516,7 @@ public:
                 {
                     for (auto itr : l_ListTriggersRunes)
                     {
-                        if (itr->IsAIEnabled)
+                        if (itr->IsAIEnabled())
                             itr->GetAI()->DoAction(eSadanaActions::ActionActivateLunarTriggersDeactivate);
                     }
                 }
@@ -529,7 +529,7 @@ public:
                 {
                     for (auto itr : l_ListTriggersLunars)
                     {
-                        if (itr->IsAIEnabled)
+                        if (itr->IsAIEnabled())
                             itr->GetAI()->DoAction(eSadanaActions::ActionActivateLunarTriggersDeactivate);
                     }
                 }
@@ -645,7 +645,7 @@ public:
                 /// Reset handling - encounter.
                 if (Creature* l_Sadana = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eShadowmoonBurialGroundsDatas::DataBossSadana)))
                 {
-                    if (l_Sadana->IsAIEnabled)
+                    if (l_Sadana->IsAIEnabled())
                     {
                         if (boss_sadana_bloodfury::boss_sadana_bloodfuryAI* l_LinkAI = CAST_AI(boss_sadana_bloodfury::boss_sadana_bloodfuryAI, l_Sadana->GetAI()))
                         {
@@ -1019,7 +1019,7 @@ public:
             if (!GetCaster())
                 return;
 
-            if (GetTarget()->IsAIEnabled)
+            if (GetTarget()->IsAIEnabled())
             {
                 GetTarget()->GetAI()->DoAction(eSadanaActions::ActionActivateDefiledSpirit);
             }
@@ -1040,7 +1040,7 @@ public:
                     {
                         if (Creature* l_Sadana = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eShadowmoonBurialGroundsDatas::DataBossSadana)))
                         {
-                            if (l_Sadana->IsAIEnabled)
+                            if (l_Sadana->IsAIEnabled())
                             {
                                 if (boss_sadana_bloodfury::boss_sadana_bloodfuryAI* linkAI = CAST_AI(boss_sadana_bloodfury::boss_sadana_bloodfuryAI, l_Sadana->GetAI()))
                                 {

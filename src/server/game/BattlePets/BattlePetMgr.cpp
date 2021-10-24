@@ -534,7 +534,7 @@ void BattlePetMgr::CageBattlePet(ObjectGuid guid)
     item->SetModifier(ITEM_MODIFIER_BATTLE_PET_SPECIES_ID, pet->PacketInfo.Species);
     item->SetModifier(ITEM_MODIFIER_BATTLE_PET_BREED_DATA, pet->PacketInfo.Breed | (pet->PacketInfo.Quality << 24));
     item->SetModifier(ITEM_MODIFIER_BATTLE_PET_LEVEL, pet->PacketInfo.Level);
-        item->SetModifier(ITEM_MODIFIER_BATTLE_PET_DISPLAY_ID, pet->PacketInfo.DisplayID);
+    item->SetModifier(ITEM_MODIFIER_BATTLE_PET_DISPLAY_ID, pet->PacketInfo.DisplayID);
 
     _owner->GetPlayer()->SendNewItem(item, 1, true, false);
 

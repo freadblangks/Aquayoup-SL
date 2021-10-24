@@ -268,7 +268,7 @@ class boss_blackhand : public CreatureScript
 
                     if (Creature* l_Foundry = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BlackrockFoundryTrigger)))
                     {
-                        if (l_Foundry->IsAIEnabled)
+                        if (l_Foundry->IsAIEnabled())
                             l_Foundry->AI()->DoAction(eBlackhandActions::BlackhandEngaged);
                     }
                 }
@@ -308,13 +308,13 @@ class boss_blackhand : public CreatureScript
 
                     if (Creature* l_Foundry = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BlackrockFoundryTrigger)))
                     {
-                        if (l_Foundry->IsAIEnabled)
+                        if (l_Foundry->IsAIEnabled())
                             l_Foundry->AI()->DoAction(eBlackhandActions::BlackhandDisengaged);
                     }
 
                     if (Creature* l_AchievStalker = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::AchievementStalker)))
                     {
-                        if (l_AchievStalker->IsAIEnabled)
+                        if (l_AchievStalker->IsAIEnabled())
                             l_AchievStalker->AI()->DoAction(eBlackhandActions::BlackhandDisengaged);
                     }
                 }
@@ -340,7 +340,7 @@ class boss_blackhand : public CreatureScript
 
                     if (Creature* l_Foundry = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BlackrockFoundryTrigger)))
                     {
-                        if (l_Foundry->IsAIEnabled)
+                        if (l_Foundry->IsAIEnabled())
                             l_Foundry->AI()->DoAction(eBlackhandActions::BlackhandDisengaged);
                     }
 
@@ -493,7 +493,7 @@ class boss_blackhand : public CreatureScript
                             {
                                 if (Creature* l_Foundry = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BlackrockFoundryTrigger)))
                                 {
-                                    if (l_Foundry->IsAIEnabled)
+                                    if (l_Foundry->IsAIEnabled())
                                         l_Foundry->AI()->DoAction(eBlackhandActions::BlackhandStartP2);
                                 }
 
@@ -668,7 +668,7 @@ class boss_blackhand : public CreatureScript
 
                             for (Creature* l_Trigger : l_TriggerList)
                             {
-                                if (l_Trigger->IsAIEnabled)
+                                if (l_Trigger->IsAIEnabled())
                                     l_Trigger->AI()->DoAction(eBlackhandActions::BlackhandStartP3);
                             }
 
@@ -682,7 +682,7 @@ class boss_blackhand : public CreatureScript
 
                             if (Creature* l_AchievStalker = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::AchievementStalker)))
                             {
-                                if (l_AchievStalker->IsAIEnabled)
+                                if (l_AchievStalker->IsAIEnabled())
                                     l_AchievStalker->AI()->DoAction(eBlackhandActions::BlackhandStartP3);
                             }
 
@@ -1323,7 +1323,7 @@ class npc_foundry_ceiling_stalker : public CreatureScript
 
                 if (Creature* l_Blackhand = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossBlackhand)))
                 {
-                    if (l_Blackhand->IsAIEnabled)
+                    if (l_Blackhand->IsAIEnabled())
                         l_Blackhand->AI()->JustSummoned(p_Summon);
                 }
             }
@@ -1335,7 +1335,7 @@ class npc_foundry_ceiling_stalker : public CreatureScript
 
                 if (Creature* l_Blackhand = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossBlackhand)))
                 {
-                    if (l_Blackhand->IsAIEnabled)
+                    if (l_Blackhand->IsAIEnabled())
                         l_Blackhand->AI()->SummonedCreatureDespawn(p_Summon);
                 }
             }
@@ -1424,7 +1424,7 @@ class npc_foundry_brf_massive_demolition_stalker : public CreatureScript
 
                 if (Creature* l_Blackhand = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossBlackhand)))
                 {
-                    if (l_Blackhand->IsAIEnabled)
+                    if (l_Blackhand->IsAIEnabled())
                         l_Blackhand->AI()->JustSummoned(p_Summon);
                 }
             }
@@ -1436,7 +1436,7 @@ class npc_foundry_brf_massive_demolition_stalker : public CreatureScript
 
                 if (Creature* l_Blackhand = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossBlackhand)))
                 {
-                    if (l_Blackhand->IsAIEnabled)
+                    if (l_Blackhand->IsAIEnabled())
                         l_Blackhand->AI()->SummonedCreatureDespawn(p_Summon);
                 }
             }
@@ -1856,7 +1856,7 @@ class npc_foundry_blaze_controller : public CreatureScript
                             {
                                 if (Creature* l_Blaze = me->SummonCreature(eBlackhandCreatures::Blaze, l_Pos, TempSummonType::TEMPSUMMON_TIMED_DESPAWN, 60 * TimeConstants::IN_MILLISECONDS))
                                 {
-                                    if (l_Blaze->IsAIEnabled)
+                                    if (l_Blaze->IsAIEnabled())
                                         l_Blaze->AI()->SetGUID(!m_Controller ? m_Controller : me->GetGUID());
                                 }
                             }
@@ -2506,7 +2506,7 @@ class spell_foundry_blaze_growth : public SpellScriptLoader
             {
                 if (Creature* l_Blaze = GetCaster()->ToCreature())
                 {
-                    if (l_Blaze->IsAIEnabled)
+                    if (l_Blaze->IsAIEnabled())
                         l_Blaze->AI()->DoAction(eBlackhandActions::BlackhandSpreadBlaze);
                 }
             }
@@ -2754,7 +2754,7 @@ class spell_foundry_slag_eruption : public SpellScriptLoader
 
                 if (Creature* l_Slag = GetUnitOwner()->ToCreature())
                 {
-                    if (l_Slag->IsAIEnabled)
+                    if (l_Slag->IsAIEnabled())
                         l_Slag->AI()->DoAction(eBlackhandActions::BlackhandSlagEruption);
                 }
             }
@@ -2843,7 +2843,7 @@ class spell_foundry_massive_shattering_smash : public SpellScriptLoader
 
                 if (Creature* l_Boss = l_Caster->ToCreature())
                 {
-                    if (!l_Boss->IsAIEnabled)
+                    if (!l_Boss->IsAIEnabled())
                         return;
 
                     boss_blackhand::boss_blackhandAI* l_AI = CAST_AI(boss_blackhand::boss_blackhandAI, l_Boss->GetAI());
@@ -2878,7 +2878,7 @@ class spell_foundry_massive_shattering_smash : public SpellScriptLoader
                 uint32 l_Count = 0;
                 if (Creature* l_Boss = l_Caster->ToCreature())
                 {
-                    if (!l_Boss->IsAIEnabled)
+                    if (!l_Boss->IsAIEnabled())
                         return;
 
                     boss_blackhand::boss_blackhandAI* l_AI = CAST_AI(boss_blackhand::boss_blackhandAI, l_Boss->GetAI());
@@ -2984,7 +2984,7 @@ class areatrigger_foundry_slag_bomb : public AreaTriggerEntityScript
 
                     if (Creature* l_SlagBomb = l_Caster->ToCreature())
                     {
-                        if (l_SlagBomb->IsAIEnabled)
+                        if (l_SlagBomb->IsAIEnabled())
                             l_SlagBomb->AI()->Talk(0);
                     }
 

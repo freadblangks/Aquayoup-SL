@@ -86,7 +86,7 @@ public:
             {
                 if (Creature* l_Koramar = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eIronDocksDatas::DataKoramar)))
                 {
-                    if (l_Koramar->IsAIEnabled)
+                    if (l_Koramar->IsAIEnabled())
                     {
                         switch (m_Modifier)
                         {
@@ -134,7 +134,7 @@ public:
                 {
                     if (Creature* l_Skulloc = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eIronDocksDatas::DataSkulloc)))
                     {
-                        if (l_Koramar->IsAIEnabled && l_Skulloc->IsAIEnabled && l_Zoggosh->IsAIEnabled)
+                        if (l_Koramar->IsAIEnabled() && l_Skulloc->IsAIEnabled() && l_Zoggosh->IsAIEnabled())
                         {
                             switch (m_Modifier)
                             {
@@ -196,7 +196,7 @@ public:
                     {
                         if (Creature* l_Skulloc = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eIronDocksDatas::DataSkulloc)))
                         {
-                            if (l_Koramar->IsAIEnabled && l_Skulloc->IsAIEnabled && l_Zoggosh->IsAIEnabled)
+                            if (l_Koramar->IsAIEnabled() && l_Skulloc->IsAIEnabled() && l_Zoggosh->IsAIEnabled())
                             {
                                 switch (m_Modifier)
                                 {
@@ -416,7 +416,7 @@ class boss_skulloc : public CreatureScript
 
                             if (Creature* l_Train = me->FindNearestCreature(eSkullocCreatures::CreatureTrainEngine, 600.0f, true))
                             {
-                                if (l_Train->IsAIEnabled)
+                                if (l_Train->IsAIEnabled())
                                     l_Train->GetAI()->DoAction(eIronDocksActions::ActionTrainMoveWheels);
                             }
                         }
@@ -547,7 +547,7 @@ class boss_skulloc : public CreatureScript
                         {
                             if (Creature* l_Koramar = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eIronDocksDatas::DataKoramar)))
                             {
-                                if (l_Koramar->IsAIEnabled)
+                                if (l_Koramar->IsAIEnabled())
                                     l_Koramar->GetAI()->DoAction(eActions::ActionKoramarStopBladestorming);
                             }
                         }
@@ -565,7 +565,7 @@ class boss_skulloc : public CreatureScript
                     {
                         if (Creature* l_BackdraftCreature = me->FindNearestCreature(eCreatures::CreatureBackdraft, 300.0f, true))
                         {
-                            if (l_BackdraftCreature->IsAIEnabled)
+                            if (l_BackdraftCreature->IsAIEnabled())
                             {
                                 l_BackdraftCreature->SetFaction(HostileFaction);
                                 l_BackdraftCreature->SetReactState(ReactStates::REACT_PASSIVE);
@@ -660,7 +660,7 @@ class iron_docks_skulloc_mob_koramar : public CreatureScript
                 {
                     if (Creature* l_Turret = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eIronDocksDatas::DataTurret)))
                     {
-                        if (l_Turret->IsAIEnabled)
+                        if (l_Turret->IsAIEnabled())
                             l_Turret->GetAI()->DoAction(eIronDocksActions::ActionLeaveTurret);
                     }
                 }
@@ -844,14 +844,14 @@ class iron_docks_skulloc_mob_turret : public CreatureScript
                         {
                             if (Creature* l_Zoggosh = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eIronDocksDatas::DataZuggosh)))
                             {
-                                if (l_Zoggosh->IsAIEnabled)
+                                if (l_Zoggosh->IsAIEnabled())
                                     l_Zoggosh->AI()->Talk(eTalks::TalkKoramarVengence);
 
                                 l_Zoggosh->SetReactState(ReactStates::REACT_AGGRESSIVE);
 
                                 l_Zoggosh->RemoveUnitFlag(UnitFlags(UNIT_FLAG_REMOVE_CLIENT_CONTROL | UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE));
 
-                                if (l_Zoggosh->IsAIEnabled)
+                                if (l_Zoggosh->IsAIEnabled())
                                 {
                                     if (Unit* l_Target = l_Zoggosh->AI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_MAXTHREAT, 0, 100.0f, true))
                                     {
@@ -1101,7 +1101,7 @@ class iron_docks_skulloc_spell_cannon_barrage : public SpellScriptLoader
                         /// Position is changing incrementally, instead of randomally
                         if (Creature * l_Skulloc = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eIronDocksDatas::DataSkulloc)))
                         {
-                            if (l_Skulloc->IsAIEnabled)
+                            if (l_Skulloc->IsAIEnabled())
                             {
                                 if (boss_skulloc::boss_skullocAI* l_LinkAI = CAST_AI(boss_skulloc::boss_skullocAI, l_Skulloc->GetAI()))
                                 {
@@ -1209,7 +1209,7 @@ class iron_docks_skulloc_spell_berserker_jump : public SpellScriptLoader
 
                 if (Unit* l_Caster = GetCaster())
                 {
-                    if (l_Caster->IsAIEnabled)
+                    if (l_Caster->IsAIEnabled())
                     {
                         if (Unit* l_Random = l_Caster->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_RANDOM, 0, 100.0f, true))
                             l_Caster->GetMotionMaster()->MoveJump(l_Random->GetPositionX(), l_Random->GetPositionY(), l_Random->GetPositionZ(), 15.0f, 8.0f, eMovementInformed::MovementInformedKoramarJump);

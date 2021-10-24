@@ -872,7 +872,7 @@ namespace Instances { namespace Bloodmaul
 
                     if (Creature* caster = GetCaster()->ToCreature())
                     {
-                        if (caster->IsAIEnabled)
+                        if (caster->IsAIEnabled())
                             caster->AI()->DoAction(Action::ActionJumpFlames);
                     }
                 }

@@ -723,7 +723,7 @@ public:
         {
             if (Unit* caster = GetCaster())
             {
-                if (caster->IsAIEnabled)
+                if (caster->IsAIEnabled())
                 {
                     if (Unit* target = caster->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_MAXTHREAT))
                     {
@@ -772,7 +772,7 @@ public:
         {
             if (Unit* caster = GetCaster())
             {
-                if (caster->IsAIEnabled)
+                if (caster->IsAIEnabled())
                 {
                     if (caster->GetTypeId() != TypeID::TYPEID_PLAYER)
                     {
@@ -848,7 +848,7 @@ public:
                             //PhasingHandler::AddPhase(GetHitUnit(), m_phaseId);
                             //PhasingHandler::AddPhase(Soul, m_phaseId);
 
-                            if (Soul->IsAIEnabled)
+                            if (Soul->IsAIEnabled())
                             {
                                 Soul->AI()->SetGUID(GetHitUnit()->GetGUID(), 0);
                             }
@@ -888,7 +888,7 @@ public:
             if (!GetCaster())
                 return;
 
-            if (!GetCaster()->IsAIEnabled)
+            if (!GetCaster()->IsAIEnabled())
                 return;
 
             if (Unit* target = GetCaster()->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_RANDOM, 0, 50.0f, true))

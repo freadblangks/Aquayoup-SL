@@ -579,7 +579,7 @@ class boss_hansgar : public CreatureScript
                     {
                         if (Creature* l_Franzok = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossFranzok)))
                         {
-                            if (l_Franzok->IsAIEnabled)
+                            if (l_Franzok->IsAIEnabled())
                                 l_Franzok->AI()->DoAction(eActions::ActionIntroFinished);
                         }
                     }
@@ -811,7 +811,7 @@ class boss_hansgar : public CreatureScript
 
                                     if (Creature* l_Burns = l_TempList.front())
                                     {
-                                        if (l_Burns->IsAIEnabled)
+                                        if (l_Burns->IsAIEnabled())
                                         {
                                             l_Burns->AI()->SetData(eDatas::DataBeltEntry, l_BeltEntry);
                                             l_Burns->AI()->SetData(eDatas::DataSpawnTimer, l_Time * l_Index);
@@ -910,7 +910,7 @@ class boss_hansgar : public CreatureScript
 
                             if (Creature* l_Burns = l_TempList.front())
                             {
-                                if (l_Burns->IsAIEnabled)
+                                if (l_Burns->IsAIEnabled())
                                     l_Burns->AI()->Reset();
                             }
                         }
@@ -994,7 +994,7 @@ class boss_hansgar : public CreatureScript
 
                             if (Creature* l_Burns = l_TempList.front())
                             {
-                                if (l_Burns->IsAIEnabled)
+                                if (l_Burns->IsAIEnabled())
                                     l_Burns->AI()->Reset();
                             }
                         }
@@ -1648,7 +1648,7 @@ class boss_franzok : public CreatureScript
 
                             if (Creature* l_Burns = l_TempList.front())
                             {
-                                if (l_Burns->IsAIEnabled)
+                                if (l_Burns->IsAIEnabled())
                                     l_Burns->AI()->SetData(eDatas::DataBeltEntry, l_BeltEntry);
                             }
                         }
@@ -1706,7 +1706,7 @@ class boss_franzok : public CreatureScript
 
                             if (Creature* l_Burns = l_TempList.front())
                             {
-                                if (l_Burns->IsAIEnabled)
+                                if (l_Burns->IsAIEnabled())
                                     l_Burns->AI()->Reset();
                             }
                         }
@@ -1730,7 +1730,7 @@ class boss_franzok : public CreatureScript
                         /// Handle Pulverized damages
                         if (Creature* l_StampingPresses = ObjectAccessor::GetCreature(*me, l_StampingPress.StampingPresses))
                         {
-                            if (l_StampingPresses->IsAIEnabled)
+                            if (l_StampingPresses->IsAIEnabled())
                             {
                                 l_StampingPresses->AI()->SetData(eDatas::DataStampTimer, p_BaseTime + 2 * TimeConstants::IN_MILLISECONDS + 200);
                                 l_StampingPresses->AI()->DoAction(eActions::ActionStamp);
@@ -1759,7 +1759,7 @@ class boss_franzok : public CreatureScript
 
                         if (Creature* l_StampingPresses = ObjectAccessor::GetCreature(*me, l_StampingPress.StampingPresses))
                         {
-                            if (l_StampingPresses->IsAIEnabled)
+                            if (l_StampingPresses->IsAIEnabled())
                                 l_StampingPresses->AI()->DoAction(eActions::ActionCancelStamp);
                         }
 
@@ -2294,9 +2294,9 @@ class spell_foundry_crippling_suplex : public SpellScriptLoader
                             int32 l_Damage = 0;
 
                             if (l_MainTarget != l_Target)
-                                l_Damage = l_Boss->IsAIEnabled ? l_Boss->AI()->GetData(eDatas::DataMainTankHealth) : 0;
+                                l_Damage = l_Boss->IsAIEnabled() ? l_Boss->AI()->GetData(eDatas::DataMainTankHealth) : 0;
                             else
-                                l_Damage = l_Boss->IsAIEnabled ? l_Boss->AI()->GetData(eDatas::DataOffTankHealth) : 0;
+                                l_Damage = l_Boss->IsAIEnabled() ? l_Boss->AI()->GetData(eDatas::DataOffTankHealth) : 0;
 
                             if (l_Damage)
                                 SetHitDamage(l_Damage);

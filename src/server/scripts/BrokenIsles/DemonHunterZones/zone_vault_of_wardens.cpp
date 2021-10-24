@@ -304,8 +304,8 @@ public:
 
         void OnCharmed(bool /*apply*/) override
         {
-            if (me->NeedChangeAI)
-                me->NeedChangeAI = false;
+            //if (me->NeedChangeAI)
+                //me->NeedChangeAI = false;
         }
 
         void PassengerBoarded(Unit* who, int8 /*seatId*/, bool /*apply*/) override

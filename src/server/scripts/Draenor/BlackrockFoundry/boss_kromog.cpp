@@ -311,7 +311,7 @@ class boss_kromog : public CreatureScript
                     {
                         if (Creature* l_Trigger = p_Target->ToCreature())
                         {
-                            if (l_Trigger->IsAIEnabled)
+                            if (l_Trigger->IsAIEnabled())
                                 l_Trigger->AI()->DoAction(eActions::ActionRipplingSmash);
                         }
 
@@ -491,7 +491,7 @@ class boss_kromog : public CreatureScript
 
                                 for (Creature* l_Rune : l_CrushingEarthList)
                                 {
-                                    if (l_Rune->IsAIEnabled)
+                                    if (l_Rune->IsAIEnabled())
                                         l_Rune->AI()->DoAction(eActions::ActionCrushingEarth);
                                 }
                           //  });
@@ -884,7 +884,7 @@ class npc_foundry_rune_of_crushing_earth : public CreatureScript
                 {
                     if (Creature* l_StoneWall = p_Passenger->ToCreature())
                     {
-                        if (l_StoneWall->IsAIEnabled)
+                        if (l_StoneWall->IsAIEnabled())
                             l_StoneWall->AI()->DoAction(eAction::ActionCrushingEarth);
                     }
                 }

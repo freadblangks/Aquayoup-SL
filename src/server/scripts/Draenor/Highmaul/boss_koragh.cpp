@@ -804,7 +804,7 @@ class npc_highmaul_breaker_of_fel : public CreatureScript
 
                 if (Creature* l_Boss = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::Koragh)))
                 {
-                    if (l_Boss->IsAIEnabled)
+                    if (l_Boss->IsAIEnabled())
                         l_Boss->AI()->SetGUID(me->GetGUID());
                 }
             }
@@ -911,7 +911,7 @@ class npc_highmaul_breaker_of_fire : public CreatureScript
 
                 if (Creature* l_Boss = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::Koragh)))
                 {
-                    if (l_Boss->IsAIEnabled)
+                    if (l_Boss->IsAIEnabled())
                         l_Boss->AI()->SetGUID(me->GetGUID());
                 }
             }
@@ -1049,7 +1049,7 @@ class npc_highmaul_breaker_of_frost : public CreatureScript
 
                 if (Creature* l_Boss = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::Koragh)))
                 {
-                    if (l_Boss->IsAIEnabled)
+                    if (l_Boss->IsAIEnabled())
                         l_Boss->AI()->SetGUID(me->GetGUID());
                 }
             }
@@ -1378,7 +1378,7 @@ class spell_highmaul_nullification_barrier : public SpellScriptLoader
                     l_Boss->SetPower(Powers::POWER_ALTERNATE_POWER, 0);
 
                     AuraRemoveMode l_RemoveMode = GetTargetApplication()->GetRemoveMode();
-                    if (l_Boss->IsAIEnabled && l_RemoveMode != AuraRemoveMode::AURA_REMOVE_BY_DEATH)
+                    if (l_Boss->IsAIEnabled() && l_RemoveMode != AuraRemoveMode::AURA_REMOVE_BY_DEATH)
                         l_Boss->AI()->DoAction(eAction::CancelBreakersStrength);
                 }
             }
@@ -1471,7 +1471,7 @@ class spell_highmaul_caustic_energy : public SpellScriptLoader
                                 l_Boss = ObjectAccessor::GetCreature(*target, l_Instance->GetGuidData(eHighmaulCreatures::Koragh));
                                 if (l_Boss != nullptr)
                                 {
-                                    if (l_Boss->IsAIEnabled)
+                                    if (l_Boss->IsAIEnabled())
                                     {
                                         l_ChargingCount = l_Boss->AI()->GetData(eDatas::DataRunicPlayersCount);
                                         l_CanChargePlayer = l_ChargingCount < l_Boss->AI()->GetData(eDatas::DataMaxRunicPlayers);
@@ -1479,7 +1479,7 @@ class spell_highmaul_caustic_energy : public SpellScriptLoader
                                 }
                             }
 
-                            if (l_Boss == nullptr || !l_Boss->IsAIEnabled)
+                            if (l_Boss == nullptr || !l_Boss->IsAIEnabled())
                             {
                                 m_DamageTimer = 200;
                                 return;
@@ -1493,7 +1493,7 @@ class spell_highmaul_caustic_energy : public SpellScriptLoader
                                     {
                                         itr->CastSpell(itr, eSpell::CausticEnergyDoT, true);
 
-                                        if (l_Boss != nullptr && l_Boss->IsAIEnabled)
+                                        if (l_Boss != nullptr && l_Boss->IsAIEnabled())
                                         {
                                             l_Boss->TextEmote(eTalk::CausticEnergyWarn, itr);
                                             l_Boss->AI()->SetData(eDatas::DataRunicPlayersCount, l_ChargingCount + 1);
@@ -1593,7 +1593,7 @@ class spell_highmaul_caustic_energy_dot : public SpellScriptLoader
                         {
                             if (Creature* l_Boss = ObjectAccessor::GetCreature(*target, l_Instance->GetGuidData(eHighmaulCreatures::Koragh)))
                             {
-                                if (l_Boss->IsAIEnabled)
+                                if (l_Boss->IsAIEnabled())
                                 {
                                     uint8 l_ActualCount = l_Boss->AI()->GetData(eDatas::DataRunicPlayersCount);
 
@@ -1817,7 +1817,7 @@ class spell_highmaul_suppression_field_aura : public SpellScriptLoader
             {
                 if (Creature* target = GetTarget()->ToCreature())
                 {
-                    if (target->IsAIEnabled)
+                    if (target->IsAIEnabled())
                         target->AI()->DoAction(eAction::SuppressionField);
                 }
             }

@@ -156,7 +156,6 @@ struct InstanceTemplate
 {
     uint32 Parent;
     uint32 ScriptId;
-    bool AllowMount;
 };
 
 typedef std::unordered_map<uint16, InstanceTemplate> InstanceTemplateContainer;
@@ -1085,6 +1084,8 @@ class TC_GAME_API ObjectMgr
         CreatureMovementData const* GetCreatureMovementOverride(ObjectGuid::LowType spawnId) const;
         ItemTemplate const* GetItemTemplate(uint32 entry) const;
         ItemTemplateContainer const& GetItemTemplateStore() const { return _itemTemplateStore; }
+
+        InstanceTemplateContainer const& GetInstanceTemplates() const { return _instanceTemplateStore; }
 
         InstanceTemplate const* GetInstanceTemplate(uint32 mapId) const;
 

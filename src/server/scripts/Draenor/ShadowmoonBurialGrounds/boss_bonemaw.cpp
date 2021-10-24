@@ -589,7 +589,7 @@ public:
                 {
                     if (Creature* l_Bonemaw = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eShadowmoonBurialGroundsDatas::DataBossBonemaw)))
                     {
-                        if (l_Bonemaw->IsAIEnabled)
+                        if (l_Bonemaw->IsAIEnabled())
                         {
                             l_Bonemaw->GetAI()->DoAction(eBoneMawActions::ActionInhaleDeactivate);
                         }
@@ -682,7 +682,7 @@ public:
         {
             if (Unit* caster = GetCaster())
             {
-                if (caster->IsAIEnabled)
+                if (caster->IsAIEnabled())
                 {
                     if (Unit* target = caster->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_MAXTHREAT))
                     {

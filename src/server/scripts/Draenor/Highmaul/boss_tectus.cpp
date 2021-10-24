@@ -509,7 +509,7 @@ class boss_tectus : public CreatureScript
 
                 for (Creature* l_Creature : l_Motes)
                 {
-                    if (l_Creature->IsAIEnabled)
+                    if (l_Creature->IsAIEnabled())
                         l_Creature->AI()->Reset();
 
                     l_Creature->DespawnOrUnsummon();
@@ -898,7 +898,7 @@ class boss_tectus : public CreatureScript
 
                     if (Creature* l_Add = me->SummonCreature(p_Entry, l_X, l_Y, me->GetPositionZ()))
                     {
-                        if (l_Add->IsAIEnabled)
+                        if (l_Add->IsAIEnabled())
                             l_Add->AI()->AttackStart(target);
                     }
                 }
@@ -1671,7 +1671,7 @@ class spell_highmaul_tectus_energy_gain : public SpellScriptLoader
                    // target->EnergizeBySpell(target, GetSpellInfo()->Id, l_PowerGain, Powers::POWER_ENERGY);
                     uint32 l_NewPower = l_OldPower + l_PowerGain;
 
-                    if (target->IsAIEnabled)
+                    if (target->IsAIEnabled())
                     {
                         if (l_NewPower >= 100)
                             target->AI()->DoAction(eActions::ScheduleTectonicUpheaval);
@@ -1720,7 +1720,7 @@ class spell_highmaul_earthen_pillar_timer : public SpellScriptLoader
             {
                 if (Creature* target = GetTarget()->ToCreature())
                 {
-                    if (target->IsAIEnabled)
+                    if (target->IsAIEnabled())
                         target->AI()->DoAction(0);
                 }
             }

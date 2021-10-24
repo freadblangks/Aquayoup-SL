@@ -1004,7 +1004,7 @@ public:
                 {
                     for (Creature* l_Itr : l_HallowedGroundCreatures)
                     {
-                        if (l_Itr->IsAIEnabled)
+                        if (l_Itr->IsAIEnabled())
                             l_Itr->GetAI()->DoAction(eKaatharActions::ActionFateHallowedGround);
                     }
                 }

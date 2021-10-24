@@ -310,7 +310,7 @@ class boss_brackenspore : public CreatureScript
 
                             for (Creature* l_Creature : l_IronFlames)
                             {
-                                if (l_Creature->IsAIEnabled)
+                                if (l_Creature->IsAIEnabled())
                                     l_Creature->AI()->DoAction(eActions::DoIntro);
 
                                 if (Creature* l_Trigger = l_Creature->FindNearestCreature(eCreatures::WorldTrigger, 100.0f))
@@ -1555,7 +1555,7 @@ class spell_highmaul_energy_regen : public SpellScriptLoader
 
                     if (Creature* l_Boss = target->ToCreature())
                     {
-                        if (l_Boss->IsAIEnabled && l_Boss->GetPowerPct(Powers::POWER_RAGE) >= 100.0f)
+                        if (l_Boss->IsAIEnabled() && l_Boss->GetPowerPct(Powers::POWER_RAGE) >= 100.0f)
                             l_Boss->AI()->DoAction(eAction::InfestingSpores);
                     }
                 }

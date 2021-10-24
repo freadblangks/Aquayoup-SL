@@ -975,14 +975,7 @@ void Player::Update(uint32 p_time)
             if (!aura->IsPermanent())
                 aura->SetDuration(aura->GetSpellInfo()->GetMaxDuration());
 
-    if (IsAIEnabled && GetAI())
-        GetAI()->UpdateAI(p_time);
-    else if (NeedChangeAI)
-    {
-        UpdateCharmAI();
-        NeedChangeAI = false;
-        IsAIEnabled = (GetAI() != nullptr);
-    }
+    AIUpdateTick(p_time);
 
     // Update items that have just a limited lifetime
     if (now > m_Last_tick)
@@ -2409,10 +2402,7 @@ void Player::SetGameMaster(bool on)
         RemoveUnitFlag2(UNIT_FLAG2_ALLOW_CHEAT_SPELLS);
 
         if (Pet* pet = GetPet())
-        {
             pet->SetFaction(GetFaction());
-            pet->GetThreatManager().UpdateOnlineStates();
-        }
 
         // restore FFA PvP Server state
         if (sWorld->IsFFAPvPRealm())
@@ -22169,7 +22159,7 @@ void Player::RemovePetAura(PetAura const* petSpell)
 
 void Player::StopCastingCharm()
 {
-    Unit* charm = GetCharm();
+   Unit* charm = GetCharmed();
     if (!charm)
         return;
 
@@ -22180,12 +22170,12 @@ void Player::StopCastingCharm()
         else if (charm->IsVehicle())
             ExitVehicle();
     }
-    if (!GetCharmGUID().IsEmpty())
+    if (!GetCharmedGUID().IsEmpty())
         charm->RemoveCharmAuras();
 
-    if (!GetCharmGUID().IsEmpty())
+    if (!GetCharmedGUID().IsEmpty())
     {
-        TC_LOG_FATAL("entities.player", "Player::StopCastingCharm: Player '%s' (%s) is not able to uncharm unit (%s)", GetName().c_str(), GetGUID().ToString().c_str(), GetCharmGUID().ToString().c_str());
+        TC_LOG_FATAL("entities.player", "Player::StopCastingCharm: Player '%s' (%s) is not able to uncharm unit (%s)", GetName().c_str(), GetGUID().ToString().c_str(), GetCharmedGUID().ToString().c_str());
         if (!charm->GetCharmerGUID().IsEmpty())
         {
             TC_LOG_FATAL("entities.player", "Player::StopCastingCharm: Charmed unit has charmer %s", charm->GetCharmerGUID().ToString().c_str());
@@ -22396,7 +22386,7 @@ void Player::PetSpellInitialize()
 
 void Player::PossessSpellInitialize()
 {
-    Unit* charm = GetCharm();
+    Unit* charm = GetCharmed();
     if (!charm)
         return;
 
@@ -22719,20 +22709,24 @@ void Player::AddSpellMod(SpellModifier* mod, bool apply)
     {
         case SPELLMOD_FLAT:
         case SPELLMOD_PCT:
+    switch (mod->type)
+            {
+        case SPELLMOD_FLAT:
+        case SPELLMOD_PCT:
             if (!IsLoading())
             {
                 OpcodeServer opcode = (mod->type == SPELLMOD_FLAT) ? SMSG_SET_FLAT_SPELL_MODIFIER : SMSG_SET_PCT_SPELL_MODIFIER;
 
-        WorldPackets::Spells::SetSpellModifier packet(opcode);
+                WorldPackets::Spells::SetSpellModifier packet(opcode);
 
-        /// @todo Implement sending of bulk modifiers instead of single
-        packet.Modifiers.resize(1);
-        WorldPackets::Spells::SpellModifier& spellMod = packet.Modifiers[0];
+                /// @todo Implement sending of bulk modifiers instead of single
+                packet.Modifiers.resize(1);
+                WorldPackets::Spells::SpellModifier& spellMod = packet.Modifiers[0];
 
-        spellMod.ModIndex = AsUnderlyingType(mod->op);
+                spellMod.ModIndex = AsUnderlyingType(mod->op);
 
                 for (int eff = 0; eff < 128; ++eff)
-                {
+                        {
                     flag128 mask;
                     mask[eff / 32] = 1u << (eff % 32);
                     if (static_cast<SpellModifierByClassMask const*>(mod)->mask & mask)
@@ -22758,8 +22752,40 @@ void Player::AddSpellMod(SpellModifier* mod, bool apply)
                         spellMod.ModifierData.push_back(modData);
                     }
                 }
-
+				
                 SendDirectMessage(packet.Write());
+            }
+            break;
+        case SPELLMOD_LABEL_FLAT:
+            if (apply)
+            {
+                AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                    .ModifyValue(&UF::ActivePlayerData::SpellFlatModByLabel)) = static_cast<SpellFlatModifierByLabel const*>(mod)->value;
+            }
+            else
+            {
+                int32 firstIndex = m_activePlayerData->SpellFlatModByLabel.FindIndex(static_cast<SpellFlatModifierByLabel const*>(mod)->value);
+                if (firstIndex >= 0)
+                    RemoveDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                        .ModifyValue(&UF::ActivePlayerData::SpellFlatModByLabel), firstIndex);
+            }
+            break;
+        case SPELLMOD_LABEL_PCT:
+            if (apply)
+            {
+                AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                    .ModifyValue(&UF::ActivePlayerData::SpellPctModByLabel)) = static_cast<SpellPctModifierByLabel const*>(mod)->value;
+            }
+            else
+            {
+                int32 firstIndex = m_activePlayerData->SpellPctModByLabel.FindIndex(static_cast<SpellPctModifierByLabel const*>(mod)->value);
+                if (firstIndex >= 0)
+                    RemoveDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                        .ModifyValue(&UF::ActivePlayerData::SpellPctModByLabel), firstIndex);
+            }
+            break;
+        default:
+            break;
             }
             break;
         case SPELLMOD_LABEL_FLAT:
@@ -22930,7 +22956,7 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
         if (GetDisplayId() != GetNativeDisplayId())
             RestoreDisplayId(true);
 
-        if (IsDisallowedMountForm(getTransForm(), FORM_NONE, GetDisplayId()))
+       if (IsDisallowedMountForm(GetTransformSpell(), FORM_NONE, GetDisplayId()))
         {
             GetSession()->SendActivateTaxiReply(ERR_TAXIPLAYERSHAPESHIFTED);
             return false;
@@ -25452,7 +25478,7 @@ void Player::UpdateForQuestWorldObjects()
                 {
                     bool buildUpdateBlock = false;
                     for (ConditionContainer::const_iterator jtr = conds->begin(); jtr != conds->end() && !buildUpdateBlock; ++jtr)
-                        if ((*jtr)->ConditionType == CONDITION_QUESTREWARDED || (*jtr)->ConditionType == CONDITION_QUESTTAKEN)
+                        if ((*jtr)->ConditionType == CONDITION_QUESTREWARDED || (*jtr)->ConditionType == CONDITION_QUESTTAKEN || (*jtr)->ConditionType == CONDITION_QUEST_COMPLETE)
                             buildUpdateBlock = true;
 
                     if (buildUpdateBlock)

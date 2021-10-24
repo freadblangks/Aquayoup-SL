@@ -86,7 +86,7 @@ class basicevent_nokgar_death : public BasicEvent
                     {
                         if (Creature* l_Skulloc = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eIronDocksDatas::DataSkulloc)))
                         {                  
-                            if (l_Zoggosh->IsAIEnabled && l_Koramar->IsAIEnabled)
+                            if (l_Zoggosh->IsAIEnabled() && l_Koramar->IsAIEnabled())
                             {
                                 switch (m_Modifier)
                                 {
@@ -175,7 +175,7 @@ public:
 
             for (auto l_Itr : l_Flameslingers)
             {
-                if (l_Itr->IsAIEnabled)
+                if (l_Itr->IsAIEnabled())
                     l_Itr->GetAI()->DoAction(eIronDocksActions::ActionFireArrows);
             }
         }
@@ -189,7 +189,7 @@ public:
 
             for (auto l_Itr : l_Flameslingers)
             {
-                if (l_Itr->IsAIEnabled)
+                if (l_Itr->IsAIEnabled())
                 l_Itr->GetAI()->Reset();
             }
         }
@@ -318,7 +318,7 @@ public:
 
                     for (auto l_Itr : l_Flameslingers)
                     {
-                        if (l_Itr->IsAIEnabled)
+                        if (l_Itr->IsAIEnabled())
                             l_Itr->GetAI()->DoAction(eActions::ActionStop);
                     }
 
@@ -438,7 +438,7 @@ class iron_docks_nokgar_mob_dreadfang : public CreatureScript
                 {
                     for (Creature* l_Itr : l_ListFlameSlingers)
                     {
-                        if (l_Itr->IsAIEnabled)
+                        if (l_Itr->IsAIEnabled())
                             l_Itr->GetAI()->Reset();
                     }
                 }
@@ -446,7 +446,7 @@ class iron_docks_nokgar_mob_dreadfang : public CreatureScript
              
                 if (Creature* l_Nokgar = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eIronDocksDatas::DataNokgar)))
                 {
-                    if (l_Nokgar->IsAIEnabled)
+                    if (l_Nokgar->IsAIEnabled())
                         l_Nokgar->GetAI()->Reset();
                     //if (!l_Nokgar->HasAura(eSpells::SpellRideVehicle))
                         l_Nokgar->CastSpell(me, eSpells::SpellRideVehicle, true);
@@ -519,7 +519,7 @@ class iron_docks_nokgar_mob_dreadfang : public CreatureScript
                         {
                             if (Creature* l_Nokgar = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eIronDocksDatas::DataNokgar)))
                             {
-                                if (l_Nokgar->IsAIEnabled)
+                                if (l_Nokgar->IsAIEnabled())
                                 {
                                     m_Dismounted = true;
                                     l_Nokgar->AI()->DoAction(eActions::ActionDismountHeroic);

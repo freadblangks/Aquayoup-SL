@@ -468,7 +468,7 @@ namespace Instances { namespace Bloodmaul
                     eventStarted = true;
 
                     if (Creature* enslavedMiner = me->GetMap()->GetCreature(slaveGuid))
-                        if (enslavedMiner->IsAIEnabled)
+                        if (enslavedMiner->IsAIEnabled())
                             enslavedMiner->AI()->Talk((uint32)Texts::TEXT_SLAVE_MERCY);
 
                     events.ScheduleEvent((uint32)Events::EVENT_OVERSEER_TEXT,   2000);
@@ -535,7 +535,7 @@ namespace Instances { namespace Bloodmaul
                             {
                                 //enslavedMiner->ExitVehicle();
                                 enslavedMiner->GetMotionMaster()->MoveKnockbackFrom(me->GetPositionX(), me->GetPositionY(), 10.0f, 10.0f);
-                                if (enslavedMiner->IsAIEnabled)
+                                if (enslavedMiner->IsAIEnabled())
                                     enslavedMiner->AI()->Talk((uint32)Texts::TEXT_SLAVE_NO);
                                 enslavedMiner->DespawnOrUnsummon(1000);
                             }

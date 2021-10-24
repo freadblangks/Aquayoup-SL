@@ -116,7 +116,7 @@ static void StartMaidens(InstanceScript* p_Instance, Creature* p_Source, Unit* p
         {
             p_Instance->SendEncounterUnit(EncounterFrameType::ENCOUNTER_FRAME_ENGAGE, l_Maiden);
 
-            if (l_Maiden->IsAIEnabled)
+            if (l_Maiden->IsAIEnabled())
             {
                 if (l_BossID == l_I)
                     l_Maiden->AI()->Talk(0);
@@ -162,7 +162,7 @@ static bool IsLastMaidenAlive(InstanceScript* p_Instance, Creature* p_Source)
             if (l_Maiden->GetEntry() == p_Source->GetEntry())
                 continue;
 
-            if (l_Maiden->IsAIEnabled)
+            if (l_Maiden->IsAIEnabled())
             {
                 if (!l_Maiden->AI()->GetData(eIronMaidensDatas::IsDisabled))
                     return false;

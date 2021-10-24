@@ -186,7 +186,7 @@ class boss_operator_thogar : public CreatureScript
 
                                 if (Creature* l_Wheels = me->FindNearestCreature(eThogarCreatures::TrainWheels, 100.0f))
                                 {
-                                    if (l_Wheels->IsAIEnabled)
+                                    if (l_Wheels->IsAIEnabled())
                                         l_Wheels->AI()->DoAction(eThogarActions::TrainMoveEnd);
                                 }
 
@@ -203,7 +203,7 @@ class boss_operator_thogar : public CreatureScript
 
                                 if (Creature* l_Wheels = me->FindNearestCreature(eThogarCreatures::TrainWheels, 100.0f))
                                 {
-                                    if (l_Wheels->IsAIEnabled)
+                                    if (l_Wheels->IsAIEnabled())
                                         l_Wheels->AI()->DoAction(eThogarActions::TrainMoveEndPart2);
                                 }
 
@@ -648,7 +648,7 @@ class npc_foundry_train_controller : public CreatureScript
                             /// Set track to available
                             if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                             {
-                                if (l_Thogar->IsAIEnabled)
+                                if (l_Thogar->IsAIEnabled())
                                     l_Thogar->AI()->SetData(l_Datas.TrackID, true);
                             }
 
@@ -682,7 +682,7 @@ class npc_foundry_train_controller : public CreatureScript
                             /// Set track to available
                             if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                             {
-                                if (l_Thogar->IsAIEnabled)
+                                if (l_Thogar->IsAIEnabled())
                                     l_Thogar->AI()->SetData(l_Datas.TrackID, true);
                             }
 
@@ -781,7 +781,7 @@ class npc_foundry_train_controller : public CreatureScript
 
                                         if (Player* l_Target = l_Sergeant->SelectNearestPlayer(60.0f))
                                         {
-                                            if (l_Sergeant->IsAIEnabled)
+                                            if (l_Sergeant->IsAIEnabled())
                                                 l_Sergeant->AI()->AttackStart(l_Target);
                                         }
                                     }
@@ -812,7 +812,7 @@ class npc_foundry_train_controller : public CreatureScript
                                     {
                                         if (Player* l_Target = l_ManAtArms->SelectNearestPlayer(30.0f))
                                         {
-                                            if (l_ManAtArms->IsAIEnabled)
+                                            if (l_ManAtArms->IsAIEnabled())
                                                 l_ManAtArms->AI()->AttackStart(l_Target);
                                         }
                                     }
@@ -834,7 +834,7 @@ class npc_foundry_train_controller : public CreatureScript
                             {
                                 if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                                 {
-                                    if (l_Thogar->IsAIEnabled)
+                                    if (l_Thogar->IsAIEnabled())
                                         l_Thogar->AI()->Talk(eThogarTalks::TalkIntro);
                                 }
                             }
@@ -849,7 +849,7 @@ class npc_foundry_train_controller : public CreatureScript
                                 if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                                 {
                                     /// Launch jump into room
-                                    if (l_Thogar->IsAIEnabled)
+                                    if (l_Thogar->IsAIEnabled())
                                         l_Thogar->AI()->DoAction(eThogarActions::IntroEnd);
                                 }
                             }
@@ -876,7 +876,7 @@ class npc_foundry_train_controller : public CreatureScript
                         /// Set track to unavailable
                         if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                         {
-                            if (l_Thogar->IsAIEnabled)
+                            if (l_Thogar->IsAIEnabled())
                                 l_Thogar->AI()->SetData(l_Datas.TrackID, false);
                         }
 
@@ -920,7 +920,7 @@ class npc_foundry_train_controller : public CreatureScript
                                                         {
                                                             if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_SummonerGUID[0]))
                                                             {
-                                                                if (l_Thogar->IsAIEnabled)
+                                                                if (l_Thogar->IsAIEnabled())
                                                                 {
                                                                     //if (Player* l_Tank = urand(0, 1) ? l_Thogar->AI()->SelectMainTank() : l_Thogar->AI()->SelectOffTank())
                                                                       //  l_Passenger->GetMotionMaster()->MoveJump(*l_Tank, 30.0f, 10.0f);
@@ -935,7 +935,7 @@ class npc_foundry_train_controller : public CreatureScript
                                                         {
                                                             if (Unit* l_Victim = l_Passenger->SelectNearestPlayer(60.0f))
                                                             {
-                                                                if (l_Passenger->IsAIEnabled)
+                                                                if (l_Passenger->IsAIEnabled())
                                                                     l_Passenger->AI()->AttackStart(l_Victim);
                                                             }
                                                         }
@@ -987,7 +987,7 @@ class npc_foundry_train_controller : public CreatureScript
 
                                                         if (Player* l_Target = l_Sergeant->SelectNearestPlayer(60.0f))
                                                         {
-                                                            if (l_Sergeant->IsAIEnabled)
+                                                            if (l_Sergeant->IsAIEnabled())
                                                                 l_Sergeant->AI()->AttackStart(l_Target);
                                                         }
                                                     }
@@ -1133,7 +1133,7 @@ class npc_foundry_train_controller : public CreatureScript
                                     {
                                         if (Unit* l_Victim = l_Passenger->SelectNearestPlayer(30.0f))
                                         {
-                                            if (l_Passenger->IsAIEnabled)
+                                            if (l_Passenger->IsAIEnabled())
                                                 l_Passenger->AI()->AttackStart(l_Victim);
                                         }
                                     }
@@ -1301,7 +1301,7 @@ class npc_foundry_iron_gunnery_sergeant : public CreatureScript
                     {
                         if (Creature* l_Thogar = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossOperatorThogar)))
                         {
-                            if (l_Thogar->IsAIEnabled)
+                            if (l_Thogar->IsAIEnabled())
                                 l_Thogar->AI()->SetGUID(me->GetGUID(), 1);
                         }
                     }
@@ -1323,7 +1323,7 @@ class npc_foundry_iron_gunnery_sergeant : public CreatureScript
 
                             if (Creature* l_Wheels = l_Base->ToCreature())
                             {
-                                if (l_Wheels->IsAIEnabled)
+                                if (l_Wheels->IsAIEnabled())
                                     l_Wheels->AI()->DoAction(eThogarActions::TrainFightMoveEnd);
                             }
                         }

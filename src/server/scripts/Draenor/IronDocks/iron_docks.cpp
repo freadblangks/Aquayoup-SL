@@ -796,7 +796,7 @@ public:
                 {
                     for (auto l_Itr : l_ListFlameSlingers)
                     {
-                        if (l_Itr->IsAIEnabled)
+                        if (l_Itr->IsAIEnabled())
                             l_Itr->GetAI()->DoAction(eIronDocksActions::ActionBurningArrowSingle);
                     }
                 }
@@ -1055,7 +1055,7 @@ public:
                     {
                         if (Creature* l_Skulloc = m_Instance->instance->GetCreature(m_Instance->GetGuidData(eIronDocksDatas::DataSkulloc)))
                         {
-                            if (l_Skulloc->IsAIEnabled)
+                            if (l_Skulloc->IsAIEnabled())
                             {
                                 m_Event = true;
                                 l_Skulloc->GetAI()->DoAction(eIronDocksActions::ActionActivateBridgeBombardmement);
@@ -1867,7 +1867,7 @@ public:
 
             if (Unit* l_Caster = GetCaster())
             {
-                if (l_Caster->IsAIEnabled)
+                if (l_Caster->IsAIEnabled())
                 {
                     if (Unit* l_Target = l_Caster->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_RANDOM, 0, 300.0f, true))
                         l_Caster->CastSpell(l_Target, eLavaBlastSpells::SpellLavaBlastTriggerMissile, true);
@@ -1909,7 +1909,7 @@ public:
 
             if (Unit* l_Caster = GetCaster())
             {
-                if (l_Caster->IsAIEnabled)
+                if (l_Caster->IsAIEnabled())
                 {
                     if (Unit* l_Target = l_Caster->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_RANDOM, 0, 300.0f, true))
                         l_Caster->CastSpell(l_Target, eBarbedarrowSpells::SpellBarbedArrowAreaTrigger);
@@ -2040,7 +2040,7 @@ public:
 
             if (Unit* l_Caster = GetCaster())
             {
-                if (l_Caster->IsAIEnabled)
+                if (l_Caster->IsAIEnabled())
                 {
                     if (Unit* l_Target = l_Caster->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_RANDOM, 0, 300.0f, true))
                         l_Caster->CastSpell(l_Target, eBurningArrowSpells::SpellBurningArrowAreaTrigger);
@@ -2120,7 +2120,7 @@ public:
         {
             if (Unit* l_Caster = GetCaster())
             {
-                if (l_Caster->IsAIEnabled)
+                if (l_Caster->IsAIEnabled())
                 {
                     for (uint8 l_I = 0; l_I < 2; l_I++)
                     {

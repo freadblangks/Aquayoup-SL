@@ -683,7 +683,7 @@ class spell_wrathion_burning_cataclysm_teleport : public SpellScript
         caster->StopMoving();
         caster->SetFacingTo(caster->GetAngle2(wrathion_room_center));
 
-        if (caster->IsCreature() && caster->IsAIEnabled)
+        if (caster->IsCreature() && caster->IsAIEnabled())
             caster->ToCreature()->AI()->DoAction(SPELL_SCORCHING_BLISTER_MISSILE);
 
         caster->CastSpell(nullptr, SPELL_BURNING_CATACLYSM, false);

@@ -679,7 +679,7 @@ class npc_highmaumaggot : public CreatureScript
                 {
                     if (Creature* butcher = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::TheButcher)))
                     {
-                        if (butcher->IsAIEnabled)
+                        if (butcher->IsAIEnabled())
                             butcher->AI()->DoAction(eAction::MaggotKilled);
                     }
                 }

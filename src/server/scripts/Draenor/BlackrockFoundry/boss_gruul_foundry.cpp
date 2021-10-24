@@ -699,7 +699,7 @@ class spell_foundry_rage_regeneration : public SpellScriptLoader
 
                 if (Creature* l_Gruul = GetTarget()->ToCreature())
                 {
-                    if (!l_Gruul->IsAIEnabled)
+                    if (!l_Gruul->IsAIEnabled())
                         return;
 
                    // l_Gruul->EnergizeBySpell(l_Gruul, GetSpellInfo()->Id, (p_AurEff->GetTickNumber() % 3) ? 3 : 4, Powers::POWER_MANA);
@@ -753,7 +753,7 @@ class spell_foundry_inferno_slice : public SpellScriptLoader
                 {
                     if (Creature* l_Gruul = GetCaster()->ToCreature())
                     {
-                        if (!l_Gruul->IsAIEnabled)
+                        if (!l_Gruul->IsAIEnabled())
                             return;
 
                         /// In Mythic difficulty, if Inferno Slice fails to hit at least 4 targets, Gruul will instantly gain 50 Rage.

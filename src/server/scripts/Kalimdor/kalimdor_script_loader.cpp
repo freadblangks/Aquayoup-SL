@@ -15,7 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-// This is where scripts' loading functions should be declared:
+ // This is where scripts' loading functions should be declared:
 void AddSC_blackfathom_deeps();              //Blackfathom Depths
 void AddSC_boss_gelihast();
 void AddSC_boss_kelris();

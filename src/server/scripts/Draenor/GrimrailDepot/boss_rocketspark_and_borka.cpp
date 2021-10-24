@@ -108,7 +108,7 @@ public:
                 {
                     if (Creature* l_Borka = m_InstanceScript->instance->GetCreature(m_InstanceScript->GetGuidData(GrimrailDepotData::DataBorka)))
                     {
-                        if (l_RocketSpark->IsAIEnabled && l_Borka->IsAIEnabled)
+                        if (l_RocketSpark->IsAIEnabled() && l_Borka->IsAIEnabled())
                         {
                             switch (m_Modifier)
                             {
@@ -464,7 +464,7 @@ public:
                 {
                     if (l_Borka->IsAlive())
                     {
-                        if (l_Borka->IsAIEnabled)
+                        if (l_Borka->IsAIEnabled())
                             l_Borka->GetAI()->DoAction(eRocksparkAndBorkaActions::ActionBorkaUnmanagedAggression);
                     }
                 }
@@ -683,7 +683,7 @@ public:
             {
                 if (Creature* l_RocketSpark = m_Instance->instance->GetCreature(m_Instance->GetGuidData(GrimrailDepotData::DataRocketspark)))
                 {
-                    if (l_RocketSpark->IsAIEnabled)
+                    if (l_RocketSpark->IsAIEnabled())
                         l_RocketSpark->GetAI()->DoAction(eRocksparkAndBorkaActions::ActionRocketSparkNewPlan);
                 }
             }
@@ -776,7 +776,7 @@ public:
 
                                     if (l_Target->IsWithinDistInMap(l_RocketSpark, 10.0f)) /// If it's Rocketspark line of sight.
                                     {
-                                        if (l_RocketSpark->IsAIEnabled)
+                                        if (l_RocketSpark->IsAIEnabled())
                                             l_RocketSpark->GetAI()->DoAction(eRocksparkAndBorkaActions::ActionMadDashContact);
                                     }
                                 }
@@ -878,7 +878,7 @@ public:
         {
             if (GetCaster())
             {
-                if (GetCaster()->IsAIEnabled)
+                if (GetCaster()->IsAIEnabled())
                     GetCaster()->GetAI()->DoAction(eRocksparkAndBorkaActions::ActionRocketSparkShootMissilesVX18);
             }
         }

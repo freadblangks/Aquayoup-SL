@@ -1138,8 +1138,8 @@ public:
     void OnCharmed(bool /*apply*/) override
     {
         // Make sure the basic cleanup of OnCharmed is done to avoid looping problems
-        if (me->NeedChangeAI)
-            me->NeedChangeAI = false;
+        //if (me->NeedChangeAI)
+            //me->NeedChangeAI = false;
     }
 
     void EnterEvadeMode(EvadeReason /*why*/) override { }

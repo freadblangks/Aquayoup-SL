@@ -273,7 +273,7 @@ class grimrail_depot_mob_grimrail_laborer : public CreatureScript
                 {
                     if (me->IsWithinDistInMap(l_Tovra, 80.0f))
                     {
-                        if (l_Tovra->IsAIEnabled)
+                        if (l_Tovra->IsAIEnabled())
                             l_Tovra->GetAI()->DoAction(GrimrailDepotActions::ActionCount);
                     }
                 }
@@ -492,7 +492,7 @@ class grimrail_depot_mob_grimrail_scout : public CreatureScript
                 {
                     if (me->IsWithinDistInMap(l_Tovra, 80.0f))
                     {
-                        if (l_Tovra->IsAIEnabled)
+                        if (l_Tovra->IsAIEnabled())
                             l_Tovra->GetAI()->DoAction(GrimrailDepotActions::ActionCount);
                     }
                 }
@@ -594,7 +594,7 @@ class grimrail_depot_mob_grimrail_technician : public CreatureScript
 
                     if (l_TargetGuid != ObjectGuid::Empty)
                     {
-                        if (me->IsAIEnabled)
+                        if (me->IsAIEnabled())
                         {
                             if (Creature* l_Target = ObjectAccessor::GetCreature(*me, l_TargetGuid))
                                 me->CastSpell(l_Target, eActivatingSpells::SpellActivating);
@@ -640,7 +640,7 @@ class grimrail_depot_mob_grimrail_technician : public CreatureScript
 
                     AddTimedDelayedOperation(3 * TimeConstants::IN_MILLISECONDS, [this]() -> void
                     {
-                        if (me->IsAIEnabled)
+                        if (me->IsAIEnabled())
                             me->GetAI()->DoAction(eGrimrailTechnicianActions::ActionActivate);
                     });
 
@@ -781,7 +781,7 @@ class grimrail_depot_mob_gromkar_capitan : public CreatureScript
                 {
                     if (me->IsWithinDistInMap(l_Tovra, 80.0f))
                     {
-                        if (l_Tovra->IsAIEnabled)
+                        if (l_Tovra->IsAIEnabled())
                             l_Tovra->GetAI()->DoAction(GrimrailDepotActions::ActionCount);
                     }
                 }
@@ -956,7 +956,7 @@ class grimrail_depot_mob_gromkar_farseer : public CreatureScript
                 {
                     if (me->IsWithinDistInMap(l_Tovra, 80.0f))
                     {
-                        if (l_Tovra->IsAIEnabled)
+                        if (l_Tovra->IsAIEnabled())
                             l_Tovra->GetAI()->DoAction(GrimrailDepotActions::ActionCount);
                     }
                 }
@@ -1173,7 +1173,7 @@ public:
              //   if (Unit* l_Target = GetExplTargetUnit())
                //     l_Caster->GetMotionMaster()->MoveCharge(l_Target, 24.0f, eMovementInformed::MovementInformedDashSecondCut);
 
-                if (l_Caster->IsAIEnabled)
+                if (l_Caster->IsAIEnabled())
                     l_Caster->GetAI()->DoAction(eAction::ActionActivateDashEffect);
             }
         }
@@ -1244,7 +1244,7 @@ public:
 
             if (GetTarget())
             {
-                if (GetTarget()->IsAIEnabled)
+                if (GetTarget()->IsAIEnabled())
                     GetTarget()->GetAI()->DoAction(eAction::ActionActivateEffect);
             }
         }

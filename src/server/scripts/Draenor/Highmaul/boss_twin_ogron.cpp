@@ -1012,7 +1012,7 @@ class boss_twin_ogron_phemos : public CreatureScript
                         {
                             if (Creature* l_Boss = ObjectAccessor::GetCreature(*me, guid))
                             {
-                                if (l_Boss->IsAIEnabled)
+                                if (l_Boss->IsAIEnabled())
                                     l_Boss->AI()->Talk(eTalks::Intro);
                             }
                         });
@@ -1170,7 +1170,7 @@ class spell_highmaul_disposition : public SpellScriptLoader
 
                 //    l_Boss->EnergizeBySpell(l_Boss, GetSpellInfo()->Id, (int32)l_EnergyGain, Powers::POWER_ENERGY);
 
-                    if (!l_Boss->IsAIEnabled)
+                    if (!l_Boss->IsAIEnabled())
                         return;
 
                     switch (l_Boss->GetEntry())
@@ -1237,7 +1237,7 @@ class spell_highmaul_enfeebling_roar : public SpellScriptLoader
 
                 if (Creature* l_Phemos = GetCaster()->ToCreature())
                 {
-                    if (!l_Phemos->IsAIEnabled)
+                    if (!l_Phemos->IsAIEnabled())
                         return;
 
                     Aura* l_Aura = aurEff->GetBase();
@@ -1280,7 +1280,7 @@ class spell_highmaul_enfeebling_roar : public SpellScriptLoader
 
                 if (Creature* l_Phemos = GetCaster()->ToCreature())
                 {
-                    if (!l_Phemos->IsAIEnabled)
+                    if (!l_Phemos->IsAIEnabled())
                         return;
 
                     uint32 l_Count = l_Phemos->AI()->GetData(eMisc::EnfeeblingCounter);

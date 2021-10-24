@@ -41,7 +41,6 @@ EndScriptData */
 #include "LootMgr.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
-#include "ScriptMgr.h"
 #include "SkillDiscovery.h"
 #include "SkillExtraItems.h"
 #include "SmartAI.h"

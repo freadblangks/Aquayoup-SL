@@ -1233,7 +1233,7 @@ class spell_foundry_acid_torrent : public SpellScriptLoader
 
                     if (Creature* l_Oregorger = GetCaster()->ToCreature())
                     {
-                        if (!l_Oregorger->IsAIEnabled)
+                        if (!l_Oregorger->IsAIEnabled())
                             return;
 
                         l_Oregorger->AI()->SetData(eData::DamageMitigationPct, l_Pct);
@@ -1273,7 +1273,7 @@ class spell_foundry_acid_torrent_aoe : public SpellScriptLoader
             {
                 if (Creature* l_Oregorger = GetCaster()->ToCreature())
                 {
-                    if (!l_Oregorger->IsAIEnabled)
+                    if (!l_Oregorger->IsAIEnabled())
                         return;
 
                     float l_Pct = l_Oregorger->AI()->GetData(eData::DamageMitigationPct);
@@ -1361,7 +1361,7 @@ class spell_foundry_rolling_fury_aura : public SpellScriptLoader
                 {
                     if (Creature* l_Boss = l_Caster->ToCreature())
                     {
-                        if (!l_Boss->IsAIEnabled)
+                        if (!l_Boss->IsAIEnabled())
                             return false;
 
                         if (boss_oregorger::boss_oregorgerAI* l_AI = CAST_AI(boss_oregorger::boss_oregorgerAI, l_Boss->GetAI()))

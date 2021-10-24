@@ -1929,7 +1929,7 @@ class npc_highmaul_highmaul_conscript : public CreatureScript
 
                 if (Creature* l_Phemos = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::Phemos)))
                 {
-                    if (l_Phemos->IsAIEnabled)
+                    if (l_Phemos->IsAIEnabled())
                     {
                         l_Phemos->AI()->SetGUID(me->GetGUID(), 0);
                         l_Phemos->AI()->DoAction(1);
@@ -2087,7 +2087,7 @@ class npc_highmaul_ogron_earthshaker : public CreatureScript
 
                 if (Creature* l_Phemos = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::Phemos)))
                 {
-                    if (l_Phemos->IsAIEnabled)
+                    if (l_Phemos->IsAIEnabled())
                     {
                         l_Phemos->AI()->SetGUID(me->GetGUID(), 0);
                         l_Phemos->AI()->DoAction(1);
@@ -2226,7 +2226,7 @@ class npc_highmaul_gorian_arcanist : public CreatureScript
 
                 if (Creature* l_Phemos = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::Phemos)))
                 {
-                    if (l_Phemos->IsAIEnabled)
+                    if (l_Phemos->IsAIEnabled())
                     {
                         l_Phemos->AI()->SetGUID(me->GetGUID(), 0);
                         l_Phemos->AI()->DoAction(1);
@@ -2323,7 +2323,7 @@ class npc_highmaul_ogron_brute : public CreatureScript
 
                 if (Creature* l_Phemos = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::Phemos)))
                 {
-                    if (l_Phemos->IsAIEnabled)
+                    if (l_Phemos->IsAIEnabled())
                     {
                         l_Phemos->AI()->SetGUID(me->GetGUID(), 0);
                         l_Phemos->AI()->DoAction(1);
@@ -3047,7 +3047,7 @@ class npc_highmaul_guard_captain_thag : public CreatureScript
                     Creature* l_CouncilorMalgris = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::HighCouncilorMalgris));
                     Creature* l_ImperatorMargok = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::ImperatorMargok));
 
-                    if (l_CouncilorMalgris && l_ImperatorMargok && l_CouncilorMalgris->IsAIEnabled && l_ImperatorMargok->IsAIEnabled)
+                    if (l_CouncilorMalgris && l_ImperatorMargok && l_CouncilorMalgris->IsAIEnabled() && l_ImperatorMargok->IsAIEnabled())
                     {
                         l_CouncilorMalgris->AI()->DoAction(eAction::ActionIntro);
                         l_ImperatorMargok->AI()->DoAction(eAction::ActionIntro);
@@ -3584,7 +3584,7 @@ class npc_highmaul_high_councilor_malgris : public CreatureScript
 
                 if (Creature* l_Margok = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eHighmaulCreatures::ImperatorMargok)))
                 {
-                    if (l_Margok->IsAIEnabled)
+                    if (l_Margok->IsAIEnabled())
                         l_Margok->AI()->DoAction(eActions::ActionFinishIntro);
                 }
             }
@@ -4051,7 +4051,7 @@ class spell_highmaul_earthdevastating_slam : public SpellScriptLoader
 
                 if (Creature* l_Trash = GetTarget()->ToCreature())
                 {
-                    if (l_Trash->IsAIEnabled)
+                    if (l_Trash->IsAIEnabled())
                         l_Trash->AI()->DoAction(eAction::ActionSlam);
                 }
             }

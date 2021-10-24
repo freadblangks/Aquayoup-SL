@@ -214,7 +214,7 @@ class boss_flamebender_kagraz : public CreatureScript
 
                     if (Creature* l_MoltenStalker = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::MoltenTorrentStalker)))
                     {
-                        if (l_MoltenStalker->IsAIEnabled)
+                        if (l_MoltenStalker->IsAIEnabled())
                             l_MoltenStalker->AI()->JustEngagedWith(p_Attacker);
                     }
                 }
@@ -255,13 +255,13 @@ class boss_flamebender_kagraz : public CreatureScript
 
                     if (Creature* l_MoltenStalker = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::MoltenTorrentStalker)))
                     {
-                        if (l_MoltenStalker->IsAIEnabled)
+                        if (l_MoltenStalker->IsAIEnabled())
                             l_MoltenStalker->AI()->EnterEvadeMode();
                     }
 
                     if (Creature* l_LavaStalker = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::LavaStalker)))
                     {
-                        if (l_LavaStalker->IsAIEnabled)
+                        if (l_LavaStalker->IsAIEnabled())
                             l_LavaStalker->AI()->Reset();
                     }
                 }
@@ -314,7 +314,7 @@ class boss_flamebender_kagraz : public CreatureScript
             {
                 summons.Summon(p_Summon);
 
-                if (p_Summon->GetEntry() == eCreatures::FlamebenderKagrazTrigger && p_Summon->IsAIEnabled)
+                if (p_Summon->GetEntry() == eCreatures::FlamebenderKagrazTrigger && p_Summon->IsAIEnabled())
                     p_Summon->AI()->SetGUID(m_LavaSlashTarget, 0);
             }
 
@@ -337,7 +337,7 @@ class boss_flamebender_kagraz : public CreatureScript
 
                         if (Creature* l_Armament = me->SummonCreature(eCreatures::EnchantedArmament, *p_Target))
                         {
-                            if (l_Armament->IsAIEnabled)
+                            if (l_Armament->IsAIEnabled())
                             {
                                // if (Player* l_Target = SelectRangedTarget(true, -eSpells::MoltenTorrentAura))
                                 //    l_Armament->AI()->SetGUID(l_Target->GetGUID(), 0);
@@ -362,7 +362,7 @@ class boss_flamebender_kagraz : public CreatureScript
 
                                   //  l_MoltenTorrent->SendPlaySpellVisual(eVisuals::MoltenTorrentVisual, nullptr, 1.0f, 0.0f, *me, false, true);
 
-                                    if (l_MoltenTorrent->IsAIEnabled)
+                                    if (l_MoltenTorrent->IsAIEnabled())
                                     {
                                         l_MoltenTorrent->AI()->SetGUID(p_Target->GetGUID(), 0);
                                         l_MoltenTorrent->AI()->DoAction(eActions::ActionMoltenTorrent);
@@ -448,7 +448,7 @@ class boss_flamebender_kagraz : public CreatureScript
 
                         if (Creature* l_MoltenStalker = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::MoltenTorrentStalker)))
                         {
-                            if (l_MoltenStalker->IsAIEnabled)
+                            if (l_MoltenStalker->IsAIEnabled())
                                 l_MoltenStalker->AI()->DoAction(eActions::ActionMagmaMonsoon);
                         }
 
@@ -576,7 +576,7 @@ class boss_flamebender_kagraz : public CreatureScript
 
                         for (Creature* l_Wolf : l_CinderWolves)
                         {
-                            if (l_Wolf->IsAIEnabled)
+                            if (l_Wolf->IsAIEnabled())
                                 l_Wolf->AI()->DoAction(eActions::ActionFirestorm);
                         }
 
@@ -596,7 +596,7 @@ class boss_flamebender_kagraz : public CreatureScript
 
                             if (Creature* l_LavaStalker = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::LavaStalker)))
                             {
-                                if (l_LavaStalker->IsAIEnabled)
+                                if (l_LavaStalker->IsAIEnabled())
                                     l_LavaStalker->AI()->DoAction(eActions::ActionMagmaMonsoon);
                             }
                       //  });
@@ -701,7 +701,7 @@ class npc_foundry_aknor_steelbringer : public CreatureScript
                 {
                     if (Creature* l_Kagraz = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossFlamebenderKagraz)))
                     {
-                        if (l_Kagraz->IsAIEnabled && !l_Kagraz->IsInCombat())
+                        if (l_Kagraz->IsAIEnabled() && !l_Kagraz->IsInCombat())
                             l_Kagraz->AI()->AttackStart(p_Attacker);
                     }
 
@@ -764,7 +764,7 @@ class npc_foundry_aknor_steelbringer : public CreatureScript
 
                 if (Creature* l_Kagraz = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossFlamebenderKagraz)))
                 {
-                    if (l_Kagraz->IsAIEnabled)
+                    if (l_Kagraz->IsAIEnabled())
                         l_Kagraz->AI()->DoAction(eActions::AknorDied);
                 }
             }
@@ -1087,7 +1087,7 @@ class npc_foundry_lava_stalker : public CreatureScript
                                 else
                                     l_Second = l_Wolf;
 
-                                if (l_Wolf->IsAIEnabled)
+                                if (l_Wolf->IsAIEnabled())
                                 {
                                     if (Unit* l_Target = ObjectAccessor::GetUnit(*me, l_TargetGUID))
                                         l_Wolf->AI()->AttackStart(l_Target);
@@ -1097,7 +1097,7 @@ class npc_foundry_lava_stalker : public CreatureScript
                             }
                         }
 
-                        if (l_Frist->IsAIEnabled && l_Second->IsAIEnabled)
+                        if (l_Frist->IsAIEnabled() && l_Second->IsAIEnabled())
                         {
                             l_Frist->AI()->SetGUID(l_Second->GetGUID(), 0);
                             l_Second->AI()->SetGUID(l_Frist->GetGUID(), 0);
@@ -1728,7 +1728,7 @@ class spell_foundry_drop_the_hammer_aura : public SpellScriptLoader
 
                 if (Creature* l_Aknor = GetCaster()->ToCreature())
                 {
-                    if (l_Aknor->IsAIEnabled)
+                    if (l_Aknor->IsAIEnabled())
                         l_Aknor->AI()->DoAction(eAction::DropTheHammer);
                 }
             }
@@ -1803,7 +1803,7 @@ class spell_foundry_allow_molten_torrent_cast : public SpellScriptLoader
 
                 if (Creature* l_Wolf = GetTarget()->ToCreature())
                 {
-                    if (l_Wolf->IsAIEnabled)
+                    if (l_Wolf->IsAIEnabled())
                     {
                         if (boss_flamebender_kagraz::boss_flamebender_kagrazAI* l_AI = CAST_AI(boss_flamebender_kagraz::boss_flamebender_kagrazAI, l_Wolf->GetAI()))
                         {
@@ -1901,7 +1901,7 @@ class spell_foundry_overheated : public SpellScriptLoader
 
                 if (Creature* l_Target = GetTarget()->ToCreature())
                 {
-                    if (l_Target->IsAIEnabled)
+                    if (l_Target->IsAIEnabled())
                     {
                         l_Target->SetEntry(eFoundryCreatures::CinderWolf);
                         l_Target->AI()->DoAction(eActions::ActionFixated);
@@ -1910,7 +1910,7 @@ class spell_foundry_overheated : public SpellScriptLoader
                         {
                             if (Creature* l_Other = ObjectAccessor::GetCreature(*l_Target, l_AI->m_OtherWolf))
                             {
-                                if (l_Other->IsAIEnabled)
+                                if (l_Other->IsAIEnabled())
                                     l_Other->AI()->DoAction(eActions::ActionOverheated);
                             }
                         }
@@ -1987,7 +1987,7 @@ class spell_foundry_fixate : public SpellScriptLoader
 
                 if (Creature* l_Caster = GetCaster()->ToCreature())
                 {
-                    if (l_Caster->IsAIEnabled)
+                    if (l_Caster->IsAIEnabled())
                         l_Caster->AI()->DoAction(eAction::ActionFixatedAgain);
                 }
             }
@@ -2076,7 +2076,7 @@ class spell_foundry_firestorm_v2_periodic_lava_stalker : public SpellScriptLoade
 
                 if (Creature* l_Caster = GetCaster()->ToCreature())
                 {
-                    if (!l_Caster->IsAIEnabled)
+                    if (!l_Caster->IsAIEnabled())
                         return;
 
                     if (npc_foundry_lava_stalker::npc_foundry_lava_stalkerAI* l_AI = CAST_AI(npc_foundry_lava_stalker::npc_foundry_lava_stalkerAI, l_Caster->GetAI()))
@@ -2094,7 +2094,7 @@ class spell_foundry_firestorm_v2_periodic_lava_stalker : public SpellScriptLoade
 
                 if (Creature* l_Caster = GetCaster()->ToCreature())
                 {
-                    if (l_Caster->IsAIEnabled)
+                    if (l_Caster->IsAIEnabled())
                         l_Caster->AI()->DoAction(eAction::ActionFillStalkers);
                 }
             }

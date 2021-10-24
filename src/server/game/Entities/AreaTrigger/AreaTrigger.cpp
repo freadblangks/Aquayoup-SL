@@ -948,7 +948,7 @@ void AreaTrigger::DebugVisualizePosition()
 
 void AreaTrigger::AI_Initialize()
 {
-    AI_Destroy();
+     AI_Destroy();
     _ai.reset(FactorySelector::SelectAreaTriggerAI(this));
     _ai->OnInitialize();
 }

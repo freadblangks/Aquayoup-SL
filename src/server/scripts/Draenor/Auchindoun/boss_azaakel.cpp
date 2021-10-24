@@ -722,7 +722,7 @@ public:
             {
                 if (Creature* l_Azzakel = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eAuchindounDatas::DataBossAzzakael)))
                 {
-                    if (l_Azzakel->IsAIEnabled)
+                    if (l_Azzakel->IsAIEnabled())
                     {
                         l_Azzakel->SetCanFly(true);
                         l_Azzakel->SetDisableGravity(true);
@@ -746,7 +746,7 @@ public:
             {
                 if (Creature* l_Azzakel = l_Instance->instance->GetCreature(l_Instance->GetGuidData(eAuchindounDatas::DataBossAzzakael)))
                 {
-                    if (l_Azzakel->IsAIEnabled)
+                    if (l_Azzakel->IsAIEnabled())
                     {
                         l_Azzakel->RemoveAllAuras();
                         l_Azzakel->SetReactState(ReactStates::REACT_DEFENSIVE);

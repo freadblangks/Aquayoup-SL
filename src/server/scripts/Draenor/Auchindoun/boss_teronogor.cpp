@@ -555,7 +555,7 @@ struct boss_teronogor : public BossAI
         me->RemoveAllAuras();
         me->CastStop();
         me->CastSpell(me, spell);
-        if (me->IsAIEnabled)
+        if (me->IsAIEnabled())
         {
             if (Unit* l_Victim = me->GetAI()->SelectTarget(SelectAggroTarget::SELECT_TARGET_MAXTHREAT, 0, 100.0f, true))
                 me->Attack(l_Victim, true);

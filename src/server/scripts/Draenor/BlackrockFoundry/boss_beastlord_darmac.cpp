@@ -724,7 +724,7 @@ class boss_beastlord_darmac : public CreatureScript
 
                         if (Creature* l_Trigger = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::ThunderlordPackPens)))
                         {
-                            if (l_Trigger->IsAIEnabled)
+                            if (l_Trigger->IsAIEnabled())
                                 l_Trigger->AI()->DoAction(eActions::ActionCallThePack);
                         }
 
@@ -887,7 +887,7 @@ class boss_beastlord_darmac : public CreatureScript
                                     l_Creature->GetMotionMaster()->MoveTargetedHome();
                            // });
                         }
-                        else if (l_Beast->IsAIEnabled)
+                        else if (l_Beast->IsAIEnabled())
                             l_Beast->AI()->EnterEvadeMode();
                     }
                 }
@@ -899,7 +899,7 @@ class boss_beastlord_darmac : public CreatureScript
 
                     for (Creature* l_Iter : l_Hitchings)
                     {
-                        if (l_Iter->IsAIEnabled)
+                        if (l_Iter->IsAIEnabled())
                             l_Iter->AI()->Reset();
                     }
                // });
@@ -1012,7 +1012,7 @@ class npc_foundry_cruelfang : public CreatureScript
 
                     if (Creature* l_Darmac = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossBeastlordDarmac)))
                     {
-                        if (l_Darmac->IsAIEnabled)
+                        if (l_Darmac->IsAIEnabled())
                             l_Darmac->AI()->DoAction(eAction::ActionCruelfangKilled);
                     }
                 }
@@ -1106,7 +1106,7 @@ class npc_foundry_cruelfang : public CreatureScript
                     if (m_Instance != nullptr)
                         m_Instance->SendEncounterUnit(EncounterFrameType::ENCOUNTER_FRAME_ENGAGE, p_Passenger);
 
-                    if (m_IsEvadeMode && p_Passenger->ToCreature() && p_Passenger->IsAIEnabled)
+                    if (m_IsEvadeMode && p_Passenger->ToCreature() && p_Passenger->IsAIEnabled())
                         p_Passenger->ToCreature()->AI()->EnterEvadeMode();
                 }
             }
@@ -1264,7 +1264,7 @@ class npc_foundry_dreadwing : public CreatureScript
 
                     if (Creature* l_Darmac = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossBeastlordDarmac)))
                     {
-                        if (l_Darmac->IsAIEnabled)
+                        if (l_Darmac->IsAIEnabled())
                             l_Darmac->AI()->DoAction(eAction::ActionDreadwingKilled);
                     }
                 }
@@ -1297,7 +1297,7 @@ class npc_foundry_dreadwing : public CreatureScript
                     if (m_Instance != nullptr)
                         m_Instance->SendEncounterUnit(EncounterFrameType::ENCOUNTER_FRAME_ENGAGE, p_Passenger);
 
-                    if (m_IsEvadeMode && p_Passenger->ToCreature() && p_Passenger->IsAIEnabled)
+                    if (m_IsEvadeMode && p_Passenger->ToCreature() && p_Passenger->IsAIEnabled())
                         p_Passenger->ToCreature()->AI()->EnterEvadeMode();
                 }
             }
@@ -1488,7 +1488,7 @@ class npc_foundry_ironcrusher : public CreatureScript
 
                     if (Creature* l_Darmac = ObjectAccessor::GetCreature(*me, m_Instance->GetGuidData(eFoundryCreatures::BossBeastlordDarmac)))
                     {
-                        if (l_Darmac->IsAIEnabled)
+                        if (l_Darmac->IsAIEnabled())
                             l_Darmac->AI()->DoAction(eAction::ActionIroncrusherKilled);
                     }
                 }
@@ -1521,7 +1521,7 @@ class npc_foundry_ironcrusher : public CreatureScript
                     if (m_Instance != nullptr)
                         m_Instance->SendEncounterUnit(EncounterFrameType::ENCOUNTER_FRAME_ENGAGE, p_Passenger);
 
-                    if (m_IsEvadeMode && p_Passenger->ToCreature() && p_Passenger->IsAIEnabled)
+                    if (m_IsEvadeMode && p_Passenger->ToCreature() && p_Passenger->IsAIEnabled())
                         p_Passenger->ToCreature()->AI()->EnterEvadeMode();
                 }
             }
@@ -1827,7 +1827,7 @@ class npc_foundry_thunderlord_pack_pens : public CreatureScript
                 {
                     if (Unit* l_Target = l_Darmac->GetVictim())
                     {
-                        if (p_Summon->IsAIEnabled)
+                        if (p_Summon->IsAIEnabled())
                             p_Summon->AI()->AttackStart(l_Target);
                     }
                 }
