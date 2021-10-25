@@ -41,6 +41,7 @@ EndScriptData */
 #include "LootMgr.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
+#include "ScriptMgr.h"
 #include "SkillDiscovery.h"
 #include "SkillExtraItems.h"
 #include "SmartAI.h"
@@ -152,7 +153,7 @@ public:
             { "spell_pet_auras",               rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_PET_AURAS,                  true,  &HandleReloadSpellPetAurasCommand,              "" },
             { "spell_proc",                    rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_PROC,                       true,  &HandleReloadSpellProcsCommand,                 "" },
             { "spell_scripts",                 rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_SCRIPTS,                    true,  &HandleReloadSpellScriptsCommand,               "" },
-			{ "spell_script_names",            rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_SCRIPT_NAMES,               true,  &HandleReloadSpellScriptNamesCommand,           "" },
+            { "spell_script_names",            rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_SCRIPT_NAMES,               true,  &HandleReloadSpellScriptNamesCommand,           "" },
             { "spell_target_position",         rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_TARGET_POSITION,            true,  &HandleReloadSpellTargetPositionCommand,        "" },
             { "spell_threats",                 rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_THREATS,                    true,  &HandleReloadSpellThreatsCommand,               "" },
             { "spell_group_stack_rules",       rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_GROUP_STACK_RULES,          true,  &HandleReloadSpellGroupStackRulesCommand,       "" },
@@ -277,7 +278,7 @@ public:
         TC_LOG_INFO("misc", "Re-Loading Scripts...");
         HandleReloadEventScriptsCommand(handler, "a");
         HandleReloadSpellScriptsCommand(handler, "a");
-		HandleReloadSpellScriptNamesCommand(handler, "a");
+        HandleReloadSpellScriptNamesCommand(handler, "a");
         handler->SendGlobalGMSysMessage("DB tables `*_scripts` reloaded.");
         HandleReloadWpScriptsCommand(handler, "a");
         HandleReloadWpCommand(handler, "a");
@@ -298,7 +299,7 @@ public:
         HandleReloadSpellThreatsCommand(handler, "a");
         HandleReloadSpellGroupStackRulesCommand(handler, "a");
         HandleReloadSpellPetAurasCommand(handler, "a");
-		HandleReloadSpellScriptNamesCommand(handler, "a");
+        HandleReloadSpellScriptNamesCommand(handler, "a");
         return true;
     }
 
@@ -352,7 +353,7 @@ public:
     {
         TC_LOG_INFO("misc", "Re-Loading Additional Criteria Data...");
         sCriteriaMgr->LoadCriteriaData();
-		sScriptMgr->NotifyScriptIDUpdate();
+        sScriptMgr->NotifyScriptIDUpdate();
         handler->SendGlobalGMSysMessage("DB table `criteria_data` reloaded.");
         return true;
     }
@@ -393,7 +394,7 @@ public:
     {
         TC_LOG_INFO("misc", "Re-Loading Battleground Templates...");
         sBattlegroundMgr->LoadBattlegroundTemplates();
-		sScriptMgr->NotifyScriptIDUpdate();
+        sScriptMgr->NotifyScriptIDUpdate();
         handler->SendGlobalGMSysMessage("DB table `battleground_template` reloaded.");
         return true;
     }
@@ -466,7 +467,7 @@ public:
         }
 
         sObjectMgr->InitializeQueriesData(QUERY_DATA_CREATURES);
-		sScriptMgr->NotifyScriptIDUpdate();
+        sScriptMgr->NotifyScriptIDUpdate();
         handler->SendGlobalGMSysMessage("Creature template reloaded.");
         return true;
     }
@@ -556,7 +557,7 @@ public:
         TC_LOG_INFO("misc", "Re-Loading GameObjects for quests...");
         sObjectMgr->LoadGameObjectForQuests();
         handler->SendGlobalGMSysMessage("Data GameObjects for quests reloaded.");
-		sScriptMgr->NotifyScriptIDUpdate();
+        sScriptMgr->NotifyScriptIDUpdate();
 
         return true;
     }
@@ -981,7 +982,7 @@ public:
 
         return true;
     }
-	
+
     static bool HandleReloadSpellScriptNamesCommand(ChatHandler* handler, const char* /*args*/)
     {
         TC_LOG_INFO("misc", "Reloading spell_script_names table...");
@@ -1125,7 +1126,7 @@ public:
     {
         TC_LOG_INFO("misc", "Re-Loading Conditions...");
         sConditionMgr->LoadConditions(true);
-		sScriptMgr->NotifyScriptIDUpdate();
+        sScriptMgr->NotifyScriptIDUpdate();
         handler->SendGlobalGMSysMessage("Conditions reloaded.");
         return true;
     }
@@ -1192,7 +1193,7 @@ public:
     {
         TC_LOG_INFO("misc", "Reloading conversation_* tables...");
         sConversationDataStore->LoadConversationTemplates();
-		sScriptMgr->NotifyScriptIDUpdate();
+        sScriptMgr->NotifyScriptIDUpdate();
         handler->SendGlobalGMSysMessage("Conversation templates reloaded.");
         return true;
     }

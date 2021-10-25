@@ -18,6 +18,7 @@
 #include "Conversation.h"
 #include "ConversationDataStore.h"
 #include "Creature.h"
+#include "ConditionMgr.h"
 #include "IteratorPair.h"
 #include "Log.h"
 #include "Map.h"
@@ -152,6 +153,9 @@ bool Conversation::Create(ObjectGuid::LowType lowGuid, uint32 conversationEntry,
     std::vector<UF::ConversationLine> lines;
     for (ConversationLineTemplate const* line : conversationTemplate->Lines)
     {
+        if (!sConditionMgr->IsObjectMeetingNotGroupedConditions(CONDITION_SOURCE_TYPE_CONVERSATION_LINE, line->Id, creator))
+            continue;
+
         actorIndices.insert(line->ActorIdx);
         lines.emplace_back();
         UF::ConversationLine& lineField = lines.back();

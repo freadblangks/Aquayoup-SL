@@ -1906,7 +1906,7 @@ public:
             {
                 areaName = zoneName;
                 zoneName = zone->AreaName[handler->GetSessionDbcLocale()];
-			}
+            }
         }
 
         if (!zoneName)

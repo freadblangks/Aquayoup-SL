@@ -523,7 +523,7 @@ PEXCEPTION_POINTERS pExceptionInfo)
             pExceptionRecord->ExceptionAddress = reinterpret_cast<PVOID>(pExceptionRecord->ExceptionInformation[1]);
             Log(_T("Assertion message: %s\r\n"), pExceptionRecord->ExceptionInformation[0]);
         }
-		
+
         // Now print information about where the fault occured
         TCHAR szFaultingModule[MAX_PATH];
         DWORD section;
