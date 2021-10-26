@@ -376,7 +376,7 @@ struct npc_meredy_huntswell_156943 : public ScriptedAI
     npc_meredy_huntswell_156943(Creature* creature) : ScriptedAI(creature) { }
 
     // fix later - Varjgard
-    /*void QuestAccept(Player* player, Quest const* quest) override
+    void QuestAccept(Player* player, Quest const* quest) override
     {
         if (quest->GetQuestId() == QUEST_RIGHT_BENEATH_THEIR_EYES)
         {
@@ -387,12 +387,12 @@ struct npc_meredy_huntswell_156943 : public ScriptedAI
                 //player->SetDisplayId(x, 1.0f);
             });
             //Temp, i set it also to ignore all objectives, since you can't complete even through command, it's using criteria, not specific objects
-            if (player->HasQuest(QUEST_RIGHT_BENEATH_THEIR_EYES))
+            if (player->hasQuest(QUEST_RIGHT_BENEATH_THEIR_EYES))
                 player->ForceCompleteQuest(QUEST_RIGHT_BENEATH_THEIR_EYES);
 
             player->NearTeleportTo(700.874f, -1882.962f, 186.508f, 1.208f, false);
         }
-    }*/
+    }
 };
 
 // npc 156651 - captain garrick sparring version
