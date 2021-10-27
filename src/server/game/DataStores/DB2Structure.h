@@ -532,6 +532,14 @@ struct BroadcastTextEntry
     uint16 EmoteDelay[MAX_BROADCAST_TEXT_EMOTES];
 };
 
+struct BroadcastTextDurationEntry
+{
+    uint32 ID;
+    int32 BroadcastTextID;
+    int32 Locale;
+    int32 Duration;
+};
+
 struct Cfg_RegionsEntry
 {
     uint32 ID;
@@ -2163,10 +2171,10 @@ struct ItemSparseEntry
     uint16 ItemNameDescriptionID;
     uint16 RequiredTransmogHoliday;
     uint16 RequiredHoliday;
-    uint16 InstanceBound;
     uint16 GemProperties;
     uint16 SocketMatchEnchantmentId;
     uint16 TotemCategoryID;
+    uint16 InstanceBound;
     uint16 ZoneBound[MAX_ITEM_PROTO_ZONES];
     uint16 ItemSet;
     uint16 LockID;

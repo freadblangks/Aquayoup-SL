@@ -386,19 +386,26 @@ void ThreatManager::AddThreat(Unit* target, float amount, SpellInfo const* spell
         // SUPPRESSED threat states don't go back to ONLINE until threat is caused by them (retail behavior)
         if (ref->GetOnlineState() == ThreatReference::ONLINE_STATE_SUPPRESSED)
             if (!ref->ShouldBeSuppressed())
-			{
+            {
                 ref->_online = ThreatReference::ONLINE_STATE_ONLINE;
                 ref->HeapNotifyIncreased();
             }
+
         if (ref->IsOnline())
             ref->AddThreat(amount);
         return;
     }
 
     // ok, we're now in combat - create the threat list reference and push it to the respective managers
-    ThreatReference* ref = new ThreatReference(this, target, amount);
+    ThreatReference* ref = new ThreatReference(this, target);
     PutThreatListRef(target->GetGUID(), ref);
     target->GetThreatManager().PutThreatenedByMeRef(_owner->GetGUID(), ref);
+
+    // afterwards, we evaluate whether this is an online reference (it might not be an acceptable target, but we need to add it to our threat list before we check!)
+    ref->UpdateOffline();
+    if (ref->IsOnline()) // ...and if the ref is online it also gets the threat it should have
+        ref->AddThreat(amount);
+
     if (!_ownerEngaged)
     {
         Creature* cOwner = ASSERT_NOTNULL(_owner->ToCreature()); // if we got here the owner can have a threat list, and must be a creature!
@@ -459,6 +466,7 @@ void ThreatManager::TauntUpdate()
         else
             pair.second->UpdateTauntState();
     }
+
     // taunt aura update also re-evaluates all suppressed states (retail behavior)
     EvaluateSuppressed(true);
 }
@@ -795,7 +803,7 @@ void ThreatManager::SendThreatListToClients(bool newHighest) const
 
 void ThreatManager::PutThreatListRef(ObjectGuid const& guid, ThreatReference* ref)
 {
-	_needClientUpdate = true;
+    _needClientUpdate = true;
     auto& inMap = _myThreatListEntries[guid];
     ASSERT(!inMap, "Duplicate threat reference at %p being inserted on %s for %s - memory leak!", ref, _owner->GetGUID().ToString().c_str(), guid.ToString().c_str());
     inMap = ref;
@@ -809,7 +817,7 @@ void ThreatManager::PurgeThreatListRef(ObjectGuid const& guid)
         return;
     ThreatReference* ref = it->second;
     _myThreatListEntries.erase(it);
-	_sortedThreatList.erase(ref->_handle);
+    _sortedThreatList.erase(ref->_handle);
 
     if (_fixateRef == ref)
         _fixateRef = nullptr;
