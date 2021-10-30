@@ -21,18 +21,19 @@
  * Scriptnames of files in this file should be prefixed with "spell_pal_".
  */
 
-#include "ScriptMgr.h"
 #include "AreaTrigger.h"
-#include "AreaTriggerAI.h"
+#include "ScriptMgr.h"
 #include "DB2Stores.h"
 #include "Group.h"
 #include "Player.h"
 #include "Random.h"
+#include "AreaTriggerAI.h"
 #include "Spell.h"
+#include "SpellScript.h"
 #include "SpellAuraEffects.h"
 #include "SpellHistory.h"
 #include "SpellMgr.h"
-#include "SpellScript.h"
+
 
 enum PaladinSpells
 {
@@ -46,19 +47,11 @@ enum PaladinSpells
     SPELL_PALADIN_BLESSING_OF_LOWER_CITY_SHAMAN  = 37881,
     SPELL_PALADIN_BLINDING_LIGHT_EFFECT          = 105421,
     SPELL_PALADIN_CONCENTRACTION_AURA            = 19746,
-    SPELL_PALADIN_CONSECRATED_GROUND_PASSIVE     = 204054,
-    SPELL_PALADIN_CONSECRATED_GROUND_SLOW        = 204242,
-    SPELL_PALADIN_CONSECRATION                   = 26573,
-    SPELL_PALADIN_CONSECRATION_DAMAGE            = 81297,
-    SPELL_PALADIN_CONSECRATION_PROTECTION_AURA   = 188370,
     SPELL_PALADIN_DIVINE_PURPOSE_PROC            = 90174,
     SPELL_PALADIN_DIVINE_STEED_HUMAN             = 221883,
-    SPELL_PALADIN_DIVINE_STEED_DWARF             = 276111,
     SPELL_PALADIN_DIVINE_STEED_DRAENEI           = 221887,
-    SPELL_PALADIN_DIVINE_STEED_DARK_IRON_DWARF   = 276112,
     SPELL_PALADIN_DIVINE_STEED_BLOODELF          = 221886,
     SPELL_PALADIN_DIVINE_STEED_TAUREN            = 221885,
-    SPELL_PALADIN_DIVINE_STEED_ZANDALARI_TROLL   = 294133,
     SPELL_PALADIN_DIVINE_STORM_DAMAGE            = 224239,
     SPELL_PALADIN_ENDURING_LIGHT                 = 40471,
     SPELL_PALADIN_ENDURING_JUDGEMENT             = 40472,
@@ -69,7 +62,6 @@ enum PaladinSpells
     SPELL_PALADIN_FORBEARANCE                    = 25771,
     SPELL_PALADIN_GUARDIAN_OF_ANCIENT_KINGS      = 86659,
     SPELL_PALADIN_HAMMER_OF_JUSTICE              = 853,
-    SPELL_PALADIN_HAMMER_OF_THE_RIGHTEOUS_AOE    = 88263,
     SPELL_PALADIN_HAND_OF_SACRIFICE              = 6940,
     SPELL_PALADIN_HOLY_MENDING                   = 64891,
     SPELL_PALADIN_HOLY_POWER_ARMOR               = 28790,
@@ -88,6 +80,16 @@ enum PaladinSpells
     SPELL_PALADIN_SEAL_OF_RIGHTEOUSNESS          = 25742,
     SPELL_PALADIN_TEMPLAR_VERDICT_DAMAGE         = 224266,
     SPELL_PALADIN_ZEAL_AURA                      = 269571,
+    SPELL_PALADIN_CONSECRATED_GROUND_PASSIVE     = 204054,
+    SPELL_PALADIN_CONSECRATED_GROUND_SLOW        = 204242,
+    SPELL_PALADIN_CONSECRATION                   = 26573,
+    SPELL_PALADIN_CONSECRATION_DAMAGE            = 81297,
+    SPELL_PALADIN_CONSECRATION_PROTECTION_AURA   = 188370,
+    SPELL_PALADIN_DIVINE_STEED_DWARF             = 276111,
+    SPELL_PALADIN_DIVINE_STEED_DARK_IRON_DWARF   = 276112,
+    SPELL_PALADIN_DIVINE_STEED_ZANDALARI_TROLL   = 294133,
+    SPELL_PALADIN_HAMMER_OF_THE_RIGHTEOUS_AOE    = 88263,
+    SPELL_PALADIN_CONSECRATION_REDUCE_SPEED      = 204242,
 };
 
 enum PaladinSpellVisualKit
@@ -121,8 +123,8 @@ class spell_pal_ardent_defender : public SpellScriptLoader
 
             bool Load() override
             {
-                _absorbPct = GetSpellInfo()->Effects[EFFECT_0].CalcValue();
-                _healPct = GetSpellInfo()->Effects[EFFECT_1].CalcValue();
+                _absorbPct = GetSpellInfo().Effects[EFFECT_0].CalcValue();
+                _healPct = GetSpellInfo().Effects[EFFECT_1].CalcValue();
                 return GetUnitOwner()->GetTypeId() == TYPEID_PLAYER;
             }
 
@@ -138,12 +140,12 @@ class spell_pal_ardent_defender : public SpellScriptLoader
                 int32 remainingHealth = victim->GetHealth() - dmgInfo.GetDamage();
                 uint32 allowedHealth = victim->CountPctFromMaxHealth(35);
                 // If damage kills us
-                if (remainingHealth <= 0 && !victim->ToPlayer()->HasSpellCooldown(PAL_SPELL_ARDENT_DEFENDER_HEAL))
+                if (remainingHealth <= 0 && !victim->ToPlayer().HasSpellCooldown(PAL_SPELL_ARDENT_DEFENDER_HEAL))
                 {
                     // Cast healing spell, completely avoid damage
                     absorbAmount = dmgInfo.GetDamage();
 
-                    float defenseSkillValue = victim->GetDefenseSkillValue();
+                    float defenseSkillValue = victim.GetDefenseSkillValue();
                     // Max heal when defense skill denies critical hits from raid bosses
                     // Formula: max defense at level + 140 (raiting from gear)
                     float reqDefForMaxHeal = victim->GetMaxSkillValueForLevel() + 140.0f;
@@ -151,7 +153,7 @@ class spell_pal_ardent_defender : public SpellScriptLoader
 
                     int32 healAmount = int32(victim->CountPctFromMaxHealth(static_cast<uint32>(lroundf(_healPct * defenseFactor))));
                     victim->CastCustomSpell(victim, PAL_SPELL_ARDENT_DEFENDER_HEAL, &healAmount, nullptr, nullptr, true, nullptr, aurEff);
-                    victim->ToPlayer()->AddSpellCooldown(PAL_SPELL_ARDENT_DEFENDER_HEAL, 0, GameTime::GetGameTime() + 120);
+                    victim->ToPlayer().AddSpellCooldown(PAL_SPELL_ARDENT_DEFENDER_HEAL, 0, GameTime::GetGameTime() + 120);
                 }
                 else if (remainingHealth < int32(allowedHealth))
                 {
@@ -267,6 +269,68 @@ class spell_pal_blessing_of_protection : public SpellScript
     }
 };
 
+
+
+// Consecration - 26573 (retribution)
+// Consecration - 205228 (protection)
+struct at_pal_consecration : AreaTriggerAI
+{
+    at_pal_consecration(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
+
+    void OnInitialize() override
+    {
+        timer = 1 * IN_MILLISECONDS;
+    }
+
+    void OnUnitEnter(Unit* unit) override
+    {
+        Unit* caster = at->GetCaster();
+        if (!caster || !unit)
+            return;
+
+        if (!caster->IsValidAttackTarget(unit))
+            return;
+
+        if (!unit->HasAura(SPELL_PALADIN_CONSECRATION_REDUCE_SPEED, caster->GetGUID()))
+            caster->CastSpell(unit, SPELL_PALADIN_CONSECRATION_REDUCE_SPEED, true);
+    }
+
+    void OnUnitExit(Unit* unit) override
+    {
+        Unit* caster = at->GetCaster();
+        if (!caster || !unit)
+            return;
+
+        if (unit->HasAura(SPELL_PALADIN_CONSECRATION_REDUCE_SPEED, caster->GetGUID()))
+            unit->RemoveAura(SPELL_PALADIN_CONSECRATION_REDUCE_SPEED, caster->GetGUID());
+    }
+
+    void OnUpdate(uint32 diff) override
+    {
+        Unit* caster = at->GetCaster();
+        if (!caster)
+            return;
+
+        if (timer <= diff)
+        {
+            SpellCastTargets targets;
+            targets.SetDst(at->GetPosition());
+            // caster->CastSpell(targets, sSpellMgr->GetSpellInfo(SPELL_PALADIN_CONSECRATION_DAMAGE), nullptr);
+
+             // Consecrated Ground
+            //if (caster->HasAura(SPELL_PALADIN_CONSECRATED_GROUND))
+                //   caster->CastSpell(targets, sSpellMgr->GetSpellInfo(SPELL_PALADIN_CONSECRATED_GROUND), nullptr);
+
+                timer = 1 * IN_MILLISECONDS;
+        }
+        else
+            timer -= diff;
+    }
+
+private:
+    uint32 timer;
+};
+
 // 115750 - Blinding Light
 class spell_pal_blinding_light : public SpellScript
 {
@@ -278,6 +342,7 @@ class spell_pal_blinding_light : public SpellScript
     }
 
     void HandleDummy(SpellEffIndex /*effIndex*/)
+
     {
         if (Unit* target = GetHitUnit())
             GetCaster()->CastSpell(target, SPELL_PALADIN_BLINDING_LIGHT_EFFECT, true);
@@ -286,64 +351,6 @@ class spell_pal_blinding_light : public SpellScript
     void Register() override
     {
         OnEffectHitTarget += SpellEffectFn(spell_pal_blinding_light::HandleDummy, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
-    }
-};
-
-// 26573 - Consecration
-class spell_pal_consecration : public AuraScript
-{
-    PrepareAuraScript(spell_pal_consecration);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo
-        ({
-            SPELL_PALADIN_CONSECRATION_DAMAGE,
-            // validate for areatrigger_pal_consecration
-            SPELL_PALADIN_CONSECRATION_PROTECTION_AURA,
-            SPELL_PALADIN_CONSECRATED_GROUND_PASSIVE,
-            SPELL_PALADIN_CONSECRATED_GROUND_SLOW
-        });
-    }
-
-    void HandleEffectPeriodic(AuraEffect const* /*aurEff*/)
-    {
-        if (AreaTrigger* at = GetTarget()->GetAreaTrigger(SPELL_PALADIN_CONSECRATION))
-            GetTarget()->CastSpell(at->GetPosition(), SPELL_PALADIN_CONSECRATION_DAMAGE);
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_pal_consecration::HandleEffectPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
-    }
-};
-
-// 26573 - Consecration
-//  9228 - AreaTriggerId
-struct areatrigger_pal_consecration : AreaTriggerAI
-{
-    areatrigger_pal_consecration(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
-
-    void OnUnitEnter(Unit* unit) override
-    {
-        if (Unit* caster = at->GetCaster())
-        {
-            // 243597 is also being cast as protection, but CreateObject is not sent, either serverside areatrigger for this aura or unused - also no visual is seen
-            if (unit == caster && caster->IsPlayer() && caster->ToPlayer()->GetPrimarySpecialization() == TALENT_SPEC_PALADIN_PROTECTION)
-                caster->CastSpell(caster, SPELL_PALADIN_CONSECRATION_PROTECTION_AURA);
-
-            if (caster->IsValidAttackTarget(unit))
-                if (caster->HasAura(SPELL_PALADIN_CONSECRATED_GROUND_PASSIVE))
-                    caster->CastSpell(unit, SPELL_PALADIN_CONSECRATED_GROUND_SLOW);
-        }
-    }
-
-    void OnUnitExit(Unit* unit) override
-    {
-        if (at->GetCasterGuid() == unit->GetGUID())
-            unit->RemoveAurasDueToSpell(SPELL_PALADIN_CONSECRATION_PROTECTION_AURA, at->GetCasterGuid());
-
-        unit->RemoveAurasDueToSpell(SPELL_PALADIN_CONSECRATED_GROUND_SLOW, at->GetCasterGuid());
     }
 };
 
@@ -440,30 +447,30 @@ class spell_pal_divine_steed : public SpellScript
         uint32 spellId = SPELL_PALADIN_DIVINE_STEED_HUMAN;
         switch (caster->getRace())
         {
-            case RACE_HUMAN:
-                spellId = SPELL_PALADIN_DIVINE_STEED_HUMAN;
-                break;
-            case RACE_DWARF:
-                spellId = SPELL_PALADIN_DIVINE_STEED_DWARF;
-                break;
-            case RACE_DRAENEI:
-            case RACE_LIGHTFORGED_DRAENEI:
-                spellId = SPELL_PALADIN_DIVINE_STEED_DRAENEI;
-                break;
-            case RACE_DARK_IRON_DWARF:
-                spellId = SPELL_PALADIN_DIVINE_STEED_DARK_IRON_DWARF;
-                break;
-            case RACE_BLOODELF:
-                spellId = SPELL_PALADIN_DIVINE_STEED_BLOODELF;
-                break;
-            case RACE_TAUREN:
-                spellId = SPELL_PALADIN_DIVINE_STEED_TAUREN;
-                break;
-            case RACE_ZANDALARI_TROLL:
-                spellId = SPELL_PALADIN_DIVINE_STEED_ZANDALARI_TROLL;
-                break;
-            default:
-                break;
+        case RACE_HUMAN:
+            spellId = SPELL_PALADIN_DIVINE_STEED_HUMAN;
+            break;
+        case RACE_DWARF:
+            spellId = SPELL_PALADIN_DIVINE_STEED_DWARF;
+            break;
+        case RACE_DRAENEI:
+        case RACE_LIGHTFORGED_DRAENEI:
+            spellId = SPELL_PALADIN_DIVINE_STEED_DRAENEI;
+            break;
+        case RACE_DARK_IRON_DWARF:
+            spellId = SPELL_PALADIN_DIVINE_STEED_DARK_IRON_DWARF;
+            break;
+        case RACE_BLOODELF:
+            spellId = SPELL_PALADIN_DIVINE_STEED_BLOODELF;
+            break;
+        case RACE_TAUREN:
+            spellId = SPELL_PALADIN_DIVINE_STEED_TAUREN;
+            break;
+        case RACE_ZANDALARI_TROLL:
+            spellId = SPELL_PALADIN_DIVINE_STEED_ZANDALARI_TROLL;
+            break;
+        default:
+            break;
         }
 
         caster->CastSpell(caster, spellId, true);
@@ -585,32 +592,6 @@ class spell_pal_glyph_of_holy_light : public SpellScript
     void Register() override
     {
         OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_pal_glyph_of_holy_light::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
-    }
-};
-
-// 53595 - Hammer of the Righteous
-struct spell_pal_hammer_of_the_righteous : public SpellScript
-{
-    PrepareSpellScript(spell_pal_hammer_of_the_righteous);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo
-        ({
-            SPELL_PALADIN_CONSECRATION_PROTECTION_AURA,
-            SPELL_PALADIN_HAMMER_OF_THE_RIGHTEOUS_AOE
-        });
-    }
-
-    void HandleAoEHit(SpellEffIndex /*effIndex*/)
-    {
-        if (GetCaster()->HasAura(SPELL_PALADIN_CONSECRATION_PROTECTION_AURA))
-            GetCaster()->CastSpell(GetHitUnit(), SPELL_PALADIN_HAMMER_OF_THE_RIGHTEOUS_AOE);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_pal_hammer_of_the_righteous::HandleAoEHit, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
     }
 };
 
@@ -1142,6 +1123,8 @@ class spell_pal_t8_2p_bonus : public SpellScriptLoader
 
                 ASSERT(spellInfo->GetMaxTicks() > 0);
                 amount /= spellInfo->GetMaxTicks();
+                // Add remaining ticks to damage done
+                //amount += target->GetRemainingPeriodicAmount(caster->GetGUID(), SPELL_PALADIN_HOLY_MENDING, SPELL_AURA_PERIODIC_HEAL);
 
                 CastSpellExtraArgs args(aurEff);
                 args.AddSpellBP0(amount);
@@ -1184,6 +1167,90 @@ class spell_pal_zeal : public AuraScript
     }
 };
 
+// 53595 - Hammer of the Righteous
+struct spell_pal_hammer_of_the_righteous : public SpellScript
+{
+    PrepareSpellScript(spell_pal_hammer_of_the_righteous);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo
+        ({
+            SPELL_PALADIN_CONSECRATION_PROTECTION_AURA,
+            SPELL_PALADIN_HAMMER_OF_THE_RIGHTEOUS_AOE
+            });
+    }
+
+    void HandleAoEHit(SpellEffIndex /*effIndex*/)
+    {
+        if (GetCaster()->HasAura(SPELL_PALADIN_CONSECRATION_PROTECTION_AURA))
+            GetCaster()->CastSpell(GetHitUnit(), SPELL_PALADIN_HAMMER_OF_THE_RIGHTEOUS_AOE);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_pal_hammer_of_the_righteous::HandleAoEHit, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
+// 26573 - Consecration
+//  9228 - AreaTriggerId
+struct areatrigger_pal_consecration : AreaTriggerAI
+{
+    areatrigger_pal_consecration(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
+
+    void OnUnitEnter(Unit* unit) override
+    {
+        if (Unit* caster = at->GetCaster())
+        {
+            // 243597 is also being cast as protection, but CreateObject is not sent, either serverside areatrigger for this aura or unused - also no visual is seen
+            if (unit == caster && caster->IsPlayer() && caster->ToPlayer()->GetPrimarySpecialization() == TALENT_SPEC_PALADIN_PROTECTION)
+                caster->CastSpell(caster, SPELL_PALADIN_CONSECRATION_PROTECTION_AURA);
+
+            if (caster->IsValidAttackTarget(unit))
+                if (caster->HasAura(SPELL_PALADIN_CONSECRATED_GROUND_PASSIVE))
+                    caster->CastSpell(unit, SPELL_PALADIN_CONSECRATED_GROUND_SLOW);
+        }
+    }
+
+    void OnUnitExit(Unit* unit) override
+    {
+        if (at->GetCasterGuid() == unit->GetGUID())
+            unit->RemoveAurasDueToSpell(SPELL_PALADIN_CONSECRATION_PROTECTION_AURA, at->GetCasterGuid());
+
+        unit->RemoveAurasDueToSpell(SPELL_PALADIN_CONSECRATED_GROUND_SLOW, at->GetCasterGuid());
+    }
+};
+
+// 26573 - Consecration
+class spell_pal_consecration : public AuraScript
+{
+    PrepareAuraScript(spell_pal_consecration);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo
+        ({
+            SPELL_PALADIN_CONSECRATION_DAMAGE,
+            // validate for areatrigger_pal_consecration
+            SPELL_PALADIN_CONSECRATION_PROTECTION_AURA,
+            SPELL_PALADIN_CONSECRATED_GROUND_PASSIVE,
+            SPELL_PALADIN_CONSECRATED_GROUND_SLOW
+            });
+    }
+
+    void HandleEffectPeriodic(AuraEffect const* /*aurEff*/)
+    {
+        if (AreaTrigger* at = GetTarget()->GetAreaTrigger(SPELL_PALADIN_CONSECRATION))
+            GetTarget()->CastSpell(at->GetPosition(), SPELL_PALADIN_CONSECRATION_DAMAGE);
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_pal_consecration::HandleEffectPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
+    }
+};
+
 void AddSC_paladin_spell_scripts()
 {
     //new spell_pal_ardent_defender();
@@ -1191,8 +1258,6 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_blessing_of_protection);
     RegisterSpellScript(spell_pal_blinding_light);
     RegisterAuraScript(spell_pal_crusader_might);
-    RegisterAuraScript(spell_pal_consecration);
-    RegisterAreaTriggerAI(areatrigger_pal_consecration);
     RegisterSpellScript(spell_pal_divine_shield);
     RegisterSpellScript(spell_pal_divine_steed);
     RegisterSpellScript(spell_pal_divine_storm);
@@ -1200,7 +1265,6 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_glyph_of_holy_light);
     new spell_pal_grand_crusader();
     new spell_pal_hand_of_sacrifice();
-    RegisterSpellScript(spell_pal_hammer_of_the_righteous);
     RegisterSpellScript(spell_pal_moment_of_glory);
     RegisterSpellScript(spell_pal_judgement);
     RegisterSpellScript(spell_pal_holy_shock);
@@ -1215,4 +1279,7 @@ void AddSC_paladin_spell_scripts()
     new spell_pal_t3_6p_bonus();
     new spell_pal_t8_2p_bonus();
     RegisterAuraScript(spell_pal_zeal);
+    RegisterSpellScript(spell_pal_hammer_of_the_righteous);
+    RegisterAuraScript(spell_pal_consecration);
+    RegisterAreaTriggerAI(areatrigger_pal_consecration);
 }

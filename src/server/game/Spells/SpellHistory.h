@@ -143,7 +143,8 @@ public:
     bool HasCharge(uint32 chargeCategoryId) const;
     int32 GetMaxCharges(uint32 chargeCategoryId) const;
     int32 GetChargeRecoveryTime(uint32 chargeCategoryId) const;
-
+    void ForceSendSpellCharges();
+    void ForceSendSpellCharge(SpellCategoryEntry const* chargeCategoryEntry);
     // Global cooldown
     bool HasGlobalCooldown(SpellInfo const* spellInfo) const;
     void AddGlobalCooldown(SpellInfo const* spellInfo, uint32 duration);

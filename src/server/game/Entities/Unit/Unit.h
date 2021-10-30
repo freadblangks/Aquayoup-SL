@@ -27,6 +27,7 @@
 #include "UnitDefines.h"
 #include "Util.h"
 #include "TaskScheduler.h"
+#include "Position.h"
 #include <boost/container/flat_set.hpp>
 #include <array>
 #include <map>
@@ -1523,7 +1524,25 @@ class TC_GAME_API Unit : public WorldObject
         void SetCurrentCastSpell(Spell* pSpell);
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool withInstant = true);
         void FinishSpell(CurrentSpellTypes spellType, bool ok = true);
-
+        int32 GetAuraEffectAmount(AuraType auraType, SpellFamilyNames spellFamilyName, uint32 IconFileDataId, uint8 effIndex) const;
+        int32 GetAuraEffectAmount(uint32 spellId, uint8 effIndex, ObjectGuid casterGuid = ObjectGuid::Empty) const;
+        void GetAttackableUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange) const;
+        void CastSpell(SpellCastTargets const& targets, uint32 spellId, CastSpellExtraArgs const& args = {});
+        void CastSpell(Unit* victim, uint32 spellId, bool triggered, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster);
+        void CastSpell(Unit* victim, uint32 spellId, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster);
+        void CastSpell(Unit* victim, SpellInfo const* spellInfo, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster);
+        void CastSpell(WorldObject* target, uint32 spellId, CastSpellExtraArgs const& args = {});
+        void CastSpell(Position const& dest, uint32 spellId, CastSpellExtraArgs const& args = {});
+        void CastSpell(float x, float y, float z, uint32 spellId, bool triggered, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastCustomSpell(Unit* victim, uint32 spellId, int32 const* bp0, int32 const* bp1, int32 const* bp2, bool triggered, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastCustomSpell(uint32 spellId, SpellValueMod mod, int32 value, Unit* victim, bool triggered, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastCustomSpell(uint32 spellId, SpellValueMod mod, int32 value, Unit* victim = nullptr, TriggerCastFlags triggerFlags = TRIGGERED_NONE, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastCustomSpell(uint32 spellId, CustomSpellValues const& value, Unit* victim = nullptr, TriggerCastFlags triggerFlags = TRIGGERED_NONE, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastSpell(SpellCastTargets const& targets, SpellInfo const* spellInfo, CustomSpellValues const* value, TriggerCastFlags triggerFlags = TRIGGERED_NONE, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        //float GetUnitSpellCriticalChance(Unit* victim, Spell* spell, AuraEffect const* aurEff, SpellSchoolMask schoolMask, WeaponAttackType attackType = BASE_ATTACK) const;
+        float GetUnitCriticalChance(WeaponAttackType attackType, Unit const* victim) const;
+        void GetAnyUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange) const;
+        uint32 GetRemainingPeriodicAmount(ObjectGuid caster, uint32 spellId, AuraType auraType, uint8 effectIndex = 0) const;
         // set withDelayed to true to account delayed spells as cast
         // delayed+channeled spells are always accounted as cast
         // we can skip channeled or delayed checks using flags

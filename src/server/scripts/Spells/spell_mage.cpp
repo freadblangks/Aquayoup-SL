@@ -49,7 +49,6 @@ enum MageSpells
     SPELL_MAGE_CONJURE_REFRESHMENT               = 116136,
     SPELL_MAGE_CONJURE_REFRESHMENT_TABLE         = 167145,
     SPELL_MAGE_DRAGONHAWK_FORM                   = 32818,
-    SPELL_MAGE_EVERWARM_SOCKS                    = 320913,
     SPELL_MAGE_FINGERS_OF_FROST                  = 44544,
     SPELL_MAGE_FROST_NOVA                        = 122,
     SPELL_MAGE_GIRAFFE_FORM                      = 32816,
@@ -76,6 +75,7 @@ enum MageSpells
     SPELL_MAGE_CHAIN_REACTION_DUMMY              = 278309,
     SPELL_MAGE_CHAIN_REACTION                    = 278310,
     SPELL_MAGE_TOUCH_OF_THE_MAGI_EXPLODE         = 210833,
+    SPELL_MAGE_EVERWARM_SOCKS                    = 320913,
 };
 
 enum MiscSpells
@@ -358,7 +358,7 @@ class spell_mage_cauterize_AuraScript : public AuraScript
             SPELL_MAGE_CAUTERIZE_DOT,
             SPELL_MAGE_CAUTERIZED,
             spellInfo->GetEffect(EFFECT_2).TriggerSpell
-        });
+            });
     }
 
     void HandleAbsorb(AuraEffect* /*aurEff*/, DamageInfo& dmgInfo, uint32& /*absorbAmount*/)
@@ -551,36 +551,6 @@ class spell_mage_ice_barrier : public AuraScript
     }
 };
 
-// 45438 - Ice Block
-class spell_mage_ice_block : public SpellScript
-{
-    PrepareSpellScript(spell_mage_ice_block);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_MAGE_EVERWARM_SOCKS });
-    }
-
-    void PreventStunWithEverwarmSocks(WorldObject*& target)
-    {
-        if (GetCaster()->HasAura(SPELL_MAGE_EVERWARM_SOCKS))
-            target = nullptr;
-    }
-
-    void PreventEverwarmSocks(WorldObject*& target)
-    {
-        if (!GetCaster()->HasAura(SPELL_MAGE_EVERWARM_SOCKS))
-            target = nullptr;
-    }
-
-    void Register() override
-    {
-        OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_mage_ice_block::PreventStunWithEverwarmSocks, EFFECT_0, TARGET_UNIT_CASTER);
-        OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_mage_ice_block::PreventEverwarmSocks, EFFECT_5, TARGET_UNIT_CASTER);
-        OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_mage_ice_block::PreventEverwarmSocks, EFFECT_6, TARGET_UNIT_CASTER);
-    }
-};
-
 // Ice Lance - 30455
 class spell_mage_ice_lance : public SpellScript
 {
@@ -688,6 +658,7 @@ class spell_mage_ignite : public AuraScript
 
         ASSERT(igniteDot->GetMaxTicks() > 0);
         int32 amount = int32(CalculatePct(eventInfo.GetDamageInfo()->GetDamage(), pct) / igniteDot->GetMaxTicks());
+        //amount += eventInfo.GetProcTarget()->GetRemainingPeriodicAmount(eventInfo.GetActor()->GetGUID(), SPELL_MAGE_IGNITE, SPELL_AURA_PERIODIC_DAMAGE);
 
         CastSpellExtraArgs args(aurEff);
         args.AddSpellMod(SPELLVALUE_BASE_POINT0, amount);
@@ -866,8 +837,7 @@ class spell_mage_ring_of_frost : public AuraScript
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_MAGE_RING_OF_FROST_SUMMON, SPELL_MAGE_RING_OF_FROST_FREEZE })
-            && !sSpellMgr->AssertSpellInfo(SPELL_MAGE_RING_OF_FROST_SUMMON, DIFFICULTY_NONE)->GetEffects().empty();
+        return ValidateSpellInfo({ SPELL_MAGE_RING_OF_FROST_SUMMON, SPELL_MAGE_RING_OF_FROST_FREEZE });
     }
 
     void HandleEffectPeriodic(AuraEffect const* /*aurEff*/)
@@ -923,8 +893,7 @@ class spell_mage_ring_of_frost_freeze : public SpellScript
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_MAGE_RING_OF_FROST_SUMMON, SPELL_MAGE_RING_OF_FROST_FREEZE })
-            && !sSpellMgr->AssertSpellInfo(SPELL_MAGE_RING_OF_FROST_SUMMON, DIFFICULTY_NONE)->GetEffects().empty();
+        return ValidateSpellInfo({ SPELL_MAGE_RING_OF_FROST_SUMMON, SPELL_MAGE_RING_OF_FROST_FREEZE });
     }
 
     void FilterTargets(std::list<WorldObject*>& targets)
@@ -1098,6 +1067,36 @@ class spell_mage_water_elemental_freeze : public SpellScript
     }
 };
 
+// 45438 - Ice Block
+class spell_mage_ice_block : public SpellScript
+{
+    PrepareSpellScript(spell_mage_ice_block);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_MAGE_EVERWARM_SOCKS });
+    }
+
+    void PreventStunWithEverwarmSocks(WorldObject*& target)
+    {
+        if (GetCaster()->HasAura(SPELL_MAGE_EVERWARM_SOCKS))
+            target = nullptr;
+    }
+
+    void PreventEverwarmSocks(WorldObject*& target)
+    {
+        if (!GetCaster()->HasAura(SPELL_MAGE_EVERWARM_SOCKS))
+            target = nullptr;
+    }
+
+    void Register() override
+    {
+        OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_mage_ice_block::PreventStunWithEverwarmSocks, EFFECT_0, TARGET_UNIT_CASTER);
+        OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_mage_ice_block::PreventEverwarmSocks, EFFECT_5, TARGET_UNIT_CASTER);
+        OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_mage_ice_block::PreventEverwarmSocks, EFFECT_6, TARGET_UNIT_CASTER);
+    }
+};
+
 void AddSC_mage_spell_scripts()
 {
     RegisterAuraScript(spell_mage_alter_time_aura);
@@ -1113,7 +1112,6 @@ void AddSC_mage_spell_scripts()
     RegisterSpellScript(spell_mage_conjure_refreshment);
     RegisterAuraScript(spell_mage_fingers_of_frost);
     RegisterAuraScript(spell_mage_ice_barrier);
-    RegisterSpellScript(spell_mage_ice_block);
     RegisterSpellScript(spell_mage_ice_lance);
     RegisterSpellScript(spell_mage_ice_lance_damage);
     RegisterAuraScript(spell_mage_ignite);
@@ -1129,4 +1127,5 @@ void AddSC_mage_spell_scripts()
     RegisterAuraScript(spell_mage_touch_of_the_magi_aura);
     RegisterSpellScript(spell_mage_trigger_chilled);
     RegisterSpellScript(spell_mage_water_elemental_freeze);
+    RegisterSpellScript(spell_mage_ice_block);
 }

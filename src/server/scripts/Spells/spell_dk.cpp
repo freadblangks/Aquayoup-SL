@@ -474,6 +474,8 @@ class spell_dk_death_strike : public SpellScript
 
         if (AuraEffect* enabler = caster->GetAuraEffect(SPELL_DK_DEATH_STRIKE_ENABLER, EFFECT_0, GetCaster()->GetGUID()))
         {
+            SpellInfo const* spellInfo = GetSpellInfo();
+
             // Heals you for 25% of all damage taken in the last 5 sec,
             int32 heal = CalculatePct(enabler->CalculateAmount(GetCaster()), GetEffectInfo(EFFECT_1).CalcValue(GetCaster()));
             // minimum 7.0% of maximum health.

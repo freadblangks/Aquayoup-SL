@@ -30,6 +30,7 @@
 #include "SpellScript.h"
 #include "SpellAuraEffects.h"
 #include "SpellHistory.h"
+#include "SmartAi.h"
 #include "WaypointManager.h"
 #include "MotionMaster.h"
 #include "PhasingHandler.h"
@@ -1090,9 +1091,9 @@ public:
 };
 
 // quest 38015
-struct cedonu_107962 : public ScriptedAI
+struct cedonu_107962 : public SmartAI
 {
-    cedonu_107962(Creature* creature) : ScriptedAI(creature) { me->SetAIAnimKitId(0); }
+    cedonu_107962(Creature* creature) : SmartAI(creature) { me->SetAIAnimKitId(0); }
 
     void OnSpellClick(Unit* clicker, bool& /*result*/)
     {

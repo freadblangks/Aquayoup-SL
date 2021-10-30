@@ -460,13 +460,17 @@ struct TC_GAME_API CastSpellExtraArgs
         friend struct CastSpellExtraArgs;
         friend class WorldObject;
 
-    private:
+    public:
         void AddMod(SpellValueMod mod, int32 val) { data.push_back({ mod, val }); }
+        void AddBP0(int32 bp0) { AddMod(SPELLVALUE_BASE_POINT0, bp0); } // because i don't want to type SPELLVALUE_BASE_POINT0 300 times
 
+    private:
         auto begin() const { return data.cbegin(); }
         auto end() const { return data.cend(); }
 
         std::vector<std::pair<SpellValueMod, int32>> data;
+
+        friend class Unit;
     } SpellValueOverrides;
 };
 

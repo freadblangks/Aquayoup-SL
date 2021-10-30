@@ -185,7 +185,7 @@ class TC_GAME_API Aura
         bool DropCharge(AuraRemoveMode removeMode = AURA_REMOVE_BY_DEFAULT) { return ModCharges(-1, removeMode); }
         void ModChargesDelayed(int32 num, AuraRemoveMode removeMode = AURA_REMOVE_BY_DEFAULT);
         void DropChargeDelayed(uint32 delay, AuraRemoveMode removeMode = AURA_REMOVE_BY_DEFAULT);
-
+        void ModDuration(int32 duration, bool withMods = false) { SetDuration(GetDuration() + duration, withMods); }
         uint8 GetStackAmount() const { return m_stackAmount; }
         void SetStackAmount(uint8 num);
         bool ModStackAmount(int32 num, AuraRemoveMode removeMode = AURA_REMOVE_BY_DEFAULT, bool resetPeriodicTimer = true);

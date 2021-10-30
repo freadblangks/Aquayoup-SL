@@ -28,10 +28,10 @@
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "SpellAuraEffects.h"
-#include "SpellMgr.h"
 #include "SpellScript.h"
 #include "Vehicle.h"
 #include "World.h"
+#include "SpellMgr.h"
 
 // 45102 Romantic Picnic
 enum SpellsPicnic
@@ -1195,7 +1195,7 @@ class spell_brewfest_ram : public SpellScriptLoader
                     case SPELL_RAM_CANTER:
                     {
                         CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                        args.AddSpellMod(SPELLVALUE_AURA_STACK, 1);
+                        args.SpellValueOverrides.AddMod(SPELLVALUE_AURA_STACK, 1);
                         target->CastSpell(target, SPELL_RAM_FATIGUE, args);
                         if (aurEff->GetTickNumber() == 8)
                             target->CastSpell(target, SPELL_BREWFEST_QUEST_SPEED_BUNNY_YELLOW, true);
@@ -1204,7 +1204,7 @@ class spell_brewfest_ram : public SpellScriptLoader
                     case SPELL_RAM_GALLOP:
                     {
                         CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                        args.AddSpellMod(SPELLVALUE_AURA_STACK, target->HasAura(SPELL_RAM_FATIGUE) ? 4 : 5 /*Hack*/);
+                        args.SpellValueOverrides.AddMod(SPELLVALUE_AURA_STACK, target->HasAura(SPELL_RAM_FATIGUE) ? 4 : 5 /*Hack*/);
                         target->CastSpell(target, SPELL_RAM_FATIGUE, args);
                         if (aurEff->GetTickNumber() == 8)
                             target->CastSpell(target, SPELL_BREWFEST_QUEST_SPEED_BUNNY_RED, true);

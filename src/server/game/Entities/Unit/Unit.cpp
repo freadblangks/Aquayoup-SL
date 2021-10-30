@@ -638,6 +638,422 @@ bool Unit::HasAuraTypeWithFamilyFlags(AuraType auraType, uint32 familyName, flag
     return false;
 }
 
+void Unit::CastSpell(SpellCastTargets const& targets, uint32 spellId, CastSpellExtraArgs const& args)
+{
+    SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId, args.CastDifficulty != DIFFICULTY_NONE ? args.CastDifficulty : GetMap()->GetDifficultyID());
+    if (!info)
+    {
+        TC_LOG_ERROR("entities.unit", "CastSpell: unknown spell %u by caster %s", spellId, GetGUID().ToString().c_str());
+        return;
+    }
+
+    Spell* spell = new Spell(this, info, args.TriggerFlags, args.OriginalCaster);
+    for (auto const& pair : args.SpellValueOverrides)
+        spell->SetSpellValue(pair.first, pair.second);
+
+    spell->m_CastItem = args.CastItem;
+    spell->prepare2(targets, args.TriggeringAura);
+}
+
+void Unit::CastSpell(Unit* victim, uint32 spellId, bool triggered, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+{
+    return CastSpell(victim, spellId, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE, castItem, triggeredByAura, originalCaster);
+}
+
+void Unit::CastSpell(Unit* victim, uint32 spellId, TriggerCastFlags triggerFlags /*= TRIGGER_NONE*/, Item* castItem /*= nullptr*/, AuraEffect const* triggeredByAura /*= nullptr*/, ObjectGuid originalCaster /*= ObjectGuid::Empty*/)
+{
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, GetMap()->GetDifficultyID());
+    if (!spellInfo)
+    {
+        TC_LOG_ERROR("entities.unit", "CastSpell: unknown spell id %u by caster: %s", spellId, GetGUID().ToString().c_str());
+        return;
+    }
+
+    return CastSpell(victim, spellInfo, triggerFlags, castItem, triggeredByAura, originalCaster);
+}
+
+void Unit::CastCustomSpell(Unit* target, uint32 spellId, int32 const* bp0, int32 const* bp1, int32 const* bp2, bool triggered, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+{
+    CustomSpellValues values;
+    if (bp0)
+        values.AddSpellMod(SPELLVALUE_BASE_POINT0, *bp0);
+    if (bp1)
+        values.AddSpellMod(SPELLVALUE_BASE_POINT1, *bp1);
+    if (bp2)
+        values.AddSpellMod(SPELLVALUE_BASE_POINT2, *bp2);
+    CastCustomSpell(spellId, values, target, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE, castItem, triggeredByAura, originalCaster);
+}
+
+void Unit::CastCustomSpell(uint32 spellId, SpellValueMod mod, int32 value, Unit* target, bool triggered, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+{
+    CustomSpellValues values;
+    values.AddSpellMod(mod, value);
+    CastCustomSpell(spellId, values, target, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE, castItem, triggeredByAura, originalCaster);
+}
+
+void Unit::CastCustomSpell(uint32 spellId, SpellValueMod mod, int32 value, Unit* target, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+{
+    CustomSpellValues values;
+    values.AddSpellMod(mod, value);
+    CastCustomSpell(spellId, values, target, triggerFlags, castItem, triggeredByAura, originalCaster);
+}
+
+void Unit::CastCustomSpell(uint32 spellId, CustomSpellValues const& value, Unit* victim, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+{
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, GetMap()->GetDifficultyID());
+    if (!spellInfo)
+    {
+        TC_LOG_ERROR("entities.unit", "CastSpell: unknown spell id %u by caster: %s", spellId, GetGUID().ToString().c_str());
+        return;
+    }
+    SpellCastTargets targets;
+    targets.SetUnitTarget(victim);
+
+    CastSpell(targets, spellInfo, &value, triggerFlags, castItem, triggeredByAura, originalCaster);
+}
+
+void Unit::CastSpell(SpellCastTargets const& targets, SpellInfo const* spellInfo, CustomSpellValues const* value, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+{
+    if (!spellInfo)
+    {
+        TC_LOG_ERROR("entities.unit", "CastSpell: unknown spell by caster: %s", GetGUID().ToString().c_str());
+        return;
+    }
+
+    Spell* spell = new Spell(this, spellInfo, triggerFlags, originalCaster);
+
+    if (value)
+        for (CustomSpellValues::const_iterator itr = value->begin(); itr != value->end(); ++itr)
+            spell->SetSpellValue(itr->first, itr->second);
+
+    spell->m_CastItem = castItem;
+    spell->prepare2(targets, triggeredByAura);
+}
+
+void Unit::CastSpell(float x, float y, float z, uint32 spellId, bool triggered, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+{
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, GetMap()->GetDifficultyID());
+    if (!spellInfo)
+    {
+        TC_LOG_ERROR("entities.unit", "CastSpell: unknown spell id %u by caster: %s", spellId, GetGUID().ToString().c_str());
+        return;
+    }
+    SpellCastTargets targets;
+    targets.SetDst(x, y, z, GetOrientation());
+
+    return CastSpell(targets, spellInfo, nullptr, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE, castItem, triggeredByAura, originalCaster);
+}
+
+void Unit::CastSpell(Unit* victim, SpellInfo const* spellInfo, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+{
+    SpellCastTargets targets;
+    targets.SetUnitTarget(victim);
+    CastSpell(targets, spellInfo, nullptr, triggerFlags, castItem, triggeredByAura, originalCaster);
+}
+
+void Unit::CastSpell(WorldObject* target, uint32 spellId, CastSpellExtraArgs const& args)
+{
+    SpellCastTargets targets;
+    if (target)
+    {
+        if (Unit* unitTarget = target->ToUnit())
+            targets.SetUnitTarget(unitTarget);
+        else if (GameObject* goTarget = target->ToGameObject())
+            targets.SetGOTarget(goTarget);
+        else
+        {
+            TC_LOG_ERROR("entities.unit", "CastSpell: Invalid target %s passed to spell cast by %s", target->GetGUID().ToString().c_str(), GetGUID().ToString().c_str());
+            return;
+        }
+    }
+    CastSpell(targets, spellId, args);
+}
+
+void Unit::CastSpell(Position const& dest, uint32 spellId, CastSpellExtraArgs const& args)
+{
+    SpellCastTargets targets;
+    targets.SetDst(dest);
+    CastSpell(targets, spellId, args);
+}
+
+int32 Unit::GetAuraEffectAmount(AuraType auraType, SpellFamilyNames spellFamilyName, uint32 /*IconFileDataId*/, uint8 /*effIndex*/) const
+{
+    if (AuraEffect* aurEff = GetAuraEffect(auraType, spellFamilyName))
+        return aurEff->GetAmount();
+
+    return 0;
+}
+
+int32 Unit::GetAuraEffectAmount(uint32 spellId, uint8 effIndex, ObjectGuid casterGuid) const
+{
+    if (AuraEffect* aurEff = GetAuraEffect(spellId, effIndex, casterGuid))
+        return aurEff->GetAmount();
+
+    return 0;
+}
+
+void Unit::GetAttackableUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange) const
+{
+    CellCoord p(Trinity::ComputeCellCoord(GetPositionX(), GetPositionY()));
+    Cell cell(p);
+    cell.SetNoCreate();
+
+    Trinity::AttackableUnitInObjectRangeCheck u_check(this, fMaxSearchRange);
+    Trinity::UnitListSearcher<Trinity::AttackableUnitInObjectRangeCheck> searcher(this, list, u_check);
+
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AttackableUnitInObjectRangeCheck>, WorldTypeMapContainer > world_unit_searcher(searcher);
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AttackableUnitInObjectRangeCheck>, GridTypeMapContainer >  grid_unit_searcher(searcher);
+
+    cell.Visit(p, world_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+    cell.Visit(p, grid_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+}
+
+Spell* Unit::FindCurrentSpellBySpellId(uint32 spell_id) const
+{
+    for (uint32 i = 0; i < CURRENT_MAX_SPELL; i++)
+        if (m_currentSpells[i] && m_currentSpells[i]->m_spellInfo->Id == spell_id)
+            return m_currentSpells[i];
+    return nullptr;
+}
+/*
+float Unit::GetUnitSpellCriticalChance(Unit* victim, Spell* spell, AuraEffect const* aurEff, SpellSchoolMask schoolMask, WeaponAttackType attackType = BASE_ATTACK) const
+{
+    SpellInfo const* spellProto = spell ? spell->GetSpellInfo() : aurEff->GetSpellInfo();
+    //! Mobs can't crit with spells. Player Totems can
+    //! Fire Elemental (from totem) can too - but this part is a hack and needs more research
+    if (GetGUID().IsCreatureOrVehicle() && !(IsTotem() && GetOwnerGUID().IsPlayer()) && GetEntry() != 15438)
+        return 0.0f;
+
+    // not critting spell
+    if ((spellProto->HasAttribute(SPELL_ATTR2_CANT_CRIT)))
+        return 0.0f;
+
+    float crit_chance = 0.0f;
+    switch (spellProto->DmgClass)
+    {
+    case SPELL_DAMAGE_CLASS_NONE:
+        // We need more spells to find a general way (if there is any)
+        switch (spellProto->Id)
+        {
+        case 379:   // Earth Shield
+        case 33778: // Lifebloom Final Bloom
+        case 64844: // Divine Hymn
+        case 71607: // Item - Bauble of True Blood 10m
+        case 71646: // Item - Bauble of True Blood 25m
+            break;
+        default:
+            return 0.0f;
+        }
+        // Do not add a break here, case fallthrough is intentional! Adding a break will make above spells unable to crit.
+             /*fallthrough
+    case SPELL_DAMAGE_CLASS_MAGIC:
+    {
+        if (schoolMask & SPELL_SCHOOL_MASK_NORMAL)
+            crit_chance = 0.0f;
+        // For other schools
+        else if (Player const* thisPlayer = ToPlayer())
+            crit_chance = thisPlayer->m_activePlayerData->SpellCritPercentage;
+        else
+            crit_chance = (float)m_baseSpellCritChance;
+        // taken
+        if (victim)
+        {
+            if (!spellProto->IsPositive())
+            {
+                // Modify critical chance by victim SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE
+                crit_chance += victim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE);
+            }
+            // scripted (increase crit chance ... against ... target by x%
+            AuraEffectList const& mOverrideClassScript = GetAuraEffectsByType(SPELL_AURA_OVERRIDE_CLASS_SCRIPTS);
+            for (AuraEffect const* aurEff : mOverrideClassScript)
+            {
+                if (!aurEff->IsAffectingSpell(spellProto))
+                    continue;
+
+                switch (aurEff->GetMiscValue())
+                {
+                case 911: // Shatter
+                    if (victim->HasAuraState(AURA_STATE_FROZEN, spellProto, this))
+                    {
+                        crit_chance *= 1.5f;
+                        if (AuraEffect const* eff = aurEff->GetBase()->GetEffect(EFFECT_1))
+                            crit_chance += eff->GetAmount();
+                    }
+                    break;
+                default:
+                    break;
+                }
+            }
+            // Custom crit by class
+            switch (spellProto->SpellFamilyName)
+            {
+            case SPELLFAMILY_ROGUE:
+                // Shiv-applied poisons can't crit
+                if (FindCurrentSpellBySpellId(5938))
+                    crit_chance = 0.0f;
+                break;
+            case SPELLFAMILY_SHAMAN:
+                // Lava Burst
+                if (spellProto->SpellFamilyFlags[1] & 0x00001000)
+                {
+                    if (victim->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_SHAMAN, flag128(0x10000000, 0, 0), GetGUID()))
+                        if (victim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE) > -100)
+                            return 100.0f;
+                    break;
+                }
+                break;
+            }
+
+            // Spell crit suppression
+            if (victim->GetTypeId() == TYPEID_UNIT)
+            {
+                int32 const levelDiff = static_cast<int32>(victim->GetLevelForTarget(this)) - getLevel();
+                crit_chance -= levelDiff * 1.0f;
+            }
+        }
+        break;
+    }
+    case SPELL_DAMAGE_CLASS_MELEE:
+        /// Intentional fallback. Calculate critical strike chance for both Ranged and Melee spells
+    case SPELL_DAMAGE_CLASS_RANGED:
+    {
+        if (victim)
+            crit_chance += GetUnitCriticalChance(attackType, victim);
+        break;
+    }
+    default:
+        return 0.0f;
+    }
+    // percent done
+    // only players use intelligence for critical chance computations
+    if (Player* modOwner = GetSpellModOwner())
+        modOwner->ApplySpellMod(spellProto, SpellModOp::CritChance, crit_chance);
+
+    // for this types the bonus was already added in GetUnitCriticalChance, do not add twice
+    if (spellProto->DmgClass != SPELL_DAMAGE_CLASS_MELEE && spellProto->DmgClass != SPELL_DAMAGE_CLASS_RANGED)
+    {
+        crit_chance += victim->GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_CHANCE_FOR_CASTER_WITH_ABILITIES, [this, spellProto](AuraEffect const* aurEff) -> bool
+            {
+                return aurEff->GetCasterGUID() == GetGUID() && aurEff->IsAffectingSpell(spellProto);
+            });
+        crit_chance += victim->GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_CHANCE_FOR_CASTER, [this](AuraEffect const* aurEff) -> bool
+            {
+                return aurEff->GetCasterGUID() != GetGUID();
+            });
+        crit_chance += GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_CHANCE_VERSUS_TARGET_HEALTH, [victim](AuraEffect const* aurEff)
+            {
+                return !victim->HealthBelowPct(aurEff->GetMiscValueB());
+            });
+        if (TempSummon const* tempSummon = ToTempSummon())
+        {
+            crit_chance += victim->GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_CHANCE_FOR_CASTER_PET, [tempSummon](AuraEffect const* aurEff) -> bool
+                {
+                    return aurEff->GetCasterGUID() == tempSummon->GetSummonerGUID();
+                });
+        }
+    }
+
+    // call script handlers
+    if (spell)
+        spell->CallScriptCalcCritChanceHandlers(victim, crit_chance);
+    else
+        aurEff->GetBase()->CallScriptEffectCalcCritChanceHandlers(aurEff, aurEff->GetBase()->GetApplicationOfTarget(victim->GetGUID()), victim, crit_chance);
+
+    return std::max(crit_chance, 0.0f);
+}
+*/
+float Unit::GetUnitCriticalChance(WeaponAttackType attackType, Unit const* victim) const
+{
+    float chance = 0.0f;
+    if (Player const* thisPlayer = ToPlayer())
+    {
+        switch (attackType)
+        {
+        case BASE_ATTACK:
+            chance = thisPlayer->m_activePlayerData->CritPercentage;
+            break;
+        case OFF_ATTACK:
+            chance = thisPlayer->m_activePlayerData->OffhandCritPercentage;
+            break;
+        case RANGED_ATTACK:
+            chance = thisPlayer->m_activePlayerData->RangedCritPercentage;
+            break;
+            // Just for good manner
+        default:
+            chance = 0.0f;
+            break;
+        }
+    }
+    else
+    {
+        if (!(ToCreature()->GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_NO_CRIT))
+        {
+            chance = 5.0f;
+            chance += GetTotalAuraModifier(SPELL_AURA_MOD_WEAPON_CRIT_PERCENT);
+            chance += GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PCT);
+        }
+    }
+
+    // flat aura mods
+    if (attackType == RANGED_ATTACK)
+        chance += victim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_CHANCE);
+    else
+        chance += victim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_CHANCE);
+
+    chance += GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_CHANCE_VERSUS_TARGET_HEALTH, [victim](AuraEffect const* aurEff)
+        {
+            return !victim->HealthBelowPct(aurEff->GetMiscValueB());
+        });
+
+    chance += victim->GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_CHANCE_FOR_CASTER, [this](AuraEffect const* aurEff) -> bool
+        {
+            return aurEff->GetCasterGUID() == GetGUID();
+        });
+
+    if (TempSummon const* tempSummon = ToTempSummon())
+    {
+        chance += victim->GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_CHANCE_FOR_CASTER_PET, [tempSummon](AuraEffect const* aurEff) -> bool
+            {
+                return aurEff->GetCasterGUID() == tempSummon->GetSummonerGUID();
+            });
+    }
+
+    chance += victim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE);
+
+    return std::max(chance, 0.0f);
+}
+
+void Unit::GetAnyUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange) const
+{
+    CellCoord p(Trinity::ComputeCellCoord(GetPositionX(), GetPositionY()));
+    Cell cell(p);
+    cell.SetNoCreate();
+
+    Trinity::AnyUnitInObjectRangeCheck u_check(this, fMaxSearchRange);
+    Trinity::UnitListSearcher<Trinity::AnyUnitInObjectRangeCheck> searcher(this, list, u_check);
+
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AnyUnitInObjectRangeCheck>, WorldTypeMapContainer> world_unit_searcher(searcher);
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AnyUnitInObjectRangeCheck>, GridTypeMapContainer> grid_unit_searcher(searcher);
+
+    cell.Visit(p, world_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+    cell.Visit(p, grid_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+}
+
+uint32 Unit::GetRemainingPeriodicAmount(ObjectGuid caster, uint32 spellId, AuraType auraType, uint8 effectIndex) const
+{
+    uint32 amount = 0;
+    AuraEffectList const& periodicAuras = GetAuraEffectsByType(auraType);
+    for (AuraEffect const* aurEff : periodicAuras)
+    {
+        if (aurEff->GetCasterGUID() != caster || aurEff->GetId() != spellId || aurEff->GetEffIndex() != effectIndex || !aurEff->GetTotalTicks())
+            continue;
+        amount += uint32((aurEff->GetAmount() * static_cast<int32>(aurEff->GetRemainingTicks())) / aurEff->GetTotalTicks());
+        break;
+    }
+
+    return amount;
+}
+
 bool Unit::HasBreakableByDamageAuraType(AuraType type, uint32 excludeAura) const
 {
     AuraEffectList const& auras = GetAuraEffectsByType(type);
@@ -2948,7 +3364,7 @@ void Unit::InterruptNonMeleeSpells(bool withDelayed, uint32 spell_id, bool withI
     if (m_currentSpells[CURRENT_CHANNELED_SPELL] && (!spell_id || m_currentSpells[CURRENT_CHANNELED_SPELL]->m_spellInfo->Id == spell_id))
         InterruptSpell(CURRENT_CHANNELED_SPELL, true, true);
 }
-
+/*
 Spell* Unit::FindCurrentSpellBySpellId(uint32 spell_id) const
 {
     for (uint32 i = 0; i < CURRENT_MAX_SPELL; i++)
@@ -2956,7 +3372,7 @@ Spell* Unit::FindCurrentSpellBySpellId(uint32 spell_id) const
             return m_currentSpells[i];
     return nullptr;
 }
-
+*/
 int32 Unit::GetCurrentSpellCastTime(uint32 spell_id) const
 {
     if (Spell const* spell = FindCurrentSpellBySpellId(spell_id))
@@ -3920,7 +4336,7 @@ void Unit::RemoveAurasWithInterruptFlags(InterruptFlags flag, uint32 except)
                 iter = m_interruptableAuras.begin();
         }
     }
-
+    
     // interrupt channeled spell
     if (Spell* spell = m_currentSpells[CURRENT_CHANNELED_SPELL])
         if (spell->getState() == SPELL_STATE_CASTING

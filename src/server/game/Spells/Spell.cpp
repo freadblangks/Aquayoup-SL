@@ -3045,6 +3045,170 @@ bool Spell::UpdateChanneledTargetList()
     return channelTargetEffectMask == 0;
 }
 
+void Spell::prepare2(SpellCastTargets const& targets, AuraEffect const* triggeredByAura)
+{
+    if (m_CastItem)
+    {
+        m_castItemGUID = m_CastItem->GetGUID();
+        m_castItemEntry = m_CastItem->GetEntry();
+
+        if (Player* owner = m_CastItem->GetOwner())
+            m_castItemLevel = int32(m_CastItem->GetItemLevel(owner));
+        else if (m_CastItem->GetOwnerGUID() == m_caster->GetGUID())
+            m_castItemLevel = int32(m_CastItem->GetItemLevel(m_caster->ToPlayer()));
+        else
+        {
+            SendCastResult(SPELL_FAILED_EQUIPPED_ITEM);
+            finish(false);
+            return;
+        }
+    }
+
+    InitExplicitTargets(targets);
+
+    m_spellState = SPELL_STATE_PREPARING;
+
+    if (triggeredByAura)
+    {
+        m_triggeredByAuraSpell = triggeredByAura->GetSpellInfo();
+        m_castItemLevel = triggeredByAura->GetBase()->GetCastItemLevel();
+    }
+
+    // create and add update event for this spell
+    _spellEvent = new SpellEvent(this);
+    m_caster->m_Events.AddEvent(_spellEvent, m_caster->m_Events.CalculateTime(1));
+
+    //Prevent casting at cast another spell (ServerSide check)
+    if (!(_triggeredCastFlags & TRIGGERED_IGNORE_CAST_IN_PROGRESS) && m_caster->ToUnit() && m_caster->ToUnit()->IsNonMeleeSpellCast(false, true, true, m_spellInfo->Id == 75) && !m_castId.IsEmpty())
+    {
+        SendCastResult(SPELL_FAILED_SPELL_IN_PROGRESS);
+        finish(false);
+        return;
+    }
+
+    if (DisableMgr::IsDisabledFor(DISABLE_TYPE_SPELL, m_spellInfo->Id, m_caster))
+    {
+        SendCastResult(SPELL_FAILED_SPELL_UNAVAILABLE);
+        finish(false);
+        return;
+    }
+    LoadScripts();
+
+    // Fill cost data (do not use power for item casts)
+    if (!m_CastItem)
+        m_powerCost = m_spellInfo->CalcPowerCost(m_caster, m_spellSchoolMask, this);
+
+    // Set combo point requirement
+    if ((_triggeredCastFlags & TRIGGERED_IGNORE_COMBO_POINTS) || m_CastItem)
+        m_needComboPoints = false;
+
+    int32 param1 = 0, param2 = 0;
+    SpellCastResult result = CheckCast(true, &param1, &param2);
+    // target is checked in too many locations and with different results to handle each of them
+    // handle just the general SPELL_FAILED_BAD_TARGETS result which is the default result for most DBC target checks
+    if (_triggeredCastFlags & TRIGGERED_IGNORE_TARGET_CHECK && result == SPELL_FAILED_BAD_TARGETS)
+        result = SPELL_CAST_OK;
+    if (result != SPELL_CAST_OK && !IsAutoRepeat())          //always cast autorepeat dummy for triggering
+    {
+        // Periodic auras should be interrupted when aura triggers a spell which can't be cast
+        // for example bladestorm aura should be removed on disarm as of patch 3.3.5
+        // channeled periodic spells should be affected by this (arcane missiles, penance, etc)
+        // a possible alternative sollution for those would be validating aura target on unit state change
+        if (triggeredByAura && triggeredByAura->IsPeriodic() && !triggeredByAura->GetBase()->IsPassive())
+        {
+            SendChannelUpdate(0);
+            triggeredByAura->GetBase()->SetDuration(0);
+        }
+
+        if (param1 || param2)
+            SendCastResult(result, &param1, &param2);
+        else
+            SendCastResult(result);
+
+        finish(false);
+        return;
+    }
+
+    // Prepare data for triggers
+    prepareDataForTriggerSystem();
+
+    if (Player* player = m_caster->ToPlayer())
+    {
+        if (!player->GetCommandStatus(CHEAT_CASTTIME))
+        {
+            // calculate cast time (calculated after first CheckCast check to prevent charge counting for first CheckCast fail)
+            m_casttime = m_spellInfo->CalcCastTime(this);
+        }
+        else
+            m_casttime = 0; // Set cast time to 0 if .cheat casttime is enabled.
+    }
+    else
+        m_casttime = m_spellInfo->CalcCastTime(this);
+
+    // don't allow channeled spells / spells with cast time to be cast while moving
+    // exception are only channeled spells that have no casttime and SPELL_ATTR5_CAN_CHANNEL_WHEN_MOVING
+    // (even if they are interrupted on moving, spells with almost immediate effect get to have their effect processed before movement interrupter kicks in)
+    // don't cancel spells which are affected by a SPELL_AURA_CAST_WHILE_WALKING effect
+    if (((m_spellInfo->IsChanneled() || m_casttime) && m_caster->GetTypeId() == TYPEID_PLAYER && !(m_caster->ToUnit()->IsCharmed() && m_caster->ToUnit()->GetCharmerGUID().IsCreature()) && m_caster->ToUnit()->isMoving() &&
+        m_spellInfo->InterruptFlags.HasFlag(SpellInterruptFlags::Movement)) && !m_caster->ToUnit()->CanCastSpellWhileMoving(m_spellInfo))
+    {
+        // 1. Has casttime, 2. Or doesn't have flag to allow movement during channel
+        if (m_casttime || !m_spellInfo->IsMoveAllowedChannel())
+        {
+            SendCastResult(SPELL_FAILED_MOVING);
+            finish(false);
+            return;
+        }
+    }
+
+    // focus if not controlled creature
+    if (m_caster->GetTypeId() == TYPEID_UNIT && !m_caster->ToUnit()->HasUnitFlag(UNIT_FLAG_POSSESSED))
+    {
+        if (!(m_spellInfo->IsNextMeleeSwingSpell() || IsAutoRepeat() || (_triggeredCastFlags & TRIGGERED_IGNORE_SET_FACING)))
+        {
+            if (m_targets.GetObjectTarget() && m_caster != m_targets.GetObjectTarget())
+                m_caster->ToCreature()->FocusTarget(this, m_targets.GetObjectTarget());
+            else if (m_spellInfo->HasAttribute(SPELL_ATTR5_DONT_TURN_DURING_CAST))
+                m_caster->ToCreature()->FocusTarget(this, nullptr);
+        }
+    }
+
+    // set timer base at cast time
+    ReSetTimer();
+
+    TC_LOG_DEBUG("spells", "Spell::prepare: spell id %u source %u caster %d customCastFlags %u mask %u", m_spellInfo->Id, m_caster->GetEntry(), m_originalCaster ? m_originalCaster->GetEntry() : -1, _triggeredCastFlags, m_targets.GetTargetMask());
+
+    if (m_spellInfo->HasAttribute(SPELL_ATTR12_START_COOLDOWN_ON_CAST_START))
+        SendSpellCooldown();
+
+    //Containers for channeled spells have to be set
+    /// @todoApply this to all cast spells if needed
+    // Why check duration? 29350: channelled triggers channelled
+    if ((_triggeredCastFlags & TRIGGERED_CAST_DIRECTLY) && (!m_spellInfo->IsChanneled() || !m_spellInfo->GetMaxDuration()))
+        cast(true);
+    else
+    {
+        // stealth must be removed at cast starting (at show channel bar)
+        // skip triggered spell (item equip spell casting and other not explicit character casts/item uses)
+        if (!(_triggeredCastFlags & TRIGGERED_IGNORE_AURA_INTERRUPT_FLAGS) && m_spellInfo->IsBreakingStealth() && !m_spellInfo->HasAttribute(SPELL_ATTR2_IGNORE_ACTION_AURA_INTERRUPT_FLAGS))
+            unitCaster->RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Action);
+
+        unitCaster->SetCurrentCastSpell(this);
+        SendSpellStart();
+
+        if (!(_triggeredCastFlags & TRIGGERED_IGNORE_GCD))
+            TriggerGlobalCooldown();
+
+        //item: first cast may destroy item and second cast causes crash
+        // commented out !m_spellInfo->StartRecoveryTime, it forces instant spells with global cooldown to be processed in spell::update
+        // as a result a spell that passed CheckCast and should be processed instantly may suffer from this delayed process
+        // the easiest bug to observe is LoS check in AddUnitTarget, even if spell passed the CheckCast LoS check the situation can change in spell::update
+        // because target could be relocated in the meantime, making the spell fly to the air (no targets can be registered, so no effects processed, nothing in combat log)
+        if (!m_casttime && /*!m_spellInfo->StartRecoveryTime && */!m_castItemGUID && GetCurrentContainer() == CURRENT_GENERIC_SPELL)
+            cast(true);
+    }
+}
+
 void Spell::prepare(SpellCastTargets const& targets, AuraEffect const* triggeredByAura)
 {
     if (m_CastItem)
