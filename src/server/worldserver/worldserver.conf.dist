@@ -45,6 +45,7 @@
 #	 TEMPLATENPC
 #	 LIMIT POTION
 #	 TAXI SPEED
+#    HUNTER AMMO
 #
 ###################################################################################################
 
@@ -4800,4 +4801,11 @@ Potions.Limit = true
 #Speed of taxi flight 1 is normal, 2 is x2, 3 is x3, etc, etc
 # to make flights slower 0.5 is 50% speed of normal and 0.75 is 75% of normal. 
 Custom.SpeedTaxi = 1
+###################################################################################################
+
+###################################################################################################
+#HUNTER AMMO
+# Prevent Hunter's ranged weapons from taking ammo when used 
+# 1 -(will use ammo) 0 - (disables ammo usage)
+Ammo.TakeAmmo = 1
 ###################################################################################################
