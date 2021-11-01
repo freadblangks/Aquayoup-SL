@@ -91,9 +91,10 @@ void FlightPathMovementGenerator::DoReset(Player* owner)
         G3D::Vector3 vertice(_path[i]->Loc.X, _path[i]->Loc.Y, _path[i]->Loc.Z);
         init.Path().push_back(vertice);
     }
+    float speedrate = sWorld->getFloatConfig(CONFIG_SPEED_TAXI);
     init.SetFirstPointId(GetCurrentNode());
     init.SetFly();
-    init.SetVelocity(PLAYER_FLIGHT_SPEED);
+    init.SetVelocity(PLAYER_FLIGHT_SPEED * speedrate);
     init.Launch();
 }
 

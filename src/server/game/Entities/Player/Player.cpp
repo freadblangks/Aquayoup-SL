@@ -15,6 +15,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+// 1
+// 2
+// 3
+// 4
+// 5
+// 6
+// 7
+// 8
+// 9
+// 10
+
 #include "Player.h"
 #include "AccountMgr.h"
 #include "AchievementMgr.h"
@@ -37,6 +48,7 @@
 #include "CombatPackets.h"
 #include "Common.h"
 #include "ConditionMgr.h"
+#include "Config.h"
 #include "CreatureAI.h"
 #include "DatabaseEnv.h"
 #include "DisableMgr.h"
@@ -7508,6 +7520,20 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
     if (only_level_scale && (!ssd || !ssv))
         return;
 
+    uint32 statcount = proto->StatsCount;
+    ReforgeData* reforgeData = NULL;
+    bool decreased = false;
+    if (statcount < MAX_ITEM_PROTO_STATS)
+    {
+        if (Item* invItem = GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+        {
+            if (reforgeMap.find(invItem->GetGUID().GetCounter()) != reforgeMap.end())
+            {
+                reforgeData = &reforgeMap[invItem->GetGUID().GetCounter()];
+                ++statcount;
+            }
+        }
+    }
     for (uint8 i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
     {
         uint32 statType = 0;
@@ -7522,10 +7548,24 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
         }
         else
         {
-            if (i >= proto->StatsCount)
+            if (i >= statcount)
                 continue;
             statType = proto->ItemStat[i].ItemStatType;
             val = proto->ItemStat[i].ItemStatValue;
+
+            if (reforgeData)
+            {
+                if(i == statcount-1)
+                {
+                    statType = reforgeData->increase;
+                    val = reforgeData->stat_value;
+                }
+                else if (!decreased && reforgeData->decrease == statType)
+                {
+                    val -= reforgeData->stat_value;
+                    decreased = true;
+                }
+            }
         }
 
         if (val == 0)
@@ -12547,12 +12587,14 @@ void Player::RemoveItem(uint8 bag, uint8 slot, bool update)
     }
 }
 
+extern void RemoveReforge(Player* player, uint32 itemguid, bool update);
 // Common operation need to remove item from inventory without delete in trade, auction, guild bank, mail....
 void Player::MoveItemFromInventory(uint8 bag, uint8 slot, bool update)
 {
     if (Item* it = GetItemByPos(bag, slot))
     {
         RemoveItem(bag, slot, update);
+        RemoveReforge(this, it->GetGUID().GetCounter(), true);
         ItemRemovedQuestCheck(it->GetEntry(), it->GetCount());
         it->SetNotRefundable(this, false);
         RemoveItemFromUpdateQueueOf(it, this);
@@ -14373,8 +14415,8 @@ void Player::PrepareGossipMenu(WorldObject* source, uint32 menuId /*= 0*/, bool 
                     break;
                 case GOSSIP_OPTION_VENDOR:
                 {
-                    VendorItemData const* vendorItems = creature->GetVendorItems();
-                    if (!vendorItems || vendorItems->Empty())
+                    VendorItemData const* vendorItems = itr->second.ActionMenuID ? nullptr : creature->GetVendorItems();
+                    if (!itr->second.ActionMenuID && (!vendorItems || vendorItems->Empty()))
                     {
                         TC_LOG_ERROR("sql.sql", "Creature %s (%s DB GUID: %u) has UNIT_NPC_FLAG_VENDOR set, but has an empty trading item list.", creature->GetName().c_str(), creature->GetGUID().ToString().c_str(), creature->GetSpawnId());
                         canTalk = false;
@@ -14411,7 +14453,7 @@ void Player::PrepareGossipMenu(WorldObject* source, uint32 menuId /*= 0*/, bool 
                     break;
                 case GOSSIP_OPTION_TRAINER:
                 {
-                    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(creature->GetEntry());
+                    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(itr->second.ActionMenuID ? itr->second.ActionMenuID : creature->GetEntry());
                     if (!trainer || !trainer->IsTrainerValidForPlayer(this))
                     {
                         TC_LOG_ERROR("sql.sql", "GOSSIP_OPTION_TRAINER:: Player %s %s requested wrong gossip menu: %u at Creature: %s (Entry: %u)",
@@ -14593,13 +14635,13 @@ void Player::OnGossipSelect(WorldObject* source, uint32 gossipListId, uint32 men
             break;
         case GOSSIP_OPTION_VENDOR:
         case GOSSIP_OPTION_ARMORER:
-            GetSession()->SendListInventory(guid);
+            GetSession()->SendListInventory(guid, menuItemData->GossipActionMenuId);
             break;
         case GOSSIP_OPTION_STABLEPET:
             GetSession()->SendStablePet(guid);
             break;
         case GOSSIP_OPTION_TRAINER:
-            GetSession()->SendTrainerList(source->ToCreature());
+            GetSession()->SendTrainerList(source->ToCreature(), menuItemData->GossipActionMenuId);
             break;
         case GOSSIP_OPTION_LEARNDUALSPEC:
             if (GetSpecsCount() == 1 && GetLevel() >= sWorld->getIntConfig(CONFIG_MIN_DUALSPEC_LEVEL))
@@ -21927,7 +21969,11 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
         return false;
     }
 
-    VendorItemData const* vItems = creature->GetVendorItems();
+    uint32 currentVendor = GetSession()->GetCurrentVendor();
+    if (currentVendor && vendorguid != PlayerTalkClass->GetGossipMenu().GetSenderGUID())
+        return false; // Cheating
+
+    VendorItemData const* vItems = currentVendor ? sObjectMgr->GetNpcVendorItemList(currentVendor) : creature->GetVendorItems();
     if (!vItems || vItems->Empty())
     {
         SendBuyError(BUY_ERR_CANT_FIND_ITEM, creature, item, 0);
@@ -22184,8 +22230,9 @@ void Player::UpdatePvP(bool state, bool _override)
 void Player::UpdatePotionCooldown(Spell* spell)
 {
     // no potion used i combat or still in combat
-    if (!m_lastPotionId || IsInCombat())
-        return;
+   if (sWorld->getBoolConfig(CONFIG_POTIONS_LIMIT))
+		if (!m_lastPotionId || IsInCombat())
+       return;
 
     // Call not from spell cast, send cooldown event for item spells if no in combat
     if (!spell)
@@ -25031,8 +25078,16 @@ void Player::StoreLootItem(uint8 lootSlot, Loot* loot)
 
     if (!item || item->is_looted)
     {
-        SendEquipError(EQUIP_ERR_ALREADY_LOOTED, nullptr, nullptr);
-        return;
+        if (sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
+        {
+            //SendEquipError(EQUIP_ERR_ALREADY_LOOTED, nullptr, nullptr); prevents error already loot from spamming
+            return;
+        }
+        else
+        {
+            SendEquipError(EQUIP_ERR_ALREADY_LOOTED, nullptr, nullptr);
+            return;
+        }
     }
 
     if (!item->AllowedForPlayer(this))

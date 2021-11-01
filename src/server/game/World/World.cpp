@@ -26,6 +26,7 @@
 #include "ArenaTeamMgr.h"
 #include "AuctionHouseBot.h"
 #include "AuctionHouseMgr.h"
+#include "AutoBalance.h"
 #include "BattlefieldMgr.h"
 #include "BattlegroundMgr.h"
 #include "CalendarMgr.h"
@@ -1303,6 +1304,8 @@ void World::LoadConfigSettings(bool reload)
     m_visibility_notify_periodInBG         = sConfigMgr->GetIntDefault("Visibility.Notify.Period.InBG",         DEFAULT_VISIBILITY_NOTIFY_PERIOD);
     m_visibility_notify_periodInArenas     = sConfigMgr->GetIntDefault("Visibility.Notify.Period.InArenas",     DEFAULT_VISIBILITY_NOTIFY_PERIOD);
 
+	m_float_configs[CONFIG_SPEED_TAXI] = sConfigMgr->GetFloatDefault("Custom.SpeedTaxi", 1.0f);
+	
     ///- Load the CharDelete related config options
     m_int_configs[CONFIG_CHARDELETE_METHOD] = sConfigMgr->GetIntDefault("CharDelete.Method", 0);
     m_int_configs[CONFIG_CHARDELETE_MIN_LEVEL] = sConfigMgr->GetIntDefault("CharDelete.MinLevel", 0);
@@ -1545,6 +1548,9 @@ void World::LoadConfigSettings(bool reload)
 
     // Specifies if IP addresses can be logged to the database
     m_bool_configs[CONFIG_ALLOW_LOGGING_IP_ADDRESSES_IN_DATABASE] = sConfigMgr->GetBoolDefault("AllowLoggingIPAddressesInDatabase", true, true);
+	
+	//allow use of Potions more than once in combat.
+	m_bool_configs[CONFIG_POTIONS_LIMIT] = sConfigMgr->GetBoolDefault("Potions.Limit", true);
 
     // call ScriptMgr if we're reloading the configuration
     if (reload)
@@ -2087,6 +2093,10 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Initializing Scripts...");
     sScriptMgr->Initialize();
+
+    ///- Initialize AutoBalance
+    InitAutoBalanceSystem();
+
     sScriptMgr->OnConfigLoad(false);                                // must be done after the ScriptMgr has been properly initialized
 
     TC_LOG_INFO("server.loading", "Validating spell scripts...");
