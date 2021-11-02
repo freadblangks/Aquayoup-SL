@@ -31,7 +31,7 @@
 #include "Chat.h"
 #include "ZoneScript.h"
 #include "Object.h"
-#include <AI\ScriptedAI\ScriptedGossip.h>
+#include "ScriptedGossip.h"
 
 /******************************************************
     NOTE TO DEVS:

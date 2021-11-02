@@ -726,7 +726,7 @@ public:
             {
                 for (auto player : playerList)
                 {
-                    player->Kill(player, false);
+                    player->Kill(player, nullptr);
                 }
             }
         }

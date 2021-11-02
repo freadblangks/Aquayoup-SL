@@ -30,7 +30,7 @@
 #include "SpellScript.h"
 #include "SpellAuraEffects.h"
 #include "SpellHistory.h"
-#include "SmartAi.h"
+#include "SmartAI.h"
 #include "WaypointManager.h"
 #include "MotionMaster.h"
 #include "PhasingHandler.h"

@@ -699,7 +699,7 @@ public:
             if (!caster || !target)
                 return;
 
-            target->Kill(target, false);
+            target->Kill(target, nullptr);
         }
 
         void Register()

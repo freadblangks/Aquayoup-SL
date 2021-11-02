@@ -271,7 +271,7 @@ public:
                             if (!player->IsGameMaster()) //gm check
                             {
                                 me->RemoveAura(SPELL_BLOOD_BARRIER);
-                                player->Kill(me, false);
+                                player->Kill(me, nullptr);
                             }
                         }
                 }
