@@ -34,6 +34,7 @@
 #include "WorldQuestMgr.h"
 #include "GameEventMgr.h"
 #include "Unit.h"
+#include "ObjectGuid.h"
 
 enum eSays
 {
@@ -317,7 +318,7 @@ struct boss_occularus : public ScriptedAI
             {
                 dist += 2.0f;
                 target->GetNearPosition(dist, 0.0f);
-                //me->CastSpell(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), SPELL_PHANTASM_TRIGGER, true);
+                me->CastSpell(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), SPELL_PHANTASM_TRIGGER, true);
             }
         }
     }
@@ -418,12 +419,12 @@ struct boss_inquisitor_meto : public ScriptedAI
             case EVENT_DEATH_FIELD:
             {
                 Position pos;
-                //float angle = me->GetAngle(me);
+                float angle = me->GetAngle2(me);
                 for (uint8 i = 0; i < 9; i++)
                 {
-                    //angle += 0.1f;
-                   // me->GetNearPosition(35.0f, angle);
-                    //me->CastSpell(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), SPELL_DEATH_FIELD_VISUAL, true);
+                    float angle = 0.1f;
+                    me->GetNearPosition(35.0f, angle);
+                    me->CastSpell(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), SPELL_DEATH_FIELD_VISUAL, true);
                 }
                 DoCast(SPELL_DEATH_FIELD);
                 events.RescheduleEvent(EVENT_DEATH_FIELD, 15000);
@@ -436,7 +437,7 @@ struct boss_inquisitor_meto : public ScriptedAI
                     Position pos;
                     float angle = 6.28f / 3 * i;
                     me->GetNearPosition(10.0f, angle);
-                    //me->CastSpell(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), SPELL_SEEDS_OF_CHAOS, true);
+                    me->CastSpell(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), SPELL_SEEDS_OF_CHAOS, true);
                 }
                 events.RescheduleEvent(EVENT_SEEDS_OF_CHAOS, 30000);
                 break;
@@ -493,7 +494,7 @@ struct boss_sotanathor : public ScriptedAI
                 for (uint8 i = 0; i < 4; i++)
                 {
                     target->GetNearPosition(5.0f, angle);
-                    //target->CastSpell(pos, SPELL_WAKE_OF_DESTRUCTION, me->GetGUID());
+                    target->CastSpell(pos, SPELL_WAKE_OF_DESTRUCTION, me);
                     angle += 1.57f;
                 }
             }
@@ -621,7 +622,8 @@ struct boss_matron_folnuna : public ScriptedAI
                     if (auto trigger = me->SummonCreature(124537, 4408.702f, 6490.092f, 40.38989f, 1.38464f, TEMPSUMMON_TIMED_DESPAWN, 15000))
                         DoCast(trigger, SPELL_SLIMBERING_GASP, false);
 
-                    //me->AddDelayedCombat(500, [=]() -> void { me->SetPower(POWER_ENERGY, 0); });
+                    me->SetCombatPulseDelay(500);
+                    me->SetPower (POWER_ENERGY, 0);
                 }
             }
         }
@@ -653,20 +655,20 @@ struct boss_matron_folnuna : public ScriptedAI
         }
     }
 
-    void SpellHitTarget(Unit* /*target*/, SpellInfo const* spell) override
+    void SpellHitTarget(float /*target*/, SpellInfo const* spell)
     {
         switch (spell->Id)
         {
         case SPELL_GROTESQUE_SPAWN:
-           // auto threatlist = me->GetThreatManager().GetThreatList();
-          //  if (!threatlist.empty())
-          /*  {
-             //   auto& itr = Trinity::Containers::SelectRandomContainerElement(threatlist);
+            auto threatlist = me->GetThreatManager().GetModifiableThreatList();
+            if (!threatlist.empty())
+            {
+                auto& itr = Trinity::Containers::SelectRandomContainerElement(threatlist);
 
-                if (Unit* target = itr->getTarget())
+                if (float target = itr->GetThreat())
                     for (uint8 i = 0; i < 4; ++i)
-                        target->CastSpell(me, RANDOM_GROTESQUE_SPAWN[urand(0, 1)], false, 0, 0, me->GetGUID());
-            }*/
+                        me->CastSpell(me, RANDOM_GROTESQUE_SPAWN[urand(0, 1)], false, 0, 0, me->GetGUID());
+            }
             break;
         }
     }
@@ -902,7 +904,7 @@ struct npc_fiery_trickster : ScriptedAI
     {
         std::list<Player*> playerList;
         GetPlayerListInGrid(playerList, me, 300.0f);
-        //Trinity::Containers::RandomResizeList(playerList, 1);
+        Trinity::Containers::RandomResize(playerList, 1);
         for (std::list<Player*>::iterator itr = playerList.begin(); itr != playerList.end(); ++itr)
             if (!playerList.empty())
                 me->AI()->AttackStart((*itr));

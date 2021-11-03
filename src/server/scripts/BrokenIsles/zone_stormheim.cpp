@@ -41,9 +41,9 @@ public:
     {
         SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(181981, DIFFICULTY_NONE);
 
-       // player->SetPower(POWER_ALTERNATE_POWER, player->GetPower(POWER_ALTERNATE_POWER) + spellInfo->GetEffect(EFFECT_0)->BasePoints);
+       player->SetPower(POWER_ALTERNATE_POWER, player->GetPower(POWER_ALTERNATE_POWER) + spellInfo->GetEffect(EFFECT_0).BasePoints);
 
-        //for (int32 i = 0; i < spellInfo->GetEffect(EFFECT_0)->BasePoints; ++i)
+        for (int32 i = 0; i < spellInfo->GetEffect(EFFECT_0).BasePoints; ++i)
             player->KilledMonsterCredit(91693, ObjectGuid::Empty);
 
         if (player->GetPower(POWER_ALTERNATE_POWER) >= 100)
@@ -84,7 +84,7 @@ public:
         {
             if (Unit* caster = GetCaster())
             {
-                //caster->EnergizeBySpell(caster, GetSpellInfo(), GetSpellInfo()->GetEffect(EFFECT_0)->BasePoints, POWER_ALTERNATE_POWER);
+                caster->EnergizeBySpell(caster, GetSpellInfo(), GetSpellInfo()->GetEffect(EFFECT_0).BasePoints, POWER_ALTERNATE_POWER);
                 if (Quest const* quest = sObjectMgr->GetQuestTemplate(38358))
                     for (QuestObjective const& obj : quest->GetObjectives())
                         if (obj.ObjectID == 91590)
@@ -146,10 +146,11 @@ public:
             {
                 if (caster->ToPlayer()->GetQuestStatus(38058) == QUEST_STATUS_INCOMPLETE)
                 {
-                    /*if (caster->GetPower(POWER_ALTERNATE_POWER) > caster->ToPlayer()->GetQuestObjectiveData(38058, 1))
-                        for (int32 i = 0; i < (std::min(caster->GetPower(POWER_ALTERNATE_POWER), 100) - caster->ToPlayer()->GetQuestObjectiveData(38058, 1)); ++i)
+                    if (caster->GetPower(POWER_ALTERNATE_POWER) > caster->ToPlayer()->IsQuestObjectiveProgressBarComplete(38058, 0))
+                        for (int32 i = 0; i < (std::min(caster->GetPower(POWER_ALTERNATE_POWER), 100));
+                            caster->ToPlayer()->IsQuestObjectiveProgressBarComplete(38058, 0));
                             caster->ToPlayer()->KilledMonsterCredit(90903, ObjectGuid::Empty);
-                            */
+
                     if (caster->GetPower(POWER_ALTERNATE_POWER) >= 100)
                         caster->ToPlayer()->KilledMonsterCredit(90866, ObjectGuid::Empty);
 
@@ -339,7 +340,7 @@ struct npc_yotnar_96175 : public ScriptedAI
 
     void DamageTaken(Unit* done_by, uint32 &damage) override
     {
-     //   if (me->HealthWillBeBelowPctDamaged(10, damage))
+        if (me->HealthBelowPctDamaged(10, damage))
         {
             damage = 0;
             me->SetHealth(me->GetMaxHealth());
@@ -533,7 +534,7 @@ struct npc_vethir_96465 : public ScriptedAI
         if (apply)
         {
             me->SetCanFly(true);
-            //me->SetFlying();
+            me->SetFlying2(me);
             me->SetWalk(false);
             me->SetSpeed(MOVE_FLIGHT, 25);
             me->GetMotionMaster()->MoveSmoothPath(1, Path01, Path01Size::value, false, true);
@@ -617,9 +618,9 @@ struct npc_vethir_92302 : public ScriptedAI
         {
             _playerGuid = summoner->ToPlayer()->GetGUID();
             me->SetCanFly(true);
-            //me->SetFlying();
+            me->SetFlying2(me);
             me->SetWalk(false);
-            //summoner->CastSpell(me, 46598);
+            summoner->CastSpell(me, 46598);
             me->SetSpeed(MOVE_FLIGHT, 25);
             me->GetMotionMaster()->Clear();
             Talk(1);
@@ -634,7 +635,7 @@ struct npc_vethir_92302 : public ScriptedAI
                         if (!player->IsInWorld())
                             return;
 
-                        /*if (player->hasQuest(38624) && player->GetQuestObjectiveData(38624, 3) == 150)
+                        if (player->hasQuest(38624) && player->IsQuestObjectiveProgressBarComplete(38624, 0) == 150)
                         {
                             player->KilledMonsterCredit(91768);
                             Talk(2);
@@ -645,7 +646,7 @@ struct npc_vethir_92302 : public ScriptedAI
                             me->GetMotionMaster()->MoveSmoothPath(99, Path02, Path02Size::value, false, true);
                             return;
                         }
-                        else if (player->hasQuest(41950) && player->GetQuestObjectiveData(41950, 3) == 50)
+                        else if (player->hasQuest(41950) && player->IsQuestObjectiveProgressBarComplete(41950, 0) == 50)
                         {
                             player->KilledMonsterCredit(91768);
                             Talk(2);
@@ -655,7 +656,7 @@ struct npc_vethir_92302 : public ScriptedAI
                             me->GetMotionMaster()->MoveSmoothPath(99, Path02, Path02Size::value, false, true);
                             return;
                         }
-                        else if (player->hasQuest(41451) && player->GetQuestObjectiveData(41451, 0) == 15 && player->GetQuestObjectiveData(41451, 2) == 4)
+                        else if (player->hasQuest(41451) && player->IsQuestObjectiveProgressBarComplete(41451, 0) == 15 && player->IsQuestObjectiveProgressBarComplete(41451, 0) == 4)
                         {
                             events.Reset();
                             context.CancelAll();
@@ -664,33 +665,33 @@ struct npc_vethir_92302 : public ScriptedAI
                             return;
                         }
 
-                        if (player->hasQuest(38624) && player->GetQuestObjectiveData(38624, 3) < 150)
+                        if (player->hasQuest(38624) && player->IsQuestObjectiveProgressBarComplete(38624, 0) < 150)
                         {
                             Talk(1);
                             me->SetCanFly(true);
-                            //me->SetFlying();
+                            me->SetFlying2(me);
                             me->SetWalk(false);
                             me->GetMotionMaster()->Clear();
                             me->GetMotionMaster()->MoveSmoothPath(1, Path_92302, Path_92302Size::value, false, true);
                         }
-                        else if (player->hasQuest(41950) && player->GetQuestObjectiveData(41950, 3) < 50)
+                        else if (player->hasQuest(41950) && player->IsQuestObjectiveProgressBarComplete(41950, 0) < 50)
                         {
                             Talk(1);
                             me->SetCanFly(true);
-                            //me->SetFlying();
+                            me->SetFlying2(me);
                             me->SetWalk(false);
                             me->GetMotionMaster()->Clear();
                             me->GetMotionMaster()->MoveSmoothPath(1, Path_92302, Path_92302Size::value, false, true);
                         }
-                        else if (player->hasQuest(41451) && player->GetQuestObjectiveData(41451, 0) != 15 && player->GetQuestObjectiveData(41451, 2) != 4)
+                        else if (player->hasQuest(41451) && player->IsQuestObjectiveProgressBarComplete(41451, 0) != 15 && player->IsQuestObjectiveProgressBarComplete(41451, 0) != 4)
                         {
                             Talk(1);
                             me->SetCanFly(true);
-                            //me->SetFlying();
+                            me->SetFlying2(me);
                             me->SetWalk(false);
                             me->GetMotionMaster()->Clear();
                             me->GetMotionMaster()->MoveSmoothPath(1, Path_92302, Path_92302Size::value, false, true);
-                        }*/
+                        }
                     }
                     context.Repeat(Milliseconds(25000));
                 });
@@ -974,10 +975,10 @@ struct npc_lady_sylvanas_windrunner_97695 : public ScriptedAI
                     player->KilledMonsterCredit(94915);
                     player->CastSpell(player, 205552, true);
 
-                    ///player->AddMovieDelayedAction(495, [player]
-                    //{
-                     //   player->CastSpell(player, 205553, true);
-                    //});
+                    player->AddMovieDelayedAction2(495, [player]
+                    {
+                       player->CastSpell(player, 205553, true);
+                    });
                     player->CastSpell(player, 205551, true);//495
                   //  SetUnlock(120000);
                 }
@@ -1098,7 +1099,7 @@ struct npc_drowning_valkyra_97469 : public ScriptedAI
                 me->GetScheduler().Schedule(Milliseconds(10000), [this](TaskContext context)
                 {
                     Talk(2);
-                  //  me->GetMotionMaster()->MoveAwayAndDespawn(20.0f, 10000);
+                     me->GetMotionMaster()->MoveTakeoff(20.0f, 10000);
                 });
             }
         }
@@ -1233,7 +1234,7 @@ struct npc_vethir_97986 : public ScriptedAI
     {
         CloseGossipMenuFor(player);
         player->TalkedToCreature(me->GetEntry(), me->GetGUID());
-        //player->TeleportTo(1220, Position(2479.33f, 951.14f, 596.141f, 3.905f));
+        player->TeleportTo2(1220, 2479.33f, 951.14f, 596.141f, 3.905f);
 
         return true;
     }
@@ -1247,7 +1248,7 @@ struct npc_vethir_98190 : public ScriptedAI
     {
         CloseGossipMenuFor(player);
         player->TalkedToCreature(me->GetEntry(), me->GetGUID());
-        //player->TeleportTo(1220, Position(2518.36f, 977.15f, 233.274f, 3.97f));
+        player->TeleportTo2(1220, 2518.36f, 977.15f, 233.274f, 3.97f);
 
         return true;
     }

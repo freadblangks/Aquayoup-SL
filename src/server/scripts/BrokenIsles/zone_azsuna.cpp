@@ -50,6 +50,7 @@
 #include "TemporarySummon.h"
 #include "CombatAI.h"
 #include "Unit.h"
+#include "DB2Stores.h"
 
 #define GOSSIP_ACCEPT_DUEL "Let''s duel"
 #define EVENT_SPECIAL 20
@@ -244,12 +245,15 @@ struct questnpc_soul_gem : public ScriptedAI
 
     void GetTargets()
     {
-        /*if (!me->GetOwner() || !me->GetOwner()->IsPlayer())
-            return;*/
+        if (!me->GetOwner() || !me->GetOwner()->IsPlayer())
+            return;
 
-        //std::list<Creature*> targets = me->FindAllCreaturesInRange(100.0f);
 
-        /*if (Player* player = ObjectAccessor::GetPlayer(*me, _playerGUID))
+        std::list<Creature*> targets;
+        me->FindNearestCreature(100.0f, true);
+
+
+        if (Player* player = ObjectAccessor::GetPlayer(*me, _playerGUID))
         {
             for (auto itr : targets)
             {
@@ -270,10 +274,11 @@ struct questnpc_soul_gem : public ScriptedAI
                         break;
                     }
                 }
-            }*/
+            }
+        }
     }
 
-    void IsSummonedBy(Unit* summoner)
+    void IsSummonedBy(Unit* summoner) override
     {
         if (Player* player = summoner->ToPlayer()) {
             _playerGUID = player->GetGUID();
@@ -469,7 +474,7 @@ public:
                 playerGuid = player->GetGUID();
         }
 
-        void MovementInform(uint32 type, uint32 id)
+        void MovementInform(uint32 type, uint32 id) override
         {
             if (type != POINT_MOTION_TYPE || id != count || paused)
                 return;
@@ -761,9 +766,9 @@ public:
     {
         if (_Quest->GetQuestId() == 43521)
         {
-            //if (AchievementEntry const *ForgedforBattle = sAchievementStore.LookupEntry(10746))
+            if (AchievementEntry const *ForgedforBattle = sAchievementStore.LookupEntry(10746))
             {
-                //player->CompletedAchievement(ForgedforBattle);
+                player->CompletedAchievement(ForgedforBattle);
             }
         }
 
@@ -790,9 +795,9 @@ public:
     {
         if (_Quest->GetQuestId() == 43520)
         {
-            //if (AchievementEntry const *ForgedforBattle = sAchievementStore.LookupEntry(11144))
+            if (AchievementEntry const *ForgedforBattle = sAchievementStore.LookupEntry(11144))
             {
-                //player->CompletedAchievement(ForgedforBattle);
+                player->CompletedAchievement(ForgedforBattle);
             }
         }
 
@@ -831,7 +836,7 @@ class spell_rally_the_nightwatchers : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_rally_the_nightwatchers::HandleDummy, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
     }
 };
-/*
+
 class ps_quest_rally_the_nightwatchers : public PlayerScript
 {
 public:
@@ -843,13 +848,13 @@ public:
             player->CastSpell(player, 210554, true);
     }
 
-    void OnUpdateArea(Player* player, Area* newArea, Area* /*oldArea*///)
-   /*{
-        switch (newArea->GetId())
+    void OnUpdateArea(Player* player /*Area*/ /*newArea*/ /*Area*/ /*oldArea*/)
+   {
+        switch(GetPID())
         {
         case 7357:
         case 7355:
-            if (player->HasQuest(42108))
+            if (player->hasQuest(42108))
                 player->CastSpell(player, 210554, true);
             break;
         default:
@@ -857,7 +862,7 @@ public:
         }
     }
 };
-*/
+
 //QQQ
 class merayl_q42159 : public CreatureScript
 {
@@ -887,13 +892,13 @@ public:
         return true;
     }
 
-    bool OnGossipHello(Player* player, Creature* creature)
+    bool OnGossipHello(Player* player, uint32 damage, Creature* creature)
     {
         if ((player->GetQuestStatus(QUEST_42159) == QUEST_STATUS_INCOMPLETE ||
             player->GetQuestStatus(QUEST_42159) == QUEST_STATUS_INCOMPLETE)
             && creature->IsFullHealth())
         {
-            if (player->HealthBelowPct(10))
+            if (player->HealthBelowPctDamaged(10, damage))
                 return true;
 
             if (player->IsInCombat() || creature->IsInCombat())
@@ -1218,7 +1223,7 @@ class spell_Wand_Practice : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_Wand_Practice::HandleDummy, EFFECT_0, SPELL_EFFECT_CREATE_AREATRIGGER);
     }
 };
-/*
+
 class ps_quest_Wandering : public PlayerScript
 {
 public:
@@ -1230,19 +1235,19 @@ public:
             player->CastSpell(player, 212782, true);
     }
 
-    void OnUpdateArea(Player* player, Area* newArea, Area* /*oldArea*///)
-   /* {
-        switch (newArea->GetId())
+    void OnUpdateArea(Player* player /*Area newArea, Area oldArea*/)
+    {
+        switch (GetPID())
         {
         case 7358:
-            if (player->HasQuest(42370))
+            if (player->hasQuest(42370))
                 player->CastSpell(player, 212782, true);
             break;
         default:
             break;
         }
     }
-}; */
+};
 
 // 89978
 class npc_senegosa_89978 : public CreatureScript
@@ -1391,7 +1396,7 @@ public:
     struct npc_agapant_90543AI : public ScriptedAI
     {
         npc_agapant_90543AI(Creature* creature) : ScriptedAI(creature) { }
-        void Reset()
+        void Reset() override
         {
             say = false;
         }
@@ -1409,7 +1414,7 @@ public:
             }
             if (Player* player = who->ToPlayer())
             {
-                /*if (player->GetQuestObjectiveData(42271, 4))
+                if (player->IsQuestObjectiveProgressBarComplete(42271, 0))
                     if (Creature* Agapant = me->FindNearestCreature(NPC_AGAPANT, 20.0f, true))
                     {
                         if (!say)
@@ -1420,7 +1425,7 @@ public:
                                 Agapant->AI()->Talk(0);
                             });
                         }
-                    }*/
+                    }
             }
         }
     private:
@@ -1470,14 +1475,14 @@ struct mana_drained_90880 : public ScriptedAI
         {
             if (player->GetQuestStatus(42271) == QUEST_STATUS_INCOMPLETE)
             {
-                /*if (player->GetQuestObjectiveData(42271, 3))
+                if (player->IsQuestObjectiveProgressBarComplete(42271, 0))
 
                 {
                     me->SetAIAnimKitId(4061);
                     player->KilledMonsterCredit(90880);
                     me->SetStandState(UnitStandStateType::UNIT_STAND_STATE_STAND);
                     me->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                }*/
+                }
             }
         }
     }
@@ -1489,7 +1494,7 @@ struct mana_drained_90880 : public ScriptedAI
             {
                 if (player->IsInDist(me, 15.0f))
                 {
-                    /*if (player->GetQuestObjectiveData(42271, 4))
+                    if (player->IsQuestObjectiveProgressBarComplete(42271, 0))
                     {
                         if (!me->FindNearestCreature(900880, 70.0f))
                         {
@@ -1497,15 +1502,15 @@ struct mana_drained_90880 : public ScriptedAI
                                 me->SummonCreature(900880, Position(642.059f, 6607.97f, 60.1522f, 1.73476f), TEMPSUMMON_MANUAL_DESPAWN);
                             }
                         }
-                    }*/
+                    }
                 }
             }
             if (player->GetQuestStatus(42271) == QUEST_STATUS_INCOMPLETE)
             {
-                /*if (player->GetQuestObjectiveData(42271, 3))
+                if (player->IsQuestObjectiveProgressBarComplete(42271, 0))
                 {
                     me->AddNpcFlag(UNIT_NPC_FLAG_SPELLCLICK);
-                }*/
+                }
             }
         }
     }
@@ -1521,14 +1526,14 @@ struct mana_drained_900880 : public ScriptedAI
         {
             if (player->GetQuestStatus(42271) == QUEST_STATUS_INCOMPLETE)
             {
-                /*if (player->GetQuestObjectiveData(42271, 4))
+                if (player->IsQuestObjectiveProgressBarComplete(42271, 0))
 
                 {
                     me->SetAIAnimKitId(4061);
                     player->KilledMonsterCredit(122292);
                     me->SetStandState(UnitStandStateType::UNIT_STAND_STATE_STAND);
                     me->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                }*/
+                }
             }
         }
     }
@@ -1538,12 +1543,12 @@ struct mana_drained_900880 : public ScriptedAI
         {
             if (player->GetQuestStatus(42271) == QUEST_STATUS_INCOMPLETE)
             {
-                /*if (player->GetQuestObjectiveData(42271, 4))
+                if (player->IsQuestObjectiveProgressBarComplete(42271, 0))
                 {
                     {
                         me->AddNpcFlag(UNIT_NPC_FLAG_SPELLCLICK);
                     }
-                }*/
+                }
             }
         }
     }
@@ -1784,12 +1789,12 @@ struct npc_quest_1970197 : public ScriptedAI
             {
                 if (player->IsInDist(me, 25.0f))
                 {
-                    /*if (player->GetQuestObjectiveData(37660, 8))
+                    if (player->IsQuestObjectiveProgressBarComplete(37660, 0))
                     {
                         {
                             player->KilledMonsterCredit(89398);
                         }
-                    }*/
+                    }
                 }
             }
         }
@@ -1878,10 +1883,10 @@ public:
 
         void JustDied(Unit* who) override
         {
-           // if (Player* pl = me->FindNearestPlayer(50.0f))
+            if (Player *pl = me->SelectNearestPlayer(50.0f))
             {
-               // pl->UpdateAchievementCriteria(CRITERIA_TYPE_SCRIPT_EVENT_2, 56893);
-              //  pl->CreateConversation(4591);
+                pl->UpdateCriteria(CriteriaType::CompleteResearchProject, 56893);
+                pl->PlayConversation(4591);
             }
         }
 
@@ -1951,22 +1956,22 @@ public:
 
         bool _introDone;
 
-      /*  void IsSummonedBy(Unit* summoner) override
+        void IsSummonedBy(Unit* summoner) override
         {
-           // SetFlyMode(true);
-           // me->AddDelayedEvent(3000, [this]() -> void
+            me->SetFlying2(me);
+            //me->AddDelayedEvent(3000, [this]() -> void
             {
                 me->SetReactState(REACT_PASSIVE);
                 me->GetMotionMaster()->MovePoint(1, 1436.24f + irand(-2, 2), 6172.45f + irand(-2, 2), 1.71f);
                 me->CastSpell(me, 237720);
-           // });
-        }*/
+            };
+        }
 
         void JustEngagedWith(Unit* who) override
         {
             _introDone = true;
             DoCast(237716);
-            //me->Kill(me);
+            me->Kill2(me);
         }
 
         void MoveInLineOfSight(Unit* who) override
@@ -1978,7 +1983,7 @@ public:
             {
                 _introDone = true;
                 DoCast(237716);
-                //me->Kill();
+                me->Kill2(me);
             }
         }
 
@@ -1991,13 +1996,13 @@ public:
             {
                 _introDone = true;
                 DoCast(237716);
-                //me->Kill();
+                me->Kill2(me);
             }
         }
 
     };
 };
-/*
+
 // 119454 119483
 class npc_invasion_azsuna_misc : public CreatureScript
 {
@@ -2013,7 +2018,7 @@ public:
     {
         npc_invasion_azsuna_miscAI(Creature* creature) : ScriptedAI(creature) {}
 
-      /*  void OnSpellClick(Unit* clicker) //override
+        void OnSpellClick(Unit* clicker) //override
         {
             if (!clicker->IsPlayer())
                 return;
@@ -2032,13 +2037,13 @@ public:
                 break;
             }
             if (criteria)
-               // clicker->ToPlayer()->UpdateAchievementCriteria(CRITERIA_TYPE_SCRIPT_EVENT_2, 56889);
+                 clicker->ToPlayer()->UpdateCriteria(CriteriaType::CompleteResearchProject, 56889);
             me->DespawnOrUnsummon(10);
 
-     //   }
-   // };
+        }
+    };
 };
-*/
+
 // 119456 119459
 class npc_invasion_azsuna_dragons : public CreatureScript
 {
@@ -2060,21 +2065,21 @@ public:
             me->AddUnitFlag(UnitFlags(UNIT_NPC_FLAG_SPELLCLICK));
         }
 
-       /* void OnSpellClick(Unit* clicker) //override
+        void OnSpellClick(Unit* clicker) //override
         {
             if (me->GetEntry() == 119459)
-           //     clicker->ToPlayer()->UpdateAchievementCriteria(CRITERIA_TYPE_SCRIPT_EVENT_2, 56885);
-          //  else
+                clicker->ToPlayer()->UpdateCriteria(CriteriaType::CompleteResearchProject, 56885);
+            else
                 clicker->CastSpell(me, 52391, true); //Ride Veh
         }
-        */
+
         void PassengerBoarded(Unit* who, int8 /*seatId*/, bool apply) override
         {
-           // SetFlyMode(true);
+            me->SetFlying2(true);
             if (who->IsPlayer())
             {
                 me->GetMotionMaster()->MovePath(10993803, false);
-             //   who->ToPlayer()->UpdateAchievementCriteria(CRITERIA_TYPE_SCRIPT_EVENT_2, 56891);
+                who->ToPlayer()->UpdateCriteria(CriteriaType::CompleteResearchProject, 56891);
             }
         }
 
@@ -2085,7 +2090,7 @@ public:
 
             if (!_introDone)
                 if (InstanceScript *script = me->GetInstanceScript())
-                  //  if (script->GetScenarionStep() == 1)
+                      //if (script->GetScenarionStep() == 1)
                         if (me->IsWithinDistInMap(who, 5.0f) && !who->IsOnVehicle(who))
                         {
                             _introDone = true;
@@ -2093,19 +2098,19 @@ public:
                         }
         }
 
-        void MovementInform(uint32 moveType, uint32 pointId) override
+        void MovementInform(Player* pl, uint32 moveType, uint32 pointId)
         {
             if (moveType != WAYPOINT_MOTION_TYPE)
                 return;
 
             if (me->GetVehicleKit())
             {
-               // if (Unit* passenger = me->GetVehicleKit()->GetPassenger(0))
+                if (Unit* passenger = me->GetVehicleKit()->GetPassenger(0))
                 {
-                   // passenger->CreateConversation(4590);
-                   // passenger->ToPlayer()->UpdateAchievementCriteria(CRITERIA_TYPE_SCRIPT_EVENT_2, 56892);
-                   // passenger->AddAura(55001, passenger);
-                    //me->GetVehicleKit()->RemoveAllPassengers();
+                    pl->PlayConversation(4590);
+                    passenger->ToPlayer()->UpdateCriteria(CriteriaType::CompleteResearchProject, 56892);
+                    passenger->AddAura(55001, passenger);
+                    me->GetVehicleKit()->RemoveAllPassengers();
                     me->DespawnOrUnsummon(500);
                 }
             }
@@ -2121,7 +2126,7 @@ public:
 void AddSC_azsuna()
 {
     new npc_invasion_azsuna_bes();
-    //new npc_invasion_azsuna_misc();
+    new npc_invasion_azsuna_misc();
     new npc_invasion_azsuna_dragons();
     new npc_invasion_azsuna_acstris();
     new scene_azsuna_runes();
@@ -2136,7 +2141,7 @@ void AddSC_azsuna()
     new npc_quest_43520();
     new npc_archmage_khadgar_93337();
     RegisterSpellScript(spell_rally_the_nightwatchers);
-    // new ps_quest_rally_the_nightwatchers();
+    new ps_quest_rally_the_nightwatchers();
     new merayl_q42159("merayl_q42159");
     new npc_kimmruder_88911();
     new npc_summon_91155();
@@ -2145,7 +2150,7 @@ void AddSC_azsuna()
     RegisterCreatureAI(emmigosa_107961);
     RegisterCreatureAI(berazus_107964);
     RegisterSpellScript(spell_Wand_Practice);
-    //  new ps_quest_Wandering();
+    new ps_quest_Wandering();
     new npc_senegosa_89978();
     new go_pylon_mana245572();
     new go_pylon_mana245573();

@@ -85,7 +85,7 @@ public:
                 return;
 
             std::list<Unit*> list;
-         //   me->GetAttackableUnitListInRange(list, 70.0f);
+            me->GetAttackableUnitListInRange(list, 70.0f);
             for (auto enemy : list)
             {
                 if (enemy->ToPlayer())
@@ -102,7 +102,7 @@ public:
 
             if (me->GetEntry() == 92776)
             {
-                //Talk(urand(0, 10));
+                Talk(urand(0, 10));
                 events.RescheduleEvent(2, 14000);
                 events.RescheduleEvent(3, 20000);
             }
@@ -192,7 +192,7 @@ public:
                 return;
 
             std::list<Unit*> list;
-         //   me->GetAttackableUnitListInRange(list, 70.0f);
+            me->GetAttackableUnitListInRange(list, 70.0f);
             for (auto enemy : list)
             {
                 if (enemy->ToPlayer())
@@ -304,8 +304,8 @@ public:
 
         void OnCharmed(bool /*apply*/) override
         {
-            //if (me->NeedChangeAI)
-                //me->NeedChangeAI = false;
+            if (me->AI())
+                me->AI();
         }
 
         void PassengerBoarded(Unit* who, int8 /*seatId*/, bool /*apply*/) override
@@ -400,7 +400,7 @@ public:
             player->SendBindPointUpdate();
 
             player->KilledMonsterCredit(96814);
-            //creature->AI()->Talk(0);
+            creature->AI()->Talk(0);
         }
 
         return true;
@@ -486,8 +486,8 @@ public:
 
     bool OnQuestAccept(Player* player, Creature* creature, Quest const* quest)
     {
-        //if (quest->GetQuestId() == 38672)
-            //creature->AI()->Talk(1);
+        if (quest->GetQuestId() == 38672)
+            creature->AI()->Talk(1);
 
         //quest 38723 - Stop gul'dan!
         if (quest->GetQuestId() == 38723)
@@ -566,21 +566,21 @@ public:
             /* vaultdoors "animation" */
             if (GameObject* vaultdoors = player->SummonGameObject(399999, 4325.98f, -578.061f, -281.808f, 1.62673f, QuaternionData(-0.0f, -0.0f, -0.726604f, -0.687056f), 0))
             {
-                /*vaultdoors->GetScheduler()
-                    .Schedule(0s, [](TaskContext context)
+                //vaultdoors->GetScheduler()
+                    /*.Schedule(0s, */[](TaskContext context)
                         {
                             GetContextGameObject()->SetLootState(GO_READY);
                             GetContextGameObject()->UseDoorOrButton(10000);
-                        })
-                    .Schedule(4s, [](TaskContext context)
+                        };
+                    /*.Schedule(4s,*/ [](TaskContext context)
                         {
                             GetContextGameObject()->Delete();
-                        });*/
+                        };
             }
 
             // this needs a tempsummmon and a phase!
-            /*if (Creature* cre = player->FindNearestCreature(92718, 25.0f, true))
-                cre->GetMotionMaster()->MovePoint(0, 4325.57f, -562.81f, -281.74f);*/
+            if (Creature* cre = player->FindNearestCreature(92718, 25.0f, true))
+                cre->GetMotionMaster()->MovePoint(0, 4325.57f, -562.81f, -281.74f);
 
             if (Creature* cre = player->FindNearestCreature(99631, 25.0f, true))
             {
@@ -664,17 +664,17 @@ public:
     {
         go_244925AI(GameObject* go) : GameObjectAI(go) {}
 
-        void UpdateAI(uint32 diff) override
+        void UpdateAI(GameObject* go, uint32 diff)
         {
             std::list<Player*> list;
             list.clear();
-          //  go->GetPlayerListInGrid(list, 50.0f);
+            go->GetPlayerListInGrid(list, 50.0f);
             if (!list.empty())
             {
                 for (std::list<Player*>::const_iterator itr = list.begin(); itr != list.end(); ++itr)
                 {
-                  //  if ((*itr)->IsQuestRewarded(38672))
-                      //  go->DestroyForPlayer(*itr);
+                    if ((*itr)->IsQuestRewarded(38672))
+                        go->DestroyForPlayer(*itr);
                 }
             }
         }
@@ -711,17 +711,17 @@ public:
     {
         go_245467AI(GameObject* go) : GameObjectAI(go) {}
 
-        void UpdateAI(uint32 diff) override
+        void UpdateAI(GameObject* go, uint32 diff)
         {
             std::list<Player*> list;
             list.clear();
-         //   go->GetPlayerListInGrid(list, 50.0f);
+            go->GetPlayerListInGrid(list, 50.0f);
             if (!list.empty())
             {
                 for (std::list<Player*>::const_iterator itr = list.begin(); itr != list.end(); ++itr)
                 {
-                 //   if ((*itr)->IsActiveQuest(38723) || (*itr)->IsQuestRewarded(38723))
-                    //    go->DestroyForPlayer(*itr);
+                    if ((*itr)->IsActiveQuest(38723) || (*itr)->IsQuestRewarded(38723))
+                        go->DestroyForPlayer(*itr);
                 }
             }
         }
@@ -833,14 +833,14 @@ public:
         {
             // adjust starting health
             me->SetHealth(me->CountPctFromMaxHealth(21));
-          //  me->setRegeneratingHealth(false);
+            me->SetRegenerateHealth(false);
 
             events.Reset();
         }
 
         void JustEngagedWith(Unit* victim) override
         {
-            //Talk(0);
+            Talk(0);
             events.RescheduleEvent(1, 15000);
             events.RescheduleEvent(2, 20000);
         }
@@ -852,7 +852,7 @@ public:
             if (!player)
                 return;
 
-            //Talk(3);
+            Talk(3);
 
             std::list<Player*> playerList;
             me->GetPlayerListInGrid(playerList, 60.0f);
@@ -945,7 +945,7 @@ public:
 
         void JustEngagedWith(Unit* victim) override
         {
-            //Talk(0);
+            Talk(0);
             events.RescheduleEvent(1, 45000);
             events.RescheduleEvent(2, 5000);
             events.RescheduleEvent(3, 15000);
@@ -959,7 +959,7 @@ public:
             if (!player)
                 return;
 
-            //Talk(2);
+            Talk(2);
 
             std::list<Player*> playerList;
             me->GetPlayerListInGrid(playerList, 60.0f);

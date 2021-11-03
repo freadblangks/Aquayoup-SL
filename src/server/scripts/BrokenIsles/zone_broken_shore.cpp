@@ -34,7 +34,7 @@ struct npc_legionfall_soldier_119141 : public ScriptedAI
                 me->RemoveAurasDueToSpell(236514);
                 me->AI()->Talk(urand(0, 2));
                 player->KilledMonsterCredit(me->GetEntry());
-             //   me->GetMotionMaster()->MoveAwayAndDespawn(15.0f, 3000);
+                me->GetMotionMaster()->MoveTakeoff(15.0f, 3000);
             }
         }
     }
@@ -79,7 +79,7 @@ struct npc_treasure_master_iksreeged_121302 : public ScriptedAI
             //talk and runaway
             me->AI()->Talk(0);
             player->KilledMonsterCredit(me->GetEntry());
-           // me->GetMotionMaster()->MoveAwayAndDespawn(-15.0f, 3000);
+            me->GetMotionMaster()->MoveTakeoff(-15.0f, 3000);
         }
     }
 };
@@ -111,6 +111,5 @@ void AddSC_broken_shore()
     RegisterCreatureAI(npc_legionfall_soldier_119141);
     RegisterCreatureAI(npc_bone_crawler_grub_116951);
     RegisterCreatureAI(npc_treasure_master_iksreeged_121302);
-
     RegisterCreatureAI(npc_legionfall_construction_table_119305);
 }

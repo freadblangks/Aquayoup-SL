@@ -108,9 +108,9 @@ struct npc_archmage_khadgar_91172 : public ScriptedAI
             {
                 if (/*!IsLock && */player->hasQuest(QUEST_THE_LONE_MOUNTAIN))
                 {
-                 //  // IsLock = true;
+                   // IsLock = true;
                     me->Say(99458);
-                  // // SetUnlock(60000);
+                   // SetUnlock(60000);
                 }
             }
         }
@@ -164,7 +164,7 @@ struct npc_warbrave_oro_106244 : public ScriptedAI
                     me->Say(99596);
                     player->KilledMonsterCredit(106244);
                     me->GetMotionMaster()->MovePoint(1, Position(4121.3989f, 4333.802f, 768.346f, 2.539f), true);
-                   //// SetUnlock(60000);
+                   // SetUnlock(60000);
                 }
             }
         }
@@ -596,11 +596,11 @@ public:
             if (Creature* Igrul = player->SummonCreature(96387, Position(3547.78f, 4373.75f, 663.031f, 0.977324f), TEMPSUMMON_MANUAL_DESPAWN, 0, 0))
             {
                 Igrul->AI()->Talk(0);
-                /*go->GetScheduler().Schedule(10s, [Igrul, player](TaskContext /*context)
+                player->GetScheduler().Schedule(10s, [Igrul, player](TaskContext /*context*/)
                 {
                     Igrul->AI()->Talk(1);
                     Igrul->DespawnOrUnsummon(5000);
-                });*/
+                });
             }
             player->GetScheduler().Schedule(12s, [player](TaskContext /*context*/)
             {
@@ -768,10 +768,11 @@ public:
             {
                 GetCaster()->ToPlayer()->KilledMonsterCredit(95261);
                 GetHitUnit()->RemoveAurasDueToSpell(188911);
-                //GetHitUnit()->GetScheduler().Schedule(Milliseconds(15000), [](TaskContext context)
-               // {
-                 //   GetContextCreature()->AddAura(188911);
-               // });
+                GetHitUnit()->AddAura(188911, nullptr);
+                GetHitUnit()->GetScheduler().Schedule(Milliseconds(15000), [](TaskContext context)
+                {
+                    //GetContextCreature()->AddAura(188911);
+                });
             }
         }
 
@@ -808,11 +809,11 @@ struct npc_captive_great_eagle_94991 : public ScriptedAI
                 me->RemoveAurasDueToSpell(188434);
                 player->KilledMonsterCredit(me->GetEntry());
                 me->SetCanFly(true);
-                //me->SetFlying();
+                me->SetFlying2(me);
                 me->SetDisableGravity(true);
-             //   Position pos = me->ToCreature()->GetPositionWithDistInFront(20.0f);
-              //  pos.m_positionZ = pos.GetPositionZ() + 15.0f;
-              //  me->GetMotionMaster()->MovePoint(1, pos, true);
+                Position pos = me->ToCreature()->GetPositionWithOffset(20.0f);
+                pos.m_positionZ = pos.GetPositionZ() + 15.0f;
+                me->GetMotionMaster()->MovePoint(1, pos, true);
                 me->DespawnOrUnsummon(5000);
             }
         }
@@ -918,13 +919,13 @@ struct npc_marakhan_97418 : public ScriptedAI
         SPELL_UNYIELDING_TERROR = 197681,
     };
 
-    //void DamageTaken(Unit* /*attacker*/, uint32& damage) override
-  //  {
-  //      if (me->HealthWillBeBelowPctDamaged(40, damage))
-         //   events.ScheduleEvent(SPELL_UNYIELDING_TERROR, 1s);
-   // }
+    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+    {
+        if (me->HealthBelowPctDamaged(40, damage))
+            events.ScheduleEvent(SPELL_UNYIELDING_TERROR, 1s);
+    }
 
-    void JustEngagedWith(Unit* /*attacker*/)
+    void JustEngagedWith(Unit* /*attacker*/) override
     {
         if (Creature* mobs = me->FindNearestCreature(100055, 100.0f, true))
         {
@@ -934,7 +935,7 @@ struct npc_marakhan_97418 : public ScriptedAI
         events.ScheduleEvent(SPELL_DOOM_BLADE, 5s);
     }
 
-    void UpdateAI(uint32 diff)
+    void UpdateAI(uint32 diff) override
     {
         if (!UpdateVictim())
             return;

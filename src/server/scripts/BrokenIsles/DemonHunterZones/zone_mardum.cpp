@@ -225,13 +225,13 @@ public:
 
     bool OnGossipHello(Player* player, GameObject* /*go*/)
     {
-      /*  if (!player->GetQuestObjectiveData(QUEST_INVASION_BEGIN, 1))
+        if (!player->IsQuestObjectiveProgressBarComplete(QUEST_INVASION_BEGIN, 0))
             player->CastSpell(player, SPELL_SCENE_MARDUM_LEGION_BANNER, true);
 
-        if (!player->GetQuestObjectiveData(QUEST_INVASION_BEGIN, 1))
+        if (!player->IsQuestObjectiveProgressBarComplete(QUEST_INVASION_BEGIN, 0))
             player->CastSpell(player, SPELL_PHASE_171, true);
 
-        return false;*/
+        return false;
     }
 };
 
@@ -242,14 +242,14 @@ public:
 
     bool OnGossipHello(Player* player, GameObject* /*go*/)
     {
-        /*if (!player->GetQuestObjectiveData(QUEST_ASHTONGUE_FORCES, 0))
+        if (!player->IsQuestObjectiveProgressBarComplete(QUEST_ASHTONGUE_FORCES, 0))
          {
             player->KilledMonsterCredit(88872); // QUEST_ASHTONGUE_FORCES storageIndex 0 KillCredit
             player->KilledMonsterCredit(97831); // QUEST_ASHTONGUE_FORCES storageIndex 1 KillCredit
             player->CastSpell(player, SPELL_SCENE_MARDUM_ASHTONGUE_FORCES, true);
         }
 
-        return false;*/
+        return false;
     }
 };
 
@@ -300,10 +300,10 @@ struct npc_mardum_allari : public ScriptedAI
 
     void MoveInLineOfSight(Unit* unit) override
     {
-        /*if (Player* player = unit->ToPlayer())
+        if (Player* player = unit->ToPlayer())
             if (player->GetDistance(me) < 5.0f)
-                if (!player->GetQuestObjectiveData(QUEST_ASHTONGUE_FORCES, 2))
-                    player->KilledMonsterCredit(me->GetEntry());*/
+                if (!player->IsQuestObjectiveProgressBarComplete(QUEST_ASHTONGUE_FORCES, 0))
+                    player->KilledMonsterCredit(me->GetEntry());
     }
 };
 
@@ -451,14 +451,14 @@ struct npc_inquisitor_baleful : public ScriptedAI
 
         for (Player* player : players)
         {
-           /*if (player->hasQuest(QUEST_EYE_ON_THE_PRIZE) && !player->GetQuestObjectiveData(QUEST_EYE_ON_THE_PRIZE, 0))
+           if (player->hasQuest(QUEST_EYE_ON_THE_PRIZE) && !player->IsQuestObjectiveProgressBarComplete(QUEST_EYE_ON_THE_PRIZE, 0))
             {
                 player->KilledMonsterCredit(NPC_POWER_QUEST_KILL_CREDIT);
                 player->KilledMonsterCredit(NPC_COLOSSAL_INFERNAL);
 
                 if (!player->HasSpell(SPELL_LEARN_EYE_BEAM))
                     player->CastSpell(player, SPELL_LEARN_EYE_BEAM);
-            }*/
+            }
         }
     }
 };
@@ -507,14 +507,14 @@ public:
 
     bool OnGossipHello(Player* player, GameObject* /*go*/)
     {
-        /*if (!player->GetQuestObjectiveData(QUEST_COILSKAR_FORCES, 1))
+        if (!player->IsQuestObjectiveProgressBarComplete(QUEST_COILSKAR_FORCES, 0))
         {
             player->KilledMonsterCredit(NPC_LEGION_GATEWAY_KILL_CREDIT); // QUEST_COILSKAR_FORCES storageIndex 0 KillCredit
             player->KilledMonsterCredit(NPC_FIRST_SUMMONED_GUARDIAN_QUEST_KILL_CREDIT); // QUEST_COILSKAR_FORCES storageIndex 1 KillCredit
             player->CastSpell(player, SPELL_SCENE_MARDUM_COILSKAR_FORCES, true);
         }
 
-        return false;*/
+        return false;
     }
 };
 
@@ -525,11 +525,11 @@ public:
 
     bool OnGossipHello(Player* player, GameObject* /*go*/)
     {
-        /*if (player->hasQuest(QUEST_MEETING_WITH_QUEEN) &&
-            !player->GetQuestObjectiveData(QUEST_MEETING_WITH_QUEEN, 0))
+        if (player->hasQuest(QUEST_MEETING_WITH_QUEEN) &&
+            !player->IsQuestObjectiveProgressBarComplete(QUEST_MEETING_WITH_QUEEN, 0))
         {
             player->CastSpell(player, SPELL_SCENE_MEETING_WITH_QUEEN, true);
-        }*/
+        }
 
         return false;
     }
@@ -630,10 +630,10 @@ struct npc_mardum_sevis_brightflame_shivarra : public ScriptedAI
     // TEMP FIX, will need gossip
     void MoveInLineOfSight(Unit* unit) override
     {
-        /*if (Player* player = unit->ToPlayer())
+        if (Player* player = unit->ToPlayer())
             if (player->GetDistance(me) < 5.0f)
-                if (!player->GetQuestObjectiveData(QUEST_SHIVARRA_FORCES, 0))
-                    player->KilledMonsterCredit(me->GetEntry());*/
+                if (!player->IsQuestObjectiveProgressBarComplete(QUEST_SHIVARRA_FORCES, 0))
+                    player->KilledMonsterCredit(me->GetEntry());
     }
 };
 
@@ -644,13 +644,13 @@ public:
 
     bool OnGossipHello(Player* player, GameObject* /*go*/)
     {
-       /* if (player->GetQuestObjectiveData(QUEST_SHIVARRA_FORCES, 0))
+       if (player->IsQuestObjectiveProgressBarComplete(QUEST_SHIVARRA_FORCES, 0))
         {
             player->ForceCompleteQuest(QUEST_SHIVARRA_FORCES);
             player->CastSpell(player, SPELL_SCENE_MARDUM_SHIVARRA_FORCES, true);
         }
 
-        return false;*/
+        return false;
     }
 };
 
@@ -732,15 +732,17 @@ public:
 
         if (GameObject* personnalCavernStone = player->SummonGameObject(GOB_CAVERN_STONES, 1237.150024f, 1642.619995f, 103.152f, 5.80559f, QuaternionData(0, 0, 20372944, 20372944), 0))
         {
-            /*personnalCavernStone->GetScheduler().
-                Schedule(2s, [](TaskContext context)
+            //personnalCavernStone->GetScheduler().
+                //.Schedule(2s,
+            [](TaskContext context)
             {
                 GetContextGameObject()->SetLootState(GO_READY);
                 GetContextGameObject()->UseDoorOrButton(10000);
-            }).Schedule(10s, [](TaskContext context)
+            };//).Schedule(10s,
+            [](TaskContext context)
             {
                 GetContextGameObject()->Delete();
-            });*/
+            };
         }
 
         return true;
@@ -1490,12 +1492,15 @@ public:
             {
                 _events.ScheduleEvent(EVENT_TYRANNA_DIED, 0);
 
-                std::list<CombatManager*> threatList;
-              //  threatList = me->GetThreatManager().GetThreatList();
-              //  for (std::list<HostileReference*>::const_iterator itr = threatList.begin(); itr != threatList.end(); ++itr)
-                 //   if (Player* target = (*itr)->getTarget()->ToPlayer())
-                     //   if (target->GetQuestStatus(38728) == QUEST_STATUS_INCOMPLETE)
-                        //    target->KilledMonsterCredit(101760);
+                std::list<ThreatReference*> threatList;
+                me->GetThreatManager().GetThreatenedByMeList();
+                for (std::list<ThreatReference*>::const_iterator itr = threatList.begin(); itr != threatList.end(); ++itr)
+                    if (float target = (*itr)->GetThreat())
+                        if (Player* target = target)
+                        {
+                            target->GetQuestStatus(38728) == (QUEST_STATUS_INCOMPLETE);
+                            target->KilledMonsterCredit(101760);
+                        }
             }
         }
 
@@ -1603,11 +1608,11 @@ class npc_mardum_kayn_sunfury_end : public PlayerScript
 public:
     npc_mardum_kayn_sunfury_end() : PlayerScript("npc_mardum_kayn_sunfury_end") { }
 
-    bool OnQuestReward(Player* player, Creature* /*creature*/, Quest const* /*quest*/, uint32 /*opt*/)
+    bool OnQuestReward(Player* player, Creature* /*creature*/, Quest const* quest, uint32 /*opt*/)
     {
         // This Scene make the mobs disappear ATM
-        //if (quest->GetQuestId() == QUEST_THE_KEYSTONE)
-        //    player->CastSpell(player, 193387, true); // Scene
+        if (quest->GetQuestId() == QUEST_THE_KEYSTONE)
+            player->CastSpell(player, 193387, true); // Scene
 
         PhasingHandler::OnConditionChange(player);
 
@@ -1637,7 +1642,7 @@ class spell_mardum_back_to_black_temple : public SpellScript
     {
         if (Player* player = GetCaster()->ToPlayer())
         {
-            /*player->AddMovieDelayedAction(471, [player]
+            player->AddMovieDelayedAction2(471, [player]
             {
                 player->EquipNewItem(15, 132243, ItemContext::NONE, true);
                 player->EquipNewItem(16, 128956, ItemContext::NONE, true);
@@ -1648,7 +1653,7 @@ class spell_mardum_back_to_black_temple : public SpellScript
             player->GetScheduler().Schedule(Seconds(2), [](TaskContext context)
             {
                 GetContextUnit()->RemoveAurasDueToSpell(192140); // Remove black screen
-            });*/
+            });
         }
     }
 

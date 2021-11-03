@@ -111,8 +111,8 @@ public:
 
     void OnSceneTriggerEvent(Player* player, uint32 /*sceneInstanceID*/, SceneTemplate const* /*sceneTemplate*/, std::string const& triggerName) override
     {
-        //if (triggerName == "invisibledalaran")
-            //PhasingHandler::AddPhase(player, PHASE_DALARAN_KARAZHAN);
+        if (triggerName == "invisibledalaran")
+            PhasingHandler::AddPhase(player, PHASE_DALARAN_KARAZHAN, true);
     }
 
     void OnSceneEnd(Player* player, uint32 /*sceneInstanceID*/, SceneTemplate const* /*sceneTemplate*/)
@@ -134,13 +134,12 @@ public:
 
     void OnPlayerEnter(Player* player)
     {
-        //player->SeamlessTeleportToMap(MAP_DALARAN_UNDERBELLY);
+        player->AddStoredAuraTeleportLocation(MAP_DALARAN_UNDERBELLY);
     }
-
     void OnPlayerExit(Player* player)
     {
-        //if (player->GetMapId() == MAP_DALARAN_UNDERBELLY)
-            //player->SeamlessTeleportToMap(MAP_BROKEN_ISLANDS);
+        if (player->GetMapId() == MAP_DALARAN_UNDERBELLY)
+            player->AddStoredAuraTeleportLocation(MAP_BROKEN_ISLANDS);
     }
 };
 
@@ -262,7 +261,7 @@ public:
             player->LearnSpell(SPELL_BROKEN_ISLES_PATHFINDER_2, true);
 
         //AGUS ARRAIVE
-        /*if (player->IsInAlliance() && player->GetQuestStatus(QUEST_A_THE_HAND_OF_FATE) != QUEST_STATUS_REWARDED && player->getLevel() >= 110 && player->GetZoneId() == 7502)
+        if (/*player->IsInAlliance() &&*/ player->GetQuestStatus(QUEST_A_THE_HAND_OF_FATE) != QUEST_STATUS_REWARDED && player->getLevel() >= 110 && player->GetZoneId() == 7502)
         {
             if (const Quest* quest = sObjectMgr->GetQuestTemplate(QUEST_A_THE_HAND_OF_FATE))
                 if (player->GetQuestStatus(QUEST_A_THE_HAND_OF_FATE) == QUEST_STATUS_NONE)
@@ -271,7 +270,7 @@ public:
                     Conversation::CreateConversation(CONVERSATION_A_THE_HAND_OF_FATE, player, player->GetPosition(), { player->GetGUID() });
                 }
         }
-        if (player->IsInHorde() && player->GetQuestStatus(QUEST_H_THE_HAND_OF_FATE) != QUEST_STATUS_REWARDED && player->getLevel() >= 110 && player->GetZoneId() == 7502)
+        if (/*player->IsInHorde() &&*/ player->GetQuestStatus(QUEST_H_THE_HAND_OF_FATE) != QUEST_STATUS_REWARDED && player->getLevel() >= 110 && player->GetZoneId() == 7502)
         {
             if (const Quest* quest = sObjectMgr->GetQuestTemplate(QUEST_H_THE_HAND_OF_FATE))
                 if (player->GetQuestStatus(QUEST_H_THE_HAND_OF_FATE) == QUEST_STATUS_NONE)
@@ -279,7 +278,7 @@ public:
                     player->AddQuest(quest, nullptr);
                     Conversation::CreateConversation(CONVERSATION_H_THE_HAND_OF_FATE, player, player->GetPosition(), { player->GetGUID() });
                 }
-        }*/
+        }
 
         if (player->GetQuestStatus(QUEST_BLINK_OF_AN_EYE) == QUEST_STATUS_REWARDED && player->getLevel() >= 98 && player->GetZoneId() == 7502)
         {
@@ -315,23 +314,23 @@ public:
                 OnTempSummonNPC(NPC_KORVAS_BLOODTHORN_99343, player);
 
             //WARRIOR Quest
-            /*if (player->getClass() == CLASS_WARRIOR)
+            if (player->getClass() == CLASS_WARRIOR)
             {
-                if (player->IsInAlliance() && player->GetQuestStatus(QUEST_A_AN_IMPORTANT_MISSION) == QUEST_STATUS_NONE)
+                if (/*player->IsInAlliance() &&*/ player->GetQuestStatus(QUEST_A_AN_IMPORTANT_MISSION) == QUEST_STATUS_NONE)
                     OnTempSummonNPC(NPC_SERGEANT_DALTON_108961, player);
-                if (player->IsInHorde() && player->GetQuestStatus(QUEST_H_A_DESPERATE_PLEA) == QUEST_STATUS_NONE)
+                if (/*player->IsInHorde() &&*/ player->GetQuestStatus(QUEST_H_A_DESPERATE_PLEA) == QUEST_STATUS_NONE)
                     OnTempSummonNPC(NPC_EITRIGG_93775, player);
-            }*/
+            }
             //ROGUE Quest
             if (player->getClass() == CLASS_ROGUE && player->GetQuestStatus(QUEST_CALL_OF_THE_UNCROWNED) == QUEST_STATUS_NONE)
                 OnTempSummonNPC(NPC_RAVENHOLDT_COURIER_102018, player);
 
             //Priest Quest
-            /*f(player->getClass() == CLASS_PRIEST && player->GetQuestStatus(QUEST_PRIESTLY_MATTERS) == QUEST_STATUS_NONE)
+            if(player->getClass() == CLASS_PRIEST && player->GetQuestStatus(QUEST_PRIESTLY_MATTERS) == QUEST_STATUS_NONE)
             {
-                uint32 priestNpc = player->IsInAlliance() ? NPC_A_HOODED_PRIESTESS : NPC_H_HOODED_PRIESTESS;
+                uint32 priestNpc = /*player->IsInAlliance()*/ NPC_A_HOODED_PRIESTESS, NPC_H_HOODED_PRIESTESS;
                 OnTempSummonNPC(priestNpc, player);
-            }*/
+            }
             //SHAMAN Quest
             if (player->getClass() == CLASS_SHAMAN && player->GetQuestStatus(QUEST_THE_CALL_TO_WAR) == QUEST_STATUS_NONE)
                 player->SummonCreature(NPC_WHISPERING_WINDS, Position(-828.6302f, 4386.04f, 738.7358f, 1.828947f), TEMPSUMMON_TIMED_DESPAWN, 60000, 0);
@@ -376,7 +375,7 @@ enum CLASS_PHASE
     PHASE_CLASS_MAGE = 4918,
     PHASE_CLASS_WARLOCK = 6811,
     PHASE_CLASS_MONK = 10,
-    //PHASE_CLASS_DRUID = 11,
+    PHASE_CLASS_DRUID = 11,
     PHASE_CLASS_DEMON_HUNTER = 5015,
     PHASE_CLASS_DEMON_HUNTER_ALLIANCE = 5020,
     PHASE_CLASS_DEMON_HUNTER_HORDE = 5021,
@@ -392,60 +391,60 @@ public:
 
     void OnQuestStatusChange(Player* player, uint32 /*questId*/)
     {
-    //    OnCheckPhase(player);
+        OnCheckPhase(player);
     }
-/*
-    void OnCheckPhase(Player* player) ANADIR FUNCIONES
+
+    void OnCheckPhase(Player* player)
     { 
         if (player->GetMapId() == 1220)
         {
             if (player->GetAreaId() == 7505 && player->getClass() == CLASS_PALADIN)
             {
-                PhasingHandler::AddPhase(player, PHASE_CLASS_PALADIN);
-                if (player->CheckQuestStatus(42120, CHECK_QUEST_COMPLETE_AND_REWARDED) && player->CheckQuestStatus(42017, CHECK_QUEST_COMPLETE_AND_REWARDED) && player->CheckQuestStatus(38376, CHECK_QUEST_COMPLETE_AND_REWARDED))
-                    PhasingHandler::RemovePhase(player, PHASE_CLASS_PALADIN);
+                PhasingHandler::AddPhase(player, PHASE_CLASS_PALADIN, true);
+                if (player->GetQuestStatus(42120) && player->GetQuestStatus(42017) && player->GetQuestStatus(38376))
+                    PhasingHandler::RemovePhase(player, PHASE_CLASS_PALADIN, true);
             }
             if (player->getClass() == CLASS_HUNTER)
             {
                 if (player->GetAreaId() == 7502 || player->GetAreaId() == 7505)
-                    PhasingHandler::AddPhase(player, PHASE_CLASS_HUNTER_1);
+                    PhasingHandler::AddPhase(player, PHASE_CLASS_HUNTER_1, true);
                 if (player->GetAreaId() == 7505)
-                    PhasingHandler::AddPhase(player, PHASE_CLASS_HUNTER_2);
+                    PhasingHandler::AddPhase(player, PHASE_CLASS_HUNTER_2, true);
             }
             if (player->GetAreaId() == 7505 && player->getClass() == CLASS_WARRIOR)
             {
-                if (player->IsInHorde() && (player->HasQuest(QUEST_H_A_DESPERATE_PLEA) || player->HasQuest(QUEST_H_RETURN_TO_THE_BROKEN_SHORE)))
-                    PhasingHandler::AddPhase(player, PHASE_CLASS_WARRIOR_HORDE);
-                if (player->IsInAlliance() && (player->HasQuest(QUEST_A_AN_IMPORTANT_MISSION) || player->HasQuest(QUEST_A_RETURN_TO_THE_BROKEN_SHORE)))
-                    PhasingHandler::AddPhase(player, PHASE_CLASS_WARRIOR_ALIANCE);
-                PhasingHandler::AddPhase(player, PHASE_CLASS_WARRIOR);
+                if (/*player->IsInHorde() &&*/ (player->hasQuest(QUEST_H_A_DESPERATE_PLEA) || player->hasQuest(QUEST_H_RETURN_TO_THE_BROKEN_SHORE)))
+                    PhasingHandler::AddPhase(player, PHASE_CLASS_WARRIOR_HORDE, true);
+                if (/*player->IsInAlliance() &&*/ (player->hasQuest(QUEST_A_AN_IMPORTANT_MISSION) || player->hasQuest(QUEST_A_RETURN_TO_THE_BROKEN_SHORE)))
+                    PhasingHandler::AddPhase(player, PHASE_CLASS_WARRIOR_ALIANCE, true);
+                PhasingHandler::AddPhase(player, PHASE_CLASS_WARRIOR, true);
             }
             if (player->getClass() == CLASS_DEMON_HUNTER)
             {
                 if ((player->GetAreaId() == 7505) || (player->GetAreaId() == 7592))
                 {
-                    PhasingHandler::AddPhase(player, PHASE_CLASS_DEMON_HUNTER);
-                    PhasingHandler::AddPhase(player, player->IsInAlliance() ? PHASE_CLASS_DEMON_HUNTER_ALLIANCE : PHASE_CLASS_DEMON_HUNTER_HORDE);
+                    PhasingHandler::AddPhase(player, PHASE_CLASS_DEMON_HUNTER, true);
+                    PhasingHandler::AddPhase(player, /*player->IsInAlliance() ?*/ PHASE_CLASS_DEMON_HUNTER_ALLIANCE, PHASE_CLASS_DEMON_HUNTER_HORDE);
                     // The Hunt (Obtain the Twinblades of the Deceiver from Varedis Felsoul in Suramar.) OR Vengeance Will Be Ours (Take the Aldrachi Warblades from Caria Felsoul.)
-                    if (player->CheckQuestStatus(41119, CHECK_QUEST_COMPLETE_AND_REWARDED) || player->CheckQuestStatus(39247, CHECK_QUEST_COMPLETE_AND_REWARDED) || player->CheckQuestStatus(40249, CHECK_QUEST_COMPLETE_AND_REWARDED) || player->CheckQuestStatus(41863, CHECK_QUEST_COMPLETE_AND_REWARDED))
-                        PhasingHandler::AddPhase(player, PHASE_CLASS_DEMON_HUNTER_READY_TO);
+                    if (player->GetQuestStatus(41119) || player->GetQuestStatus(39247) || player->GetQuestStatus(40249) || player->GetQuestStatus(41863))
+                        PhasingHandler::AddPhase(player, PHASE_CLASS_DEMON_HUNTER_READY_TO, true);
                     // Eternal Vigil
-                    if (player->CheckQuestStatus(42869, CHECK_QUEST_REWARDED) && !player->HasQuest(41119) && !player->HasQuest(39247) && !player->HasQuest(40249) && !player->HasQuest(41863))
-                        PhasingHandler::RemovePhase(player, PHASE_CLASS_DEMON_HUNTER_READY_TO);
+                    if (player->GetQuestStatus(42869) && !player->hasQuest(41119) && !player->hasQuest(39247) && !player->hasQuest(40249) && !player->hasQuest(41863))
+                        PhasingHandler::RemovePhase(player, PHASE_CLASS_DEMON_HUNTER_READY_TO, true);
                 }
                 if (player->GetAreaId() == 8284)
                 {
                     if (player->GetQuestStatus(42869) == QUEST_STATUS_INCOMPLETE)
                         player->ForceCompleteQuest(42869);
-                    if (player->CheckQuestStatus(42869, CHECK_QUEST_TAKEN_AND_COMPLETE_AND_REWARDED))
-                        PhasingHandler::AddPhase(player, PHASE_CLASS_DEMON_HUNTER_READY_TO);
+                    if (player->GetQuestStatus(42869))
+                        PhasingHandler::AddPhase(player, PHASE_CLASS_DEMON_HUNTER_READY_TO, true);
 
-                    if (player->CheckQuestStatus(42872, CHECK_QUEST_TAKEN))
-                        PhasingHandler::AddPhase(player, 5023);
-                    if (player->CheckQuestStatus(42872, CHECK_QUEST_COMPLETE_AND_REWARDED))
+                    if (player->GetQuestStatus(42872))
+                        PhasingHandler::AddPhase(player, 5023, true);
+                    if (player->GetQuestStatus(42872))
                     {
-                        PhasingHandler::RemovePhase(player, 5023);
-                        PhasingHandler::AddPhase(player, 5024);
+                        PhasingHandler::RemovePhase(player, 5023, true);
+                        PhasingHandler::AddPhase(player, 5024, true);
                     }
 
                 }
@@ -453,64 +452,64 @@ public:
             if (player->getClass() == CLASS_SHAMAN)
             {
                 if ((player->GetAreaId() == 7505) || (player->GetAreaId() == 7592) || (player->GetAreaId() == 7581))
-                    PhasingHandler::AddPhase(player, PHASE_CLASS_SHAMAN);
+                    PhasingHandler::AddPhase(player, PHASE_CLASS_SHAMAN, true);
             }
             if (player->getClass() == CLASS_WARLOCK)
             {
                 if ((player->GetAreaId() == 7505) || (player->GetAreaId() == 7592))
-                    PhasingHandler::AddPhase(player, PHASE_CLASS_WARLOCK);
+                    PhasingHandler::AddPhase(player, PHASE_CLASS_WARLOCK, true);
             }
             if (player->getClass() == CLASS_PRIEST)
             {
                 if (player->GetAreaId() == 7596)
                 {
-                    if (player->CheckQuestStatus(41957, CHECK_QUEST_TAKEN_AND_COMPLETE_AND_REWARDED))
-                        PhasingHandler::AddPhase(player, PHASE_CLASS_PRIEST);
-                    if (player->CheckQuestStatus(41967, CHECK_QUEST_COMPLETE_AND_REWARDED))
-                        PhasingHandler::RemovePhase(player, PHASE_CLASS_PRIEST);
+                    if (player->GetQuestStatus(41957))
+                        PhasingHandler::AddPhase(player, PHASE_CLASS_PRIEST, true);
+                    if (player->GetQuestStatus(41967))
+                        PhasingHandler::RemovePhase(player, PHASE_CLASS_PRIEST, true);
                 }
                 if (player->GetAreaId() == 7505)
                 {
-                    if (player->CheckQuestStatus(41967, CHECK_QUEST_TAKEN_AND_COMPLETE))
-                        PhasingHandler::AddPhase(player, PHASE_CLASS_PRIEST);
-                    if (player->CheckQuestStatus(41967, CHECK_QUEST_REWARDED))
-                        PhasingHandler::RemovePhase(player, PHASE_CLASS_PRIEST);
+                    if (player->GetQuestStatus(41967))
+                        PhasingHandler::AddPhase(player, PHASE_CLASS_PRIEST, true);
+                    if (player->GetQuestStatus(41967))
+                        PhasingHandler::RemovePhase(player, PHASE_CLASS_PRIEST, true);
                 }
                 //6266 6298 6265 6310 6317 6330
                 if (player->GetAreaId() == 8143)
                 {
-                    if (player->CheckQuestStatus(41967, CHECK_QUEST_TAKEN))
-                        PhasingHandler::AddPhase(player, 6266);
-                    if (player->CheckQuestStatus(41967, CHECK_QUEST_COMPLETE_AND_REWARDED))
+                    if (player->GetQuestStatus(41967))
+                        PhasingHandler::AddPhase(player, 6266, true);
+                    if (player->GetQuestStatus(41967))
                     {
-                        PhasingHandler::RemovePhase(player, 6266);
-                        PhasingHandler::AddPhase(player, 6265);
+                        PhasingHandler::RemovePhase(player, 6266, true);
+                        PhasingHandler::AddPhase(player, 6265, true);
                     }
-                    if (player->CheckQuestStatus(41993, CHECK_QUEST_TAKEN))
+                    if (player->GetQuestStatus(41993))
                     {
-                        PhasingHandler::RemovePhase(player, 6265);
-                        PhasingHandler::AddPhase(player, 6310);
+                        PhasingHandler::RemovePhase(player, 6265, true);
+                        PhasingHandler::AddPhase(player, 6310, true);
                     }
-                    if (player->CheckQuestStatus(41993, CHECK_QUEST_COMPLETE_AND_REWARDED))
+                    if (player->GetQuestStatus(41993))
                     {
-                        PhasingHandler::RemovePhase(player, 6265);
-                        PhasingHandler::RemovePhase(player, 6310);
-                        PhasingHandler::AddPhase(player, 6330);
+                        PhasingHandler::RemovePhase(player, 6265, true);
+                        PhasingHandler::RemovePhase(player, 6310, true);
+                        PhasingHandler::AddPhase(player, 6330, true);
                     }
 
-                    if (player->CheckQuestStatus(42074, CHECK_QUEST_COMPLETE_AND_REWARDED))
+                    if (player->GetQuestStatus(42074))
                     {
-                        PhasingHandler::RemovePhase(player, 6265);
-                        PhasingHandler::RemovePhase(player, 6310);
-                        PhasingHandler::RemovePhase(player, 6330);
+                        PhasingHandler::RemovePhase(player, 6265, true);
+                        PhasingHandler::RemovePhase(player, 6310, true);
+                        PhasingHandler::RemovePhase(player, 6330, true);
                     }
                 }
             }
             if (player->getClass() == CLASS_DEATH_KNIGHT)
             {
                 if ((player->GetAreaId() == 7505) || (player->GetAreaId() == 7592))
-                    if (player->CheckQuestStatus(40714, CHECK_QUEST_TAKEN_AND_COMPLETE_AND_REWARDED))
-                        PhasingHandler::AddPhase(player, PHASE_CLASS_DEATH_KNIGHT);
+                    if (player->GetQuestStatus(40714))
+                        PhasingHandler::AddPhase(player, PHASE_CLASS_DEATH_KNIGHT, true);
             }
             if (player->GetAreaId() == 7502)
             {
@@ -522,39 +521,39 @@ public:
         }
         if (player->GetAreaId() == 7505)
         {
-            if (player->CheckQuestStatus(46734, CHECK_QUEST_NOT_REWARDED))
-                PhasingHandler::AddPhase(player, PHASE_QUEST_ASSAULT_ON_BROKEN_SHORE);
-            else if (player->CheckQuestStatus(46734, CHECK_QUEST_REWARDED))
-                PhasingHandler::RemovePhase(player, PHASE_QUEST_ASSAULT_ON_BROKEN_SHORE);
-            if (player->CheckQuestStatus(39731, CHECK_QUEST_TAKEN_AND_COMPLETE_AND_REWARDED) || player->CheckQuestStatus(39861, CHECK_QUEST_TAKEN))
-                PhasingHandler::AddPhase(player, PHASE_QUEST_VALSHARAH);
-            if (player->CheckQuestStatus(39861, CHECK_QUEST_REWARDED))
-                PhasingHandler::RemovePhase(player, PHASE_QUEST_VALSHARAH);
+            if (player->GetQuestStatus(4673))
+                PhasingHandler::AddPhase(player, PHASE_QUEST_ASSAULT_ON_BROKEN_SHORE, true);
+            else if (player->GetQuestStatus(46734))
+                PhasingHandler::RemovePhase(player, PHASE_QUEST_ASSAULT_ON_BROKEN_SHORE, true);
+            if (player->GetQuestStatus(39731) || player->GetQuestStatus(39861))
+                PhasingHandler::AddPhase(player, PHASE_QUEST_VALSHARAH, true);
+            if (player->GetQuestStatus(39861))
+                PhasingHandler::RemovePhase(player, PHASE_QUEST_VALSHARAH, true);
 
-            if (player->CheckQuestStatus(39718, CHECK_QUEST_TAKEN_AND_COMPLETE_AND_REWARDED) || player->CheckQuestStatus(41220, CHECK_QUEST_TAKEN))
-                PhasingHandler::AddPhase(player, PHASE_QUEST_AZUNA);
-            if (player->CheckQuestStatus(41220, CHECK_QUEST_REWARDED))
-                PhasingHandler::RemovePhase(player, PHASE_QUEST_AZUNA);
+            if (player->GetQuestStatus(39718) || player->GetQuestStatus(41220))
+                PhasingHandler::AddPhase(player, PHASE_QUEST_AZUNA, true);
+            if (player->GetQuestStatus(41220))
+                PhasingHandler::RemovePhase(player, PHASE_QUEST_AZUNA, true);
         }
         if (player->GetAreaId() == 7502)
         {
             //horde            
-         /*   if (player->CheckQuestStatus(39864, CHECK_QUEST_TAKEN_AND_COMPLETE_AND_REWARDED) || player->CheckQuestStatus(44701, CHECK_QUEST_TAKEN_AND_COMPLETE_AND_REWARDED))
-                PhasingHandler::AddPhase(player, PHASE_STORMHEIM_HORDE);
-            if (player->CheckQuestStatus(39801, CHECK_QUEST_REWARDED))
-                PhasingHandler::RemovePhase(player, PHASE_STORMHEIM_HORDE);
+            if (player->GetQuestStatus(39864) || player->GetQuestStatus(44701))
+                PhasingHandler::AddPhase(player, PHASE_STORMHEIM_HORDE, true);
+            if (player->GetQuestStatus(39801))
+                PhasingHandler::RemovePhase(player, PHASE_STORMHEIM_HORDE, true);
             //alliance
-            if (player->CheckQuestStatus(39735, CHECK_QUEST_TAKEN_AND_COMPLETE_AND_REWARDED) || player->CheckQuestStatus(44700, CHECK_QUEST_TAKEN_AND_COMPLETE_AND_REWARDED))
-                PhasingHandler::AddPhase(player, PHASE_STORMHEIM_ALLIANCE);
-            if (player->CheckQuestStatus(38052, CHECK_QUEST_REWARDED))
-                PhasingHandler::RemovePhase(player, PHASE_STORMHEIM_ALLIANCE);
+            if (player->GetQuestStatus(39735) || player->GetQuestStatus(44700))
+                PhasingHandler::AddPhase(player, PHASE_STORMHEIM_ALLIANCE, true);
+            if (player->GetQuestStatus(38052))
+                PhasingHandler::RemovePhase(player, PHASE_STORMHEIM_ALLIANCE, true);
         }
     }
-    */
+
     void OnSpellCast(Player* player, Spell* spell, bool /*skipCheck*/)
     {
-        //if (spell->GetSpellInfo()->Id == 220513)
-            //player->TeleportTo(1624, Position(-4242.29f, -11480.4f, 9.495f, 5.97674f));
+        if (spell->GetSpellInfo()->Id == 220513)
+            player->TeleportTo2(1624, -4242.29f, -11480.4f, 9.495f, 5.97674f);
     }
 };
 
@@ -628,7 +627,7 @@ struct npc_emissary_auldbridge_111109 : public ScriptedAI
             creature->DespawnOrUnsummon(1000);
 
         Position _positon = me->GetPosition();
-      //  GetPositionWithDistInFront(me, 15.f, _positon);
+        //GetPositionWithDistInFront(me, 15.f, _positon);
 
         if (TempSummon* personalCreature = player->SummonCreature(insideNpc, _positon, TEMPSUMMON_TIMED_DESPAWN, 60000, 0))
             personalCreature->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, personalCreature->GetFollowAngle());
@@ -675,22 +674,22 @@ struct npc_emissary_auldbridge_111109 : public ScriptedAI
 
                     //WARRIOR Quest
                     if (player->getClass() == CLASS_WARRIOR)
-                    /* {
-                        if (player->IsInAlliance() && player->GetQuestStatus(QUEST_A_AN_IMPORTANT_MISSION) == QUEST_STATUS_NONE)
+                     {
+                        if (/*player->IsInAlliance() &&*/ player->GetQuestStatus(QUEST_A_AN_IMPORTANT_MISSION) == QUEST_STATUS_NONE)
                             OnTempSummonNPC(NPC_SERGEANT_DALTON_108961, player);
-                        if (player->IsInHorde() && player->GetQuestStatus(QUEST_H_A_DESPERATE_PLEA) == QUEST_STATUS_NONE)
+                        if (/*player->IsInHorde() &&*/ player->GetQuestStatus(QUEST_H_A_DESPERATE_PLEA) == QUEST_STATUS_NONE)
                             OnTempSummonNPC(NPC_EITRIGG_93775, player);
-                    }*/
+                    }
                     //ROGUE Quest
                     if (player->getClass() == CLASS_ROGUE && player->GetQuestStatus(QUEST_CALL_OF_THE_UNCROWNED) == QUEST_STATUS_NONE)
                         OnTempSummonNPC(NPC_RAVENHOLDT_COURIER_102018, player);
 
                     //Priest Quest
                     if (player->getClass() == CLASS_PRIEST && player->GetQuestStatus(QUEST_PRIESTLY_MATTERS) == QUEST_STATUS_NONE)
-                    /* {
-                        uint32 priestNpc = player->IsInAlliance() ? NPC_A_HOODED_PRIESTESS : NPC_H_HOODED_PRIESTESS;
+                     {
+                        uint32 priestNpc = /*player->IsInAlliance()*/ NPC_A_HOODED_PRIESTESS, NPC_H_HOODED_PRIESTESS;
                         OnTempSummonNPC(priestNpc, player);
-                    }*/
+                    }
                     //SHAMAN Quest
                     if (player->getClass() == CLASS_SHAMAN && player->GetQuestStatus(QUEST_THE_CALL_TO_WAR) == QUEST_STATUS_NONE)
                         player->SummonCreature(NPC_WHISPERING_WINDS, Position(-828.6302f, 4386.04f, 738.7358f, 1.828947f), TEMPSUMMON_TIMED_DESPAWN, 60000, 0);
@@ -706,7 +705,7 @@ struct npc_emissary_auldbridge_111109 : public ScriptedAI
 
         }
 
-        //RemovePlayer();  
+        //RemovePlayer();
     }
 private:
     EventMap events;
@@ -829,15 +828,15 @@ struct npc_nat_pagle_102639 : public ScriptedAI
 {
     npc_nat_pagle_102639(Creature* creature) : ScriptedAI(creature) { }
 
-    /*bool GossipSelect(Player* player, uint32 /*menuId, uint32 gossipListId) override
+    bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
     {
         CloseGossipMenuFor(player);
         player->KilledMonsterCredit(102639);
         if (player->hasQuest(QUEST_FISH_FRENZY))
-            //player->TeleportTo(1553, Position(2570.71f, 8273.89f, 1.93f, 2.79253f));
+            player->TeleportTo2(1553, 2570.71f, 8273.89f, 1.93f, 2.79253f);
 
         return true;
-    }*/
+    }
 };
 
 class CastEventTP : public BasicEvent
@@ -846,7 +845,7 @@ public:
     CastEventTP(Unit* caster, uint32 spellId, bool trigger) :
         _caster(caster), _spellId(spellId), _trigger(trigger) { }
 
-    bool Execute(uint64 /*time*/, uint32 /*diff*/)
+    bool Execute(uint64 time, uint32 diff)
     {
         if (_caster)
             _caster->CastSpell(_caster, _spellId, _trigger);
@@ -864,14 +863,14 @@ struct npc_hunter_talua : public ScriptedAI
 {
     npc_hunter_talua(Creature* creature) : ScriptedAI(creature) {  }
 
-    bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+    bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
     {
         CloseGossipMenuFor(player);
         if (player->getLevel() < 98 || player->getClass() != CLASS_HUNTER)
             return true;
 
-     //   if (Pet* pet = player->GetPet())
-      //      player->RemovePet(nullptr, PET_SAVE_DISMISS, false);
+       if (Pet* pet = player->GetPet())
+            player->RemovePet(nullptr, PetSaveMode::PET_SAVE_AS_CURRENT, false);
 
         player->CastSpell(player, 216213, true);
         player->m_Events.AddEvent(new CastEventTP(player, 216216, true), player->m_Events.CalculateTime(10000));
@@ -886,7 +885,7 @@ struct npc_great_eagle : public ScriptedAI
     npc_great_eagle(Creature* creature) : ScriptedAI(creature) { }
 
     uint8 curID;
-    void Reset()
+    void Reset() override
     {
     }
 
@@ -896,7 +895,7 @@ struct npc_great_eagle : public ScriptedAI
         me->GetMotionMaster()->MovePoint(1, -854.9718f, 4185.322f, 754.1122f);
     }
 
-    void MovementInform(uint32 type, uint32 id)
+    void MovementInform(uint32 type, uint32 id) override
     {
         if (type != POINT_MOTION_TYPE)
             return;
@@ -931,7 +930,7 @@ struct npc_archmage_khadgar_90417 : public ScriptedAI
         if (quest->GetQuestId() == 39986)
         {
             //if (IsLock)
-           //     IsLock = false;
+              //  IsLock = false;
             Talk(1);//Any disturbance should catalyze the sequence. Just, uh, give it a poke or something.
             if (Creature* npc = me->FindNearestCreature(98266, 50.0f, true))
                 npc->AddNpcFlag(UNIT_NPC_FLAG_SPELLCLICK);
@@ -946,21 +945,21 @@ struct npc_archmage_khadgar_90417 : public ScriptedAI
             me->Say(13874, player);
             sceneHelper.Clear();
             sceneHelper.SetDefaultActorGuid(me->GetGUID());
-          //  sceneHelper.SetDefaultPlayerGuid(player->GetGUID());
+            sceneHelper.SetDefaultPlayerGuid(player->GetGUID());
 
             sceneHelper.AddSceneActionMovePos(npc_archmage_khadgar_90417_q41804_pos[0], 100);
             sceneHelper.AddSceneActionMovePos(npc_archmage_khadgar_90417_q41804_pos[1], 2500);
             sceneHelper.AddSceneActionMovePos(npc_archmage_khadgar_90417_q41804_pos[2], 2500);
-            //sceneHelper.AddSceneActionSay(130254, 500);//Hold on just a moment.I frea I'm a bit of a packrat.
+            sceneHelper.AddSceneActionSay(130254, 500);//Hold on just a moment.I frea I'm a bit of a packrat.
             sceneHelper.AddSceneActionMovePos(npc_archmage_khadgar_90417_q41804_pos[3], 2500);
-            //sceneHelper.AddSceneActionSay(86873, 500);//Now let's see...apexis crystals? No,no,those won't do at all. 
-           // sceneHelper.AddSceneActionSay(86873, 500);//Hmm,I must've put it over here.
+            sceneHelper.AddSceneActionSay(86873, 500);//Now let's see...apexis crystals? No,no,those won't do at all.
+            sceneHelper.AddSceneActionSay(86873, 500);//Hmm,I must've put it over here.
             sceneHelper.AddSceneActionMovePos(npc_archmage_khadgar_90417_q41804_pos[4], 2500);
-            //sceneHelper.AddSceneActionSay(86873, 500);//Arcane powder...soul shards...that's definitely not it...
-            //sceneHelper.AddSceneActionSay(86873, 500);//A-ha!Here we are...a crystallized soul. That ought to do the trick!
-            //sceneHelper.AddSceneActionSay(86873, 500);//Would you mind grabbing it?These crystals tend to have an adverse effect on non-demonic beings.
-            //sceneHelper.AddSceneActionKillCreditMonster(90417, 1, 500);
-            //sceneHelper.AddSceneSummonGameObject(248521, Position(-830.549f, 4654.773f, 767.65f, 4.5352f), 500);
+            sceneHelper.AddSceneActionSay(86873, 500);//Arcane powder...soul shards...that's definitely not it...
+            sceneHelper.AddSceneActionSay(86873, 500);//A-ha!Here we are...a crystallized soul. That ought to do the trick!
+            sceneHelper.AddSceneActionSay(86873, 500);//Would you mind grabbing it?These crystals tend to have an adverse effect on non-demonic beings.
+            sceneHelper.AddSceneActionKillCreditMonster(90417, 1, 500);
+            sceneHelper.AddSceneSummonGameObject(248521, Position(-830.549f, 4654.773f, 767.65f, 4.5352f), 500);
             sceneHelper.AddSceneActionMovePos(npc_archmage_khadgar_90417_q41804_pos[5], 2500);
             sceneHelper.AddSceneActionMovePos(npc_archmage_khadgar_90417_q41804_pos[6], 2500);
             sceneHelper.AddSceneActionMovePos(npc_archmage_khadgar_90417_q41804_pos[7], 2500);
@@ -1123,12 +1122,13 @@ struct npc_wyrmtongue_hoarder_89407 : public ScriptedAI
         if (spellInfo->Id == 178997)
         {
             //122291 reward item
-            //std::list<Player*> _list = me->SelectNearestPlayers(25.f, true);
-            //if (!_list.empty())
-                //for (Player* player : _list)
-                    //player->AddItem(122291, 1);
+            std::list <Player*> _list;
+            me->SelectNearestPlayer(25.f);
+            if (!_list.empty())
+                for (Player* player : _list)
+                    player->AddItem(122291, 1);
 
-            //me->DespawnOrUnsummon(6000);
+            me->DespawnOrUnsummon(6000);
         }
     }
 

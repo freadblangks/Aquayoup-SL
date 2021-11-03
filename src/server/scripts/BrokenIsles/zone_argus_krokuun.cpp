@@ -185,13 +185,13 @@ public:
 
             if (player->hasQuest(QUEST_A_THE_HAND_OF_FATE))
             {
-               /* if (!player->GetQuestObjectiveData(QUEST_A_THE_HAND_OF_FATE, 0))
+                //if (!player->GetQuestObjectiveData(QUEST_A_THE_HAND_OF_FATE))
                 {
                     if (!Intr)
                         Intr = true;
 
                     player->KilledMonsterCredit(KILLED_MONSTER_CREDIT_THE_HAND_OF_FATE);
-                }*/
+                }
             }
         }
 
@@ -292,7 +292,7 @@ public:
             _playerGUID = ObjectGuid::Empty;
         }
 
-        void DoAction(int32 action)
+        void DoAction(int32 action) override
         {
             if (action == ACTION_START_ANIMATION)
                 events.ScheduleEvent(EVENT_STEP_01, 1s);
@@ -410,7 +410,7 @@ struct npc_lady_liadrin_122065 : public ScriptedAI
         Player* player = who->GetCharmerOrOwnerPlayerOrPlayerItself();
         if (!player)
             return;
-        /*if (!HasPlayer(player->GetGUID()) && (player->hasQuest(QUEST_H_THE_HAND_OF_FATE)) && !player->GetQuestObjectiveData(QUEST_H_THE_HAND_OF_FATE, 0))
+        if (!HasPlayer(player->GetGUID()) && (player->hasQuest(QUEST_H_THE_HAND_OF_FATE))) //&& !player->GetQuestObjectiveData(QUEST_H_THE_HAND_OF_FATE))
         {
             m_playerGUID = player->GetGUID();
             AddPlayer();
@@ -432,7 +432,7 @@ struct npc_lady_liadrin_122065 : public ScriptedAI
             });
 
             m_playerGUID = ObjectGuid::Empty;
-        }*/
+        }
     }
 private:
     TaskScheduler _scheduler;
@@ -510,14 +510,14 @@ public:
         TC_LOG_ERROR("server.worldserver", "OnGossipHello ");
         if (player->GetQuestStatus(QUEST_LIGHTS_EXODUS) == QUEST_STATUS_COMPLETE)
         {
-            //TC_LOG_ERROR("server.worldserver", "QUEST_LIGHTS_EXODUS OnGossipHello ");
+            TC_LOG_ERROR("server.worldserver", "QUEST_LIGHTS_EXODUS OnGossipHello ");
             if (creature->IsQuestGiver())
                 player->PrepareQuestMenu(creature->GetGUID()); /* return true*/
             SendGossipMenuFor(player, player->GetGossipTextId(creature), creature->GetGUID());
         }
         else if (player->GetMapId() == 1750 && (player->GetQuestStatus(QUEST_INTO_THE_NIGHT) == QUEST_STATUS_INCOMPLETE || player->GetQuestStatus(QUEST_INTO_THE_NIGHT) == QUEST_STATUS_COMPLETE || player->GetQuestStatus(QUEST_INTO_THE_NIGHT) == QUEST_STATUS_REWARDED))
         {
-            //TC_LOG_ERROR("server.worldserver", "QUEST_INTO_THE_NIGHT OnGossipHello ");
+            TC_LOG_ERROR("server.worldserver", "QUEST_INTO_THE_NIGHT OnGossipHello ");
             ClearGossipMenuFor(player);
             AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_VEREESA_READY, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
             SendGossipMenuFor(player, NPC_TEXT_TO_ARGUS, creature->GetGUID());
@@ -624,7 +624,7 @@ public:
 
         }
 
-        void DoAction(int32 param)
+        void DoAction(int32 param) override
         {
             if (param == EVENT_TALK_04)
                 events.ScheduleEvent(EVENT_TALK_04, 1s);
@@ -776,7 +776,7 @@ public:
             //11s ?? ?????????????????.????????????.
             //13s ???
             //14s ?? ?????.???,???,???,?????????!
-            //TC_LOG_ERROR("server.worldserver", "OnSpellClick");
+            TC_LOG_ERROR("server.worldserver", "OnSpellClick");
             if (Creature* prophet_velen = me->FindNearestCreature(NPC_PROPHET_VELEN_120977, me->GetVisibilityRange()))
             {
                 prophet_velen->GetScheduler().Schedule(1s, 2s, [prophet_velen](TaskContext context)
@@ -797,12 +797,12 @@ public:
                 me->GetPlayerListInGrid(players, me->GetVisibilityRange());
                 for (std::list<Player*>::const_iterator itr = players.begin(); itr != players.end(); ++itr)
                 {
-                   /*if ((*itr)->ToPlayer()->GetQuestStatus(QUEST_THE_VINDICAAR) == QUEST_STATUS_INCOMPLETE && (*itr)->ToPlayer()->GetQuestObjectiveData(QUEST_THE_VINDICAAR, 2))
+                   if ((*itr)->ToPlayer()->GetQuestStatus(QUEST_THE_VINDICAAR) == QUEST_STATUS_INCOMPLETE) // && (*itr)->ToPlayer()->GetQuestObjectiveData(QUEST_THE_VINDICAAR, 2))
                     {
                         TC_LOG_ERROR("server.worldserver", "EVENT_UPDATE_PHASES");
                         PhasingHandler::AddPhase(*itr, DB_PHASE_AFTER_THE_VINDICAAR, true);
                         PhasingHandler::RemovePhase(*itr, DB_PHASE_THE_VINDICAAR, true);
-                    }*/
+                    }
                 }
                 break;
             }
@@ -862,7 +862,7 @@ public:
 
         }
 
-        void DoAction(int32 param)
+        void DoAction(int32 param) override
         {
             if (param == EVENT_TALK_04)
                 events.ScheduleEvent(EVENT_TALK_04, 1s);

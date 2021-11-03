@@ -24,7 +24,6 @@
 #include "SpellAuras.h"
 #include "SpellAuraEffects.h"
 #include "operation_mechagon.h"
-#include "SmartAI.h"
 
 enum Spells
 {
@@ -219,10 +218,10 @@ struct npc_stolen_scrapbot : public ScriptedAI
                 me->GetPlayerListInGrid(p_li, 30.0f);
                 for (auto& players : p_li)
                 {
-                    /*if (players->HasAura(SPELL_ELECTRICAL_CHARGE))
+                    if (players->HasAura(SPELL_ELECTRICAL_CHARGE))
                     {
                         Thrash();
-                    }*/
+                    }
                 }
             }
         }
@@ -275,10 +274,10 @@ struct npc_stolen_shock_coil : public ScriptedAI
                 me->GetPlayerListInGrid(p_li, 30.0f);
                 for (auto& players : p_li)
                 {
-                    /*if (players->HasAura(SPELL_ELECTRICAL_CHARGE))
+                    if (players->HasAura(SPELL_ELECTRICAL_CHARGE))
                     {
                         Zap();
-                    }*/
+                    }
                 }
             }
         }
