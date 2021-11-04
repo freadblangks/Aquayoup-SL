@@ -1,5 +1,5 @@
 /*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -111,5 +111,6 @@ void AddSC_broken_shore()
     RegisterCreatureAI(npc_legionfall_soldier_119141);
     RegisterCreatureAI(npc_bone_crawler_grub_116951);
     RegisterCreatureAI(npc_treasure_master_iksreeged_121302);
+
     RegisterCreatureAI(npc_legionfall_construction_table_119305);
 }

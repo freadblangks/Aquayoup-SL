@@ -1,5 +1,5 @@
 /*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -53,12 +53,12 @@ class Player_Spell_Masquerade : public PlayerScript
 public:
     Player_Spell_Masquerade() : PlayerScript("Player_Spell_Masquerade") { }
 
-    void OnLogin(Player* player, bool /*firstLogin*/) override
+    void OnLogin(Player* player, bool /*firstLogin*/)
     {
         UseSpellMasquerade(player, player->GetAreaId(), true);
     }
 
-    void OnUpdateArea(Player* player, uint32 newArea, uint32 /*oldArea*/)
+    void OnPlayerUpdateAreaAlternate(Player* player, uint32 newArea, uint32 /*oldArea*/)
     {
         UseSpellMasquerade(player, newArea, false);
     }
@@ -96,10 +96,10 @@ public:
         case 8487:
         case 8496:
             if (!player->HasAura(LEARN_MASQUERADE))
-                return;
+               return;
             if (player->GetQuestStatus(QUEST_MASQUERADE) != QUEST_STATUS_REWARDED)
                 return;
-            if (trigger)
+            if(trigger)
                 player->RemoveAurasDueToSpell(SPELL_MASQUERADE);
             if (!player->HasAura(SPELL_MASQUERADE))
                 player->CastSpell(player, SPELL_MASQUERADE, true);
@@ -115,9 +115,9 @@ public:
 
 enum
 {
-    ///Quest
+///Quest
     MAKE_YOUR_MARK = 42792,
-    The_Gondolier = 41878,
+    The_Gondolier=41878,
 };
 
 struct npc_cyrille_107350 : public ScriptedAI
@@ -136,7 +136,7 @@ struct npc_cyrille_107350 : public ScriptedAI
             }
         }
 
-        return true;
+        return false;
     }
 
     void MoveInLineOfSight(Unit* who) override
@@ -168,7 +168,7 @@ struct npc_lorin_107349 : public ScriptedAI
             }
         }
 
-        return true;
+        return false;
     }
 
     void MoveInLineOfSight(Unit* who) override
@@ -200,7 +200,7 @@ struct npc_sylessa_107348 : public ScriptedAI
             }
         }
 
-        return true;
+        return false;
     }
 
     void MoveInLineOfSight(Unit* who) override
@@ -221,7 +221,7 @@ struct npc_gondolier_107225 : public ScriptedAI
 {
     npc_gondolier_107225(Creature* creature) : ScriptedAI(creature) {  }
 
-    bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
+    bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId)
     {
         if (player->hasQuest(The_Gondolier))
         {
@@ -233,7 +233,7 @@ struct npc_gondolier_107225 : public ScriptedAI
             }
         }
 
-        return true;
+        return false;
     }
 };
 
@@ -242,10 +242,10 @@ class npc_thallyssra_97140 : public CreatureScript
 {
 public:
     npc_thallyssra_97140() : CreatureScript("npc_thallyssra_97140") { }
-    struct npc_thallyssra_97140AI : public ScriptedAI
+     struct npc_thallyssra_97140AI : public ScriptedAI
     {
         npc_thallyssra_97140AI(Creature* creature) : ScriptedAI(creature) { }
-        void MoveInLineOfSight(Unit* who) override
+         void MoveInLineOfSight(Unit* who) override
         {
             if (Player* player = who->ToPlayer())
             {
@@ -253,13 +253,13 @@ public:
                 {
                     if (player->IsInDist(me, 12.0f))
                     {
-                        player->KilledMonsterCredit(97140);
+                       player->KilledMonsterCredit(97140);
                     }
                 }
             }
         }
     };
-    CreatureAI* GetAI(Creature* creature) const override
+     CreatureAI* GetAI(Creature* creature) const override
     {
         return new npc_thallyssra_97140AI(creature);
     }
@@ -270,10 +270,10 @@ class npc_zoneexplorer_113893 : public CreatureScript
 {
 public:
     npc_zoneexplorer_113893() : CreatureScript("npc_zoneexplorer_113893") { }
-    struct npc_zoneexplorer_113893AI : public ScriptedAI
+     struct npc_zoneexplorer_113893AI : public ScriptedAI
     {
         npc_zoneexplorer_113893AI(Creature* creature) : ScriptedAI(creature) { }
-        void MoveInLineOfSight(Unit* who) override
+         void MoveInLineOfSight(Unit* who) override
         {
             if (Player* player = who->ToPlayer())
             {
@@ -281,13 +281,13 @@ public:
                 {
                     if (player->IsInDist(me, 12.0f))
                     {
-                        player->KilledMonsterCredit(113893);
+                       player->KilledMonsterCredit(113893);
                     }
                 }
             }
         }
     };
-    CreatureAI* GetAI(Creature* creature) const override
+     CreatureAI* GetAI(Creature* creature) const override
     {
         return new npc_zoneexplorer_113893AI(creature);
     }
@@ -297,10 +297,10 @@ class npc_zoneexplorer_113894 : public CreatureScript
 {
 public:
     npc_zoneexplorer_113894() : CreatureScript("npc_zoneexplorer_113894") { }
-    struct npc_zoneexplorer_113894AI : public ScriptedAI
+     struct npc_zoneexplorer_113894AI : public ScriptedAI
     {
         npc_zoneexplorer_113894AI(Creature* creature) : ScriptedAI(creature) { }
-        void MoveInLineOfSight(Unit* who) override
+         void MoveInLineOfSight(Unit* who) override
         {
             if (Player* player = who->ToPlayer())
             {
@@ -308,13 +308,13 @@ public:
                 {
                     if (player->IsInDist(me, 2.0f))
                     {
-                        player->KilledMonsterCredit(113894);
+                       player->KilledMonsterCredit(113894);
                     }
                 }
             }
         }
     };
-    CreatureAI* GetAI(Creature* creature) const override
+     CreatureAI* GetAI(Creature* creature) const override
     {
         return new npc_zoneexplorer_113894AI(creature);
     }
@@ -324,13 +324,13 @@ public:
 class npc_gossip_102600 : public PlayerScript
 {
 public:
-    npc_gossip_102600() : PlayerScript("npc_gossip_102600") { }
+   npc_gossip_102600() : PlayerScript("npc_gossip_102600") { }
 
-    bool OnGossipHello(Player* player, Creature* creature)
-    {
+   bool OnGossipHello(Player* player, Creature* creature)
+   {
         if (player->GetQuestStatus(40010) == QUEST_STATUS_INCOMPLETE)
         {
-            player->KilledMonsterCredit(102600);
+          player->KilledMonsterCredit(102600);
         }
         return true;
     }
@@ -338,9 +338,9 @@ public:
 
 struct npc_astoril : public ScriptedAI
 {
-    npc_astoril(Creature* creature) : ScriptedAI(creature) {  }
+   npc_astoril(Creature* creature) : ScriptedAI(creature) {  }
 
-    bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
+   bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId)
     {
         if (player->hasQuest(QUEST_A_Way_Back_In))
         {
@@ -351,7 +351,7 @@ struct npc_astoril : public ScriptedAI
             }
         }
 
-        return true;
+        return false;
     }
 };
 
@@ -359,6 +359,7 @@ struct npc_astoril : public ScriptedAI
 
 void AddSC_suramar()
 {
+
     new Player_Spell_Masquerade();
     RegisterCreatureAI(npc_cyrille_107350);
     RegisterCreatureAI(npc_astoril);

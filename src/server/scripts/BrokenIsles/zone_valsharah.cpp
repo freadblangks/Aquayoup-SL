@@ -1,5 +1,5 @@
 /*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -273,10 +273,10 @@ class npc_tele_q39702 : public CreatureScript
 {
 public:
     npc_tele_q39702() : CreatureScript("npc_tele_q39702") { }
-    struct npc_tele_q39702AI : public ScriptedAI
+     struct npc_tele_q39702AI : public ScriptedAI
     {
         npc_tele_q39702AI(Creature* creature) : ScriptedAI(creature) { }
-        void MoveInLineOfSight(Unit* who) override
+         void MoveInLineOfSight(Unit* who) override
         {
             if (Player* player = who->ToPlayer())
             {
@@ -284,19 +284,19 @@ public:
                 {
                     if (player->IsInDist(me, 2.0f))
                     {
-                        player->KilledMonsterCredit(96736);
+                       player->KilledMonsterCredit(96736);
                     }
                 }
             }
         }
     };
-    CreatureAI* GetAI(Creature* creature) const override
+     CreatureAI* GetAI(Creature* creature) const override
     {
         return new npc_tele_q39702AI(creature);
     }
 };
 
-class npc_92850 : public PlayerScript
+class npc_92850: public PlayerScript
 {
 public:
     npc_92850() : PlayerScript("npc_92850") { }

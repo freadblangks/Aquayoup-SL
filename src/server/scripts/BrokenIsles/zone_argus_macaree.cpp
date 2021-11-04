@@ -1,5 +1,5 @@
 /*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+ * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,7 +29,7 @@
 #include "TemporarySummon.h"
 #include "PhasingHandler.h"
 
- // Zone 8701
+// Zone 8701
 class zone_argus_macaree : public PlayerScript
 {
 public:
