@@ -1,15 +1,19 @@
 /*
-* Copyright (C) 2016-2019 MagicStaorm
-*
-* Este codigo es de uso exclusivo y privado para la red de gaming
-* ColossusWoW está totalmente prohibida su distribución y
-* uso en proyectos ajenos, si has obtenido o encontrado este codigo
-* publicamente envianos un email a administracion@colossuswow.com
-* indicandonos como y donde has obtenido este codigo
-*
-* Recuerda, no distribuyas, no compartas y no subas este codigo a ningun
-* lugar publico, usa siempre nuestros repositorios Git!
-*/
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "tomb_of_sargeras.h"
 
