@@ -23,11 +23,11 @@ if(WITH_WARNINGS)
   target_compile_options(trinity-warning-interface
     INTERFACE
       -W
-      -Wall
-      -Wextra
+      #-Wall
+      #-Wextra
       -Winit-self
       -Winvalid-pch
-      -Wfatal-errors
+      #-Wfatal-errors
       -Woverloaded-virtual)
 	  -Wno-unused-variable
 
