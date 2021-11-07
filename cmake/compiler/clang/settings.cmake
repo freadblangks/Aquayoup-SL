@@ -39,15 +39,15 @@ endif()
 if(WITH_WARNINGS)
   target_compile_options(trinity-warning-interface
     INTERFACE
- #     -W
- #     -Wall
- #     -Wextra
- #     -Wimplicit-fallthrough
- #     -Winit-self
- #     -Wfatal-errors
- #     -Wno-mismatched-tags
- #     -Woverloaded-virtual)
-
+      -W
+      -Wall
+      -Wextra
+      -Wimplicit-fallthrough
+      -Winit-self
+      -Wfatal-errors
+      -Wno-mismatched-tags
+      -Woverloaded-virtual)
+      -Wno-unused-variable
   message(STATUS "Clang: All warnings enabled")
 endif()
 

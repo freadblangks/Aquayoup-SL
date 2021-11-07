@@ -36,6 +36,7 @@ if(WITH_WARNINGS)
       -Winvalid-pch
       -Wfatal-errors
       -Woverloaded-virtual)
+	  -Wno-unused-variable
 
   message(STATUS "GCC: All warnings enabled")
 endif()
