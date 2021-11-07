@@ -214,7 +214,7 @@ public:
     AutoBalance_PlayerScript() : PlayerScript("AutoBalance_PlayerScript") { }
 
 #ifdef SCRIPT_VERSION_LAST
-    void OnLogin(Player* player, bool firstLogin) override
+    void OnLogin(Player* player, bool firstLogin __attribute__((unused))) override
 #else
     void OnLogin(Player* player) override
 #endif
