@@ -38,6 +38,7 @@
 #    PACKET SPOOF PROTECTION SETTINGS
 #    MISC ANTI-CHEAT SETTINGS
 #    METRIC SETTINGS
+#	 AOE LOOTING
 #	 SOLO LFG
 #	 1v1
 #	 AUTOBALANCE
@@ -46,6 +47,7 @@
 #	 LIMIT POTION
 #	 TAXI SPEED
 #    HUNTER AMMO
+#	 LFG DESERTER
 #
 ###################################################################################################
 
@@ -81,7 +83,7 @@ RealmID = 1
 #        Example:     "@prefix@/share/trinitycore"
 #        Default:     "."
 
-DataDir = "."
+DataDir = "./data"
 
 #
 #    LogsDir
@@ -90,7 +92,7 @@ DataDir = "."
 #                     Logs directory must exists, or log file creation will be disabled.
 #        Default:     "" - (Log files will be stored in the current path)
 
-LogsDir = ""
+LogsDir = "logs"
 
 #
 #    LoginDatabaseInfo
@@ -207,7 +209,7 @@ BuildDirectory  = ""
 #        Example:     "../TrinityCore"
 #        Default:     ""
 
-SourceDirectory  = ""
+SourceDirectory  = "updates"
 
 #
 #    MySQLExecutable
@@ -218,7 +220,7 @@ SourceDirectory  = ""
 #                     "/usr/bin/mysql"
 #        Default:     ""
 
-MySQLExecutable = ""
+MySQLExecutable = "mysql/bin/mysql.exe"
 
 #
 #    IPLocationFile
@@ -1281,7 +1283,7 @@ DungeonFinder.OptionsMask = 1
 #        Default:     1 - (Enabled, Enforce DBC values)
 #                     0 - (Disabled, Use database values)
 
-DBC.EnforceItemAttributes = 1
+DBC.EnforceItemAttributes = 0
 
 #
 #   AccountInstancesPerHour
@@ -3103,7 +3105,7 @@ CharDelete.KeepDays = 30
 #                       bugs out and doesn't switch the check mark. It has no effect on the actual tracking though).
 #                     * The minimap dots are yellow for both resources.
 
-AllowTrackBothResources = 0
+AllowTrackBothResources = 1
 
 #
 #    PlayerStart.AllReputation
@@ -3382,7 +3384,7 @@ AuctionHouseBot.Update.Interval = 20
 #       Default:     0 - (Disabled)
 #                    1 - (Enabled)
 
-AuctionHouseBot.Seller.Enabled = 0
+AuctionHouseBot.Seller.Enabled = 1
 
 #
 #    AuctionHouseBot.Alliance.Items.Amount.Ratio
@@ -3462,7 +3464,7 @@ AuctionHouseBot.Items.Loot = 1
 #       Default:     0 - (Disabled)
 #                    1 - (Enabled)
 
-AuctionHouseBot.Items.Misc = 0
+AuctionHouseBot.Items.Misc = 1
 
 #
 #    AuctionHouseBot.Bind.*
@@ -3715,7 +3717,7 @@ AuctionHouseBot.Class.Container.ItemLevel.Max = 0
 #                    List of ids with delimiter ','
 #       Default:     ""
 
-AuctionHouseBot.forceIncludeItems = ""
+AuctionHouseBot.forceIncludeItems = "4389,4382,4371,4357,4364,4361,4363,4404,2770,2771,2775,2318,2319,4234,4304,2589,2996,2592,2997,4306,4305,4338,10940,10938,39774,43124,43122,43120,43118,43116,39469,37101,8845,2447,765,785,2453,3355,2450,3356,3357,3358,8846,13464,13465,13467,13463,14256"
 
 #
 #    AuctionHouseBot.forceExcludeItems
@@ -3778,7 +3780,7 @@ AuctionHouseBot.Class.RandomStackRatio.Glyph = 0
 #       Default:     0 - (Disabled)
 #                    1 - (Enabled)
 
-AuctionHouseBot.Buyer.Enabled = 0
+AuctionHouseBot.Buyer.Enabled = 1
 
 #
 #    AuctionHouseBot.Buyer.FACTION.Enabled
@@ -3786,9 +3788,9 @@ AuctionHouseBot.Buyer.Enabled = 0
 #       Default:     0 - (Disabled)
 #                    1 - (Enabled)
 
-AuctionHouseBot.Buyer.Alliance.Enabled = 0
-AuctionHouseBot.Buyer.Horde.Enabled = 0
-AuctionHouseBot.Buyer.Neutral.Enabled = 0
+AuctionHouseBot.Buyer.Alliance.Enabled = 1
+AuctionHouseBot.Buyer.Horde.Enabled = 1
+AuctionHouseBot.Buyer.Neutral.Enabled = 1
 
 #    AuctionHouseBot.Buyer.ChanceFactor
 #       Description: k value in the formula used for the chance to buy an item "100^(1 + (1 - (AuctionBid / ItemPrice)) / k)"
@@ -4179,7 +4181,7 @@ NpcBot.Enable = 1
 #        Default:     1
 #        Max:         39
 
-NpcBot.MaxBots = 1
+NpcBot.MaxBots = 4
 
 #
 #    NpcBot.MaxBotsPerClass
@@ -4238,11 +4240,11 @@ NpcBot.XpReduction = 0
 #                     64 - Cross
 #                     128 - Skull
 
-NpcBot.HealTargetIconsMask = 0
-NpcBot.OffTankTargetIconMask = 0
-NpcBot.DPSTargetIconMask = 0
-NpcBot.RangedDPSTargetIconMask = 0
-NpcBot.NoDPSTargetIconMask = 0
+NpcBot.HealTargetIconsMask = 8
+NpcBot.OffTankTargetIconMask = 128
+NpcBot.DPSTargetIconMask = 128
+NpcBot.RangedDPSTargetIconMask = 128
+NpcBot.NoDPSTargetIconMask = 64
 
 #
 #    NpcBot.Mult.Damage.Physical
@@ -4271,9 +4273,9 @@ NpcBot.Mult.Healing         = 1.0
 #                     1 - (NpcBot.Enable.DungeonFinder)
 
 NpcBot.Enable.Dungeon       = 1
-NpcBot.Enable.Raid          = 0
-NpcBot.Enable.BG            = 0
-NpcBot.Enable.Arena         = 0
+NpcBot.Enable.Raid          = 1
+NpcBot.Enable.BG            = 1
+NpcBot.Enable.Arena         = 1
 NpcBot.Enable.DungeonFinder = 1
 
 #
@@ -4473,6 +4475,7 @@ Racial.Traits.Swap.Gold = 10
 #                     1 - (Enabled)
 
 AOE.LOOT.enable = 1
+AOE.LOOT.Mail.Grey = 1
 
 #
 ###################################################################################################
@@ -4745,7 +4748,7 @@ Skip.Deathknight.Starter.Announce.enable = 1
 #         Default:    0 - (Disabled)
 #                     1 - (Enabled)
 
-Skip.Deathknight.Starter.Enable = 0
+Skip.Deathknight.Starter.Enable = 1
 
 #    GM.Skip.Deathknight.Starter.Enable
 #         Active Module for all new accounts of a GM account level ONLY. Instant Skip on DK Creation.
@@ -4779,7 +4782,7 @@ Skip.Deathknight.Optional.Enable = 1
 #        Default:     1 (use 1 to enable and 0 to disable)
 #  
 
-LearnSpellsOnLevelUp.Enable = 0
+LearnSpellsOnLevelUp.Enable = 1
 
 #
 ###################################################################################################
@@ -4808,4 +4811,12 @@ Custom.SpeedTaxi = 1
 # Prevent Hunter's ranged weapons from taking ammo when used 
 # 1 -(will use ammo) 0 - (disables ammo usage)
 Ammo.TakeAmmo = 1
+###################################################################################################
+
+###################################################################################################
+#LFG DESERTER
+# LFG DESERTER DEBUFF
+#Default:    1 - (Enabled)
+#            0 - (Disabled)
+LFG.Deserter = 1
 ###################################################################################################

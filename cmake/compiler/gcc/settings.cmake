@@ -31,7 +31,7 @@ if(WITH_WARNINGS)
     INTERFACE
       -W
       -Wall
-      -Wextra
+ #     -Wextra
       -Winit-self
       -Winvalid-pch
       -Wfatal-errors
