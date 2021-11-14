@@ -48,6 +48,7 @@
 #	 TAXI SPEED
 #    HUNTER AMMO
 #	 LFG DESERTER
+#	 DYNAMIC RESURRECTION
 #
 ###################################################################################################
 
@@ -209,7 +210,7 @@ BuildDirectory  = ""
 #        Example:     "../TrinityCore"
 #        Default:     ""
 
-SourceDirectory  = "updates"
+SourceDirectory  = ""
 
 #
 #    MySQLExecutable
@@ -4475,6 +4476,19 @@ Racial.Traits.Swap.Gold = 10
 #                     1 - (Enabled)
 
 AOE.LOOT.enable = 1
+
+#    AOE.MAIL.filter
+#         Description: Filter out items that cannot be stored and do not mail them
+#         Example:    "17,10" - (EQUIP_ERR_CANT_CARRY_MORE_OF_THIS,
+#                                EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM)
+#         Default:    "" - (Disabled)
+
+AOE.MAIL.filter = "17,10"
+
+#         Description: Mail Grey Items
+#         Default:    0 - (Disabled)
+#                     1 - (Enabled)
+
 AOE.LOOT.Mail.Grey = 1
 
 #
@@ -4651,6 +4665,14 @@ AutoBalance.DungeonScaleDownXP = 1
 AutoBalance.DungeonsOnly = 1
 
 #
+#     AutoBalance.RaidsOnly
+#        Only apply scaling changes to raids (Overrules "DungeonsOnly" (which, despite the
+#		 name, currently applies to both dungeons and raids).
+#        Default:     0 (1 = ON, 0 = OFF)
+
+AutoBalance.RaidsOnly = 1
+
+#
 #     AutoBalance.PlayerChangeNotify
 #        Set Auto Notifications to all players in Instance that player count has changed.
 #        Default:     1 (1 = ON, 0 = OFF)
@@ -4819,4 +4841,54 @@ Ammo.TakeAmmo = 1
 #Default:    1 - (Enabled)
 #            0 - (Disabled)
 LFG.Deserter = 1
+###################################################################################################
+
+###################################################################################################
+
+###################################################################################################
+# Dynamic Resurrection
+#
+# Dynamic Resurrection is a simple script that add a "Resurrection Waypoint" near the latest boss
+# killed in dungeon or raid. for faster Resurrection. If 5 players or more is in a instance it will
+# be turned off to prevent abuse of instance.
+#
+#    Dynamic.Resurrection.Announce.enable
+#         Description: Announces Module when player logs in.
+#         Default:    0 - (Disabled)
+#                     1 - (Enabled)
+
+Dynamic.Resurrections.Announce.enable = 1
+
+#    Dynamic_Resurrections.enable
+#        Description: Enables Dynamic Resurrection
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+
+Dynamic.Resurrections.enable = 1
+
+#
+#    Raid.Entrance.Resurrection
+#        Description: When in raids, Dynamic Reussrections resurrects players at entrance of Raids.
+#                     Then will auto teleport you back to the last boss killed when re-entering the
+#                     the Raid Map.
+#                     When Disable, it will work normally like dungeons.
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+
+Raid.Entrance.Resurrection = 1
+
+#    Dynamic.Ressurrection.Instance Health
+#         Description: Amount of Health Player Revives in % for either Dungeon or Raid Instance.
+#         Default:    0.7 - (70%) Float Values
+#                     1.0 - (100%) Float Values
+#
+#    Dungeon Health
+
+Dynamic.Ressurrection.Dungeon.Health = 0.7
+
+#    Raid Health
+
+Dynamic.Ressurrection.Raid.Health = 0.7
+
+#
 ###################################################################################################

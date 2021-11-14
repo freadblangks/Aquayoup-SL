@@ -35,8 +35,6 @@
 #include "LuaEngine.h"
 #endif
 
-int8 MAIL_GREY;
-
 void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
 {
     TC_LOG_DEBUG("network", "WORLD: CMSG_AUTOSTORE_LOOT_ITEM");
@@ -88,11 +86,14 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
         Creature* creature = GetPlayer()->GetMap()->GetCreature(lguid);
         if (!player->GetGroup() && creature && sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
         {
-             int i = 0;
+             
+            int i = 0;
             float range = 30.0f;
             Creature* c = nullptr;
             std::vector<Creature*> creaturedie;
             player->GetDeadCreatureListInGrid(creaturedie, range);
+			std::string filter = sConfigMgr->GetStringDefault("AOE.MAIL.filter", "");
+            std::vector<std::string_view> filters = Trinity::Tokenize(filter, ',', false);
             for (std::vector<Creature*>::iterator itr = creaturedie.begin(); itr != creaturedie.end(); ++itr)
             {
                 c = *itr;
@@ -103,32 +104,19 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
                 {
                     if (LootItem* item = loot->LootItemInSlot(i, player))
                     {
-						ItemPosCountVec dest;
-						InventoryResult msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, item->itemid, item->count);
 						ItemTemplate const* pProto = sObjectMgr->GetItemTemplate(item->itemid);
-
-                        if (player->AddItem(item->itemid, item->count))
+                        InventoryResult res = EQUIP_ERR_OK;
+                        if (player->AddItem(item->itemid, item->count, &res))
                         {
                             player->SendNotifyLootItemRemoved(lootSlot);
                             player->SendLootRelease(player->GetLootGUID());
                         }
-                        else
+                        else if (pProto->Quality == 0 && sConfigMgr->GetBoolDefault("AOE.LOOT.Mail.Grey", true) || filter.empty() || std::find(filters.begin(), filters.end(), std::to_string(res)) == filters.end())
                         {
-							if (msg != EQUIP_ERR_CANT_CARRY_MORE_OF_THIS)
-							{
-								MAIL_GREY = sConfigMgr->GetIntDefault("AOE.LOOT.Mail.Grey", 1);
-							if (pProto->Quality == 0 && !MAIL_GREY)
-								continue;
-							else
-							player->SendItemRetrievalMail(item->itemid, item->count);
-							player->SendNotifyLootItemRemoved(lootSlot);
-                            player->SendLootRelease(player->GetLootGUID());
+                            player->SendItemRetrievalMail(item->itemid, item->count);
                             player->GetSession()->SendAreaTriggerMessage("Your items has been mailed to you.");
-							}
-
                         }
-					}
-					
+                    }
                 }
 
                 // This if covers a issue with skinning being infinite by Aokromes

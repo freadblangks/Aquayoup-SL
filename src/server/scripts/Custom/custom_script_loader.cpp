@@ -35,6 +35,7 @@
 // 13
 // 14
 // 15
+void AddSC_Dynamic_Resurrections();
 // 16
 // 17
 // 18
@@ -87,6 +88,7 @@ void AddCustomScripts()
     // 15
     // 16
     // 17
+    AddSC_Dynamic_Resurrections();
     // 18
     // 19
     // 20
