@@ -23,3 +23,10 @@ nbproject/*
 cmake-build-*/
 .vs
 *.user
+/src/server/game/Entities/Creature/Creature.cpp.orig
+/src/server/game/Entities/Unit/Unit.cpp.orig
+/src/server/game/Entities/Unit/Unit.h.orig
+/src/server/game/Scripting/ScriptMgr.cpp.orig
+/src/server/game/Scripting/ScriptMgr.h.orig
+/src/server/game/World/World.cpp.orig
+/src/server/worldserver/worldserver.conf.dist.orig
