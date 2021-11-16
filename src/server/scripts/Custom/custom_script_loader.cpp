@@ -35,7 +35,6 @@
 // 13
 // 14
 // 15
-void AddSC_Dynamic_Resurrections();
 // 16
 // 17
 // 18
@@ -67,7 +66,7 @@ void AddSC_skip_StarterArea();
 void AddSC_REFORGER_NPC();
 void AddSC_TemplateNPC();
 void AddSC_NPC_Profession();
-void AddSC_LearnSpellsOnLevelUp();
+void AddSC_Dynamic_Resurrections();
 
 void AddCustomScripts()
 {
@@ -88,7 +87,6 @@ void AddCustomScripts()
     // 15
     // 16
     // 17
-    AddSC_Dynamic_Resurrections();
     // 18
     // 19
     // 20
@@ -118,6 +116,6 @@ void AddCustomScripts()
 	AddSC_REFORGER_NPC();
 	AddSC_TemplateNPC();
 	AddSC_NPC_Profession();
-	AddSC_LearnSpellsOnLevelUp();
+    AddSC_Dynamic_Resurrections();
 	
 }

@@ -42,7 +42,6 @@
 #	 SOLO LFG
 #	 1v1
 #	 AUTOBALANCE
-#	 LEARNSPELLSONLEVELUP
 #	 TEMPLATENPC
 #	 LIMIT POTION
 #	 TAXI SPEED
@@ -4792,19 +4791,6 @@ Skip.Deathknight.Start.Level = 58
 #    Default: 1 - (Active)
 
 Skip.Deathknight.Optional.Enable = 1
-
-#
-###################################################################################################
-
-###################################################################################################
-# AUTO LEARN SPELL CONFIG	
-#
-#    LearnSpellsOnLevelUp.Enable
-#        Description: Configuration to activate auto learning spell
-#        Default:     1 (use 1 to enable and 0 to disable)
-#  
-
-LearnSpellsOnLevelUp.Enable = 1
 
 #
 ###################################################################################################
