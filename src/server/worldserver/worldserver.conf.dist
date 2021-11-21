@@ -209,7 +209,7 @@ BuildDirectory  = ""
 #        Example:     "../TrinityCore"
 #        Default:     ""
 
-SourceDirectory  = ""
+SourceDirectory  = "updater"
 
 #
 #    MySQLExecutable
@@ -4484,11 +4484,11 @@ AOE.LOOT.enable = 1
 
 AOE.MAIL.filter = "17,10"
 
-#         Description: Mail Grey Items
-#         Default:    0 - (Disabled)
-#                     1 - (Enabled)
+#         Description: Mail Grey Items with this Value or higher
+#         Default:    100 - (1 Silver)
+#                     0 - (Disabled, All greys get mailed)
 
-AOE.LOOT.Mail.Grey = 1
+AOE.LOOT.Mail.Grey.Value = 100
 
 #
 ###################################################################################################

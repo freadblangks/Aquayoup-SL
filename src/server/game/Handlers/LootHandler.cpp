@@ -21,11 +21,13 @@
 #include "Corpse.h"
 #include "Creature.h"
 #include "GameObject.h"
+#include "GameTime.h"
 #include "Group.h"
 #include "Item.h"
 #include "Log.h"
 #include "LootItemStorage.h"
 #include "LootMgr.h"
+#include "Mail.h"
 #include "Map.h"
 #include "Object.h"
 #include "ObjectAccessor.h"
@@ -42,6 +44,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
     ObjectGuid lguid = player->GetLootGUID();
     Loot* loot = nullptr;
     uint8 lootSlot = 0;
+	uint32 Grey_Value;
 
     recvData >> lootSlot;
 
@@ -84,9 +87,9 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
     else
     {
         Creature* creature = GetPlayer()->GetMap()->GetCreature(lguid);
-        if (!player->GetGroup() && creature && sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
+        //if (!player->GetGroup() && creature && sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
+		if (creature && player->isAllowedToLoot(creature) && sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
         {
-             
             int i = 0;
             float range = 30.0f;
             Creature* c = nullptr;
@@ -98,42 +101,64 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
             {
                 c = *itr;
                 loot = &c->loot;
-
-                uint8 maxSlot = loot->GetMaxSlotInLootFor(player);
-                for (i = 0; i < maxSlot; ++i)
-                {
+				uint8 maxSlot = loot->GetMaxSlotInLootFor(player);		
+				 for (i = 0; i < maxSlot; ++i)
+					{
                     if (LootItem* item = loot->LootItemInSlot(i, player))
-                    {
+						{
 						ItemTemplate const* pProto = sObjectMgr->GetItemTemplate(item->itemid);
                         InventoryResult res = EQUIP_ERR_OK;
+						Grey_Value = sConfigMgr->GetIntDefault("AOE.LOOT.Mail.Grey.Value", 100);
+						
                         if (player->AddItem(item->itemid, item->count, &res))
                         {
                             player->SendNotifyLootItemRemoved(lootSlot);
                             player->SendLootRelease(player->GetLootGUID());
                         }
-                        else if (pProto->Quality == 0 && sConfigMgr->GetBoolDefault("AOE.LOOT.Mail.Grey", true) || filter.empty() || std::find(filters.begin(), filters.end(), std::to_string(res)) == filters.end())
+                        else if (filter.empty() || std::find(filters.begin(), filters.end(), std::to_string(res)) == filters.end())
                         {
-                            player->SendItemRetrievalMail(item->itemid, item->count);
-                            player->GetSession()->SendAreaTriggerMessage("Your items has been mailed to you.");
-                        }
-                    }
-                }
+							if ((pProto->Quality == ITEM_QUALITY_POOR && (Grey_Value > 0 && pProto->SellPrice < Grey_Value)))
+							{                   
 
-                // This if covers a issue with skinning being infinite by Aokromes
+							}
+							else
+							{
+										player->SendItemRetrievalMail(item->itemid, item->count);
+										player->GetSession()->SendAreaTriggerMessage("Your items has been mailed to you.");
+										if (pProto->Class == 12) 
+										{
+										player->UpdateNextMailTimeAndUnreads();
+										player->GetSession()->SendShowMailBox(player->GetGUID());	
+										}
+										
+							}
+							
+							
+							
+						}
+						
+						
+							
+						}
+
+				}
+				
+				 // This if covers a issue with skinning being infinite by Aokromes
                 if (!creature->IsAlive())
-                {
+					{
                     creature->AllLootRemovedFromCorpse();
-                }
-
+					}
+	
                 loot->clear();
-
+	
                 if (loot->isLooted() && loot->empty())
-                {
+					{
                     c->RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
                     c->AllLootRemovedFromCorpse();
-                }
-            }
-        }
+					}
+
+		}
+	}
         else
         {
             bool lootAllowed = creature && creature->IsAlive() == (player->GetClass() == CLASS_ROGUE && creature->loot.loot_type == LOOT_PICKPOCKETING);
@@ -147,7 +172,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
         }
 
     }
-
+	
     player->StoreLootItem(lootSlot, loot);
 
     // If player is removing the last LootItem, delete the empty container.
