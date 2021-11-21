@@ -209,7 +209,7 @@ BuildDirectory  = ""
 #        Example:     "../TrinityCore"
 #        Default:     ""
 
-SourceDirectory  = "updater"
+SourceDirectory  = ""
 
 #
 #    MySQLExecutable
