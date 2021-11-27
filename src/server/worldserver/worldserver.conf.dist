@@ -4484,11 +4484,11 @@ AOE.LOOT.enable = 1
 
 AOE.MAIL.filter = "17,10"
 
-#         Description: Mail Grey Items with this Value or higher
-#         Default:    100 - (1 Silver)
-#                     0 - (Disabled, All greys get mailed)
+#         Description: Convert Grey items to Money instead of mailing.
+#         Default:    true - (Converted)
+#                     false - (Mailed)
 
-AOE.LOOT.Mail.Grey.Value = 100
+AOE.LOOT.Grey.Money = true
 
 #
 ###################################################################################################

@@ -728,7 +728,7 @@ private:
         // avoid level changing for critters and special creatures (spell summons etc.) in instances
         bool skipLevel = (creatureTemplate->maxlevel <= 1 && areaMinLvl >= 5);
 
-        if (LevelScaling && (!DungeonsOnly && !RaidsOnly || creature->GetMap()->Instanceable()) && !skipLevel && !_checkLevelOffset(level, originalLevel))
+        if (LevelScaling && (!DungeonsOnly || !RaidsOnly || creature->GetMap()->Instanceable()) && !skipLevel && !_checkLevelOffset(level, originalLevel))
         {
             // change level only whithin the offsets and when in dungeon/raid
             if (level != creatureABInfo->selectedLevel || creatureABInfo->selectedLevel != creature->GetLevel())

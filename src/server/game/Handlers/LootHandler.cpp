@@ -28,14 +28,17 @@
 #include "LootItemStorage.h"
 #include "LootMgr.h"
 #include "Mail.h"
+#include "MailPackets.h"
 #include "Map.h"
 #include "Object.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
+#include <string>
 #include "WorldPacket.h"
 #ifdef ELUNA
 #include "LuaEngine.h"
 #endif
+#include "StringFormat.h"
 
 void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
 {
@@ -44,7 +47,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
     ObjectGuid lguid = player->GetLootGUID();
     Loot* loot = nullptr;
     uint8 lootSlot = 0;
-	uint32 Grey_Value;
+	bool Grey_Convert = sConfigMgr->GetBoolDefault("AOE.LOOT.Grey.Money", true); 
 
     recvData >> lootSlot;
 
@@ -92,6 +95,13 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
         {
             int i = 0;
             float range = 30.0f;
+			int maileditems = 0;
+			int vendeditems = 0;
+			int vendvalue = 0;
+			int vendeditemstotal = 0;
+			int maileditemstotal = 0;
+			bool openmailbox = false;
+			
             Creature* c = nullptr;
             std::vector<Creature*> creaturedie;
             player->GetDeadCreatureListInGrid(creaturedie, range);
@@ -101,14 +111,13 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
             {
                 c = *itr;
                 loot = &c->loot;
-				uint8 maxSlot = loot->GetMaxSlotInLootFor(player);		
+				uint8 maxSlot = loot->GetMaxSlotInLootFor(player);	
 				 for (i = 0; i < maxSlot; ++i)
 					{
                     if (LootItem* item = loot->LootItemInSlot(i, player))
 						{
 						ItemTemplate const* pProto = sObjectMgr->GetItemTemplate(item->itemid);
                         InventoryResult res = EQUIP_ERR_OK;
-						Grey_Value = sConfigMgr->GetIntDefault("AOE.LOOT.Mail.Grey.Value", 100);
 						
                         if (player->AddItem(item->itemid, item->count, &res))
                         {
@@ -117,24 +126,27 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
                         }
                         else if (filter.empty() || std::find(filters.begin(), filters.end(), std::to_string(res)) == filters.end())
                         {
-							if ((pProto->Quality == ITEM_QUALITY_POOR && (Grey_Value > 0 && pProto->SellPrice < Grey_Value)))
-							{                   
-
+							if (pProto->Quality == ITEM_QUALITY_POOR && Grey_Convert)
+							{        
+								
+									
+								vendvalue = vendvalue + (pProto->SellPrice * item->count);
+								vendeditems = vendeditems + item->count;
+								
 							}
 							else
 							{
-										player->SendItemRetrievalMail(item->itemid, item->count);
-										player->GetSession()->SendAreaTriggerMessage("Your items has been mailed to you.");
-										if (pProto->Class == 12) 
-										{
-										player->UpdateNextMailTimeAndUnreads();
-										player->GetSession()->SendShowMailBox(player->GetGUID());	
-										}
-										
+								player->SendItemRetrievalMail(item->itemid, item->count);
+								maileditems = maileditems + item->count;
+								player->SendNewMail();
+								
+								if (pProto->Class == 12 || pProto->Class == 13 || pProto->Class == 1) 
+								{
+										openmailbox = true;
+								}
+							
 							}
-							
-							
-							
+
 						}
 						
 						
@@ -143,6 +155,8 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
 
 				}
 				
+				vendeditemstotal = vendeditems;
+				maileditemstotal = maileditems;
 				 // This if covers a issue with skinning being infinite by Aokromes
                 if (!creature->IsAlive())
 					{
@@ -158,6 +172,94 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
 					}
 
 		}
+		
+		
+		if (maileditemstotal >= 1) 
+		{
+			std::string maileditems_Text =  std::to_string(maileditemstotal) + " item(s) mailed to you.";
+			const char * mit = maileditems_Text.c_str();
+			player->GetSession()->SendAreaTriggerMessage(mit);
+		}
+				
+		if (vendeditemstotal >= 1)
+		{
+		std::string Vend_Value_Text = "Converted " + std::to_string(vendeditemstotal) + " grey item(s) to ";
+		std::string Vend_Value_Text_Full;
+		std::string Vend_ValueGold;
+		std::string Vend_ValueSilver;
+		std::string Vend_ValueCopper;
+		int totalvendvalue = vendvalue;
+				
+		int number = 0;
+		int gold = 0;
+		int silver = 0;
+		int copper = 0;
+		
+			if (totalvendvalue >= 10000)
+				{
+					
+					number = totalvendvalue;
+					gold = number/10000;
+					number = number%10000;
+					silver = number/100;
+					copper = number%100;
+					
+					Vend_ValueGold = std::to_string(gold) + "g";
+					Vend_ValueSilver = std::to_string(silver) + "s";
+					Vend_ValueCopper = std::to_string(copper) + "c";
+					
+					
+					Vend_Value_Text_Full = Vend_Value_Text + Vend_ValueGold + Vend_ValueSilver + Vend_ValueCopper;
+					
+				}
+			if (totalvendvalue >= 100 && totalvendvalue < 10000)
+				{
+
+					number = totalvendvalue;
+
+					silver = number/100;
+					copper = number%100;
+					
+					Vend_ValueGold = std::to_string(gold) + "g";
+					Vend_ValueSilver = std::to_string(silver) + "s";
+					Vend_ValueCopper = std::to_string(copper) + "c";
+					
+					
+					Vend_Value_Text_Full = Vend_Value_Text + Vend_ValueSilver + Vend_ValueCopper;
+
+				}
+			if	(totalvendvalue > 0 && totalvendvalue < 100)
+				{
+
+					number = totalvendvalue;
+
+					silver = number/100;
+					copper = number%100;
+					
+					Vend_ValueGold = std::to_string(gold) + "g";
+					Vend_ValueSilver = std::to_string(silver) + "s";
+					Vend_ValueCopper = std::to_string(copper) + "c";
+					
+					
+					Vend_Value_Text_Full = Vend_Value_Text + Vend_ValueCopper;
+
+				}
+			
+			
+			const char * cft = Vend_Value_Text_Full.c_str();
+			player->GetSession()->SendAreaTriggerMessage(cft);
+			player->ModifyMoney(totalvendvalue);
+		}
+		
+		if (openmailbox)
+		{
+			 //player->CastSpell(player, 30524, true);
+			 player->SendNewMail();
+			 player->GetSession()->SendShowMailBox(player->GetGUID());
+			player->SendNewMail();
+		}
+		
+		
 	}
         else
         {
