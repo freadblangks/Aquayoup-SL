@@ -17,6 +17,7 @@
 
 #include "WorldSession.h"
 #include "Common.h"
+#include "Chat.h"
 #include "Config.h"
 #include "Corpse.h"
 #include "Creature.h"
@@ -140,7 +141,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
 								maileditems = maileditems + item->count;
 								player->SendNewMail();
 								
-								if (pProto->Class == 12 || pProto->Class == 13 || pProto->Class == 1) 
+								if (pProto->Class == 12 || pProto->Class == 1) 
 								{
 										openmailbox = true;
 								}
@@ -216,7 +217,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
 				{
 
 					number = totalvendvalue;
-
+					gold = 0;
 					silver = number/100;
 					copper = number%100;
 					
@@ -231,10 +232,10 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
 			if	(totalvendvalue > 0 && totalvendvalue < 100)
 				{
 
-					number = totalvendvalue;
-
-					silver = number/100;
-					copper = number%100;
+					
+					gold = 0;
+					silver = 0;
+					copper = totalvendvalue;
 					
 					Vend_ValueGold = std::to_string(gold) + "g";
 					Vend_ValueSilver = std::to_string(silver) + "s";
