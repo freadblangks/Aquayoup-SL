@@ -26,6 +26,7 @@
 #include "DBCStores.h"
 #include "DisableMgr.h"
 #include "DynamicObject.h"
+#include "Config.h"
 #include "G3DPosition.hpp"
 #include "GameObjectAI.h"
 #include "GridNotifiers.h"
@@ -65,6 +66,8 @@
 //npcbot
 #include "botmgr.h"
 //end npcbot
+
+int8 TAKE_AMMO;
 
 extern SpellEffectHandlerFn SpellEffectHandlers[TOTAL_SPELL_EFFECTS];
 
@@ -4872,6 +4875,7 @@ void Spell::TakePower()
 
 void Spell::TakeAmmo()
 {
+	TAKE_AMMO = sConfigMgr->GetIntDefault("Ammo.TakeAmmo", 1);
     // Only players use ammo
     Player* player = m_caster->ToPlayer();
     if (!player)
@@ -4883,7 +4887,7 @@ void Spell::TakeAmmo()
 
     // wands don't have ammo
     Item* item = player->GetWeaponForAttack(RANGED_ATTACK);
-    if (!item || item->IsBroken() || item->GetTemplate()->SubClass == ITEM_SUBCLASS_WEAPON_WAND)
+    if (!TAKE_AMMO || !item || item->IsBroken() || item->GetTemplate()->SubClass == ITEM_SUBCLASS_WEAPON_WAND)
         return;
 
     if (item->GetTemplate()->InventoryType == INVTYPE_THROWN)
