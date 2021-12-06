@@ -47,7 +47,6 @@ if(WITH_WARNINGS)
       -Wfatal-errors
       -Wno-mismatched-tags
       -Woverloaded-virtual)
-
   message(STATUS "Clang: All warnings enabled")
 endif()
 

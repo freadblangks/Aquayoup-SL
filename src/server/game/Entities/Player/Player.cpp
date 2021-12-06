@@ -15,6 +15,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+// 1
+// 2
+// 3
+// 4
+// 5
+// 6
+// 7
+// 8
+// 9
+// 10
+
 #include "Player.h"
 #include "AccountMgr.h"
 #include "AchievementMgr.h"
@@ -37,9 +48,12 @@
 #include "CombatPackets.h"
 #include "Common.h"
 #include "ConditionMgr.h"
+#include "Config.h"
+#include "Config.h"
 #include "CreatureAI.h"
 #include "DatabaseEnv.h"
 #include "DisableMgr.h"
+#include "DynamicResurrection.h"
 #include "Formulas.h"
 #include "GameClient.h"
 #include "GameEventMgr.h"
@@ -102,6 +116,9 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#ifdef ELUNA
+#include "LuaEngine.h"
+#endif
 #include "WorldStatePackets.h"
 
 //npcbot
@@ -4724,6 +4741,9 @@ void Player::ResurrectPlayer(float restore_percent, bool applySickness)
     // recast lost by death auras of any items held in the inventory
     CastAllObtainSpells();
 
+#ifdef ELUNA
+    sEluna->OnResurrect(this);
+#endif
     if (!applySickness)
         return;
 
@@ -5131,7 +5151,22 @@ void Player::RepopAtGraveyard()
     // and don't show spirit healer location
     if (ClosestGrave)
     {
-        TeleportTo(ClosestGrave->Continent, ClosestGrave->Loc.X, ClosestGrave->Loc.Y, ClosestGrave->Loc.Z, GetOrientation(), shouldResurrect ? TELE_REVIVE_AT_TELEPORT : 0);
+        if (sConfigMgr->GetBoolDefault("Dynamic.Resurrections.enable", true))
+        {
+            if (sDynRes->IsInDungeonOrRaid(this) && sDynRes->CheckForSpawnPoint(this))
+            {
+                sDynRes->DynamicResurrection(this);
+            }
+            else
+            {
+                TeleportTo(ClosestGrave->Continent, ClosestGrave->Loc.X, ClosestGrave->Loc.Y, ClosestGrave->Loc.Z, GetOrientation(), shouldResurrect ? TELE_REVIVE_AT_TELEPORT : 0);
+            }
+        }
+        else
+        {
+            TeleportTo(ClosestGrave->Continent, ClosestGrave->Loc.X, ClosestGrave->Loc.Y, ClosestGrave->Loc.Z, GetOrientation(), shouldResurrect ? TELE_REVIVE_AT_TELEPORT : 0);
+        }
+
         if (isDead())                                        // not send if alive, because it used in TeleportTo()
         {
             WorldPackets::Misc::DeathReleaseLoc packet;
@@ -7502,6 +7537,20 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
     if (only_level_scale && (!ssd || !ssv))
         return;
 
+    uint32 statcount = proto->StatsCount;
+    ReforgeData* reforgeData = NULL;
+    bool decreased = false;
+    if (statcount < MAX_ITEM_PROTO_STATS)
+    {
+        if (Item* invItem = GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+        {
+            if (reforgeMap.find(invItem->GetGUID().GetCounter()) != reforgeMap.end())
+            {
+                reforgeData = &reforgeMap[invItem->GetGUID().GetCounter()];
+                ++statcount;
+            }
+        }
+    }
     for (uint8 i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
     {
         uint32 statType = 0;
@@ -7516,10 +7565,24 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
         }
         else
         {
-            if (i >= proto->StatsCount)
+            if (i >= statcount)
                 continue;
             statType = proto->ItemStat[i].ItemStatType;
             val = proto->ItemStat[i].ItemStatValue;
+
+            if (reforgeData)
+            {
+                if(i == statcount-1)
+                {
+                    statType = reforgeData->increase;
+                    val = reforgeData->stat_value;
+                }
+                else if (!decreased && reforgeData->decrease == statType)
+                {
+                    val -= reforgeData->stat_value;
+                    decreased = true;
+                }
+            }
         }
 
         if (val == 0)
@@ -11936,6 +11999,12 @@ InventoryResult Player::CanUseItem(ItemTemplate const* proto) const
         if (HasSpell(proto->Spells[1].SpellId))
             return EQUIP_ERR_NONE;
 
+#ifdef ELUNA
+    InventoryResult eres = sEluna->OnCanUseItem(this, proto->ItemId);
+    if (eres != EQUIP_ERR_OK)
+        return eres;
+#endif
+
     return EQUIP_ERR_OK;
 }
 
@@ -12359,6 +12428,9 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
 
         ApplyEquipCooldown(pItem2);
 
+#ifdef ELUNA
+        sEluna->OnEquip(this, pItem2, bag, slot);
+#endif
         return pItem2;
     }
 
@@ -12369,6 +12441,9 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
     UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EQUIP_ITEM, pItem->GetEntry());
     UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EQUIP_EPIC_ITEM, slot, pItem->GetEntry());
 
+#ifdef ELUNA
+        sEluna->OnEquip(this, pItem, bag, slot);
+#endif
     return pItem;
 }
 
@@ -12393,6 +12468,10 @@ void Player::QuickEquipItem(uint16 pos, Item* pItem)
 
         UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EQUIP_ITEM, pItem->GetEntry());
         UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EQUIP_EPIC_ITEM, slot, pItem->GetEntry());
+
+#ifdef ELUNA
+        sEluna->OnEquip(this, pItem, (pos >> 8), slot);
+#endif
     }
 }
 
@@ -12525,12 +12604,14 @@ void Player::RemoveItem(uint8 bag, uint8 slot, bool update)
     }
 }
 
+extern void RemoveReforge(Player* player, uint32 itemguid, bool update);
 // Common operation need to remove item from inventory without delete in trade, auction, guild bank, mail....
 void Player::MoveItemFromInventory(uint8 bag, uint8 slot, bool update)
 {
     if (Item* it = GetItemByPos(bag, slot))
     {
         RemoveItem(bag, slot, update);
+        RemoveReforge(this, it->GetGUID().GetCounter(), true);
         ItemRemovedQuestCheck(it->GetEntry(), it->GetCount());
         it->SetNotRefundable(this, false);
         RemoveItemFromUpdateQueueOf(it, this);
@@ -14351,8 +14432,8 @@ void Player::PrepareGossipMenu(WorldObject* source, uint32 menuId /*= 0*/, bool 
                     break;
                 case GOSSIP_OPTION_VENDOR:
                 {
-                    VendorItemData const* vendorItems = creature->GetVendorItems();
-                    if (!vendorItems || vendorItems->Empty())
+                    VendorItemData const* vendorItems = itr->second.ActionMenuID ? nullptr : creature->GetVendorItems();
+                    if (!itr->second.ActionMenuID && (!vendorItems || vendorItems->Empty()))
                     {
                         TC_LOG_ERROR("sql.sql", "Creature %s (%s DB GUID: %u) has UNIT_NPC_FLAG_VENDOR set, but has an empty trading item list.", creature->GetName().c_str(), creature->GetGUID().ToString().c_str(), creature->GetSpawnId());
                         canTalk = false;
@@ -14389,7 +14470,7 @@ void Player::PrepareGossipMenu(WorldObject* source, uint32 menuId /*= 0*/, bool 
                     break;
                 case GOSSIP_OPTION_TRAINER:
                 {
-                    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(creature->GetEntry());
+                    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(itr->second.ActionMenuID ? itr->second.ActionMenuID : creature->GetEntry());
                     if (!trainer || !trainer->IsTrainerValidForPlayer(this))
                     {
                         TC_LOG_ERROR("sql.sql", "GOSSIP_OPTION_TRAINER:: Player %s %s requested wrong gossip menu: %u at Creature: %s (Entry: %u)",
@@ -14571,13 +14652,13 @@ void Player::OnGossipSelect(WorldObject* source, uint32 gossipListId, uint32 men
             break;
         case GOSSIP_OPTION_VENDOR:
         case GOSSIP_OPTION_ARMORER:
-            GetSession()->SendListInventory(guid);
+            GetSession()->SendListInventory(guid, menuItemData->GossipActionMenuId);
             break;
         case GOSSIP_OPTION_STABLEPET:
             GetSession()->SendStablePet(guid);
             break;
         case GOSSIP_OPTION_TRAINER:
-            GetSession()->SendTrainerList(source->ToCreature());
+            GetSession()->SendTrainerList(source->ToCreature(), menuItemData->GossipActionMenuId);
             break;
         case GOSSIP_OPTION_LEARNDUALSPEC:
             if (GetSpecsCount() == 1 && GetLevel() >= sWorld->getIntConfig(CONFIG_MIN_DUALSPEC_LEVEL))
@@ -15057,7 +15138,12 @@ void Player::AddQuestAndCheckCompletion(Quest const* quest, Object* questGiver)
     {
         case TYPEID_UNIT:
             PlayerTalkClass->ClearMenus();
+
+#ifdef ELUNA
+            sEluna->OnQuestAccept(this, questGiver->ToCreature(), quest);
+#endif
             questGiver->ToCreature()->AI()->OnQuestAccept(this, quest);
+
             break;
         case TYPEID_ITEM:
         case TYPEID_CONTAINER:
@@ -15089,7 +15175,12 @@ void Player::AddQuestAndCheckCompletion(Quest const* quest, Object* questGiver)
         }
         case TYPEID_GAMEOBJECT:
             PlayerTalkClass->ClearMenus();
+
+#ifdef ELUNA
+            sEluna->OnQuestAccept(this, questGiver->ToGameObject(), quest);
+#endif
             questGiver->ToGameObject()->AI()->OnQuestAccept(this, quest);
+
             break;
         default:
             break;
@@ -16210,6 +16301,9 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object* questgiver)
     {
         case TYPEID_GAMEOBJECT:
         {
+#ifdef ELUNA
+            sEluna->GetDialogStatus(this, questgiver->ToGameObject());
+#endif
             if (auto ai = questgiver->ToGameObject()->AI())
                 if (auto questStatus = ai->GetDialogStatus(this))
                     return *questStatus;
@@ -16219,6 +16313,9 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object* questgiver)
         }
         case TYPEID_UNIT:
         {
+#ifdef ELUNA
+            sEluna->GetDialogStatus(this, questgiver->ToCreature());
+#endif
             if (auto ai = questgiver->ToCreature()->AI())
                 if (auto questStatus = ai->GetDialogStatus(this))
                     return *questStatus;
@@ -21902,7 +21999,11 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
         return false;
     }
 
-    VendorItemData const* vItems = creature->GetVendorItems();
+    uint32 currentVendor = GetSession()->GetCurrentVendor();
+    if (currentVendor && vendorguid != PlayerTalkClass->GetGossipMenu().GetSenderGUID())
+        return false; // Cheating
+
+    VendorItemData const* vItems = currentVendor ? sObjectMgr->GetNpcVendorItemList(currentVendor) : creature->GetVendorItems();
     if (!vItems || vItems->Empty())
     {
         SendBuyError(BUY_ERR_CANT_FIND_ITEM, creature, item, 0);
@@ -22159,8 +22260,9 @@ void Player::UpdatePvP(bool state, bool _override)
 void Player::UpdatePotionCooldown(Spell* spell)
 {
     // no potion used i combat or still in combat
-    if (!m_lastPotionId || IsInCombat())
-        return;
+   if (sWorld->getBoolConfig(CONFIG_POTIONS_LIMIT))
+		if (!m_lastPotionId || IsInCombat())
+       return;
 
     // Call not from spell cast, send cooldown event for item spells if no in combat
     if (!spell)
@@ -25006,8 +25108,16 @@ void Player::StoreLootItem(uint8 lootSlot, Loot* loot)
 
     if (!item || item->is_looted)
     {
-        SendEquipError(EQUIP_ERR_ALREADY_LOOTED, nullptr, nullptr);
-        return;
+        if (sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
+        {
+            //SendEquipError(EQUIP_ERR_ALREADY_LOOTED, nullptr, nullptr); prevents error already loot from spamming
+            return;
+        }
+        else
+        {
+            SendEquipError(EQUIP_ERR_ALREADY_LOOTED, nullptr, nullptr);
+            return;
+        }
     }
 
     if (!item->AllowedForPlayer(this))
@@ -25078,6 +25188,9 @@ void Player::StoreLootItem(uint8 lootSlot, Loot* loot)
         if (loot->containerID > 0)
             sLootItemStorage->RemoveStoredLootItemForContainer(loot->containerID, item->itemid, item->count, item->itemIndex);
 
+#ifdef ELUNA
+        sEluna->OnLootItem(this, newitem, item->count, this->GetLootGUID());
+#endif
     }
     else
         SendEquipError(msg, nullptr, nullptr, item->itemid);
@@ -25493,6 +25606,10 @@ void Player::LearnTalent(uint32 talentId, uint32 talentRank)
 
     // update free talent points
     SetFreeTalentPoints(CurTalentPoints - (talentRank - curtalent_maxrank + 1));
+
+#ifdef ELUNA
+    sEluna->OnLearnTalents(this, talentId, talentRank, spellid);
+#endif
 }
 
 void Player::LearnPetTalent(ObjectGuid petGuid, uint32 talentId, uint32 talentRank)
@@ -26474,14 +26591,16 @@ void Player::SendRefundInfo(Item* item)
     SendDirectMessage(&data);
 }
 
-bool Player::AddItem(uint32 itemId, uint32 count)
+bool Player::AddItem(uint32 itemId, uint32 count, InventoryResult* error)
 {
     uint32 noSpaceForCount = 0;
     ItemPosCountVec dest;
     InventoryResult msg = CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, count, &noSpaceForCount);
     if (msg != EQUIP_ERR_OK)
         count -= noSpaceForCount;
-
+		if (error)
+        *error = msg;
+	
     if (count == 0 || dest.empty())
     {
         /// @todo Send to mailbox if no space

@@ -159,6 +159,13 @@ typedef std::unordered_map<uint32, PlayerTalent*> PlayerTalentMap;
 typedef std::unordered_map<uint32, PlayerSpell> PlayerSpellMap;
 typedef std::unordered_set<SpellModifier*> SpellModContainer;
 
+struct ReforgeData
+{
+    uint32 increase, decrease;
+    int32 stat_value;
+};
+typedef std::unordered_map<uint32, ReforgeData> ReforgeMapType;
+
 typedef std::unordered_map<uint32 /*instanceId*/, time_t/*releaseTime*/> InstanceTimeMap;
 
 enum ActionButtonUpdateState
@@ -1199,7 +1206,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void LoadCorpse(PreparedQueryResult result);
         void LoadPet();
 
-        bool AddItem(uint32 itemId, uint32 count);
+        bool AddItem(uint32 itemId, uint32 count, InventoryResult* error = nullptr);
 
         /*********************************************************/
         /***                    GOSSIP SYSTEM                  ***/
@@ -2186,6 +2193,8 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
 
         std::string GetMapAreaAndZoneString() const;
         std::string GetCoordsMapAreaAndZoneString() const;
+		
+		ReforgeMapType reforgeMap; // reforgeMap[iGUID] = ReforgeData
 
         std::string GetDebugInfo() const override;
 

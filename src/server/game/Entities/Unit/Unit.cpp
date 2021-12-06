@@ -77,6 +77,10 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#ifdef ELUNA
+#include "LuaEngine.h"
+#include "ElunaEventMgr.h"
+#endif
 #include <cmath>
 
 //npcbot
@@ -432,6 +436,10 @@ Unit::~Unit()
 
 void Unit::Update(uint32 p_time)
 {
+#ifdef ELUNA
+    elunaEvents->Update(p_time);
+#endif
+
     // WARNING! Order of execution here is important, do not change.
     // Spells must be processed with event system BEFORE they go to _UpdateSpells.
     // Or else we may have some SPELL_STATE_FINISHED spells stalled in pointers, that is bad.
@@ -6632,6 +6640,10 @@ void Unit::SendHealSpellLog(HealInfo& healInfo, bool critical /*= false*/)
 
 int32 Unit::HealBySpell(HealInfo& healInfo, bool critical /*= false*/)
 {
+    Unit* victim = healInfo.GetTarget();
+    uint32 &addhealth = healInfo.GetHealForMod();
+    sScriptMgr->ModifyHealRecieved(this, victim, addhealth);
+
     // calculate heal absorb and reduce healing
     Unit::CalcHealAbsorb(healInfo);
     Unit::DealHeal(healInfo);
