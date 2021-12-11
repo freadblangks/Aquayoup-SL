@@ -555,7 +555,7 @@ public:
                         me->SetStandState(UNIT_STAND_STATE_STAND);
                         instance->HandleGameObject(instance->GetGuidData(DATA_GO_SKY_FLOOR), true);
                         if (Creature* temp = ObjectAccessor::GetCreature(*me, uiControllerGUID))
-                            temp->DealDamage(temp, temp->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+                            temp->KillSelf();
                         bIsBattle = true;
                         SetEscortPaused(false);
                         JumpToNextStep(6500);
@@ -703,7 +703,7 @@ public:
             if (me->IsQuestGiver())
                 player->PrepareQuestMenu(me->GetGUID());
 
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_START, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+            AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_ITEM_START, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
             SendGossipMenuFor(player, TEXT_ID_START, me->GetGUID());
 
             return true;

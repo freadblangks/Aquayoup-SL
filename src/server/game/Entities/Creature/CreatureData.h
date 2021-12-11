@@ -18,6 +18,7 @@
 #ifndef CreatureData_h__
 #define CreatureData_h__
 
+#include "Common.h"
 #include "DBCEnums.h"
 #include "Optional.h"
 #include "SharedDefines.h"
@@ -148,7 +149,7 @@ enum CreatureDifficultyFlags4
     CREATURE_DIFFICULTYFLAGS_4_DO_NOT_PLAY_UNIT_EVENT_SOUNDS       = 0x00000010, // CREATURE_TYPEFLAGS_DO_NOT_PLAY_UNIT_EVENT_SOUNDS
     CREATURE_DIFFICULTYFLAGS_4_HAS_NO_SHADOW_BLOB                  = 0x00000020, // CREATURE_TYPEFLAGS_HAS_NO_SHADOW_BLOB
     CREATURE_DIFFICULTYFLAGS_4_UNK3                                = 0x00000040,
-    CREATURE_DIFFICULTYFLAGS_4_UNK4                                = 0x00000080,
+    CREATURE_DIFFICULTYFLAGS_4_NO_NPC_DAMAGE_BELOW_85PCT           = 0x00000080, // original description: No NPC damage below 85%
     CREATURE_DIFFICULTYFLAGS_4_UNK5                                = 0x00000100,
     CREATURE_DIFFICULTYFLAGS_4_UNK6                                = 0x00000200,
     CREATURE_DIFFICULTYFLAGS_4_UNK7                                = 0x00000400,
@@ -255,6 +256,7 @@ enum CreatureDifficultyFlags7
     CREATURE_DIFFICULTYFLAGS_7_UNK1         = 0x00000008
 };
 
+// EnumUtils: DESCRIBE THIS
 enum CreatureFlagsExtra : uint32
 {
     CREATURE_FLAG_EXTRA_INSTANCE_BIND        = 0x00000001,       // creature kill bind instance with killer and killer's group
@@ -269,7 +271,7 @@ enum CreatureFlagsExtra : uint32
     CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE = 0x00000200,       // creature won't update movement flags
     CREATURE_FLAG_EXTRA_GHOST_VISIBILITY     = 0x00000400,       // creature will be only visible for dead players
     CREATURE_FLAG_EXTRA_USE_OFFHAND_ATTACK   = 0x00000800,       // creature will use offhand attacks
-    CREATURE_FLAG_EXTRA_UNUSED_12            = 0x00001000,
+    CREATURE_FLAG_EXTRA_NO_SELL_VENDOR       = 0x00001000,       // players can't sell items to this vendor
     CREATURE_FLAG_EXTRA_UNUSED_13            = 0x00002000,
     CREATURE_FLAG_EXTRA_WORLDEVENT           = 0x00004000,       // custom flag for world event creatures (left room for merging)
     CREATURE_FLAG_EXTRA_GUARD                = 0x00008000,       // Creature is guard
@@ -291,12 +293,70 @@ enum CreatureFlagsExtra : uint32
     CREATURE_FLAG_EXTRA_UNUSED_31            = 0x80000000,
 
     // Masks
-    CREATURE_FLAG_EXTRA_UNUSED               = (CREATURE_FLAG_EXTRA_UNUSED_12 | CREATURE_FLAG_EXTRA_UNUSED_13 | CREATURE_FLAG_EXTRA_UNUSED_16 |
-                                                CREATURE_FLAG_EXTRA_UNUSED_22 | CREATURE_FLAG_EXTRA_UNUSED_23 | CREATURE_FLAG_EXTRA_UNUSED_24 |
-                                                CREATURE_FLAG_EXTRA_UNUSED_25 | CREATURE_FLAG_EXTRA_UNUSED_26 | CREATURE_FLAG_EXTRA_UNUSED_27 |
-                                                CREATURE_FLAG_EXTRA_UNUSED_31),
+    CREATURE_FLAG_EXTRA_UNUSED               = (CREATURE_FLAG_EXTRA_UNUSED_13 | CREATURE_FLAG_EXTRA_UNUSED_16 | CREATURE_FLAG_EXTRA_UNUSED_22 |
+                                                CREATURE_FLAG_EXTRA_UNUSED_23 | CREATURE_FLAG_EXTRA_UNUSED_24 | CREATURE_FLAG_EXTRA_UNUSED_25 |
+                                                CREATURE_FLAG_EXTRA_UNUSED_26 | CREATURE_FLAG_EXTRA_UNUSED_27 | CREATURE_FLAG_EXTRA_UNUSED_31), // SKIP
 
-    CREATURE_FLAG_EXTRA_DB_ALLOWED           = (0xFFFFFFFF & ~(CREATURE_FLAG_EXTRA_UNUSED | CREATURE_FLAG_EXTRA_DUNGEON_BOSS))
+    CREATURE_FLAG_EXTRA_DB_ALLOWED           = (0xFFFFFFFF & ~(CREATURE_FLAG_EXTRA_UNUSED | CREATURE_FLAG_EXTRA_DUNGEON_BOSS)) // SKIP
+};
+
+enum class CreatureGroundMovementType : uint8
+{
+    None,
+    Run,
+    Hover,
+
+    Max
+};
+
+enum class CreatureFlightMovementType : uint8
+{
+    None,
+    DisableGravity,
+    CanFly,
+
+    Max
+};
+
+enum class CreatureChaseMovementType : uint8
+{
+    Run,
+    CanWalk,
+    AlwaysWalk,
+
+    Max
+};
+
+enum class CreatureRandomMovementType : uint8
+{
+    Walk,
+    CanRun,
+    AlwaysRun,
+
+    Max
+};
+
+struct TC_GAME_API CreatureMovementData
+{
+    CreatureMovementData() : Ground(CreatureGroundMovementType::Run), Flight(CreatureFlightMovementType::None), Swim(true), Rooted(false), Chase(CreatureChaseMovementType::Run),
+        Random(CreatureRandomMovementType::Walk) { }
+
+    CreatureGroundMovementType Ground;
+    CreatureFlightMovementType Flight;
+    bool Swim;
+    bool Rooted;
+    CreatureChaseMovementType Chase;
+    CreatureRandomMovementType Random;
+
+    bool IsGroundAllowed() const { return Ground != CreatureGroundMovementType::None; }
+    bool IsSwimAllowed() const { return Swim; }
+    bool IsFlightAllowed() const { return Flight != CreatureFlightMovementType::None; }
+    bool IsRooted() const { return Rooted; }
+
+    CreatureChaseMovementType GetChase() const { return Chase; }
+    CreatureRandomMovementType GetRandom() const { return Random; }
+
+    std::string ToString() const;
 };
 
 const uint32 CREATURE_REGEN_INTERVAL = 2 * IN_MILLISECONDS;
@@ -327,8 +387,6 @@ struct CreatureModel
 
 struct CreatureLevelScaling
 {
-    uint16 MinLevel;
-    uint16 MaxLevel;
     int16 DeltaLevelMin;
     int16 DeltaLevelMax;
     int32 ContentTuningID;
@@ -384,7 +442,7 @@ struct TC_GAME_API CreatureTemplate
     uint32  maxgold;
     std::string AIName;
     uint32  MovementType;
-    uint32  InhabitType;
+    CreatureMovementData Movement;
     float   HoverHeight;
     float   ModHealth;
     float   ModHealthExtra;
@@ -395,6 +453,7 @@ struct TC_GAME_API CreatureTemplate
     float   ModExperience;
     bool    RacialLeader;
     uint32  movementId;
+    int32   CreatureDifficultyID;
     int32   WidgetSetID;
     int32   WidgetSetUnitConditionID;
     bool    RegenHealth;
@@ -569,6 +628,7 @@ struct CreatureAddon
     uint16 meleeAnimKit;
     std::vector<uint32> auras;
     VisibilityDistanceType visibilityDistanceType;
+    uint8 noNPCDamageBelowHealthPct;
 };
 
 // Vendors

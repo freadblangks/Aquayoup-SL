@@ -22,6 +22,7 @@
 #include "Errors.h"
 #include <array>
 #include <string>
+#include <utility>
 #include <vector>
 #include "advstd.h"
 
@@ -55,11 +56,10 @@ private:
     StorageType m_storage;
 };
 
-TC_COMMON_API void stripLineInvisibleChars(std::string &src);
-
 TC_COMMON_API int64 MoneyStringToMoney(std::string const& moneyString);
 
 TC_COMMON_API struct tm* localtime_r(time_t const* time, struct tm *result);
+TC_COMMON_API time_t LocalTimeToUTCTime(time_t time);
 
 TC_COMMON_API std::string secsToTimeString(uint64 timeInSecs, bool shortText = false, bool hoursOnly = false);
 TC_COMMON_API uint32 TimeStringToSecs(std::string const& timestring);
@@ -96,6 +96,9 @@ inline T RoundToInterval(T& num, T floor, T ceil)
 {
     return num = std::min(std::max(num, floor), ceil);
 }
+
+template <class T>
+inline T square(T x) { return x*x; }
 
 // UTF8 handling
 TC_COMMON_API bool Utf8toWStr(const std::string& utf8str, std::wstring& wstr);
@@ -291,6 +294,24 @@ inline wchar_t wcharToLower(wchar_t wchar)
     return wchar;
 }
 
+inline bool isLower(wchar_t wchar)
+{
+    if (wchar >= L'a' && wchar <= L'z')                      // LATIN CAPITAL LETTER A - LATIN CAPITAL LETTER Z
+        return true;
+    if (wchar >= 0x00E0 && wchar <= 0x00FF)                  // LATIN SMALL LETTER A WITH GRAVE - LATIN SMALL LETTER Y WITH DIAERESIS
+        return true;
+    if (wchar >= 0x0430 && wchar <= 0x044F)                  // CYRILLIC SMALL LETTER A - CYRILLIC SMALL LETTER YA
+        return true;
+    if (wchar == 0x0451)                                     // CYRILLIC SMALL LETTER IO
+        return true;
+    return false;
+}
+
+inline bool isUpper(wchar_t wchar)
+{
+    return !isLower(wchar);
+}
+
 TC_COMMON_API std::wstring wstrCaseAccentInsensitiveParse(std::wstring const& wstr, LocaleConstant locale);
 
 TC_COMMON_API void wstrToUpper(std::wstring& str);
@@ -330,6 +351,13 @@ std::array<uint8, Size> HexStrToByteArray(std::string const& str, bool reverse =
 
 TC_COMMON_API bool StringToBool(std::string const& str);
 TC_COMMON_API float DegToRad(float degrees);
+
+TC_COMMON_API bool StringContainsStringI(std::string const& haystack, std::string const& needle);
+template <typename T>
+inline bool ValueContainsStringI(std::pair<T, std::string> const& haystack, std::string const& needle)
+{
+    return StringContainsStringI(haystack.second, needle);
+}
 
 // simple class for not-modifyable list
 template <typename T>

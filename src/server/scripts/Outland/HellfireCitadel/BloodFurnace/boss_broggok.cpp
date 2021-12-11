@@ -83,15 +83,15 @@ class boss_broggok : public CreatureScript
                 {
                     case EVENT_SLIME_SPRAY:
                         DoCastVictim(SPELL_SLIME_SPRAY);
-                        events.ScheduleEvent(EVENT_SLIME_SPRAY, urand(4000, 12000));
+                        events.ScheduleEvent(EVENT_SLIME_SPRAY, 4s, 12s);
                         break;
                     case EVENT_POISON_BOLT:
                         DoCastVictim(SPELL_POISON_BOLT);
-                        events.ScheduleEvent(EVENT_POISON_BOLT, urand(4000, 12000));
+                        events.ScheduleEvent(EVENT_POISON_BOLT, 4s, 12s);
                         break;
                     case EVENT_POISON_CLOUD:
                         DoCast(me, SPELL_POISON_CLOUD);
-                        events.ScheduleEvent(EVENT_POISON_CLOUD, 20000);
+                        events.ScheduleEvent(EVENT_POISON_CLOUD, 20s);
                         break;
                     default:
                         break;
@@ -103,15 +103,15 @@ class boss_broggok : public CreatureScript
                 switch (action)
                 {
                     case ACTION_PREPARE_BROGGOK:
-                        me->SetInCombatWithZone();
+                        DoZoneInCombat();
                         break;
                     case ACTION_ACTIVATE_BROGGOK:
                         me->SetReactState(REACT_AGGRESSIVE);
                         me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                         me->SetImmuneToAll(false);
-                        events.ScheduleEvent(EVENT_SLIME_SPRAY, 10000);
-                        events.ScheduleEvent(EVENT_POISON_BOLT, 7000);
-                        events.ScheduleEvent(EVENT_POISON_CLOUD, 5000);
+                        events.ScheduleEvent(EVENT_SLIME_SPRAY, 10s);
+                        events.ScheduleEvent(EVENT_POISON_BOLT, 7s);
+                        events.ScheduleEvent(EVENT_POISON_CLOUD, 5s);
                         break;
                     case ACTION_RESET_BROGGOK:
                         me->SetReactState(REACT_PASSIVE);
@@ -171,8 +171,7 @@ class spell_broggok_poison_cloud : public SpellScriptLoader
 
             bool Validate(SpellInfo const* spellInfo) override
             {
-                SpellEffectInfo const* effect0 = spellInfo->GetEffect(EFFECT_0);
-                return effect0 && ValidateSpellInfo({ effect0->TriggerSpell });
+                return !spellInfo->GetEffects().empty() && ValidateSpellInfo({ spellInfo->GetEffect(EFFECT_0).TriggerSpell });
             }
 
             void PeriodicTick(AuraEffect const* aurEff)
@@ -181,7 +180,7 @@ class spell_broggok_poison_cloud : public SpellScriptLoader
                 if (!aurEff->GetTotalTicks())
                     return;
 
-                uint32 triggerSpell = aurEff->GetSpellEffectInfo()->TriggerSpell;
+                uint32 triggerSpell = aurEff->GetSpellEffectInfo().TriggerSpell;
                 int32 mod = int32(((float(aurEff->GetTickNumber()) / aurEff->GetTotalTicks()) * 0.9f + 0.1f) * 10000 * 2 / 3);
                 GetTarget()->CastSpell(nullptr, triggerSpell, CastSpellExtraArgs(aurEff).AddSpellMod(SPELLVALUE_RADIUS_MOD, mod));
             }

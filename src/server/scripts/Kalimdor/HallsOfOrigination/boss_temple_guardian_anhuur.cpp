@@ -131,7 +131,6 @@ public:
                 DoCast(me, SPELL_TELEPORT);
 
                 DoCast(me, SPELL_SHIELD_OF_LIGHT);
-                me->AddUnitFlag(UNIT_FLAG_UNK_31);
 
                 DoCastAOE(SPELL_ACTIVATE_BEACONS);
 
@@ -387,7 +386,7 @@ public:
             {
                 CastSpellExtraArgs args;
                 args.AddSpellMod(SPELLVALUE_BASE_POINT0, aurEff->GetAmount());
-                caster->CastSpell(GetTarget(), aurEff->GetSpellEffectInfo()->TriggerSpell, args);
+                caster->CastSpell(GetTarget(), aurEff->GetSpellEffectInfo().TriggerSpell, args);
             }
         }
 

@@ -121,17 +121,17 @@ class boss_kologarn : public CreatureScript
             {
                 Talk(SAY_AGGRO);
 
-                events.ScheduleEvent(EVENT_MELEE_CHECK, 6000);
-                events.ScheduleEvent(EVENT_SMASH, 5000);
-                events.ScheduleEvent(EVENT_SWEEP, 19000);
+                events.ScheduleEvent(EVENT_MELEE_CHECK, 6s);
+                events.ScheduleEvent(EVENT_SMASH, 5s);
+                events.ScheduleEvent(EVENT_SWEEP, 19s);
                 events.ScheduleEvent(EVENT_STONE_GRIP, 25000);
-                events.ScheduleEvent(EVENT_FOCUSED_EYEBEAM, 21000);
-                events.ScheduleEvent(EVENT_ENRAGE, 600000);
+                events.ScheduleEvent(EVENT_FOCUSED_EYEBEAM, 21s);
+                events.ScheduleEvent(EVENT_ENRAGE, 10min);
 
                 if (Vehicle* vehicle = me->GetVehicleKit())
                     for (uint8 i = 0; i < 2; ++i)
                         if (Unit* arm = vehicle->GetPassenger(i))
-                            arm->ToCreature()->SetInCombatWithZone();
+                            DoZoneInCombat(arm->ToCreature());
 
                 _JustEngagedWith();
             }
@@ -168,7 +168,7 @@ class boss_kologarn : public CreatureScript
                     if (!apply && isEncounterInProgress)
                     {
                         Talk(SAY_LEFT_ARM_GONE);
-                        events.ScheduleEvent(EVENT_RESPAWN_LEFT_ARM, 40000);
+                        events.ScheduleEvent(EVENT_RESPAWN_LEFT_ARM, 40s);
                     }
                 }
 
@@ -178,7 +178,7 @@ class boss_kologarn : public CreatureScript
                     if (!apply && isEncounterInProgress)
                     {
                         Talk(SAY_RIGHT_ARM_GONE);
-                        events.ScheduleEvent(EVENT_RESPAWN_RIGHT_ARM, 40000);
+                        events.ScheduleEvent(EVENT_RESPAWN_RIGHT_ARM, 40s);
                     }
                 }
 
@@ -197,14 +197,14 @@ class boss_kologarn : public CreatureScript
                     }
 
                     if (!right && !left)
-                        events.ScheduleEvent(EVENT_STONE_SHOUT, 5000);
+                        events.ScheduleEvent(EVENT_STONE_SHOUT, 5s);
 
-                    instance->DoStartCriteriaTimer(CRITERIA_TIMED_TYPE_EVENT, CRITERIA_DISARMED);
+                    instance->DoStartCriteriaTimer(CriteriaStartEvent::SendEvent, CRITERIA_DISARMED);
                 }
                 else
                 {
                     events.CancelEvent(EVENT_STONE_SHOUT);
-                    who->ToCreature()->SetInCombatWithZone();
+                    DoZoneInCombat(who->ToCreature());
                 }
             }
 
@@ -257,23 +257,23 @@ class boss_kologarn : public CreatureScript
                         case EVENT_MELEE_CHECK:
                             if (!me->IsWithinMeleeRange(me->GetVictim()))
                                 DoCast(SPELL_PETRIFY_BREATH);
-                            events.ScheduleEvent(EVENT_MELEE_CHECK, 1 * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_MELEE_CHECK, 1s);
                             break;
                         case EVENT_SWEEP:
                             if (left)
                                 DoCast(me->FindNearestCreature(NPC_ARM_SWEEP_STALKER, 500.0f, true), SPELL_ARM_SWEEP, true);
-                            events.ScheduleEvent(EVENT_SWEEP, 25 * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_SWEEP, 25s);
                             break;
                         case EVENT_SMASH:
                             if (left && right)
                                 DoCastVictim(SPELL_TWO_ARM_SMASH);
                             else if (left || right)
                                 DoCastVictim(SPELL_ONE_ARM_SMASH);
-                            events.ScheduleEvent(EVENT_SMASH, 15 * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_SMASH, 15s);
                             break;
                         case EVENT_STONE_SHOUT:
                             DoCast(SPELL_STONE_SHOUT);
-                            events.ScheduleEvent(EVENT_STONE_SHOUT, 2 * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_STONE_SHOUT, 2s);
                             break;
                         case EVENT_ENRAGE:
                             DoCast(SPELL_BERSERK);
@@ -298,7 +298,7 @@ class boss_kologarn : public CreatureScript
                                 Talk(SAY_GRAB_PLAYER);
                                 Talk(EMOTE_STONE_GRIP);
                             }
-                            events.ScheduleEvent(EVENT_STONE_GRIP, 25 * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_STONE_GRIP, 25s);
                             break;
                         }
                         case EVENT_FOCUSED_EYEBEAM:
@@ -307,7 +307,7 @@ class boss_kologarn : public CreatureScript
                                 eyebeamTarget = eyebeamTargetUnit->GetGUID();
                                 DoCast(me, SPELL_SUMMON_FOCUSED_EYEBEAM, true);
                             }
-                            events.ScheduleEvent(EVENT_FOCUSED_EYEBEAM, urand(15, 35) * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_FOCUSED_EYEBEAM, 15s, 35s);
                             break;
                     }
 
@@ -343,7 +343,8 @@ class spell_ulduar_rubble_summon : public SpellScriptLoader
                 ObjectGuid originalCaster = caster->GetInstanceScript() ? caster->GetInstanceScript()->GetGuidData(BOSS_KOLOGARN) : ObjectGuid::Empty;
                 uint32 spellId = GetEffectValue();
                 for (uint8 i = 0; i < 5; ++i)
-                    caster->CastSpell(caster, spellId, originalCaster);
+                    caster->CastSpell(caster, spellId, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
+                        .SetOriginalCaster(originalCaster));
             }
 
             void Register() override
@@ -448,23 +449,22 @@ class spell_ulduar_cancel_stone_grip : public SpellScriptLoader
         {
             PrepareSpellScript(spell_ulduar_cancel_stone_gripSpellScript);
 
+            bool Validate(SpellInfo const* spellInfo) override
+            {
+                return spellInfo->GetEffects().size() > EFFECT_1;
+            }
+
             void HandleScript(SpellEffIndex /*effIndex*/)
             {
                 Unit* target = GetHitUnit();
                 if (!target || !target->GetVehicle())
                     return;
 
-                switch (target->GetMap()->GetDifficultyID())
-                {
-                    case DIFFICULTY_10_N:
-                        target->RemoveAura(GetSpellInfo()->GetEffect(EFFECT_0)->CalcValue());
-                        break;
-                    case DIFFICULTY_25_N:
-                        target->RemoveAura(GetSpellInfo()->GetEffect(EFFECT_1)->CalcValue());
-                        break;
-                    default:
-                        break;
-                }
+                SpellEffIndex effectIndexToCancel = EFFECT_0;
+                if (target->GetMap()->Is25ManRaid())
+                    effectIndexToCancel = EFFECT_1;
+
+                target->RemoveAura(GetEffectInfo(effectIndexToCancel).CalcValue());
             }
 
             void Register() override
@@ -615,11 +615,17 @@ class spell_kologarn_stone_shout : public SpellScriptLoader
         {
             PrepareSpellScript(spell_kologarn_stone_shout_SpellScript);
 
-            void FilterTargets(std::list<WorldObject*>& unitList)
+            void FilterTargets(std::list<WorldObject*>& targets)
             {
-                unitList.remove_if([](WorldObject* target)
+                targets.remove_if([](WorldObject* object) -> bool
                 {
-                    return target->GetTypeId() != TYPEID_PLAYER && (target->GetTypeId() != TYPEID_UNIT || !target->ToUnit()->IsPet());
+                    if (object->GetTypeId() == TYPEID_PLAYER)
+                        return false;
+
+                    if (Creature* creature = object->ToCreature())
+                        return !creature->IsPet();
+
+                    return true;
                 });
             }
 
@@ -647,7 +653,7 @@ class spell_kologarn_summon_focused_eyebeam : public SpellScriptLoader
             void HandleForceCast(SpellEffIndex effIndex)
             {
                 PreventHitDefaultEffect(effIndex);
-                GetCaster()->CastSpell(GetCaster(), GetSpellInfo()->GetEffect(effIndex)->TriggerSpell, true);
+                GetCaster()->CastSpell(GetCaster(), GetEffectInfo().TriggerSpell, true);
             }
 
             void Register() override

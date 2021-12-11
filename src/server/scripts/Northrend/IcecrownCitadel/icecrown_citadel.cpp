@@ -17,6 +17,8 @@
 
 #include "icecrown_citadel.h"
 #include "CellImpl.h"
+#include "GameObject.h"
+#include "GameObjectAI.h"
 #include "GridNotifiersImpl.h"
 #include "InstanceScript.h"
 #include "MotionMaster.h"
@@ -164,6 +166,46 @@ enum ICCSpells
 
     // Invisible Stalker (Float, Uninteractible, LargeAOI)
     SPELL_SOUL_MISSILE              = 72585,
+
+    // Empowering Blood Orb
+    SPELL_EMPOWERED_BLOOD_2         = 70232,
+    SPELL_EMPOWERED_BLOOD_3         = 70304,
+    SPELL_EMPOWERED_BLOOD_4         = 70320,
+    SPELL_ORB_CONTROLLER_ACTIVE     = 70293,
+
+    // Darkfallen Generic
+    SPELL_BLOOD_ORB_VISUAL          = 72099,
+    SPELL_SIPHON_ESSENCE            = 70299,
+
+    // Darkfallen Blood Knight
+    SPELL_VAMPIRIC_AURA             = 71736,
+    SPELL_BLOOD_MIRROR              = 70450,
+    SPELL_BLOOD_MIRROR_2            = 70451,
+    SPELL_BLOOD_MIRROR_DAMAGE_SHARE = 70445,
+    SPELL_UNHOLY_STRIKE             = 70437,
+
+    // Darkfallen Noble
+    SPELL_SHADOW_BOLT               = 72960,
+    SPELL_CHAINS_OF_SHADOW          = 72960,
+
+    // Darkfallen Archmage
+    SPELL_FIREBALL                  = 70409,
+    SPELL_AMPLIFY_MAGIC             = 70408,
+    SPELL_BLAST_WAVE                = 70407,
+    SPELL_POLYMORPH_ALLY            = 72106,
+    SPELL_POLYMORPH                 = 70410,
+
+    // Darkfallen Advisor
+    SPELL_LICH_SLAP                 = 72057,
+    SPELL_SHROUD_OF_SPELL_WARDING   = 72066,
+
+    // Vampiric Fiend
+    SPELL_DISEASE_CLOUD             = 41290,
+    SPELL_LEECHING_ROOT             = 70671,
+
+    // Darkfallen Tactician
+    SPELL_SHADOWSTEP                = 70431,
+    SPELL_BLOOD_SAP                 = 70432
 };
 
 // Helper defines
@@ -261,7 +303,8 @@ enum ICCEventTypes
 
 enum ICCDataTypes
 {
-    DATA_DAMNED_KILLS       = 1,
+    DATA_DAMNED_KILLS = 1,
+    DATA_GUID
 };
 
 enum ICCActions
@@ -272,6 +315,9 @@ enum ICCActions
     ACTION_RESURRECT_CAPTAINS   = 3,
     ACTION_CAPTAIN_DIES         = 4,
     ACTION_RESET_EVENT          = 5,
+    ACTION_SIPHON_INTERRUPTED   = 6,
+    ACTION_EVADE                = 7,
+    ACTION_COMBAT               = 8
 };
 
 enum ICCEventIds
@@ -282,9 +328,11 @@ enum ICCEventIds
     EVENT_AWAKEN_WARD_4 = 22909,
 };
 
-enum ICCMovementPoints
+enum ICCMisc
 {
-    POINT_LAND  = 1,
+    POINT_LAND            = 1,
+    ICC_BUFF_MENUID_ALLY  = 11204,
+    ICC_BUFF_MENUID_HORDE = 11207
 };
 
 class FrostwingVrykulSearcher
@@ -419,12 +467,16 @@ class npc_highlord_tirion_fordring_lh : public CreatureScript
                                 if (Creature* factionNPC = me->FindNearestCreature(_instance->GetData(DATA_TEAM_IN_INSTANCE) == HORDE ? NPC_SE_HIGH_OVERLORD_SAURFANG : NPC_SE_MURADIN_BRONZEBEARD, 50.0f))
                                 {
                                     me->setActive(true);
+                                    me->SetFarVisible(true);
                                     _theLichKing = theLichKing->GetGUID();
                                     theLichKing->setActive(true);
+                                    theLichKing->SetFarVisible(true);
                                     _bolvarFordragon = bolvarFordragon->GetGUID();
                                     bolvarFordragon->setActive(true);
+                                    bolvarFordragon->SetFarVisible(true);
                                     _factionNPC = factionNPC->GetGUID();
                                     factionNPC->setActive(true);
+                                    factionNPC->SetFarVisible(true);
                                 }
                             }
                         }
@@ -516,6 +568,7 @@ class npc_highlord_tirion_fordring_lh : public CreatureScript
                             {
                                 bolvarFordragon->AI()->Talk(SAY_BOLVAR_INTRO_1);
                                 bolvarFordragon->setActive(false);
+                                bolvarFordragon->SetFarVisible(false);
                             }
                             break;
                         case EVENT_LK_INTRO_5:
@@ -523,6 +576,7 @@ class npc_highlord_tirion_fordring_lh : public CreatureScript
                             {
                                 theLichKing->AI()->Talk(SAY_LK_INTRO_5);
                                 theLichKing->setActive(false);
+                                theLichKing->SetFarVisible(false);
                             }
                             break;
                         case EVENT_SAURFANG_INTRO_1:
@@ -609,9 +663,9 @@ class npc_rotting_frost_giant : public CreatureScript
             void Reset() override
             {
                 _events.Reset();
-                _events.ScheduleEvent(EVENT_DEATH_PLAGUE, 15000);
-                _events.ScheduleEvent(EVENT_STOMP, urand(5000, 8000));
-                _events.ScheduleEvent(EVENT_ARCTIC_BREATH, urand(10000, 15000));
+                _events.ScheduleEvent(EVENT_DEATH_PLAGUE, 15s);
+                _events.ScheduleEvent(EVENT_STOMP, 5s, 8s);
+                _events.ScheduleEvent(EVENT_ARCTIC_BREATH, 10s, 15s);
             }
 
             void JustDied(Unit* /*killer*/) override
@@ -639,15 +693,15 @@ class npc_rotting_frost_giant : public CreatureScript
                                 Talk(EMOTE_DEATH_PLAGUE_WARNING, target);
                                 DoCast(target, SPELL_DEATH_PLAGUE);
                             }
-                            _events.ScheduleEvent(EVENT_DEATH_PLAGUE, 15000);
+                            _events.ScheduleEvent(EVENT_DEATH_PLAGUE, 15s);
                             break;
                         case EVENT_STOMP:
                             DoCastVictim(SPELL_STOMP);
-                            _events.ScheduleEvent(EVENT_STOMP, urand(15000, 18000));
+                            _events.ScheduleEvent(EVENT_STOMP, 15s, 18s);
                             break;
                         case EVENT_ARCTIC_BREATH:
                             DoCastVictim(SPELL_ARCTIC_BREATH);
-                            _events.ScheduleEvent(EVENT_ARCTIC_BREATH, urand(26000, 33000));
+                            _events.ScheduleEvent(EVENT_ARCTIC_BREATH, 26s, 33s);
                             break;
                         default:
                             break;
@@ -699,7 +753,7 @@ class npc_frost_freeze_trap : public CreatureScript
                 if (_events.ExecuteEvent() == EVENT_ACTIVATE_TRAP)
                 {
                     DoCast(me, SPELL_COLDFLAME_JETS);
-                    _events.ScheduleEvent(EVENT_ACTIVATE_TRAP, 22000);
+                    _events.ScheduleEvent(EVENT_ACTIVATE_TRAP, 22s);
                 }
             }
 
@@ -789,8 +843,8 @@ class boss_sister_svalna : public CreatureScript
                 if (Creature* crok = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_CROK_SCOURGEBANE)))
                     crok->AI()->Talk(SAY_CROK_COMBAT_SVALNA);
                 DoCastSelf(SPELL_DIVINE_SURGE, true);
-                events.ScheduleEvent(EVENT_SVALNA_COMBAT, 9000);
-                events.ScheduleEvent(EVENT_IMPALING_SPEAR, urand(40000, 50000));
+                events.ScheduleEvent(EVENT_SVALNA_COMBAT, 9s);
+                events.ScheduleEvent(EVENT_IMPALING_SPEAR, 40s, 50s);
                 events.ScheduleEvent(EVENT_AETHER_SHIELD, urand(100000, 110000));
             }
 
@@ -836,18 +890,20 @@ class boss_sister_svalna : public CreatureScript
                         break;
                     case ACTION_START_GAUNTLET:
                         me->setActive(true);
+                        me->SetFarVisible(true);
                         _isEventInProgress = true;
                         me->SetImmuneToAll(true);
-                        events.ScheduleEvent(EVENT_SVALNA_START, 25000);
+                        events.ScheduleEvent(EVENT_SVALNA_START, 25s);
                         break;
                     case ACTION_RESURRECT_CAPTAINS:
-                        events.ScheduleEvent(EVENT_SVALNA_RESURRECT, 7000);
+                        events.ScheduleEvent(EVENT_SVALNA_RESURRECT, 7s);
                         break;
                     case ACTION_CAPTAIN_DIES:
                         Talk(SAY_SVALNA_CAPTAIN_DEATH);
                         break;
                     case ACTION_RESET_EVENT:
                         me->setActive(false);
+                        me->SetFarVisible(false);
                         Reset();
                         break;
                     default:
@@ -871,6 +927,7 @@ class boss_sister_svalna : public CreatureScript
 
                 _isEventInProgress = false;
                 me->setActive(false);
+                me->SetFarVisible(false);
                 me->SetImmuneToAll(false);
                 me->SetDisableGravity(false);
                 me->SetHover(false);
@@ -881,14 +938,14 @@ class boss_sister_svalna : public CreatureScript
                 switch (spell->Id)
                 {
                     case SPELL_IMPALING_SPEAR_KILL:
-                        me->Kill(target);
+                        Unit::Kill(me, target);
                         break;
                     case SPELL_IMPALING_SPEAR:
                         if (TempSummon* summon = target->SummonCreature(NPC_IMPALING_SPEAR, *target))
                         {
                             Talk(EMOTE_SVALNA_IMPALE, target);
                             CastSpellExtraArgs args;
-                            args.SpellValueOverrides.AddBP0(1);
+                            args.AddSpellBP0(1);
                             summon->CastSpell(target, VEHICLE_SPELL_RIDE_HARDCODED, args);
                             summon->AddUnitFlag2(UnitFlags2(UNIT_FLAG2_UNK1 | UNIT_FLAG2_ALLOW_ENEMY_INTERACT));
                         }
@@ -929,7 +986,7 @@ class boss_sister_svalna : public CreatureScript
                                 DoCast(me, SPELL_AETHER_SHIELD);
                                 DoCast(target, SPELL_IMPALING_SPEAR);
                             }
-                            events.ScheduleEvent(EVENT_IMPALING_SPEAR, urand(20000, 25000));
+                            events.ScheduleEvent(EVENT_IMPALING_SPEAR, 20s, 25s);
                             break;
                         default:
                             break;
@@ -981,7 +1038,7 @@ class npc_crok_scourgebane : public CreatureScript
             {
                 _events.Reset();
                 _events.ScheduleEvent(EVENT_SCOURGE_STRIKE, urand(7500, 12500));
-                _events.ScheduleEvent(EVENT_DEATH_STRIKE, urand(25000, 30000));
+                _events.ScheduleEvent(EVENT_DEATH_STRIKE, 25s, 30s);
                 me->SetReactState(REACT_DEFENSIVE);
                 Initialize();
             }
@@ -1002,8 +1059,9 @@ class npc_crok_scourgebane : public CreatureScript
                     Talk(SAY_CROK_INTRO_1);
                     _events.ScheduleEvent(EVENT_ARNATH_INTRO_2, 7000);
                     _events.ScheduleEvent(EVENT_CROK_INTRO_3, 14000);
-                    _events.ScheduleEvent(EVENT_START_PATHING, 37000);
+                    _events.ScheduleEvent(EVENT_START_PATHING, 35s);
                     me->setActive(true);
+                    me->SetFarVisible(true);
                     for (uint32 i = 0; i < 4; ++i)
                         if (Creature* crusader = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_CAPTAIN_ARNATH + i)))
                             crusader->AI()->DoAction(ACTION_START_GAUNTLET);
@@ -1013,6 +1071,7 @@ class npc_crok_scourgebane : public CreatureScript
                     _isEventActive = false;
                     _isEventDone = _instance->GetBossState(DATA_SISTER_SVALNA) == DONE;
                     me->setActive(false);
+                    me->SetFarVisible(false);
                     _aliveTrash.clear();
                     _currentWPid = 0;
                 }
@@ -1030,6 +1089,7 @@ class npc_crok_scourgebane : public CreatureScript
                         {
                             _isEventActive = false;
                             me->setActive(false);
+                            me->SetFarVisible(false);
                             Talk(SAY_CROK_FINAL_WP);
                             if (Creature* svalna = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_SISTER_SVALNA)))
                                 svalna->AI()->DoAction(ACTION_RESURRECT_CAPTAINS);
@@ -1059,6 +1119,7 @@ class npc_crok_scourgebane : public CreatureScript
                         {
                             _isEventActive = false;
                             me->setActive(false);
+                            me->SetFarVisible(false);
                             Talk(SAY_CROK_FINAL_WP);
                             if (Creature* svalna = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_SISTER_SVALNA)))
                                 svalna->AI()->DoAction(ACTION_RESURRECT_CAPTAINS);
@@ -1155,7 +1216,7 @@ class npc_crok_scourgebane : public CreatureScript
 
                     damage = 0;
                     DoCast(me, SPELL_ICEBOUND_ARMOR);
-                    _events.ScheduleEvent(EVENT_HEALTH_CHECK, 1000);
+                    _events.ScheduleEvent(EVENT_HEALTH_CHECK, 1s);
                 }
             }
 
@@ -1190,12 +1251,12 @@ class npc_crok_scourgebane : public CreatureScript
                             break;
                         case EVENT_SCOURGE_STRIKE:
                             DoCastVictim(SPELL_SCOURGE_STRIKE);
-                            _events.ScheduleEvent(EVENT_SCOURGE_STRIKE, urand(10000, 14000));
+                            _events.ScheduleEvent(EVENT_SCOURGE_STRIKE, 10s, 14s);
                             break;
                         case EVENT_DEATH_STRIKE:
                             if (HealthBelowPct(20))
                                 DoCastVictim(SPELL_DEATH_STRIKE);
-                            _events.ScheduleEvent(EVENT_DEATH_STRIKE, urand(5000, 10000));
+                            _events.ScheduleEvent(EVENT_DEATH_STRIKE, 5s, 10s);
                             break;
                         case EVENT_HEALTH_CHECK:
                             if (HealthAbovePct(15))
@@ -1207,7 +1268,7 @@ class npc_crok_scourgebane : public CreatureScript
                             {
                                 // looks totally hacky to me
                                 me->ModifyHealth(me->CountPctFromMaxHealth(5));
-                                _events.ScheduleEvent(EVENT_HEALTH_CHECK, 1000);
+                                _events.ScheduleEvent(EVENT_HEALTH_CHECK, 1s);
                             }
                             break;
                         default:
@@ -1277,12 +1338,13 @@ struct npc_argent_captainAI : public ScriptedAI
                 if (Creature* crok = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_CROK_SCOURGEBANE)))
                 {
                     me->SetReactState(REACT_DEFENSIVE);
-                    FollowAngle = me->GetAngle(crok) + me->GetOrientation();
+                    FollowAngle = me->GetAbsoluteAngle(crok) + me->GetOrientation();
                     FollowDist = me->GetDistance2d(crok);
-                    me->GetMotionMaster()->MoveFollow(crok, FollowDist, FollowAngle, MOTION_SLOT_IDLE);
+                    me->GetMotionMaster()->MoveFollow(crok, FollowDist, FollowAngle, MOTION_SLOT_DEFAULT);
                 }
 
                 me->setActive(true);
+                me->SetFarVisible(true);
             }
             else if (action == ACTION_RESET_EVENT)
             {
@@ -1306,7 +1368,7 @@ struct npc_argent_captainAI : public ScriptedAI
         void EnterEvadeMode(EvadeReason why) override
         {
             // not yet following
-            if (me->GetMotionMaster()->GetMotionSlotType(MOTION_SLOT_IDLE) != CHASE_MOTION_TYPE || IsUndead)
+            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType(MOTION_SLOT_DEFAULT) != FOLLOW_MOTION_TYPE || IsUndead)
             {
                 ScriptedAI::EnterEvadeMode(why);
                 return;
@@ -1317,9 +1379,9 @@ struct npc_argent_captainAI : public ScriptedAI
 
             if (!me->GetVehicle())
             {
-                me->GetMotionMaster()->Clear(false);
+                me->GetMotionMaster()->Clear();
                 if (Creature* crok = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_CROK_SCOURGEBANE)))
-                    me->GetMotionMaster()->MoveFollow(crok, FollowDist, FollowAngle, MOTION_SLOT_IDLE);
+                    me->GetMotionMaster()->MoveFollow(crok, FollowDist, FollowAngle, MOTION_SLOT_DEFAULT);
             }
 
             Reset();
@@ -1381,11 +1443,11 @@ class npc_captain_arnath : public CreatureScript
             void Reset() override
             {
                 Events.Reset();
-                Events.ScheduleEvent(EVENT_ARNATH_FLASH_HEAL, urand(4000, 7000));
-                Events.ScheduleEvent(EVENT_ARNATH_PW_SHIELD, urand(8000, 14000));
-                Events.ScheduleEvent(EVENT_ARNATH_SMITE, urand(3000, 6000));
+                Events.ScheduleEvent(EVENT_ARNATH_FLASH_HEAL, 4s, 7s);
+                Events.ScheduleEvent(EVENT_ARNATH_PW_SHIELD, 8s, 14s);
+                Events.ScheduleEvent(EVENT_ARNATH_SMITE, 3s, 6s);
                 if (Is25ManRaid() && IsUndead)
-                    Events.ScheduleEvent(EVENT_ARNATH_DOMINATE_MIND, urand(22000, 27000));
+                    Events.ScheduleEvent(EVENT_ARNATH_DOMINATE_MIND, 22s, 27s);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1405,23 +1467,23 @@ class npc_captain_arnath : public CreatureScript
                         case EVENT_ARNATH_FLASH_HEAL:
                             if (Creature* target = FindFriendlyCreature())
                                 DoCast(target, SPELL_FLASH_HEAL);
-                            Events.ScheduleEvent(EVENT_ARNATH_FLASH_HEAL, urand(6000, 9000));
+                            Events.ScheduleEvent(EVENT_ARNATH_FLASH_HEAL, 6s, 9s);
                             break;
                         case EVENT_ARNATH_PW_SHIELD:
                         {
                             std::list<Creature*> targets = DoFindFriendlyMissingBuff(40.0f, SPELL_POWER_WORD_SHIELD);
                             DoCast(Trinity::Containers::SelectRandomContainerElement(targets), SPELL_POWER_WORD_SHIELD);
-                            Events.ScheduleEvent(EVENT_ARNATH_PW_SHIELD, urand(15000, 20000));
+                            Events.ScheduleEvent(EVENT_ARNATH_PW_SHIELD, 15s, 20s);
                             break;
                         }
                         case EVENT_ARNATH_SMITE:
                             DoCastVictim(SPELL_SMITE);
-                            Events.ScheduleEvent(EVENT_ARNATH_SMITE, urand(4000, 7000));
+                            Events.ScheduleEvent(EVENT_ARNATH_SMITE, 4s, 7s);
                             break;
                         case EVENT_ARNATH_DOMINATE_MIND:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 0.0f, true))
                                 DoCast(target, SPELL_DOMINATE_MIND);
-                            Events.ScheduleEvent(EVENT_ARNATH_DOMINATE_MIND, urand(28000, 37000));
+                            Events.ScheduleEvent(EVENT_ARNATH_DOMINATE_MIND, 28s, 37s);
                             break;
                         default:
                             break;
@@ -1465,11 +1527,11 @@ class npc_captain_brandon : public CreatureScript
             void Reset() override
             {
                 Events.Reset();
-                Events.ScheduleEvent(EVENT_BRANDON_CRUSADER_STRIKE, urand(6000, 10000));
-                Events.ScheduleEvent(EVENT_BRANDON_DIVINE_SHIELD, 500);
-                Events.ScheduleEvent(EVENT_BRANDON_JUDGEMENT_OF_COMMAND, urand(8000, 13000));
+                Events.ScheduleEvent(EVENT_BRANDON_CRUSADER_STRIKE, 6s, 10s);
+                Events.ScheduleEvent(EVENT_BRANDON_DIVINE_SHIELD, 500ms);
+                Events.ScheduleEvent(EVENT_BRANDON_JUDGEMENT_OF_COMMAND, 8s, 13s);
                 if (IsUndead)
-                    Events.ScheduleEvent(EVENT_BRANDON_HAMMER_OF_BETRAYAL, urand(25000, 30000));
+                    Events.ScheduleEvent(EVENT_BRANDON_HAMMER_OF_BETRAYAL, 25s, 30s);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1488,21 +1550,21 @@ class npc_captain_brandon : public CreatureScript
                     {
                         case EVENT_BRANDON_CRUSADER_STRIKE:
                             DoCastVictim(SPELL_CRUSADER_STRIKE);
-                            Events.ScheduleEvent(EVENT_BRANDON_CRUSADER_STRIKE, urand(6000, 12000));
+                            Events.ScheduleEvent(EVENT_BRANDON_CRUSADER_STRIKE, 6s, 12s);
                             break;
                         case EVENT_BRANDON_DIVINE_SHIELD:
                             if (HealthBelowPct(20))
                                 DoCast(me, SPELL_DIVINE_SHIELD);
-                            Events.ScheduleEvent(EVENT_BRANDON_DIVINE_SHIELD, 500);
+                            Events.ScheduleEvent(EVENT_BRANDON_DIVINE_SHIELD, 500ms);
                             break;
                         case EVENT_BRANDON_JUDGEMENT_OF_COMMAND:
                             DoCastVictim(SPELL_JUDGEMENT_OF_COMMAND);
-                            Events.ScheduleEvent(EVENT_BRANDON_JUDGEMENT_OF_COMMAND, urand(8000, 13000));
+                            Events.ScheduleEvent(EVENT_BRANDON_JUDGEMENT_OF_COMMAND, 8s, 13s);
                             break;
                         case EVENT_BRANDON_HAMMER_OF_BETRAYAL:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 0.0f, true))
                                 DoCast(target, SPELL_HAMMER_OF_BETRAYAL);
-                            Events.ScheduleEvent(EVENT_BRANDON_HAMMER_OF_BETRAYAL, urand(45000, 60000));
+                            Events.ScheduleEvent(EVENT_BRANDON_HAMMER_OF_BETRAYAL, 45s, 60s);
                             break;
                         default:
                             break;
@@ -1536,11 +1598,11 @@ class npc_captain_grondel : public CreatureScript
             void Reset() override
             {
                 Events.Reset();
-                Events.ScheduleEvent(EVENT_GRONDEL_CHARGE_CHECK, 500);
-                Events.ScheduleEvent(EVENT_GRONDEL_MORTAL_STRIKE, urand(8000, 14000));
-                Events.ScheduleEvent(EVENT_GRONDEL_SUNDER_ARMOR, urand(3000, 12000));
+                Events.ScheduleEvent(EVENT_GRONDEL_CHARGE_CHECK, 500ms);
+                Events.ScheduleEvent(EVENT_GRONDEL_MORTAL_STRIKE, 8s, 14s);
+                Events.ScheduleEvent(EVENT_GRONDEL_SUNDER_ARMOR, 3s, 12s);
                 if (IsUndead)
-                    Events.ScheduleEvent(EVENT_GRONDEL_CONFLAGRATION, urand(12000, 17000));
+                    Events.ScheduleEvent(EVENT_GRONDEL_CONFLAGRATION, 12s, 17s);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1559,20 +1621,20 @@ class npc_captain_grondel : public CreatureScript
                     {
                         case EVENT_GRONDEL_CHARGE_CHECK:
                             DoCastVictim(SPELL_CHARGE);
-                            Events.ScheduleEvent(EVENT_GRONDEL_CHARGE_CHECK, 500);
+                            Events.ScheduleEvent(EVENT_GRONDEL_CHARGE_CHECK, 500ms);
                             break;
                         case EVENT_GRONDEL_MORTAL_STRIKE:
                             DoCastVictim(SPELL_MORTAL_STRIKE);
-                            Events.ScheduleEvent(EVENT_GRONDEL_MORTAL_STRIKE, urand(10000, 15000));
+                            Events.ScheduleEvent(EVENT_GRONDEL_MORTAL_STRIKE, 10s, 15s);
                             break;
                         case EVENT_GRONDEL_SUNDER_ARMOR:
                             DoCastVictim(SPELL_SUNDER_ARMOR);
-                            Events.ScheduleEvent(EVENT_GRONDEL_SUNDER_ARMOR, urand(5000, 17000));
+                            Events.ScheduleEvent(EVENT_GRONDEL_SUNDER_ARMOR, 5s, 17s);
                             break;
                         case EVENT_GRONDEL_CONFLAGRATION:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true))
                                 DoCast(target, SPELL_CONFLAGRATION);
-                            Events.ScheduleEvent(EVENT_GRONDEL_CONFLAGRATION, urand(10000, 15000));
+                            Events.ScheduleEvent(EVENT_GRONDEL_CONFLAGRATION, 10s, 15s);
                             break;
                         default:
                             break;
@@ -1606,9 +1668,9 @@ class npc_captain_rupert : public CreatureScript
             void Reset() override
             {
                 Events.Reset();
-                Events.ScheduleEvent(EVENT_RUPERT_FEL_IRON_BOMB, urand(15000, 20000));
-                Events.ScheduleEvent(EVENT_RUPERT_MACHINE_GUN, urand(25000, 30000));
-                Events.ScheduleEvent(EVENT_RUPERT_ROCKET_LAUNCH, urand(10000, 15000));
+                Events.ScheduleEvent(EVENT_RUPERT_FEL_IRON_BOMB, 15s, 20s);
+                Events.ScheduleEvent(EVENT_RUPERT_MACHINE_GUN, 25s, 30s);
+                Events.ScheduleEvent(EVENT_RUPERT_ROCKET_LAUNCH, 10s, 15s);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1628,17 +1690,17 @@ class npc_captain_rupert : public CreatureScript
                         case EVENT_RUPERT_FEL_IRON_BOMB:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
                                 DoCast(target, SPELL_FEL_IRON_BOMB);
-                            Events.ScheduleEvent(EVENT_RUPERT_FEL_IRON_BOMB, urand(15000, 20000));
+                            Events.ScheduleEvent(EVENT_RUPERT_FEL_IRON_BOMB, 15s, 20s);
                             break;
                         case EVENT_RUPERT_MACHINE_GUN:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1))
                                 DoCast(target, SPELL_MACHINE_GUN);
-                            Events.ScheduleEvent(EVENT_RUPERT_MACHINE_GUN, urand(25000, 30000));
+                            Events.ScheduleEvent(EVENT_RUPERT_MACHINE_GUN, 25s, 30s);
                             break;
                         case EVENT_RUPERT_ROCKET_LAUNCH:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1))
                                 DoCast(target, SPELL_ROCKET_LAUNCH);
-                            Events.ScheduleEvent(EVENT_RUPERT_ROCKET_LAUNCH, urand(10000, 15000));
+                            Events.ScheduleEvent(EVENT_RUPERT_ROCKET_LAUNCH, 10s, 15s);
                             break;
                         default:
                             break;
@@ -1743,7 +1805,7 @@ class npc_arthas_teleport_visual : public CreatureScript
                 if (_instance->GetBossState(DATA_PROFESSOR_PUTRICIDE) == DONE &&
                     _instance->GetBossState(DATA_BLOOD_QUEEN_LANA_THEL) == DONE &&
                     _instance->GetBossState(DATA_SINDRAGOSA) == DONE)
-                    _events.ScheduleEvent(EVENT_SOUL_MISSILE, urand(1000, 6000));
+                    _events.ScheduleEvent(EVENT_SOUL_MISSILE, 1s, 6s);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1756,7 +1818,7 @@ class npc_arthas_teleport_visual : public CreatureScript
                 if (_events.ExecuteEvent() == EVENT_SOUL_MISSILE)
                 {
                     DoCastAOE(SPELL_SOUL_MISSILE);
-                    _events.ScheduleEvent(EVENT_SOUL_MISSILE, urand(5000, 7000));
+                    _events.ScheduleEvent(EVENT_SOUL_MISSILE, 5s, 7s);
                 }
             }
 
@@ -1774,6 +1836,556 @@ class npc_arthas_teleport_visual : public CreatureScript
             // Default to no script
             return nullptr;
         }
+};
+
+struct npc_entrance_faction_leader : public ScriptedAI
+{
+    npc_entrance_faction_leader(Creature* creature) : ScriptedAI(creature) { }
+
+    bool GossipSelect(Player* /*player*/, uint32 menuId, uint32 /*gossipListId*/) override
+    {
+        if (menuId == ICC_BUFF_MENUID_ALLY || menuId == ICC_BUFF_MENUID_HORDE)
+            if (InstanceScript* instance = me->GetInstanceScript())
+                instance->SetData(DATA_ICC_BUFF, 0);
+        return false;
+    }
+};
+
+class MinionSearch
+{
+public:
+    MinionSearch(bool checkCasting) : _checkCasting(checkCasting) { }
+
+    bool operator()(Unit* unit) const
+    {
+        if (!unit->IsAlive() || (_checkCasting && unit->HasUnitState(UNIT_STATE_CASTING)))
+            return false;
+
+        switch (unit->GetEntry())
+        {
+            case NPC_DARKFALLEN_BLOOD_KNIGHT:
+            case NPC_DARKFALLEN_NOBLE:
+            case NPC_DARKFALLEN_ARCHMAGE:
+            case NPC_DARKFALLEN_ADVISOR:
+            case NPC_DARKFALLEN_TACTICIAN:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+private:
+    // Need check to not use polymorph in a casting creature
+    bool _checkCasting;
+};
+
+std::vector<uint32> DarkFallensEmotes =
+{
+    EMOTE_ONESHOT_TALK,
+    EMOTE_ONESHOT_EXCLAMATION,
+    EMOTE_ONESHOT_QUESTION,
+    EMOTE_ONESHOT_LAUGH,
+    EMOTE_ONESHOT_YES,
+    EMOTE_ONESHOT_NO
+};
+
+struct npc_icc_orb_controller : public ScriptedAI
+{
+    npc_icc_orb_controller(Creature* creature) : ScriptedAI(creature), _isInCombat(false), _isLongRepeat(false) { }
+
+    void Reset() override
+    {
+        _minionGuids.clear();
+        std::vector<Creature*> creatures;
+        MinionSearch check(false);
+        Trinity::CreatureListSearcher<MinionSearch> searcher(me, creatures, check);
+        Cell::VisitGridObjects(me, searcher, 10.0f);
+
+        for (Creature* creature : creatures)
+        {
+            creature->AI()->SetGUID(me->GetGUID(), DATA_GUID);
+            _minionGuids.push_back(creature->GetGUID());
+        }
+
+        if (creatures.empty())
+            return;
+
+        _isLongRepeat = false;
+        _scheduler.Schedule(1s, [this](TaskContext visual)
+        {
+            ObjectGuid guid = Trinity::Containers::SelectRandomContainerElement(_minionGuids);
+            if (Unit* minion = ObjectAccessor::GetUnit(*me, guid))
+                minion->CastSpell(nullptr, SPELL_BLOOD_ORB_VISUAL);
+            visual.Repeat(_isLongRepeat ? 21s : 3s);
+            _isLongRepeat = !_isLongRepeat;
+        });
+    }
+
+    void SpellHit(Unit* caster, SpellInfo const* spell) override
+    {
+        if (spell->Id == SPELL_ORB_CONTROLLER_ACTIVE)
+        {
+            if (GameObject* orb = me->FindNearestGameObject(GO_EMPOWERING_BLOOD_ORB, 5.0f))
+                orb->AI()->SetGUID(caster->GetGUID(), DATA_GUID);
+        }
+    }
+
+    void DoAction(int32 action) override
+    {
+        if (action == ACTION_COMBAT && !_isInCombat)
+        {
+            _isInCombat = true;
+            _scheduler.CancelAll();
+            if (_minionGuids.empty())
+                return;
+
+            if (Unit* minion = ObjectAccessor::GetUnit(*me, Trinity::Containers::SelectRandomContainerElement(_minionGuids)))
+                minion->CastSpell(me, SPELL_SIPHON_ESSENCE);
+
+            for (ObjectGuid guid : _minionGuids)
+            {
+                if (Creature* minion = ObjectAccessor::GetCreature(*me, guid))
+                    if (minion->IsAIEnabled() && !minion->IsInCombat())
+                        minion->AI()->DoZoneInCombat();
+            }
+        }
+        else if (action == ACTION_EVADE && _isInCombat)
+        {
+            _isInCombat = false;
+            // Update Darkfallens
+            Reset();
+        }
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+private:
+    TaskScheduler _scheduler;
+    GuidVector _minionGuids;
+    bool _isInCombat;
+    bool _isLongRepeat;
+};
+
+struct DarkFallenAI : public ScriptedAI
+{
+    DarkFallenAI(Creature* creature) : ScriptedAI(creature), IsDoingEmotes(true), AttackSpellId(0) { }
+
+    virtual void ScheduleSpells() = 0;
+
+    void Reset() override
+    {
+        IsDoingEmotes = me->GetWaypointPath() ? false : true;
+        Scheduler.CancelAll();
+        Scheduler.SetValidator([this]
+        {
+            return !me->HasUnitState(UNIT_STATE_CASTING);
+        })
+        .Schedule(1s, 10s, [this](TaskContext emote)
+        {
+            if (!IsDoingEmotes)
+                return;
+
+            if (roll_chance_i(20))
+            {
+                std::vector<Creature*> creatures;
+                MinionSearch check(true);
+                Trinity::CreatureListSearcher<MinionSearch> searcher(me, creatures, check);
+                Cell::VisitGridObjects(me, searcher, 10.0f);
+                if (!creatures.empty())
+                {
+                    Creature* friendly = Trinity::Containers::SelectRandomContainerElement(creatures);
+                    DoCast(friendly, SPELL_POLYMORPH_ALLY);
+                }
+            }
+            Scheduler.Schedule(1s, [this](TaskContext /*emote*/)
+            {
+                me->HandleEmoteCommand(Trinity::Containers::SelectRandomContainerElement(DarkFallensEmotes));
+            });
+            emote.Repeat(15s, 30s);
+        });
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        IsDoingEmotes = false;
+        Scheduler.CancelAll();
+        ScheduleSpells();
+        if (Unit* trigger = ObjectAccessor::GetUnit(*me, TriggerGuid))
+            trigger->GetAI()->DoAction(ACTION_COMBAT);
+    }
+
+    void DoAction(int32 action) override
+    {
+        if (action == ACTION_SIPHON_INTERRUPTED)
+            if (GameObject* orb = me->FindNearestGameObject(GO_EMPOWERING_BLOOD_ORB, 10.0f))
+                orb->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
+    }
+
+    void SetGUID(ObjectGuid const& guid, int32 id) override
+    {
+        if (id == DATA_GUID)
+            TriggerGuid = guid;
+    }
+
+    void JustReachedHome() override
+    {
+        ScriptedAI::JustReachedHome();
+        if (Unit* trigger = ObjectAccessor::GetUnit(*me, TriggerGuid))
+            trigger->GetAI()->DoAction(ACTION_EVADE);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim() && !IsDoingEmotes)
+            return;
+
+        Scheduler.Update(diff);
+
+        if (AttackSpellId)
+            DoSpellAttackIfReady(AttackSpellId);
+        else
+            DoMeleeAttackIfReady();
+    }
+
+protected:
+    TaskScheduler Scheduler;
+    ObjectGuid TriggerGuid;
+    bool IsDoingEmotes;
+    uint32 AttackSpellId;
+};
+
+struct npc_darkfallen_blood_knight : public DarkFallenAI
+{
+    npc_darkfallen_blood_knight(Creature* creature) : DarkFallenAI(creature) { }
+
+    void ScheduleSpells() override
+    {
+        Scheduler.Schedule(500ms, [this](TaskContext /*context*/)
+        {
+            DoCastSelf(SPELL_VAMPIRIC_AURA);
+        })
+        .Schedule(8s, [this](TaskContext unholyStrike)
+        {
+            DoCastVictim(SPELL_UNHOLY_STRIKE);
+            unholyStrike.Repeat(8s, 9s);
+        })
+        .Schedule(6s, [this](TaskContext bloodMirror)
+        {
+            DoCastSelf(SPELL_BLOOD_MIRROR);
+            bloodMirror.Repeat(34s);
+        });
+    }
+};
+
+struct npc_darkfallen_noble : public DarkFallenAI
+{
+    npc_darkfallen_noble(Creature* creature) : DarkFallenAI(creature) { }
+
+    void ScheduleSpells() override
+    {
+        AttackSpellId = SPELL_SHADOW_BOLT;
+        Scheduler.Schedule(500ms, [this](TaskContext /*context*/)
+        {
+            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true, false, -SPELL_CHAINS_OF_SHADOW))
+                DoCast(target, SPELL_CHAINS_OF_SHADOW);
+        })
+        .Schedule(11s, [this](TaskContext summonVampiric)
+        {
+            // Vampiric should be summoned by 70647 but i have no idea what is miscB of summon effect
+            if (Unit* target = me->GetVictim())
+                if (Creature* vampiric = me->SummonCreature(NPC_VAMPIRIC_FIEND, target->GetPosition(), TEMPSUMMON_CORPSE_DESPAWN))
+                    vampiric->AI()->AttackStart(target);
+            summonVampiric.Repeat(30s);
+        });
+    }
+};
+
+struct npc_vampiric_fiend : public ScriptedAI
+{
+    npc_vampiric_fiend(Creature* creature) : ScriptedAI(creature) { }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        DoCastSelf(SPELL_DISEASE_CLOUD);
+        _scheduler.Schedule(9s, [this](TaskContext /*leechingRoot*/)
+        {
+            DoCastVictim(SPELL_LEECHING_ROOT);
+        })
+        .Schedule(38s, [this](TaskContext /*leechingRoot*/)
+        {
+            me->DespawnOrUnsummon();
+        });
+    }
+
+    void EnterEvadeMode(EvadeReason /*why*/) override
+    {
+        _scheduler.CancelAll();
+        me->DespawnOrUnsummon();
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        _scheduler.Update(diff);
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+struct npc_darkfallen_archmage : public DarkFallenAI
+{
+    npc_darkfallen_archmage(Creature* creature) : DarkFallenAI(creature) { }
+
+    void ScheduleSpells() override
+    {
+        AttackSpellId = SPELL_FIREBALL;
+        Scheduler.Schedule(1s, [this](TaskContext amplifyMagic)
+        {
+            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                DoCast(target, SPELL_AMPLIFY_MAGIC);
+            amplifyMagic.Repeat(15s, 24s);
+        })
+        .Schedule(10s, [this](TaskContext blastWave)
+        {
+            DoCastSelf(SPELL_BLAST_WAVE);
+            blastWave.Repeat(25s, 30s);
+        })
+        .Schedule(17s, [this](TaskContext polymorph)
+        {
+            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true, false, -SPELL_POLYMORPH))
+                DoCast(target, SPELL_POLYMORPH);
+            polymorph.Repeat(25s, 35s);
+        });
+    }
+};
+
+struct npc_darkfallen_advisor : public DarkFallenAI
+{
+    npc_darkfallen_advisor(Creature* creature) : DarkFallenAI(creature) { }
+
+    void ScheduleSpells() override
+    {
+        Scheduler.Schedule(8s, [this](TaskContext lichSlap)
+        {
+            DoCastVictim(SPELL_LICH_SLAP);
+            lichSlap.Repeat(12s);
+        })
+        .Schedule(50s, [this](TaskContext immunity)
+        {
+            if (Unit* target = DoSelectLowestHpFriendly(40.0f))
+                DoCast(target, SPELL_SHROUD_OF_SPELL_WARDING);
+            immunity.Repeat(20s, 25s);
+        });
+    }
+};
+
+struct npc_darkfallen_tactician : public DarkFallenAI
+{
+    npc_darkfallen_tactician(Creature* creature) : DarkFallenAI(creature) { }
+
+    void ScheduleSpells() override
+    {
+        Scheduler.Schedule(8s, [this](TaskContext unholyStrike)
+        {
+            DoCastVictim(SPELL_UNHOLY_STRIKE);
+            unholyStrike.Repeat(8s, 11s);
+        })
+        .Schedule(10s, [this](TaskContext shadowStep)
+        {
+            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true, false))
+            {
+                DoCast(target, SPELL_SHADOWSTEP);
+                DoCast(target, SPELL_BLOOD_SAP);
+            }
+            shadowStep.Repeat(20s);
+        });
+    }
+};
+
+struct go_empowering_blood_orb : public GameObjectAI
+{
+    go_empowering_blood_orb(GameObject* go) : GameObjectAI(go) { }
+
+    bool GossipHello(Player* player) override
+    {
+        me->CastSpell(player, SPELL_EMPOWERED_BLOOD, true);
+        HandleObjectUse();
+        return true;
+    }
+
+    void HandleObjectUse()
+    {
+        me->AddFlag(GO_FLAG_IN_USE);
+        me->SetGoAnimProgress(255);
+        me->SetGoState(GO_STATE_ACTIVE_ALTERNATIVE);
+        if (Creature* target = me->FindNearestCreature(NPC_ORB_VISUAL_STALKER, 10.0f, true))
+            target->KillSelf();
+        _scheduler.Schedule(3s, [this](TaskContext /*context*/)
+        {
+            me->Delete();
+        });
+    }
+
+    void SetGUID(ObjectGuid const& guid, int32 id) override
+    {
+        if (id == DATA_GUID)
+        {
+            if (Unit* target = ObjectAccessor::GetUnit(*me, guid))
+                me->CastSpell(target, SPELL_EMPOWERED_BLOOD_3, true);
+            HandleObjectUse();
+        }
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+// 70227 - Empowered Blood
+class spell_icc_empowered_blood : public AuraScript
+{
+    PrepareAuraScript(spell_icc_empowered_blood);
+
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo({ SPELL_EMPOWERED_BLOOD_2 });
+    }
+
+    void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->CastSpell(GetTarget(), SPELL_EMPOWERED_BLOOD_2, true);
+    }
+
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_EMPOWERED_BLOOD_2);
+    }
+
+    void Register() override
+    {
+        OnEffectApply += AuraEffectApplyFn(spell_icc_empowered_blood::OnApply, EFFECT_0, SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_icc_empowered_blood::OnRemove, EFFECT_0, SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 70304 - Empowered Blood
+class spell_icc_empowered_blood_3 : public AuraScript
+{
+    PrepareAuraScript(spell_icc_empowered_blood_3);
+
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo({ SPELL_EMPOWERED_BLOOD_4 });
+    }
+
+    void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->CastSpell(GetTarget(), SPELL_EMPOWERED_BLOOD_4, true);
+    }
+
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_EMPOWERED_BLOOD_4);
+    }
+
+    void Register() override
+    {
+        OnEffectApply += AuraEffectApplyFn(spell_icc_empowered_blood_3::OnApply, EFFECT_0, SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_icc_empowered_blood_3::OnRemove, EFFECT_0, SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 70299 - Siphon Essence
+class spell_icc_siphon_essence : public AuraScript
+{
+    PrepareAuraScript(spell_icc_siphon_essence);
+
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE && GetTarget()->IsAIEnabled())
+            GetTarget()->GetAI()->DoAction(ACTION_SIPHON_INTERRUPTED);
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(spell_icc_siphon_essence::OnRemove, EFFECT_1, SPELL_AURA_MOD_ROOT, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 70450 - Blood Mirror
+class spell_darkfallen_blood_mirror : public SpellScript
+{
+    PrepareSpellScript(spell_darkfallen_blood_mirror);
+
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo({ SPELL_BLOOD_MIRROR_2, SPELL_BLOOD_MIRROR_DAMAGE_SHARE });
+    }
+
+    void FilterTargets(std::list<WorldObject*>& targets)
+    {
+        if (targets.size() < 2)
+            return;
+
+        _targets = targets;
+        Trinity::Containers::RandomResize(_targets, 2);
+    }
+
+    void HandleMirror(SpellEffIndex /*effIndex*/)
+    {
+        if (_targets.empty())
+            return;
+
+        Unit* caster = GetCaster();
+        WorldObject* target = _targets.front();
+        WorldObject* mirror = _targets.back();
+
+        caster->CastSpell(target, SPELL_BLOOD_MIRROR_2, true);
+        target->CastSpell(mirror, SPELL_BLOOD_MIRROR_DAMAGE_SHARE, true);
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_darkfallen_blood_mirror::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnEffectLaunch += SpellEffectFn(spell_darkfallen_blood_mirror::HandleMirror, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+
+private:
+    std::list<WorldObject*> _targets;
+};
+
+// 72131 - Remove Empowered Blood
+// 70939 - Blood Queen Lana'thel - Clear all Status Ailments
+class spell_generic_remove_empowered_blood : public SpellScript
+{
+    PrepareSpellScript(spell_generic_remove_empowered_blood);
+
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo({ SPELL_EMPOWERED_BLOOD });
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        GetHitUnit()->RemoveAurasDueToSpell(SPELL_EMPOWERED_BLOOD);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_generic_remove_empowered_blood::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
 };
 
 class spell_icc_stoneform : public SpellScriptLoader
@@ -1833,7 +2445,7 @@ class spell_icc_sprit_alarm : public SpellScriptLoader
             {
                 PreventHitDefaultEffect(effIndex);
                 uint32 trapId = 0;
-                switch (GetSpellInfo()->GetEffect(effIndex)->MiscValue)
+                switch (GetEffectInfo().MiscValue)
                 {
                     case EVENT_AWAKEN_WARD_1:
                         trapId = GO_SPIRIT_ALARM_1;
@@ -1851,12 +2463,12 @@ class spell_icc_sprit_alarm : public SpellScriptLoader
                         return;
                 }
 
-                if (GameObject* trap = GetCaster()->FindNearestGameObject(trapId, 5.0f))
+                if (GameObject* trap = GetGObjCaster()->FindNearestGameObject(trapId, 5.0f))
                     trap->SetRespawnTime(trap->GetGOInfo()->GetAutoCloseTime() / IN_MILLISECONDS);
 
                 std::list<Creature*> wards;
-                GetCaster()->GetCreatureListWithEntryInGrid(wards, NPC_DEATHBOUND_WARD, 150.0f);
-                wards.sort(Trinity::ObjectDistanceOrderPred(GetCaster()));
+                GetGObjCaster()->GetCreatureListWithEntryInGrid(wards, NPC_DEATHBOUND_WARD, 150.0f);
+                wards.sort(Trinity::ObjectDistanceOrderPred(GetGObjCaster()));
                 for (std::list<Creature*>::iterator itr = wards.begin(); itr != wards.end(); ++itr)
                 {
                     if ((*itr)->IsAlive() && (*itr)->HasAura(SPELL_STONEFORM))
@@ -2161,7 +2773,7 @@ class at_icc_saurfang_portal : public AreaTriggerScript
     public:
         at_icc_saurfang_portal() : AreaTriggerScript("at_icc_saurfang_portal") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/, bool /*entered*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             InstanceScript* instance = player->GetInstanceScript();
             if (!instance || instance->GetBossState(DATA_DEATHBRINGER_SAURFANG) != DONE)
@@ -2195,7 +2807,7 @@ class at_icc_shutdown_traps : public AreaTriggerScript
     public:
         at_icc_shutdown_traps() : AreaTriggerScript("at_icc_shutdown_traps") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/, bool /*entered*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             if (InstanceScript* instance = player->GetInstanceScript())
                 instance->SetData(DATA_UPPERSPIRE_TELE_ACT, DONE);
@@ -2209,7 +2821,7 @@ class at_icc_start_blood_quickening : public AreaTriggerScript
     public:
         at_icc_start_blood_quickening() : AreaTriggerScript("at_icc_start_blood_quickening") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/, bool /*entered*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             if (InstanceScript* instance = player->GetInstanceScript())
                 if (instance->GetData(DATA_BLOOD_QUICKENING_STATE) == NOT_STARTED)
@@ -2223,7 +2835,7 @@ class at_icc_start_frostwing_gauntlet : public AreaTriggerScript
     public:
         at_icc_start_frostwing_gauntlet() : AreaTriggerScript("at_icc_start_frostwing_gauntlet") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/, bool /*entered*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             if (InstanceScript* instance = player->GetInstanceScript())
                 if (Creature* crok = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_CROK_SCOURGEBANE)))
@@ -2247,6 +2859,20 @@ void AddSC_icecrown_citadel()
     new npc_frostwing_vrykul();
     new npc_impaling_spear();
     new npc_arthas_teleport_visual();
+    RegisterIcecrownCitadelCreatureAI(npc_entrance_faction_leader);
+    RegisterIcecrownCitadelCreatureAI(npc_icc_orb_controller);
+    RegisterIcecrownCitadelCreatureAI(npc_darkfallen_blood_knight);
+    RegisterIcecrownCitadelCreatureAI(npc_darkfallen_noble);
+    RegisterIcecrownCitadelCreatureAI(npc_vampiric_fiend);
+    RegisterIcecrownCitadelCreatureAI(npc_darkfallen_archmage);
+    RegisterIcecrownCitadelCreatureAI(npc_darkfallen_advisor);
+    RegisterIcecrownCitadelCreatureAI(npc_darkfallen_tactician);
+    RegisterGameObjectAI(go_empowering_blood_orb);
+    RegisterAuraScript(spell_icc_empowered_blood);
+    RegisterAuraScript(spell_icc_empowered_blood_3);
+    RegisterAuraScript(spell_icc_siphon_essence);
+    RegisterSpellScript(spell_darkfallen_blood_mirror);
+    RegisterSpellScript(spell_generic_remove_empowered_blood);
     new spell_icc_stoneform();
     new spell_icc_sprit_alarm();
     new spell_frost_giant_death_plague();

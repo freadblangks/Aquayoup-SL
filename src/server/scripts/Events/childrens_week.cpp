@@ -676,7 +676,7 @@ class npc_the_etymidian : public CreatureScript
                 Initialize();
             }
 
-            void QuestReward(Player* /*player*/, Quest const* quest, uint32 /*opt*/) override
+            void QuestReward(Player* /*player*/, Quest const* quest, LootItemType /*type*/, uint32 /*opt*/) override
             {
                 if (quest->GetQuestId() != QUEST_THE_ACTIVATION_RUNE)
                     return;
@@ -939,7 +939,7 @@ class at_bring_your_orphan_to : public AreaTriggerScript
     public:
         at_bring_your_orphan_to() : AreaTriggerScript("at_bring_your_orphan_to") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* areaTrigger, bool /*entered*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* areaTrigger) override
         {
             if (player->isDead() || !player->HasAura(SPELL_ORPHAN_OUT))
                 return false;

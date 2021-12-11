@@ -127,11 +127,11 @@ struct boss_teron_gorefiend : public BossAI
         _JustEngagedWith();
         Talk(SAY_AGGRO);
         events.SetPhase(PHASE_COMBAT);
-        events.ScheduleEvent(EVENT_ENRAGE, Minutes(10));
-        events.ScheduleEvent(EVENT_INCINERATE, Seconds(12));
-        events.ScheduleEvent(EVENT_SUMMON_DOOM_BLOSSOM, Seconds(8));
-        events.ScheduleEvent(EVENT_SHADOW_DEATH, Seconds(8));
-        events.ScheduleEvent(EVENT_CRUSHING_SHADOWS, Seconds(18));
+        events.ScheduleEvent(EVENT_ENRAGE, 10min);
+        events.ScheduleEvent(EVENT_INCINERATE, 12s);
+        events.ScheduleEvent(EVENT_SUMMON_DOOM_BLOSSOM, 8s);
+        events.ScheduleEvent(EVENT_SHADOW_DEATH, 8s);
+        events.ScheduleEvent(EVENT_CRUSHING_SHADOWS, 18s);
     }
 
     void EnterEvadeMode(EvadeReason /*why*/) override
@@ -148,7 +148,7 @@ struct boss_teron_gorefiend : public BossAI
             instance->SetData(DATA_TERON_GOREFIEND_INTRO, 0);
             Talk(SAY_INTRO);
             events.SetPhase(PHASE_INTRO);
-            events.ScheduleEvent(EVENT_FINISH_INTRO, Seconds(20));
+            events.ScheduleEvent(EVENT_FINISH_INTRO, 20s);
         }
     }
 
@@ -170,10 +170,10 @@ struct boss_teron_gorefiend : public BossAI
         if (!events.IsInPhase(PHASE_INTRO) && !UpdateVictim())
             return;
 
+        events.Update(diff);
+
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
-
-        events.Update(diff);
 
         while (uint32 eventId = events.ExecuteEvent())
         {
@@ -233,7 +233,7 @@ struct npc_doom_blossom : public NullCreatureAI
 
         DoCast(SPELL_SUMMON_BLOSSOM_MOVE_TARGET);
         _scheduler.CancelAll();
-        me->SetInCombatWithZone();
+        DoZoneInCombat();
         _scheduler.Schedule(Seconds(12), [this](TaskContext shadowBolt)
         {
             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
@@ -394,7 +394,6 @@ class spell_teron_gorefiend_spiritual_vengeance : public AuraScript
     void Register() override
     {
         AfterEffectRemove += AuraEffectRemoveFn(spell_teron_gorefiend_spiritual_vengeance::OnRemove, EFFECT_0, SPELL_AURA_MOD_POSSESS, AURA_EFFECT_HANDLE_REAL);
-        AfterEffectRemove += AuraEffectRemoveFn(spell_teron_gorefiend_spiritual_vengeance::OnRemove, EFFECT_2, SPELL_AURA_MOD_PACIFY_SILENCE, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
@@ -433,7 +432,7 @@ class at_teron_gorefiend_entrance : public OnlyOnceAreaTriggerScript
 public:
     at_teron_gorefiend_entrance() : OnlyOnceAreaTriggerScript("at_teron_gorefiend_entrance") { }
 
-    bool _OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/, bool /*entered*/) override
+    bool _OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
     {
         if (InstanceScript* instance = player->GetInstanceScript())
             if (Creature* teron = instance->GetCreature(DATA_TERON_GOREFIEND))

@@ -25,6 +25,7 @@
 #include "CinematicMgr.h"
 #include "ClientConfigPackets.h"
 #include "Common.h"
+#include "Conversation.h"
 #include "Corpse.h"
 #include "DatabaseEnv.h"
 #include "DB2Stores.h"
@@ -484,32 +485,51 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPackets::AreaTrigger::AreaTrigge
     if (player->isDebugAreaTriggers)
         ChatHandler(player->GetSession()).PSendSysMessage(packet.Entered ? LANG_DEBUG_AREATRIGGER_ENTERED : LANG_DEBUG_AREATRIGGER_LEFT, packet.AreaTriggerID);
 
+    if (!sConditionMgr->IsObjectMeetingNotGroupedConditions(CONDITION_SOURCE_TYPE_AREATRIGGER_CLIENT_TRIGGERED, atEntry->ID, player))
+        return;
+
     if (sScriptMgr->OnAreaTrigger(player, atEntry, packet.Entered))
         return;
 
     if (player->IsAlive())
     {
+        // not using Player::UpdateQuestObjectiveProgress, ObjectID in quest_objectives can be set to -1, areatrigger_involvedrelation then holds correct id
         if (std::unordered_set<uint32> const* quests = sObjectMgr->GetQuestsForAreaTrigger(packet.AreaTriggerID))
         {
+            bool anyObjectiveChangedCompletionState = false;
             for (uint32 questId : *quests)
             {
                 Quest const* qInfo = sObjectMgr->GetQuestTemplate(questId);
-                if (qInfo && player->GetQuestStatus(questId) == QUEST_STATUS_INCOMPLETE)
+                uint16 slot = player->FindQuestSlot(questId);
+                if (qInfo && slot < MAX_QUEST_LOG_SIZE && player->GetQuestStatus(questId) == QUEST_STATUS_INCOMPLETE)
                 {
                     for (QuestObjective const& obj : qInfo->Objectives)
                     {
-                        if (obj.Type == QUEST_OBJECTIVE_AREATRIGGER && !player->IsQuestObjectiveComplete(obj))
-                        {
-                            player->SetQuestObjectiveData(obj, 1);
-                            player->SendQuestUpdateAddCreditSimple(obj);
-                            break;
-                        }
+                        if (obj.Type != QUEST_OBJECTIVE_AREATRIGGER)
+                            continue;
+
+                        if (!player->IsQuestObjectiveCompletable(slot, qInfo, obj))
+                            continue;
+
+                        if (player->IsQuestObjectiveComplete(slot, qInfo, obj))
+                            continue;
+
+                        if (obj.ObjectID != -1 && obj.ObjectID != packet.AreaTriggerID)
+                            continue;
+
+                        player->SetQuestObjectiveData(obj, 1);
+                        player->SendQuestUpdateAddCreditSimple(obj);
+                        anyObjectiveChangedCompletionState = true;
+                        break;
                     }
 
                     if (player->CanCompleteQuest(questId))
                         player->CompleteQuest(questId);
                 }
             }
+
+            if (anyObjectiveChangedCompletionState)
+                player->UpdateForQuestWorldObjects();
         }
     }
 
@@ -837,29 +857,6 @@ void WorldSession::HandleSetTitleOpcode(WorldPackets::Character::SetTitle& packe
     GetPlayer()->SetChosenTitle(packet.TitleID);
 }
 
-void WorldSession::HandleTimeSyncResponse(WorldPackets::Misc::TimeSyncResponse& packet)
-{
-    // Prevent crashing server if queue is empty
-    if (_player->m_timeSyncQueue.empty())
-    {
-        TC_LOG_ERROR("network", "Received CMSG_TIME_SYNC_RESPONSE from player %s without requesting it (hacker?)", _player->GetName().c_str());
-        return;
-    }
-
-    if (packet.SequenceIndex != _player->m_timeSyncQueue.front())
-        TC_LOG_ERROR("network", "Wrong time sync counter from player %s (cheater?)", _player->GetName().c_str());
-
-    TC_LOG_DEBUG("network", "Time sync received: counter %u, client ticks %u, time since last sync %u", packet.SequenceIndex, packet.ClientTime, packet.ClientTime - _player->m_timeSyncClient);
-
-    uint32 ourTicks = packet.ClientTime + (GameTime::GetGameTimeMS() - _player->m_timeSyncServer);
-
-    // diff should be small
-    TC_LOG_DEBUG("network", "Our ticks: %u, diff %u, latency %u", ourTicks, ourTicks - packet.ClientTime, GetLatency());
-
-    _player->m_timeSyncClient = packet.ClientTime;
-    _player->m_timeSyncQueue.pop();
-}
-
 void WorldSession::HandleResetInstancesOpcode(WorldPackets::Instance::ResetInstances& /*packet*/)
 {
     if (Group* group = _player->GetGroup())
@@ -1144,4 +1141,27 @@ void WorldSession::HandleCloseInteraction(WorldPackets::Misc::CloseInteraction& 
 {
     if (_player->PlayerTalkClass->GetInteractionData().SourceGuid == closeInteraction.SourceGuid)
         _player->PlayerTalkClass->GetInteractionData().Reset();
+}
+
+void WorldSession::HandleConversationLineStarted(WorldPackets::Misc::ConversationLineStarted& conversationLineStarted)
+{
+    if (Conversation* convo = ObjectAccessor::GetConversation(*_player, conversationLineStarted.ConversationGUID))
+        sScriptMgr->OnConversationLineStarted(convo, conversationLineStarted.LineID, _player);
+}
+
+void WorldSession::HandleRequestLatestSplashScreen(WorldPackets::Misc::RequestLatestSplashScreen& /*requestLatestSplashScreen*/)
+{
+    UISplashScreenEntry const* splashScreen = nullptr;
+    for (auto itr = sUISplashScreenStore.begin(); itr != sUISplashScreenStore.end(); ++itr)
+    {
+        if (PlayerConditionEntry const* playerCondition = sPlayerConditionStore.LookupEntry(itr->CharLevelConditionID))
+            if (!ConditionMgr::IsPlayerMeetingCondition(_player, playerCondition))
+                continue;
+
+        splashScreen = *itr;
+    }
+
+    WorldPackets::Misc::SplashScreenShowLatest splashScreenShowLatest;
+    splashScreenShowLatest.UISplashScreenID = splashScreen ? splashScreen->ID : 0;
+    SendPacket(splashScreenShowLatest.Write());
 }

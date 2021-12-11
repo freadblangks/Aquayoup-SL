@@ -51,7 +51,7 @@ enum WarlockSpells
     SPELL_WARLOCK_RAIN_OF_FIRE_DAMAGE               = 42223,
     SPELL_WARLOCK_SEED_OF_CORRUPTION_DAMAGE         = 27285,
     SPELL_WARLOCK_SEED_OF_CORRUPTION_GENERIC        = 32865,
-    SPELL_WARLOCK_SOULSHATTER                       = 32835,
+    SPELL_WARLOCK_SOULSHATTER_EFFECT                = 32835,
     SPELL_WARLOCK_SOUL_SWAP_CD_MARKER               = 94229,
     SPELL_WARLOCK_SOUL_SWAP_OVERRIDE                = 86211,
     SPELL_WARLOCK_SOUL_SWAP_MOD_COST                = 92794,
@@ -270,27 +270,25 @@ class spell_warl_devour_magic : public SpellScriptLoader
         {
             PrepareSpellScript(spell_warl_devour_magic_SpellScript);
 
-            bool Validate(SpellInfo const* /*spellInfo*/) override
+            bool Validate(SpellInfo const* spellInfo) override
             {
-                return ValidateSpellInfo({ SPELL_WARLOCK_GLYPH_OF_DEMON_TRAINING, SPELL_WARLOCK_DEVOUR_MAGIC_HEAL });
+                return ValidateSpellInfo({ SPELL_WARLOCK_GLYPH_OF_DEMON_TRAINING, SPELL_WARLOCK_DEVOUR_MAGIC_HEAL })
+                    && spellInfo->GetEffects().size() > EFFECT_1;
             }
 
             void OnSuccessfulDispel(SpellEffIndex /*effIndex*/)
             {
-                if (SpellEffectInfo const* effect = GetSpellInfo()->GetEffect(EFFECT_1))
-                {
-                    Unit* caster = GetCaster();
-                    CastSpellExtraArgs args;
-                    args.TriggerFlags = TRIGGERED_FULL_MASK;
-                    args.AddSpellBP0(effect->CalcValue(caster));
+                Unit* caster = GetCaster();
+                CastSpellExtraArgs args;
+                args.TriggerFlags = TRIGGERED_FULL_MASK;
+                args.AddSpellBP0(GetEffectInfo(EFFECT_1).CalcValue(caster));
 
-                    caster->CastSpell(caster, SPELL_WARLOCK_DEVOUR_MAGIC_HEAL, args);
+                caster->CastSpell(caster, SPELL_WARLOCK_DEVOUR_MAGIC_HEAL, args);
 
-                    // Glyph of Felhunter
-                    if (Unit* owner = caster->GetOwner())
-                        if (owner->GetAura(SPELL_WARLOCK_GLYPH_OF_DEMON_TRAINING))
-                            owner->CastSpell(owner, SPELL_WARLOCK_DEVOUR_MAGIC_HEAL, args);
-                }
+                // Glyph of Felhunter
+                if (Unit* owner = caster->GetOwner())
+                    if (owner->GetAura(SPELL_WARLOCK_GLYPH_OF_DEMON_TRAINING))
+                        owner->CastSpell(owner, SPELL_WARLOCK_DEVOUR_MAGIC_HEAL, args);
             }
 
             void Register() override
@@ -320,7 +318,7 @@ class spell_warl_haunt : public SpellScriptLoader
             {
                 if (Aura* aura = GetHitAura())
                     if (AuraEffect* aurEff = aura->GetEffect(EFFECT_1))
-                        aurEff->SetAmount(CalculatePct(aurEff->GetAmount(), GetHitDamage()));
+                        aurEff->SetAmount(CalculatePct(GetHitDamage(), aurEff->GetAmount()));
             }
 
             void Register() override
@@ -377,7 +375,7 @@ class spell_warl_health_funnel : public SpellScriptLoader
                 if (Player* modOwner = caster->GetSpellModOwner())
                     modOwner->ApplySpellMod(GetSpellInfo(), SpellModOp::PowerCost0, damage);
 
-                SpellNonMeleeDamage damageInfo(caster, caster, GetSpellInfo(), GetAura()->GetSpellVisual(), GetSpellInfo()->SchoolMask, GetAura()->GetCastGUID());
+                SpellNonMeleeDamage damageInfo(caster, caster, GetSpellInfo(), GetAura()->GetSpellVisual(), GetSpellInfo()->SchoolMask, GetAura()->GetCastId());
                 damageInfo.periodicLog = true;
                 damageInfo.damage = damage;
                 caster->DealSpellDamage(&damageInfo, false);
@@ -511,6 +509,15 @@ class spell_warl_seed_of_corruption_dummy : public SpellScriptLoader
                 return ValidateSpellInfo({ SPELL_WARLOCK_SEED_OF_CORRUPTION_DAMAGE });
             }
 
+            void CalculateBuffer(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
+            {
+                Unit* caster = GetCaster();
+                if (!caster)
+                    return;
+
+                amount = caster->SpellBaseDamageBonusDone(GetSpellInfo()->GetSchoolMask()) * GetEffectInfo(EFFECT_0).CalcValue(caster) / 100;
+            }
+
             void HandleProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
             {
                 PreventDefaultAction();
@@ -537,7 +544,8 @@ class spell_warl_seed_of_corruption_dummy : public SpellScriptLoader
 
             void Register() override
             {
-                OnEffectProc += AuraEffectProcFn(spell_warl_seed_of_corruption_dummy_AuraScript::HandleProc, EFFECT_1, SPELL_AURA_DUMMY);
+                DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_warl_seed_of_corruption_dummy_AuraScript::CalculateBuffer, EFFECT_2, SPELL_AURA_DUMMY);
+                OnEffectProc += AuraEffectProcFn(spell_warl_seed_of_corruption_dummy_AuraScript::HandleProc, EFFECT_2, SPELL_AURA_DUMMY);
             }
         };
 
@@ -645,9 +653,7 @@ class spell_warl_soul_swap : public SpellScriptLoader
 class spell_warl_soul_swap_override : public SpellScriptLoader
 {
     public:
-        static char constexpr const ScriptName[] = "spell_warl_soul_swap_override";
-
-        spell_warl_soul_swap_override() : SpellScriptLoader(ScriptName) { }
+        spell_warl_soul_swap_override() : SpellScriptLoader("spell_warl_soul_swap_override") { }
 
         class spell_warl_soul_swap_override_AuraScript : public AuraScript
         {
@@ -672,7 +678,6 @@ class spell_warl_soul_swap_override : public SpellScriptLoader
             return new spell_warl_soul_swap_override_AuraScript();
         }
 };
-char constexpr const spell_warl_soul_swap_override::ScriptName[];
 
 typedef spell_warl_soul_swap_override::spell_warl_soul_swap_override_AuraScript SoulSwapOverrideAuraScript;
 
@@ -696,12 +701,12 @@ class spell_warl_soul_swap_dot_marker : public SpellScriptLoader
                 Unit::AuraApplicationMap const& appliedAuras = swapVictim->GetAppliedAuras();
                 SoulSwapOverrideAuraScript* swapSpellScript = nullptr;
                 if (Aura* swapOverrideAura = warlock->GetAura(SPELL_WARLOCK_SOUL_SWAP_OVERRIDE))
-                    swapSpellScript = swapOverrideAura->GetScript<SoulSwapOverrideAuraScript>(spell_warl_soul_swap_override::ScriptName);
+                    swapSpellScript = swapOverrideAura->GetScript<SoulSwapOverrideAuraScript>();
 
                 if (!swapSpellScript)
                     return;
 
-                flag128 classMask = GetEffectInfo()->SpellClassMask;
+                flag128 classMask = GetEffectInfo().SpellClassMask;
 
                 for (Unit::AuraApplicationMap::const_iterator itr = appliedAuras.begin(); itr != appliedAuras.end(); ++itr)
                 {
@@ -746,7 +751,7 @@ public:
             Unit* currentTarget = GetExplTargetUnit();
             Unit* swapTarget = nullptr;
             if (Aura const* swapOverride = GetCaster()->GetAura(SPELL_WARLOCK_SOUL_SWAP_OVERRIDE))
-                if (SoulSwapOverrideAuraScript* swapScript = swapOverride->GetScript<SoulSwapOverrideAuraScript>(spell_warl_soul_swap_override::ScriptName))
+                if (SoulSwapOverrideAuraScript* swapScript = swapOverride->GetScript<SoulSwapOverrideAuraScript>())
                     swapTarget = swapScript->GetOriginalSwapSource();
 
             // Soul Swap Exhale can't be cast on the same target than Soul Swap
@@ -765,7 +770,7 @@ public:
             Unit* swapSource = nullptr;
             if (Aura const* swapOverride = GetCaster()->GetAura(SPELL_WARLOCK_SOUL_SWAP_OVERRIDE))
             {
-                SoulSwapOverrideAuraScript* swapScript = swapOverride->GetScript<SoulSwapOverrideAuraScript>(spell_warl_soul_swap_override::ScriptName);
+                SoulSwapOverrideAuraScript* swapScript = swapOverride->GetScript<SoulSwapOverrideAuraScript>();
                 if (!swapScript)
                     return;
                 dotList = swapScript->GetDotList();
@@ -815,15 +820,15 @@ class spell_warl_soulshatter : public SpellScriptLoader
 
             bool Validate(SpellInfo const* /*spellInfo*/) override
             {
-                return ValidateSpellInfo({ SPELL_WARLOCK_SOULSHATTER });
+                return ValidateSpellInfo({ SPELL_WARLOCK_SOULSHATTER_EFFECT });
             }
 
             void HandleDummy(SpellEffIndex /*effIndex*/)
             {
                 Unit* caster = GetCaster();
                 if (Unit* target = GetHitUnit())
-                    if (target->CanHaveThreatList() && target->GetThreatManager().IsThreatenedBy(caster, true))
-                        caster->CastSpell(target, SPELL_WARLOCK_SOULSHATTER, true);
+                    if (target->GetThreatManager().IsThreatenedBy(caster, true))
+                        caster->CastSpell(target, SPELL_WARLOCK_SOULSHATTER_EFFECT, true);
             }
 
             void Register() override
@@ -894,13 +899,22 @@ class spell_warl_unstable_affliction : public SpellScriptLoader
             void HandleDispel(DispelInfo* dispelInfo)
             {
                 if (Unit* caster = GetCaster())
+                {
                     if (AuraEffect const* aurEff = GetEffect(EFFECT_1))
                     {
-                        // backfire damage and silence
-                        CastSpellExtraArgs args(aurEff);
-                        args.AddSpellBP0(aurEff->GetAmount() * 9);
-                        caster->CastSpell(dispelInfo->GetDispeller(), SPELL_WARLOCK_UNSTABLE_AFFLICTION_DISPEL, args);
+                        if (Unit* target = dispelInfo->GetDispeller()->ToUnit())
+                        {
+                            int32 bp = aurEff->GetAmount();
+                            bp = target->SpellDamageBonusTaken(caster, aurEff->GetSpellInfo(), bp, DOT);
+                            bp *= 9;
+
+                            // backfire damage and silence
+                            CastSpellExtraArgs args(aurEff);
+                            args.AddSpellBP0(bp);
+                            caster->CastSpell(target, SPELL_WARLOCK_UNSTABLE_AFFLICTION_DISPEL, args);
+                        }
                     }
+                }
             }
 
             void Register() override

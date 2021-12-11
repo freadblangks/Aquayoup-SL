@@ -81,7 +81,7 @@ static DWORD dwLastError = ERROR_SUCCESS;
 
 DWORD GetCascError()
 {
-#ifdef PLATFORM_WINDOWS
+#ifdef CASCLIB_PLATFORM_WINDOWS
     return GetLastError();
 #else
     return dwLastError;
@@ -90,7 +90,7 @@ DWORD GetCascError()
 
 void SetCascError(DWORD dwErrCode)
 {
-#ifdef PLATFORM_WINDOWS
+#ifdef CASCLIB_PLATFORM_WINDOWS
     SetLastError(dwErrCode);
 #endif
     dwLastError = dwErrCode;
@@ -301,7 +301,7 @@ size_t CascStrPrintf(char * buffer, size_t nCount, const char * format, ...)
     // Start the argument list
     va_start(argList, format);
     
-#ifdef PLATFORM_WINDOWS
+#ifdef CASCLIB_PLATFORM_WINDOWS
     StringCchVPrintfExA(buffer, nCount, &buffend, NULL, 0, format, argList);
 //  buffend = buffer + vsnprintf(buffer, nCount, format, argList);
 #else
@@ -321,7 +321,7 @@ size_t CascStrPrintf(wchar_t * buffer, size_t nCount, const wchar_t * format, ..
     // Start the argument list
     va_start(argList, format);
 
-#ifdef PLATFORM_WINDOWS
+#ifdef CASCLIB_PLATFORM_WINDOWS
     StringCchVPrintfExW(buffer, nCount, &buffend, NULL, 0, format, argList);
 //  buffend = buffer + vswprintf(buffer, nCount, format, argList);
 #else
@@ -454,9 +454,9 @@ bool CutLastPathPart(LPTSTR szWorkPath)
     return true;
 }
 
-size_t CombinePath(LPTSTR szBuffer, size_t nMaxChars, char chSeparator, va_list argList)
+size_t CombinePath(LPTSTR szBuffer, size_t nMaxChars, va_list argList)
 {
-    CASC_PATH<TCHAR> Path(chSeparator);
+    CASC_PATH<TCHAR> Path(PATH_SEP_CHAR);
     LPCTSTR szFragment;
     bool bWithSeparator = false;
 
@@ -470,26 +470,16 @@ size_t CombinePath(LPTSTR szBuffer, size_t nMaxChars, char chSeparator, va_list 
     return Path.Copy(szBuffer, nMaxChars);
 }
 
-size_t CombinePath(LPTSTR szBuffer, size_t nMaxChars, char chSeparator, ...)
+size_t CombinePath(LPTSTR szBuffer, size_t nMaxChars, ...)
 {
     va_list argList;
     size_t nLength;
 
-    va_start(argList, chSeparator);
-    nLength = CombinePath(szBuffer, nMaxChars, chSeparator, argList);
+    va_start(argList, nMaxChars);
+    nLength = CombinePath(szBuffer, nMaxChars, argList);
     va_end(argList);
 
     return nLength;
-}
-
-LPTSTR CombinePath(LPCTSTR szDirectory, LPCTSTR szSubDir)
-{
-    CASC_PATH<TCHAR> Path(PATH_SEP_CHAR);
-
-    // Merge the path
-    Path.AppendString(szDirectory, false);
-    Path.AppendString(szSubDir, true);
-    return Path.New();
 }
 
 size_t NormalizeFileName(const unsigned char * NormTable, char * szNormName, const char * szFileName, size_t cchMaxChars)

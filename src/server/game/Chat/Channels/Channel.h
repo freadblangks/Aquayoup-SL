@@ -180,6 +180,8 @@ class TC_GAME_API Channel
         uint32 GetChannelId() const { return _channelId; }
         bool IsConstant() const { return _channelId != 0; }
 
+        ObjectGuid GetGUID() const { return _channelGuid; }
+
         bool IsLFG() const { return (GetFlags() & CHANNEL_FLAG_LFG) != 0; }
 
         bool IsAnnounce() const { return _announceEnabled; }
@@ -231,7 +233,7 @@ class TC_GAME_API Channel
 
     private:
         template <class Builder>
-        void SendToAll(Builder& builder, ObjectGuid const& guid = ObjectGuid::Empty) const;
+        void SendToAll(Builder& builder, ObjectGuid const& guid = ObjectGuid::Empty, ObjectGuid const& accountGuid = ObjectGuid::Empty) const;
 
         template <class Builder>
         void SendToAllButOne(Builder& builder, ObjectGuid const& who) const;
@@ -240,7 +242,7 @@ class TC_GAME_API Channel
         void SendToOne(Builder& builder, ObjectGuid const& who) const;
 
         template <class Builder>
-        void SendToAllWithAddon(Builder& builder, std::string const& addonPrefix, ObjectGuid const& guid = ObjectGuid::Empty) const;
+        void SendToAllWithAddon(Builder& builder, std::string const& addonPrefix, ObjectGuid const& guid = ObjectGuid::Empty, ObjectGuid const& accountGuid = ObjectGuid::Empty) const;
 
         bool IsOn(ObjectGuid const& who) const { return _playersStore.count(who) != 0; }
         bool IsBanned(ObjectGuid const& guid) const { return _bannedStore.count(guid) != 0; }

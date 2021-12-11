@@ -109,6 +109,20 @@ namespace Movement
             args.velocity = unit->GetSpeed(SelectSpeedType(moveFlagsForSpeed));
         }
 
+        // limit the speed in the same way the client does
+        float speedLimit = [&]()
+        {
+            if (args.flags.unlimitedSpeed)
+                return std::numeric_limits<float>::max();
+
+            if (args.flags.falling || args.flags.catmullrom || args.flags.flying || args.flags.parabolic)
+                return 50.0f;
+
+            return std::max(28.0f, unit->GetSpeed(MOVE_RUN) * 4.0f);
+        }();
+
+        args.velocity = std::min(args.velocity, speedLimit);
+
         if (!args.Validate(unit))
             return 0;
 
@@ -203,7 +217,7 @@ namespace Movement
 
     void MoveSplineInit::SetFacing(Unit const* target)
     {
-        args.facing.angle = unit->GetAngle(target);
+        args.facing.angle = unit->GetAbsoluteAngle(target);
         args.facing.target = target->GetGUID();
         args.facing.type = MONSTER_MOVE_FACING_TARGET;
     }

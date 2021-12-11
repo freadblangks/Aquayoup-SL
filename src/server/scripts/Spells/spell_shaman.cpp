@@ -22,6 +22,7 @@
  */
 
 #include "ScriptMgr.h"
+#include "AreaTriggerAI.h"
 #include "CellImpl.h"
 #include "CreatureAIImpl.h" // for RAND()
 #include "GridNotifiersImpl.h"
@@ -76,6 +77,7 @@ enum ShamanSpells
     SPELL_SHAMAN_TOTEMIC_POWER_ATTACK_POWER     = 28826,
     SPELL_SHAMAN_TOTEMIC_POWER_ARMOR            = 28827,
     SPELL_SHAMAN_WINDFURY_ATTACK                = 25504,
+    SPELL_SHAMAN_WIND_RUSH                      = 192082,
 };
 
 enum MiscSpells
@@ -291,7 +293,8 @@ class spell_sha_earth_shield : public SpellScriptLoader
             {
                 PreventDefaultAction();
 
-                GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_EARTH_SHIELD_HEAL, { aurEff, GetCasterGUID() });
+                GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_EARTH_SHIELD_HEAL, CastSpellExtraArgs(aurEff)
+                    .SetOriginalCaster(GetCasterGUID()));
             }
 
             void Register() override
@@ -311,9 +314,7 @@ class spell_sha_earth_shield : public SpellScriptLoader
 class spell_sha_earthen_rage_passive : public SpellScriptLoader
 {
 public:
-    static char constexpr const ScriptName[] = "spell_sha_earthen_rage_passive";
-
-    spell_sha_earthen_rage_passive() : SpellScriptLoader(ScriptName) { }
+    spell_sha_earthen_rage_passive() : SpellScriptLoader("spell_sha_earthen_rage_passive") { }
 
     class spell_sha_earthen_rage_passive_AuraScript : public AuraScript
     {
@@ -350,7 +351,6 @@ public:
         return new spell_sha_earthen_rage_passive_AuraScript();
     }
 };
-char constexpr const spell_sha_earthen_rage_passive::ScriptName[];
 
 // 170377 - Earthen Rage (Proc Aura)
 class spell_sha_earthen_rage_proc_aura : public SpellScriptLoader
@@ -373,7 +373,7 @@ public:
 
             PreventDefaultAction();
             if (Aura const* aura = GetCaster()->GetAura(SPELL_SHAMAN_EARTHEN_RAGE_PASSIVE))
-                if (earthen_rage_script_t const* earthen_rage_script = aura->GetScript<earthen_rage_script_t>(spell_sha_earthen_rage_passive::ScriptName))
+                if (earthen_rage_script_t const* earthen_rage_script = aura->GetScript<earthen_rage_script_t>())
                     if (Unit* procTarget = ObjectAccessor::GetUnit(*GetCaster(), earthen_rage_script->GetProcTargetGuid()))
                         GetTarget()->CastSpell(procTarget, SPELL_SHAMAN_EARTHEN_RAGE_DAMAGE, true);
         }
@@ -461,9 +461,7 @@ class spell_sha_flametongue_weapon : public SpellScript
         if (!targetItem || !targetItem->GetTemplate()->IsWeapon())
             return;
 
-        SpellCastTargets targets;
-        targets.SetItemTarget(targetItem);
-        player->CastSpell(targets, SPELL_SHAMAN_FLAMETONGUE_WEAPON_ENCHANT, true);
+        player->CastSpell(targetItem, SPELL_SHAMAN_FLAMETONGUE_WEAPON_ENCHANT, true);
     }
 
     void Register() override
@@ -502,8 +500,6 @@ class spell_sha_flametongue_weapon_aura : public AuraScript
 class spell_sha_healing_rain_aura : public AuraScript
 {
 public:
-    static constexpr char const ScriptName[] = "spell_sha_healing_rain";
-
     void SetVisualDummy(TempSummon* summon)
     {
         _visualDummy = summon->GetGUID();
@@ -533,7 +529,6 @@ private:
     ObjectGuid _visualDummy;
     Position _dest;
 };
-constexpr char const spell_sha_healing_rain_aura::ScriptName[];
 
 // 73920 - Healing Rain
 class spell_sha_healing_rain : public SpellScript
@@ -553,7 +548,7 @@ class spell_sha_healing_rain : public SpellScript
 
                 summon->CastSpell(summon, SPELL_SHAMAN_HEALING_RAIN_VISUAL, true);
 
-                if (spell_sha_healing_rain_aura* script = aura->GetScript<spell_sha_healing_rain_aura>(spell_sha_healing_rain_aura::ScriptName))
+                if (spell_sha_healing_rain_aura* script = aura->GetScript<spell_sha_healing_rain_aura>())
                     script->SetVisualDummy(summon);
             }
         }
@@ -1238,13 +1233,11 @@ class spell_sha_t8_elemental_4p_bonus : public SpellScriptLoader
                 ASSERT(spellInfo->GetMaxTicks() > 0);
                 amount /= spellInfo->GetMaxTicks();
 
-                // Add remaining ticks to damage done
                 Unit* caster = eventInfo.GetActor();
                 Unit* target = eventInfo.GetProcTarget();
-                amount += target->GetRemainingPeriodicAmount(caster->GetGUID(), SPELL_SHAMAN_ELECTRIFIED, SPELL_AURA_PERIODIC_DAMAGE);
 
                 CastSpellExtraArgs args(aurEff);
-                args.SpellValueOverrides.AddBP0(amount);
+                args.AddSpellBP0(amount);
                 caster->CastSpell(target, SPELL_SHAMAN_ELECTRIFIED, args);
             }
 
@@ -1289,13 +1282,11 @@ class spell_sha_t9_elemental_4p_bonus : public SpellScriptLoader
                 ASSERT(spellInfo->GetMaxTicks() > 0);
                 amount /= spellInfo->GetMaxTicks();
 
-                // Add remaining ticks to damage done
                 Unit* caster = eventInfo.GetActor();
                 Unit* target = eventInfo.GetProcTarget();
-                amount += target->GetRemainingPeriodicAmount(caster->GetGUID(), SPELL_SHAMAN_LAVA_BURST_BONUS_DAMAGE, SPELL_AURA_PERIODIC_DAMAGE);
 
                 CastSpellExtraArgs args(aurEff);
-                args.SpellValueOverrides.AddBP0(amount);
+                args.AddSpellBP0(amount);
                 caster->CastSpell(target, SPELL_SHAMAN_LAVA_BURST_BONUS_DAMAGE, args);
             }
 
@@ -1385,13 +1376,11 @@ class spell_sha_t10_restoration_4p_bonus : public SpellScriptLoader
                 ASSERT(spellInfo->GetMaxTicks() > 0);
                 amount /= spellInfo->GetMaxTicks();
 
-                // Add remaining ticks to healing done
                 Unit* caster = eventInfo.GetActor();
                 Unit* target = eventInfo.GetProcTarget();
-                amount += target->GetRemainingPeriodicAmount(caster->GetGUID(), SPELL_SHAMAN_CHAINED_HEAL, SPELL_AURA_PERIODIC_HEAL);
 
                 CastSpellExtraArgs args(aurEff);
-                args.SpellValueOverrides.AddBP0(amount);
+                args.AddSpellBP0(amount);
                 caster->CastSpell(target, SPELL_SHAMAN_CHAINED_HEAL, args);
             }
 
@@ -1442,6 +1431,50 @@ public:
     }
 };
 
+// 192078 - Wind Rush Totem (Spell)
+//  12676 - AreaTriggerId
+struct areatrigger_sha_wind_rush_totem : AreaTriggerAI
+{
+    static constexpr uint32 REFRESH_TIME = 4500;
+
+    areatrigger_sha_wind_rush_totem(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger), _refreshTimer(REFRESH_TIME) { }
+
+    void OnUpdate(uint32 diff) override
+    {
+        _refreshTimer -= diff;
+        if (_refreshTimer <= 0)
+        {
+            if (Unit* caster = at->GetCaster())
+            {
+                for (ObjectGuid const& guid : at->GetInsideUnits())
+                {
+                    if (Unit* unit = ObjectAccessor::GetUnit(*caster, guid))
+                    {
+                        if (!caster->IsFriendlyTo(unit))
+                            continue;
+
+                        caster->CastSpell(unit, SPELL_SHAMAN_WIND_RUSH, true);
+                    }
+                }
+            }
+            _refreshTimer += REFRESH_TIME;
+        }
+    }
+
+    void OnUnitEnter(Unit* unit) override
+    {
+        if (Unit* caster = at->GetCaster())
+        {
+            if (!caster->IsFriendlyTo(unit))
+                return;
+
+            caster->CastSpell(unit, SPELL_SHAMAN_WIND_RUSH, true);
+        }
+    }
+private:
+    int32 _refreshTimer;
+};
+
 void AddSC_shaman_spell_scripts()
 {
     new spell_sha_ancestral_guidance();
@@ -1476,4 +1509,5 @@ void AddSC_shaman_spell_scripts()
     new spell_sha_t10_elemental_4p_bonus();
     new spell_sha_t10_restoration_4p_bonus();
     new spell_sha_windfury();
+    RegisterAreaTriggerAI(areatrigger_sha_wind_rush_totem);
 }

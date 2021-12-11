@@ -21,6 +21,8 @@
 #include "Define.h"
 #include "Random.h"
 #include <algorithm>
+#include <exception>
+#include <iterator>
 #include <utility>
 #include <vector>
 
@@ -37,6 +39,34 @@ namespace Trinity
     {
         return std::addressof(not_ptr);
     }
+
+    template <class T>
+    class CheckedBufferOutputIterator
+    {
+        public:
+            using iterator_category = std::output_iterator_tag;
+            using value_type = void;
+            using pointer = T*;
+            using reference = T&;
+            using difference_type = std::ptrdiff_t;
+
+            CheckedBufferOutputIterator(T* buf, size_t n) : _buf(buf), _end(buf+n) {}
+
+            T& operator*() const { check(); return *_buf; }
+            CheckedBufferOutputIterator& operator++() { check(); ++_buf; return *this; }
+            CheckedBufferOutputIterator operator++(int) { CheckedBufferOutputIterator v = *this; operator++(); return v; }
+
+            size_t remaining() const { return (_end - _buf); }
+
+        private:
+            T* _buf;
+            T* _end;
+            void check() const
+            {
+                if (!(_buf < _end))
+                    throw std::out_of_range("index");
+            }
+    };
 
     namespace Containers
     {
@@ -68,7 +98,8 @@ namespace Trinity
                 // this element has chance (elementsToKeep / elementsToProcess) of being kept
                 if (urand(1, elementsToProcess) <= elementsToKeep)
                 {
-                    *keepIt = std::move(*curIt);
+                    if (keepIt != curIt)
+                        *keepIt = std::move(*curIt);
                     ++keepIt;
                     --elementsToKeep;
                 }
@@ -240,6 +271,37 @@ namespace Trinity
                 else
                     ++itr;
             }
+        }
+
+        /**
+         * Returns a mutable reference to element at index i
+         * Will resize vector if neccessary to ensure element at i can be safely written
+         *
+         * This exists as separate overload instead of one function with default argument to allow using
+         * with vectors of non-default-constructible classes
+         */
+        template<typename T>
+        inline decltype(auto) EnsureWritableVectorIndex(std::vector<T>& vec, typename std::vector<T>::size_type i)
+        {
+            if (i >= vec.size())
+                vec.resize(i + 1);
+
+            return vec[i];
+        }
+
+        /**
+         * Returns a mutable reference to element at index i
+         * Will resize vector if neccessary to ensure element at i can be safely written
+         *
+         * This overload allows specifying what value to pad vector with during .resize
+         */
+        template<typename T>
+        inline decltype(auto) EnsureWritableVectorIndex(std::vector<T>& vec, typename std::vector<T>::size_type i, T const& resizeDefault)
+        {
+            if (i >= vec.size())
+                vec.resize(i + 1, resizeDefault);
+
+            return vec[i];
         }
     }
     //! namespace Containers

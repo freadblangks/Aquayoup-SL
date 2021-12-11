@@ -15,8 +15,8 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SC_ESCORTAI_H
-#define SC_ESCORTAI_H
+#ifndef TRINITY_SCRIPTEDESCORTAI_H
+#define TRINITY_SCRIPTEDESCORTAI_H
 
 #include "ScriptedCreature.h"
 #include "WaypointDefines.h"
@@ -39,9 +39,9 @@ struct TC_GAME_API EscortAI : public ScriptedAI
         explicit EscortAI(Creature* creature);
         ~EscortAI() { }
 
+        void InitializeAI() override;
         void MoveInLineOfSight(Unit* who) override;
         void JustDied(Unit*) override;
-        void JustAppeared() override;
         void ReturnToLastPoint();
         void EnterEvadeMode(EvadeReason /*why*/ = EVADE_REASON_OTHER) override;
         void MovementInform(uint32, uint32) override;
@@ -98,4 +98,5 @@ struct TC_GAME_API EscortAI : public ScriptedAI
         bool _ended;
         bool _resume;
 };
+
 #endif

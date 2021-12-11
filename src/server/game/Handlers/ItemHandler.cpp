@@ -398,6 +398,12 @@ void WorldSession::HandleSellItemOpcode(WorldPackets::Item::SellItem& packet)
         return;
     }
 
+    if ((creature->GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_NO_SELL_VENDOR) != 0)
+    {
+        _player->SendSellError(SELL_ERR_CANT_SELL_TO_THIS_MERCHANT, creature, packet.ItemGUID);
+        return;
+    }
+
     // remove fake death
     if (GetPlayer()->HasUnitState(UNIT_STATE_DIED))
         GetPlayer()->RemoveAurasByType(SPELL_AURA_FEIGN_DEATH);
@@ -458,8 +464,8 @@ void WorldSession::HandleSellItemOpcode(WorldPackets::Item::SellItem& packet)
                     return;
                 }
 
-                _player->UpdateCriteria(CRITERIA_TYPE_MONEY_FROM_VENDORS, money);
-                _player->UpdateCriteria(CRITERIA_TYPE_SOLD_ITEM_TO_VENDOR, 1);
+                _player->UpdateCriteria(CriteriaType::MoneyEarnedFromSales, money);
+                _player->UpdateCriteria(CriteriaType::SellItemsToVendors, 1);
 
                 if (packet.Amount < pItem->GetCount())               // need split items
                 {
@@ -701,6 +707,8 @@ void WorldSession::SendListInventory(ObjectGuid vendorGuid)
 
     // Resize vector to real size (some items can be skipped due to checks)
     packet.Items.resize(count);
+
+    packet.Reason = AsUnderlyingType(count ? VendorInventoryReason::None : VendorInventoryReason::Empty);
 
     SendPacket(packet.Write());
 }
@@ -1193,15 +1201,13 @@ void WorldSession::HandleUseCritterItem(WorldPackets::Item::UseCritterItem& useC
     if (!item)
         return;
 
-    if (item->GetBonus()->EffectCount < 2)
-        return;
+    for (ItemEffectEntry const* itemEffect : item->GetEffects())
+   {
+        if (itemEffect->TriggerType != ITEM_SPELLTRIGGER_LEARN_SPELL_ID)
+            continue;
 
-    int32 spellToLearn = item->GetEffect(1)->SpellID;
-
-    if (BattlePetSpeciesEntry const* entry = sSpellMgr->GetBattlePetSpecies(uint32(spellToLearn)))
-    {
-        GetBattlePetMgr()->AddPet(entry->ID, entry->CreatureID, BattlePetMgr::RollPetBreed(entry->ID), BattlePetMgr::GetDefaultPetQuality(entry->ID));
-        _player->UpdateCriteria(CRITERIA_TYPE_OWN_BATTLE_PET_COUNT);
+        if (BattlePetSpeciesEntry const* speciesEntry = sSpellMgr->GetBattlePetSpecies(uint32(itemEffect->SpellID)))
+            GetBattlePetMgr()->AddPet(speciesEntry->ID, BattlePetMgr::SelectPetDisplay(speciesEntry), BattlePetMgr::RollPetBreed(speciesEntry->ID), BattlePetMgr::GetDefaultPetQuality(speciesEntry->ID));
     }
 
     _player->DestroyItem(item->GetBagSlot(), item->GetSlot(), true);

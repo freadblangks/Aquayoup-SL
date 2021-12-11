@@ -181,9 +181,6 @@ enum SpellScriptHookType
 
 #define HOOK_SPELL_HIT_START SPELL_SCRIPT_HOOK_EFFECT_HIT
 #define HOOK_SPELL_HIT_END SPELL_SCRIPT_HOOK_AFTER_HIT + 1
-#define HOOK_SPELL_START SPELL_SCRIPT_HOOK_EFFECT
-#define HOOK_SPELL_END SPELL_SCRIPT_HOOK_CHECK_CAST + 1
-#define HOOK_SPELL_COUNT HOOK_SPELL_END - HOOK_SPELL_START
 
 class TC_GAME_API SpellScript : public _SpellScript
 {
@@ -196,7 +193,7 @@ class TC_GAME_API SpellScript : public _SpellScript
             typedef void(CLASSNAME::*SpellBeforeHitFnType)(SpellMissInfo missInfo); \
             typedef void(CLASSNAME::*SpellHitFnType)(); \
             typedef void(CLASSNAME::*SpellCastFnType)(); \
-            typedef void(CLASSNAME::*SpellOnCalcCritChanceFnType)(Unit* victim, float& chance); \
+            typedef void(CLASSNAME::*SpellOnCalcCritChanceFnType)(Unit const* victim, float& chance); \
             typedef void(CLASSNAME::*SpellObjectAreaTargetSelectFnType)(std::list<WorldObject*>&); \
             typedef void(CLASSNAME::*SpellObjectTargetSelectFnType)(WorldObject*&); \
             typedef void(CLASSNAME::*SpellDestinationTargetSelectFnType)(SpellDestination&);
@@ -254,7 +251,7 @@ class TC_GAME_API SpellScript : public _SpellScript
         {
             public:
                 OnCalcCritChanceHandler(SpellOnCalcCritChanceFnType onCalcCritChanceHandlerScript);
-                void Call(SpellScript* spellScript, Unit* victim, float& critChance) const;
+                void Call(SpellScript* spellScript, Unit const* victim, float& critChance) const;
             private:
                 SpellOnCalcCritChanceFnType _onCalcCritChanceHandlerScript;
         };
@@ -320,7 +317,9 @@ class TC_GAME_API SpellScript : public _SpellScript
         void _PrepareScriptCall(SpellScriptHookType hookType);
         void _FinishScriptCall();
         bool IsInCheckCastHook() const;
+        bool IsAfterTargetSelectionPhase() const;
         bool IsInTargetHook() const;
+        bool IsInModifiableHook() const;
         bool IsInHitPhase() const;
         bool IsInEffectHook() const;
     private:
@@ -411,10 +410,11 @@ class TC_GAME_API SpellScript : public _SpellScript
         //
         // methods useable during all spell handling phases
         Unit* GetCaster() const;
+        GameObject* GetGObjCaster() const;
         Unit* GetOriginalCaster() const;
         SpellInfo const* GetSpellInfo() const;
+        SpellEffectInfo const& GetEffectInfo(SpellEffIndex effIndex) const;
         SpellValue const* GetSpellValue() const;
-        SpellEffectInfo const* GetEffectInfo(SpellEffIndex effIndex) const;
 
         // methods useable after spell is prepared
         // accessors to the explicit targets of the spell
@@ -444,6 +444,11 @@ class TC_GAME_API SpellScript : public _SpellScript
         // returns: Item which was selected as an explicit spell target or NULL if there's no target
         Item* GetExplTargetItem() const;
 
+        // methods usable only after spell targets have been fully selected
+        int64 GetUnitTargetCountForEffect(SpellEffIndex effect) const;
+        int64 GetGameObjectTargetCountForEffect(SpellEffIndex effect) const;
+        int64 GetItemTargetCountForEffect(SpellEffIndex effect) const;
+
         // methods useable only during spell hit on target, or during spell launch on target:
         // returns: target of current effect if it was Unit otherwise NULL
         Unit* GetHitUnit() const;
@@ -469,7 +474,7 @@ class TC_GAME_API SpellScript : public _SpellScript
         void PreventHitHeal() { SetHitHeal(0); }
         Spell* GetSpell() const { return m_spell; }
         // returns current spell hit target aura
-        Aura* GetHitAura() const;
+        Aura* GetHitAura(bool dynObjAura = false) const;
         // prevents applying aura on current spell hit target
         void PreventHitAura();
 
@@ -485,7 +490,7 @@ class TC_GAME_API SpellScript : public _SpellScript
         void PreventHitDefaultEffect(SpellEffIndex effIndex);
 
         // method available only in EffectHandler method
-        SpellEffectInfo const* GetEffectInfo() const;
+        SpellEffectInfo const& GetEffectInfo() const;
         int32 GetEffectValue() const;
         void SetEffectValue(int32 value);
 
@@ -493,13 +498,13 @@ class TC_GAME_API SpellScript : public _SpellScript
         Item* GetCastItem() const;
 
         // Creates item. Calls Spell::DoCreateItem method.
-        void CreateItem(uint32 effIndex, uint32 itemId, ItemContext context);
+        void CreateItem(uint32 itemId, ItemContext context);
 
         // Returns SpellInfo from the spell that triggered the current one
         SpellInfo const* GetTriggeringSpell() const;
 
         // finishes spellcast prematurely with selected error message
-        void FinishCast(SpellCastResult result, uint32* param1 = nullptr, uint32* param2 = nullptr);
+        void FinishCast(SpellCastResult result, int32* param1 = nullptr, int32* param2 = nullptr);
 
         void SetCustomCastResultMessage(SpellCustomErrors result);
 
@@ -560,7 +565,7 @@ class TC_GAME_API AuraScript : public _SpellScript
         typedef void(CLASSNAME::*AuraEffectCalcAmountFnType)(AuraEffect const*, int32 &, bool &); \
         typedef void(CLASSNAME::*AuraEffectCalcPeriodicFnType)(AuraEffect const*, bool &, int32 &); \
         typedef void(CLASSNAME::*AuraEffectCalcSpellModFnType)(AuraEffect const*, SpellModifier* &); \
-        typedef void(CLASSNAME::*AuraEffectCalcCritChanceFnType)(AuraEffect const*, Unit*, float&); \
+        typedef void(CLASSNAME::*AuraEffectCalcCritChanceFnType)(AuraEffect const*, Unit const*, float&); \
         typedef void(CLASSNAME::*AuraEffectAbsorbFnType)(AuraEffect*, DamageInfo &, uint32 &); \
         typedef void(CLASSNAME::*AuraEffectSplitFnType)(AuraEffect*, DamageInfo &, uint32 &); \
         typedef bool(CLASSNAME::*AuraCheckProcFnType)(ProcEventInfo&); \
@@ -638,7 +643,7 @@ class TC_GAME_API AuraScript : public _SpellScript
         {
             public:
                 EffectCalcCritChanceHandler(AuraEffectCalcCritChanceFnType effectHandlerScript, uint8 effIndex, uint16 effName);
-                void Call(AuraScript* auraScript, AuraEffect const* aurEff, Unit* victim, float& critChance) const;
+                void Call(AuraScript* auraScript, AuraEffect const* aurEff, Unit const* victim, float& critChance) const;
             private:
                 AuraEffectCalcCritChanceFnType _effectHandlerScript;
         };
@@ -796,7 +801,7 @@ class TC_GAME_API AuraScript : public _SpellScript
         #define AuraEffectApplyFn(F, I, N, M) EffectApplyHandlerFunction(&F, I, N, M)
 
         // executed after aura effect is removed with specified mode from target
-        // should be used when when effect handler preventing/replacing is needed, do not use this hook for triggering spellcasts/removing auras etc - may be unsafe
+        // should be used when effect handler preventing/replacing is needed, do not use this hook for triggering spellcasts/removing auras etc - may be unsafe
         // example: OnEffectRemove += AuraEffectRemoveFn(class::function, EffectIndexSpecifier, EffectAuraNameSpecifier, AuraEffectHandleModes);
         // where function is: void function (AuraEffect const* aurEff, AuraEffectHandleModes mode);
         HookList<EffectApplyHandler> OnEffectRemove;
@@ -922,6 +927,7 @@ class TC_GAME_API AuraScript : public _SpellScript
 
         // returns proto of the spell
         SpellInfo const* GetSpellInfo() const;
+        SpellEffectInfo const& GetEffectInfo(SpellEffIndex effIndex) const;
         // returns spellid of the spell
         uint32 GetId() const;
 
@@ -929,6 +935,8 @@ class TC_GAME_API AuraScript : public _SpellScript
         ObjectGuid GetCasterGUID() const;
         // returns unit which cast the aura or NULL if not avalible (caster logged out for example)
         Unit* GetCaster() const;
+        // returns gameobject which cast the aura or NULL if not available
+        GameObject* GetGObjCaster() const;
         // returns object on which aura was cast, target for non-area auras, area aura source for area auras
         WorldObject* GetOwner() const;
         // returns owner if it's unit or unit derived object, NULL otherwise (only for persistent area auras NULL is returned)

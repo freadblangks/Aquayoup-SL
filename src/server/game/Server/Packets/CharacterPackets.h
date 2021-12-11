@@ -154,7 +154,7 @@ namespace WorldPackets
                 {
                     uint32 DisplayID        = 0;
                     uint32 DisplayEnchantID = 0;
-                    int32 ItemModifiedAppearanceID = 0; // also -1 is some special value
+                    int32 SecondaryItemModifiedAppearanceID = 0; // also -1 is some special value
                     uint8 InvType           = 0;
                     uint8 Subclass          = 0;
                 };
@@ -489,7 +489,10 @@ namespace WorldPackets
             LockedByMobileAH                = 8,
             TemporaryGMLock                 = 9,
             LockedByCharacterUpgrade        = 10,
-            LockedByRevokedCharacterUpgrade = 11
+            LockedByRevokedCharacterUpgrade = 11,
+            LockedByRevokedVASTransaction   = 17,
+            LockedByRestriction             = 19,
+            LockedForRealmPlaytype          = 23
         };
 
         class CharacterLoginFailed  final : public ServerPacket

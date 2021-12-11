@@ -289,10 +289,10 @@ class boss_lady_deathwhisper : public CreatureScript
                     return;
                 }
 
+                _phase = PHASE_ONE;
                 me->SetCombatPulseDelay(5);
                 me->setActive(true);
                 DoZoneInCombat();
-                _phase = PHASE_ONE;
                 scheduler.CancelGroup(GROUP_INTRO);
                 // phase-independent events
                 scheduler
@@ -355,7 +355,7 @@ class boss_lady_deathwhisper : public CreatureScript
                             livingAddEntries.insert(unit->GetEntry());
 
                 if (livingAddEntries.size() >= 5)
-                    instance->DoUpdateCriteria(CRITERIA_TYPE_BE_SPELL_TARGET, SPELL_FULL_HOUSE, 0, me);
+                    instance->DoUpdateCriteria(CriteriaType::BeSpellTarget, SPELL_FULL_HOUSE, 0, me);
 
                 if (Creature* darnavan = ObjectAccessor::GetCreature(*me, _darnavanGUID))
                 {
@@ -367,6 +367,10 @@ class boss_lady_deathwhisper : public CreatureScript
                         darnavan->SetReactState(REACT_PASSIVE);
                         darnavan->m_Events.AddEvent(new DaranavanMoveEvent(*darnavan), darnavan->m_Events.CalculateTime(10000));
                         darnavan->AI()->Talk(SAY_DARNAVAN_RESCUED);
+
+                        if (!killer)
+                            return;
+
                         if (Player* owner = killer->GetCharmerOrOwnerPlayerOrPlayerItself())
                         {
                             if (Group* group = owner->GetGroup())
@@ -436,7 +440,7 @@ class boss_lady_deathwhisper : public CreatureScript
                         .Schedule(Seconds(12), GROUP_TWO, [this](TaskContext summonShade)
                         {
                             CastSpellExtraArgs args;
-                            args.SpellValueOverrides.AddMod(SPELLVALUE_MAX_TARGETS, Is25ManRaid() ? 2 : 1);
+                            args.AddSpellMod(SPELLVALUE_MAX_TARGETS, Is25ManRaid() ? 2 : 1);
                             me->CastSpell(nullptr, SPELL_SUMMON_SPIRITS, args);
                             summonShade.Repeat();
                         });
@@ -879,16 +883,20 @@ class npc_darnavan : public CreatureScript
             void Reset() override
             {
                 _events.Reset();
-                _events.ScheduleEvent(EVENT_DARNAVAN_BLADESTORM, Seconds(10));
-                _events.ScheduleEvent(EVENT_DARNAVAN_INTIMIDATING_SHOUT, Seconds(20), Seconds(25));
-                _events.ScheduleEvent(EVENT_DARNAVAN_MORTAL_STRIKE, Seconds(25), Seconds(30));
-                _events.ScheduleEvent(EVENT_DARNAVAN_SUNDER_ARMOR, Seconds(5), Seconds(8));
+                _events.ScheduleEvent(EVENT_DARNAVAN_BLADESTORM, 10s);
+                _events.ScheduleEvent(EVENT_DARNAVAN_INTIMIDATING_SHOUT, 20s, 25s);
+                _events.ScheduleEvent(EVENT_DARNAVAN_MORTAL_STRIKE, 25s, 30s);
+                _events.ScheduleEvent(EVENT_DARNAVAN_SUNDER_ARMOR, 5s, 8s);
                 Initialize();
             }
 
             void JustDied(Unit* killer) override
             {
                 _events.Reset();
+
+                if (!killer)
+                    return;
+
                 if (Player* owner = killer->GetCharmerOrOwnerPlayerOrPlayerItself())
                 {
                     if (Group* group = owner->GetGroup())
@@ -930,7 +938,7 @@ class npc_darnavan : public CreatureScript
                 {
                     DoCastVictim(SPELL_SHATTERING_THROW);
                     _canShatter = false;
-                    _events.ScheduleEvent(EVENT_DARNAVAN_SHATTERING_THROW, Seconds(30));
+                    _events.ScheduleEvent(EVENT_DARNAVAN_SHATTERING_THROW, 30s);
                     return;
                 }
 
@@ -938,7 +946,7 @@ class npc_darnavan : public CreatureScript
                 {
                     DoCastVictim(SPELL_CHARGE);
                     _canCharge = false;
-                    _events.ScheduleEvent(EVENT_DARNAVAN_CHARGE, Seconds(20));
+                    _events.ScheduleEvent(EVENT_DARNAVAN_CHARGE, 20s);
                     return;
                 }
 
@@ -948,7 +956,7 @@ class npc_darnavan : public CreatureScript
                     {
                         case EVENT_DARNAVAN_BLADESTORM:
                             DoCast(SPELL_BLADESTORM);
-                            _events.ScheduleEvent(EVENT_DARNAVAN_BLADESTORM, Seconds(90), Seconds(100));
+                            _events.ScheduleEvent(EVENT_DARNAVAN_BLADESTORM, 90s, 100s);
                             break;
                         case EVENT_DARNAVAN_CHARGE:
                             _canCharge = true;
@@ -959,14 +967,14 @@ class npc_darnavan : public CreatureScript
                             break;
                         case EVENT_DARNAVAN_MORTAL_STRIKE:
                             DoCastVictim(SPELL_MORTAL_STRIKE);
-                            _events.ScheduleEvent(EVENT_DARNAVAN_MORTAL_STRIKE, Seconds(15), Seconds(30));
+                            _events.ScheduleEvent(EVENT_DARNAVAN_MORTAL_STRIKE, 15s, 30s);
                             break;
                         case EVENT_DARNAVAN_SHATTERING_THROW:
                             _canShatter = true;
                             break;
                         case EVENT_DARNAVAN_SUNDER_ARMOR:
                             DoCastVictim(SPELL_SUNDER_ARMOR);
-                            _events.ScheduleEvent(EVENT_DARNAVAN_SUNDER_ARMOR, Seconds(3), Seconds(7));
+                            _events.ScheduleEvent(EVENT_DARNAVAN_SUNDER_ARMOR, 3s, 7s);
                             break;
                     }
                 }
@@ -1023,7 +1031,7 @@ class at_lady_deathwhisper_entrance : public OnlyOnceAreaTriggerScript
     public:
         at_lady_deathwhisper_entrance() : OnlyOnceAreaTriggerScript("at_lady_deathwhisper_entrance") { }
 
-        bool _OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/, bool /*entered*/) override
+        bool _OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             if (InstanceScript* instance = player->GetInstanceScript())
                 if (instance->GetBossState(DATA_LADY_DEATHWHISPER) != DONE)

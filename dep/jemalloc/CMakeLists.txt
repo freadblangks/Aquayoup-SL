@@ -40,17 +40,20 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux" AND NOT NOJEM)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arena.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/background_thread.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/base.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/bin.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/bitmap.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ckh.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ctl.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/div.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/extent.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/extent_dss.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/extent_mmap.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hash.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooks.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hook.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/jemalloc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/jemalloc_cpp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/large.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/log.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/malloc_io.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mutex.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mutex_pool.c
@@ -59,10 +62,11 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux" AND NOT NOJEM)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/prng.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/prof.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtree.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/spin.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/stats.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sz.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tcache.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/test_hooks.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ticker.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tsd.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/witness.c

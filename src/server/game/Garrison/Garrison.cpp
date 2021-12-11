@@ -421,7 +421,7 @@ void Garrison::PlaceBuilding(uint32 garrPlotInstanceId, uint32 garrBuildingId)
             _owner->SendDirectMessage(buildingRemoved.Write());
         }
 
-        _owner->UpdateCriteria(CRITERIA_TYPE_PLACE_GARRISON_BUILDING, garrBuildingId);
+        _owner->UpdateCriteria(CriteriaType::PlaceGarrisonBuilding, garrBuildingId);
     }
 
     _owner->SendDirectMessage(placeBuildingResult.Write());
@@ -494,6 +494,8 @@ void Garrison::ActivateBuilding(uint32 garrPlotInstanceId)
             WorldPackets::Garrison::GarrisonBuildingActivated buildingActivated;
             buildingActivated.GarrPlotInstanceID = garrPlotInstanceId;
             _owner->SendDirectMessage(buildingActivated.Write());
+
+            _owner->UpdateCriteria(CriteriaType::ActivateAnyGarrisonBuilding, plot->BuildingInfo.PacketInfo->GarrBuildingID);
         }
     }
 }
@@ -528,7 +530,7 @@ void Garrison::AddFollower(uint32 garrFollowerId)
     addFollowerResult.Follower = follower.PacketInfo;
     _owner->SendDirectMessage(addFollowerResult.Write());
 
-    _owner->UpdateCriteria(CRITERIA_TYPE_RECRUIT_GARRISON_FOLLOWER, follower.PacketInfo.DbID);
+    _owner->UpdateCriteria(CriteriaType::RecruitGarrisonFollower, follower.PacketInfo.DbID);
 }
 
 Garrison::Follower const* Garrison::GetFollower(uint64 dbId) const

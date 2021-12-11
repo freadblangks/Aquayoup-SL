@@ -193,6 +193,7 @@ enum WorldBoolConfigs
     CONFIG_GAME_OBJECT_CHECK_INVALID_POSITION,
     CONFIG_CHECK_GOBJECT_LOS,
     CONFIG_RESPAWN_DYNAMIC_ESCORTNPC,
+    CONFIG_CHARACTER_CREATING_DISABLE_ALLIED_RACE_ACHIEVEMENT_REQUIREMENT,
     BOOL_CONFIG_VALUE_COUNT
 };
 
@@ -361,6 +362,7 @@ enum WorldIntConfigs
     CONFIG_PERSISTENT_CHARACTER_CLEAN_FLAGS,
     CONFIG_LFG_OPTIONSMASK,
     CONFIG_MAX_INSTANCES_PER_HOUR,
+    CONFIG_XP_BOOST_DAYMASK,
     CONFIG_WARDEN_CLIENT_RESPONSE_DELAY,
     CONFIG_WARDEN_CLIENT_CHECK_HOLDOFF,
     CONFIG_WARDEN_CLIENT_FAIL_ACTION,
@@ -494,13 +496,13 @@ enum Rates
     RATE_TALENT,
     RATE_CORPSE_DECAY_LOOTED,
     RATE_INSTANCE_RESET_TIME,
-    RATE_TARGET_POS_RECALCULATION_RANGE,
     RATE_DURABILITY_LOSS_ON_DEATH,
     RATE_DURABILITY_LOSS_DAMAGE,
     RATE_DURABILITY_LOSS_PARRY,
     RATE_DURABILITY_LOSS_ABSORB,
     RATE_DURABILITY_LOSS_BLOCK,
     RATE_MOVESPEED,
+    RATE_XP_BOOST,
     RATE_MONEY_QUEST,
     RATE_MONEY_MAX_LEVEL_QUEST,
     MAX_RATES
@@ -787,6 +789,8 @@ class TC_GAME_API World
 
         void UpdateAreaDependentAuras();
 
+        bool IsBattlePetJournalLockAcquired(ObjectGuid battlenetAccountGuid);
+
         uint32 GetCleaningFlags() const { return m_CleaningFlags; }
         void   SetCleaningFlags(uint32 flags) { m_CleaningFlags = flags; }
         void   ResetEventSeasonalQuests(uint16 event_id);
@@ -836,6 +840,7 @@ class TC_GAME_API World
         time_t blackmarket_timer;
 
         SessionMap m_sessions;
+        std::unordered_multimap<ObjectGuid, WorldSession*> m_sessionsByBnetGuid;
         typedef std::unordered_map<uint32, time_t> DisconnectMap;
         DisconnectMap m_disconnects;
         uint32 m_maxActiveSessionCount;

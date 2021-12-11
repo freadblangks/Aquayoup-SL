@@ -163,13 +163,9 @@ public:
 
         bool IsInCombatWithPlayer() const
         {
-            std::list<HostileReference*> const& refs = me->GetThreatManager().getThreatList();
-            for (HostileReference const* hostileRef : refs)
-            {
-                if (Unit const* target = hostileRef->getTarget())
-                    if (target->IsControlledByPlayer())
-                        return true;
-            }
+            for (auto const& pair : me->GetCombatManager().GetPvECombatRefs())
+                if (pair.second->GetOther(me)->IsControlledByPlayer())
+                    return true;
             return false;
         }
 
@@ -179,10 +175,10 @@ public:
                 return;
 
             _step = step;
+            me->SetReactState(REACT_PASSIVE);
             me->SetHomePosition(hadronoxStep[step]);
             me->GetMotionMaster()->Clear();
             me->AttackStop();
-            SetCombatMovement(false);
             me->GetMotionMaster()->MovePoint(0, hadronoxStep[step]);
         }
 
@@ -201,8 +197,7 @@ public:
         {
             if (type != POINT_MOTION_TYPE)
                 return;
-            SetCombatMovement(true);
-            AttackStart(me->GetVictim());
+            me->SetReactState(REACT_AGGRESSIVE);
             if (_step < NUM_STEPS-1)
                 return;
             DoCastAOE(SPELL_WEB_FRONT_DOORS);
@@ -223,7 +218,7 @@ public:
         bool CanAIAttack(Unit const* target) const override
         {
             // Prevent Hadronox from going too far from her current home position
-            if (!target->IsControlledByPlayer() && target->GetDistance(me->GetHomePosition()) > 20.0f)
+            if (!target->IsControlledByPlayer() && target->GetDistance(me->GetHomePosition()) > 70.0f)
                 return false;
             return BossAI::CanAIAttack(target);
         }
@@ -234,7 +229,7 @@ public:
             events.ScheduleEvent(EVENT_ACID_CLOUD, randtime(Seconds(7), Seconds(13)));
             events.ScheduleEvent(EVENT_WEB_GRAB, randtime(Seconds(13), Seconds(19)));
             events.ScheduleEvent(EVENT_PIERCE_ARMOR, randtime(Seconds(4), Seconds(7)));
-            events.ScheduleEvent(EVENT_PLAYER_CHECK, Seconds(1));
+            events.ScheduleEvent(EVENT_PLAYER_CHECK, 1s);
             me->setActive(true);
         }
 
@@ -282,6 +277,7 @@ public:
         void InitializeAI() override
         {
             BossAI::InitializeAI();
+            me->SetReactState(REACT_AGGRESSIVE);
             me->SetBoundingRadius(9.0f);
             me->SetCombatReach(9.0f);
             _enteredCombat = false;
@@ -364,7 +360,7 @@ public:
         // Safeguard to prevent Hadronox dying to NPCs
         void DamageTaken(Unit* who, uint32& damage) override
         {
-            if (!who->IsControlledByPlayer() && me->HealthBelowPct(70))
+            if ((!who || !who->IsControlledByPlayer()) && me->HealthBelowPct(70))
             {
                 if (me->HealthBelowPctDamaged(5, damage))
                     damage = 0;

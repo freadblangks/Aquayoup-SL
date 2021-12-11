@@ -101,7 +101,7 @@ void WorldSession::HandlePartyInviteOpcode(WorldPackets::Party::PartyInviteClien
         return;
     }
 
-    if (invitedPlayer->GetSocial()->HasIgnore(invitingPlayer->GetGUID()))
+    if (invitedPlayer->GetSocial()->HasIgnore(invitingPlayer->GetGUID(), invitingPlayer->GetSession()->GetAccountGUID()))
     {
         SendPartyResult(PARTY_OP_INVITE, invitedPlayer->GetName(), ERR_IGNORING_YOU_S);
         return;
@@ -372,6 +372,9 @@ void WorldSession::HandleSetLootMethodOpcode(WorldPackets::Party::SetLootMethod&
     if (!group->IsLeader(GetPlayer()->GetGUID()))
         return;
 
+    if (group->isLFGGroup())
+        return;
+
     switch (packet.LootMethod)
     {
         case FREE_FOR_ALL:
@@ -408,10 +411,10 @@ void WorldSession::HandleLootRoll(WorldPackets::Loot::LootRoll& packet)
     switch (packet.RollType)
     {
         case ROLL_NEED:
-            GetPlayer()->UpdateCriteria(CRITERIA_TYPE_ROLL_NEED, 1);
+            GetPlayer()->UpdateCriteria(CriteriaType::RollAnyNeed, 1);
             break;
         case ROLL_GREED:
-            GetPlayer()->UpdateCriteria(CRITERIA_TYPE_ROLL_GREED, 1);
+            GetPlayer()->UpdateCriteria(CriteriaType::RollAnyGreed, 1);
             break;
     }
 }

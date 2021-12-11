@@ -98,7 +98,7 @@ namespace WorldPackets
                 uint32 DaysInCycle = 0;
             };
 
-            FeatureSystemStatus() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS, 48) { }
+            FeatureSystemStatus() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS, 200) { }
 
             WorldPacket const* Write() override;
 
@@ -146,6 +146,10 @@ namespace WorldPackets
             bool IsMuted                             = false;
             bool ClubFinderEnabled                   = false;
             bool Unknown901CheckoutRelated           = false;
+            bool TextToSpeechFeatureEnabled          = false;
+            bool ChatDisabledByDefault               = false;
+            bool ChatDisabledByPlayer                = false;
+            bool LFGListCustomRequiresAuthenticator  = false;
 
             SocialQueueConfig QuickJoinConfig;
             SquelchInfo Squelch;
@@ -155,7 +159,7 @@ namespace WorldPackets
         class FeatureSystemStatusGlueScreen final : public ServerPacket
         {
         public:
-            FeatureSystemStatusGlueScreen() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS_GLUE_SCREEN, 1) { }
+            FeatureSystemStatusGlueScreen() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS_GLUE_SCREEN, 64) { }
 
             WorldPacket const* Write() override;
 

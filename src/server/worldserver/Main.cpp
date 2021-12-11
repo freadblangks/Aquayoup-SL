@@ -58,6 +58,8 @@
 #include <iostream>
 #include <csignal>
 
+#include "Hacks/boost_program_options_with_filesystem_path.h"
+
 using namespace boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -85,7 +87,7 @@ class FreezeDetector
 {
 public:
     FreezeDetector(Trinity::Asio::IoContext& ioContext, uint32 maxCoreStuckTime)
-        : _timer(ioContext), _worldLoopCounter(0), _lastChangeMsTime(0), _maxCoreStuckTimeInMs(maxCoreStuckTime) { }
+        : _timer(ioContext), _worldLoopCounter(0), _lastChangeMsTime(getMSTime()), _maxCoreStuckTimeInMs(maxCoreStuckTime) { }
 
     static void Start(std::shared_ptr<FreezeDetector> const& freezeDetector)
     {
@@ -293,12 +295,14 @@ extern int main(int argc, char** argv)
     if (networkThreads <= 0)
     {
         TC_LOG_ERROR("server.worldserver", "Network.Threads must be greater than 0");
+        World::StopNow(ERROR_EXIT_CODE);
         return 1;
     }
 
     if (!sWorldSocketMgr.StartWorldNetwork(*ioContext, worldListener, worldPort, instancePort, networkThreads))
     {
         TC_LOG_ERROR("server.worldserver", "Failed to initialize network");
+        World::StopNow(ERROR_EXIT_CODE);
         return 1;
     }
 
@@ -312,17 +316,6 @@ extern int main(int argc, char** argv)
         ///- Clean database before leaving
         ClearOnlineAccounts();
     });
-
-    // Launch CliRunnable thread
-    std::shared_ptr<std::thread> cliThread;
-#ifdef _WIN32
-    if (sConfigMgr->GetBoolDefault("Console.Enable", true) && (m_ServiceStatus == -1)/* need disable console in service mode*/)
-#else
-    if (sConfigMgr->GetBoolDefault("Console.Enable", true))
-#endif
-    {
-        cliThread.reset(new std::thread(CliThread), &ShutdownCLIThread);
-    }
 
     // Set server online (allow connecting now)
     LoginDatabase.DirectPExecute("UPDATE realmlist SET flag = flag & ~%u, population = 0 WHERE id = '%u'", REALM_FLAG_OFFLINE, realm.Id.Realm);
@@ -341,6 +334,17 @@ extern int main(int argc, char** argv)
     sScriptMgr->OnStartup();
 
     TC_LOG_INFO("server.worldserver", "%s (worldserver-daemon) ready...", GitRevision::GetFullVersion());
+
+    // Launch CliRunnable thread
+    std::shared_ptr<std::thread> cliThread;
+#ifdef _WIN32
+    if (sConfigMgr->GetBoolDefault("Console.Enable", true) && (m_ServiceStatus == -1)/* need disable console in service mode*/)
+#else
+    if (sConfigMgr->GetBoolDefault("Console.Enable", true))
+#endif
+    {
+        cliThread.reset(new std::thread(CliThread), &ShutdownCLIThread);
+    }
 
     WorldUpdateLoop();
 

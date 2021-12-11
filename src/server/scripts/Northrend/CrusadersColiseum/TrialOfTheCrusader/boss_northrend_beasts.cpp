@@ -358,7 +358,7 @@ struct boss_gormok : public boss_northrend_beastsAI
                 // Npc that should keep raid in combat while boss change
                 if (Creature* combatStalker = me->SummonCreature(NPC_BEASTS_COMBAT_STALKER, CombatStalkerPosition))
                 {
-                    combatStalker->SetInCombatWithZone();
+                    DoZoneInCombat(combatStalker);
                     combatStalker->SetCombatPulseDelay(5);
                 }
                 DoZoneInCombat();
@@ -878,7 +878,7 @@ struct boss_dreadscale : public boss_jormungarAI
     void MovementInform(uint32 type, uint32 pointId) override
     {
         if (type == SPLINE_CHAIN_MOTION_TYPE && pointId == POINT_INITIAL_MOVEMENT)
-            events.ScheduleEvent(EVENT_ENGAGE, Seconds(3));
+            events.ScheduleEvent(EVENT_ENGAGE, 3s);
     }
 };
 
@@ -900,7 +900,7 @@ struct boss_acidmaw : public boss_jormungarAI
         wasMobile = false;
         me->SetControlled(true, UNIT_STATE_ROOT);
         DoCastSelf(SPELL_GROUND_VISUAL_1, true);
-        events.ScheduleEvent(EVENT_ENGAGE, Seconds(3));
+        events.ScheduleEvent(EVENT_ENGAGE, 3s);
     }
 };
 
@@ -910,8 +910,11 @@ struct npc_jormungars_slime_pool : public ScriptedAI
 
     void Reset() override
     {
-        DoCastSelf(SPELL_SLIME_POOL_EFFECT, true);
-        DoCastSelf(SPELL_PACIFY_SELF, true);
+        me->m_Events.AddEventAtOffset([this]()
+        {
+            DoCastSelf(SPELL_SLIME_POOL_EFFECT, true);
+            DoCastSelf(SPELL_PACIFY_SELF, true);
+        }, 1s);
     }
 };
 
@@ -1079,7 +1082,7 @@ class spell_gormok_ride_player : public AuraScript
             return;
 
         if (Unit *caster = GetCaster())
-            if (caster->IsAIEnabled)
+            if (caster->IsAIEnabled())
                 caster->GetAI()->SetGUID(target->GetGUID(), DATA_NEW_TARGET);
     }
 
@@ -1189,7 +1192,7 @@ class spell_jormungars_slime_pool : public AuraScript
 
     bool Validate(SpellInfo const* spellInfo) override
     {
-        return ValidateSpellInfo({ spellInfo->GetEffect(EFFECT_0)->TriggerSpell });
+        return !spellInfo->GetEffects().empty() && ValidateSpellInfo({ spellInfo->GetEffect(EFFECT_0).TriggerSpell });
     }
 
     void PeriodicTick(AuraEffect const* aurEff)
@@ -1198,8 +1201,8 @@ class spell_jormungars_slime_pool : public AuraScript
 
         int32 const radius = static_cast<int32>(((aurEff->GetTickNumber() / 60.f) * 0.9f + 0.1f) * 10000.f * 2.f / 3.f);
         CastSpellExtraArgs args(aurEff);
-        args.SpellValueOverrides.AddMod(SPELLVALUE_RADIUS_MOD, radius);
-        GetTarget()->CastSpell(nullptr, GetSpellInfo()->GetEffect(aurEff->GetEffIndex())->TriggerSpell, args);
+        args.AddSpellMod(SPELLVALUE_RADIUS_MOD, radius);
+        GetTarget()->CastSpell(nullptr, aurEff->GetSpellEffectInfo().TriggerSpell, args);
     }
 
     void Register() override
@@ -1277,12 +1280,12 @@ class spell_icehowl_arctic_breath : public SpellScript
 
     bool Validate(SpellInfo const* spellInfo) override
     {
-        return ValidateSpellInfo({ static_cast<uint32>(spellInfo->GetEffect(EFFECT_0)->CalcValue()) });
+        return !spellInfo->GetEffects().empty() && ValidateSpellInfo({ static_cast<uint32>(spellInfo->GetEffect(EFFECT_0).CalcValue()) });
     }
 
-    void HandleScriptEffect(SpellEffIndex effIndex)
+    void HandleScriptEffect(SpellEffIndex /*effIndex*/)
     {
-        uint32 spellId = GetSpellInfo()->GetEffect(effIndex)->CalcValue();
+        uint32 spellId = GetEffectInfo().CalcValue();
         GetCaster()->CastSpell(GetHitUnit(), spellId, true);
     }
 
@@ -1300,7 +1303,7 @@ class spell_icehowl_trample : public SpellScript
     void CheckTargets(std::list<WorldObject*>& targets)
     {
         Creature* caster = GetCaster()->ToCreature();
-        if (!caster || !caster->IsAIEnabled)
+        if (!caster || !caster->IsAIEnabled())
             return;
 
         if (targets.empty())

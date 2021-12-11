@@ -38,6 +38,7 @@ enum HunterSpells
     SPELL_HUNTER_EXHILARATION_R2                    = 231546,
     SPELL_HUNTER_LONE_WOLF                          = 155228,
     SPELL_HUNTER_MASTERS_CALL_TRIGGERED             = 62305,
+    SPELL_HUNTER_MISDIRECTION                       = 34477,
     SPELL_HUNTER_MISDIRECTION_PROC                  = 35079,
     SPELL_HUNTER_MULTI_SHOT_FOCUS                   = 213363,
     SPELL_HUNTER_PET_LAST_STAND_TRIGGERED           = 53479,
@@ -182,7 +183,7 @@ class spell_hun_last_stand_pet : public SpellScriptLoader
             {
                 Unit* caster = GetCaster();
                 CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                args.SpellValueOverrides.AddBP0(caster->CountPctFromMaxHealth(30));
+                args.AddSpellBP0(caster->CountPctFromMaxHealth(30));
                 caster->CastSpell(caster, SPELL_HUNTER_PET_LAST_STAND_TRIGGERED, args);
             }
 
@@ -210,7 +211,8 @@ class spell_hun_masters_call : public SpellScriptLoader
 
             bool Validate(SpellInfo const* spellInfo) override
             {
-                return spellInfo->GetEffect(EFFECT_0) && ValidateSpellInfo({ SPELL_HUNTER_MASTERS_CALL_TRIGGERED, uint32(spellInfo->GetEffect(EFFECT_0)->CalcValue()) });
+                return !spellInfo->GetEffects().empty()
+                    && ValidateSpellInfo({ SPELL_HUNTER_MASTERS_CALL_TRIGGERED, uint32(spellInfo->GetEffect(EFFECT_0).CalcValue()) });
             }
 
             bool Load() override
@@ -297,12 +299,7 @@ class spell_hun_misdirection : public SpellScriptLoader
                     return;
 
                 if (!GetTarget()->HasAura(SPELL_HUNTER_MISDIRECTION_PROC))
-                    GetTarget()->ResetRedirectThreat();
-            }
-
-            bool CheckProc(ProcEventInfo& /*eventInfo*/)
-            {
-                return GetTarget()->GetRedirectThreatTarget() != nullptr;
+                    GetTarget()->GetThreatManager().UnregisterRedirectThreat(SPELL_HUNTER_MISDIRECTION);
             }
 
             void HandleProc(AuraEffect* aurEff, ProcEventInfo& /*eventInfo*/)
@@ -314,7 +311,6 @@ class spell_hun_misdirection : public SpellScriptLoader
             void Register() override
             {
                 AfterEffectRemove += AuraEffectRemoveFn(spell_hun_misdirection_AuraScript::OnRemove, EFFECT_1, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
-                DoCheckProc += AuraCheckProcFn(spell_hun_misdirection_AuraScript::CheckProc);
                 OnEffectProc += AuraEffectProcFn(spell_hun_misdirection_AuraScript::HandleProc, EFFECT_1, SPELL_AURA_DUMMY);
             }
         };
@@ -337,7 +333,7 @@ class spell_hun_misdirection_proc : public SpellScriptLoader
 
             void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
             {
-                GetTarget()->ResetRedirectThreat();
+                GetTarget()->GetThreatManager().UnregisterRedirectThreat(SPELL_HUNTER_MISDIRECTION);
             }
 
             void Register() override
@@ -421,7 +417,7 @@ class spell_hun_pet_heart_of_the_phoenix : public SpellScriptLoader
                     if (!caster->HasAura(SPELL_HUNTER_PET_HEART_OF_THE_PHOENIX_DEBUFF))
                     {
                         CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                        args.SpellValueOverrides.AddBP0(100);
+                        args.AddSpellBP0(100);
                         owner->CastSpell(caster, SPELL_HUNTER_PET_HEART_OF_THE_PHOENIX_TRIGGERED, args);
                         caster->CastSpell(caster, SPELL_HUNTER_PET_HEART_OF_THE_PHOENIX_DEBUFF, true);
                     }
@@ -472,7 +468,7 @@ class spell_hun_roar_of_sacrifice : public SpellScriptLoader
                 PreventDefaultAction();
 
                 CastSpellExtraArgs args(aurEff);
-                args.SpellValueOverrides.AddBP0(CalculatePct(eventInfo.GetDamageInfo()->GetDamage(), aurEff->GetAmount()));
+                args.AddSpellBP0(CalculatePct(eventInfo.GetDamageInfo()->GetDamage(), aurEff->GetAmount()));
                 eventInfo.GetActor()->CastSpell(GetCaster(), SPELL_ROAR_OF_SACRIFICE_TRIGGERED, args);
             }
 
@@ -593,7 +589,7 @@ class spell_hun_tame_beast : public SpellScriptLoader
                     if (!caster->GetPetGUID().IsEmpty())
                         return SPELL_FAILED_ALREADY_HAVE_SUMMON;
 
-                    if (!caster->GetCharmGUID().IsEmpty())
+                    if (!caster->GetCharmedGUID().IsEmpty())
                         return SPELL_FAILED_ALREADY_HAVE_CHARM;
                 }
                 else

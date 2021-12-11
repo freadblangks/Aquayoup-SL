@@ -47,11 +47,12 @@ void WorldPackets::Party::PartyInviteClient::Read()
     uint32 targetNameLen, targetRealmLen;
 
     _worldPacket >> PartyIndex;
-    _worldPacket >> ProposedRoles;
-    _worldPacket >> TargetGUID;
 
     targetNameLen = _worldPacket.ReadBits(9);
     targetRealmLen = _worldPacket.ReadBits(9);
+
+    _worldPacket >> ProposedRoles;
+    _worldPacket >> TargetGUID;
 
     TargetName = _worldPacket.ReadString(targetNameLen);
     TargetRealm = _worldPacket.ReadString(targetRealmLen);
@@ -222,6 +223,8 @@ ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Party::PartyMemberStats c
 
     data.WriteBit(memberStats.PetStats.is_initialized());
     data.FlushBits();
+
+    data << memberStats.DungeonScore;
 
     if (memberStats.PetStats.is_initialized())
         data << *memberStats.PetStats;

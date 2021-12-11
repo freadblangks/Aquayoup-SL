@@ -37,13 +37,14 @@ class DefenseMessageBuilder
         DefenseMessageBuilder(uint32 zoneId, uint32 id)
             : _zoneId(zoneId), _id(id) { }
 
-        WorldPackets::Chat::DefenseMessage* operator()(LocaleConstant locale) const
+        Trinity::PacketSenderOwning<WorldPackets::Chat::DefenseMessage>* operator()(LocaleConstant locale) const
         {
             std::string text = sOutdoorPvPMgr->GetDefenseMessage(_zoneId, _id, locale);
 
-            WorldPackets::Chat::DefenseMessage* defenseMessage = new WorldPackets::Chat::DefenseMessage();
-            defenseMessage->ZoneID = _zoneId;
-            defenseMessage->MessageText = text;
+            Trinity::PacketSenderOwning<WorldPackets::Chat::DefenseMessage>* defenseMessage = new Trinity::PacketSenderOwning<WorldPackets::Chat::DefenseMessage>();
+            defenseMessage->Data.ZoneID = _zoneId;
+            defenseMessage->Data.MessageText = text;
+            defenseMessage->Data.Write();
             return defenseMessage;
         }
 
@@ -557,7 +558,7 @@ int32 OPvPCapturePoint::HandleOpenGo(Player* /*player*/, GameObject* go)
 void OutdoorPvP::BroadcastPacket(WorldPacket const* data) const
 {
     // This is faster than sWorld->SendZoneMessage
-    for (uint32 team = 0; team < 2; ++team)
+    for (uint32 team = 0; team < PVP_TEAMS_COUNT; ++team)
         for (GuidSet::const_iterator itr = m_players[team].begin(); itr != m_players[team].end(); ++itr)
             if (Player* const player = ObjectAccessor::FindPlayer(*itr))
                 player->SendDirectMessage(data);
@@ -636,14 +637,14 @@ void OutdoorPvP::OnGameObjectRemove(GameObject* go)
 void OutdoorPvP::SendDefenseMessage(uint32 zoneId, uint32 id)
 {
     DefenseMessageBuilder builder(zoneId, id);
-    Trinity::LocalizedPacketDo<DefenseMessageBuilder> localizer(builder);
+    Trinity::LocalizedDo<DefenseMessageBuilder> localizer(builder);
     BroadcastWorker(localizer, zoneId);
 }
 
 template<class Worker>
 void OutdoorPvP::BroadcastWorker(Worker& _worker, uint32 zoneId)
 {
-    for (uint32 i = 0; i < BG_TEAMS_COUNT; ++i)
+    for (uint32 i = 0; i < PVP_TEAMS_COUNT; ++i)
         for (GuidSet::iterator itr = m_players[i].begin(); itr != m_players[i].end(); ++itr)
             if (Player* player = ObjectAccessor::FindPlayer(*itr))
                 if (player->GetZoneId() == zoneId)

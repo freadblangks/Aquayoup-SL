@@ -50,11 +50,13 @@ struct SpellCooldownsEntry;
 struct SpellEffectEntry;
 struct SpellEquippedItemsEntry;
 struct SpellInterruptsEntry;
+struct SpellLabelEntry;
 struct SpellLevelsEntry;
 struct SpellMiscEntry;
 struct SpellNameEntry;
 struct SpellPowerEntry;
 struct SpellReagentsEntry;
+struct SpellReagentsCurrencyEntry;
 struct SpellScalingEntry;
 struct SpellShapeshiftEntry;
 struct SpellTargetRestrictionsEntry;
@@ -192,9 +194,8 @@ enum ProcFlags
                                                 | PROC_FLAG_DONE_SPELL_NONE_DMG_CLASS_NEG | PROC_FLAG_TAKEN_SPELL_NONE_DMG_CLASS_NEG
                                                 | PROC_FLAG_DONE_SPELL_MAGIC_DMG_CLASS_POS | PROC_FLAG_TAKEN_SPELL_MAGIC_DMG_CLASS_POS
                                                 | PROC_FLAG_DONE_SPELL_MAGIC_DMG_CLASS_NEG | PROC_FLAG_TAKEN_SPELL_MAGIC_DMG_CLASS_NEG
+                                                | PROC_FLAG_DONE_PERIODIC | PROC_FLAG_TAKEN_PERIODIC
                                                 | PROC_FLAG_DONE_TRAP_ACTIVATION,
-
-    PERIODIC_PROC_FLAG_MASK                    = PROC_FLAG_DONE_PERIODIC | PROC_FLAG_TAKEN_PERIODIC,
 
     DONE_HIT_PROC_FLAG_MASK                    = PROC_FLAG_DONE_MELEE_AUTO_ATTACK | PROC_FLAG_DONE_RANGED_AUTO_ATTACK
                                                  | PROC_FLAG_DONE_SPELL_MELEE_DMG_CLASS | PROC_FLAG_DONE_SPELL_RANGED_DMG_CLASS
@@ -357,7 +358,7 @@ struct SpellThreatEntry
     float       apPctMod;                                   // Pct of AP that is added as Threat - default: 0.0f
 };
 
-typedef std::map<uint32, SpellThreatEntry> SpellThreatMap;
+typedef std::unordered_map<uint32, SpellThreatEntry> SpellThreatMap;
 
 // coordinates for spells (accessed using SpellMgr functions)
 struct SpellTargetPosition
@@ -579,10 +580,9 @@ struct PetDefaultSpellsEntry
 // < 0 for petspelldata id, > 0 for creature_id
 typedef std::map<int32, PetDefaultSpellsEntry> PetDefaultSpellsMap;
 
-typedef std::vector<uint32> SpellCustomAttribute;
 typedef std::vector<bool> EnchantCustomAttribute;
 
-typedef std::map<int32, std::vector<int32> > SpellLinkedMap;
+typedef std::unordered_map<int32, std::vector<int32>> SpellLinkedMap;
 
 bool IsPrimaryProfessionSkill(uint32 skill);
 
@@ -613,10 +613,12 @@ struct SpellInfoLoadHelper
     std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS> Effects = { };
     SpellEquippedItemsEntry const* EquippedItems = nullptr;
     SpellInterruptsEntry const* Interrupts = nullptr;
+    std::vector<SpellLabelEntry const*> Labels;
     SpellLevelsEntry const* Levels = nullptr;
     SpellMiscEntry const* Misc = nullptr;
     std::array<SpellPowerEntry const*, MAX_POWERS_PER_SPELL> Powers;
     SpellReagentsEntry const* Reagents = nullptr;
+    std::vector<SpellReagentsCurrencyEntry const*> ReagentsCurrency;
     SpellScalingEntry const* Scaling = nullptr;
     SpellShapeshiftEntry const* Shapeshift = nullptr;
     SpellTargetRestrictionsEntry const* TargetRestrictions = nullptr;
@@ -691,7 +693,7 @@ class TC_GAME_API SpellMgr
         SpellEnchantProcEntry const* GetSpellEnchantProcEvent(uint32 enchId) const;
         bool IsArenaAllowedEnchancment(uint32 ench_id) const;
 
-        const std::vector<int32> *GetSpellLinked(int32 spell_id) const;
+        std::vector<int32> const* GetSpellLinked(int32 spell_id) const;
 
         PetLevelupSpellSet const* GetPetLevelupSpellList(uint32 petFamily) const;
         PetDefaultSpellsEntry const* GetPetDefaultSpellsEntry(int32 id) const;

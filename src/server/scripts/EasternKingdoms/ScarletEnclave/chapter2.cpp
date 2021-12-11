@@ -93,7 +93,7 @@ public:
                         me->SetReactState(REACT_PASSIVE);
                         DoCastAOE(SPELL_THREAT_PULSE, true);
 
-                        sCreatureTextMgr->SendChat(me, SAY_PERSUADE_RAND, nullptr, CHAT_MSG_ADDON, LANG_ADDON, TEXT_RANGE_NORMAL, 0, TEAM_OTHER, false, player);
+                        sCreatureTextMgr->SendChat(me, SAY_PERSUADE_RAND, nullptr, CHAT_MSG_ADDON, LANG_ADDON, TEXT_RANGE_NORMAL, 0, SoundKitPlayType::Normal, TEAM_OTHER, false, player);
                         Talk(SAY_CRUSADER);
                     }
                 }
@@ -136,13 +136,13 @@ public:
                             break;
 
                         case 5:
-                            sCreatureTextMgr->SendChat(me, SAY_PERSUADED5, nullptr, CHAT_MSG_ADDON, LANG_ADDON, TEXT_RANGE_NORMAL, 0, TEAM_OTHER, false, player);
+                            sCreatureTextMgr->SendChat(me, SAY_PERSUADED5, nullptr, CHAT_MSG_ADDON, LANG_ADDON, TEXT_RANGE_NORMAL, 0, SoundKitPlayType::Normal, TEAM_OTHER, false, player);
                             speechTimer = 8000;
                             break;
 
                         case 6:
                             Talk(SAY_PERSUADED6);
-                            player->Kill(me);
+                            Unit::Kill(player, me);
                             speechCounter = 0;
                             player->GroupEventHappens(QUEST_HOW_TO_WIN_FRIENDS, me);
                             return;
@@ -550,7 +550,8 @@ public:
         void JustDied(Unit* killer) override
         {
             Talk(SAY_VALROTH_DEATH);
-            killer->CastSpell(me, SPELL_SUMMON_VALROTH_REMAINS, true);
+            if (killer)
+                killer->CastSpell(me, SPELL_SUMMON_VALROTH_REMAINS, true);
         }
     };
 

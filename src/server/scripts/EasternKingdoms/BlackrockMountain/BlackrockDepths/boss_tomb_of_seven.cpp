@@ -67,7 +67,7 @@ class boss_gloomrel : public CreatureScript
                 switch (action)
                 {
                     case GOSSIP_ACTION_INFO_DEF + 1:
-                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TEACH_2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 11);
+                        AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_ITEM_TEACH_2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 11);
                         SendGossipMenuFor(player, 2606, me->GetGUID());
                         break;
                     case GOSSIP_ACTION_INFO_DEF + 11:
@@ -75,7 +75,7 @@ class boss_gloomrel : public CreatureScript
                         player->CastSpell(player, SPELL_LEARN_SMELT, false);
                         break;
                     case GOSSIP_ACTION_INFO_DEF + 2:
-                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TEACH_3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 22);
+                        AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_ITEM_TEACH_3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 22);
                         SendGossipMenuFor(player, 2604, me->GetGUID());
                         break;
                     case GOSSIP_ACTION_INFO_DEF + 22:
@@ -90,10 +90,10 @@ class boss_gloomrel : public CreatureScript
             bool GossipHello(Player* player) override
             {
                 if (player->GetQuestRewardStatus(QUEST_SPECTRAL_CHALICE) == 1 && player->GetSkillValue(SKILL_MINING) >= DATA_SKILLPOINT_MIN && !player->HasSpell(SPELL_SMELT_DARK_IRON))
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TEACH_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_ITEM_TEACH_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
 
                 if (player->GetQuestRewardStatus(QUEST_SPECTRAL_CHALICE) == 0 && player->GetSkillValue(SKILL_MINING) >= DATA_SKILLPOINT_MIN)
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TRIBUTE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_ITEM_TRIBUTE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
 
                 SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
                 return true;
@@ -162,10 +162,10 @@ class boss_doomrel : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                _events.ScheduleEvent(EVENT_SHADOW_BOLT_VOLLEY, 10000);
-                _events.ScheduleEvent(EVENT_IMMOLATE, 18000);
-                _events.ScheduleEvent(EVENT_CURSE_OF_WEAKNESS, 5000);
-                _events.ScheduleEvent(EVENT_DEMONARMOR, 16000);
+                _events.ScheduleEvent(EVENT_SHADOW_BOLT_VOLLEY, 10s);
+                _events.ScheduleEvent(EVENT_IMMOLATE, 18s);
+                _events.ScheduleEvent(EVENT_CURSE_OF_WEAKNESS, 5s);
+                _events.ScheduleEvent(EVENT_DEMONARMOR, 16s);
             }
 
             void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/) override
@@ -202,20 +202,20 @@ class boss_doomrel : public CreatureScript
                     {
                         case EVENT_SHADOW_BOLT_VOLLEY:
                             DoCastVictim(SPELL_SHADOWBOLTVOLLEY);
-                            _events.ScheduleEvent(EVENT_SHADOW_BOLT_VOLLEY, 12000);
+                            _events.ScheduleEvent(EVENT_SHADOW_BOLT_VOLLEY, 12s);
                             break;
                         case EVENT_IMMOLATE:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true))
                                 DoCast(target, SPELL_IMMOLATE);
-                            _events.ScheduleEvent(EVENT_IMMOLATE, 25000);
+                            _events.ScheduleEvent(EVENT_IMMOLATE, 25s);
                             break;
                         case EVENT_CURSE_OF_WEAKNESS:
                             DoCastVictim(SPELL_CURSEOFWEAKNESS);
-                            _events.ScheduleEvent(EVENT_CURSE_OF_WEAKNESS, 45000);
+                            _events.ScheduleEvent(EVENT_CURSE_OF_WEAKNESS, 45s);
                             break;
                         case EVENT_DEMONARMOR:
                             DoCast(me, SPELL_DEMONARMOR);
-                            _events.ScheduleEvent(EVENT_DEMONARMOR, 300000);
+                            _events.ScheduleEvent(EVENT_DEMONARMOR, 5min);
                             break;
                         default:
                             break;
@@ -233,7 +233,7 @@ class boss_doomrel : public CreatureScript
                 switch (action)
                 {
                     case GOSSIP_ACTION_INFO_DEF + 1:
-                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_SELECT_DOOMREL, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                        AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_SELECT_DOOMREL, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
                         SendGossipMenuFor(player, 2605, me->GetGUID());
                         break;
                     case GOSSIP_ACTION_INFO_DEF + 2:
@@ -251,7 +251,7 @@ class boss_doomrel : public CreatureScript
 
             bool GossipHello(Player* player) override
             {
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_CHALLENGE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_ITEM_CHALLENGE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
                 SendGossipMenuFor(player, 2601, me->GetGUID());
 
                 return true;

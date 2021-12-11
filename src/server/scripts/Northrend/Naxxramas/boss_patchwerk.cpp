@@ -78,7 +78,7 @@ public:
         {
             _Reset();
 
-            instance->DoStopCriteriaTimer(CRITERIA_TIMED_TYPE_EVENT, ACHIEV_MAKE_QUICK_WERK_OF_HIM_STARTING_EVENT);
+            instance->DoStopCriteriaTimer(CriteriaStartEvent::SendEvent, ACHIEV_MAKE_QUICK_WERK_OF_HIM_STARTING_EVENT);
         }
 
         void KilledUnit(Unit* /*Victim*/) override
@@ -98,10 +98,10 @@ public:
             _JustEngagedWith();
             Enraged = false;
             Talk(SAY_AGGRO);
-            events.ScheduleEvent(EVENT_HATEFUL, Seconds(1));
-            events.ScheduleEvent(EVENT_BERSERK, Minutes(6));
+            events.ScheduleEvent(EVENT_HATEFUL, 1s);
+            events.ScheduleEvent(EVENT_BERSERK, 6min);
 
-            instance->DoStartCriteriaTimer(CRITERIA_TIMED_TYPE_EVENT, ACHIEV_MAKE_QUICK_WERK_OF_HIM_STARTING_EVENT);
+            instance->DoStartCriteriaTimer(CriteriaStartEvent::SendEvent, ACHIEV_MAKE_QUICK_WERK_OF_HIM_STARTING_EVENT);
         }
 
         void UpdateAI(uint32 diff) override
@@ -165,7 +165,7 @@ public:
                     case EVENT_BERSERK:
                         DoCast(me, SPELL_BERSERK, true);
                         Talk(EMOTE_BERSERK);
-                        events.ScheduleEvent(EVENT_SLIME, Seconds(2));
+                        events.ScheduleEvent(EVENT_SLIME, 2s);
                         break;
                     case EVENT_SLIME:
                         DoCastAOE(SPELL_SLIME_BOLT, true);

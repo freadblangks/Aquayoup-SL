@@ -20,7 +20,6 @@ go_cat_figurine (the "trap" version of GO, two different exist)
 go_barov_journal
 go_ethereum_prison
 go_ethereum_stasis
-go_sacred_fire_of_life
 go_shrine_of_the_birds
 go_southfury_moonstone
 go_orb_of_command
@@ -306,7 +305,7 @@ public:
             me->UseDoorOrButton();
             int Random = rand32() % (sizeof(NpcPrisonEntry) / sizeof(uint32));
 
-            if (Creature* creature = player->SummonCreature(NpcPrisonEntry[Random], me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetAngle(player),
+            if (Creature* creature = player->SummonCreature(NpcPrisonEntry[Random], me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetAbsoluteAngle(player),
                 TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 30000))
             {
                 if (!creature->IsHostileTo(player))
@@ -366,7 +365,7 @@ public:
             me->UseDoorOrButton();
             int Random = rand32() % (sizeof(NpcStasisEntry) / sizeof(uint32));
 
-            player->SummonCreature(NpcStasisEntry[Random], me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetAngle(player),
+            player->SummonCreature(NpcStasisEntry[Random], me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetAbsoluteAngle(player),
                 TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 30000);
 
             return false;
@@ -409,39 +408,6 @@ public:
     GameObjectAI* GetAI(GameObject* go) const override
     {
         return new go_resonite_caskAI(go);
-    }
-};
-
-/*######
-## go_sacred_fire_of_life
-######*/
-
-enum SacredFireOfLife
-{
-    NPC_ARIKARA     = 10882
-};
-
-class go_sacred_fire_of_life : public GameObjectScript
-{
-public:
-    go_sacred_fire_of_life() : GameObjectScript("go_sacred_fire_of_life") { }
-
-    struct go_sacred_fire_of_lifeAI : public GameObjectAI
-    {
-        go_sacred_fire_of_lifeAI(GameObject* go) : GameObjectAI(go) { }
-
-        bool GossipHello(Player* player) override
-        {
-            if (me->GetGoType() == GAMEOBJECT_TYPE_GOOBER)
-                player->SummonCreature(NPC_ARIKARA, -5008.338f, -2118.894f, 83.657f, 0.874f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 30000);
-
-            return true;
-        }
-    };
-
-    GameObjectAI* GetAI(GameObject* go) const override
-    {
-        return new go_sacred_fire_of_lifeAI(go);
     }
 };
 
@@ -634,8 +600,8 @@ public:
             if (me->GetGoType() == GAMEOBJECT_TYPE_QUESTGIVER) /* != GAMEOBJECT_TYPE_QUESTGIVER) */
                 player->PrepareQuestMenu(me->GetGUID()); /* return true*/
 
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_FEL_CRYSTALFORGE_ITEM_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_FEL_CRYSTALFORGE_ITEM_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+            AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_FEL_CRYSTALFORGE_ITEM_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
+            AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_FEL_CRYSTALFORGE_ITEM_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
 
             SendGossipMenuFor(player, GOSSIP_FEL_CRYSTALFORGE_TEXT, me->GetGUID());
 
@@ -650,17 +616,17 @@ public:
             {
                 case GOSSIP_ACTION_INFO_DEF:
                     player->CastSpell(player, SPELL_CREATE_1_FLASK_OF_BEAST, false);
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_FEL_CRYSTALFORGE_ITEM_RETURN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_FEL_CRYSTALFORGE_ITEM_RETURN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
                     SendGossipMenuFor(player, GOSSIP_FEL_CRYSTALFORGE_ITEM_TEXT_RETURN, me->GetGUID());
                     break;
                 case GOSSIP_ACTION_INFO_DEF + 1:
                     player->CastSpell(player, SPELL_CREATE_5_FLASK_OF_BEAST, false);
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_FEL_CRYSTALFORGE_ITEM_RETURN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_FEL_CRYSTALFORGE_ITEM_RETURN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
                     SendGossipMenuFor(player, GOSSIP_FEL_CRYSTALFORGE_ITEM_TEXT_RETURN, me->GetGUID());
                     break;
                 case GOSSIP_ACTION_INFO_DEF + 2:
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_FEL_CRYSTALFORGE_ITEM_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_FEL_CRYSTALFORGE_ITEM_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_FEL_CRYSTALFORGE_ITEM_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_FEL_CRYSTALFORGE_ITEM_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
                     SendGossipMenuFor(player, GOSSIP_FEL_CRYSTALFORGE_TEXT, me->GetGUID());
                     break;
             }
@@ -704,8 +670,8 @@ public:
             if (me->GetGoType() == GAMEOBJECT_TYPE_QUESTGIVER) /* != GAMEOBJECT_TYPE_QUESTGIVER) */
                 player->PrepareQuestMenu(me->GetGUID()); /* return true*/
 
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+            AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
+            AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
 
             SendGossipMenuFor(player, GOSSIP_BASHIR_CRYSTALFORGE_TEXT, me->GetGUID());
 
@@ -720,17 +686,17 @@ public:
             {
                 case GOSSIP_ACTION_INFO_DEF:
                     player->CastSpell(player, SPELL_CREATE_1_FLASK_OF_SORCERER, false);
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_RETURN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_RETURN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
                     SendGossipMenuFor(player, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_TEXT_RETURN, me->GetGUID());
                     break;
                 case GOSSIP_ACTION_INFO_DEF + 1:
                     player->CastSpell(player, SPELL_CREATE_5_FLASK_OF_SORCERER, false);
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_RETURN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_RETURN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
                     SendGossipMenuFor(player, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_TEXT_RETURN, me->GetGUID());
                     break;
                 case GOSSIP_ACTION_INFO_DEF + 2:
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
+                    AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_BASHIR_CRYSTALFORGE_ITEM_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
                     SendGossipMenuFor(player, GOSSIP_BASHIR_CRYSTALFORGE_TEXT, me->GetGUID());
                     break;
             }
@@ -1185,7 +1151,7 @@ public:
             QuestStatus status = player->GetQuestStatus(QUEST_DOING_YOUR_DUTY);
             if (status == QUEST_STATUS_INCOMPLETE || status == QUEST_STATUS_COMPLETE || status == QUEST_STATUS_REWARDED)
             {
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_USE_OUTHOUSE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_USE_OUTHOUSE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
                 SendGossipMenuFor(player, GOSSIP_OUTHOUSE_VACANT, me->GetGUID());
             }
             else
@@ -1250,8 +1216,8 @@ public:
         bool GossipHello(Player* player) override
         {
             player->SendLoot(me->GetGUID(), LOOT_CORPSE);
-            me->SummonCreature(NPC_HIVE_AMBUSHER, me->GetPositionX() + 1, me->GetPositionY(), me->GetPositionZ(), me->GetAngle(player), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 60000);
-            me->SummonCreature(NPC_HIVE_AMBUSHER, me->GetPositionX(), me->GetPositionY() + 1, me->GetPositionZ(), me->GetAngle(player), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 60000);
+            me->SummonCreature(NPC_HIVE_AMBUSHER, me->GetPositionX() + 1, me->GetPositionY(), me->GetPositionZ(), me->GetAbsoluteAngle(player), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 60000);
+            me->SummonCreature(NPC_HIVE_AMBUSHER, me->GetPositionX(), me->GetPositionY() + 1, me->GetPositionZ(), me->GetAbsoluteAngle(player), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 60000);
             return true;
         }
     };
@@ -1545,8 +1511,8 @@ public:
 
         go_brewfest_musicAI(GameObject* go) : GameObjectAI(go)
         {
-            _events.ScheduleEvent(EVENT_BM_SELECT_MUSIC, 1000);
-            _events.ScheduleEvent(EVENT_BM_START_MUSIC, 2000);
+            _events.ScheduleEvent(EVENT_BM_SELECT_MUSIC, 1s);
+            _events.ScheduleEvent(EVENT_BM_START_MUSIC, 2s);
         }
 
         void UpdateAI(uint32 diff) override
@@ -1658,7 +1624,7 @@ public:
                             break;
                     }
 
-                    _events.ScheduleEvent(EVENT_BM_START_MUSIC, 5000); // Every 5 second's SMSG_PLAY_MUSIC packet (PlayDirectMusic) is pushed to the client
+                    _events.ScheduleEvent(EVENT_BM_START_MUSIC, 5s); // Every 5 second's SMSG_PLAY_MUSIC packet (PlayDirectMusic) is pushed to the client
                     break;
                 default:
                     break;
@@ -1699,7 +1665,7 @@ public:
     {
         go_midsummer_musicAI(GameObject* go) : GameObjectAI(go)
         {
-            _events.ScheduleEvent(EVENT_MM_START_MUSIC, 1000);
+            _events.ScheduleEvent(EVENT_MM_START_MUSIC, 1s);
         }
 
         void UpdateAI(uint32 diff) override
@@ -1723,7 +1689,7 @@ public:
                             else
                                 me->PlayDirectMusic(EVENTMIDSUMMERFIREFESTIVAL_A, player);
                         }
-                        _events.ScheduleEvent(EVENT_MM_START_MUSIC, 5000); // Every 5 second's SMSG_PLAY_MUSIC packet (PlayDirectMusic) is pushed to the client (sniffed value)
+                        _events.ScheduleEvent(EVENT_MM_START_MUSIC, 5s); // Every 5 second's SMSG_PLAY_MUSIC packet (PlayDirectMusic) is pushed to the client (sniffed value)
                         break;
                     }
                 default:
@@ -1764,7 +1730,7 @@ public:
     {
         go_darkmoon_faire_musicAI(GameObject* go) : GameObjectAI(go)
         {
-            _events.ScheduleEvent(EVENT_DFM_START_MUSIC, 1000);
+            _events.ScheduleEvent(EVENT_DFM_START_MUSIC, 1s);
         }
 
         void UpdateAI(uint32 diff) override
@@ -1778,7 +1744,7 @@ public:
                     if (!IsHolidayActive(HOLIDAY_DARKMOON_FAIRE))
                         break;
                     me->PlayDirectMusic(MUSIC_DARKMOON_FAIRE_MUSIC);
-                    _events.ScheduleEvent(EVENT_DFM_START_MUSIC, 5000);  // Every 5 second's SMSG_PLAY_MUSIC packet (PlayDirectMusic) is pushed to the client (sniffed value)
+                    _events.ScheduleEvent(EVENT_DFM_START_MUSIC, 5s);  // Every 5 second's SMSG_PLAY_MUSIC packet (PlayDirectMusic) is pushed to the client (sniffed value)
                     break;
                 default:
                     break;
@@ -1818,7 +1784,7 @@ public:
     {
         go_pirate_day_musicAI(GameObject* go) : GameObjectAI(go)
         {
-            _events.ScheduleEvent(EVENT_PDM_START_MUSIC, 1000);
+            _events.ScheduleEvent(EVENT_PDM_START_MUSIC, 1s);
         }
 
         void UpdateAI(uint32 diff) override
@@ -1832,7 +1798,7 @@ public:
                     if (!IsHolidayActive(HOLIDAY_PIRATES_DAY))
                         break;
                     me->PlayDirectMusic(MUSIC_PIRATE_DAY_MUSIC);
-                    _events.ScheduleEvent(EVENT_PDM_START_MUSIC, 5000);  // Every 5 second's SMSG_PLAY_MUSIC packet (PlayDirectMusic) is pushed to the client (sniffed value)
+                    _events.ScheduleEvent(EVENT_PDM_START_MUSIC, 5s);  // Every 5 second's SMSG_PLAY_MUSIC packet (PlayDirectMusic) is pushed to the client (sniffed value)
                     break;
                 default:
                     break;
@@ -1974,7 +1940,6 @@ void AddSC_go_scripts()
     new go_ethereum_prison();
     new go_ethereum_stasis();
     new go_resonite_cask();
-    new go_sacred_fire_of_life();
     new go_tele_to_dalaran_crystal();
     new go_tele_to_violet_stand();
     new go_fel_crystalforge();

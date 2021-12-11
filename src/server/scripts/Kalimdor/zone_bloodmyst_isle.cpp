@@ -67,6 +67,9 @@ public:
 
         void JustDied(Unit* killer) override
         {
+            if (!killer)
+                return;
+
             uint32 spawnCreatureID = 0;
 
             switch (urand(0, 2))
@@ -254,13 +257,17 @@ public:
         {
             _events.ScheduleEvent(EVENT_UPPERCUT,      15 * IN_MILLISECONDS);
             _events.ScheduleEvent(EVENT_IMMOLATE,      10 * IN_MILLISECONDS);
-            _events.ScheduleEvent(EVENT_CURSE_OF_BLOOD, 5 * IN_MILLISECONDS);
+            _events.ScheduleEvent(EVENT_CURSE_OF_BLOOD, 5s);
         }
 
         void JustDied(Unit* killer) override
         {
             me->SetObjectScale(1.0f);
             _events.Reset();
+
+            if (!killer)
+                return;
+
             if (Creature* legoso = me->FindNearestCreature(NPC_LEGOSO, SIZE_OF_GRIDS))
             {
                 Group* group = me->GetLootRecipientGroup();
@@ -285,15 +292,15 @@ public:
                 {
                     case EVENT_UPPERCUT:
                         DoCastVictim(SPELL_UPPERCUT);
-                        _events.ScheduleEvent(EVENT_UPPERCUT, urand(10, 12) * IN_MILLISECONDS);
+                        _events.ScheduleEvent(EVENT_UPPERCUT, 10s, 12s);
                         break;
                     case EVENT_IMMOLATE:
                         DoCastVictim(SPELL_IMMOLATE);
-                        _events.ScheduleEvent(EVENT_IMMOLATE, urand(15, 20) * IN_MILLISECONDS);
+                        _events.ScheduleEvent(EVENT_IMMOLATE, 15s, 20s);
                         break;
                     case EVENT_CURSE_OF_BLOOD:
                         DoCastVictim(SPELL_CURSE_OF_BLOOD);
-                        _events.ScheduleEvent(EVENT_CURSE_OF_BLOOD, urand(20, 25) * IN_MILLISECONDS);
+                        _events.ScheduleEvent(EVENT_CURSE_OF_BLOOD, 20s, 25s);
                         break;
                     default:
                         break;
@@ -397,10 +404,10 @@ public:
             me->SetCanDualWield(true);
             Initialize();
             _events.Reset();
-            _events.ScheduleEvent(EVENT_FROST_SHOCK, 1 * IN_MILLISECONDS);
-            _events.ScheduleEvent(EVENT_HEALING_SURGE, 5 * IN_MILLISECONDS);
-            _events.ScheduleEvent(EVENT_SEARING_TOTEM, 15 * IN_MILLISECONDS);
-            _events.ScheduleEvent(EVENT_STRENGTH_OF_EARTH_TOTEM, 20 * IN_MILLISECONDS);
+            _events.ScheduleEvent(EVENT_FROST_SHOCK, 1s);
+            _events.ScheduleEvent(EVENT_HEALING_SURGE, 5s);
+            _events.ScheduleEvent(EVENT_SEARING_TOTEM, 15s);
+            _events.ScheduleEvent(EVENT_STRENGTH_OF_EARTH_TOTEM, 20s);
         }
 
         void UpdateAI(uint32 diff) override
@@ -416,7 +423,7 @@ public:
                         case EVENT_FROST_SHOCK:
                             DoCastVictim(SPELL_FROST_SHOCK);
                             _events.DelayEvents(1 * IN_MILLISECONDS);
-                            _events.ScheduleEvent(EVENT_FROST_SHOCK, urand(10, 15) * IN_MILLISECONDS);
+                            _events.ScheduleEvent(EVENT_FROST_SHOCK, 10s, 15s);
                             break;
                         case EVENT_SEARING_TOTEM:
                             DoCast(me, SPELL_SEARING_TOTEM);
@@ -439,10 +446,10 @@ public:
                             if (target)
                             {
                                 DoCast(target, SPELL_HEALING_SURGE);
-                                _events.ScheduleEvent(EVENT_HEALING_SURGE, 10 * IN_MILLISECONDS);
+                                _events.ScheduleEvent(EVENT_HEALING_SURGE, 10s);
                             }
                             else
-                                _events.ScheduleEvent(EVENT_HEALING_SURGE, 2 * IN_MILLISECONDS);
+                                _events.ScheduleEvent(EVENT_HEALING_SURGE, 2s);
                             break;
                         }
                         default:

@@ -479,7 +479,8 @@ public:
                         Unit* unit = ObjectAccessor::GetUnit(*me, FlameWreathTarget[i]);
                         if (unit && !unit->IsWithinDist2d(FWTargPosX[i], FWTargPosY[i], 3))
                         {
-                            unit->CastSpell(unit, 20476, me->GetGUID());
+                            unit->CastSpell(unit, 20476, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
+                                .SetOriginalCaster(me->GetGUID()));
                             unit->CastSpell(unit, 11027, true);
                             FlameWreathTarget[i].Clear();
                         }
@@ -500,21 +501,21 @@ public:
 
         void SpellHit(Unit* /*caster*/, SpellInfo const* spellInfo) override
         {
-            // We only care about interrupt effects and only if they are durring a spell currently being cast
-            if (spellInfo->HasEffect(SPELL_EFFECT_INTERRUPT_CAST) && me->IsNonMeleeSpellCast(false))
+            //We only care about interrupt effects and only if they are durring a spell currently being cast
+            if (!spellInfo->HasEffect(SPELL_EFFECT_INTERRUPT_CAST) || !me->IsNonMeleeSpellCast(false))
+                return;
+
+            //Interrupt effect
+            me->InterruptNonMeleeSpells(false);
+
+            //Normally we would set the cooldown equal to the spell duration
+            //but we do not have access to the DurationStore
+
+            switch (CurrentNormalSpell)
             {
-                // Interrupt effect
-                me->InterruptNonMeleeSpells(false);
-
-                // Normally we would set the cooldown equal to the spell duration
-                // but we do not have access to the DurationStore
-
-                switch (CurrentNormalSpell)
-                {
-                    case SPELL_ARCMISSLE: ArcaneCooldown = 5000; break;
-                    case SPELL_FIREBALL: FireCooldown = 5000; break;
-                    case SPELL_FROSTBOLT: FrostCooldown = 5000; break;
-                }
+                case SPELL_ARCMISSLE: ArcaneCooldown = 5000; break;
+                case SPELL_FIREBALL: FireCooldown = 5000; break;
+                case SPELL_FROSTBOLT: FrostCooldown = 5000; break;
             }
         }
 
@@ -536,9 +537,9 @@ public:
 
                 SeenAtiesh = true;
                 Talk(SAY_ATIESH);
-                me->SetFacingTo(me->GetAngle(player));
+                me->SetFacingTo(me->GetAbsoluteAngle(player));
                 me->ClearUnitState(UNIT_STATE_MOVING);
-                me->GetMotionMaster()->MoveDistract(7 * IN_MILLISECONDS);
+                me->GetMotionMaster()->MoveDistract(7 * IN_MILLISECONDS, me->GetAbsoluteAngle(who));
                 break;
             }
         }

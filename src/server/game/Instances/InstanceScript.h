@@ -39,8 +39,8 @@ class ModuleReference;
 class Player;
 class Unit;
 struct InstanceSpawnGroupInfo;
-enum CriteriaTypes : uint8;
-enum CriteriaTimedTypes : uint8;
+enum class CriteriaType : uint8;
+enum class CriteriaStartEvent : uint8;
 enum EncounterCreditType : uint8;
 namespace WorldPackets
 {
@@ -220,11 +220,11 @@ class TC_GAME_API InstanceScript : public ZoneScript
         void DoSendNotifyToInstance(char const* format, ...);
 
         // Update Achievement Criteria for all players in instance
-        void DoUpdateCriteria(CriteriaTypes type, uint32 miscValue1 = 0, uint32 miscValue2 = 0, Unit* unit = nullptr);
+        void DoUpdateCriteria(CriteriaType type, uint32 miscValue1 = 0, uint32 miscValue2 = 0, Unit* unit = nullptr);
 
         // Start/Stop Timed Achievement Criteria for all players in instance
-        void DoStartCriteriaTimer(CriteriaTimedTypes type, uint32 entry);
-        void DoStopCriteriaTimer(CriteriaTimedTypes type, uint32 entry);
+        void DoStartCriteriaTimer(CriteriaStartEvent startEvent, uint32 entry);
+        void DoStopCriteriaTimer(CriteriaStartEvent startEvent, uint32 entry);
 
         // Remove Auras due to Spell on all players in instance
         void DoRemoveAurasDueToSpellOnPlayers(uint32 spell);
@@ -257,6 +257,10 @@ class TC_GAME_API InstanceScript : public ZoneScript
         // Returns completed encounters mask for packets
         uint32 GetCompletedEncounterMask() const { return completedEncounters; }
 
+        virtual void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& /*packet*/) { }
+
+        uint32 GetEncounterCount() const { return uint32(bosses.size()); }
+
         // Sets the entrance location (WorldSafeLoc) id
         void SetEntranceLocation(uint32 worldSafeLocationId);
 
@@ -277,12 +281,8 @@ class TC_GAME_API InstanceScript : public ZoneScript
 
         void SendBossKillCredit(uint32 encounterId);
 
-        virtual void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& /*packet*/) { }
-
         // ReCheck PhaseTemplate related conditions
         void UpdatePhasing();
-
-        uint32 GetEncounterCount() const { return uint32(bosses.size()); }
 
         void InitializeCombatResurrections(uint8 charges = 1, uint32 interval = 0);
         void AddCombatResurrectionCharge();
@@ -349,6 +349,8 @@ class TC_GAME_API InstanceScript : public ZoneScript
         // Strong reference to the associated script module
         std::shared_ptr<ModuleReference> module_reference;
     #endif // #ifndef TRINITY_API_USE_DYNAMIC_LINKING
+
+        friend class debug_commandscript;
 };
 
 #endif // TRINITY_INSTANCE_DATA_H

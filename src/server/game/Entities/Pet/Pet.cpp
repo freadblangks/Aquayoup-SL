@@ -20,6 +20,7 @@
 #include "DatabaseEnv.h"
 #include "DB2Stores.h"
 #include "Group.h"
+#include "InstanceScript.h"
 #include "Log.h"
 #include "Map.h"
 #include "ObjectMgr.h"
@@ -75,6 +76,8 @@ void Pet::AddToWorld()
         GetMap()->GetObjectsStore().Insert<Pet>(GetGUID(), this);
         Unit::AddToWorld();
         AIM_Initialize();
+        if (ZoneScript* zoneScript = GetZoneScript() ? GetZoneScript() : GetInstanceScript())
+            zoneScript->OnCreatureCreate(this);
     }
 
     // Prevent stuck pets when zoning. Pets default to "follow" when added to world
@@ -220,14 +223,14 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
         case SUMMON_PET:
             petlevel = owner->getLevel();
             SetClass(CLASS_MAGE);
-            SetUnitFlags(UNIT_FLAG_PVP_ATTACKABLE); // this enables popup window (pet dismiss, cancel)
+            SetUnitFlags(UNIT_FLAG_PLAYER_CONTROLLED); // this enables popup window (pet dismiss, cancel)
             break;
         case HUNTER_PET:
             SetClass(CLASS_WARRIOR);
             SetGender(GENDER_NONE);
             SetSheath(SHEATH_STATE_MELEE);
             SetPetFlags(fields[9].GetBool() ? UNIT_PET_FLAG_CAN_BE_ABANDONED : UnitPetFlag(UNIT_PET_FLAG_CAN_BE_RENAMED | UNIT_PET_FLAG_CAN_BE_ABANDONED));
-            SetUnitFlags(UNIT_FLAG_PVP_ATTACKABLE); // this enables popup window (pet abandon, cancel)
+            SetUnitFlags(UNIT_FLAG_PLAYER_CONTROLLED); // this enables popup window (pet abandon, cancel)
             break;
         default:
             if (!IsPetGhoul())
@@ -855,7 +858,10 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
     if (petType == HUNTER_PET) // Hunter pets have focus
         SetPowerType(POWER_FOCUS);
     else if (IsPetGhoul() || IsPetAbomination()) // DK pets have energy
+    {
         SetPowerType(POWER_ENERGY);
+        SetFullPower(POWER_ENERGY);
+    }
     else if (IsPetImp() || IsPetFelhunter() || IsPetVoidwalker() || IsPetSuccubus() || IsPetDoomguard() || IsPetFelguard()) // Warlock pets have energy (since 5.x)
         SetPowerType(POWER_ENERGY);
     else
@@ -1186,7 +1192,7 @@ void Pet::_LoadAuras(uint32 timediff)
             }
 
             // negative effects should continue counting down after logout
-            if (remainTime != -1 && !spellInfo->IsPositive())
+            if (remainTime != -1 && (!spellInfo->IsPositive() || spellInfo->HasAttribute(SPELL_ATTR4_AURA_EXPIRES_OFFLINE)))
             {
                 if (remainTime/IN_MILLISECONDS <= int32(timediff))
                     continue;
@@ -1207,7 +1213,12 @@ void Pet::_LoadAuras(uint32 timediff)
 
             AuraLoadEffectInfo& info = effectInfo[key];
             ObjectGuid castId = ObjectGuid::Create<HighGuid::Cast>(SPELL_CAST_SOURCE_NORMAL, GetMapId(), spellInfo->Id, GetMap()->GenerateLowGuid<HighGuid::Cast>());
-            if (Aura* aura = Aura::TryCreate(spellInfo, castId, key.EffectMask, this, nullptr, difficulty, info.BaseAmounts.data(), nullptr, casterGuid))
+            AuraCreateInfo createInfo(castId, spellInfo, difficulty, key.EffectMask, this);
+            createInfo
+                .SetCasterGUID(casterGuid)
+                .SetBaseAmount(info.BaseAmounts.data());
+
+            if (Aura* aura = Aura::TryCreate(createInfo))
             {
                 if (!aura->CanBeSaved())
                 {
@@ -1630,6 +1641,8 @@ bool Pet::Create(ObjectGuid::LowType guidlow, Map* map, uint32 Entry)
     AddUnitFlag2(UNIT_FLAG2_REGENERATE_POWER);
     SetSheath(SHEATH_STATE_MELEE);
 
+    GetThreatManager().Initialize();
+
     return true;
 }
 
@@ -1690,7 +1703,7 @@ void Pet::CastPetAura(PetAura const* aura)
     args.TriggerFlags = TRIGGERED_FULL_MASK;
 
     if (auraId == 35696)                                      // Demonic Knowledge
-        args.SpellValueOverrides.AddMod(SPELLVALUE_BASE_POINT0, CalculatePct(aura->GetDamage(), GetStat(STAT_STAMINA) + GetStat(STAT_INTELLECT)));
+        args.AddSpellMod(SPELLVALUE_BASE_POINT0, CalculatePct(aura->GetDamage(), GetStat(STAT_STAMINA) + GetStat(STAT_INTELLECT)));
 
     CastSpell(this, auraId, args);
 }
@@ -1854,4 +1867,13 @@ std::string Pet::GenerateActionBarData() const
     }
 
     return ss.str();
+}
+
+std::string Pet::GetDebugInfo() const
+{
+    std::stringstream sstr;
+    sstr << Guardian::GetDebugInfo() << "\n"
+        << std::boolalpha
+        << "PetType: " << std::to_string(getPetType());
+    return sstr.str();
 }

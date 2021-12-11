@@ -19,24 +19,34 @@
 #define TRINITY_GAMEOBJECTAI_H
 
 #include "Define.h"
+#include "LootItemType.h"
 #include "ObjectGuid.h"
 #include "Optional.h"
 
+class Creature;
 class GameObject;
 class Player;
 class Quest;
 class SpellInfo;
 class Unit;
-enum class LootItemType : uint8;
+class WorldObject;
 enum class QuestGiverStatus : uint32;
 
 class TC_GAME_API GameObjectAI
 {
+    private:
+        // Script Id
+        uint32 const _scriptId;
+
     protected:
         GameObject* const me;
+
     public:
-        explicit GameObjectAI(GameObject* g) : me(g) { }
+        explicit GameObjectAI(GameObject* go, uint32 scriptId = {});
         virtual ~GameObjectAI() { }
+
+        // Gets the id of the AI (script id)
+        uint32 GetId() const { return _scriptId; }
 
         virtual void UpdateAI(uint32 /*diff*/) { }
 
@@ -67,15 +77,14 @@ class TC_GAME_API GameObjectAI
         virtual void QuestAccept(Player* /*player*/, Quest const* /*quest*/) { }
 
         // Called when a player completes a quest and is rewarded, opt is the selected item's index or 0
-        virtual void QuestReward(Player* player, Quest const* quest, uint32 opt);
         virtual void QuestReward(Player* /*player*/, Quest const* /*quest*/, LootItemType /*type*/, uint32 /*opt*/) { }
 
         // Called when a Player clicks a GameObject, before GossipHello
         // prevents achievement tracking if returning true
         virtual bool OnReportUse(Player* /*player*/) { return false; }
 
-        virtual void Destroyed(Player* /*player*/, uint32 /*eventId*/) { }
-        virtual void Damaged(Player* /*player*/, uint32 /*eventId*/) { }
+        virtual void Destroyed(WorldObject* /*attacker*/, uint32 /*eventId*/) { }
+        virtual void Damaged(WorldObject* /*attacker*/, uint32 /*eventId*/) { }
 
         virtual uint32 GetData(uint32 /*id*/) const { return 0; }
         virtual void SetData64(uint32 /*id*/, uint64 /*value*/) { }
@@ -86,13 +95,26 @@ class TC_GAME_API GameObjectAI
         virtual void OnLootStateChanged(uint32 /*state*/, Unit* /*unit*/) { }
         virtual void OnStateChanged(uint32 /*state*/) { }
         virtual void EventInform(uint32 /*eventId*/) { }
-        virtual void SpellHit(Unit* /*unit*/, SpellInfo const* /*spellInfo*/) { }
+
+        // Called when hit by a spell
+        virtual void SpellHit(Unit* /*caster*/, SpellInfo const* /*spellInfo*/) { }
+        virtual void SpellHitByGameObject(GameObject* /*caster*/, SpellInfo const* /*spellInfo*/) { }
+
+        // Called when spell hits a target
+        virtual void SpellHitTarget(Unit* /*target*/, SpellInfo const* /*spellInfo*/) { }
+        virtual void SpellHitTargetGameObject(GameObject* /*target*/, SpellInfo const* /*spellInfo*/) { }
+
+        // Called when the gameobject summon successfully other creature
+        virtual void JustSummoned(Creature* /*summon*/) { }
+
+        virtual void SummonedCreatureDespawn(Creature* /*summon*/) { }
+        virtual void SummonedCreatureDies(Creature* /*summon*/, Unit* /*killer*/) { }
 };
 
 class TC_GAME_API NullGameObjectAI : public GameObjectAI
 {
     public:
-        explicit NullGameObjectAI(GameObject* g);
+        using GameObjectAI::GameObjectAI;
 
         void UpdateAI(uint32 /*diff*/) override { }
 

@@ -209,7 +209,6 @@ ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::Spells::SpellOptionalReag
 {
     data >> optionalReagent.ItemID;
     data >> optionalReagent.Slot;
-    data >> optionalReagent.Count;
     return data;
 }
 
@@ -614,6 +613,7 @@ WorldPacket const* WorldPackets::Spells::ModifyCooldown::Write()
     _worldPacket << int32(SpellID);
     _worldPacket << int32(DeltaTime);
     _worldPacket.WriteBit(IsPet);
+    _worldPacket.WriteBit(WithoutCategoryCooldown);
     _worldPacket.FlushBits();
 
     return &_worldPacket;
@@ -793,6 +793,14 @@ WorldPacket const* WorldPackets::Spells::PlaySpellVisualKit::Write()
     return &_worldPacket;
 }
 
+WorldPacket const* WorldPackets::Spells::SpellVisualLoadScreen::Write()
+{
+    _worldPacket << int32(SpellVisualKitID);
+    _worldPacket << int32(Delay);
+
+    return &_worldPacket;
+}
+
 void WorldPackets::Spells::CancelCast::Read()
 {
     _worldPacket >> CastID;
@@ -947,6 +955,7 @@ WorldPacket const* WorldPackets::Spells::NotifyMissileTrajectoryCollision::Write
 void WorldPackets::Spells::UpdateMissileTrajectory::Read()
 {
     _worldPacket >> Guid;
+    _worldPacket >> CastID;
     _worldPacket >> MoveMsgID;
     _worldPacket >> SpellID;
     _worldPacket >> Pitch;

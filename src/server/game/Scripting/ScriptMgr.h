@@ -71,6 +71,7 @@ struct CreatureTemplate;
 struct CreatureData;
 struct ItemTemplate;
 struct MapEntry;
+struct Position;
 struct QuestObjective;
 struct SceneTemplate;
 
@@ -393,7 +394,7 @@ class TC_GAME_API UnitScript : public ScriptObject
 {
     protected:
 
-        UnitScript(char const* name, bool addToScripts = true);
+        UnitScript(char const* name);
 
     public:
         // Called when a unit deals healing to another unit
@@ -410,18 +411,18 @@ class TC_GAME_API UnitScript : public ScriptObject
 
         // Called when Spell Damage is being Dealt
         virtual void ModifySpellDamageTaken(Unit* /*target*/, Unit* /*attacker*/, int32& /*damage*/, SpellInfo const* /*spellInfo*/) { }
+
+        // Called when an unit exits a vehicle
+        virtual void ModifyVehiclePassengerExitPos(Unit* /*passenger*/, Vehicle* /*vehicle*/, Position& /*pos*/) { }
 };
 
-class TC_GAME_API CreatureScript : public UnitScript
+class TC_GAME_API CreatureScript : public ScriptObject
 {
     protected:
 
         CreatureScript(char const* name);
 
     public:
-
-        // Called when the creature tries to spawn. Return false to block spawn and re-evaluate on next tick.
-        virtual bool CanSpawn(ObjectGuid::LowType /*spawnId*/, uint32 /*entry*/, CreatureTemplate const* /*baseTemplate*/, CreatureTemplate const* /*actTemplate*/, CreatureData const* /*cData*/, Map const* /*map*/) const { return true; }
 
         // Called when a CreatureAI object is needed for the creature.
         virtual CreatureAI* GetAI(Creature* /*creature*/) const = 0;
@@ -448,7 +449,10 @@ class TC_GAME_API AreaTriggerScript : public ScriptObject
     public:
 
         // Called when the area trigger is activated by a player.
-        virtual bool OnTrigger(Player* /*player*/, AreaTriggerEntry const* /*trigger*/, bool /*entered*/) { return false; }
+        virtual bool OnTrigger(Player* /*player*/, AreaTriggerEntry const* /*trigger*/) { return false; }
+
+        // Called when the area trigger is left by a player.
+        virtual bool OnExit(Player* /*player*/, AreaTriggerEntry const* /*trigger*/) { return false; }
 };
 
 class TC_GAME_API OnlyOnceAreaTriggerScript : public AreaTriggerScript
@@ -456,10 +460,10 @@ class TC_GAME_API OnlyOnceAreaTriggerScript : public AreaTriggerScript
     using AreaTriggerScript::AreaTriggerScript;
 
     public:
-        bool OnTrigger(Player* player, AreaTriggerEntry const* trigger, bool entered) final override;
+        bool OnTrigger(Player* player, AreaTriggerEntry const* trigger) final;
 
     protected:
-        virtual bool _OnTrigger(Player* player, AreaTriggerEntry const* trigger, bool entered) = 0;
+        virtual bool _OnTrigger(Player* player, AreaTriggerEntry const* trigger) = 0;
         void ResetAreaTriggerDone(InstanceScript* instance, uint32 triggerId);
         void ResetAreaTriggerDone(Player const* player, AreaTriggerEntry const* trigger);
 };
@@ -612,7 +616,7 @@ class TC_GAME_API AchievementCriteriaScript : public ScriptObject
         virtual bool OnCheck(Player* source, Unit* target) = 0;
 };
 
-class TC_GAME_API PlayerScript : public UnitScript
+class TC_GAME_API PlayerScript : public ScriptObject
 {
     protected:
 
@@ -831,6 +835,9 @@ class TC_GAME_API ConversationScript : public ScriptObject
 
         // Called when Conversation is created but not added to Map yet.
         virtual void OnConversationCreate(Conversation* /*conversation*/, Unit* /*creator*/) { }
+
+        // Called when player sends CMSG_CONVERSATION_LINE_STARTED with valid conversation guid
+        virtual void OnConversationLineStarted(Conversation* /*conversation*/, uint32 /*lineId*/, Player* /*sender*/) { }
 };
 
 class TC_GAME_API SceneScript : public ScriptObject
@@ -900,6 +907,12 @@ class TC_GAME_API ScriptMgr
         {
             _script_loader_callback = script_loader_callback;
         }
+
+    public: /* Updating script ids */
+        /// Inform the ScriptMgr that an entity has a changed script id
+        void NotifyScriptIDUpdate();
+        /// Synchronize all scripts with their current ids
+        void SyncScripts();
 
     public: /* Script contexts */
         /// Set the current script context, which allows the ScriptMgr
@@ -989,11 +1002,12 @@ class TC_GAME_API ScriptMgr
 
     public: /* CreatureScript */
 
-        bool CanSpawn(ObjectGuid::LowType spawnId, uint32 entry, CreatureData const* cData, Map const* map);
+        bool CanCreateCreatureAI(uint32 scriptId) const;
         CreatureAI* GetCreatureAI(Creature* creature);
 
     public: /* GameObjectScript */
 
+        bool CanCreateGameObjectAI(uint32 scriptId) const;
         GameObjectAI* GetGameObjectAI(GameObject* go);
 
     public: /* AreaTriggerScript */
@@ -1128,14 +1142,17 @@ class TC_GAME_API ScriptMgr
         void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage);
         void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage);
         void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo);
+        void ModifyVehiclePassengerExitPos(Unit* passenger, Vehicle* vehicle, Position& pos);
 
     public: /* AreaTriggerEntityScript */
 
+        bool CanCreateAreaTriggerAI(uint32 scriptId) const;
         AreaTriggerAI* GetAreaTriggerAI(AreaTrigger* areaTrigger);
 
     public: /* ConversationScript */
 
         void OnConversationCreate(Conversation* conversation, Unit* creator);
+        void OnConversationLineStarted(Conversation* conversation, uint32 lineId, Player* sender);
 
     public: /* SceneScript */
 
@@ -1152,6 +1169,7 @@ class TC_GAME_API ScriptMgr
 
     private:
         uint32 _scriptCount;
+        bool _scriptIdUpdated;
 
         ScriptLoaderCallbackType _script_loader_callback;
 

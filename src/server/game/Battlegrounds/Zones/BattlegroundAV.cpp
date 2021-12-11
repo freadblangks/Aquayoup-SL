@@ -299,11 +299,9 @@ Creature* BattlegroundAV::AddAVCreature(uint16 cinfoid, uint16 type)
     if (creature->GetEntry() == BG_AV_CreatureInfo[AV_NPC_A_CAPTAIN] || creature->GetEntry() == BG_AV_CreatureInfo[AV_NPC_H_CAPTAIN])
         creature->SetRespawnDelay(RESPAWN_ONE_DAY); /// @todo look if this can be done by database + also add this for the wingcommanders
 
-    if ((isStatic && cinfoid >= 10 && cinfoid <= 14) || (!isStatic && ((cinfoid >= AV_NPC_A_GRAVEDEFENSE0 && cinfoid <= AV_NPC_A_GRAVEDEFENSE3) ||
-        (cinfoid >= AV_NPC_H_GRAVEDEFENSE0 && cinfoid <= AV_NPC_H_GRAVEDEFENSE3))))
+    if ((isStatic && cinfoid >= 10 && cinfoid <= 14) || (!isStatic && (cinfoid <= AV_NPC_A_GRAVEDEFENSE3 || (cinfoid >= AV_NPC_H_GRAVEDEFENSE0 && cinfoid <= AV_NPC_H_GRAVEDEFENSE3))))
     {
-        if (!isStatic && ((cinfoid >= AV_NPC_A_GRAVEDEFENSE0 && cinfoid <= AV_NPC_A_GRAVEDEFENSE3)
-            || (cinfoid >= AV_NPC_H_GRAVEDEFENSE0 && cinfoid <= AV_NPC_H_GRAVEDEFENSE3)))
+        if (!isStatic && (cinfoid <= AV_NPC_A_GRAVEDEFENSE3 || (cinfoid >= AV_NPC_H_GRAVEDEFENSE0 && cinfoid <= AV_NPC_H_GRAVEDEFENSE3)))
         {
             CreatureData &data = sObjectMgr->NewOrExistCreatureData(creature->GetSpawnId());
             data.spawnGroupData = sObjectMgr->GetDefaultSpawnGroup();
@@ -433,7 +431,7 @@ void BattlegroundAV::StartingEventOpenDoors()
     DoorOpen(BG_AV_OBJECT_DOOR_A);
 
     // Achievement: The Alterac Blitz
-    StartCriteriaTimer(CRITERIA_TIMED_TYPE_EVENT, BG_AV_EVENT_START_BATTLE);
+    StartCriteriaTimer(CriteriaStartEvent::SendEvent, BG_AV_EVENT_START_BATTLE);
 }
 
 void BattlegroundAV::AddPlayer(Player* player)
@@ -539,16 +537,16 @@ bool BattlegroundAV::UpdatePlayerScore(Player* player, uint32 type, uint32 value
     switch (type)
     {
         case SCORE_GRAVEYARDS_ASSAULTED:
-            player->UpdateCriteria(CRITERIA_TYPE_BG_OBJECTIVE_CAPTURE, AV_OBJECTIVE_ASSAULT_GRAVEYARD);
+            player->UpdateCriteria(CriteriaType::TrackedWorldStateUIModified, AV_OBJECTIVE_ASSAULT_GRAVEYARD);
             break;
         case SCORE_GRAVEYARDS_DEFENDED:
-            player->UpdateCriteria(CRITERIA_TYPE_BG_OBJECTIVE_CAPTURE, AV_OBJECTIVE_DEFEND_GRAVEYARD);
+            player->UpdateCriteria(CriteriaType::TrackedWorldStateUIModified, AV_OBJECTIVE_DEFEND_GRAVEYARD);
             break;
         case SCORE_TOWERS_ASSAULTED:
-            player->UpdateCriteria(CRITERIA_TYPE_BG_OBJECTIVE_CAPTURE, AV_OBJECTIVE_ASSAULT_TOWER);
+            player->UpdateCriteria(CriteriaType::TrackedWorldStateUIModified, AV_OBJECTIVE_ASSAULT_TOWER);
             break;
         case SCORE_TOWERS_DEFENDED:
-            player->UpdateCriteria(CRITERIA_TYPE_BG_OBJECTIVE_CAPTURE, AV_OBJECTIVE_DEFEND_TOWER);
+            player->UpdateCriteria(CriteriaType::TrackedWorldStateUIModified, AV_OBJECTIVE_DEFEND_TOWER);
             break;
         default:
             break;
@@ -1026,30 +1024,30 @@ void BattlegroundAV::EventPlayerAssaultsPoint(Player* player, uint32 object)
 
 void BattlegroundAV::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
 {
-    for (uint8 i = BG_AV_NODES_FIRSTAID_STATION; i < BG_AV_NODES_MAX; ++i)
+    for (uint8 itr = BG_AV_NODES_FIRSTAID_STATION; itr < BG_AV_NODES_MAX; ++itr)
     {
-        uint16 owner = m_Nodes[i].Owner;
-        BG_AV_States state = m_Nodes[i].State;
+        uint16 owner = m_Nodes[itr].Owner;
+        BG_AV_States state = m_Nodes[itr].State;
 
-        packet.Worldstates.emplace_back(uint32(BGAVNodeInfo[i].WorldStateIds.AllianceAssault), int32(owner == ALLIANCE && state == POINT_ASSAULTED));
-        packet.Worldstates.emplace_back(uint32(BGAVNodeInfo[i].WorldStateIds.AllianceControl), int32(owner == ALLIANCE && state >= POINT_DESTROYED));
-        packet.Worldstates.emplace_back(uint32(BGAVNodeInfo[i].WorldStateIds.HordeAssault), int32(owner == HORDE && state == POINT_ASSAULTED));
-        packet.Worldstates.emplace_back(uint32(BGAVNodeInfo[i].WorldStateIds.HordeControl), int32(owner == HORDE && state >= POINT_DESTROYED));
+        packet.Worldstates.emplace_back(BGAVNodeInfo[itr].WorldStateIds.AllianceAssault, (owner == ALLIANCE && state == POINT_ASSAULTED) ? 1 : 0);
+        packet.Worldstates.emplace_back(BGAVNodeInfo[itr].WorldStateIds.AllianceControl, (owner == ALLIANCE && state >= POINT_DESTROYED) ? 1 : 0);
+        packet.Worldstates.emplace_back(BGAVNodeInfo[itr].WorldStateIds.HordeAssault, (owner == HORDE && state == POINT_ASSAULTED) ? 1 : 0);
+        packet.Worldstates.emplace_back(BGAVNodeInfo[itr].WorldStateIds.HordeControl, (owner == HORDE && state >= POINT_DESTROYED) ? 1 : 0);
     }
 
-    packet.Worldstates.emplace_back(uint32(AV_SNOWFALL_N), int32(m_Nodes[BG_AV_NODES_SNOWFALL_GRAVE].Owner == AV_NEUTRAL_TEAM));
+    packet.Worldstates.emplace_back(AV_SNOWFALL_N, (m_Nodes[BG_AV_NODES_SNOWFALL_GRAVE].Owner == AV_NEUTRAL_TEAM ? 1 : 0));
+    packet.Worldstates.emplace_back(AV_Alliance_Score, m_Team_Scores[0]);
+    packet.Worldstates.emplace_back(AV_Horde_Score, m_Team_Scores[1]);
 
-    packet.Worldstates.emplace_back(uint32(AV_Alliance_Score), int32(m_Team_Scores[0]));
-    packet.Worldstates.emplace_back(uint32(AV_Horde_Score), int32(m_Team_Scores[1]));
-
-    if (GetStatus() == STATUS_IN_PROGRESS){ //only if game started the teamscores are displayed
-        packet.Worldstates.emplace_back(uint32(AV_SHOW_A_SCORE), 1);
-        packet.Worldstates.emplace_back(uint32(AV_SHOW_H_SCORE), 1);
+    // only if game started the teamscores are displayed
+    if (GetStatus() == STATUS_IN_PROGRESS) {
+        packet.Worldstates.emplace_back(AV_SHOW_A_SCORE, 1);
+        packet.Worldstates.emplace_back(AV_SHOW_H_SCORE, 1);
     }
     else
     {
-        packet.Worldstates.emplace_back(uint32(AV_SHOW_A_SCORE), 0);
-        packet.Worldstates.emplace_back(uint32(AV_SHOW_H_SCORE), 0);
+        packet.Worldstates.emplace_back(AV_SHOW_A_SCORE, 0);
+        packet.Worldstates.emplace_back(AV_SHOW_H_SCORE, 0);
     }
 
     SendMineWorldStates(AV_NORTH_MINE);

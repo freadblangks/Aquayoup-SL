@@ -34,6 +34,14 @@ class Unit;
 struct TransportAnimation;
 enum TriggerCastFlags : uint32;
 
+namespace WorldPackets
+{
+    namespace Battleground
+    {
+        enum class BattlegroundCapturePointState : uint8;
+    }
+}
+
 union GameObjectValue
 {
     //11 GAMEOBJECT_TYPE_TRANSPORT
@@ -61,6 +69,13 @@ union GameObjectValue
         uint32 Health;
         uint32 MaxHealth;
     } Building;
+    //42 GAMEOBJECT_TYPE_CAPTURE_POINT
+    struct
+    {
+        TeamId LastTeamCapture;
+        WorldPackets::Battleground::BattlegroundCapturePointState State;
+        uint32 AssaultTimer;
+    } CapturePoint;
 };
 
 // For containers:  [GO_NOT_READY]->GO_READY (close)->GO_ACTIVATED (open) ->GO_JUST_DEACTIVATED->GO_READY        -> ...
@@ -106,6 +121,7 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void Update(uint32 p_time) override;
         GameObjectTemplate const* GetGOInfo() const { return m_goInfo; }
         GameObjectTemplateAddon const* GetTemplateAddon() const { return m_goTemplateAddon; }
+        GameObjectOverride const* GetGameObjectOverride() const;
         GameObjectData const* GetGameObjectData() const { return m_goData; }
         GameObjectValue const* GetGOValue() const { return &m_goValue; }
 
@@ -116,10 +132,13 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         ObjectGuid::LowType GetSpawnId() const { return m_spawnId; }
 
          // z_rot, y_rot, x_rot - rotation angles around z, y and x axes
-        void SetWorldRotationAngles(float z_rot, float y_rot, float x_rot);
-        void SetWorldRotation(float qx, float qy, float qz, float qw);
+        void SetLocalRotationAngles(float z_rot, float y_rot, float x_rot);
+        void SetLocalRotation(float qx, float qy, float qz, float qw);
         void SetParentRotation(QuaternionData const& rotation);      // transforms(rotates) transport's path
-        int64 GetPackedWorldRotation() const { return m_packedRotation; }
+        QuaternionData const& GetLocalRotation() const { return m_localRotation; }
+        int64 GetPackedLocalRotation() const { return m_packedRotation; }
+
+        QuaternionData GetWorldRotation() const;
 
         // overwrite WorldObject function for proper name localization
         std::string GetNameForLocaleIdx(LocaleConstant locale) const override;
@@ -139,8 +158,7 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
             m_spawnedByDefault = false;                     // all object with owner is despawned after delay
             SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::CreatedBy), owner);
         }
-        ObjectGuid GetOwnerGUID() const { return m_gameObjectData->CreatedBy; }
-        Unit* GetOwner() const;
+        ObjectGuid GetOwnerGUID() const override { return m_gameObjectData->CreatedBy; }
 
         void SetSpellId(uint32 id)
         {
@@ -164,6 +182,7 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void SetSpawnedByDefault(bool b) { m_spawnedByDefault = b; }
         uint32 GetRespawnDelay() const { return m_respawnDelayTime; }
         void Refresh();
+        void DespawnOrUnsummon(Milliseconds delay = 0ms, Seconds forceRespawnTime = 0s);
         void Delete();
         void SendGameObjectDespawn();
         void getFishLoot(Loot* loot, Player* loot_owner);
@@ -247,14 +266,12 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
 
         GameObject* LookupFishingHoleAround(float range);
 
-        void CastSpell(Unit* target, uint32 spell, bool triggered = true);
-        void CastSpell(Unit* target, uint32 spell, TriggerCastFlags triggered);
         void SendCustomAnim(uint32 anim);
         bool IsInRange(float x, float y, float z, float radius) const;
 
-        void ModifyHealth(int32 change, Unit* attackerOrHealer = nullptr, uint32 spellId = 0);
+        void ModifyHealth(int32 change, WorldObject* attackerOrHealer = nullptr, uint32 spellId = 0);
         // sets GameObject type 33 destruction flags and optionally default health for that state
-        void SetDestructibleState(GameObjectDestructibleState state, Player* eventInvoker = nullptr, bool setHealth = false);
+        void SetDestructibleState(GameObjectDestructibleState state, WorldObject* attackerOrHealer = nullptr, bool setHealth = false);
         GameObjectDestructibleState GetDestructibleState() const
         {
             if ((*m_gameObjectData->Flags & GO_FLAG_DESTROYED))
@@ -278,8 +295,8 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         uint32 GetDisplayId() const { return m_gameObjectData->DisplayID; }
         uint8 GetNameSetId() const;
 
-        uint32 GetFaction() const { return m_gameObjectData->FactionTemplate; }
-        void SetFaction(uint32 faction) { SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::FactionTemplate), faction); }
+        uint32 GetFaction() const override { return m_gameObjectData->FactionTemplate; }
+        void SetFaction(uint32 faction) override { SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::FactionTemplate), faction); }
 
         GameObjectModel* m_model;
         void GetRespawnPosition(float &x, float &y, float &z, float* ori = nullptr) const;
@@ -297,6 +314,14 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
 
         void UpdateModelPosition();
 
+        bool IsAtInteractDistance(Position const& pos, float radius) const;
+        bool IsAtInteractDistance(Player const* player, SpellInfo const* spell = nullptr) const;
+
+        bool IsWithinDistInMap(Player const* player) const;
+        using WorldObject::IsWithinDistInMap;
+
+        SpellInfo const* GetSpellForLock(Player const* player) const;
+
         uint16 GetAIAnimKitId() const override { return _animKitId; }
         void SetAnimKitId(uint16 animKitId, bool oneshot);
 
@@ -304,9 +329,14 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void SetWorldEffectID(uint32 worldEffectID) { _worldEffectID = worldEffectID; }
 
         void SetSpellVisualId(int32 spellVisualId, ObjectGuid activatorGuid = ObjectGuid::Empty);
+        void AssaultCapturePoint(Player* player);
+        void UpdateCapturePoint();
+        bool CanInteractWithCapturePoint(Player const* target) const;
 
         void AIM_Destroy();
         bool AIM_Initialize();
+
+        std::string GetDebugInfo() const override;
 
         UF::UpdateField<UF::GameObjectData, 0, TYPEID_GAMEOBJECT> m_gameObjectData;
 
@@ -316,6 +346,8 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         uint32      m_spellId;
         time_t      m_respawnTime;                          // (secs) time of next respawn (or despawn if GO have owner()),
         uint32      m_respawnDelayTime;                     // (secs) if 0 then current GO state no dependent from timer
+        uint32      m_despawnDelay;
+        Seconds     m_despawnRespawnTime;                   // override respawn time after delayed despawn
         LootState   m_lootState;
         ObjectGuid  m_lootStateUnitGUID;                    // GUID of the unit passed with SetLootState(LootState, Unit*)
         bool        m_spawnedByDefault;
@@ -339,7 +371,7 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         GameObjectValue m_goValue;
 
         int64 m_packedRotation;
-        QuaternionData m_worldRotation;
+        QuaternionData m_localRotation;
         Position m_stationaryPosition;
 
         ObjectGuid m_lootRecipient;

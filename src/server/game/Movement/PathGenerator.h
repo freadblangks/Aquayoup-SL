@@ -18,9 +18,9 @@
 #ifndef _PATH_GENERATOR_H
 #define _PATH_GENERATOR_H
 
-#include "MapDefines.h"
 #include "DetourNavMesh.h"
 #include "DetourNavMeshQuery.h"
+#include "MMapDefines.h"
 #include "MoveSplineInitArgs.h"
 #include <G3D/Vector3.h>
 
@@ -73,7 +73,8 @@ class TC_GAME_API PathGenerator
 
         PathType GetPathType() const { return _type; }
 
-        void ReducePathLenghtByDist(float dist); // path must be already built
+        // shortens the path until the destination is the specified distance from the target point
+        void ShortenPathUntilDist(G3D::Vector3 const& point, float dist);
 
     private:
 

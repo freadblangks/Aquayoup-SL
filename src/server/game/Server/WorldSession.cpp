@@ -28,12 +28,15 @@
 #include "BattlenetPackets.h"
 #include "CharacterPackets.h"
 #include "ChatPackets.h"
+#include "ClientConfigPackets.h"
 #include "DatabaseEnv.h"
 #include "GameTime.h"
 #include "Group.h"
 #include "Guild.h"
 #include "GuildMgr.h"
+#include "Hyperlinks.h"
 #include "IpAddress.h"
+#include "Log.h"
 #include "Map.h"
 #include "Metric.h"
 #include "MiscPackets.h"
@@ -125,7 +128,6 @@ WorldSession::WorldSession(uint32 id, std::string&& name, uint32 battlenetAccoun
     m_sessionDbcLocale(sWorld->GetAvailableDbcLocale(locale)),
     m_sessionDbLocaleIndex(locale),
     m_latency(0),
-    m_clientTimeDelay(0),
     _tutorialsChanged(TUTORIALS_FLAG_NONE),
     _filterAddonMessages(false),
     recruiterId(recruiter),
@@ -134,10 +136,16 @@ WorldSession::WorldSession(uint32 id, std::string&& name, uint32 battlenetAccoun
     expireTime(60000), // 1 min after socket loss, session is deleted
     forceExit(false),
     m_currentBankerGUID(),
+    _timeSyncClockDeltaQueue(6),
+    _timeSyncClockDelta(0),
+    _pendingTimeSyncRequests(),
     _battlePetMgr(std::make_unique<BattlePetMgr>(this)),
     _collectionMgr(std::make_unique<CollectionMgr>(this))
 {
     memset(_tutorials, 0, sizeof(_tutorials));
+
+    _timeSyncNextCounter = 0;
+    _timeSyncTimer = 0;
 
     if (sock)
     {
@@ -450,6 +458,18 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
     if (m_Socket[CONNECTION_TYPE_REALM] && m_Socket[CONNECTION_TYPE_REALM]->IsOpen() && _warden)
         _warden->Update();
 
+    if (!updater.ProcessUnsafe()) // <=> updater is of type MapSessionFilter
+    {
+        // Send time sync packet every 10s.
+        if (_timeSyncTimer > 0)
+        {
+            if (diff >= _timeSyncTimer)
+                SendTimeSync();
+            else
+                _timeSyncTimer -= diff;
+        }
+    }
+
     ProcessQueryCallbacks();
 
     //check if we are safe to proceed with logout
@@ -508,7 +528,7 @@ void WorldSession::LogoutPlayer(bool save)
         ///- If the player just died before logging out, make him appear as a ghost
         if (_player->GetDeathTimer())
         {
-            _player->getHostileRefManager().deleteReferences();
+            _player->CombatStop();
             _player->BuildPlayerRepop();
             _player->RepopAtGraveyard();
         }
@@ -532,7 +552,7 @@ void WorldSession::LogoutPlayer(bool save)
 
         ///- Teleport to home if the player is in an invalid instance
         if (!_player->m_InstanceValid && !_player->IsGameMaster())
-            _player->TeleportTo(_player->m_homebindMapId, _player->m_homebindX, _player->m_homebindY, _player->m_homebindZ, _player->GetOrientation());
+            _player->TeleportTo(_player->m_homebind);
 
         sOutdoorPvPMgr->HandlePlayerLeaveZone(_player, _player->GetZoneId());
 
@@ -559,6 +579,10 @@ void WorldSession::LogoutPlayer(bool save)
         ///- Remove pet
         _player->RemovePet(nullptr, PET_SAVE_AS_CURRENT, true);
 
+        ///- Release battle pet journal lock
+        if (_battlePetMgr->HasJournalLock())
+            _battlePetMgr->ToggleJournalLock(false);
+
         ///- Clear whisper whitelist
         _player->ClearWhisperWhiteList();
 
@@ -583,16 +607,13 @@ void WorldSession::LogoutPlayer(bool save)
         ///- If the player is in a group (or invited), remove him. If the group if then only 1 person, disband the group.
         _player->UninviteFromGroup();
 
-        // remove player from the group if he is:
-        // a) in group; b) not in raid group; c) logging out normally (not being kicked or disconnected)
-        if (_player->GetGroup() && !_player->GetGroup()->isRaidGroup() && m_Socket[CONNECTION_TYPE_REALM])
-            _player->RemoveFromGroup();
-
         //! Send update to group and reset stored max enchanting level
-        if (_player->GetGroup())
+        if (Group* group = _player->GetGroup())
         {
-            _player->GetGroup()->SendUpdate();
-            _player->GetGroup()->ResetMaxEnchantingLevel();
+            group->SendUpdate();
+            group->ResetMaxEnchantingLevel();
+            if (group->GetLeaderGUID() == _player->GetGUID())
+                group->StartLeaderOfflineTimer();
         }
 
         //! Broadcast a logout message to the player's friends
@@ -652,6 +673,20 @@ void WorldSession::KickPlayer()
             forceExit = true;
         }
     }
+}
+
+bool WorldSession::ValidateHyperlinksAndMaybeKick(std::string const& str)
+{
+    if (Trinity::Hyperlinks::CheckAllLinks(str))
+        return true;
+
+    TC_LOG_ERROR("network", "Player %s (%s) sent a message with an invalid link:\n%s", GetPlayer()->GetName().c_str(),
+        GetPlayer()->GetGUID().ToString().c_str(), str.c_str());
+
+    if (sWorld->getIntConfig(CONFIG_CHAT_STRICT_LINK_CHECKING_KICK))
+        KickPlayer();
+
+    return false;
 }
 
 void WorldSession::SendNotification(char const* format, ...)
@@ -809,6 +844,18 @@ void WorldSession::SetAccountData(AccountDataType type, time_t time, std::string
     _accountData[type].Data = data;
 }
 
+void WorldSession::SendAccountDataTimes(ObjectGuid playerGuid, uint32 mask)
+{
+    WorldPackets::ClientConfig::AccountDataTimes accountDataTimes;
+    accountDataTimes.PlayerGuid = playerGuid;
+    accountDataTimes.ServerTime = GameTime::GetGameTimeSystemPoint();
+    for (uint32 i = 0; i < NUM_ACCOUNT_DATA_TYPES; ++i)
+        if (mask & (1 << i))
+            accountDataTimes.AccountTimes[i] = GetAccountData(AccountDataType(i))->Time;
+
+    SendPacket(accountDataTimes.Write());
+}
+
 void WorldSession::LoadTutorialsData(PreparedQueryResult result)
 {
     memset(_tutorials, 0, sizeof(uint32) * MAX_ACCOUNT_TUTORIAL_VALUES);
@@ -893,13 +940,13 @@ void WorldSession::ProcessQueryCallbacks()
     _queryProcessor.ProcessReadyCallbacks();
     _transactionCallbacks.ProcessReadyCallbacks();
 
-    if (_realmAccountLoginCallback.valid() && _realmAccountLoginCallback.wait_for(std::chrono::seconds(0)) == std::future_status::ready &&
-        _accountLoginCallback.valid() && _accountLoginCallback.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+    if (_realmAccountLoginCallback.valid() && _realmAccountLoginCallback.wait_for(0s) == std::future_status::ready &&
+        _accountLoginCallback.valid() && _accountLoginCallback.wait_for(0s) == std::future_status::ready)
         InitializeSessionCallback(static_cast<LoginDatabaseQueryHolder*>(_realmAccountLoginCallback.get()),
             static_cast<CharacterDatabaseQueryHolder*>(_accountLoginCallback.get()));
 
     //! HandlePlayerLoginOpcode
-    if (_charLoginCallback.valid() && _charLoginCallback.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+    if (_charLoginCallback.valid() && _charLoginCallback.wait_for(0s) == std::future_status::ready)
         HandlePlayerLogin(reinterpret_cast<LoginQueryHolder*>(_charLoginCallback.get()));
 
     if (_charEnumCallback.valid() && _charEnumCallback.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
@@ -909,6 +956,11 @@ void WorldSession::ProcessQueryCallbacks()
 TransactionCallback& WorldSession::AddTransactionCallback(TransactionCallback&& callback)
 {
     return _transactionCallbacks.AddCallback(std::move(callback));
+}
+
+bool WorldSession::CanAccessAlliedRaces() const
+{
+    return GetAccountExpansion() >= EXPANSION_BATTLE_FOR_AZEROTH;
 }
 
 void WorldSession::InitWarden(SessionKey const& k)
@@ -1010,6 +1062,7 @@ public:
 
         stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_BATTLE_PETS);
         stmt->setUInt32(0, battlenetAccountId);
+        stmt->setInt32(1, realm.Id.Realm);
         ok = SetPreparedQuery(BATTLE_PETS, stmt) && ok;
 
         stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_BATTLE_PET_SLOTS);
@@ -1084,6 +1137,7 @@ void WorldSession::InitializeSessionCallback(LoginDatabaseQueryHolder* realmHold
     SendFeatureSystemStatusGlueScreen();
     SendClientCacheVersion(sWorld->getIntConfig(CONFIG_CLIENTCACHE_VERSION));
     SendAvailableHotfixes();
+    SendAccountDataTimes(ObjectGuid::Empty, GLOBAL_CACHE_MASK);
     SendTutorialsData();
 
     if (PreparedQueryResult characterCountsResult = holder->GetPreparedResult(AccountInfoQueryHolder::GLOBAL_REALM_CHARACTER_COUNTS))
@@ -1416,4 +1470,35 @@ uint32 WorldSession::DosProtection::GetMaxPacketCounterAllowed(uint16 opcode) co
 
 WorldSession::DosProtection::DosProtection(WorldSession* s) : Session(s), _policy((Policy)sWorld->getIntConfig(CONFIG_PACKET_SPOOF_POLICY))
 {
+}
+
+void WorldSession::ResetTimeSync()
+{
+    _timeSyncNextCounter = 0;
+    _pendingTimeSyncRequests.clear();
+}
+
+void WorldSession::SendTimeSync()
+{
+    WorldPackets::Misc::TimeSyncRequest timeSyncRequest;
+    timeSyncRequest.SequenceIndex = _timeSyncNextCounter;
+    SendPacket(timeSyncRequest.Write());
+
+    _pendingTimeSyncRequests[_timeSyncNextCounter] = getMSTime();
+
+    // Schedule next sync in 10 sec (except for the 2 first packets, which are spaced by only 5s)
+    _timeSyncTimer = _timeSyncNextCounter == 0 ? 5000 : 10000;
+    _timeSyncNextCounter++;
+}
+
+uint32 WorldSession::AdjustClientMovementTime(uint32 time) const
+{
+    int64 movementTime = int64(time) + _timeSyncClockDelta;
+    if (_timeSyncClockDelta == 0 || movementTime < 0 || movementTime > 0xFFFFFFFF)
+    {
+        TC_LOG_WARN("misc", "The computed movement time using clockDelta is erronous. Using fallback instead");
+        return GameTime::GetGameTimeMS();
+    }
+    else
+        return uint32(movementTime);
 }

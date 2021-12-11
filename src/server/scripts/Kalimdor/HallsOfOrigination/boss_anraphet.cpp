@@ -281,7 +281,7 @@ class npc_omega_stance : public CreatureScript
         {
             npc_omega_stanceAI(Creature* creature) : ScriptedAI(creature) { }
 
-            void IsSummonedBy(Unit* /*who*/) override
+            void IsSummonedBy(WorldObject* /*who*/) override
             {
                 DoCast(me, SPELL_OMEGA_STANCE_SPIDER_TRIGGER, true);
             }
@@ -304,7 +304,7 @@ class npc_alpha_beam : public CreatureScript
         {
             npc_alpha_beamAI(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript()) { }
 
-            void IsSummonedBy(Unit* /*summoner*/) override
+            void IsSummonedBy(WorldObject* /*summoner*/) override
             {
                 if (Creature* anraphet = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_ANRAPHET_GUID)))
                     anraphet->CastSpell(me, SPELL_ALPHA_BEAMS_BACK_CAST);
@@ -387,7 +387,7 @@ class npc_brann_bronzebeard_anraphet : public CreatureScript
                         case EVENT_BRANN_UNLOCK_DOOR:
                             Talk(BRANN_SAY_UNLOCK_DOOR);
                             _instance->SetBossState(DATA_VAULT_OF_LIGHTS, DONE);
-                            _instance->DoStartCriteriaTimer(CRITERIA_TIMED_TYPE_EVENT, ACHIEV_VAULT_OF_LIGHTS_EVENT);
+                            _instance->DoStartCriteriaTimer(CriteriaStartEvent::SendEvent, ACHIEV_VAULT_OF_LIGHTS_EVENT);
                             events.ScheduleEvent(EVENT_BRANN_MOVE_INTRO, 3500);
                             break;
                         case EVENT_BRANN_THINK:
@@ -540,7 +540,7 @@ public:
             /// TODO: Remove this once we find a general rule for WorldObject::MovePosition (this spell shouldn't take the Z change into consideration)
             Unit* caster = GetCaster();
             float angle = float(rand_norm()) * static_cast<float>(2 * M_PI);
-            uint32 dist = caster->GetCombatReach() + GetSpellInfo()->GetEffect(EFFECT_0)->CalcRadius(caster) * (float)rand_norm();
+            uint32 dist = caster->GetCombatReach() + GetSpellInfo()->GetEffect(EFFECT_0).CalcRadius(caster) * (float)rand_norm();
 
             float x = caster->GetPositionX() + dist * std::cos(angle);
             float y = caster->GetPositionY() + dist * std::sin(angle);

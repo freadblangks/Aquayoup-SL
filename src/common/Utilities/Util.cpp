@@ -17,11 +17,14 @@
 
 #include "Util.h"
 #include "Common.h"
+#include "Containers.h"
 #include "IpAddress.h"
 #include "StringFormat.h"
 #include <utf8.h>
 #include <algorithm>
 #include <sstream>
+#include <string>
+#include <cctype>
 #include <cstdarg>
 #include <ctime>
 
@@ -66,40 +69,6 @@ Tokenizer::Tokenizer(const std::string &src, const char sep, uint32 vectorReserv
     }
 }
 
-void stripLineInvisibleChars(std::string &str)
-{
-    static std::string const invChars = " \t\7\n";
-
-    size_t wpos = 0;
-
-    bool space = false;
-    for (size_t pos = 0; pos < str.size(); ++pos)
-    {
-        if (invChars.find(str[pos])!=std::string::npos)
-        {
-            if (!space)
-            {
-                str[wpos++] = ' ';
-                space = true;
-            }
-        }
-        else
-        {
-            if (wpos!=pos)
-                str[wpos++] = str[pos];
-            else
-                ++wpos;
-            space = false;
-        }
-    }
-
-    if (wpos < str.size())
-        str.erase(wpos, str.size());
-    if (str.find("|TInterface")!=std::string::npos)
-        str.clear();
-
-}
-
 #if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
 struct tm* localtime_r(time_t const* time, struct tm *result)
 {
@@ -107,6 +76,15 @@ struct tm* localtime_r(time_t const* time, struct tm *result)
     return result;
 }
 #endif
+
+time_t LocalTimeToUTCTime(time_t time)
+{
+#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
+    return time + _timezone;
+#else
+    return time + timezone;
+#endif
+}
 
 std::string secsToTimeString(uint64 timeInSecs, bool shortText, bool hoursOnly)
 {
@@ -282,24 +260,30 @@ bool Utf8toWStr(char const* utf8str, size_t csize, wchar_t* wstr, size_t& wsize)
 {
     try
     {
-        size_t len = utf8::distance(utf8str, utf8str+csize);
-        if (len > wsize)
-        {
-            if (wsize > 0)
-                wstr[0] = L'\0';
-            wsize = 0;
-            return false;
-        }
-
-        wsize = len;
-        utf8::utf8to16(utf8str, utf8str+csize, wstr);
-        wstr[len] = L'\0';
+        Trinity::CheckedBufferOutputIterator<wchar_t> out(wstr, wsize);
+        out = utf8::utf8to16(utf8str, utf8str+csize, out);
+        wsize -= out.remaining(); // remaining unused space
+        wstr[wsize] = L'\0';
     }
     catch (std::exception const&)
     {
-        if (wsize > 0)
+        // Replace the converted string with an error message if there is enough space
+        // Otherwise just return an empty string
+        wchar_t const* errorMessage = L"An error occurred converting string from UTF-8 to WStr";
+        size_t errorMessageLength = wcslen(errorMessage);
+        if (wsize >= errorMessageLength)
+        {
+            wcscpy(wstr, errorMessage);
+            wsize = wcslen(wstr);
+        }
+        else if (wsize > 0)
+        {
             wstr[0] = L'\0';
-        wsize = 0;
+            wsize = 0;
+        }
+        else
+            wsize = 0;
+
         return false;
     }
 
@@ -308,13 +292,10 @@ bool Utf8toWStr(char const* utf8str, size_t csize, wchar_t* wstr, size_t& wsize)
 
 bool Utf8toWStr(const std::string& utf8str, std::wstring& wstr)
 {
+    wstr.clear();
     try
     {
-        if (size_t len = utf8::distance(utf8str.c_str(), utf8str.c_str()+utf8str.size()))
-        {
-            wstr.resize(len);
-            utf8::utf8to16(utf8str.c_str(), utf8str.c_str()+utf8str.size(), &wstr[0]);
-        }
+        utf8::utf8to16(utf8str.c_str(), utf8str.c_str()+utf8str.size(), std::back_inserter(wstr));
     }
     catch (std::exception const&)
     {
@@ -753,6 +734,12 @@ bool StringToBool(std::string const& str)
     std::string lowerStr = str;
     std::transform(str.begin(), str.end(), lowerStr.begin(), [](char c) { return char(::tolower(c)); });
     return lowerStr == "1" || lowerStr == "true" || lowerStr == "yes";
+}
+
+bool StringContainsStringI(std::string const& haystack, std::string const& needle)
+{
+    return haystack.end() !=
+        std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(), [](char c1, char c2) { return std::toupper(c1) == std::toupper(c2); });
 }
 
 float DegToRad(float degrees)

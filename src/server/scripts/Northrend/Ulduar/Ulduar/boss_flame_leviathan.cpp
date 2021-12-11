@@ -280,10 +280,10 @@ class boss_flame_leviathan : public CreatureScript
                 me->SetReactState(REACT_PASSIVE);
                 events.ScheduleEvent(EVENT_PURSUE, 1);
                 events.ScheduleEvent(EVENT_MISSILE, urand(1500, 4*IN_MILLISECONDS));
-                events.ScheduleEvent(EVENT_VENT, 20*IN_MILLISECONDS);
-                events.ScheduleEvent(EVENT_SHUTDOWN, 150*IN_MILLISECONDS);
-                events.ScheduleEvent(EVENT_SPEED, 15*IN_MILLISECONDS);
-                events.ScheduleEvent(EVENT_SUMMON, 1*IN_MILLISECONDS);
+                events.ScheduleEvent(EVENT_VENT, 20s);
+                events.ScheduleEvent(EVENT_SHUTDOWN, 150s);
+                events.ScheduleEvent(EVENT_SPEED, 15s);
+                events.ScheduleEvent(EVENT_SUMMON, 1s);
                 ActiveTower(); //void ActiveTower
             }
 
@@ -294,25 +294,25 @@ class boss_flame_leviathan : public CreatureScript
                     if (towerOfStorms)
                     {
                         me->AddAura(SPELL_BUFF_TOWER_OF_STORMS, me);
-                        events.ScheduleEvent(EVENT_THORIM_S_HAMMER, 35*IN_MILLISECONDS);
+                        events.ScheduleEvent(EVENT_THORIM_S_HAMMER, 35s);
                     }
 
                     if (towerOfFlames)
                     {
                         me->AddAura(SPELL_BUFF_TOWER_OF_FLAMES, me);
-                        events.ScheduleEvent(EVENT_MIMIRON_S_INFERNO, 70*IN_MILLISECONDS);
+                        events.ScheduleEvent(EVENT_MIMIRON_S_INFERNO, 70s);
                     }
 
                     if (towerOfFrost)
                     {
                         me->AddAura(SPELL_BUFF_TOWER_OF_FR0ST, me);
-                        events.ScheduleEvent(EVENT_HODIR_S_FURY, 105*IN_MILLISECONDS);
+                        events.ScheduleEvent(EVENT_HODIR_S_FURY, 105s);
                     }
 
                     if (towerOfLife)
                     {
                         me->AddAura(SPELL_BUFF_TOWER_OF_LIFE, me);
-                        events.ScheduleEvent(EVENT_FREYA_S_WARD, 140*IN_MILLISECONDS);
+                        events.ScheduleEvent(EVENT_FREYA_S_WARD, 140s);
                     }
 
                     if (!towerOfLife && !towerOfFrost && !towerOfFlames && !towerOfStorms)
@@ -372,15 +372,21 @@ class boss_flame_leviathan : public CreatureScript
 
             void UpdateAI(uint32 diff) override
             {
-                if (!UpdateVictim())
+                if (!me->IsEngaged())
                     return;
+
+                if (!me->IsInCombat())
+                {
+                    EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
+                    return;
+                }
 
                 events.Update(diff);
 
                 if (Shutdown == RAID_MODE(TWO_SEATS, FOUR_SEATS))
                 {
                     Shutdown = 0;
-                    events.ScheduleEvent(EVENT_SHUTDOWN, 4000);
+                    events.ScheduleEvent(EVENT_SHUTDOWN, 4s);
                     me->RemoveAurasDueToSpell(SPELL_OVERLOAD_CIRCUIT);
                     me->InterruptNonMeleeSpells(true);
                     return;
@@ -396,25 +402,25 @@ class boss_flame_leviathan : public CreatureScript
                         case EVENT_PURSUE:
                             Talk(SAY_TARGET);
                             DoCast(SPELL_PURSUED);  // Will select target in spellscript
-                            events.ScheduleEvent(EVENT_PURSUE, 35*IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_PURSUE, 35s);
                             break;
                         case EVENT_MISSILE:
                             DoCast(me, SPELL_MISSILE_BARRAGE, true);
-                            events.ScheduleEvent(EVENT_MISSILE, 2*IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_MISSILE, 2s);
                             break;
                         case EVENT_VENT:
                             DoCastAOE(SPELL_FLAME_VENTS);
-                            events.ScheduleEvent(EVENT_VENT, 20*IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_VENT, 20s);
                             break;
                         case EVENT_SPEED:
                             DoCastAOE(SPELL_GATHERING_SPEED);
-                            events.ScheduleEvent(EVENT_SPEED, 15*IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_SPEED, 15s);
                             break;
                         case EVENT_SUMMON:
                             if (summons.size() < 15)
                                 if (Creature* lift = DoSummonFlyer(NPC_MECHANOLIFT, me, 30.0f, 50.0f, 0))
                                     lift->GetMotionMaster()->MoveRandom(100);
-                            events.ScheduleEvent(EVENT_SUMMON, 2*IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_SUMMON, 2s);
                             break;
                         case EVENT_SHUTDOWN:
                             Talk(SAY_OVERLOAD);
@@ -422,13 +428,13 @@ class boss_flame_leviathan : public CreatureScript
                             me->CastSpell(me, SPELL_SYSTEMS_SHUTDOWN, true);
                             if (Shutout)
                                 Shutout = false;
-                            events.ScheduleEvent(EVENT_REPAIR, 4000);
+                            events.ScheduleEvent(EVENT_REPAIR, 4s);
                             events.DelayEvents(20 * IN_MILLISECONDS, 0);
                             break;
                         case EVENT_REPAIR:
                             Talk(EMOTE_REPAIR);
                             me->ClearUnitState(UNIT_STATE_STUNNED | UNIT_STATE_ROOT);
-                            events.ScheduleEvent(EVENT_SHUTDOWN, 150*IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_SHUTDOWN, 150s);
                             events.CancelEvent(EVENT_REPAIR);
                             break;
                         case EVENT_THORIM_S_HAMMER: // Tower of Storms
@@ -474,8 +480,21 @@ class boss_flame_leviathan : public CreatureScript
 
             void SpellHitTarget(Unit* target, SpellInfo const* spell) override
             {
-                if (spell->Id == SPELL_PURSUED)
-                    _pursueTarget = target->GetGUID();
+                if (spell->Id != SPELL_PURSUED)
+                    return;
+
+                _pursueTarget = target->GetGUID();
+                me->GetMotionMaster()->Clear();
+                me->GetMotionMaster()->MoveChase(target);
+
+                for (SeatMap::const_iterator itr = target->GetVehicleKit()->Seats.begin(); itr != target->GetVehicleKit()->Seats.end(); ++itr)
+                {
+                    if (Player* passenger = ObjectAccessor::GetPlayer(*me, itr->second.Passenger.Guid))
+                    {
+                        Talk(EMOTE_PURSUE, passenger);
+                        return;
+                    }
+                }
             }
 
             void DoAction(int32 action) override
@@ -534,18 +553,23 @@ class boss_flame_leviathan : public CreatureScript
                         me->SetLootMode(LOOT_MODE_DEFAULT | LOOT_MODE_HARD_MODE_1 | LOOT_MODE_HARD_MODE_2 | LOOT_MODE_HARD_MODE_3 | LOOT_MODE_HARD_MODE_4);
                         break;
                     case ACTION_MOVE_TO_CENTER_POSITION: // Triggered by 2 Collossus near door
-                        if (!me->isDead())
+                        if (!me->isDead() && me->HasReactState(REACT_PASSIVE))
                         {
                             me->SetHomePosition(Center);
-                            me->GetMotionMaster()->MoveCharge(Center.GetPositionX(), Center.GetPositionY(), Center.GetPositionZ()); // position center
-                            me->SetReactState(REACT_AGGRESSIVE);
-                            me->RemoveUnitFlag(UnitFlags(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_STUNNED));
-                            return;
+                            me->GetMotionMaster()->MoveCharge(Center.GetPositionX(), Center.GetPositionY(), Center.GetPositionZ(), 42.0f, ACTION_MOVE_TO_CENTER_POSITION); // position center
                         }
                         break;
                     default:
                         break;
                 }
+            }
+
+            void MovementInform(uint32 /*type*/, uint32 id) override
+            {
+                if (id != ACTION_MOVE_TO_CENTER_POSITION)
+                    return;
+                me->SetReactState(REACT_AGGRESSIVE);
+                me->RemoveUnitFlag(UnitFlags(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_STUNNED));
             }
 
             private:
@@ -557,9 +581,11 @@ class boss_flame_leviathan : public CreatureScript
                     {
                         Unit* target = ObjectAccessor::GetUnit(*me, _pursueTarget);
 
-                        // Pursue was unable to acquire a valid target, so get the current victim as target.
-                        if (!target && me->GetVictim())
-                            target = me->GetVictim();
+                        if (!target)
+                        {
+                            events.RescheduleEvent(EVENT_PURSUE, 0);
+                            return;
+                        }
 
                         if (me->IsWithinCombatRange(target, 30.0f))
                         {
@@ -715,7 +741,7 @@ class boss_flame_leviathan_defense_turret : public CreatureScript
 
             bool CanAIAttack(Unit const* who) const override
             {
-                if (who->GetTypeId() != TYPEID_PLAYER || !who->GetVehicle() || who->GetVehicleBase()->GetEntry() != NPC_SEAT)
+                if (!who || who->GetTypeId() != TYPEID_PLAYER || !who->GetVehicle() || who->GetVehicleBase()->GetEntry() != NPC_SEAT)
                     return false;
                 return true;
             }
@@ -738,9 +764,9 @@ class boss_flame_leviathan_overload_device : public CreatureScript
             {
             }
 
-            void OnSpellClick(Unit* /*clicker*/, bool& result) override
+            void OnSpellClick(Unit* /*clicker*/, bool spellClickHandled) override
             {
-                if (!result)
+                if (!spellClickHandled)
                     return;
 
                 if (me->GetVehicle())
@@ -751,7 +777,7 @@ class boss_flame_leviathan_overload_device : public CreatureScript
                     if (Unit* player = me->GetVehicle()->GetPassenger(SEAT_PLAYER))
                     {
                         me->GetVehicleBase()->CastSpell(player, SPELL_SMOKE_TRAIL, true);
-                        player->GetMotionMaster()->MoveKnockbackFrom(me->GetVehicleBase()->GetPositionX(), me->GetVehicleBase()->GetPositionY(), 30, 30);
+                        player->GetMotionMaster()->MoveKnockbackFrom(me->GetVehicleBase()->GetPosition(), 30, 30);
                         player->ExitVehicle();
                     }
                 }
@@ -1284,7 +1310,7 @@ class go_ulduar_tower : public GameObjectScript
 
             InstanceScript* instance;
 
-            void Destroyed(Player* /*player*/, uint32 /*eventId*/) override
+            void Destroyed(WorldObject* /*attacker*/, uint32 /*eventId*/) override
             {
                 switch (me->GetEntry())
                 {
@@ -1500,13 +1526,13 @@ class spell_tar_blaze : public AuraScript
 
     bool Validate(SpellInfo const* spellInfo) override
     {
-        return ValidateSpellInfo({ spellInfo->GetEffect(EFFECT_0)->TriggerSpell });
+        return !spellInfo->GetEffects().empty() && ValidateSpellInfo({ spellInfo->GetEffect(EFFECT_0).TriggerSpell });
     }
 
     void PeriodicTick(AuraEffect const* aurEff)
     {
         // should we use custom damage?
-        GetTarget()->CastSpell(nullptr, GetSpellInfo()->GetEffect(aurEff->GetEffIndex())->TriggerSpell, true);
+        GetTarget()->CastSpell(nullptr, aurEff->GetSpellEffectInfo().TriggerSpell, true);
     }
 
     void Register() override
@@ -1687,28 +1713,27 @@ class FlameLeviathanPursuedTargetSelector
             //! No players, only vehicles. Pursue is never cast on players.
             Creature* creatureTarget = target->ToCreature();
             if (!creatureTarget)
-                return true;
+                return false;
 
             //! NPC entries must match
             if (creatureTarget->GetEntry() != NPC_SALVAGED_DEMOLISHER && creatureTarget->GetEntry() != NPC_SALVAGED_SIEGE_ENGINE)
-                return true;
+                return false;
 
             //! NPC must be a valid vehicle installation
             Vehicle* vehicle = creatureTarget->GetVehicleKit();
             if (!vehicle)
-                return true;
+                return false;
 
             //! Entity needs to be in appropriate area
             if (target->GetAreaId() != AREA_FORMATION_GROUNDS)
-                return true;
+                return false;
 
             //! Vehicle must be in use by player
-            bool playerFound = false;
-            for (SeatMap::const_iterator itr = vehicle->Seats.begin(); itr != vehicle->Seats.end() && !playerFound; ++itr)
+            for (SeatMap::const_iterator itr = vehicle->Seats.begin(); itr != vehicle->Seats.end(); ++itr)
                 if (itr->second.Passenger.Guid.IsPlayer())
-                    playerFound = true;
+                    return true;
 
-            return !playerFound;
+            return false;
         }
 };
 
@@ -1721,24 +1746,22 @@ class spell_pursue : public SpellScriptLoader
         {
             PrepareSpellScript(spell_pursue_SpellScript);
 
-        public:
-            spell_pursue_SpellScript()
-            {
-                _target = nullptr;
-            }
-
         private:
+            // EFFECT #0 - select target
             void FilterTargets(std::list<WorldObject*>& targets)
             {
-                targets.remove_if(FlameLeviathanPursuedTargetSelector());
-                if (!targets.empty())
+                Trinity::Containers::RandomResize(targets, FlameLeviathanPursuedTargetSelector(), 1);
+                if (targets.empty())
                 {
-                    //! In the end, only one target should be selected
-                    _target = Trinity::Containers::SelectRandomContainerElement(targets);
-                    FilterTargetsSubsequently(targets);
+                    if (Unit* caster = GetCaster())
+                        if (Creature* cCaster = caster->ToCreature())
+                            cCaster->AI()->EnterEvadeMode(CreatureAI::EVADE_REASON_NO_HOSTILES);
                 }
+                else
+                    _target = targets.front();
             }
 
+            // EFFECT #1 - copy target from effect #0
             void FilterTargetsSubsequently(std::list<WorldObject*>& targets)
             {
                 targets.clear();
@@ -1746,32 +1769,13 @@ class spell_pursue : public SpellScriptLoader
                     targets.push_back(_target);
             }
 
-            void HandleScript(SpellEffIndex /*eff*/)
-            {
-                Creature* caster = GetCaster()->ToCreature();
-                if (!caster)
-                    return;
-
-                caster->AI()->AttackStart(GetHitUnit());    // Chase target
-
-                for (SeatMap::const_iterator itr = caster->GetVehicleKit()->Seats.begin(); itr != caster->GetVehicleKit()->Seats.end(); ++itr)
-                {
-                    if (Player* passenger = ObjectAccessor::GetPlayer(*caster, itr->second.Passenger.Guid))
-                    {
-                        caster->AI()->Talk(EMOTE_PURSUE, passenger);
-                        return;
-                    }
-                }
-            }
-
             void Register() override
             {
                 OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_pursue_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
                 OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_pursue_SpellScript::FilterTargetsSubsequently, EFFECT_1, TARGET_UNIT_SRC_AREA_ENEMY);
-                OnEffectHitTarget += SpellEffectFn(spell_pursue_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
             }
 
-            WorldObject* _target;
+            WorldObject* _target = nullptr;
         };
 
         SpellScript* GetSpellScript() const override
@@ -1788,7 +1792,7 @@ class spell_vehicle_throw_passenger : public SpellScriptLoader
         class spell_vehicle_throw_passenger_SpellScript : public SpellScript
         {
             PrepareSpellScript(spell_vehicle_throw_passenger_SpellScript);
-            void HandleScript(SpellEffIndex effIndex)
+            void HandleScript(SpellEffIndex /*effIndex*/)
             {
                 Spell* baseSpell = GetSpell();
                 SpellCastTargets targets = baseSpell->m_targets;
@@ -1821,7 +1825,7 @@ class spell_vehicle_throw_passenger : public SpellScriptLoader
                                                         }
                                                     }
                             }
-                            if (target && target->IsWithinDist2d(targets.GetDstPos(), GetSpellInfo()->GetEffect(effIndex)->CalcRadius() * 2)) // now we use *2 because the location of the seat is not correct
+                            if (target && target->IsWithinDist2d(targets.GetDstPos(), GetEffectInfo().CalcRadius() * 2)) // now we use *2 because the location of the seat is not correct
                                 passenger->EnterVehicle(target, 0);
                             else
                             {

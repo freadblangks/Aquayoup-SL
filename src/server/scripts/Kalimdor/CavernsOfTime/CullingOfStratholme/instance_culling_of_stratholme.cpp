@@ -15,15 +15,15 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
+#include "culling_of_stratholme.h"
 #include "Creature.h"
 #include "CreatureAI.h"
-#include "culling_of_stratholme.h"
 #include "EventMap.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
 #include "MotionMaster.h"
+#include "ScriptMgr.h"
 #include "TemporarySummon.h"
 #include "WorldStatePackets.h"
 
@@ -72,11 +72,11 @@ class instance_culling_of_stratholme : public InstanceMapScript
 
             void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override
             {
-                packet.Worldstates.emplace_back(uint32(WORLDSTATE_SHOW_CRATES), 1);
-                packet.Worldstates.emplace_back(uint32(WORLDSTATE_CRATES_REVEALED), int32(_crateCount));
-                packet.Worldstates.emplace_back(uint32(WORLDSTATE_WAVE_COUNT), 0);
-                packet.Worldstates.emplace_back(uint32(WORLDSTATE_TIME_GUARDIAN), 25);
-                packet.Worldstates.emplace_back(uint32(WORLDSTATE_TIME_GUARDIAN_SHOW), 0);
+                packet.Worldstates.emplace_back(WORLDSTATE_SHOW_CRATES, 1);
+                packet.Worldstates.emplace_back(WORLDSTATE_CRATES_REVEALED, _crateCount);
+                packet.Worldstates.emplace_back(WORLDSTATE_WAVE_COUNT, 0);
+                packet.Worldstates.emplace_back(WORLDSTATE_TIME_GUARDIAN, 25);
+                packet.Worldstates.emplace_back(WORLDSTATE_TIME_GUARDIAN_SHOW, 0);
             }
 
             void OnCreatureCreate(Creature* creature) override
@@ -296,7 +296,7 @@ class instance_culling_of_stratholme : public InstanceMapScript
                                     if (Creature* infinite = instance->GetCreature(_infiniteGUID))
                                     {
                                         if (Creature* guardian = infinite->FindNearestCreature(NPC_GUARDIAN_OF_TIME, 100.0f))
-                                            infinite->Kill(guardian);
+                                            Unit::Kill(infinite, guardian);
 
                                         if (Creature* rift = infinite->FindNearestCreature(NPC_TIME_RIFT, 100.0f))
                                         {
@@ -312,7 +312,7 @@ class instance_culling_of_stratholme : public InstanceMapScript
                                 default:
                                     break;
                             }
-                            events.ScheduleEvent(EVENT_INFINITE_TIMER, 60000);
+                            events.ScheduleEvent(EVENT_INFINITE_TIMER, 1min);
                             --_eventTimer;
                             break;
                         default:

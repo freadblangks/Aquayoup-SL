@@ -112,7 +112,7 @@ class boss_drakkari_colossus : public CreatureScript
                     me->RemoveAura(SPELL_FREEZE_ANIM);
                 }
 
-                events.ScheduleEvent(EVENT_MIGHTY_BLOW, urand(10000, 30000));
+                events.ScheduleEvent(EVENT_MIGHTY_BLOW, 10s, 30s);
 
                 Initialize();
             }
@@ -148,14 +148,11 @@ class boss_drakkari_colossus : public CreatureScript
                         if (me->GetReactState() == REACT_AGGRESSIVE)
                             return;
 
-                        me->SetReactState(REACT_AGGRESSIVE);
                         me->SetImmuneToPC(false);
+                        me->SetReactState(REACT_AGGRESSIVE);
                         me->RemoveAura(SPELL_FREEZE_ANIM);
 
-                        me->SetInCombatWithZone();
-
-                        if (me->GetVictim())
-                            me->GetMotionMaster()->MoveChase(me->GetVictim(), 0, 0);
+                        DoZoneInCombat();
 
                         break;
                 }
@@ -211,7 +208,7 @@ class boss_drakkari_colossus : public CreatureScript
                     {
                         case EVENT_MIGHTY_BLOW:
                             DoCastVictim(SPELL_MIGHTY_BLOW);
-                            events.ScheduleEvent(EVENT_MIGHTY_BLOW, urand(5000, 15000));
+                            events.ScheduleEvent(EVENT_MIGHTY_BLOW, 5s, 15s);
                             break;
                     }
 
@@ -225,10 +222,10 @@ class boss_drakkari_colossus : public CreatureScript
 
             void JustSummoned(Creature* summon) override
             {
-               summon->SetInCombatWithZone();
+                DoZoneInCombat(summon);
 
-               if (phase == COLOSSUS_PHASE_SECOND_ELEMENTAL_SUMMON)
-                   summon->SetHealth(summon->GetMaxHealth() / 2);
+                if (phase == COLOSSUS_PHASE_SECOND_ELEMENTAL_SUMMON)
+                    summon->SetHealth(summon->GetMaxHealth() / 2);
             }
 
         private:
@@ -258,7 +255,7 @@ class boss_drakkari_elemental : public CreatureScript
             void Reset() override
             {
                 events.Reset();
-                events.ScheduleEvent(EVENT_SURGE, urand(5000, 15000));
+                events.ScheduleEvent(EVENT_SURGE, 5s, 15s);
 
                 me->AddAura(SPELL_MOJO_VOLLEY, me);
             }
@@ -268,7 +265,7 @@ class boss_drakkari_elemental : public CreatureScript
                 Talk(EMOTE_ACTIVATE_ALTAR);
 
                 if (Creature* colossus = instance->GetCreature(DATA_DRAKKARI_COLOSSUS))
-                    killer->Kill(colossus);
+                    Unit::Kill(killer, colossus);
             }
 
             void UpdateAI(uint32 diff) override
@@ -289,7 +286,7 @@ class boss_drakkari_elemental : public CreatureScript
                             DoCast(SPELL_SURGE_VISUAL);
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 0.0f, true))
                                 DoCast(target, SPELL_SURGE);
-                            events.ScheduleEvent(EVENT_SURGE, urand(5000, 15000));
+                            events.ScheduleEvent(EVENT_SURGE, 5s, 15s);
                             break;
                     }
 
@@ -427,7 +424,7 @@ public:
                     colossus->AI()->DoAction(ACTION_UNFREEZE_COLOSSUS);
                     if (!colossus->AI()->GetData(DATA_INTRO_DONE))
                         colossus->AI()->SetData(DATA_INTRO_DONE, true);
-                    colossus->SetInCombatWithZone();
+                    DoZoneInCombat(colossus);
                     me->DespawnOrUnsummon();
                 }
             }

@@ -45,6 +45,7 @@
 #include "CreatureGroups.h"
 #include "CreatureTextMgr.h"
 #include "DatabaseEnv.h"
+#include "DB2Stores.h"
 #include "DisableMgr.h"
 #include "GameEventMgr.h"
 #include "GameObjectModel.h"
@@ -54,11 +55,11 @@
 #include "GitRevision.h"
 #include "GridNotifiersImpl.h"
 #include "GroupMgr.h"
-#include "GuildFinderMgr.h"
 #include "GuildMgr.h"
 #include "InstanceSaveMgr.h"
 #include "IPLocation.h"
 #include "Language.h"
+#include "LanguageMgr.h"
 #include "LFGMgr.h"
 #include "Log.h"
 #include "LootItemStorage.h"
@@ -349,11 +350,13 @@ void World::AddSession_(WorldSession* s)
             if (RemoveQueuedPlayer(old->second))
                 decrease_session = false;
             // not remove replaced session form queue if listed
+            Trinity::Containers::MultimapErasePair(m_sessionsByBnetGuid, old->second->GetBattlenetAccountGUID(), old->second);
             delete old->second;
         }
     }
 
     m_sessions[s->GetAccountId()] = s;
+    m_sessionsByBnetGuid.emplace(s->GetBattlenetAccountGUID(), s);
 
     uint32 Sessions = GetActiveAndQueuedSessionCount();
     uint32 pLimit = GetPlayerAmountLimit();
@@ -601,6 +604,10 @@ void World::LoadConfigSettings(bool reload)
     rate_values[RATE_XP_BG_KILL]  = sConfigMgr->GetFloatDefault("Rate.XP.BattlegroundKill", 1.0f);
     rate_values[RATE_XP_QUEST]    = sConfigMgr->GetFloatDefault("Rate.XP.Quest", 1.0f);
     rate_values[RATE_XP_EXPLORE]  = sConfigMgr->GetFloatDefault("Rate.XP.Explore", 1.0f);
+
+    m_int_configs[CONFIG_XP_BOOST_DAYMASK] = sConfigMgr->GetIntDefault("XP.Boost.Daymask", 0);
+    rate_values[RATE_XP_BOOST] = sConfigMgr->GetFloatDefault("XP.Boost.Rate", 2.0f);
+
     rate_values[RATE_REPAIRCOST]  = sConfigMgr->GetFloatDefault("Rate.RepairCost", 1.0f);
     if (rate_values[RATE_REPAIRCOST] < 0.0f)
     {
@@ -650,19 +657,6 @@ void World::LoadConfigSettings(bool reload)
     }
     for (uint8 i = 0; i < MAX_MOVE_TYPE; ++i) playerBaseMoveSpeed[i] = baseMoveSpeed[i] * rate_values[RATE_MOVESPEED];
     rate_values[RATE_CORPSE_DECAY_LOOTED] = sConfigMgr->GetFloatDefault("Rate.Corpse.Decay.Looted", 0.5f);
-
-    rate_values[RATE_TARGET_POS_RECALCULATION_RANGE] = sConfigMgr->GetFloatDefault("TargetPosRecalculateRange", 1.5f);
-    if (rate_values[RATE_TARGET_POS_RECALCULATION_RANGE] < CONTACT_DISTANCE)
-    {
-        TC_LOG_ERROR("server.loading", "TargetPosRecalculateRange (%f) must be >= %f. Using %f instead.", rate_values[RATE_TARGET_POS_RECALCULATION_RANGE], CONTACT_DISTANCE, CONTACT_DISTANCE);
-        rate_values[RATE_TARGET_POS_RECALCULATION_RANGE] = CONTACT_DISTANCE;
-    }
-    else if (rate_values[RATE_TARGET_POS_RECALCULATION_RANGE] > NOMINAL_MELEE_RANGE)
-    {
-        TC_LOG_ERROR("server.loading", "TargetPosRecalculateRange (%f) must be <= %f. Using %f instead.",
-            rate_values[RATE_TARGET_POS_RECALCULATION_RANGE], NOMINAL_MELEE_RANGE, NOMINAL_MELEE_RANGE);
-        rate_values[RATE_TARGET_POS_RECALCULATION_RANGE] = NOMINAL_MELEE_RANGE;
-    }
 
     rate_values[RATE_DURABILITY_LOSS_ON_DEATH]  = sConfigMgr->GetFloatDefault("DurabilityLoss.OnDeath", 10.0f);
     if (rate_values[RATE_DURABILITY_LOSS_ON_DEATH] < 0.0f)
@@ -918,6 +912,7 @@ void World::LoadConfigSettings(bool reload)
     }
 
     m_int_configs[CONFIG_CHARACTER_CREATING_MIN_LEVEL_FOR_DEMON_HUNTER] = sConfigMgr->GetIntDefault("CharacterCreating.MinLevelForDemonHunter", 0);
+    m_bool_configs[CONFIG_CHARACTER_CREATING_DISABLE_ALLIED_RACE_ACHIEVEMENT_REQUIREMENT] = sConfigMgr->GetBoolDefault("CharacterCreating.DisableAlliedRaceAchievementRequirement", false);
 
     m_int_configs[CONFIG_SKIP_CINEMATICS] = sConfigMgr->GetIntDefault("SkipCinematics", 0);
     if (int32(m_int_configs[CONFIG_SKIP_CINEMATICS]) < 0 || m_int_configs[CONFIG_SKIP_CINEMATICS] > 2)
@@ -1637,6 +1632,8 @@ void World::LoadConfigSettings(bool reload)
 /// Initialize the World
 void World::SetInitialWorldSettings()
 {
+    sLog->SetRealmId(realm.Id.Realm);
+
     ///- Server startup begin
     uint32 startupBegin = getMSTime();
 
@@ -1782,11 +1779,14 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Loading Spell Totem models...");
     sSpellMgr->LoadSpellTotemModel();
 
+    TC_LOG_INFO("server.loading", "Loading languages...");  // must be after LoadSpellInfoStore and LoadSkillLineAbilityMap
+    sLanguageMgr->LoadLanguages();
+
+    TC_LOG_INFO("server.loading", "Loading languages words...");
+    sLanguageMgr->LoadLanguagesWords();
+
     TC_LOG_INFO("server.loading", "Loading GameObject models...");
     LoadGameObjectModelList(m_dataPath);
-
-    TC_LOG_INFO("server.loading", "Loading Script Names...");
-    sObjectMgr->LoadScriptNames();
 
     TC_LOG_INFO("server.loading", "Loading Instance Template...");
     sObjectMgr->LoadInstanceTemplate();
@@ -1800,7 +1800,6 @@ void World::SetInitialWorldSettings()
     sObjectMgr->LoadCreatureLocales();
     sObjectMgr->LoadGameObjectLocales();
     sObjectMgr->LoadQuestTemplateLocale();
-    sObjectMgr->LoadQuestGreetingLocales();
     sObjectMgr->LoadQuestOfferRewardLocale();
     sObjectMgr->LoadQuestRequestItemsLocale();
     sObjectMgr->LoadQuestObjectivesLocale();
@@ -1828,6 +1827,9 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading Transport animations and rotations...");
     sTransportMgr->LoadTransportAnimationAndRotation();
+
+    TC_LOG_INFO("server.loading", "Loading Transport spawns...");
+    sTransportMgr->LoadTransportSpawns();
 
     TC_LOG_INFO("server.loading", "Loading Spell Rank Data...");
     sSpellMgr->LoadSpellRanks();
@@ -1889,6 +1891,9 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Loading Creature template addons...");
     sObjectMgr->LoadCreatureTemplateAddons();
 
+    TC_LOG_INFO("server.loading", "Loading Creature template sparring...");
+    sObjectMgr->LoadCreatureTemplateSparring();
+
     TC_LOG_INFO("server.loading", "Loading Creature template scaling...");
     sObjectMgr->LoadCreatureScalingData();
 
@@ -1928,6 +1933,9 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Loading Creature Addon Data...");
     sObjectMgr->LoadCreatureAddons();                            // must be after LoadCreatureTemplates() and LoadCreatures()
 
+    TC_LOG_INFO("server.loading", "Loading Creature Movement Overrides...");
+    sObjectMgr->LoadCreatureMovementOverrides();                 // must be after LoadCreatures()
+
     TC_LOG_INFO("server.loading", "Loading Gameobject Data...");
     sObjectMgr->LoadGameObjects();
 
@@ -1935,7 +1943,10 @@ void World::SetInitialWorldSettings()
     sObjectMgr->LoadSpawnGroups();
 
     TC_LOG_INFO("server.loading", "Loading GameObject Addon Data...");
-    sObjectMgr->LoadGameObjectAddons();                          // must be after LoadGameObjectTemplate() and LoadGameObjects()
+    sObjectMgr->LoadGameObjectAddons();                          // must be after LoadGameObjects()
+
+    TC_LOG_INFO("server.loading", "Loading GameObject faction and flags overrides...");
+    sObjectMgr->LoadGameObjectOverrides();                       // must be after LoadGameObjects()
 
     TC_LOG_INFO("server.loading", "Loading GameObject Quest Items...");
     sObjectMgr->LoadGameObjectQuestItems();
@@ -1963,6 +1974,7 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading Quest Greetings...");
     sObjectMgr->LoadQuestGreetings();
+    sObjectMgr->LoadQuestGreetingLocales();
 
     TC_LOG_INFO("server.loading", "Loading Objects Pooling Data...");
     sPoolMgr->LoadFromDB();
@@ -2027,6 +2039,9 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Loading linked spells...");
     sSpellMgr->LoadSpellLinked();
 
+    TC_LOG_INFO("server.loading", "Loading Scenes Templates..."); // must be before LoadPlayerInfo
+    sObjectMgr->LoadSceneTemplates();
+
     TC_LOG_INFO("server.loading", "Loading Player Create Data...");
     sObjectMgr->LoadPlayerInfo();
 
@@ -2045,14 +2060,14 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Loading Conversation Templates...");
     sConversationDataStore->LoadConversationTemplates();
 
-    TC_LOG_INFO("server.loading", "Loading Scenes Templates...");
-    sObjectMgr->LoadSceneTemplates();
-
     TC_LOG_INFO("server.loading", "Loading Player Choices...");
     sObjectMgr->LoadPlayerChoices();
 
     TC_LOG_INFO("server.loading", "Loading Player Choices Locales...");
     sObjectMgr->LoadPlayerChoicesLocale();
+
+    TC_LOG_INFO("server.loading", "Loading Jump Charge Params...");
+    sObjectMgr->LoadJumpChargeParams();
 
     CharacterDatabaseCleaner::CleanDatabase();
 
@@ -2120,8 +2135,6 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading Guilds...");
     sGuildMgr->LoadGuilds();
-
-    sGuildFinderMgr->LoadFromDB();
 
     TC_LOG_INFO("server.loading", "Loading ArenaTeams...");
     sArenaTeamMgr->LoadArenaTeams();
@@ -2389,6 +2402,9 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Loading scenario poi data");
     sScenarioMgr->LoadScenarioPOI();
 
+    TC_LOG_INFO("server.loading", "Loading phase names...");
+    sObjectMgr->LoadPhaseNames();
+
     // Preload all cells, if required for the base maps
     if (sWorld->getBoolConfig(CONFIG_BASEMAP_LOAD_GRIDS))
     {
@@ -2407,8 +2423,6 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.worldserver", "World initialized in %u minutes %u seconds", (startupDuration / 60000), ((startupDuration % 60000) / 1000));
 
     TC_METRIC_EVENT("events", "World initialized", "World initialized in " + std::to_string(startupDuration / 60000) + " minutes " + std::to_string((startupDuration % 60000) / 1000) + " seconds");
-
-    sLog->SetRealmId(realm.Id.Realm);
 }
 
 void World::LoadAutobroadcasts()
@@ -2541,6 +2555,9 @@ void World::Update(uint32 diff)
         m_timers[WUPDATE_AHBOT].Reset();
     }
 
+    /// Synchronize all scripts with their ids before updating the sScriptReloadMgr
+    sScriptMgr->SyncScripts();
+
     /// <li> Handle file changes
     if (m_timers[WUPDATE_CHECK_FILECHANGES].Passed())
     {
@@ -2618,6 +2635,9 @@ void World::Update(uint32 diff)
         m_timers[WUPDATE_DELETECHARS].Reset();
         Player::DeleteOldCharacters();
     }
+
+    sGroupMgr->Update(diff);
+    sWorldUpdateTime.RecordUpdateTimeDuration("UpdateGroupMgr");
 
     sLFGMgr->Update(diff);
     sWorldUpdateTime.RecordUpdateTimeDuration("UpdateLFGMgr");
@@ -2737,13 +2757,24 @@ namespace Trinity
 {
     class WorldWorldTextBuilder
     {
+        class MultiplePacketSender
+        {
         public:
-            typedef std::vector<WorldPackets::Packet*> WorldPacketList;
+            void operator()(Player const* receiver) const
+            {
+                for (std::unique_ptr<WorldPackets::Packet> const& packet : Packets)
+                    receiver->SendDirectMessage(packet->GetRawPacket());
+            }
+
+            std::vector<std::unique_ptr<WorldPackets::Packet>> Packets;
+        };
+
+        public:
             static size_t const BufferSize = 2048;
 
             explicit WorldWorldTextBuilder(uint32 textId, va_list* args = nullptr) : i_textId(textId), i_args(args) { }
 
-            void operator()(WorldPacketList& dataList, LocaleConstant locale)
+            MultiplePacketSender* operator()(LocaleConstant locale)
             {
                 char const* text = sObjectMgr->GetTrinityString(i_textId, locale);
 
@@ -2762,18 +2793,20 @@ namespace Trinity
                     strBuffer[BufferSize - 1] = '\0';
                 }
 
-                do_helper(dataList, strBuffer);
+                MultiplePacketSender* sender = new MultiplePacketSender();
+                do_helper(sender->Packets, strBuffer);
+                return sender;
             }
 
         private:
-            void do_helper(WorldPacketList& dataList, char* text)
+            void do_helper(std::vector<std::unique_ptr<WorldPackets::Packet>>& dataList, char* text)
             {
                 while (char* line = ChatHandler::LineFromMessage(text))
                 {
                     WorldPackets::Chat::Chat* packet = new WorldPackets::Chat::Chat();
                     packet->Initialize(CHAT_MSG_SYSTEM, LANG_UNIVERSAL, nullptr, nullptr, line);
                     packet->Write();
-                    dataList.push_back(packet);
+                    dataList.emplace_back(packet);
                 }
             }
 
@@ -2789,7 +2822,7 @@ void World::SendWorldText(uint32 string_id, ...)
     va_start(ap, string_id);
 
     Trinity::WorldWorldTextBuilder wt_builder(string_id, &ap);
-    Trinity::LocalizedPacketListDo<Trinity::WorldWorldTextBuilder> wt_do(wt_builder);
+    Trinity::LocalizedDo<Trinity::WorldWorldTextBuilder> wt_do(wt_builder);
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
     {
         if (!itr->second || !itr->second->GetPlayer() || !itr->second->GetPlayer()->IsInWorld())
@@ -2808,7 +2841,7 @@ void World::SendGMText(uint32 string_id, ...)
     va_start(ap, string_id);
 
     Trinity::WorldWorldTextBuilder wt_builder(string_id, &ap);
-    Trinity::LocalizedPacketListDo<Trinity::WorldWorldTextBuilder> wt_do(wt_builder);
+    Trinity::LocalizedDo<Trinity::WorldWorldTextBuilder> wt_do(wt_builder);
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
     {
         // Session should have permissions to receive global gm messages
@@ -3223,8 +3256,8 @@ void World::UpdateSessions(uint32 diff)
                 m_disconnects[itr->second->GetAccountId()] = GameTime::GetGameTime();
             RemoveQueuedPlayer(pSession);
             m_sessions.erase(itr);
+            Trinity::Containers::MultimapErasePair(m_sessionsByBnetGuid, pSession->GetBattlenetAccountGUID(), pSession);
             delete pSession;
-
         }
     }
 }
@@ -3622,6 +3655,15 @@ void World::UpdateAreaDependentAuras()
             itr->second->GetPlayer()->UpdateAreaDependentAuras(itr->second->GetPlayer()->GetAreaId());
             itr->second->GetPlayer()->UpdateZoneDependentAuras(itr->second->GetPlayer()->GetZoneId());
         }
+}
+
+bool World::IsBattlePetJournalLockAcquired(ObjectGuid battlenetAccountGuid)
+{
+    for (auto&& sessionForBnet : Trinity::Containers::MapEqualRange(m_sessionsByBnetGuid, battlenetAccountGuid))
+        if (sessionForBnet.second->GetBattlePetMgr()->HasJournalLock())
+            return true;
+
+    return false;
 }
 
 void World::LoadWorldStates()

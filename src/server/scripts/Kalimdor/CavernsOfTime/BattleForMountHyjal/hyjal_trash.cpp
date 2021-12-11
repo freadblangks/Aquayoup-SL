@@ -194,7 +194,7 @@ hyjal_trashAI::hyjal_trashAI(Creature* creature) : EscortAI(creature)
 
 void hyjal_trashAI::DamageTaken(Unit* done_by, uint32 &damage)
 {
-    if (done_by->GetTypeId() == TYPEID_PLAYER || done_by->IsPet())
+    if (!done_by || done_by->GetTypeId() == TYPEID_PLAYER || done_by->IsPet())
     {
         damageTaken += damage;
         instance->SetData(DATA_RAIDDAMAGE, damage);//store raid's damage
@@ -1339,7 +1339,7 @@ public:
                 {
                     if (StrikeTimer <= diff)
                     {
-                        me->CastSpell({ DummyTarget[0], DummyTarget[1], DummyTarget[2] }, SPELL_GARGOYLE_STRIKE, false);
+                        me->CastSpell(Position{ DummyTarget[0], DummyTarget[1], DummyTarget[2] }, SPELL_GARGOYLE_STRIKE, false);
                         StrikeTimer = 2000 + rand32() % 1000;
                     } else StrikeTimer -= diff;
                     }
@@ -1453,7 +1453,7 @@ public:
                     return;
                 }
                 CastSpellExtraArgs args;
-                args.SpellValueOverrides.AddMod(SPELLVALUE_BASE_POINT0, 500 + rand32() % 700);
+                args.AddSpellMod(SPELLVALUE_BASE_POINT0, 500 + rand32() % 700);
                 me->CastSpell(me->GetVictim(), SPELL_EXPLODING_SHOT, args);
                 ExplodeTimer = 5000 + rand32() % 5000;
             } else ExplodeTimer -= diff;

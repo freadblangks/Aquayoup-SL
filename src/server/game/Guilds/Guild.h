@@ -633,7 +633,7 @@ class TC_GAME_API Guild
                 // Defines if player has rights to withdraw item from container
                 virtual bool HasWithdrawRights(MoveItemData* /*pOther*/) const { return true; }
                 // Checks if container can store specified item
-                bool CanStore(Item* pItem, bool swap, bool sendError);
+                InventoryResult CanStore(Item* pItem, bool swap, bool sendError);
                 // Clones stored item
                 bool CloneItem(uint32 count);
                 // Remove item from container (if splited update items fields)
@@ -646,6 +646,8 @@ class TC_GAME_API Guild
                 virtual void LogAction(MoveItemData* pFrom) const;
                 // Copy slots id from position vector
                 void CopySlots(SlotIds& ids) const;
+                // Sends equip error to player
+                void SendEquipError(InventoryResult result, Item const* item);
 
                 Item* GetItem(bool isCloned = false) const { return isCloned ? m_pClonedItem : m_pItem; }
                 uint8 GetContainer() const { return m_container; }
@@ -839,7 +841,7 @@ class TC_GAME_API Guild
         void ResetTimes(bool weekly);
 
         bool HasAchieved(uint32 achievementId) const;
-        void UpdateCriteria(CriteriaTypes type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, Unit* unit, Player* player);
+        void UpdateCriteria(CriteriaType type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, WorldObject* ref, Player* player);
 
     protected:
         ObjectGuid::LowType m_id;
@@ -932,7 +934,7 @@ class TC_GAME_API Guild
         Item* _GetItem(uint8 tabId, uint8 slotId) const;
         void _RemoveItem(CharacterDatabaseTransaction& trans, uint8 tabId, uint8 slotId);
         void _MoveItems(MoveItemData* pSrc, MoveItemData* pDest, uint32 splitedAmount) const;
-        static bool _DoItemsMove(MoveItemData* pSrc, MoveItemData* pDest, bool sendError, uint32 splitedAmount = 0);
+        static InventoryResult _DoItemsMove(MoveItemData* pSrc, MoveItemData* pDest, bool sendError, uint32 splitedAmount = 0);
 
         void _SendBankContentUpdate(MoveItemData* pSrc, MoveItemData* pDest) const;
         void _SendBankContentUpdate(uint8 tabId, SlotIds slots) const;

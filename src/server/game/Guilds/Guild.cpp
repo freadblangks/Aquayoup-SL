@@ -27,7 +27,6 @@
 #include "DatabaseEnv.h"
 #include "DB2Stores.h"
 #include "GameTime.h"
-#include "GuildFinderMgr.h"
 #include "GuildMgr.h"
 #include "GuildPackets.h"
 #include "Language.h"
@@ -376,7 +375,7 @@ void Guild::BankTab::LoadFromDB(Field* fields)
 
 bool Guild::BankTab::LoadItemFromDB(Field* fields)
 {
-    uint8 slotId = fields[45].GetUInt8();
+    uint8 slotId = fields[53].GetUInt8();
     ObjectGuid::LowType itemGuid = fields[0].GetUInt64();
     uint32 itemEntry = fields[1].GetUInt32();
     if (slotId >= GUILD_BANK_MAX_SLOTS)
@@ -785,13 +784,13 @@ bool Guild::MoveItemData::CheckItem(uint32& splitedAmount)
     return true;
 }
 
-bool Guild::MoveItemData::CanStore(Item* pItem, bool swap, bool sendError)
+InventoryResult Guild::MoveItemData::CanStore(Item* pItem, bool swap, bool sendError)
 {
     m_vec.clear();
     InventoryResult msg = CanStore(pItem, swap);
     if (sendError && msg != EQUIP_ERR_OK)
-        m_pPlayer->SendEquipError(msg, pItem);
-    return (msg == EQUIP_ERR_OK);
+        SendEquipError(msg, pItem);
+    return msg;
 }
 
 bool Guild::MoveItemData::CloneItem(uint32 count)
@@ -800,7 +799,7 @@ bool Guild::MoveItemData::CloneItem(uint32 count)
     m_pClonedItem = m_pItem->CloneItem(count);
     if (!m_pClonedItem)
     {
-        m_pPlayer->SendEquipError(EQUIP_ERR_ITEM_NOT_FOUND, m_pItem);
+        SendEquipError(EQUIP_ERR_ITEM_NOT_FOUND, m_pItem);
         return false;
     }
     return true;
@@ -821,6 +820,11 @@ inline void Guild::MoveItemData::CopySlots(SlotIds& ids) const
         ids.insert(uint8(itr->pos));
 }
 
+void Guild::MoveItemData::SendEquipError(InventoryResult result, Item const* item)
+{
+    m_pPlayer->SendEquipError(result, item);
+}
+
 // PlayerMoveItemData
 bool Guild::PlayerMoveItemData::InitItem()
 {
@@ -830,13 +834,13 @@ bool Guild::PlayerMoveItemData::InitItem()
         // Anti-WPE protection. Do not move non-empty bags to bank.
         if (m_pItem->IsNotEmptyBag())
         {
-            m_pPlayer->SendEquipError(EQUIP_ERR_DESTROY_NONEMPTY_BAG, m_pItem);
+            SendEquipError(EQUIP_ERR_DESTROY_NONEMPTY_BAG, m_pItem);
             m_pItem = nullptr;
         }
         // Bound items cannot be put into bank.
         else if (!m_pItem->CanBeTraded())
         {
-            m_pPlayer->SendEquipError(EQUIP_ERR_CANT_SWAP, m_pItem);
+            SendEquipError(EQUIP_ERR_CANT_SWAP, m_pItem);
             m_pItem = nullptr;
         }
     }
@@ -1248,8 +1252,6 @@ void Guild::Disband()
     trans->Append(stmt);
 
     CharacterDatabase.CommitTransaction(trans);
-
-    sGuildFinderMgr->DeleteGuild(GetGUID());
 
     sGuildMgr->RemoveGuild(m_id);
 }
@@ -1678,7 +1680,7 @@ void Guild::HandleInviteMember(WorldSession* session, std::string const& name)
 
     Player* player = session->GetPlayer();
     // Do not show invitations from ignored players
-    if (pInvitee->GetSocial()->HasIgnore(player->GetGUID()))
+    if (pInvitee->GetSocial()->HasIgnore(player->GetGUID(), player->GetSession()->GetAccountGUID()))
         return;
 
     if (!sWorld->getBoolConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GUILD) && pInvitee->GetTeam() != player->GetTeam())
@@ -2505,7 +2507,7 @@ void Guild::LoadBankTabFromDB(Field* fields)
 
 bool Guild::LoadBankItemFromDB(Field* fields)
 {
-    uint8 tabId = fields[44].GetUInt8();
+    uint8 tabId = fields[52].GetUInt8();
     if (tabId >= _GetPurchasedTabsSize())
     {
         TC_LOG_ERROR("guild", "Invalid tab for item (GUID: %u, id: #%u) in guild bank, skipped.",
@@ -2564,8 +2566,8 @@ bool Guild::Validate()
     Member* leader = GetMember(m_leaderGuid);
     if (!leader)
     {
-        CharacterDatabaseTransaction trans(nullptr);
-        DeleteMember(trans, m_leaderGuid);
+        CharacterDatabaseTransaction dummy(nullptr);
+        DeleteMember(dummy, m_leaderGuid);
         // If no more members left, disband guild
         if (m_members.empty())
         {
@@ -2599,7 +2601,7 @@ void Guild::BroadcastToGuild(WorldSession* session, bool officerOnly, std::strin
         for (auto itr = m_members.begin(); itr != m_members.end(); ++itr)
             if (Player* player = itr->second->FindConnectedPlayer())
                 if (player->GetSession() && _HasRankRight(player, officerOnly ? GR_RIGHT_OFFCHATLISTEN : GR_RIGHT_GCHATLISTEN) &&
-                    !player->GetSocial()->HasIgnore(session->GetPlayer()->GetGUID()))
+                    !player->GetSocial()->HasIgnore(session->GetPlayer()->GetGUID(), session->GetAccountGUID()))
                     player->SendDirectMessage(data);
     }
 }
@@ -2614,7 +2616,7 @@ void Guild::BroadcastAddonToGuild(WorldSession* session, bool officerOnly, std::
         for (Members::const_iterator itr = m_members.begin(); itr != m_members.end(); ++itr)
             if (Player* player = itr->second->FindPlayer())
                 if (player->GetSession() && _HasRankRight(player, officerOnly ? GR_RIGHT_OFFCHATLISTEN : GR_RIGHT_GCHATLISTEN) &&
-                    !player->GetSocial()->HasIgnore(session->GetPlayer()->GetGUID()) &&
+                    !player->GetSocial()->HasIgnore(session->GetPlayer()->GetGUID(), session->GetAccountGUID()) &&
                     player->GetSession()->IsAddonRegistered(prefix))
                         player->SendDirectMessage(data);
     }
@@ -2745,8 +2747,6 @@ bool Guild::AddMember(CharacterDatabaseTransaction& trans, ObjectGuid guid, uint
     joinNotificationPacket.Name = name;
     joinNotificationPacket.VirtualRealmAddress = GetVirtualRealmAddress();
     BroadcastPacket(joinNotificationPacket.Write());
-
-    sGuildFinderMgr->RemoveAllMembershipRequestsFromPlayer(guid);
 
     // Call scripts if member was succesfully added (and stored to database)
     sScriptMgr->OnGuildAddMember(this, player, rankId);
@@ -3228,12 +3228,16 @@ void Guild::_MoveItems(MoveItemData* pSrc, MoveItemData* pDest, uint32 splitedAm
     else // 6. No split
     {
         // 6.1. Try to merge items in destination (pDest->GetItem() == nullptr)
-        if (!Guild::_DoItemsMove(pSrc, pDest, false)) // Item could not be merged
+        InventoryResult mergeAttemptResult = Guild::_DoItemsMove(pSrc, pDest, false);
+        if (mergeAttemptResult != EQUIP_ERR_OK) // Item could not be merged
         {
             // 6.2. Try to swap items
             // 6.2.1. Initialize destination item
             if (!pDest->InitItem())
+            {
+                pSrc->SendEquipError(mergeAttemptResult, pSrc->GetItem(false));
                 return;
+            }
 
             // 6.2.2. Check rights to store item in source (opposite direction)
             if (!pSrc->HasStoreRights(pDest))
@@ -3250,20 +3254,24 @@ void Guild::_MoveItems(MoveItemData* pSrc, MoveItemData* pDest, uint32 splitedAm
     _SendBankContentUpdate(pSrc, pDest);
 }
 
-bool Guild::_DoItemsMove(MoveItemData* pSrc, MoveItemData* pDest, bool sendError, uint32 splitedAmount)
+InventoryResult Guild::_DoItemsMove(MoveItemData* pSrc, MoveItemData* pDest, bool sendError, uint32 splitedAmount)
 {
     Item* pDestItem = pDest->GetItem();
     bool swap = (pDestItem != nullptr);
 
     Item* pSrcItem = pSrc->GetItem(splitedAmount != 0);
     // 1. Can store source item in destination
-    if (!pDest->CanStore(pSrcItem, swap, sendError))
-        return false;
+    InventoryResult destResult = pDest->CanStore(pSrcItem, swap, sendError);
+    if (destResult != EQUIP_ERR_OK)
+        return destResult;
 
     // 2. Can store destination item in source
     if (swap)
-        if (!pSrc->CanStore(pDestItem, true, true))
-            return false;
+    {
+        InventoryResult srcResult = pSrc->CanStore(pDestItem, true, true);
+        if (srcResult != EQUIP_ERR_OK)
+            return srcResult;
+    }
 
     // GM LOG (@todo move to scripts)
     pDest->LogAction(pSrc);
@@ -3291,7 +3299,7 @@ bool Guild::_DoItemsMove(MoveItemData* pSrc, MoveItemData* pDest, bool sendError
         pSrc->StoreItem(trans, pDestItem);
 
     CharacterDatabase.CommitTransaction(trans);
-    return true;
+    return EQUIP_ERR_OK;
 }
 
 void Guild::_SendBankContentUpdate(MoveItemData* pSrc, MoveItemData* pDest) const
@@ -3344,8 +3352,9 @@ void Guild::_SendBankContentUpdate(uint8 tabId, SlotIds slots) const
             itemInfo.Slot = int32(*itr);
             itemInfo.Item.ItemID = int32(tabItem ? tabItem->GetEntry() : 0);
             itemInfo.Count = int32(tabItem ? tabItem->GetCount() : 0);
+            itemInfo.EnchantmentID = int32(tabItem ? tabItem->GetEnchantmentId(PERM_ENCHANTMENT_SLOT) : 0);
             itemInfo.Charges = int32(tabItem ? abs(tabItem->GetSpellCharges()) : 0);
-            itemInfo.OnUseEnchantmentID = 0/*int32(tabItem->GetItemSuffixFactor())*/;
+            itemInfo.OnUseEnchantmentID = int32(tabItem ? tabItem->GetEnchantmentId(USE_ENCHANTMENT_SLOT) : 0);
             itemInfo.Flags = 0;
             itemInfo.Locked = false;
 
@@ -3508,9 +3517,9 @@ bool Guild::HasAchieved(uint32 achievementId) const
     return m_achievementMgr.HasAchieved(achievementId);
 }
 
-void Guild::UpdateCriteria(CriteriaTypes type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, Unit* unit, Player* player)
+void Guild::UpdateCriteria(CriteriaType type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, WorldObject* ref, Player* player)
 {
-    m_achievementMgr.UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, player);
+    m_achievementMgr.UpdateCriteria(type, miscValue1, miscValue2, miscValue3, ref, player);
 }
 
 void Guild::HandleNewsSetSticky(WorldSession* session, uint32 newsId, bool sticky) const

@@ -106,6 +106,7 @@ enum Spells
     SPELL_KINETIC_BOMB                  = 72080,
     SPELL_SHOCK_VORTEX                  = 72037,
     SPELL_EMPOWERED_SHOCK_VORTEX        = 72039,
+    SPELL_REMOVE_EMPOWERED_BLOOD        = 72131,
 
     // Kinetic Bomb
     SPELL_UNSTABLE                      = 72059,
@@ -246,7 +247,10 @@ class boss_blood_council_controller : public CreatureScript
                             prince->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                             prince->SetImmuneToPC(false);
                             if (bossData == DATA_PRINCE_VALANAR)
+                            {
                                 prince->SetHealth(prince->GetMaxHealth());
+                                prince->CastSpell(prince, SPELL_REMOVE_EMPOWERED_BLOOD, true);
+                            }
                         }
             }
 
@@ -330,7 +334,7 @@ class boss_blood_council_controller : public CreatureScript
                         // Make sure looting is allowed
                         if (me->IsDamageEnoughForLootingAndReward())
                             prince->LowerPlayerDamageReq(prince->GetMaxHealth());
-                        killer->Kill(prince);
+                        Unit::Kill(killer, prince);
                     }
                 }
             }
@@ -629,9 +633,9 @@ class boss_prince_keleseth_icc : public CreatureScript
 
             void ScheduleEvents() override
             {
-                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
-                events.ScheduleEvent(EVENT_SHADOW_RESONANCE, Seconds(10), Seconds(15));
-                events.ScheduleEvent(EVENT_SHADOW_LANCE, Seconds(2));
+                events.ScheduleEvent(EVENT_BERSERK, 10min);
+                events.ScheduleEvent(EVENT_SHADOW_RESONANCE, 10s, 15s);
+                events.ScheduleEvent(EVENT_SHADOW_LANCE, 2s);
 
                 if (IsHeroic())
                 {
@@ -645,7 +649,7 @@ class boss_prince_keleseth_icc : public CreatureScript
                 summons.Summon(summon);
                 Position pos = me->GetPosition();
                 float maxRange = me->GetDistance2d(summon);
-                float angle = me->GetAngle(summon);
+                float angle = me->GetAbsoluteAngle(summon);
                 me->MovePositionToFirstCollision(pos, maxRange, angle);
                 summon->NearTeleportTo(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation());
                 summon->ToTempSummon()->SetTempSummonType(TEMPSUMMON_CORPSE_DESPAWN);
@@ -707,9 +711,9 @@ class boss_prince_taldaram_icc : public CreatureScript
 
             void ScheduleEvents() override
             {
-                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
-                events.ScheduleEvent(EVENT_GLITTERING_SPARKS, Seconds(12), Seconds(15));
-                events.ScheduleEvent(EVENT_CONJURE_FLAME, Seconds(20));
+                events.ScheduleEvent(EVENT_BERSERK, 10min);
+                events.ScheduleEvent(EVENT_GLITTERING_SPARKS, 12s, 15s);
+                events.ScheduleEvent(EVENT_CONJURE_FLAME, 20s);
                 if (IsHeroic())
                     DoCastSelf(SPELL_SHADOW_PRISON, true);
             }
@@ -792,9 +796,9 @@ class boss_prince_valanar_icc : public CreatureScript
 
             void ScheduleEvents() override
             {
-                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
-                events.ScheduleEvent(EVENT_KINETIC_BOMB, Seconds(18), Seconds(24));
-                events.ScheduleEvent(EVENT_SHOCK_VORTEX, Seconds(15), Seconds(20));
+                events.ScheduleEvent(EVENT_BERSERK, 10min);
+                events.ScheduleEvent(EVENT_KINETIC_BOMB, 18s, 24s);
+                events.ScheduleEvent(EVENT_SHOCK_VORTEX, 15s, 20s);
                 if (IsHeroic())
                     DoCastSelf(SPELL_SHADOW_PRISON, true);
             }
@@ -805,7 +809,8 @@ class boss_prince_valanar_icc : public CreatureScript
                 {
                     case NPC_KINETIC_BOMB_TARGET:
                         summon->SetReactState(REACT_PASSIVE);
-                        summon->CastSpell(summon, SPELL_KINETIC_BOMB, me->GetGUID());
+                        summon->CastSpell(summon, SPELL_KINETIC_BOMB, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
+                            .SetOriginalCaster(me->GetGUID()));
                         break;
                     case NPC_KINETIC_BOMB:
                     {
@@ -1059,7 +1064,7 @@ class npc_kinetic_bomb : public CreatureScript
             void DoAction(int32 action) override
             {
                 if (action == SPELL_KINETIC_BOMB_EXPLOSION)
-                    _events.ScheduleEvent(EVENT_BOMB_DESPAWN, Seconds(1));
+                    _events.ScheduleEvent(EVENT_BOMB_DESPAWN, 1s);
 
                 else if (action == ACTION_KINETIC_BOMB_JUMP)
                 {
@@ -1497,16 +1502,16 @@ class spell_blood_council_shadow_prison_damage : public SpellScriptLoader
         {
             PrepareSpellScript(spell_blood_council_shadow_prison_SpellScript);
 
-            void AddExtraDamage()
+            void AddExtraDamage(SpellEffIndex /*effIndex*/)
             {
                 if (Aura* aur = GetHitUnit()->GetAura(GetSpellInfo()->Id))
                     if (AuraEffect const* eff = aur->GetEffect(EFFECT_1))
-                        SetHitDamage(GetHitDamage() + eff->GetAmount());
+                        SetEffectValue(GetEffectValue() + eff->GetAmount());
             }
 
             void Register() override
             {
-                OnHit += SpellHitFn(spell_blood_council_shadow_prison_SpellScript::AddExtraDamage);
+                OnEffectLaunchTarget += SpellEffectFn(spell_blood_council_shadow_prison_SpellScript::AddExtraDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
             }
         };
 
@@ -1521,7 +1526,7 @@ class at_blood_prince_council_start_intro : public AreaTriggerScript
     public:
         at_blood_prince_council_start_intro() : AreaTriggerScript("at_blood_prince_council_start_intro") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/, bool /*entered*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             if (InstanceScript* instance = player->GetInstanceScript())
                 if (Creature* controller = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_BLOOD_PRINCES_CONTROL)))

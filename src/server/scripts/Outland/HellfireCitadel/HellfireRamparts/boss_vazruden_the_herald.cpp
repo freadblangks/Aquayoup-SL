@@ -93,7 +93,7 @@ class boss_nazan : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override { }
 
-            void IsSummonedBy(Unit* summoner) override
+            void IsSummonedBy(WorldObject* summoner) override
             {
                 if (summoner->GetEntry() == NPC_VAZRUDEN_HERALD)
                     VazrudenGUID = summoner->GetGUID();
@@ -486,6 +486,9 @@ class npc_hellfire_sentry : public CreatureScript
 
             void JustDied(Unit* killer) override
             {
+                if (!killer)
+                    return;
+
                 if (Creature* herald = me->FindNearestCreature(NPC_VAZRUDEN_HERALD, 150))
                     ENSURE_AI(boss_vazruden_the_herald::boss_vazruden_the_heraldAI, herald->AI())->SentryDownBy(killer);
             }

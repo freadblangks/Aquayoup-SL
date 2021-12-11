@@ -83,6 +83,7 @@ namespace WorldPackets
             uint32 RequiredExpansion = 0;
             uint32 VignetteID = 0;
             int32 Class = 0;
+            int32 CreatureDifficultyID = 0;
             int32 WidgetSetID = 0;
             int32 WidgetSetUnitConditionID = 0;
             std::array<uint32, 2> Flags;
@@ -134,6 +135,7 @@ namespace WorldPackets
             uint8 Sex = GENDER_NONE;
             uint8 ClassID = CLASS_NONE;
             uint8 Level = 0;
+            uint8 Unused915 = 0;
             DeclinedName DeclinedNames;
         };
 

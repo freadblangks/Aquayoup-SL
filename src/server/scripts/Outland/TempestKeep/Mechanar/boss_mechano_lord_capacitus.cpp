@@ -79,13 +79,13 @@ class boss_mechano_lord_capacitus : public CreatureScript
             {
                 _JustEngagedWith();
                 Talk(YELL_AGGRO);
-                events.ScheduleEvent(EVENT_HEADCRACK, 10 * IN_MILLISECONDS);
-                events.ScheduleEvent(EVENT_REFLECTIVE_DAMAGE_SHIELD, 15 * IN_MILLISECONDS);
-                events.ScheduleEvent(EVENT_SUMMON_NETHER_CHARGE, 10 * IN_MILLISECONDS);
-                events.ScheduleEvent(EVENT_BERSERK, 3 * MINUTE * IN_MILLISECONDS);
+                events.ScheduleEvent(EVENT_HEADCRACK, 10s);
+                events.ScheduleEvent(EVENT_REFLECTIVE_DAMAGE_SHIELD, 15s);
+                events.ScheduleEvent(EVENT_SUMMON_NETHER_CHARGE, 10s);
+                events.ScheduleEvent(EVENT_BERSERK, 3min);
 
                 if (IsHeroic())
-                    events.ScheduleEvent(EVENT_POSITIVE_SHIFT, 15 * IN_MILLISECONDS);
+                    events.ScheduleEvent(EVENT_POSITIVE_SHIFT, 15s);
             }
 
             void KilledUnit(Unit* /*victim*/) override
@@ -93,7 +93,7 @@ class boss_mechano_lord_capacitus : public CreatureScript
                 Talk(YELL_KILL);
             }
 
-            void JustDied(Unit* /*victim*/) override
+            void JustDied(Unit* /*killer*/) override
             {
                 _JustDied();
                 Talk(YELL_DEATH);
@@ -115,27 +115,27 @@ class boss_mechano_lord_capacitus : public CreatureScript
                     {
                         case EVENT_HEADCRACK:
                             DoCastVictim(SPELL_HEADCRACK);
-                            events.ScheduleEvent(EVENT_HEADCRACK, 10 * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_HEADCRACK, 10s);
                             break;
                         case EVENT_REFLECTIVE_DAMAGE_SHIELD:
                             Talk(YELL_REFLECTIVE_DAMAGE_SHIELD);
                             DoCast(me, SPELL_REFLECTIVE_DAMAGE_SHIELD);
-                            events.ScheduleEvent(EVENT_REFLECTIVE_MAGIE_SHIELD, 30 * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_REFLECTIVE_MAGIE_SHIELD, 30s);
                             break;
                         case EVENT_REFLECTIVE_MAGIE_SHIELD:
                             Talk(YELL_REFLECTIVE_MAGIC_SHIELD);
                             DoCast(me, SPELL_REFLECTIVE_MAGIC_SHIELD);
-                            events.ScheduleEvent(EVENT_REFLECTIVE_DAMAGE_SHIELD, 30 * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_REFLECTIVE_DAMAGE_SHIELD, 30s);
                             break;
                         case EVENT_POSITIVE_SHIFT:
                             DoCastAOE(SPELL_POLARITY_SHIFT);
-                            events.ScheduleEvent(EVENT_POSITIVE_SHIFT, urand(45, 60) * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_POSITIVE_SHIFT, 45s, 60s);
                             break;
                         case EVENT_SUMMON_NETHER_CHARGE:
                         {
                             Position pos = me->GetRandomNearPosition(5.0f);
                             me->SummonCreature(NPC_NETHER_CHARGE, pos, TEMPSUMMON_TIMED_DESPAWN, 18000);
-                            events.ScheduleEvent(EVENT_SUMMON_NETHER_CHARGE, 10 * IN_MILLISECONDS);
+                            events.ScheduleEvent(EVENT_SUMMON_NETHER_CHARGE, 10s);
                             break;
                         }
                         case EVENT_BERSERK:
@@ -209,7 +209,7 @@ class spell_capacitus_polarity_charge : public SpellScriptLoader
                 Unit* target = GetHitUnit();
 
                 if (target->HasAura(GetTriggeringSpell()->Id))
-                    SetHitDamage(0);
+                    PreventHitDamage();
             }
 
             void Register() override
@@ -244,7 +244,8 @@ class spell_capacitus_polarity_shift : public SpellScriptLoader
                 Unit* target = GetHitUnit();
                 Unit* caster = GetCaster();
 
-                target->CastSpell(target, roll_chance_i(50) ? SPELL_POSITIVE_POLARITY : SPELL_NEGATIVE_POLARITY, caster->GetGUID());
+                target->CastSpell(target, roll_chance_i(50) ? SPELL_POSITIVE_POLARITY : SPELL_NEGATIVE_POLARITY, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
+                    .SetOriginalCaster(caster->GetGUID()));
             }
 
             void Register() override

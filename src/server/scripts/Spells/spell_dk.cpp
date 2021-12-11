@@ -120,14 +120,14 @@ public:
         absorbedAmount = 0;
     }
 
-    bool Validate(SpellInfo const* /*spellInfo*/) override
+    bool Validate(SpellInfo const* spellInfo) override
     {
-        return ValidateSpellInfo({ SPELL_DK_RUNIC_POWER_ENERGIZE, SPELL_DK_VOLATILE_SHIELDING });
+        return ValidateSpellInfo({ SPELL_DK_RUNIC_POWER_ENERGIZE, SPELL_DK_VOLATILE_SHIELDING }) && spellInfo->GetEffects().size() > EFFECT_1;
     }
 
     bool Load() override
     {
-        absorbPct = GetSpellInfo()->GetEffect(EFFECT_1)->CalcValue(GetCaster());
+        absorbPct = GetEffectInfo(EFFECT_1).CalcValue(GetCaster());
         maxHealth = GetCaster()->GetMaxHealth();
         absorbedAmount = 0;
         return true;
@@ -145,7 +145,7 @@ public:
         if (!GetTarget()->HasAura(SPELL_DK_VOLATILE_SHIELDING))
         {
             CastSpellExtraArgs args(aurEff);
-            args.SpellValueOverrides.AddBP0(CalculatePct(absorbAmount, 2 * absorbAmount * 100 / maxHealth));
+            args.AddSpellMod(SPELLVALUE_BASE_POINT0, CalculatePct(absorbAmount, 2 * absorbAmount * 100 / maxHealth));
             GetTarget()->CastSpell(GetTarget(), SPELL_DK_RUNIC_POWER_ENERGIZE, args);
         }
     }
@@ -286,7 +286,7 @@ class spell_dk_dancing_rune_weapon : public AuraScript
         int32 amount = static_cast<int32>(damageInfo->GetDamage()) / 2;
         SpellNonMeleeDamage log(drw, drw->GetVictim(), spellInfo, { spellInfo->GetSpellXSpellVisualId(drw), 0 }, spellInfo->GetSchoolMask());
         log.damage = amount;
-        drw->DealDamage(drw->GetVictim(), amount, nullptr, SPELL_DIRECT_DAMAGE, spellInfo->GetSchoolMask(), spellInfo, true);
+        Unit::DealDamage(drw, drw->GetVictim(), amount, nullptr, SPELL_DIRECT_DAMAGE, spellInfo->GetSchoolMask(), spellInfo, true);
         drw->SendSpellNonMeleeDamageLog(&log);
     }
 
@@ -465,8 +465,7 @@ class spell_dk_death_strike : public SpellScript
             SPELL_DK_FROST,
             SPELL_DK_DEATH_STRIKE_OFFHAND
         })
-            && spellInfo->GetEffect(EFFECT_1)
-            && spellInfo->GetEffect(EFFECT_2);
+            && spellInfo->GetEffects().size() > EFFECT_2;
     }
 
     void HandleDummy(SpellEffIndex /*effIndex*/)
@@ -475,12 +474,10 @@ class spell_dk_death_strike : public SpellScript
 
         if (AuraEffect* enabler = caster->GetAuraEffect(SPELL_DK_DEATH_STRIKE_ENABLER, EFFECT_0, GetCaster()->GetGUID()))
         {
-            SpellInfo const* spellInfo = GetSpellInfo();
-
             // Heals you for 25% of all damage taken in the last 5 sec,
-            int32 heal = CalculatePct(enabler->CalculateAmount(GetCaster()), spellInfo->GetEffect(EFFECT_1)->CalcValue(GetCaster()));
+            int32 heal = CalculatePct(enabler->CalculateAmount(GetCaster()), GetEffectInfo(EFFECT_1).CalcValue(GetCaster()));
             // minimum 7.0% of maximum health.
-            int32 pctOfMaxHealth = CalculatePct(spellInfo->GetEffect(EFFECT_2)->CalcValue(GetCaster()), caster->GetMaxHealth());
+            int32 pctOfMaxHealth = CalculatePct(GetEffectInfo(EFFECT_2).CalcValue(GetCaster()), caster->GetMaxHealth());
             heal = std::max(heal, pctOfMaxHealth);
 
             caster->CastSpell(caster, SPELL_DK_DEATH_STRIKE_HEAL, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellMod(SPELLVALUE_BASE_POINT0, heal));
@@ -574,14 +571,14 @@ class spell_dk_ghoul_explode : public SpellScript
 {
     PrepareSpellScript(spell_dk_ghoul_explode);
 
-    bool Validate(SpellInfo const* /*spellInfo*/) override
+    bool Validate(SpellInfo const* spellInfo) override
     {
-        return ValidateSpellInfo({ SPELL_DK_CORPSE_EXPLOSION_TRIGGERED });
+        return ValidateSpellInfo({ SPELL_DK_CORPSE_EXPLOSION_TRIGGERED }) && spellInfo->GetEffects().size() > EFFECT_2;
     }
 
     void HandleDamage(SpellEffIndex /*effIndex*/)
     {
-        SetHitDamage(GetCaster()->CountPctFromMaxHealth(GetEffectInfo(EFFECT_2)->CalcValue(GetCaster())));
+        SetHitDamage(GetCaster()->CountPctFromMaxHealth(GetEffectInfo(EFFECT_2).CalcValue(GetCaster())));
     }
 
     void Suicide(SpellEffIndex /*effIndex*/)
@@ -597,6 +594,46 @@ class spell_dk_ghoul_explode : public SpellScript
     {
         OnEffectHitTarget += SpellEffectFn(spell_dk_ghoul_explode::HandleDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
         OnEffectHitTarget += SpellEffectFn(spell_dk_ghoul_explode::Suicide, EFFECT_1, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
+// 69961 - Glyph of Scourge Strike
+class spell_dk_glyph_of_scourge_strike_script : public SpellScript
+{
+    PrepareSpellScript(spell_dk_glyph_of_scourge_strike_script);
+
+    void HandleScriptEffect(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+
+        Unit::AuraEffectList const& mPeriodic = target->GetAuraEffectsByType(SPELL_AURA_PERIODIC_DAMAGE);
+        for (Unit::AuraEffectList::const_iterator i = mPeriodic.begin(); i != mPeriodic.end(); ++i)
+        {
+            AuraEffect const* aurEff = *i;
+            SpellInfo const* spellInfo = aurEff->GetSpellInfo();
+            // search our Blood Plague and Frost Fever on target
+            if (spellInfo->SpellFamilyName == SPELLFAMILY_DEATHKNIGHT && spellInfo->SpellFamilyFlags[2] & 0x2 &&
+                aurEff->GetCasterGUID() == caster->GetGUID())
+            {
+                uint32 countMin = aurEff->GetBase()->GetMaxDuration();
+                uint32 countMax = spellInfo->GetMaxDuration();
+
+                // this Glyph
+                countMax += 9000;
+
+                if (countMin < countMax)
+                {
+                    aurEff->GetBase()->SetDuration(aurEff->GetBase()->GetDuration() + 3000);
+                    aurEff->GetBase()->SetMaxDuration(countMin + 3000);
+                }
+            }
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_dk_glyph_of_scourge_strike_script::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
 
@@ -792,6 +829,7 @@ void AddSC_deathknight_spell_scripts()
     RegisterAuraScript(spell_dk_death_strike_enabler);
     RegisterSpellScript(spell_dk_festering_strike);
     RegisterSpellScript(spell_dk_ghoul_explode);
+    RegisterSpellScript(spell_dk_glyph_of_scourge_strike_script);
     RegisterAuraScript(spell_dk_mark_of_blood);
     RegisterAuraScript(spell_dk_necrosis);
     RegisterSpellScript(spell_dk_pet_geist_transform);

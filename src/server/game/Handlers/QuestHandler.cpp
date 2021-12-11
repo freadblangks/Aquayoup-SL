@@ -27,10 +27,10 @@
 #include "GossipDef.h"
 #include "Group.h"
 #include "Log.h"
-#include "LootMgr.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "PoolMgr.h"
 #include "QuestDef.h"
 #include "QuestPackets.h"
 #include "ReputationMgr.h"
@@ -166,7 +166,7 @@ void WorldSession::HandleQuestgiverAcceptQuestOpcode(WorldPackets::Quest::QuestG
             Player* player = ObjectAccessor::FindPlayer(_player->GetPlayerSharingQuest());
             if (player)
             {
-                player->SendPushToPartyResponse(_player, QUEST_PUSH_ACCEPTED);
+                player->SendPushToPartyResponse(_player, QuestPushReason::Accepted);
                 _player->ClearQuestSharingInfo();
             }
         }
@@ -472,7 +472,7 @@ void WorldSession::HandleQuestLogRemoveQuest(WorldPackets::Quest::QuestLogRemove
 
             if (quest)
             {
-                if (quest->HasSpecialFlag(QUEST_SPECIAL_FLAGS_TIMED))
+                if (quest->GetLimitTime())
                     _player->RemoveTimedQuest(questId);
 
                 if (quest->HasFlag(QUEST_FLAGS_FLAGS_PVP))
@@ -486,7 +486,7 @@ void WorldSession::HandleQuestLogRemoveQuest(WorldPackets::Quest::QuestLogRemove
             _player->TakeQuestSourceItem(questId, true); // remove quest src item from player
             _player->AbandonQuest(questId); // remove all quest items player received before abandoning quest. Note, this does not remove normal drop items that happen to be quest requirements.
             _player->RemoveActiveQuest(questId);
-            _player->RemoveCriteriaTimer(CRITERIA_TIMED_TYPE_QUEST, questId);
+            _player->RemoveCriteriaTimer(CriteriaStartEvent::AcceptQuest, questId);
 
             TC_LOG_INFO("network", "%s abandoned quest %u", _player->GetGUID().ToString().c_str(), questId);
 
@@ -509,7 +509,7 @@ void WorldSession::HandleQuestLogRemoveQuest(WorldPackets::Quest::QuestLogRemove
 
         _player->SetQuestSlot(packet.Entry, 0);
 
-        _player->UpdateCriteria(CRITERIA_TYPE_QUEST_ABANDONED, 1);
+        _player->UpdateCriteria(CriteriaType::AbandonAnyQuest, 1);
     }
 }
 
@@ -604,7 +604,7 @@ void WorldSession::HandleQuestgiverCompleteQuest(WorldPackets::Quest::QuestGiver
     }
     else
     {
-        if (quest->HasSpecialFlag(QUEST_SPECIAL_FLAGS_DELIVER))                  // some items required
+        if (quest->HasQuestObjectiveType(QUEST_OBJECTIVE_ITEM))                  // some items required
             _player->PlayerTalkClass->SendQuestGiverRequestItems(quest, packet.QuestGiverGUID, _player->CanRewardQuest(quest, false), false);
         else                                            // no items required
             _player->PlayerTalkClass->SendQuestGiverOfferReward(quest, packet.QuestGiverGUID, true);
@@ -625,19 +625,29 @@ void WorldSession::HandleQuestgiverCloseQuest(WorldPackets::Quest::QuestGiverClo
 
 void WorldSession::HandlePushQuestToParty(WorldPackets::Quest::PushQuestToParty& packet)
 {
-    if (!_player->CanShareQuest(packet.QuestID))
-        return;
-
     Quest const* quest = sObjectMgr->GetQuestTemplate(packet.QuestID);
     if (!quest)
         return;
 
-    Player * const sender = GetPlayer();
+    Player* const sender = GetPlayer();
+
+    if (!_player->CanShareQuest(packet.QuestID))
+    {
+        sender->SendPushToPartyResponse(sender, QuestPushReason::NotAllowed);
+        return;
+    }
+
+    // in pool and not currently available (wintergrasp weekly, dalaran weekly) - can't share
+    if (sPoolMgr->IsPartOfAPool<Quest>(packet.QuestID) && !sPoolMgr->IsSpawnedObject<Quest>(packet.QuestID))
+    {
+        sender->SendPushToPartyResponse(sender, QuestPushReason::NotDaily);
+        return;
+    }
 
     Group* group = sender->GetGroup();
     if (!group)
     {
-        sender->SendPushToPartyResponse(sender, QUEST_PUSH_NOT_IN_PARTY);
+        sender->SendPushToPartyResponse(sender, QuestPushReason::NotInParty);
         return;
     }
 
@@ -648,43 +658,109 @@ void WorldSession::HandlePushQuestToParty(WorldPackets::Quest::PushQuestToParty&
         if (!receiver || receiver == sender)
             continue;
 
-        if (!receiver->SatisfyQuestStatus(quest, false))
+        if (!receiver->GetPlayerSharingQuest().IsEmpty())
         {
-            sender->SendPushToPartyResponse(receiver, QUEST_PUSH_ONQUEST);
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::Busy);
             continue;
         }
 
-        if (receiver->GetQuestStatus(packet.QuestID) == QUEST_STATUS_COMPLETE)
+        if (!receiver->IsAlive())
         {
-            sender->SendPushToPartyResponse(receiver, QUEST_PUSH_ALREADY_DONE);
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::Dead);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::DeadToRecipient, quest);
+            continue;
+        }
+
+        switch (receiver->GetQuestStatus(packet.QuestID))
+        {
+            case QUEST_STATUS_REWARDED:
+            {
+                sender->SendPushToPartyResponse(receiver, QuestPushReason::AlreadyDone);
+                receiver->SendPushToPartyResponse(sender, QuestPushReason::AlreadyDoneToRecipient, quest);
+                continue;
+            }
+            case QUEST_STATUS_INCOMPLETE:
+            case QUEST_STATUS_COMPLETE:
+            {
+                sender->SendPushToPartyResponse(receiver, QuestPushReason::OnQuest);
+                receiver->SendPushToPartyResponse(sender, QuestPushReason::OnQuestToRecipient, quest);
+                continue;
+            }
+            default:
+                break;
+        }
+
+        if (!receiver->SatisfyQuestLog(false))
+        {
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::LogFull);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::LogFullToRecipient, quest);
             continue;
         }
 
         if (!receiver->SatisfyQuestDay(quest, false))
         {
-            sender->SendPushToPartyResponse(receiver, QUEST_PUSH_DIFFERENT_SERVER_DAILY);
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::AlreadyDone);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::AlreadyDoneToRecipient, quest);
+            continue;
+        }
+
+        if (!receiver->SatisfyQuestMinLevel(quest, false))
+        {
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::LowLevel);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::LowLevelToRecipient, quest);
+            continue;
+        }
+
+        if (!receiver->SatisfyQuestMaxLevel(quest, false))
+        {
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::HighLevel);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::HighLevelToRecipient, quest);
+            continue;
+        }
+
+        if (!receiver->SatisfyQuestClass(quest, false))
+        {
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::Class);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::ClassToRecipient, quest);
+            continue;
+        }
+
+        if (!receiver->SatisfyQuestRace(quest, false))
+        {
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::Race);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::RaceToRecipient, quest);
+            continue;
+        }
+
+        if (!receiver->SatisfyQuestReputation(quest, false))
+        {
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::LowFaction);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::LowFactionToRecipient, quest);
+            continue;
+        }
+
+        if (!receiver->SatisfyQuestDependentQuests(quest, false))
+        {
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::Prerequisite);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::PrerequisiteToRecipient, quest);
+            continue;
+        }
+
+        if (!receiver->SatisfyQuestExpansion(quest, false))
+        {
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::Expansion);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::ExpansionToRecipient, quest);
             continue;
         }
 
         if (!receiver->CanTakeQuest(quest, false))
         {
-            sender->SendPushToPartyResponse(receiver, QUEST_PUSH_INVALID);
+            sender->SendPushToPartyResponse(receiver, QuestPushReason::Invalid);
+            receiver->SendPushToPartyResponse(sender, QuestPushReason::InvalidToRecipient, quest);
             continue;
         }
 
-        if (!receiver->SatisfyQuestLog(false))
-        {
-            sender->SendPushToPartyResponse(receiver, QUEST_PUSH_LOG_FULL);
-            continue;
-        }
-
-        if (!receiver->GetPlayerSharingQuest().IsEmpty())
-        {
-            sender->SendPushToPartyResponse(receiver, QUEST_PUSH_BUSY);
-            continue;
-        }
-
-        sender->SendPushToPartyResponse(receiver, QUEST_PUSH_SUCCESS);
+        sender->SendPushToPartyResponse(receiver, QuestPushReason::Success);
 
         if (quest->IsAutoAccept() && receiver->CanAddQuest(quest, true) && receiver->CanTakeQuest(quest, true))
             receiver->AddQuestAndCheckCompletion(quest, sender);

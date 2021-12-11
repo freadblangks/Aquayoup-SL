@@ -325,7 +325,10 @@ ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Battleground::RatedPvpInf
     data << int32(bracketInfo.BestSeasonRating);
     data << int32(bracketInfo.PvpTierID);
     data << int32(bracketInfo.Unused3);
-    data.WriteBit(bracketInfo.Unused4);
+    data << int32(bracketInfo.WeeklyBestWinPvpTierID);
+    data << int32(bracketInfo.Unused4);
+    data << int32(bracketInfo.Rank);
+    data.WriteBit(bracketInfo.Disqualified);
     data.FlushBits();
 
     return data;
@@ -364,5 +367,31 @@ WorldPacket const* WorldPackets::Battleground::PVPMatchComplete::Write()
     if (LogData)
         _worldPacket << *LogData;
 
+    return &_worldPacket;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Battleground::BattlegroundCapturePointInfo const& battlegroundCapturePointInfo)
+{
+    data << battlegroundCapturePointInfo.Guid;
+    data << battlegroundCapturePointInfo.Pos;
+    data << int8(battlegroundCapturePointInfo.State);
+
+    if (battlegroundCapturePointInfo.State == WorldPackets::Battleground::BattlegroundCapturePointState::ContestedHorde || battlegroundCapturePointInfo.State == WorldPackets::Battleground::BattlegroundCapturePointState::ContestedAlliance)
+    {
+        data << battlegroundCapturePointInfo.CaptureTime;
+        data << battlegroundCapturePointInfo.CaptureTotalDuration;
+    }
+
+    return data;
+}
+
+void WorldPackets::Battleground::BattlemasterJoinArenaSkirmish::Read()
+{
+    _worldPacket.clear();
+}
+
+WorldPacket const* WorldPackets::Battleground::UpdateCapturePoint::Write()
+{
+    _worldPacket << CapturePointInfo;
     return &_worldPacket;
 }
