@@ -174,9 +174,9 @@ public:
     {
         PrepareAuraScript(spell_pri_atonement_AuraScript);
 
-        bool Validate(SpellInfo const* spellInfo) override
+        bool Validate(SpellInfo const* /*spellInfo*/) override
         {
-            return ValidateSpellInfo({ SPELL_PRIEST_ATONEMENT_HEAL }) && spellInfo->GetEffects().size() > EFFECT_1;
+            return ValidateSpellInfo({ SPELL_PRIEST_ATONEMENT_HEAL });
         }
 
         bool CheckProc(ProcEventInfo& eventInfo)
@@ -193,7 +193,7 @@ public:
             {
                 if (Unit* target = ObjectAccessor::GetUnit(*GetTarget(), targetGuid))
                 {
-                    if (target->GetExactDist(GetTarget()) < GetEffectInfo(EFFECT_1).CalcValue())
+                    if (target->GetExactDist(GetTarget()) < GetSpellInfo()->GetEffect(EFFECT_1).CalcValue())
                         GetTarget()->CastSpell(target, SPELL_PRIEST_ATONEMENT_HEAL, args);
 
                     return false;
@@ -261,7 +261,7 @@ public:
         {
             if (Unit* caster = GetCaster())
                 if (Aura* atonement = caster->GetAura(SPELL_PRIEST_ATONEMENT))
-                    if (AtonementScript* script = atonement->GetScript<AtonementScript>(spell_pri_atonement::ScriptName))
+                    if (AtonementScript* script = atonement->GetScript<AtonementScript>())
                         (script->*func)(GetTarget()->GetGUID());
         }
 
@@ -325,14 +325,14 @@ class spell_pri_guardian_spirit : public SpellScriptLoader
 
             uint32 healPct = 0;
 
-            bool Validate(SpellInfo const* spellInfo) override
+            bool Validate(SpellInfo const* /*spellInfo*/) override
             {
-                return ValidateSpellInfo({ SPELL_PRIEST_GUARDIAN_SPIRIT_HEAL }) && spellInfo->GetEffects().size() > EFFECT_1;
+                return ValidateSpellInfo({ SPELL_PRIEST_GUARDIAN_SPIRIT_HEAL });
             }
 
             bool Load() override
             {
-                healPct = GetEffectInfo(EFFECT_1).CalcValue();
+                healPct = GetSpellInfo()->GetEffect(EFFECT_1).CalcValue();
                 return true;
             }
 
@@ -478,38 +478,38 @@ class spell_pri_item_t6_trinket : public SpellScriptLoader
 // 92833 - Leap of Faith
 class spell_pri_leap_of_faith_effect_trigger : public SpellScriptLoader
 {
-    public:
-        spell_pri_leap_of_faith_effect_trigger() : SpellScriptLoader("spell_pri_leap_of_faith_effect_trigger") { }
+public:
+    spell_pri_leap_of_faith_effect_trigger() : SpellScriptLoader("spell_pri_leap_of_faith_effect_trigger") { }
 
-        class spell_pri_leap_of_faith_effect_trigger_SpellScript : public SpellScript
+    class spell_pri_leap_of_faith_effect_trigger_SpellScript : public SpellScript
+    {
+        PrepareSpellScript(spell_pri_leap_of_faith_effect_trigger_SpellScript);
+
+        bool Validate(SpellInfo const* /*spellInfo*/) override
         {
-            PrepareSpellScript(spell_pri_leap_of_faith_effect_trigger_SpellScript);
-
-            bool Validate(SpellInfo const* /*spellInfo*/) override
-            {
-                return ValidateSpellInfo({ SPELL_PRIEST_LEAP_OF_FAITH_EFFECT });
-            }
-
-            void HandleEffectDummy(SpellEffIndex /*effIndex*/)
-            {
-                Position destPos = GetHitDest()->GetPosition();
-
-                SpellCastTargets targets;
-                targets.SetDst(destPos);
-                targets.SetUnitTarget(GetCaster());
-                GetHitUnit()->CastSpell(std::move(targets), GetEffectValue(), GetCastDifficulty());
-            }
-
-            void Register() override
-            {
-                OnEffectHitTarget += SpellEffectFn(spell_pri_leap_of_faith_effect_trigger_SpellScript::HandleEffectDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-            }
-        };
-
-        SpellScript* GetSpellScript() const override
-        {
-            return new spell_pri_leap_of_faith_effect_trigger_SpellScript();
+            return ValidateSpellInfo({ SPELL_PRIEST_LEAP_OF_FAITH_EFFECT });
         }
+
+        void HandleEffectDummy(SpellEffIndex /*effIndex*/)
+        {
+            Position destPos = GetHitDest()->GetPosition();
+
+            SpellCastTargets targets;
+            targets.SetDst(destPos);
+            targets.SetUnitTarget(GetCaster());
+            GetHitUnit()->CastSpell(std::move(targets), GetEffectValue(), GetCastDifficulty());
+        }
+
+        void Register() override
+        {
+            OnEffectHitTarget += SpellEffectFn(spell_pri_leap_of_faith_effect_trigger_SpellScript::HandleEffectDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+        }
+    };
+
+    SpellScript* GetSpellScript() const override
+    {
+        return new spell_pri_leap_of_faith_effect_trigger_SpellScript();
+    }
 };
 
 // 1706 - Levitate
@@ -631,10 +631,9 @@ class spell_pri_power_word_radiance : public SpellScript
 {
     PrepareSpellScript(spell_pri_power_word_radiance);
 
-    bool Validate(SpellInfo const* spellInfo) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_PRIEST_ATONEMENT, SPELL_PRIEST_ATONEMENT_TRIGGERED, SPELL_PRIEST_TRINITY })
-            && spellInfo->GetEffects().size() > EFFECT_3;
+        return ValidateSpellInfo({ SPELL_PRIEST_ATONEMENT, SPELL_PRIEST_ATONEMENT_TRIGGERED, SPELL_PRIEST_TRINITY });
     }
 
     void OnTargetSelect(std::list<WorldObject*>& targets)
@@ -647,13 +646,13 @@ class spell_pri_power_word_radiance : public SpellScript
             // Sort targets so units with no atonement are first, then units who are injured, then oher units
             // Make sure explicit target unit is first
             targets.sort([this, explTarget](WorldObject* lhs, WorldObject* rhs)
-            {
-                if (lhs == explTarget) // explTarget > anything: always true
-                    return true;
-                if (rhs == explTarget) // anything > explTarget: always false
-                    return false;
-                return MakeSortTuple(lhs) > MakeSortTuple(rhs);
-            });
+                {
+                    if (lhs == explTarget) // explTarget > anything: always true
+                        return true;
+                    if (rhs == explTarget) // anything > explTarget: always false
+                        return false;
+                    return MakeSortTuple(lhs) > MakeSortTuple(rhs);
+                });
 
             targets.resize(maxTargets);
         }
@@ -828,7 +827,7 @@ class spell_pri_prayer_of_mending : public spell_pri_prayer_of_mending_SpellScri
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_pri_prayer_of_mending::HandleEffectDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnEffectHit += SpellEffectFn(spell_pri_prayer_of_mending::HandleEffectDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
@@ -856,7 +855,9 @@ class spell_pri_prayer_of_mending_aura : public AuraScript
             int32 stackAmount = GetStackAmount();
             if (stackAmount > 1)
             {
-                CastSpellExtraArgs args(aurEff);
+                CastSpellExtraArgs args;
+                args.TriggerFlags = TRIGGERED_FULL_MASK;
+                args.TriggeringAura = aurEff;
                 args.OriginalCaster = caster->GetGUID();
                 args.AddSpellMod(SPELLVALUE_BASE_POINT0, stackAmount - 1);
                 target->CastSpell(target, SPELL_PRIEST_PRAYER_OF_MENDING_JUMP, args);
@@ -1076,8 +1077,10 @@ class spell_pri_t10_heal_2p_bonus : public SpellScriptLoader
                 ASSERT(spellInfo->GetMaxTicks() > 0);
                 amount /= spellInfo->GetMaxTicks();
 
+                // Add remaining ticks to healing done
                 Unit* caster = eventInfo.GetActor();
                 Unit* target = eventInfo.GetProcTarget();
+                //amount += target->GetRemainingPeriodicAmount(caster->GetGUID(), SPELL_PRIEST_BLESSED_HEALING, SPELL_AURA_PERIODIC_HEAL);
 
                 CastSpellExtraArgs args(aurEff);
                 args.AddSpellBP0(amount);
@@ -1128,8 +1131,8 @@ class spell_pri_vampiric_embrace : public SpellScriptLoader
                 int32 teamHeal = selfHeal / 2;
 
                 CastSpellExtraArgs args(aurEff);
-                args.AddSpellMod(SPELLVALUE_BASE_POINT0, teamHeal);
-                args.AddSpellMod(SPELLVALUE_BASE_POINT1, selfHeal);
+                args.SpellValueOverrides.AddMod(SPELLVALUE_BASE_POINT0, teamHeal);
+                args.SpellValueOverrides.AddMod(SPELLVALUE_BASE_POINT1, selfHeal);
                 GetTarget()->CastSpell(nullptr, SPELL_PRIEST_VAMPIRIC_EMBRACE_HEAL, args);
             }
 

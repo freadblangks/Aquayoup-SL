@@ -86,7 +86,13 @@ enum WeatherState : uint32;
 enum XPColorChar : uint8;
 
 #define VISIBLE_RANGE       166.0f                          //MAX visible range (size of grid)
-
+#define RegisterCreatureScript(script) new script()
+#define RegisterSceneScript(script) new script()
+#define RegisterQuestScript(script) new script()
+#define RegisterConversationScript(script) new script()
+#define RegisterPlayerScript(script) new script()
+#define RegisterZoneScript(script) new script()
+#define RegisterItemScript(script) new script()
 
 /*
     @todo Add more script type classes.
@@ -901,6 +907,12 @@ class TC_GAME_API ScriptMgr
             _script_loader_callback = script_loader_callback;
         }
 
+    public: /* Updating script ids */
+        /// Inform the ScriptMgr that an entity has a changed script id
+        void NotifyScriptIDUpdate();
+        /// Synchronize all scripts with their current ids
+        void SyncScripts();
+
     public: /* Script contexts */
         /// Set the current script context, which allows the ScriptMgr
         /// to accept new scripts in this context.
@@ -988,11 +1000,13 @@ class TC_GAME_API ScriptMgr
         bool OnCastItemCombatSpell(Player* player, Unit* victim, SpellInfo const* spellInfo, Item* item);
 
     public: /* CreatureScript */
-
+	
+        bool CanCreateCreatureAI(uint32 scriptId) const;
         CreatureAI* GetCreatureAI(Creature* creature);
 
     public: /* GameObjectScript */
 
+        bool CanCreateGameObjectAI(uint32 scriptId) const;
         GameObjectAI* GetGameObjectAI(GameObject* go);
 
     public: /* AreaTriggerScript */
@@ -1130,6 +1144,7 @@ class TC_GAME_API ScriptMgr
 
     public: /* AreaTriggerEntityScript */
 
+        bool CanCreateAreaTriggerAI(uint32 scriptId) const;
         AreaTriggerAI* GetAreaTriggerAI(AreaTrigger* areaTrigger);
 
     public: /* ConversationScript */
@@ -1152,6 +1167,7 @@ class TC_GAME_API ScriptMgr
 
     private:
         uint32 _scriptCount;
+        bool _scriptIdUpdated;
 
         ScriptLoaderCallbackType _script_loader_callback;
 
@@ -1220,6 +1236,17 @@ class GenericAreaTriggerEntityScript : public AreaTriggerEntityScript
         GenericAreaTriggerEntityScript(char const* name) : AreaTriggerEntityScript(name) { }
         AreaTriggerAI* GetAI(AreaTrigger* at) const override { return new AI(at); }
 };
+
+template <class AI>
+class GenericInstanceMapScript : public InstanceMapScript
+{
+public:
+    GenericInstanceMapScript(char const* name, uint32 mapId) : InstanceMapScript(name, mapId) { }
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override { return new AI(map); }
+};
+
+#define RegisterInstanceScript(ai_name, mapId) new GenericInstanceMapScript<ai_name>(#ai_name, mapId)
+
 #define RegisterAreaTriggerAI(ai_name) new GenericAreaTriggerEntityScript<ai_name>(#ai_name)
 
 #define sScriptMgr ScriptMgr::instance()

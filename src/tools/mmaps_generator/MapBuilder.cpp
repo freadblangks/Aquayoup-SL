@@ -33,19 +33,19 @@ namespace MMAP
     MapBuilder::MapBuilder(float maxWalkableAngle, bool skipLiquid,
         bool skipContinents, bool skipJunkMaps, bool skipBattlegrounds,
         bool debugOutput, bool bigBaseUnit, int mapid, char const* offMeshFilePath) :
-        m_terrainBuilder     (nullptr),
-        m_debugOutput        (debugOutput),
-        m_offMeshFilePath    (offMeshFilePath),
-        m_skipContinents     (skipContinents),
-        m_skipJunkMaps       (skipJunkMaps),
-        m_skipBattlegrounds  (skipBattlegrounds),
-        m_maxWalkableAngle   (maxWalkableAngle),
-        m_bigBaseUnit        (bigBaseUnit),
-        m_mapid              (mapid),
-        m_totalTiles         (0u),
+        m_terrainBuilder(nullptr),
+        m_debugOutput(debugOutput),
+        m_offMeshFilePath(offMeshFilePath),
+        m_skipContinents(skipContinents),
+        m_skipJunkMaps(skipJunkMaps),
+        m_skipBattlegrounds(skipBattlegrounds),
+        m_maxWalkableAngle(maxWalkableAngle),
+        m_bigBaseUnit(bigBaseUnit),
+        m_mapid(mapid),
+        m_totalTiles(0u),
         m_totalTilesProcessed(0u),
-        m_rcContext          (nullptr),
-        _cancelationToken    (false)
+        m_rcContext(nullptr),
+        _cancelationToken(false)
     {
         m_terrainBuilder = new TerrainBuilder(skipLiquid);
 
@@ -192,9 +192,9 @@ namespace MMAP
         }
 
         m_tiles.sort([](MapTiles const& a, MapTiles const& b)
-        {
-            return a.m_tiles->size() > b.m_tiles->size();
-        });
+            {
+                return a.m_tiles->size() > b.m_tiles->size();
+            });
 
         for (TileList::iterator it = m_tiles.begin(); it != m_tiles.end(); ++it)
         {
@@ -224,7 +224,7 @@ namespace MMAP
     }
 
     /**************************************************************************/
-    void MapBuilder::getGridBounds(uint32 mapID, uint32 &minX, uint32 &minY, uint32 &maxX, uint32 &maxY)
+    void MapBuilder::getGridBounds(uint32 mapID, uint32& minX, uint32& minY, uint32& maxX, uint32& maxY)
     {
         maxX = INT_MAX;
         maxY = INT_MAX;
@@ -443,7 +443,7 @@ namespace MMAP
     }
 
     /**************************************************************************/
-    void MapBuilder::buildNavMesh(uint32 mapID, dtNavMesh* &navMesh)
+    void MapBuilder::buildNavMesh(uint32 mapID, dtNavMesh*& navMesh)
     {
         // if map has a parent we use that to generate dtNavMeshParams - worldserver will load all missing tiles from that map
         int32 navMeshParamsMapId = static_cast<VMapManager2*>(VMapFactory::createOrGetVMapManager())->getParentMapId(mapID);
@@ -525,7 +525,7 @@ namespace MMAP
 
     /**************************************************************************/
     void MapBuilder::buildMoveMapTile(uint32 mapID, uint32 tileX, uint32 tileY,
-        MeshData &meshData, float bmin[3], float bmax[3],
+        MeshData& meshData, float bmin[3], float bmax[3],
         dtNavMesh* navMesh)
     {
         // console output
@@ -551,9 +551,9 @@ namespace MMAP
         const static float BASE_UNIT_DIM = m_bigBaseUnit ? 0.5333333f : 0.2666666f;
 
         // All are in UNIT metrics!
-        const static int VERTEX_PER_MAP = int(GRID_SIZE/BASE_UNIT_DIM + 0.5f);
+        const static int VERTEX_PER_MAP = int(GRID_SIZE / BASE_UNIT_DIM + 0.5f);
         const static int VERTEX_PER_TILE = m_bigBaseUnit ? 40 : 80; // must divide VERTEX_PER_MAP
-        const static int TILES_PER_MAP = VERTEX_PER_MAP/VERTEX_PER_TILE;
+        const static int TILES_PER_MAP = VERTEX_PER_MAP / VERTEX_PER_TILE;
 
         rcConfig config;
         memset(&config, 0, sizeof(rcConfig));
@@ -587,12 +587,12 @@ namespace MMAP
 
         // Initialize per tile config.
         rcConfig tileCfg = config;
-        tileCfg.width = config.tileSize + config.borderSize*2;
-        tileCfg.height = config.tileSize + config.borderSize*2;
+        tileCfg.width = config.tileSize + config.borderSize * 2;
+        tileCfg.height = config.tileSize + config.borderSize * 2;
 
         // merge per tile poly and detail meshes
-        rcPolyMesh** pmmerge = new rcPolyMesh*[TILES_PER_MAP * TILES_PER_MAP];
-        rcPolyMeshDetail** dmmerge = new rcPolyMeshDetail*[TILES_PER_MAP * TILES_PER_MAP];
+        rcPolyMesh** pmmerge = new rcPolyMesh * [TILES_PER_MAP * TILES_PER_MAP];
+        rcPolyMeshDetail** dmmerge = new rcPolyMeshDetail * [TILES_PER_MAP * TILES_PER_MAP];
         int nmerge = 0;
         // build all tiles
         for (int y = 0; y < TILES_PER_MAP; ++y)
@@ -602,10 +602,10 @@ namespace MMAP
                 Tile& tile = tiles[x + y * TILES_PER_MAP];
 
                 // Calculate the per tile bounding box.
-                tileCfg.bmin[0] = config.bmin[0] + float(x*config.tileSize - config.borderSize)*config.cs;
-                tileCfg.bmin[2] = config.bmin[2] + float(y*config.tileSize - config.borderSize)*config.cs;
-                tileCfg.bmax[0] = config.bmin[0] + float((x+1)*config.tileSize + config.borderSize)*config.cs;
-                tileCfg.bmax[2] = config.bmin[2] + float((y+1)*config.tileSize + config.borderSize)*config.cs;
+                tileCfg.bmin[0] = config.bmin[0] + float(x * config.tileSize - config.borderSize) * config.cs;
+                tileCfg.bmin[2] = config.bmin[2] + float(y * config.tileSize - config.borderSize) * config.cs;
+                tileCfg.bmax[0] = config.bmin[0] + float((x + 1) * config.tileSize + config.borderSize) * config.cs;
+                tileCfg.bmax[2] = config.bmin[2] + float((y + 1) * config.tileSize + config.borderSize) * config.cs;
 
                 // build heightfield
                 tile.solid = rcAllocHeightfield();
@@ -617,7 +617,7 @@ namespace MMAP
 
                 // mark all walkable tiles, both liquids and solids
                 unsigned char* triFlags = new unsigned char[tTriCount];
-                memset(triFlags, NAV_AREA_GROUND, tTriCount*sizeof(unsigned char));
+                memset(triFlags, NAV_AREA_GROUND, tTriCount * sizeof(unsigned char));
                 rcClearUnwalkableTriangles(m_rcContext, tileCfg.walkableSlopeAngle, tVerts, tVertCount, tTris, tTriCount, triFlags);
                 rcRasterizeTriangles(m_rcContext, tVerts, tVertCount, tTris, triFlags, tTriCount, *tile.solid, config.walkableClimb);
                 delete[] triFlags;
@@ -750,15 +750,15 @@ namespace MMAP
         params.detailTriCount = iv.polyMeshDetail->ntris;
 
         params.offMeshConVerts = meshData.offMeshConnections.getCArray();
-        params.offMeshConCount = meshData.offMeshConnections.size()/6;
+        params.offMeshConCount = meshData.offMeshConnections.size() / 6;
         params.offMeshConRad = meshData.offMeshConnectionRads.getCArray();
         params.offMeshConDir = meshData.offMeshConnectionDirs.getCArray();
         params.offMeshConAreas = meshData.offMeshConnectionsAreas.getCArray();
         params.offMeshConFlags = meshData.offMeshConnectionsFlags.getCArray();
 
-        params.walkableHeight = BASE_UNIT_DIM*config.walkableHeight;    // agent height
-        params.walkableRadius = BASE_UNIT_DIM*config.walkableRadius;    // agent radius
-        params.walkableClimb = BASE_UNIT_DIM*config.walkableClimb;      // keep less that walkableHeight (aka agent height)!
+        params.walkableHeight = BASE_UNIT_DIM * config.walkableHeight;    // agent height
+        params.walkableRadius = BASE_UNIT_DIM * config.walkableRadius;    // agent radius
+        params.walkableClimb = BASE_UNIT_DIM * config.walkableClimb;      // keep less that walkableHeight (aka agent height)!
         params.tileX = (((bmin[0] + bmax[0]) / 2) - navMesh->getParams()->orig[0]) / GRID_SIZE;
         params.tileY = (((bmin[2] + bmax[2]) / 2) - navMesh->getParams()->orig[2]) / GRID_SIZE;
         rcVcopy(params.bmin, bmin);
@@ -796,7 +796,7 @@ namespace MMAP
                 break;
             }
             if (!params.polyCount || !params.polys ||
-                TILES_PER_MAP*TILES_PER_MAP == params.polyCount)
+                TILES_PER_MAP * TILES_PER_MAP == params.polyCount)
             {
                 // we have flat tiles with no actual geometry - don't build those, its useless
                 // keep in mind that we do output those into debug info
@@ -855,15 +855,14 @@ namespace MMAP
 
             // now that tile is written to disk, we can unload it
             navMesh->removeTile(tileRef, nullptr, nullptr);
-        }
-        while (false);
+        } while (false);
 
         if (m_debugOutput)
         {
             // restore padding so that the debug visualization is correct
             for (int i = 0; i < iv.polyMesh->nverts; ++i)
             {
-                unsigned short* v = &iv.polyMesh->verts[i*3];
+                unsigned short* v = &iv.polyMesh->verts[i * 3];
                 v[0] += (unsigned short)config.borderSize;
                 v[2] += (unsigned short)config.borderSize;
             }
@@ -901,93 +900,93 @@ namespace MMAP
         if (m_skipContinents)
             switch (mapID)
             {
-                case 0:
-                case 1:
-                case 530:
-                case 571:
-                case 870:
-                case 1116:
-                case 1220:
-                    return true;
-                default:
-                    break;
+            case 0:
+            case 1:
+            case 530:
+            case 571:
+            case 870:
+            case 1116:
+            case 1220:
+                return true;
+            default:
+                break;
             }
 
         if (m_skipJunkMaps)
             switch (mapID)
             {
-                case 13:    // test.wdt
-                case 25:    // ScottTest.wdt
-                case 29:    // Test.wdt
-                case 42:    // Colin.wdt
-                case 169:   // EmeraldDream.wdt (unused, and very large)
-                case 451:   // development.wdt
-                case 573:   // ExteriorTest.wdt
-                case 597:   // CraigTest.wdt
-                case 605:   // development_nonweighted.wdt
-                case 606:   // QA_DVD.wdt
-                case 651:   // ElevatorSpawnTest.wdt
-                case 1060:  // LevelDesignLand-DevOnly.wdt
-                case 1181:  // PattyMackTestGarrisonBldgMap.wdt
-                case 1264:  // Propland-DevOnly.wdt
-                case 1270:  // devland3.wdt
-                case 1310:  // Expansion5QAModelMap.wdt
-                case 1407:  // GorgrondFinaleScenarioMap.wdt (zzzOld)
-                case 1427:  // PattyMackTestGarrisonBldgMap2.wdt
-                case 1451:  // TanaanLegionTest.wdt
-                case 1454:  // ArtifactAshbringerOrigin.wdt
-                case 1457:  // FXlDesignLand-DevOnly.wdt
-                case 1471:  // 1466.wdt (Dungeon Test Map 1466)
-                case 1499:  // Artifact-Warrior Fury Acquisition.wdt (oldArtifact - Warrior Fury Acquisition)
-                case 1537:  // BoostExperience.wdt (zzOLD - Boost Experience)
-                case 1538:  // Karazhan Scenario.wdt (test)
-                case 1549:  // TechTestSeamlessWorldTransitionA.wdt
-                case 1550:  // TechTestSeamlessWorldTransitionB.wdt
-                case 1555:  // TransportBoostExperienceAllianceGunship.wdt
-                case 1556:  // TransportBoostExperienceHordeGunship.wdt
-                case 1561:  // TechTestCosmeticParentPerformance.wdt
-                case 1582:  // Artifact?DalaranVaultAcquisition.wdt // no, this weird symbol is not an encoding error.
-                case 1584:  // JulienTestLand-DevOnly.wdt
-                case 1586:  // AssualtOnStormwind.wdt (Assault on Stormwind - Dev Map)
-                case 1588:  // DevMapA.wdt
-                case 1589:  // DevMapB.wdt
-                case 1590:  // DevMapC.wdt
-                case 1591:  // DevMapD.wdt
-                case 1592:  // DevMapE.wdt
-                case 1593:  // DevMapF.wdt
-                case 1594:  // DevMapG.wdt
-                case 1603:  // AbyssalMaw_Interior_Scenario.wdt
-                case 1670:  // BrokenshorePristine.wdt
+            case 13:    // test.wdt
+            case 25:    // ScottTest.wdt
+            case 29:    // Test.wdt
+            case 42:    // Colin.wdt
+            case 169:   // EmeraldDream.wdt (unused, and very large)
+            case 451:   // development.wdt
+            case 573:   // ExteriorTest.wdt
+            case 597:   // CraigTest.wdt
+            case 605:   // development_nonweighted.wdt
+            case 606:   // QA_DVD.wdt
+            case 651:   // ElevatorSpawnTest.wdt
+            case 1060:  // LevelDesignLand-DevOnly.wdt
+            case 1181:  // PattyMackTestGarrisonBldgMap.wdt
+            case 1264:  // Propland-DevOnly.wdt
+            case 1270:  // devland3.wdt
+            case 1310:  // Expansion5QAModelMap.wdt
+            case 1407:  // GorgrondFinaleScenarioMap.wdt (zzzOld)
+            case 1427:  // PattyMackTestGarrisonBldgMap2.wdt
+            case 1451:  // TanaanLegionTest.wdt
+            case 1454:  // ArtifactAshbringerOrigin.wdt
+            case 1457:  // FXlDesignLand-DevOnly.wdt
+            case 1471:  // 1466.wdt (Dungeon Test Map 1466)
+            case 1499:  // Artifact-Warrior Fury Acquisition.wdt (oldArtifact - Warrior Fury Acquisition)
+            case 1537:  // BoostExperience.wdt (zzOLD - Boost Experience)
+            case 1538:  // Karazhan Scenario.wdt (test)
+            case 1549:  // TechTestSeamlessWorldTransitionA.wdt
+            case 1550:  // TechTestSeamlessWorldTransitionB.wdt
+            case 1555:  // TransportBoostExperienceAllianceGunship.wdt
+            case 1556:  // TransportBoostExperienceHordeGunship.wdt
+            case 1561:  // TechTestCosmeticParentPerformance.wdt
+            case 1582:  // Artifact?DalaranVaultAcquisition.wdt // no, this weird symbol is not an encoding error.
+            case 1584:  // JulienTestLand-DevOnly.wdt
+            case 1586:  // AssualtOnStormwind.wdt (Assault on Stormwind - Dev Map)
+            case 1588:  // DevMapA.wdt
+            case 1589:  // DevMapB.wdt
+            case 1590:  // DevMapC.wdt
+            case 1591:  // DevMapD.wdt
+            case 1592:  // DevMapE.wdt
+            case 1593:  // DevMapF.wdt
+            case 1594:  // DevMapG.wdt
+            case 1603:  // AbyssalMaw_Interior_Scenario.wdt
+            case 1670:  // BrokenshorePristine.wdt
+                return true;
+            default:
+                if (isTransportMap(mapID))
                     return true;
-                default:
-                    if (isTransportMap(mapID))
-                        return true;
-                    break;
+                break;
             }
 
         if (m_skipBattlegrounds)
             switch (mapID)
             {
-                case 30:    // Alterac Valley
-                case 37:    // ?
-                case 489:   // Warsong Gulch
-                case 529:   // Arathi Basin
-                case 566:   // Eye of the Storm
-                case 607:   // Strand of the Ancients
-                case 628:   // Isle of Conquest
-                case 726:   // Twin Peaks
-                case 727:   // Silvershard Mines
-                case 761:   // The Battle for Gilneas
-                case 968:   // Rated Eye of the Storm
-                case 998:   // Temple of Kotmogu
-                case 1010:  // CTF3
-                case 1105:  // Deepwind Gorge
-                case 1280:  // Southshore vs. Tarren Mill
-                case 1681:  // Arathi Basin Winter
-                case 1803:  // Seething Shore
-                    return true;
-                default:
-                    break;
+            case 30:    // Alterac Valley
+            case 37:    // ?
+            case 489:   // Warsong Gulch
+            case 529:   // Arathi Basin
+            case 566:   // Eye of the Storm
+            case 607:   // Strand of the Ancients
+            case 628:   // Isle of Conquest
+            case 726:   // Twin Peaks
+            case 727:   // Silvershard Mines
+            case 761:   // The Battle for Gilneas
+            case 968:   // Rated Eye of the Storm
+            case 998:   // Temple of Kotmogu
+            case 1010:  // CTF3
+            case 1105:  // Deepwind Gorge
+            case 1280:  // Southshore vs. Tarren Mill
+            case 1681:  // Arathi Basin Winter
+            case 1803:  // Seething Shore
+                return true;
+            default:
+                break;
             }
 
         return false;
@@ -999,81 +998,81 @@ namespace MMAP
         switch (mapID)
         {
             // transport maps
-            case 582:
-            case 584:
-            case 586:
-            case 587:
-            case 588:
-            case 589:
-            case 590:
-            case 591:
-            case 592:
-            case 593:
-            case 594:
-            case 596:
-            case 610:
-            case 612:
-            case 613:
-            case 614:
-            case 620:
-            case 621:
-            case 622:
-            case 623:
-            case 641:
-            case 642:
-            case 647:
-            case 662:
-            case 672:
-            case 673:
-            case 674:
-            case 712:
-            case 713:
-            case 718:
-            case 738:
-            case 739:
-            case 740:
-            case 741:
-            case 742:
-            case 743:
-            case 747:
-            case 748:
-            case 749:
-            case 750:
-            case 762:
-            case 763:
-            case 765:
-            case 766:
-            case 767:
-            case 1113:
-            case 1132:
-            case 1133:
-            case 1172:
-            case 1173:
-            case 1192:
-            case 1231:
-            case 1459:
-            case 1476:
-            case 1484:
-            case 1555:
-            case 1556:
-            case 1559:
-            case 1560:
-            case 1628:
-            case 1637:
-            case 1638:
-            case 1639:
-            case 1649:
-            case 1650:
-            case 1711:
-            case 1751:
-            case 1752:
-            case 1856:
-            case 1857:
-            case 1902:
-            case 1903:
-                return true;
-            default:
-                return false;
+        case 582:
+        case 584:
+        case 586:
+        case 587:
+        case 588:
+        case 589:
+        case 590:
+        case 591:
+        case 592:
+        case 593:
+        case 594:
+        case 596:
+        case 610:
+        case 612:
+        case 613:
+        case 614:
+        case 620:
+        case 621:
+        case 622:
+        case 623:
+        case 641:
+        case 642:
+        case 647:
+        case 662:
+        case 672:
+        case 673:
+        case 674:
+        case 712:
+        case 713:
+        case 718:
+        case 738:
+        case 739:
+        case 740:
+        case 741:
+        case 742:
+        case 743:
+        case 747:
+        case 748:
+        case 749:
+        case 750:
+        case 762:
+        case 763:
+        case 765:
+        case 766:
+        case 767:
+        case 1113:
+        case 1132:
+        case 1133:
+        case 1172:
+        case 1173:
+        case 1192:
+        case 1231:
+        case 1459:
+        case 1476:
+        case 1484:
+        case 1555:
+        case 1556:
+        case 1559:
+        case 1560:
+        case 1628:
+        case 1637:
+        case 1638:
+        case 1639:
+        case 1649:
+        case 1650:
+        case 1711:
+        case 1751:
+        case 1752:
+        case 1856:
+        case 1857:
+        case 1902:
+        case 1903:
+            return true;
+        default:
+            return false;
         }
     }
 

@@ -874,6 +874,45 @@ bool SpellHistory::HasGlobalCooldown(SpellInfo const* spellInfo) const
     return itr != _globalCooldowns.end() && itr->second > Clock::now();
 }
 
+void SpellHistory::ForceSendSpellCharges()
+{
+    if (Player* player = GetPlayerOwner())
+    {
+        WorldPackets::Spells::SendSpellCharges sendSpellCharges;
+        WritePacket(&sendSpellCharges);
+        player->SendDirectMessage(sendSpellCharges.Write());
+    }
+}
+
+void SpellHistory::ForceSendSpellCharge(SpellCategoryEntry const* chargeCategoryEntry)
+{
+    if (Player* player = GetPlayerOwner())
+    {
+        WorldPackets::Spells::SendSpellCharges sendSpellCharges;
+
+        Clock::time_point now = Clock::now();
+        for (auto const& p : _categoryCharges)
+        {
+            if (p.first != chargeCategoryEntry->ID)
+                continue;
+
+            if (!p.second.empty())
+            {
+                std::chrono::milliseconds cooldownDuration = std::chrono::duration_cast<std::chrono::milliseconds>(p.second.front().RechargeEnd - now);
+                if (cooldownDuration.count() <= 0)
+                    continue;
+
+                WorldPackets::Spells::SpellChargeEntry chargeEntry;
+                chargeEntry.Category = p.first;
+                chargeEntry.NextRecoveryTime = uint32(cooldownDuration.count());
+                chargeEntry.ConsumedCharges = uint8(p.second.size());
+                sendSpellCharges.Entries.push_back(chargeEntry);
+            }
+        }
+        player->SendDirectMessage(sendSpellCharges.Write());
+    }
+}
+
 void SpellHistory::AddGlobalCooldown(SpellInfo const* spellInfo, uint32 duration)
 {
     _globalCooldowns[spellInfo->StartRecoveryCategory] = Clock::now() + std::chrono::duration_cast<Clock::duration>(Milliseconds(duration));

@@ -156,7 +156,6 @@ struct InstanceTemplate
 {
     uint32 Parent;
     uint32 ScriptId;
-    bool AllowMount;
 };
 
 typedef std::unordered_map<uint16, InstanceTemplate> InstanceTemplateContainer;
@@ -793,7 +792,7 @@ typedef std::pair<GraveyardContainer::iterator, GraveyardContainer::iterator> Gr
 typedef std::unordered_map<uint32, VendorItemData> CacheVendorItemContainer;
 
 typedef std::unordered_map<uint32, std::string> RealmNameContainer;
-
+typedef std::unordered_map<uint32, std::vector<uint32>> WorldQuestContainer;
 struct SceneTemplate
 {
     uint32 SceneId = 0;
@@ -1034,19 +1033,30 @@ class TC_GAME_API ObjectMgr
 
         class ScriptNameContainer
         {
-            using NameMap = std::map<std::string, uint32>;
+        public:
+            struct Entry
+            {
+                uint32 Id;
+                bool IsScriptDatabaseBound;
+            };
+
+        private:
+            using NameMap = std::map<std::string, Entry>;
 
             NameMap NameToIndex;
             std::vector<NameMap::const_iterator> IndexToName;
 
         public:
-            void reserve(size_t capacity);
-            void insert(std::string&& scriptName);
-            size_t size() const;
-            std::string const& operator[](size_t index) const;
-            uint32 operator[](std::string const& name) const;
+            ScriptNameContainer();
 
-            std::unordered_set<std::string> GetAllScriptNames() const;
+            void reserve(size_t capacity);
+            uint32 insert(std::string const& scriptName, bool isScriptNameBound = true);
+            size_t size() const;
+            NameMap::const_iterator find(size_t index) const;
+            NameMap::const_iterator find(std::string const& name) const;
+            NameMap::const_iterator end() const;
+
+            std::unordered_set<std::string> GetAllDBScriptNames() const;
         };
 
         typedef std::map<uint32, uint32> CharacterConversionMap;
@@ -1074,6 +1084,8 @@ class TC_GAME_API ObjectMgr
         CreatureMovementData const* GetCreatureMovementOverride(ObjectGuid::LowType spawnId) const;
         ItemTemplate const* GetItemTemplate(uint32 entry) const;
         ItemTemplateContainer const& GetItemTemplateStore() const { return _itemTemplateStore; }
+
+        InstanceTemplateContainer const& GetInstanceTemplates() const { return _instanceTemplateStore; }
 
         InstanceTemplate const* GetInstanceTemplate(uint32 mapId) const;
 
@@ -1602,10 +1614,10 @@ class TC_GAME_API ObjectMgr
         bool RemoveVendorItem(uint32 entry, uint32 item, uint8 type, bool persist = true); // for event
         bool IsVendorItemValid(uint32 vendor_entry, VendorItem const& vItem, Player* player = nullptr, std::set<uint32>* skip_vendors = nullptr, uint32 ORnpcflag = 0) const;
 
-        void LoadScriptNames();
-        std::unordered_set<std::string> GetAllScriptNames() const;
+        std::unordered_set<std::string> GetAllDBScriptNames() const;
         std::string const& GetScriptName(uint32 id) const;
-        uint32 GetScriptId(std::string const& name);
+        bool IsScriptDatabaseBound(uint32 id) const;
+        uint32 GetScriptId(std::string const& name, bool isDatabaseBound = true);
 
         Trinity::IteratorPair<SpellClickInfoContainer::const_iterator> GetSpellClickInfoMapBounds(uint32 creature_id) const
         {
@@ -1672,7 +1684,7 @@ class TC_GAME_API ObjectMgr
                 return &itr->second;
             return nullptr;
         }
-
+        WorldQuestContainer const& GetWorldQuestStore() const { return _worldQuestStore; }
         std::vector<RaceClassAvailability> const& GetClassExpansionRequirements() const { return _classExpansionRequirementStore; }
         ClassAvailability const* GetClassExpansionRequirement(uint8 raceId, uint8 classId) const;
 
@@ -1860,7 +1872,7 @@ class TC_GAME_API ObjectMgr
         std::unordered_map<uint8, RaceUnlockRequirement> _raceUnlockRequirementStore;
         std::vector<RaceClassAvailability> _classExpansionRequirementStore;
         RealmNameContainer _realmNameStore;
-
+        WorldQuestContainer _worldQuestStore;
         SceneTemplateContainer _sceneTemplateStore;
 
         std::set<uint32> _transportMaps; // Helper container storing map ids that are for transports only, loaded from gameobject_template

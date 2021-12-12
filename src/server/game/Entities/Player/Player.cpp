@@ -127,6 +127,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "WorldStatePackets.h"
+#include "WorldQuestMgr.h"
 #include <G3D/g3dmath.h>
 #include <sstream>
 
@@ -303,11 +304,7 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this)
     m_playerMovingMe = this;
     m_seer = this;
 
-    m_homebindMapId = 0;
     m_homebindAreaId = 0;
-    m_homebindX = 0;
-    m_homebindY = 0;
-    m_homebindZ = 0;
 
     m_contestedPvPTimer = 0;
 
@@ -978,14 +975,7 @@ void Player::Update(uint32 p_time)
             if (!aura->IsPermanent())
                 aura->SetDuration(aura->GetSpellInfo()->GetMaxDuration());
 
-    if (IsAIEnabled && GetAI())
-        GetAI()->UpdateAI(p_time);
-    else if (NeedChangeAI)
-    {
-        UpdateCharmAI();
-        NeedChangeAI = false;
-        IsAIEnabled = (GetAI() != nullptr);
-    }
+    AIUpdateTick(p_time);
 
     // Update items that have just a limited lifetime
     if (now > m_Last_tick)
@@ -1523,6 +1513,242 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
 
             //remove auras before removing from map...
             RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Moving | SpellAuraInterruptFlags::Turning);
+
+            if (!GetSession()->PlayerLogout() && !(options & TELE_TO_SEAMLESS))
+            {
+                // send transfer packets
+                WorldPackets::Movement::TransferPending transferPending;
+                transferPending.MapID = mapid;
+                transferPending.OldMapPosition = GetPosition();
+                if (Transport* transport = GetTransport())
+                {
+                    transferPending.Ship = boost::in_place();
+                    transferPending.Ship->ID = transport->GetEntry();
+                    transferPending.Ship->OriginMapID = GetMapId();
+                }
+
+                SendDirectMessage(transferPending.Write());
+            }
+
+            // remove from old map now
+            if (oldmap)
+                oldmap->RemovePlayerFromMap(this, false);
+
+            m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
+            m_teleport_options = options;
+            SetFallInformation(0, GetPositionZ());
+            // if the player is saved before worldportack (at logout for example)
+            // this will be used instead of the current location in SaveToDB
+
+            if (!GetSession()->PlayerLogout())
+            {
+                WorldPackets::Movement::SuspendToken suspendToken;
+                suspendToken.SequenceIndex = m_movementCounter; // not incrementing
+                suspendToken.Reason = options & TELE_TO_SEAMLESS ? 2 : 1;
+                SendDirectMessage(suspendToken.Write());
+            }
+
+            // move packet sent by client always after far teleport
+            // code for finish transfer to new map called in WorldSession::HandleMoveWorldportAckOpcode at client packet
+            SetSemaphoreTeleportFar(true);
+        }
+        //else
+        //    return false;
+    }
+    return true;
+}
+
+bool Player::TeleportTo2(uint32 mapid, float x, float y, float z, float orientation, uint32 options, uint32 optionParam)
+{
+    if (!MapManager::IsValidMapCoord(mapid, x, y, z, orientation))
+    {
+        TC_LOG_ERROR("maps", "Player::TeleportTo: Invalid map (%d) or invalid coordinates (X: %f, Y: %f, Z: %f, O: %f) given when teleporting player '%s' (%s, MapID: %d, X: %f, Y: %f, Z: %f, O: %f).",
+            mapid, x, y, z, orientation, GetGUID().ToString().c_str(), GetName().c_str(), GetMapId(), GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation());
+        return false;
+    }
+
+    if (!GetSession()->HasPermission(rbac::RBAC_PERM_SKIP_CHECK_DISABLE_MAP) && DisableMgr::IsDisabledFor(DISABLE_TYPE_MAP, mapid, this))
+    {
+        TC_LOG_ERROR("entities.player.cheat", "Player::TeleportTo: Player '%s' (%s) tried to enter a forbidden map (MapID: %u)", GetGUID().ToString().c_str(), GetName().c_str(), mapid);
+        SendTransferAborted(mapid, TRANSFER_ABORT_MAP_NOT_ALLOWED);
+        return false;
+    }
+
+    // preparing unsummon pet if lost (we must get pet before teleportation or will not find it later)
+    Pet* pet = GetPet();
+
+    MapEntry const* mEntry = sMapStore.LookupEntry(mapid);
+
+    // don't let enter battlegrounds without assigned battleground id (for example through areatrigger)...
+    // don't let gm level > 1 either
+    if (!InBattleground() && mEntry->IsBattlegroundOrArena())
+        return false;
+
+    // client without expansion support
+    if (GetSession()->GetExpansion() < mEntry->Expansion())
+    {
+        TC_LOG_DEBUG("maps", "Player '%s' (%s) using client without required expansion tried teleporting to non accessible map (MapID: %u)",
+            GetName().c_str(), GetGUID().ToString().c_str(), mapid);
+
+        if (Transport* transport = GetTransport())
+        {
+            transport->RemovePassenger(this);
+            RepopAtGraveyard();                             // teleport to near graveyard if on transport, looks blizz like :)
+        }
+
+        SendTransferAborted(mapid, TRANSFER_ABORT_INSUF_EXPAN_LVL, mEntry->Expansion());
+
+        return false;                                       // normal client can't teleport to this map...
+    }
+    else
+        TC_LOG_DEBUG("maps", "Player %s (%s) is being teleported to map (MapID: %u)", GetName().c_str(), GetGUID().ToString().c_str(), mapid);
+
+    if (m_vehicle)
+        ExitVehicle();
+
+    // reset movement flags at teleport, because player will continue move with these flags after teleport
+    SetUnitMovementFlags(GetUnitMovementFlags() & MOVEMENTFLAG_MASK_HAS_PLAYER_STATUS_OPCODE);
+    m_movementInfo.ResetJump();
+    DisableSpline();
+
+    if (Transport* transport = GetTransport())
+    {
+        if (!(options & TELE_TO_NOT_LEAVE_TRANSPORT))
+            transport->RemovePassenger(this);
+    }
+
+    // The player was ported to another map and loses the duel immediately.
+    // We have to perform this check before the teleport, otherwise the
+    // ObjectAccessor won't find the flag.
+    if (duel && GetMapId() != mapid && GetMap()->GetGameObject(m_playerData->DuelArbiter))
+        DuelComplete(DUEL_FLED);
+
+    if (GetMapId() == mapid)
+    {
+        //lets reset far teleport flag if it wasn't reset during chained teleport
+        SetSemaphoreTeleportFar(false);
+        //setup delayed teleport flag
+        SetDelayedTeleportFlag(IsCanDelayTeleport());
+        //if teleport spell is cast in Unit::Update() func
+        //then we need to delay it until update process will be finished
+        if (IsHasDelayedTeleport())
+        {
+            SetSemaphoreTeleportNear(true);
+            //lets save teleport destination for player
+            m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
+            m_teleport_options = options;
+            m_teleport_option_param = optionParam;
+            return true;
+        }
+
+        if (!(options & TELE_TO_NOT_UNSUMMON_PET))
+        {
+            //same map, only remove pet if out of range for new position
+            if (pet && !pet->IsWithinDist3d(x, y, z, GetMap()->GetVisibilityRange()))
+                UnsummonPetTemporaryIfAny();
+        }
+
+        if (!(options & TELE_TO_NOT_LEAVE_COMBAT))
+            CombatStop();
+
+        // this will be used instead of the current location in SaveToDB
+        m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
+        m_teleport_options = options;
+        m_teleport_option_param = optionParam;
+        SetFallInformation(0, GetPositionZ());
+
+        // code for finish transfer called in WorldSession::HandleMovementOpcodes()
+        // at client packet CMSG_MOVE_TELEPORT_ACK
+        SetSemaphoreTeleportNear(true);
+        // near teleport, triggering send CMSG_MOVE_TELEPORT_ACK from client at landing
+        if (!GetSession()->PlayerLogout())
+            SendTeleportPacket(m_teleport_dest);
+    }
+    else
+    {
+        if (getClass() == CLASS_DEATH_KNIGHT && GetMapId() == MAP_EBON_HOLD_DK_START_ZONE && !IsGameMaster() && !HasSpell(50977))
+            return false;
+
+        // far teleport to another map
+        Map* oldmap = IsInWorld() ? GetMap() : nullptr;
+        // check if we can enter before stopping combat / removing pet / totems / interrupting spells
+
+        // Check enter rights before map getting to avoid creating instance copy for player
+        // this check not dependent from map instance copy and same for all instance copies of selected map
+        if (sMapMgr->PlayerCannotEnter(mapid, this, false))
+            return false;
+
+        // Seamless teleport can happen only if cosmetic maps match
+        if (!oldmap ||
+            (oldmap->GetEntry()->CosmeticParentMapID != int32(mapid) && int32(GetMapId()) != mEntry->CosmeticParentMapID &&
+                !((oldmap->GetEntry()->CosmeticParentMapID != -1) ^ (oldmap->GetEntry()->CosmeticParentMapID != mEntry->CosmeticParentMapID))))
+            options &= ~TELE_TO_SEAMLESS;
+
+        //I think this always returns true. Correct me if I am wrong.
+        // If the map is not created, assume it is possible to enter it.
+        // It will be created in the WorldPortAck.
+        //Map* map = sMapMgr->FindBaseNonInstanceMap(mapid);
+        //if (!map || map->CanEnter(this))
+        {
+            //lets reset near teleport flag if it wasn't reset during chained teleports
+            SetSemaphoreTeleportNear(false);
+            //setup delayed teleport flag
+            SetDelayedTeleportFlag(IsCanDelayTeleport());
+            //if teleport spell is cast in Unit::Update() func
+            //then we need to delay it until update process will be finished
+            if (IsHasDelayedTeleport())
+            {
+                SetSemaphoreTeleportFar(true);
+                //lets save teleport destination for player
+                m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
+                m_teleport_options = options;
+                m_teleport_option_param = optionParam;
+                return true;
+            }
+
+            SetSelection(ObjectGuid::Empty);
+
+            CombatStop();
+
+            ResetContestedPvP();
+
+            // remove player from battleground on far teleport (when changing maps)
+            if (Battleground const* bg = GetBattleground())
+            {
+                // Note: at battleground join battleground id set before teleport
+                // and we already will found "current" battleground
+                // just need check that this is targeted map or leave
+                if (bg->GetMapId() != mapid)
+                    LeaveBattleground(false);                   // don't teleport to entry point
+            }
+
+            // remove arena spell coldowns/buffs now to also remove pet's cooldowns before it's temporarily unsummoned
+            if (mEntry->IsBattleArena())
+            {
+                RemoveArenaSpellCooldowns(true);
+                RemoveArenaAuras();
+                if (pet)
+                    pet->RemoveArenaAuras();
+            }
+
+            // remove pet on map change
+            if (pet)
+                UnsummonPetTemporaryIfAny();
+
+            // remove all dyn objects
+            RemoveAllDynObjects();
+
+            // remove all areatriggers entities
+            RemoveAllAreaTriggers();
+
+            // stop spellcasting
+            // not attempt interrupt teleportation spell at caster teleport
+            if (!(options & TELE_TO_SPELL))
+                if (IsNonMeleeSpellCast(true))
+                    InterruptNonMeleeSpells(true);
+
+            //remove auras before removing from map...
+            //RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags(AURA_INTERRUPT_FLAG_CHANGE_MAP | AURA_INTERRUPT_FLAG_MOVE | AURA_INTERRUPT_FLAG_TURNING));
 
             if (!GetSession()->PlayerLogout() && !(options & TELE_TO_SEAMLESS))
             {
@@ -2176,10 +2402,7 @@ void Player::SetGameMaster(bool on)
         RemoveUnitFlag2(UNIT_FLAG2_ALLOW_CHEAT_SPELLS);
 
         if (Pet* pet = GetPet())
-        {
             pet->SetFaction(GetFaction());
-            pet->GetThreatManager().UpdateOnlineStates();
-        }
 
         // restore FFA PvP Server state
         if (sWorld->IsFFAPvPRealm())
@@ -3118,17 +3341,6 @@ bool Player::AddSpell(uint32 spellId, bool active, bool learning, bool dependent
     // needs to be when spell is already learned, to prevent infinite recursion crashes
     if (sDB2Manager.GetMount(spellId))
         GetSession()->GetCollectionMgr()->AddMount(spellId, MOUNT_STATUS_NONE, false, IsInWorld() ? false : true);
-
-    // need to add Battle pets automatically into pet journal
-    for (BattlePetSpeciesEntry const* entry : sBattlePetSpeciesStore)
-    {
-        if (entry->SummonSpellID == int32(spellId) && GetSession()->GetBattlePetMgr()->GetPetCount(entry->ID) == 0)
-        {
-            GetSession()->GetBattlePetMgr()->AddPet(entry->ID, entry->CreatureID, BattlePetMgr::RollPetBreed(entry->ID), BattlePetMgr::GetDefaultPetQuality(entry->ID));
-            UpdateCriteria(CriteriaType::UniquePetsOwned);
-            break;
-        }
-    }
 
     // return true (for send learn packet) only if spell active (in case ranked spells) and not replace old spell
     return active && !disabled && !superceded_old;
@@ -4322,6 +4534,7 @@ void Player::BuildPlayerRepop()
     GetMap()->AddToMap(corpse);
 
     // convert player body to ghost
+    setDeathState(DEAD);
     SetHealth(1);
 
     SetWaterWalking(true);
@@ -4803,7 +5016,7 @@ void Player::RepopAtGraveyard()
         }
     }
     else if (GetPositionZ() < GetMap()->GetMinHeight(GetPhaseShift(), GetPositionX(), GetPositionY()))
-        TeleportTo(m_homebindMapId, m_homebindX, m_homebindY, m_homebindZ, GetOrientation());
+        TeleportTo(m_homebind);
 
     RemovePlayerFlag(PLAYER_FLAGS_IS_OUT_OF_BOUNDS);
 }
@@ -8481,36 +8694,6 @@ void Player::CastItemUseSpell(Item* item, SpellCastTargets const& targets, Objec
 {
     if (!(item->GetTemplate()->GetFlags() & ITEM_FLAG_LEGACY))
     {
-        // special learning case
-        if (item->GetBonus()->EffectCount >= 2)
-        {
-            if (item->GetEffect(0)->SpellID == 483 || item->GetEffect(0)->SpellID == 55884)
-            {
-                uint32 learn_spell_id = item->GetEffect(0)->SpellID;
-                uint32 learning_spell_id = item->GetEffect(1)->SpellID;
-
-                SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(learn_spell_id, DIFFICULTY_NONE);
-                if (!spellInfo)
-                {
-                    TC_LOG_ERROR("entities.player", "Player::CastItemUseSpell: Item (Entry: %u) has wrong spell id %u, ignoring", item->GetEntry(), learn_spell_id);
-                    SendEquipError(EQUIP_ERR_INTERNAL_BAG_ERROR, item, nullptr);
-                    return;
-                }
-
-                Spell* spell = new Spell(this, spellInfo, TRIGGERED_NONE);
-
-                WorldPackets::Spells::SpellPrepare spellPrepare;
-                spellPrepare.ClientCastID = castCount;
-                spellPrepare.ServerCastID = spell->m_castId;
-                SendDirectMessage(spellPrepare.Write());
-
-                spell->m_fromClient = true;
-                spell->m_CastItem = item;
-                spell->SetSpellValue(SPELLVALUE_BASE_POINT0, learning_spell_id);
-                spell->prepare(targets);
-                return;
-            }
-        }
 
         // item spells cast at use
         for (ItemEffectEntry const* effectData : item->GetEffects())
@@ -17681,26 +17864,26 @@ bool Player::LoadPositionFromDB(uint32& mapid, float& x, float& y, float& z, flo
 
 void Player::SetHomebind(WorldLocation const& loc, uint32 areaId)
 {
-    loc.GetPosition(m_homebindX, m_homebindY, m_homebindZ);
-    m_homebindMapId = loc.GetMapId();
+    m_homebind.WorldRelocate(loc);
     m_homebindAreaId = areaId;
 
     // update sql homebind
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_PLAYER_HOMEBIND);
-    stmt->setUInt16(0, m_homebindMapId);
+    stmt->setUInt16(0, m_homebind.GetMapId());
     stmt->setUInt16(1, m_homebindAreaId);
-    stmt->setFloat (2, m_homebindX);
-    stmt->setFloat (3, m_homebindY);
-    stmt->setFloat (4, m_homebindZ);
-    stmt->setUInt64(5, GetGUID().GetCounter());
+    stmt->setFloat (2, m_homebind.GetPositionX());
+    stmt->setFloat (3, m_homebind.GetPositionY());
+    stmt->setFloat (4, m_homebind.GetPositionZ());
+    stmt->setFloat (5, m_homebind.GetOrientation());
+    stmt->setUInt64(6, GetGUID().GetCounter());
     CharacterDatabase.Execute(stmt);
 }
 
 void Player::SendBindPointUpdate() const
 {
     WorldPackets::Misc::BindPointUpdate packet;
-    packet.BindPosition = Position(m_homebindX, m_homebindY, m_homebindZ);
-    packet.BindMapID = m_homebindMapId;
+    packet.BindPosition = Position(m_homebind.GetPositionX(), m_homebind.GetPositionY(), m_homebind.GetPositionZ());
+    packet.BindMapID = m_homebind.GetMapId();
     packet.BindAreaID = m_homebindAreaId;
     SendDirectMessage(packet.Write());
 }
@@ -18043,7 +18226,7 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder* holder)
     SetRaidDifficultyID(CheckLoadedRaidDifficultyID(fields.raidDifficulty));
     SetLegacyRaidDifficultyID(CheckLoadedLegacyRaidDifficultyID(fields.legacyRaidDifficulty));
 
-#define RelocateToHomebind(){ mapId = m_homebindMapId; instanceId = 0; Relocate(m_homebindX, m_homebindY, m_homebindZ); }
+#define RelocateToHomebind(){ instanceId = 0; WorldRelocate(m_homebind); }
 
     _LoadGroup(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GROUP));
 
@@ -18471,6 +18654,10 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder* holder)
 
     GetSpellHistory()->LoadFromDB<Player>(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_SPELL_COOLDOWNS), holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_SPELL_CHARGES));
 
+    uint32 savedHealth = fields.health;
+    if (!savedHealth)
+        m_deathState = CORPSE;
+
     // Spell code allow apply any auras to dead character in load time in aura/spell/item loading
     // Do now before stats re-calculation cleanup for ghost state unexpected auras
     if (!IsAlive())
@@ -18483,7 +18670,6 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder* holder)
     UpdateAllStats();
 
     // restore remembered power/health values (but not more max values)
-    uint32 savedHealth = fields.health;
     SetHealth(savedHealth > GetMaxHealth() ? GetMaxHealth() : savedHealth);
     uint32 loadedPowers = 0;
     for (uint32 i = 0; i < MAX_POWERS; ++i)
@@ -18853,7 +19039,9 @@ void Player::LoadCorpse(PreparedQueryResult result)
 
     if (!IsAlive())
     {
-        if (result && !HasAtLoginFlag(AT_LOGIN_RESURRECT))
+        if (HasAtLoginFlag(AT_LOGIN_RESURRECT))
+            ResurrectPlayer(0.5f);
+        else if (result)
         {
             Field* fields = result->Fetch();
             _corpseLocation.WorldRelocate(fields[0].GetUInt16(), fields[1].GetFloat(), fields[2].GetFloat(), fields[3].GetFloat(), fields[4].GetFloat());
@@ -18862,8 +19050,6 @@ void Player::LoadCorpse(PreparedQueryResult result)
             else
                 RemovePlayerLocalFlag(PLAYER_LOCAL_FLAG_RELEASE_TIMER);
         }
-        else
-            ResurrectPlayer(0.5f);
     }
 
     RemoveAtLoginFlag(AT_LOGIN_RESURRECT);
@@ -20265,21 +20451,19 @@ bool Player::_LoadHomeBind(PreparedQueryResult result)
     }
 
     bool ok = false;
-    // SELECT mapId, zoneId, posX, posY, posZ FROM character_homebind WHERE guid = ?
+    //            0       1     2     3     4            5
+    // SELECT mapId, zoneId, posX, posY, posZ, orientation FROM character_homebind WHERE guid = ?
     if (result)
     {
         Field* fields = result->Fetch();
 
-        m_homebindMapId = fields[0].GetUInt16();
+        m_homebind.WorldRelocate(fields[0].GetUInt16(), fields[2].GetFloat(), fields[3].GetFloat(), fields[4].GetFloat(), fields[5].GetFloat());
         m_homebindAreaId = fields[1].GetUInt16();
-        m_homebindX = fields[2].GetFloat();
-        m_homebindY = fields[3].GetFloat();
-        m_homebindZ = fields[4].GetFloat();
 
-        MapEntry const* bindMapEntry = sMapStore.LookupEntry(m_homebindMapId);
+        MapEntry const* bindMapEntry = sMapStore.LookupEntry(m_homebind.GetMapId());
 
         // accept saved data only for valid position (and non instanceable), and accessable
-        if (MapManager::IsValidMapCoord(m_homebindMapId, m_homebindX, m_homebindY, m_homebindZ) &&
+        if (MapManager::IsValidMapCoord(m_homebind) &&
             !bindMapEntry->Instanceable() && GetSession()->GetExpansion() >= bindMapEntry->Expansion())
             ok = true;
         else
@@ -20294,11 +20478,12 @@ bool Player::_LoadHomeBind(PreparedQueryResult result)
     {
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_PLAYER_HOMEBIND);
         stmt->setUInt64(0, GetGUID().GetCounter());
-        stmt->setUInt16(1, m_homebindMapId);
+        stmt->setUInt16(1, m_homebind.GetMapId());
         stmt->setUInt16(2, m_homebindAreaId);
-        stmt->setFloat(3, m_homebindX);
-        stmt->setFloat(4, m_homebindY);
-        stmt->setFloat(5, m_homebindZ);
+        stmt->setFloat(3, m_homebind.GetPositionX());
+        stmt->setFloat(4, m_homebind.GetPositionY());
+        stmt->setFloat(5, m_homebind.GetPositionZ());
+        stmt->setFloat(6, m_homebind.GetOrientation());
         CharacterDatabase.Execute(stmt);
     };
 
@@ -20306,13 +20491,18 @@ bool Player::_LoadHomeBind(PreparedQueryResult result)
     {
         PlayerInfo::CreatePosition const& createPosition = m_createMode == PlayerCreateMode::NPE && info->createPositionNPE ? info->createPositionNPE.get() : info->createPosition;
 
-        m_homebindMapId = createPosition.Loc.GetMapId();
-        createPosition.Loc.GetPosition(m_homebindX, m_homebindY, m_homebindZ);
+		m_homebind.m_mapId = createPosition.Loc.GetMapId();
         if (createPosition.TransportGuid)
+		{
             if (Transport* transport = HashMapHolder<Transport>::Find(ObjectGuid::Create<HighGuid::Transport>(*createPosition.TransportGuid)))
-                transport->CalculatePassengerPosition(m_homebindX, m_homebindY, m_homebindZ);
+            {
+                float orientation = m_homebind.GetOrientation();
+                transport->CalculatePassengerPosition(m_homebind.m_positionX, m_homebind.m_positionY, m_homebind.m_positionZ, &orientation);
+                m_homebind.SetOrientation(orientation);
+            }
+        }
 
-        m_homebindAreaId = sMapMgr->GetAreaId(PhasingHandler::GetEmptyPhaseShift(), m_homebindMapId, m_homebindX, m_homebindY, m_homebindZ);
+        m_homebindAreaId = sMapMgr->GetAreaId(PhasingHandler::GetEmptyPhaseShift(), m_homebind);
 
         saveHomebindToDb();
         ok = true;
@@ -20326,15 +20516,14 @@ bool Player::_LoadHomeBind(PreparedQueryResult result)
 
         ASSERT(loc, "Missing fallback graveyard location for faction %u", uint32(GetTeamId()));
 
-        m_homebindMapId = loc->Loc.GetMapId();
+        m_homebind.WorldRelocate(loc->Loc);
         m_homebindAreaId = sMapMgr->GetAreaId(PhasingHandler::GetEmptyPhaseShift(), loc->Loc);
-        loc->Loc.GetPosition(m_homebindX, m_homebindY, m_homebindZ);
 
         saveHomebindToDb();
     }
 
-    TC_LOG_DEBUG("entities.player", "Player::_LoadHomeBind: Setting home position (MapID: %u, AreaID: %u, X: %f, Y: %f, Z: %f) of player '%s' (%s)",
-        m_homebindMapId, m_homebindAreaId, m_homebindX, m_homebindY, m_homebindZ, GetName().c_str(), GetGUID().ToString().c_str());
+    TC_LOG_DEBUG("entities.player", "Player::_LoadHomeBind: Setting home position (MapID: %u, AreaID: %u, X: %f, Y: %f, Z: %f O: %f) of player '%s' (%s)",
+        m_homebind.GetMapId(), m_homebindAreaId, m_homebind.GetPositionX(), m_homebind.GetPositionY(), m_homebind.GetPositionZ(), m_homebind.GetOrientation(), GetName().c_str(), GetGUID().ToString().c_str());
 
     return true;
 }
@@ -21974,7 +22163,7 @@ void Player::RemovePetAura(PetAura const* petSpell)
 
 void Player::StopCastingCharm()
 {
-    Unit* charm = GetCharm();
+   Unit* charm = GetCharmed();
     if (!charm)
         return;
 
@@ -21985,12 +22174,12 @@ void Player::StopCastingCharm()
         else if (charm->IsVehicle())
             ExitVehicle();
     }
-    if (!GetCharmGUID().IsEmpty())
+    if (!GetCharmedGUID().IsEmpty())
         charm->RemoveCharmAuras();
 
-    if (!GetCharmGUID().IsEmpty())
+    if (!GetCharmedGUID().IsEmpty())
     {
-        TC_LOG_FATAL("entities.player", "Player::StopCastingCharm: Player '%s' (%s) is not able to uncharm unit (%s)", GetName().c_str(), GetGUID().ToString().c_str(), GetCharmGUID().ToString().c_str());
+        TC_LOG_FATAL("entities.player", "Player::StopCastingCharm: Player '%s' (%s) is not able to uncharm unit (%s)", GetName().c_str(), GetGUID().ToString().c_str(), GetCharmedGUID().ToString().c_str());
         if (!charm->GetCharmerGUID().IsEmpty())
         {
             TC_LOG_FATAL("entities.player", "Player::StopCastingCharm: Charmed unit has charmer %s", charm->GetCharmerGUID().ToString().c_str());
@@ -22201,7 +22390,7 @@ void Player::PetSpellInitialize()
 
 void Player::PossessSpellInitialize()
 {
-    Unit* charm = GetCharm();
+    Unit* charm = GetCharmed();
     if (!charm)
         return;
 
@@ -22315,7 +22504,7 @@ void Player::SendRemoveControlBar() const
     SendDirectMessage(packet.Write());
 }
 
-bool Player::IsAffectedBySpellmod(SpellInfo const* spellInfo, SpellModifier* mod, Spell* spell)
+bool Player::IsAffectedBySpellmod(SpellInfo const* spellInfo, SpellModifier const* mod, Spell* spell)
 {
     if (!mod || !spellInfo)
         return false;
@@ -22358,13 +22547,28 @@ void Player::GetSpellModValues(SpellInfo const* spellInfo, SpellModOp op, Spell*
                 if (!IsAffectedBySpellmod(spellInfo, mod, spell))
                     continue;
 
-                if (base < T(10000) && mod->value <= -100)
+                if (base < T(10000) && static_cast<SpellModifierByClassMask*>(mod)->value <= -100)
                 {
                     modInstantSpell = mod;
                     break;
                 }
             }
 
+            if (!modInstantSpell)
+            {
+                for (SpellModifier* mod : m_spellMods[AsUnderlyingType(op)][SPELLMOD_LABEL_PCT])
+                {
+                    if (!IsAffectedBySpellmod(spellInfo, mod, spell))
+                        continue;
+
+                    if (base < T(10000) && static_cast<SpellPctModifierByLabel*>(mod)->value.ModifierValue <= -1.0f)
+                    {
+                        modInstantSpell = mod;
+                        break;
+                    }
+                }
+            }
+			
             if (modInstantSpell)
             {
                 Player::ApplyModToSpell(modInstantSpell, spell);
@@ -22382,13 +22586,28 @@ void Player::GetSpellModValues(SpellInfo const* spellInfo, SpellModOp op, Spell*
                 if (!IsAffectedBySpellmod(spellInfo, mod, spell))
                     continue;
 
-                if (mod->value >= 100)
+                if (static_cast<SpellModifierByClassMask*>(mod)->value >= 100)
                 {
                     modCritical = mod;
                     break;
                 }
             }
 
+            if (!modCritical)
+            {
+                for (SpellModifier* mod : m_spellMods[AsUnderlyingType(op)][SPELLMOD_LABEL_FLAT])
+                {
+                    if (!IsAffectedBySpellmod(spellInfo, mod, spell))
+                        continue;
+
+                    if (static_cast<SpellFlatModifierByLabel*>(mod)->value.ModifierValue >= 100)
+                    {
+                        modCritical = mod;
+                        break;
+                    }
+                }
+            }
+			
             if (modCritical)
             {
                 Player::ApplyModToSpell(modCritical, spell);
@@ -22406,7 +22625,16 @@ void Player::GetSpellModValues(SpellInfo const* spellInfo, SpellModOp op, Spell*
         if (!IsAffectedBySpellmod(spellInfo, mod, spell))
             continue;
 
-        *flat += mod->value;
+        *flat += static_cast<SpellModifierByClassMask*>(mod)->value;
+        Player::ApplyModToSpell(mod, spell);
+    }
+
+    for (SpellModifier* mod : m_spellMods[AsUnderlyingType(op)][SPELLMOD_LABEL_FLAT])
+    {
+        if (!IsAffectedBySpellmod(spellInfo, mod, spell))
+            continue;
+
+        *flat += static_cast<SpellFlatModifierByLabel*>(mod)->value.ModifierValue;
         Player::ApplyModToSpell(mod, spell);
     }
 
@@ -22422,11 +22650,31 @@ void Player::GetSpellModValues(SpellInfo const* spellInfo, SpellModOp op, Spell*
         // special case (skip > 10sec spell casts for instant cast setting)
         if (op == SpellModOp::ChangeCastTime)
         {
-            if (base >= T(10000) && mod->value <= -100)
+            if (base >= T(10000) && static_cast<SpellModifierByClassMask*>(mod)->value <= -100)
                 continue;
         }
 
-        *pct *= 1.0f + CalculatePct(1.0f, mod->value);
+        *pct *= 1.0f + CalculatePct(1.0f, static_cast<SpellModifierByClassMask*>(mod)->value);
+        Player::ApplyModToSpell(mod, spell);
+    }
+
+    for (SpellModifier* mod : m_spellMods[AsUnderlyingType(op)][SPELLMOD_LABEL_PCT])
+    {
+        if (!IsAffectedBySpellmod(spellInfo, mod, spell))
+            continue;
+
+        // skip percent mods for null basevalue (most important for spell mods with charges)
+        if (base + *flat == T(0))
+            continue;
+
+        // special case (skip > 10sec spell casts for instant cast setting)
+        if (op == SpellModOp::ChangeCastTime)
+        {
+            if (base >= T(10000) && static_cast<SpellPctModifierByLabel*>(mod)->value.ModifierValue <= -1.0f)
+                continue;
+        }
+
+        *pct *= static_cast<SpellPctModifierByLabel*>(mod)->value.ModifierValue;
         Player::ApplyModToSpell(mod, spell);
     }
 }
@@ -22461,48 +22709,119 @@ void Player::AddSpellMod(SpellModifier* mod, bool apply)
         m_spellMods[AsUnderlyingType(mod->op)][mod->type].erase(mod);
 
     /// Now, send spellmodifier packet
-    if (!IsLoading())
+    switch (mod->type)
     {
-        OpcodeServer opcode = (mod->type == SPELLMOD_FLAT) ? SMSG_SET_FLAT_SPELL_MODIFIER : SMSG_SET_PCT_SPELL_MODIFIER;
-
-        WorldPackets::Spells::SetSpellModifier packet(opcode);
-
-        /// @todo Implement sending of bulk modifiers instead of single
-        packet.Modifiers.resize(1);
-        WorldPackets::Spells::SpellModifier& spellMod = packet.Modifiers[0];
-
-        spellMod.ModIndex = AsUnderlyingType(mod->op);
-
-        for (int eff = 0; eff < 128; ++eff)
-        {
-            flag128 mask;
-            mask[eff / 32] = 1u << (eff % 32);
-            if (mod->mask & mask)
+        case SPELLMOD_FLAT:
+        case SPELLMOD_PCT:
+    switch (mod->type)
             {
-                WorldPackets::Spells::SpellModifierData modData;
+        case SPELLMOD_FLAT:
+        case SPELLMOD_PCT:
+            if (!IsLoading())
+            {
+                OpcodeServer opcode = (mod->type == SPELLMOD_FLAT) ? SMSG_SET_FLAT_SPELL_MODIFIER : SMSG_SET_PCT_SPELL_MODIFIER;
 
-                if (mod->type == SPELLMOD_FLAT)
-                {
-                    modData.ModifierValue = 0.0f;
-                    for (SpellModifier* spellMod : m_spellMods[AsUnderlyingType(mod->op)][SPELLMOD_FLAT])
-                        if (spellMod->mask & mask)
-                            modData.ModifierValue += spellMod->value;
+                WorldPackets::Spells::SetSpellModifier packet(opcode);
+
+                /// @todo Implement sending of bulk modifiers instead of single
+                packet.Modifiers.resize(1);
+                WorldPackets::Spells::SpellModifier& spellMod = packet.Modifiers[0];
+
+                spellMod.ModIndex = AsUnderlyingType(mod->op);
+
+                for (int eff = 0; eff < 128; ++eff)
+                        {
+                    flag128 mask;
+                    mask[eff / 32] = 1u << (eff % 32);
+                    if (static_cast<SpellModifierByClassMask const*>(mod)->mask & mask)
+                    {
+                        WorldPackets::Spells::SpellModifierData modData;
+
+                        if (mod->type == SPELLMOD_FLAT)
+                        {
+                            modData.ModifierValue = 0.0f;
+                            for (SpellModifier* spellMod : m_spellMods[AsUnderlyingType(mod->op)][SPELLMOD_FLAT])
+                                if (static_cast<SpellModifierByClassMask const*>(spellMod)->mask & mask)
+                                    modData.ModifierValue += static_cast<SpellModifierByClassMask const*>(spellMod)->value;
+                        }
+                        else
+                        {
+                            modData.ModifierValue = 1.0f;
+                            for (SpellModifier* spellMod : m_spellMods[AsUnderlyingType(mod->op)][SPELLMOD_PCT])
+                                if (static_cast<SpellModifierByClassMask const*>(spellMod)->mask & mask)
+                                    modData.ModifierValue *= 1.0f + CalculatePct(1.0f, static_cast<SpellModifierByClassMask const*>(spellMod)->value);
+                        }
+
+                        modData.ClassIndex = eff;
+                        spellMod.ModifierData.push_back(modData);
+                    }
                 }
-                else
-                {
-                    modData.ModifierValue = 1.0f;
-                    for (SpellModifier* spellMod : m_spellMods[AsUnderlyingType(mod->op)][SPELLMOD_PCT])
-                        if (spellMod->mask & mask)
-                            modData.ModifierValue *= 1.0f + CalculatePct(1.0f, spellMod->value);
-                }
-
-                modData.ClassIndex = eff;
-
-                spellMod.ModifierData.push_back(modData);
+				
+                SendDirectMessage(packet.Write());
             }
-        }
-
-        SendDirectMessage(packet.Write());
+            break;
+        case SPELLMOD_LABEL_FLAT:
+            if (apply)
+            {
+                AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                    .ModifyValue(&UF::ActivePlayerData::SpellFlatModByLabel)) = static_cast<SpellFlatModifierByLabel const*>(mod)->value;
+            }
+            else
+            {
+                int32 firstIndex = m_activePlayerData->SpellFlatModByLabel.FindIndex(static_cast<SpellFlatModifierByLabel const*>(mod)->value);
+                if (firstIndex >= 0)
+                    RemoveDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                        .ModifyValue(&UF::ActivePlayerData::SpellFlatModByLabel), firstIndex);
+            }
+            break;
+        case SPELLMOD_LABEL_PCT:
+            if (apply)
+            {
+                AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                    .ModifyValue(&UF::ActivePlayerData::SpellPctModByLabel)) = static_cast<SpellPctModifierByLabel const*>(mod)->value;
+            }
+            else
+            {
+                int32 firstIndex = m_activePlayerData->SpellPctModByLabel.FindIndex(static_cast<SpellPctModifierByLabel const*>(mod)->value);
+                if (firstIndex >= 0)
+                    RemoveDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                        .ModifyValue(&UF::ActivePlayerData::SpellPctModByLabel), firstIndex);
+            }
+            break;
+        default:
+            break;
+            }
+            break;
+        case SPELLMOD_LABEL_FLAT:
+            if (apply)
+            {
+                AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                    .ModifyValue(&UF::ActivePlayerData::SpellFlatModByLabel)) = static_cast<SpellFlatModifierByLabel const*>(mod)->value;
+            }
+            else
+            {
+                int32 firstIndex = m_activePlayerData->SpellFlatModByLabel.FindIndex(static_cast<SpellFlatModifierByLabel const*>(mod)->value);
+                if (firstIndex >= 0)
+                    RemoveDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                        .ModifyValue(&UF::ActivePlayerData::SpellFlatModByLabel), firstIndex);
+            }
+            break;
+        case SPELLMOD_LABEL_PCT:
+            if (apply)
+            {
+                AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                    .ModifyValue(&UF::ActivePlayerData::SpellPctModByLabel)) = static_cast<SpellPctModifierByLabel const*>(mod)->value;
+            }
+            else
+            {
+                int32 firstIndex = m_activePlayerData->SpellPctModByLabel.FindIndex(static_cast<SpellPctModifierByLabel const*>(mod)->value);
+                if (firstIndex >= 0)
+                    RemoveDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                        .ModifyValue(&UF::ActivePlayerData::SpellPctModByLabel), firstIndex);
+            }
+            break;
+        default:
+            break;
     }
 }
 
@@ -22552,12 +22871,12 @@ void Player::SendSpellModifiers() const
             pctMod.ModifierData[j].ModifierValue = 1.0f;
 
             for (SpellModifier* mod : m_spellMods[i][SPELLMOD_FLAT])
-                if (mod->mask & mask)
-                    flatMod.ModifierData[j].ModifierValue += mod->value;
+                if (static_cast<SpellModifierByClassMask const*>(mod)->mask & mask)
+                    flatMod.ModifierData[j].ModifierValue += static_cast<SpellModifierByClassMask const*>(mod)->value;
 
             for (SpellModifier* mod : m_spellMods[i][SPELLMOD_PCT])
-                if (mod->mask & mask)
-                    pctMod.ModifierData[j].ModifierValue *= 1.0f + CalculatePct(1.0f, mod->value);
+                if (static_cast<SpellModifierByClassMask const*>(mod)->mask & mask)
+                    pctMod.ModifierData[j].ModifierValue *= 1.0f + CalculatePct(1.0f, static_cast<SpellModifierByClassMask const*>(mod)->value);
         }
 
         flatMod.ModifierData.erase(std::remove_if(flatMod.ModifierData.begin(), flatMod.ModifierData.end(), [](WorldPackets::Spells::SpellModifierData const& mod)
@@ -22641,7 +22960,7 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
         if (GetDisplayId() != GetNativeDisplayId())
             RestoreDisplayId(true);
 
-        if (IsDisallowedMountForm(getTransForm(), FORM_NONE, GetDisplayId()))
+       if (IsDisallowedMountForm(GetTransformSpell(), FORM_NONE, GetDisplayId()))
         {
             GetSession()->SendActivateTaxiReply(ERR_TAXIPLAYERSHAPESHIFTED);
             return false;
@@ -23700,7 +24019,7 @@ void Player::SetBattlegroundEntryPoint()
     }
 
     if (m_bgData.joinPos.m_mapId == MAPID_INVALID) // In error cases use homebind position
-        m_bgData.joinPos = WorldLocation(m_homebindMapId, m_homebindX, m_homebindY, m_homebindZ, 0.0f);
+        m_bgData.joinPos.WorldRelocate(m_homebind);
 }
 
 void Player::SetBGTeam(uint32 team)
@@ -24445,7 +24764,10 @@ void Player::ApplyEquipCooldown(Item* pItem)
     std::chrono::steady_clock::time_point now = GameTime::GetGameTimeSteadyPoint();
     for (ItemEffectEntry const* effectData : pItem->GetEffects())
     {
-        SpellInfo const* effectSpellInfo = sSpellMgr->AssertSpellInfo(effectData->SpellID, DIFFICULTY_NONE);
+        SpellInfo const* effectSpellInfo = sSpellMgr->GetSpellInfo(effectData->SpellID, DIFFICULTY_NONE);
+        if (!effectSpellInfo)
+            continue;
+
         // apply proc cooldown to equip auras if we have any
         if (effectData->TriggerType == ITEM_SPELLTRIGGER_ON_EQUIP)
         {
@@ -25160,7 +25482,7 @@ void Player::UpdateForQuestWorldObjects()
                 {
                     bool buildUpdateBlock = false;
                     for (ConditionContainer::const_iterator jtr = conds->begin(); jtr != conds->end() && !buildUpdateBlock; ++jtr)
-                        if ((*jtr)->ConditionType == CONDITION_QUESTREWARDED || (*jtr)->ConditionType == CONDITION_QUESTTAKEN)
+                        if ((*jtr)->ConditionType == CONDITION_QUESTREWARDED || (*jtr)->ConditionType == CONDITION_QUESTTAKEN || (*jtr)->ConditionType == CONDITION_QUEST_COMPLETE)
                             buildUpdateBlock = true;
 
                     if (buildUpdateBlock)
@@ -28146,6 +28468,25 @@ void Player::SendMovementSetCollisionHeight(float height, WorldPackets::Movement
     SendMessageToSet(updateCollisionHeight.Write(), false);
 }
 
+void Player::AddMovieDelayedAction2(uint32 movieId, std::function<void()>&& function)
+{
+    MovieDelayedActions.push_back(std::pair<uint32, std::function<void()>>(movieId, function));
+}
+
+void Player::RemoveMovieDelayedAction2(uint32 movieId)
+{
+    auto itr = std::find_if(MovieDelayedActions.begin(), MovieDelayedActions.end(), [movieId](const std::pair<uint32, std::function<void()>>& elem) -> bool
+        {
+            return elem.first == movieId;
+        });
+
+    if (itr != MovieDelayedActions.end())
+    {
+        (*itr).second = nullptr;
+        MovieDelayedActions.erase(itr);
+    }
+}
+
 void Player::SendPlayerChoice(ObjectGuid sender, int32 choiceId)
 {
     PlayerChoice const* playerChoice = sObjectMgr->GetPlayerChoice(choiceId);
@@ -28668,6 +29009,20 @@ uint32 Player::GetDefaultSpecId() const
     return ASSERT_NOTNULL(sDB2Manager.GetDefaultChrSpecializationForClass(getClass()))->ID;
 }
 
+uint32 Player::GetRoleForGroup2() const
+{
+    return GetRoleBySpecializationId2(GetSpecializationId2());
+}
+
+uint32 Player::GetRoleBySpecializationId2(uint32 specializationId)
+{
+    if (specializationId)
+        if (ChrSpecializationEntry const* spec = sChrSpecializationStore.LookupEntry(specializationId))
+            return spec->Role;
+
+    return ROLE_DAMAGE;
+}
+
 void Player::SendSpellCategoryCooldowns() const
 {
     WorldPackets::Spells::CategoryCooldown cooldowns;
@@ -28890,4 +29245,92 @@ bool Player::CanEnableWarModeInArea() const
         return false;
 
     return area->Flags[1] & AREA_FLAG_2_CAN_ENABLE_WAR_MODE;
+}
+
+void Player::PlayConversation(uint32 conversationId)
+{
+    Conversation::CreateConversation(conversationId, this, GetPosition(), { GetGUID() });
+}
+
+void Player::PlayConversation2(uint32 conversationId)
+{
+    Conversation::CreateConversation(conversationId, this, GetPosition(), { GetGUID() });
+}
+
+bool Player::HasWorldQuestEnabled(uint8 expansion) const
+{
+    if (expansion == EXPANSION_LEGION)
+        return MeetPlayerCondition(41005);
+    if (expansion == EXPANSION_BATTLE_FOR_AZEROTH)
+        return GetQuestStatus(51918) == QUEST_STATUS_REWARDED || // Union of Kul'Tiras
+        GetQuestStatus(51916) == QUEST_STATUS_REWARDED;   // Union of Zandalar
+    if (expansion == EXPANSION_SHADOWLANDS)
+        return GetQuestStatus(62796) == QUEST_STATUS_REWARDED ||
+        GetQuestStatus(62796) == QUEST_STATUS_REWARDED;
+    return false;
+}
+
+void Player::ForceCompleteQuest(uint32 quest_id)
+{
+    Quest const* quest = sObjectMgr->GetQuestTemplate(quest_id);
+    if (!quest)
+        return;
+
+    for (uint32 i = 0; i < quest->Objectives.size(); ++i)
+    {
+        QuestObjective const& obj = quest->Objectives[i];
+
+        switch (obj.Type)
+        {
+        case QUEST_OBJECTIVE_ITEM:
+        {
+            uint32 curItemCount = GetItemCount(obj.ObjectID, true);
+            ItemPosCountVec dest;
+            uint8 msg = CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, obj.ObjectID, obj.Amount - curItemCount);
+            if (msg == EQUIP_ERR_OK)
+            {
+                Item* item = StoreNewItem(dest, obj.ObjectID, true);
+                SendNewItem(item, obj.Amount - curItemCount, true, false);
+            }
+            break;
+        }
+        case QUEST_OBJECTIVE_MONSTER:
+        {
+            if (CreatureTemplate const* creatureInfo = sObjectMgr->GetCreatureTemplate(obj.ObjectID))
+                for (uint16 z = 0; z < obj.Amount; ++z)
+                    KilledMonster(creatureInfo, ObjectGuid::Empty);
+            break;
+        }
+        case QUEST_OBJECTIVE_GAMEOBJECT:
+        {
+            for (uint16 z = 0; z < obj.Amount; ++z)
+                KillCreditGO(obj.ObjectID);
+            break;
+        }
+        case QUEST_OBJECTIVE_MIN_REPUTATION:
+        {
+            uint32 curRep = GetReputationMgr().GetReputation(obj.ObjectID);
+            if (curRep < uint32(obj.Amount))
+                if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(obj.ObjectID))
+                    GetReputationMgr().SetReputation(factionEntry, obj.Amount);
+            break;
+        }
+        case QUEST_OBJECTIVE_MAX_REPUTATION:
+        {
+            uint32 curRep = GetReputationMgr().GetReputation(obj.ObjectID);
+            if (curRep > uint32(obj.Amount))
+                if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(obj.ObjectID))
+                    GetReputationMgr().SetReputation(factionEntry, obj.Amount);
+            break;
+        }
+        case QUEST_OBJECTIVE_MONEY:
+        {
+            ModifyMoney(obj.Amount);
+            break;
+        }
+        }
+    }
+
+    if (GetQuestStatus(quest_id) != QUEST_STATUS_COMPLETE)
+        CompleteQuest(quest_id);
 }

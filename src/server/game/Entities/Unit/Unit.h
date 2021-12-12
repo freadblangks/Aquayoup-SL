@@ -26,6 +26,8 @@
 #include "Timer.h"
 #include "UnitDefines.h"
 #include "Util.h"
+#include "TaskScheduler.h"
+#include "Position.h"
 #include <boost/container/flat_set.hpp>
 #include <array>
 #include <map>
@@ -43,6 +45,40 @@
 
 #define MAX_AGGRO_RESET_TIME 10 // in seconds
 #define MAX_AGGRO_RADIUS 45.0f  // yards
+
+class CustomSpellValues
+{
+    typedef std::pair<SpellValueMod, int32> CustomSpellValueMod;
+    typedef std::vector<CustomSpellValueMod> StorageType;
+public:
+    typedef StorageType::const_iterator const_iterator;
+public:
+    void AddSpellMod(SpellValueMod mod, int32 value)
+    {
+        storage_.push_back(CustomSpellValueMod(mod, value));
+    }
+    const_iterator begin() const
+    {
+        return storage_.begin();
+    }
+    const_iterator end() const
+    {
+        return storage_.end();
+    }
+
+    void Reserve(uint32 amount)
+    {
+        storage_.reserve(amount);
+    }
+
+    void Clear()
+    {
+        storage_.clear();
+    }
+
+private:
+    StorageType storage_;
+};
 
 enum VictimState
 {
@@ -764,12 +800,16 @@ class TC_GAME_API Unit : public WorldObject
 
         virtual ~Unit();
 
-        UnitAI* GetAI() { return i_AI; }
-        void SetAI(UnitAI* newAI) { i_AI = newAI; }
-
+        bool IsAIEnabled() const { return (i_AI != nullptr); }
+        void AIUpdateTick(uint32 diff, bool force = false);
+        UnitAI* GetAI() const { return i_AI.get(); }
+        void SetAI(UnitAI* newAI);
+        void ScheduleAIChange();
+        TaskScheduler& GetScheduler() { return _scheduler; }
+        TaskScheduler _scheduler;
         void AddToWorld() override;
         void RemoveFromWorld() override;
-
+        void DestroyForPlayer(Player* target) const override;
         void CleanupBeforeRemoveFromMap(bool finalCleanup);
         void CleanupsBeforeDelete(bool finalCleanup = true) override;                        // used in ~Creature/~Player (or before mass creature delete to remove cross-references to already deleted units)
 
@@ -848,6 +888,7 @@ class TC_GAME_API Unit : public WorldObject
         void SetRace(uint8 race) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Race), race); }
         uint64 getRaceMask() const { return UI64LIT(1) << (getRace() - 1); }
         uint8 getClass() const { return m_unitData->ClassId; }
+        bool IsAlliedRace();
         void SetClass(uint8 classId) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ClassId), classId); }
         uint32 getClassMask() const { return 1 << (getClass()-1); }
         uint8 getGender() const { return m_unitData->Sex; }
@@ -1004,8 +1045,12 @@ class TC_GAME_API Unit : public WorldObject
         static void DealDamageMods(Unit const* attacker, Unit const* victim, uint32& damage, uint32* absorb);
         static uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage = nullptr, DamageEffectType damagetype = DIRECT_DAMAGE, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL, SpellInfo const* spellProto = nullptr, bool durabilityLoss = true);
         static void Kill(Unit* attacker, Unit* victim, bool durabilityLoss = true, bool skipSettingDeathState = false);
+        void Kill2(Unit* victim, bool durabilityLoss = true, bool skipSettingDeathState = false);
         void KillSelf(bool durabilityLoss = true, bool skipSettingDeathState = false) { Unit::Kill(this, this, durabilityLoss, skipSettingDeathState); }
         static void DealHeal(HealInfo& healInfo);
+        void ProcSkillsAndAuras2(Unit* actionTarget, uint32 typeMaskActor, uint32 typeMaskActionTarget,
+            uint32 spellTypeMask, uint32 spellPhaseMask, uint32 hitMask, Spell* spell,
+            DamageInfo* damageInfo, HealInfo* healInfo);
 
         static void ProcSkillsAndAuras(Unit* actor, Unit* actionTarget, uint32 typeMaskActor, uint32 typeMaskActionTarget,
                                 uint32 spellTypeMask, uint32 spellPhaseMask, uint32 hitMask, Spell* spell,
@@ -1124,7 +1169,6 @@ class TC_GAME_API Unit : public WorldObject
         ThreatManager const& GetThreatManager() const { return m_threatManager; }
 
         void SendClearTarget();
-        void SendThreatListUpdate() { m_threatManager.SendThreatListToClients(); }
 
         bool HasAuraTypeWithFamilyFlags(AuraType auraType, uint32 familyName, flag128 familyFlags) const;
         bool virtual HasSpell(uint32 /*spellID*/) const { return false; }
@@ -1133,10 +1177,11 @@ class TC_GAME_API Unit : public WorldObject
 
         bool HasStealthAura()      const { return HasAuraType(SPELL_AURA_MOD_STEALTH); }
         bool HasInvisibilityAura() const { return HasAuraType(SPELL_AURA_MOD_INVISIBILITY); }
-        bool isFeared()  const { return HasAuraType(SPELL_AURA_MOD_FEAR); }
+        bool IsFeared()  const { return HasAuraType(SPELL_AURA_MOD_FEAR); }
+        bool HasRootAura() const { return HasAuraType(SPELL_AURA_MOD_ROOT) || HasAuraType(SPELL_AURA_MOD_ROOT_2); }
         bool IsPolymorphed() const;
 
-        bool isFrozen() const;
+        bool IsFrozen() const { return HasAuraState(AURA_STATE_FROZEN); }
 
         bool isTargetableForAttack(bool checkFakeDeath = true) const;
 
@@ -1157,7 +1202,7 @@ class TC_GAME_API Unit : public WorldObject
         void SendPlayOrphanSpellVisual(ObjectGuid const& target, uint32 spellVisualId, float travelSpeed, bool speedAsTime = false, bool withSourceOrientation = false);
         void SendPlayOrphanSpellVisual(Position const& targetLocation, uint32 spellVisualId, float travelSpeed, bool speedAsTime = false, bool withSourceOrientation = false);
         void SendCancelSpellVisual(uint32 id);
-        void SendPlaySpellVisual(ObjectGuid const& target, uint32 spellVisualId, uint16 missReason, uint16 reflectStatus, float travelSpeed, bool speedAsTime = false);
+        void SendPlaySpellVisual(Unit* target, uint32 spellVisualId, uint16 missReason, uint16 reflectStatus, float travelSpeed, bool speedAsTime = false);
         void SendPlaySpellVisual(Position const& targetPosition, float o, uint32 spellVisualId, uint16 missReason, uint16 reflectStatus, float travelSpeed, bool speedAsTime = false);
         void SendCancelSpellVisualKit(uint32 id);
         void SendPlaySpellVisualKit(uint32 id, uint32 type, uint32 duration) const;
@@ -1230,10 +1275,6 @@ class TC_GAME_API Unit : public WorldObject
         void SetCreatorGUID(ObjectGuid creator) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::CreatedBy), creator); }
         ObjectGuid GetMinionGUID() const { return m_unitData->Summon; }
         void SetMinionGUID(ObjectGuid guid) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Summon), guid); }
-        ObjectGuid GetCharmerGUID() const { return m_unitData->CharmedBy; }
-        void SetCharmerGUID(ObjectGuid owner) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::CharmedBy), owner); }
-        ObjectGuid GetCharmGUID() const { return m_unitData->Charm; }
-        void SetCharmGUID(ObjectGuid charm) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Charm), charm); }
         ObjectGuid GetPetGUID() const { return m_SummonSlot[SUMMON_SLOT_PET]; }
         void SetPetGUID(ObjectGuid guid) { m_SummonSlot[SUMMON_SLOT_PET] = guid; }
         ObjectGuid GetCritterGUID() const { return m_unitData->Critter; }
@@ -1242,16 +1283,21 @@ class TC_GAME_API Unit : public WorldObject
         void SetBattlePetCompanionGUID(ObjectGuid guid) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::BattlePetCompanionGUID), guid); }
         ObjectGuid GetDemonCreatorGUID() const { return m_unitData->DemonCreator; }
         void SetDemonCreatorGUID(ObjectGuid guid) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::DemonCreator), guid); }
+		
+        ObjectGuid GetCharmerGUID() const { return m_unitData->CharmedBy; }
+        Unit* GetCharmer() const { return m_charmer; }
+
+        ObjectGuid GetCharmedGUID() const { return m_unitData->Charm; }
+        Unit* GetCharmed() const { return m_charmed; }
 
         bool IsControlledByPlayer() const { return m_ControlledByPlayer; }
-        ObjectGuid GetCharmerOrOwnerGUID() const override;
+        Player* GetControllingPlayer() const;
+        ObjectGuid GetCharmerOrOwnerGUID() const override { return IsCharmed() ? GetCharmerGUID() : GetOwnerGUID(); }
         bool IsCharmedOwnedByPlayerOrPlayer() const { return GetCharmerOrOwnerOrOwnGUID().IsPlayer(); }
 
         Guardian* GetGuardianPet() const;
         Minion* GetFirstMinion() const;
-        Unit* GetCharmer() const;
-        Unit* GetCharm() const;
-        Unit* GetCharmerOrOwner() const;
+        Unit* GetCharmerOrOwner() const { return IsCharmed() ? GetCharmer() : GetOwner(); }
 
         void SetMinion(Minion *minion, bool apply);
         void GetAllMinionsByEntry(std::list<TempSummon*>& Minions, uint32 entry);
@@ -1277,7 +1323,6 @@ class TC_GAME_API Unit : public WorldObject
         void DeleteCharmInfo();
         void SetPetNumberForClient(uint32 petNumber) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::PetNumber), petNumber); }
         void SetPetNameTimestamp(uint32 timestamp) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::PetNameTimestamp), timestamp); }
-        void UpdateCharmAI();
         // returns the unit that this player IS CONTROLLING
         Unit* GetUnitBeingMoved() const;
         // returns the player that this player IS CONTROLLING
@@ -1479,7 +1524,25 @@ class TC_GAME_API Unit : public WorldObject
         void SetCurrentCastSpell(Spell* pSpell);
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool withInstant = true);
         void FinishSpell(CurrentSpellTypes spellType, bool ok = true);
-
+        int32 GetAuraEffectAmount(AuraType auraType, SpellFamilyNames spellFamilyName, uint32 IconFileDataId, uint8 effIndex) const;
+        int32 GetAuraEffectAmount(uint32 spellId, uint8 effIndex, ObjectGuid casterGuid = ObjectGuid::Empty) const;
+        void GetAttackableUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange) const;
+        void CastSpell(SpellCastTargets const& targets, uint32 spellId, CastSpellExtraArgs const& args = {});
+        void CastSpell(Unit* victim, uint32 spellId, bool triggered, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster);
+        void CastSpell(Unit* victim, uint32 spellId, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster);
+        void CastSpell(Unit* victim, SpellInfo const* spellInfo, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster);
+        void CastSpell(WorldObject* target, uint32 spellId, CastSpellExtraArgs const& args = {});
+        void CastSpell(Position const& dest, uint32 spellId, CastSpellExtraArgs const& args = {});
+        void CastSpell(float x, float y, float z, uint32 spellId, bool triggered, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastCustomSpell(Unit* victim, uint32 spellId, int32 const* bp0, int32 const* bp1, int32 const* bp2, bool triggered, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastCustomSpell(uint32 spellId, SpellValueMod mod, int32 value, Unit* victim, bool triggered, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastCustomSpell(uint32 spellId, SpellValueMod mod, int32 value, Unit* victim = nullptr, TriggerCastFlags triggerFlags = TRIGGERED_NONE, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastCustomSpell(uint32 spellId, CustomSpellValues const& value, Unit* victim = nullptr, TriggerCastFlags triggerFlags = TRIGGERED_NONE, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        void CastSpell(SpellCastTargets const& targets, SpellInfo const* spellInfo, CustomSpellValues const* value, TriggerCastFlags triggerFlags = TRIGGERED_NONE, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        //float GetUnitSpellCriticalChance(Unit* victim, Spell* spell, AuraEffect const* aurEff, SpellSchoolMask schoolMask, WeaponAttackType attackType = BASE_ATTACK) const;
+        float GetUnitCriticalChance(WeaponAttackType attackType, Unit const* victim) const;
+        void GetAnyUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange) const;
+        uint32 GetRemainingPeriodicAmount(ObjectGuid caster, uint32 spellId, AuraType auraType, uint8 effectIndex = 0) const;
         // set withDelayed to true to account delayed spells as cast
         // delayed+channeled spells are always accounted as cast
         // we can skip channeled or delayed checks using flags
@@ -1498,16 +1561,16 @@ class TC_GAME_API Unit : public WorldObject
 
         virtual bool IsFocusing(Spell const* /*focusSpell*/ = nullptr, bool /*withDelay*/ = false) { return false; }
         virtual bool IsMovementPreventedByCasting() const;
+        bool CanCastSpellWhileMoving(SpellInfo const* spellInfo) const;
 
         SpellHistory* GetSpellHistory() { return _spellHistory; }
         SpellHistory const* GetSpellHistory() const { return _spellHistory; }
 
         ObjectGuid m_SummonSlot[MAX_SUMMON_SLOT];
         ObjectGuid m_ObjectSlot[MAX_GAMEOBJECT_SLOT];
-
+        Creature* GetSummonedCreatureByEntry2(uint32 entry);
         ShapeshiftForm GetShapeshiftForm() const { return ShapeshiftForm(*m_unitData->ShapeshiftForm); }
         void SetShapeshiftForm(ShapeshiftForm form);
-
         bool IsInFeralForm() const;
 
         bool IsInDisallowedMountForm() const;
@@ -1617,8 +1680,8 @@ class TC_GAME_API Unit : public WorldObject
             SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::NativeDisplayID), displayId);
             SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::NativeXDisplayScale), displayScale);
         }
-        void setTransForm(uint32 spellid) { m_transform = spellid;}
-        uint32 getTransForm() const { return m_transform;}
+        void SetTransformSpell(uint32 spellid) { m_transformSpell = spellid;}
+        uint32 GetTransformSpell() const { return m_transformSpell;}
 
         // DynamicObject management
         void _RegisterDynObject(DynamicObject* dynObj);
@@ -1630,8 +1693,10 @@ class TC_GAME_API Unit : public WorldObject
 
         GameObject* GetGameObject(uint32 spellId) const;
         std::vector<GameObject*> GetGameObjects(uint32 spellId) const;
+        GameObject* GetGameObjectByEntry2(uint32 entry) const;
         void AddGameObject(GameObject* gameObj);
         void RemoveGameObject(GameObject* gameObj, bool del);
+        void RemoveGameObjectByEntry2(uint32 entry, bool del = true);
         void RemoveGameObject(uint32 spellid, bool del);
         void RemoveAllGameObjects();
 
@@ -1750,7 +1815,6 @@ class TC_GAME_API Unit : public WorldObject
         uint32 GetModelForForm(ShapeshiftForm form, uint32 spellId) const;
 
         friend class VehicleJoinEvent;
-        bool IsAIEnabled, NeedChangeAI;
         ObjectGuid LastCharmerGUID;
         bool CreateVehicleKit(uint32 id, uint32 creatureEntry, bool loading = false);
         void RemoveVehicleKit(bool onRemoveFromWorld = false);
@@ -1763,8 +1827,8 @@ class TC_GAME_API Unit : public WorldObject
         ObjectGuid GetTransGUID()   const override;
         /// Returns the transport this unit is on directly (if on vehicle and transport, return vehicle)
         TransportBase* GetDirectTransport() const;
-
-        bool m_ControlledByPlayer;
+        //id GetAreaTriggerListWithSpellIDInRange2(std::list<AreaTrigger*>& list, uint32 spellid, float fMaxSearchRange) const;
+        bool SetFlying2(bool enable);
 
         void HandleSpellClick(Unit* clicker, int8 seatId = -1);
         void EnterVehicle(Unit* base, int8 seatId = -1);
@@ -1847,15 +1911,15 @@ class TC_GAME_API Unit : public WorldObject
             UF::UnitData::Mask const& requestedUnitMask, Player const* target) const;
 
     protected:
-        void DestroyForPlayer(Player* target) const override;
         void ClearUpdateMask(bool remove) override;
-
-        UnitAI* i_AI, *i_disabledAI;
 
         void _UpdateSpells(uint32 time);
         void _DeleteRemovedAuras();
 
         void _UpdateAutoRepeatSpell();
+		
+        bool m_ControlledByPlayer;
+
 
         bool m_AutoRepeatFirstCast;
 
@@ -1879,7 +1943,7 @@ class TC_GAME_API Unit : public WorldObject
         typedef std::vector<AreaTrigger*> AreaTriggerList;
         AreaTriggerList m_areaTrigger;
 
-        uint32 m_transform;
+        uint32 m_transformSpell;
 
         Spell* m_currentSpells[CURRENT_MAX_SPELL];
 
@@ -1906,6 +1970,9 @@ class TC_GAME_API Unit : public WorldObject
 
         float m_speed_rate[MAX_MOVE_TYPE];
 
+        Unit* m_charmer; // Unit that is charming ME
+        Unit* m_charmed; // Unit that is being charmed BY ME
+		
         CharmInfo* m_charmInfo;
         SharedVisionList m_sharedVision;
 
@@ -1950,18 +2017,21 @@ class TC_GAME_API Unit : public WorldObject
         void SetRooted(bool apply, bool packetOnly = false);
 
         uint32 m_movementCounter;       ///< Incrementing counter used in movement packets
-
     private:
 
         uint32 m_state;                                     // Even derived shouldn't modify
         TimeTrackerSmall m_movesplineTimer;
-
+        std::unordered_map<ObjectGuid, uint32/*entry*/> m_SummonedCreatures;
         Diminishing m_Diminishing;
         // Manage all Units that are threatened by us
         friend class CombatManager;
         CombatManager m_combatManager;
         friend class ThreatManager;
         ThreatManager m_threatManager;
+
+        void UpdateCharmAI();
+        void RestoreDisabledAI();
+        std::unique_ptr<UnitAI> i_AI, i_disabledAI;
 
         std::unordered_set<AbstractFollower*> m_followingMe;
 
@@ -1975,7 +2045,7 @@ class TC_GAME_API Unit : public WorldObject
         uint16 _aiAnimKitId;
         uint16 _movementAnimKitId;
         uint16 _meleeAnimKitId;
-
+        
         SpellHistory* _spellHistory;
 
         std::unique_ptr<MovementForces> _movementForces;
@@ -2031,7 +2101,6 @@ namespace Trinity
                 float rB = b->GetMaxHealth() ? float(b->GetHealth()) / float(b->GetMaxHealth()) : 0.0f;
                 return _ascending ? rA < rB : rA > rB;
             }
-
         private:
             bool const _ascending;
     };

@@ -146,7 +146,63 @@ void InstanceScript::LoadBossBoundaries(BossBoundaryData const& data)
         if (entry.BossId < bosses.size())
             bosses[entry.BossId].boundary.push_back(entry.Boundary);
 }
+/*
+CreatureGroup* InstanceScript::SummonCreatureGroup(uint32 creatureGroupID, std::list<TempSummon*>* list /*= nullptr)
+{
+    bool createTempList = !list;
+    if (createTempList)
+        list = new std::list<TempSummon*>;
 
+    instance->SummonCreatureGroup(creatureGroupID, list);
+
+    for (TempSummon* summon : *list)
+        summonBySummonGroupIDs[creatureGroupID].push_back(summon->GetGUID());
+
+    if (createTempList)
+    {
+        delete list;
+        list = nullptr;
+    }
+
+    return GetCreatureGroup(creatureGroupID);
+}
+*/
+
+void InstanceScript::DespawnCreatureGroup(uint32 creatureGroupID)
+{
+    for (ObjectGuid guid : summonBySummonGroupIDs[creatureGroupID])
+        if (Creature* summon = instance->GetCreature(guid))
+            summon->DespawnOrUnsummon();
+
+    summonBySummonGroupIDs.erase(creatureGroupID);
+}
+
+void InstanceScript::DoSendScenarioEvent(uint32 eventId)
+{
+    DoOnPlayers([eventId](Player* player)
+        {
+            player->GetScenario()->SendScenarioEvent(player, eventId);
+            return;
+        });
+}
+
+void InstanceScript::DoOnPlayers(std::function<void(Player*)>&& function)
+{
+    Map::PlayerList const& plrList = instance->GetPlayers();
+
+    if (!plrList.isEmpty())
+        for (Map::PlayerList::const_iterator i = plrList.begin(); i != plrList.end(); ++i)
+            if (Player* player = i->GetSource())
+                function(player);
+}
+
+void InstanceScript::DoPlayConversation(uint32 conversationId)
+{
+    DoOnPlayers([conversationId](Player* player)
+        {
+            player->PlayConversation(conversationId);
+        });
+}
 void InstanceScript::LoadMinionData(MinionData const* data)
 {
     while (data->entry)
@@ -626,6 +682,31 @@ void InstanceScript::DoUpdateCriteria(CriteriaType type, uint32 miscValue1 /*= 0
                 player->UpdateCriteria(type, miscValue1, miscValue2, 0, unit);
 }
 
+void InstanceScript::DoCompleteAchievement2(uint32 achievement)
+{
+    AchievementEntry const* achievementEntry = sAchievementStore.LookupEntry(achievement);
+    if (!achievementEntry)
+    {
+        TC_LOG_ERROR("scripts", "DoCompleteAchievement called for not existing achievement %u", achievement);
+        return;
+    }
+
+    DoOnPlayers2([achievementEntry](Player* player)
+        {
+            player->CompletedAchievement(achievementEntry);
+        });
+}
+
+void InstanceScript::DoOnPlayers2(std::function<void(Player*)>&& function)
+{
+    Map::PlayerList const& plrList = instance->GetPlayers();
+
+    if (!plrList.isEmpty())
+        for (Map::PlayerList::const_iterator i = plrList.begin(); i != plrList.end(); ++i)
+            if (Player* player = i->GetSource())
+                function(player);
+}
+
 // Start timed achievement for all players in instance
 void InstanceScript::DoStartCriteriaTimer(CriteriaStartEvent startEvent, uint32 entry)
 {
@@ -907,3 +988,51 @@ bool InstanceHasScript(WorldObject const* obj, char const* scriptName)
 
     return false;
 }
+
+/*void InstanceScript::DoTeleportPlayers(uint32 mapId, Position pos)
+{
+    DoOnPlayers([pos, mapId](Player* player)
+        {
+            player->TeleportTo(mapId, pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation());
+        });
+}
+*/
+/*void InstanceScript::GetScenarioByID(Player* p_Player, uint32 p_ScenarioId)
+{
+    InstanceMap* map = instance->ToInstanceMap();
+
+    if (InstanceScenario* instanceScenario = sScenarioMgr->CreateInstanceScenarioByID(map, p_ScenarioId))
+    {
+        TC_LOG_ERROR("scripts", "GetScenarioByID CreateInstanceScenario %s", "");
+        map->SetInstanceScenario(instanceScenario);
+    }
+    else
+        TC_LOG_DEBUG("scripts", "InstanceScript: GetScenarioByID failed");
+}*/
+
+/*void InstanceScript::DoSendScenarioEvent(uint32 eventId)
+{
+    DoOnPlayers([eventId](Player* player)
+        {
+            player->GetScenario()->SendScenarioEvent(player, eventId);
+            return;
+        });
+}*/
+
+/*void InstanceScript::DoNearTeleportPlayers(const Position pos, bool casting /*=false)
+{
+    DoOnPlayers([pos, casting](Player* player)
+        {
+            player->NearTeleportTo(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation(), casting);
+        });
+}*/
+/*void InstanceScript::DoOnPlayers(std::function<void(Player*)>&& function)
+{
+    Map::PlayerList const& plrList = instance->GetPlayers();
+
+    if (!plrList.isEmpty())
+        for (Map::PlayerList::const_iterator i = plrList.begin(); i != plrList.end(); ++i)
+            if (Player* player = i->GetSource())
+                function(player);
+}
+*/

@@ -24,6 +24,7 @@
 #include "Map.h"
 #include "MotionMaster.h"
 #include "ObjectMgr.h"
+#include "CombatAI.h"
 
 #define MAX_DESYNC 5.0f
 
@@ -174,6 +175,43 @@ FormationInfo* FormationMgr::GetFormationInfo(ObjectGuid::LowType spawnId)
 {
     return Trinity::Containers::MapGetValuePtr(_creatureGroupMap, spawnId);
 }
+
+void CreatureGroup::MoveGroupTo(float x, float y, float z, bool fightMove /*= false*/)
+{
+    if (!m_leader)
+        return;
+
+    float centerX = 0.f, centerY = 0.f;
+    for (auto itr : m_members)
+    {
+        centerX += itr.first->GetPositionX();
+        centerY += itr.first->GetPositionY();
+    }
+
+    centerX /= m_members.size();
+    centerY /= m_members.size();
+
+    for (auto itr : m_members)
+    {
+        float destX = itr.first->GetPositionX() + (x - centerX);
+        float destY = itr.first->GetPositionY() + (y - centerY);
+        float destZ = m_leader->GetMap()->GetHeight(m_leader->GetPhaseShift(), destX, destY, z + 1.f, true);
+
+        if (fightMove)
+            static_cast<CombatAI*>(itr.first->AI())->MoveCombat(Position(destX, destY, destZ));
+        else
+            itr.first->GetMotionMaster()->MovePoint(1, destX, destY, destZ);
+    }
+}
+/*
+CreatureGroup* InstanceScript::GetCreatureGroup(uint32 creatureGroupID)
+{
+    for (ObjectGuid guid : summonBySummonGroupIDs[creatureGroupID])
+        if (Creature* summon = instance->GetCreature(guid))
+            return summon->GetFormation();
+
+    return nullptr;
+}*/
 
 void FormationMgr::AddFormationMember(ObjectGuid::LowType spawnId, float followAng, float followDist, ObjectGuid::LowType leaderSpawnId, uint32 groupAI)
 {

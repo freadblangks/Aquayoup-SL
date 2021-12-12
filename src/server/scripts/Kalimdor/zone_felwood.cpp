@@ -50,7 +50,7 @@ public:
             lasherClicked = false;
         }
 
-        void OnSpellClick(Unit* clicker, bool spellClickHandled) override
+        void OnSpellClick(Unit* clicker, bool spellClickHandled)
         {
             if (!spellClickHandled)
                 return;
@@ -216,7 +216,7 @@ enum RuumbosSillyDance
 {
     NPC_DRIZZLE  = 47556,
     NPC_FERLI    = 47558,
-    MAP_KALIMDOR = 1
+    //MAP_KALIMDOR = 1
 };
 
 Position const DrizzleSpawnPos = { 3852.52f, -1321.92f, 213.3353f, 5.72468f };

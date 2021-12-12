@@ -392,18 +392,6 @@ namespace WorldPackets
         class GuildSetAchievementTracking;
     }
 
-    namespace GuildFinder
-    {
-        class LFGuildAddRecruit;
-        class LFGuildBrowse;
-        class LFGuildDeclineRecruit;
-        class LFGuildGetApplications;
-        class LFGuildGetGuildPost;
-        class LFGuildGetRecruits;
-        class LFGuildRemoveRecruit;
-        class LFGuildSetGuildPost;
-    }
-
     namespace Hotfix
     {
         class DBQueryBulk;
@@ -1022,7 +1010,6 @@ class TC_GAME_API WorldSession
 
         /// Handle the authentication waiting queue (to be completed)
         void SendAuthWaitQue(uint32 position);
-
         void SendSetTimeZoneInformation();
         void SendFeatureSystemStatus();
         void SendFeatureSystemStatusGlueScreen();
@@ -1359,15 +1346,6 @@ class TC_GAME_API WorldSession
         void HandleGuildRequestPartyState(WorldPackets::Guild::RequestGuildPartyState& packet);
         void HandleGuildChallengeUpdateRequest(WorldPackets::Guild::GuildChallengeUpdateRequest& packet);
         void HandleDeclineGuildInvites(WorldPackets::Guild::DeclineGuildInvites& packet);
-
-        void HandleGuildFinderAddRecruit(WorldPackets::GuildFinder::LFGuildAddRecruit& lfGuildAddRecruit);
-        void HandleGuildFinderBrowse(WorldPackets::GuildFinder::LFGuildBrowse& lfGuildBrowse);
-        void HandleGuildFinderDeclineRecruit(WorldPackets::GuildFinder::LFGuildDeclineRecruit& lfGuildDeclineRecruit);
-        void HandleGuildFinderGetApplications(WorldPackets::GuildFinder::LFGuildGetApplications& lfGuildGetApplications);
-        void HandleGuildFinderGetGuildPost(WorldPackets::GuildFinder::LFGuildGetGuildPost& lfGuildGetGuildPost);
-        void HandleGuildFinderGetRecruits(WorldPackets::GuildFinder::LFGuildGetRecruits& lfGuildGetRecruits);
-        void HandleGuildFinderRemoveRecruit(WorldPackets::GuildFinder::LFGuildRemoveRecruit& lfGuildRemoveRecruit);
-        void HandleGuildFinderSetGuildPost(WorldPackets::GuildFinder::LFGuildSetGuildPost& lfGuildSetGuildPost);
 
         void HandleEnableTaxiNodeOpcode(WorldPackets::Taxi::EnableTaxiNode& enableTaxiNode);
         void HandleTaxiNodeStatusQueryOpcode(WorldPackets::Taxi::TaxiNodeStatusQuery& taxiNodeStatusQuery);

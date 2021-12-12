@@ -1036,7 +1036,7 @@ class npc_dream_portal : public CreatureScript
             {
             }
 
-            void OnSpellClick(Unit* /*clicker*/, bool spellClickHandled) override
+            void OnSpellClick(Unit* /*clicker*/, bool spellClickHandled)
             {
                 if (!spellClickHandled)
                     return;
@@ -1282,7 +1282,7 @@ class spell_dreamwalker_summon_suppresser : public SpellScriptLoader
 
             void HandleSummon(Unit* caster)
             {
-                if (!caster || !caster->IsAIEnabled)
+                if (!caster || !caster->IsAIEnabled())
                     return;
 
                 std::list<Creature*> summoners;

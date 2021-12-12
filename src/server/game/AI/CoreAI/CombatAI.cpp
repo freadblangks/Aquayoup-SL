@@ -53,6 +53,12 @@ void AggressorAI::UpdateAI(uint32 /*diff*/)
 // CombatAI
 /////////////////
 
+void CombatAI::MoveCombat(Position destination)
+{
+    me->GetMotionMaster()->MovePoint(POINT_ID_COMBAT_MOVEMENT, destination);
+    combatMoveDest = destination;
+}
+
 void CombatAI::InitializeAI()
 {
     for (uint32 i = 0; i < MAX_CREATURE_SPELLS; ++i)
@@ -188,7 +194,7 @@ void CasterAI::UpdateAI(uint32 diff)
 // ArcherAI
 //////////////
 
-ArcherAI::ArcherAI(Creature* c) : CreatureAI(c)
+ArcherAI::ArcherAI(Creature* c, uint32 scriptId) : CreatureAI(c, scriptId)
 {
     if (!me->m_spells[0])
         TC_LOG_ERROR("misc", "ArcherAI set for creature (entry = %u) with spell1=0. AI will do nothing", me->GetEntry());
@@ -237,7 +243,7 @@ void ArcherAI::UpdateAI(uint32 /*diff*/)
 // TurretAI
 //////////////
 
-TurretAI::TurretAI(Creature* c) : CreatureAI(c)
+TurretAI::TurretAI(Creature* c, uint32 scriptId) : CreatureAI(c, scriptId)
 {
     if (!me->m_spells[0])
         TC_LOG_ERROR("misc", "TurretAI set for creature (entry = %u) with spell1=0. AI will do nothing", me->GetEntry());
@@ -275,7 +281,7 @@ void TurretAI::UpdateAI(uint32 /*diff*/)
 // VehicleAI
 //////////////
 
-VehicleAI::VehicleAI(Creature* creature) : CreatureAI(creature), m_HasConditions(false), m_ConditionsTimer(VEHICLE_CONDITION_CHECK_TIME)
+VehicleAI::VehicleAI(Creature* creature, uint32 scriptId) : CreatureAI(creature, scriptId), m_HasConditions(false), m_ConditionsTimer(VEHICLE_CONDITION_CHECK_TIME)
 {
     LoadConditions();
     m_DoDismiss = false;

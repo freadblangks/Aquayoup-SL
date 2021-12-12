@@ -521,6 +521,22 @@ namespace Trinity
         template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED> &) { }
     };
 
+    /// AreaTriggers searchers
+    template<class Check>
+    struct AreaTriggerListSearcher
+    {
+        WorldObject const* i_searcher;
+        std::list<AreaTrigger*>& m_AreaTriggers;
+        Check& i_check;
+
+        AreaTriggerListSearcher(WorldObject const* searcher, std::list<AreaTrigger*>& areaTriggers, Check& check)
+            : i_searcher(searcher), m_AreaTriggers(areaTriggers), i_check(check) {}
+
+        void Visit(AreaTriggerMapType& p_AreaTriggerMap);
+
+        template<class NOT_INTERESTED> void Visit(GridRefManager<NOT_INTERESTED>&) {}
+    };
+
     // Creature searchers
 
     template<class Check>
@@ -718,6 +734,26 @@ namespace Trinity
             void operator()(Corpse*) const { }
     };
 
+    class AttackableUnitInObjectRangeCheck
+    {
+    public:
+        AttackableUnitInObjectRangeCheck(WorldObject const* obj, float range, bool check3D = true) : i_obj(obj), i_range(range), i_check3D(check3D) { }
+
+        bool operator()(Unit* u) const
+        {
+            if (i_obj->IsUnit())
+                if (u->IsAlive() && i_obj->IsWithinDistInMap(u, i_range, i_check3D) && i_obj->ToUnit()->IsValidAttackTarget(u))
+                    return true;
+
+            return false;
+        }
+
+    private:
+        WorldObject const* i_obj;
+        float i_range;
+        bool i_check3D;
+    };
+
     // GameObject checks
 
     class GameObjectFocusCheck
@@ -892,7 +928,7 @@ namespace Trinity
             bool operator()(Unit* u) const
             {
                 if (u->IsAlive() && u->IsInCombat() && !i_obj->IsHostileTo(u) && i_obj->IsWithinDistInMap(u, i_range) &&
-                    (u->isFeared() || u->IsCharmed() || u->isFrozen() || u->HasUnitState(UNIT_STATE_STUNNED) || u->HasUnitState(UNIT_STATE_CONFUSED)))
+                    (u->IsFeared() || u->IsCharmed() || u->HasRootAura() || u->HasUnitState(UNIT_STATE_STUNNED) || u->HasUnitState(UNIT_STATE_CONFUSED)))
                 {
                     return true;
                 }
@@ -941,7 +977,23 @@ namespace Trinity
             Unit const* i_funit;
             float i_range;
     };
+/*
+    class AnyAreatriggerInObjectRangeCheck
+    {
+    public:
+        AnyAreatriggerInObjectRangeCheck(WorldObject const* p_Object, float range) : m_Object(p_Object), m_Range(range) {}
+        bool operator()(AreaTrigger* p_AreaTrigger)
+        {
+            if (m_Object->IsWithinDistInMap(p_AreaTrigger, m_Range))
+                return true;
 
+            return false;
+        }
+    private:
+        WorldObject const* m_Object;
+        float m_Range;
+    };
+*/
     class NearestAttackableNoTotemUnitInObjectRangeCheck
     {
         public:
@@ -1160,8 +1212,7 @@ namespace Trinity
                 if (!u->IsWithinLOSInMap(i_enemy))
                     return;
 
-                if (u->GetAI() && u->IsAIEnabled)
-                    u->GetAI()->AttackStart(i_enemy);
+                u->EngageWithTarget(i_enemy);
             }
         private:
             Unit* const i_funit;

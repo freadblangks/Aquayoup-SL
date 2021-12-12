@@ -44,7 +44,7 @@ class TC_GAME_API SmartAI : public CreatureAI
 {
     public:
         ~SmartAI() { }
-        explicit SmartAI(Creature* c);
+        explicit SmartAI(Creature* c, uint32 scriptId = {});
 
         // core related
         static int32 Permissible(Creature const* /*creature*/) { return PERMIT_BASE_NO; }
@@ -141,7 +141,7 @@ class TC_GAME_API SmartAI : public CreatureAI
         void InitializeAI() override;
 
         // Called when creature gets charmed by another unit
-        void OnCharmed(bool apply) override;
+        void OnCharmed(bool isNew) override;
 
         // Used in scripts to share variables
         void DoAction(int32 param = 0) override;
@@ -186,7 +186,7 @@ class TC_GAME_API SmartAI : public CreatureAI
         }
         void StartDespawn() { mDespawnState = 2; }
 
-        void OnSpellClick(Unit* clicker, bool spellClickHandled) override;
+        void OnSpellClick(Unit* clicker, bool spellClickHandled);
 
         void SetWPPauseTimer(uint32 time) { _waypointPauseTimer = time; }
 
@@ -247,7 +247,7 @@ class TC_GAME_API SmartAI : public CreatureAI
 class TC_GAME_API SmartGameObjectAI : public GameObjectAI
 {
     public:
-        SmartGameObjectAI(GameObject* g) : GameObjectAI(g), _gossipReturn(false) { }
+        SmartGameObjectAI(GameObject* g, uint32 scriptId = {}) : GameObjectAI(g, scriptId), _gossipReturn(false) { }
         ~SmartGameObjectAI() { }
 
         void UpdateAI(uint32 diff) override;

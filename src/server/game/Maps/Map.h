@@ -113,6 +113,7 @@ struct PositionFullTerrainStatus
         uint32 const mogpFlags;
     };
 
+    PositionFullTerrainStatus() : areaId(0), floorZ(0.0f), outdoors(true) { }
     uint32 areaId;
     float floorZ;
     bool outdoors;
@@ -395,6 +396,7 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
         bool IsRaid() const;
         bool IsRaidOrHeroicDungeon() const;
         bool IsHeroic() const;
+        bool IsMythic() const;
         bool Is25ManRaid() const;
         bool IsBattleground() const;
         bool IsBattleArena() const;

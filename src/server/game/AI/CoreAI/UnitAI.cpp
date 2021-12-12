@@ -48,6 +48,12 @@ void UnitAI::InitializeAI()
         Reset();
 }
 
+void UnitAI::OnCharmed(bool isNew)
+{
+    if (!isNew)
+        me->ScheduleAIChange();
+}
+
 void UnitAI::AttackStartCaster(Unit* victim, float dist)
 {
     if (victim && me->Attack(victim, false))
@@ -467,4 +473,13 @@ bool FarthestTargetSelector::operator()(Unit const* target) const
         return false;
 
     return true;
+}
+
+void UnitAI::DoCastRandom(uint32 spellId, float dist, bool triggered, int32 aura, uint32 position)
+{
+    if (me->HasUnitState(UNIT_STATE_CASTING) && !triggered)
+        return;
+
+    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, position, dist, true, aura))
+        me->CastSpell(target, spellId, triggered);
 }

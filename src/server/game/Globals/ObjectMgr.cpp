@@ -53,6 +53,7 @@
 #include "Random.h"
 #include "ReputationMgr.h"
 #include "ScriptMgr.h"
+#include "ScriptReloadMgr.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
@@ -62,8 +63,10 @@
 #include "Vehicle.h"
 #include "VMapFactory.h"
 #include "World.h"
+#include "WorldQuestMgr.h"
 #include <G3D/g3dmath.h>
 #include <numeric>
+#include <limits>
 
 ScriptMapMap sSpellScripts;
 ScriptMapMap sEventScripts;
@@ -230,6 +233,52 @@ ObjectMgr* ObjectMgr::instance()
 {
     static ObjectMgr instance;
     return &instance;
+}
+
+void WorldQuestMgr::LoadWorldQuestTemplates()
+{
+    CleanWorldQuestTemplates();
+
+    QueryResult result = WorldDatabase.Query("SELECT id, duration, variable, value FROM world_quest");
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 questId = fields[0].GetUInt32();
+        Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+
+        if (!quest)
+        {
+            TC_LOG_ERROR("sql.sql", "World Quest: %u exist but no quest template found. Skip.", questId);
+            continue;
+        }
+
+        WorldQuestTemplate* worldQuestTemplate = new WorldQuestTemplate(questId, fields[1].GetUInt32(), fields[2].GetUInt32(), fields[3].GetUInt8());
+        AddWorldQuestTemplate(quest, worldQuestTemplate);
+
+    } while (result->NextRow());
+
+    WorldQuestContainer worldQuests = sObjectMgr->GetWorldQuestStore();
+    for (auto quests : worldQuests)
+    {
+        for (uint32 questId : quests.second)
+        {
+            if (Quest const* quest = sObjectMgr->GetQuestTemplate(questId))
+            {
+                auto itr = _worldQuestTemplates[quest->_expansion].find(questId);
+                if (itr == _worldQuestTemplates[quest->_expansion].end())
+                {
+                    WorldQuestTemplate* worldQuestTemplate = new WorldQuestTemplate(questId, 7200, 12506, 1);
+                    AddWorldQuestTemplate(quest, worldQuestTemplate);
+                }
+            }
+        }
+    }
+
+    if (_emissaryWorldQuestTemplates.size() < WORLD_QUEST_EMISSARY)
+        TC_LOG_ERROR("sql.sql", "World Quest: There is %lu emissary quests but %u needed...", _emissaryWorldQuestTemplates.size(), uint32(WORLD_QUEST_EMISSARY));
 }
 
 ObjectMgr::~ObjectMgr()
@@ -5848,8 +5897,8 @@ void ObjectMgr::LoadInstanceTemplate()
 {
     uint32 oldMSTime = getMSTime();
 
-    //                                                0     1       2        4
-    QueryResult result = WorldDatabase.Query("SELECT map, parent, script, allowMount FROM instance_template");
+    //                                                0     1       2
+    QueryResult result = WorldDatabase.Query("SELECT map, parent, script FROM instance_template");
 
     if (!result)
     {
@@ -5872,7 +5921,6 @@ void ObjectMgr::LoadInstanceTemplate()
 
         InstanceTemplate instanceTemplate;
 
-        instanceTemplate.AllowMount = fields[3].GetBool();
         instanceTemplate.Parent     = uint32(fields[1].GetUInt16());
         instanceTemplate.ScriptId   = sObjectMgr->GetScriptId(fields[2].GetString());
 
@@ -9492,16 +9540,39 @@ bool ObjectMgr::IsVendorItemValid(uint32 vendor_entry, VendorItem const& vItem, 
     return true;
 }
 
+ObjectMgr::ScriptNameContainer::ScriptNameContainer()
+{
+    // We insert an empty placeholder here so we can use the
+    // script id 0 as dummy for "no script found".
+    uint32 const id = insert("", false);
+
+    ASSERT(id == 0);
+    (void)id;
+}
+
 void ObjectMgr::ScriptNameContainer::reserve(size_t capacity)
 {
     IndexToName.reserve(capacity);
 }
 
-void ObjectMgr::ScriptNameContainer::insert(std::string&& scriptName)
+uint32 ObjectMgr::ScriptNameContainer::insert(std::string const& scriptName, bool isScriptNameBound)
 {
-    auto insertResult = NameToIndex.insert({ std::move(scriptName), NameToIndex.size() });
-    if (insertResult.second)
-        IndexToName.push_back(insertResult.first);
+    // c++17 try_emplace
+    auto const itr = NameToIndex.find(scriptName);
+    if (itr != NameToIndex.end())
+    {
+        return itr->second.Id;
+    }
+    else
+    {
+        ASSERT(NameToIndex.size() < std::numeric_limits<uint32>::max());
+        uint32 const id = static_cast<uint32>(NameToIndex.size());
+
+        auto result = NameToIndex.insert({ scriptName, Entry{ id, isScriptNameBound } });
+        IndexToName.emplace_back(result.first);
+
+        return id;
+    }
 }
 
 size_t ObjectMgr::ScriptNameContainer::size() const
@@ -9509,111 +9580,75 @@ size_t ObjectMgr::ScriptNameContainer::size() const
     return IndexToName.size();
 }
 
-std::string const& ObjectMgr::ScriptNameContainer::operator[](size_t index) const
+ObjectMgr::ScriptNameContainer::NameMap::const_iterator ObjectMgr::ScriptNameContainer::find(size_t index) const
 {
-    static std::string const empty;
-    return index < IndexToName.size() ? IndexToName[index]->first : empty;
+    return index < IndexToName.size() ? IndexToName[index] : end();
 }
 
-uint32 ObjectMgr::ScriptNameContainer::operator[](std::string const& name) const
+ObjectMgr::ScriptNameContainer::NameMap::const_iterator ObjectMgr::ScriptNameContainer::find(std::string const& name) const
 {
     // assume "" is the first element
     if (name.empty())
-        return 0;
+        return end();
 
-    if (uint32 const* id = Trinity::Containers::MapGetValuePtr(NameToIndex, name))
-        return *id;
-
-    return 0;
+    return NameToIndex.find(name);
 }
 
-std::unordered_set<std::string> ObjectMgr::ScriptNameContainer::GetAllScriptNames() const
+ObjectMgr::ScriptNameContainer::NameMap::const_iterator ObjectMgr::ScriptNameContainer::end() const
+{
+    return NameToIndex.end();
+}
+
+std::unordered_set<std::string> ObjectMgr::ScriptNameContainer::GetAllDBScriptNames() const
 {
     std::unordered_set<std::string> scriptNames;
-    std::transform(NameToIndex.begin(), NameToIndex.end(), std::inserter(scriptNames, scriptNames.end()),
-        [](std::pair<std::string const, uint32> const& pair)
+
+    for (std::pair<std::string const, Entry> const& entry : NameToIndex)
     {
-        return pair.first;
-    });
+        if (entry.second.IsScriptDatabaseBound)
+        {
+            scriptNames.insert(entry.first);
+        }
+    }
 
     return scriptNames;
 }
 
-void ObjectMgr::LoadScriptNames()
+std::unordered_set<std::string> ObjectMgr::GetAllDBScriptNames() const
 {
-    uint32 oldMSTime = getMSTime();
-
-    // We insert an empty placeholder here so we can use the
-    // script id 0 as dummy for "no script found".
-    _scriptNamesStore.insert("");
-
-    QueryResult result = WorldDatabase.Query(
-        "SELECT DISTINCT(ScriptName) FROM battleground_template WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM conversation_template WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM creature WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM creature_template WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM criteria_data WHERE ScriptName <> '' AND type = 11 "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM gameobject WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM gameobject_template WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM item_script_names WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM areatrigger_scripts WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM areatrigger_template WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM spell_script_names WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM transports WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM game_weather WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM conditions WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM outdoorpvp_template WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM scene_template WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(ScriptName) FROM quest_template_addon WHERE ScriptName <> '' "
-        "UNION "
-        "SELECT DISTINCT(script) FROM instance_template WHERE script <> ''");
-
-    if (!result)
-    {
-        TC_LOG_INFO("server.loading", ">> Loaded empty set of Script Names!");
-        return;
-    }
-
-    _scriptNamesStore.reserve(result->GetRowCount() + 1);
-
-    do
-    {
-        _scriptNamesStore.insert((*result)[0].GetString());
-    }
-    while (result->NextRow());
-
-    TC_LOG_INFO("server.loading", ">> Loaded " SZFMTD " ScriptNames in %u ms", _scriptNamesStore.size(), GetMSTimeDiffToNow(oldMSTime));
-}
-
-std::unordered_set<std::string> ObjectMgr::GetAllScriptNames() const
-{
-    return _scriptNamesStore.GetAllScriptNames();
+    return _scriptNamesStore.GetAllDBScriptNames();
 }
 
 std::string const& ObjectMgr::GetScriptName(uint32 id) const
 {
-    return _scriptNamesStore[id];
+    auto const itr = _scriptNamesStore.find(id);
+    if (itr != _scriptNamesStore.end())
+    {
+        return itr->first;
+    }
+    else
+    {
+        static std::string const empty;
+        return empty;
+    }
 }
 
-uint32 ObjectMgr::GetScriptId(std::string const& name)
+bool ObjectMgr::IsScriptDatabaseBound(uint32 id) const
 {
-    return _scriptNamesStore[name];
+    auto const itr = _scriptNamesStore.find(id);
+    if (itr != _scriptNamesStore.end())
+    {
+        return itr->second.IsScriptDatabaseBound;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+uint32 ObjectMgr::GetScriptId(std::string const& name, bool isDatabaseBound)
+{
+    return _scriptNamesStore.insert(name, isDatabaseBound);
 }
 
 CreatureBaseStats const* ObjectMgr::GetCreatureBaseStats(uint8 level, uint8 unitClass)
@@ -10503,6 +10538,7 @@ void ObjectMgr::InitializeQueriesData(QueryDataGroup mask)
 void QuestPOIData::InitializeQueryData()
 {
     QueryDataBuffer << *this;
+	QueryDataBuffer.shrink_to_fit();
 }
 
 void ObjectMgr::LoadSceneTemplates()

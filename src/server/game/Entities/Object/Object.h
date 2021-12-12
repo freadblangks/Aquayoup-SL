@@ -430,6 +430,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void GetContactPoint(WorldObject const* obj, float &x, float &y, float &z, float distance2d = CONTACT_DISTANCE) const;
 
         virtual float GetCombatReach() const { return 0.0f; } // overridden (only) in Unit
+        float GetObjectSize() const;
         void UpdateGroundPositionZ(float x, float y, float &z) const;
         void UpdateAllowedPositionZ(float x, float y, float &z) const;
 
@@ -613,7 +614,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         template <typename Container>
         void GetPlayerListInGrid(Container& playerContainer, float maxSearchRange) const;
-
+        void GetCreatureListWithEntryInGridAppend(std::list<Creature*>& lList, uint32 uiEntry, float fMaxSearchRange = 250.0f) const;
         void DestroyForNearbyPlayers();
         virtual void UpdateObjectVisibility(bool forced = true);
         virtual void UpdateObjectVisibilityOnCreate() { UpdateObjectVisibility(true); }

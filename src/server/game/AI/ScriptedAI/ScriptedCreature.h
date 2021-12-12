@@ -104,7 +104,7 @@ public:
         DoActionImpl(info, listCopy);
     }
 
-    void DoZoneInCombat(uint32 entry = 0, float maxRangeToNearestTarget = 250.0f);
+    void DoZoneInCombat(uint32 entry = 0);
     void RemoveNotExisting();
     bool HasEntry(uint32 entry) const;
 
@@ -134,6 +134,7 @@ class TC_GAME_API DummyEntryCheckPredicate
 struct TC_GAME_API ScriptedAI : public CreatureAI
 {
     explicit ScriptedAI(Creature* creature);
+	explicit ScriptedAI(Creature* creature, uint32 scriptId);
     virtual ~ScriptedAI() { }
 
     // *************
@@ -236,7 +237,7 @@ struct TC_GAME_API ScriptedAI : public CreatureAI
     //   - for raid in mode 25-heroic
     // DO NOT USE to check raid in mode 25-normal.
     bool IsHeroic() const { return _isHeroic; }
-
+    bool IsMythic() const { return me->GetMap()->IsMythic(); }
     // return the dungeon or raid difficulty
     Difficulty GetDifficulty() const { return _difficulty; }
 
@@ -294,6 +295,8 @@ struct TC_GAME_API ScriptedAI : public CreatureAI
 
         return heroic25;
     }
+
+    void KillCreditMe2(Player* player) { player->KilledMonsterCredit(me->GetEntry()); }
 
     private:
         Difficulty _difficulty;

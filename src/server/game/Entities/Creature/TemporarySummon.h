@@ -58,7 +58,7 @@ class TC_GAME_API TempSummon : public Creature
         ObjectGuid GetSummonerGUID() const { return m_summonerGUID; }
         TempSummonType const& GetSummonType() { return m_type; }
         uint32 GetTimer() const { return m_timer; }
-
+        void SetSummonerGUID(ObjectGuid summonerGUID) { m_summonerGUID = summonerGUID; }
         SummonPropertiesEntry const* const m_Properties;
     private:
         TempSummonType m_type;

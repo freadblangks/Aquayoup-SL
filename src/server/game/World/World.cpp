@@ -55,7 +55,6 @@
 #include "GitRevision.h"
 #include "GridNotifiersImpl.h"
 #include "GroupMgr.h"
-#include "GuildFinderMgr.h"
 #include "GuildMgr.h"
 #include "InstanceSaveMgr.h"
 #include "IPLocation.h"
@@ -1781,9 +1780,6 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Loading GameObject models...");
     LoadGameObjectModelList(m_dataPath);
 
-    TC_LOG_INFO("server.loading", "Loading Script Names...");
-    sObjectMgr->LoadScriptNames();
-
     TC_LOG_INFO("server.loading", "Loading Instance Template...");
     sObjectMgr->LoadInstanceTemplate();
 
@@ -2125,8 +2121,6 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading Guilds...");
     sGuildMgr->LoadGuilds();
-
-    sGuildFinderMgr->LoadFromDB();
 
     TC_LOG_INFO("server.loading", "Loading ArenaTeams...");
     sArenaTeamMgr->LoadArenaTeams();
@@ -2545,6 +2539,9 @@ void World::Update(uint32 diff)
         sAuctionBot->Update();
         m_timers[WUPDATE_AHBOT].Reset();
     }
+	
+    ///	Synchronize all scripts with their ids before updating the sScriptReloadMgr
+    sScriptMgr->SyncScripts();
 
     /// <li> Handle file changes
     if (m_timers[WUPDATE_CHECK_FILECHANGES].Passed())
