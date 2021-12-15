@@ -94,10 +94,16 @@ public:
                     }
                     break;
                 }
+               case GAMEOBJECT_TYPE_CAPTURE_POINT:
+                    if (!gameObject->CanInteractWithCapturePoint(receiver))
+                        dynFlags |= GO_DYNFLAG_LO_NO_INTERACT;
+                    else
+                        dynFlags &= ~GO_DYNFLAG_LO_NO_INTERACT;
+                    break;
                 default:
                     break;
             }
-
+            
             dynamicFlags = (pathProgress << 16) | dynFlags;
         }
 
