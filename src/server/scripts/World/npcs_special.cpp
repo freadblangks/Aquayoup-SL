@@ -39,9 +39,10 @@
 #include "SpellMgr.h"
 #include "TemporarySummon.h"
 #include "Vehicle.h"
+#include "MiscPackets.h"
 
 /*########
-# npc_air_force_bots
+npc_air_force_bots
 #########*/
 
 enum AirForceBots
