@@ -193,7 +193,7 @@ public:
 };
 
 /*########
-# npc_chicken_cluck
+npc_chicken_cluck
 #########*/
 
 enum ChickenCluck
@@ -294,7 +294,7 @@ public:
 };
 
 /*######
-## npc_dancing_flames
+npc_dancing_flames
 ######*/
 
 enum DancingFlames
@@ -437,7 +437,7 @@ public:
 };
 
 /*######
-## npc_midsummer_bunny_pole
+npc_midsummer_bunny_pole
 ######*/
 
 enum RibbonPoleData
@@ -546,7 +546,7 @@ public:
 };
 
 /*######
-## Triage quest
+Triage quest
 ######*/
 
 enum Doctor
@@ -605,7 +605,7 @@ uint32 const HordeSoldierId[3] =
 };
 
 /*######
-## npc_doctor (handles both Gustaf Vanhowzen and Gregory Victor)
+npc_doctor (handles both Gustaf Vanhowzen and Gregory Victor)
 ######*/
 class npc_doctor : public CreatureScript
 {
@@ -753,7 +753,7 @@ public:
 };
 
 /*#####
-## npc_injured_patient (handles all the patients, no matter Horde or Alliance)
+npc_injured_patient (handles all the patients, no matter Horde or Alliance)
 #####*/
 
 class npc_injured_patient : public CreatureScript
@@ -931,7 +931,7 @@ void npc_doctor::npc_doctorAI::UpdateAI(uint32 diff)
 }
 
 /*######
-## npc_garments_of_quests
+npc_garments_of_quests
 ######*/
 
 /// @todo get text for each NPC
@@ -1095,7 +1095,7 @@ public:
 };
 
 /*######
-## npc_guardian
+npc_guardian
 ######*/
 
 enum GuardianSpells
@@ -1141,7 +1141,7 @@ public:
 };
 
 /*######
-## npc_sayge
+npc_sayge
 ######*/
 
 enum Sayge
@@ -1649,7 +1649,7 @@ enum TournamentPennantSpells
 };
 
 /*####
-## npc_brewfest_reveler
+npc_brewfest_reveler
 ####*/
 
 enum BrewfestReveler
@@ -1771,7 +1771,7 @@ public:
 };
 
 /*######
-# npc_wormhole
+npc_wormhole
 ######*/
 
 enum NPC_Wormhole
@@ -1884,7 +1884,7 @@ class npc_wormhole : public CreatureScript
 };
 
 /*######
-## npc_experience
+npc_experience
 ######*/
 
 enum BehstenSlahtz
@@ -2224,7 +2224,7 @@ public:
 };
 
 /*#####
-# npc_spring_rabbit
+npc_spring_rabbit
 #####*/
 
 enum rabbitSpells
