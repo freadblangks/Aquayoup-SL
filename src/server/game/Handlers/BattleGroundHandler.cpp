@@ -53,7 +53,7 @@ void WorldSession::HandleBattlemasterHelloOpcode(WorldPackets::NPC::Hello& hello
 
     if (!_player->GetBGAccessByLevel(bgTypeId))
     {
-                                                            // temp, must be gossip message...
+        // temp, must be gossip message...
         SendNotification(LANG_YOUR_BG_LEVEL_REQ_ERROR);
         return;
     }
@@ -595,8 +595,7 @@ void WorldSession::HandleReportPvPAFK(WorldPackets::Battleground::ReportPvPPlaye
     reportedPlayer->ReportedAfkBy(_player);
 }
 
-
-void WorldSession::HandleBattlemasterJoinArenaSkirmish(WorldPackets::Battleground::BattlemasterJoinArenaSkirmish& /*packet*/)
++ void WorldSession::HandleBattlemasterJoinArenaSkirmish(WorldPackets::Battleground::BattlemasterJoinArenaSkirmish& /*packet*/)
 {
     bool isPremade = false;
     Group* grp = nullptr;
