@@ -298,9 +298,9 @@ class TC_GAME_API DB2Manager
 {
 public:
     DEFINE_DB2_SET_COMPARATOR(FriendshipRepReactionEntry)
-    DEFINE_DB2_SET_COMPARATOR(MountTypeXCapabilityEntry)
+        DEFINE_DB2_SET_COMPARATOR(MountTypeXCapabilityEntry)
 
-    struct HotfixId
+        struct HotfixId
     {
         int32 PushID = 0;
         uint32 UniqueID = 0;
@@ -315,11 +315,11 @@ public:
     {
         enum class Status : uint8
         {
-            NotSet          = 0,
-            Valid           = 1,
-            RecordRemoved   = 2,
-            Invalid         = 3,
-            NotPublic       = 4
+            NotSet = 0,
+            Valid = 1,
+            RecordRemoved = 2,
+            Invalid = 3,
+            NotPublic = 4
         };
 
         uint32 TableHash = 0;
@@ -418,7 +418,7 @@ public:
     MapDifficultyContainer const& GetMapDifficulties() const;
     MapDifficultyEntry const* GetDefaultMapDifficulty(uint32 mapId, Difficulty* difficulty = nullptr) const;
     MapDifficultyEntry const* GetMapDifficultyData(uint32 mapId, Difficulty difficulty) const;
-    MapDifficultyEntry const* GetDownscaledMapDifficultyData(uint32 mapId, Difficulty &difficulty) const;
+    MapDifficultyEntry const* GetDownscaledMapDifficultyData(uint32 mapId, Difficulty& difficulty) const;
     MapDifficultyConditionsContainer const* GetMapDifficultyConditions(uint32 mapDifficultyId) const;
     MountEntry const* GetMount(uint32 spellId) const;
     MountEntry const* GetMountById(uint32 id) const;
