@@ -4889,7 +4889,7 @@ void Player::UpdateLocalChannels(uint32 newZone)
                 if (channelEntry->Flags & CHANNEL_DBC_FLAG_CITY_ONLY && usedChannel)
                     continue;                            // Already on the channel, as city channel names are not changing
 
-                joinChannel = cMgr->GetJoinChannel(channelEntry->ID, std::string(), current_zone);
+                joinChannel = cMgr->GetSystemChannel(channelEntry->ID, current_zone);
                 if (usedChannel)
                 {
                     if (joinChannel != usedChannel)
@@ -4902,13 +4902,13 @@ void Player::UpdateLocalChannels(uint32 newZone)
                 }
             }
             else
-                joinChannel = cMgr->GetJoinChannel(channelEntry->ID, std::string());
+                joinChannel = cMgr->GetSystemChannel(channelEntry->ID);
         }
         else
             removeChannel = usedChannel;
 
         if (joinChannel)
-            joinChannel->JoinChannel(this, "");          // Changed Channel: ... or Joined Channel: ...
+            joinChannel->JoinChannel(this);          // Changed Channel: ... or Joined Channel: ...
 
         if (removeChannel)
         {
@@ -23917,20 +23917,13 @@ void Player::LeaveBattleground(bool teleportToEntryPoint)
 
 bool Player::CanJoinToBattleground(Battleground const* bg) const
 {
-    // check Deserter debuff
-    if (HasAura(26013))
-        return false;
+    uint32 perm = rbac::RBAC_PERM_JOIN_NORMAL_BG;
+    if (bg->isArena())
+        perm = rbac::RBAC_PERM_JOIN_ARENAS;
+    else if (bg->IsRandom())
+        perm = rbac::RBAC_PERM_JOIN_RANDOM_BG;
 
-    if (bg->isArena() && !GetSession()->HasPermission(rbac::RBAC_PERM_JOIN_ARENAS))
-        return false;
-
-    if (bg->IsRandom() && !GetSession()->HasPermission(rbac::RBAC_PERM_JOIN_RANDOM_BG))
-        return false;
-
-    if (!GetSession()->HasPermission(rbac::RBAC_PERM_JOIN_NORMAL_BG))
-        return false;
-
-    return true;
+    return GetSession()->HasPermission(perm);
 }
 
 bool Player::CanReportAfkDueToLimit()
