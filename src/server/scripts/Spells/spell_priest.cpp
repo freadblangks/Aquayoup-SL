@@ -542,6 +542,29 @@ public:
     }
 };
 
+// 205369 - Mind Bomb
+class spell_pri_mind_bomb : public AuraScript
+{
+    PrepareAuraScript(spell_pri_mind_bomb);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_PRIEST_MIND_BOMB_STUN });
+    }
+
+    void RemoveEffect(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_DEATH || GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+            if (Unit* caster = GetCaster())
+                caster->CastSpell(GetTarget()->GetPosition(), SPELL_PRIEST_MIND_BOMB_STUN, true);
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(spell_pri_mind_bomb::RemoveEffect, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
 // 47540 - Penance
 class spell_pri_penance : public SpellScriptLoader
 {
@@ -1357,6 +1380,7 @@ void AddSC_priest_spell_scripts()
     new spell_pri_item_t6_trinket();
     new spell_pri_leap_of_faith_effect_trigger();
     new spell_pri_levitate();
+    RegisterAuraScript(spell_pri_mind_bomb);
     new spell_pri_penance();
     RegisterSpellScript(spell_pri_power_word_radiance);
     new spell_pri_power_word_shield();
