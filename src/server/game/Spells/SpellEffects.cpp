@@ -2639,7 +2639,7 @@ void Spell::EffectSummonPet()
 
     float x, y, z;
     owner->GetClosePoint(x, y, z, owner->GetCombatReach());
-    Pet* pet = owner->SummonPet(petentry, x, y, z, owner->GetOrientation(), SUMMON_PET, 0);
+    Pet* pet = owner->SummonPet(petentry, x, y, z, owner->GetOrientation(), SUMMON_PET, 0, true);
     if (!pet)
         return;
 
@@ -3082,11 +3082,6 @@ void Spell::EffectScriptEffect()
                 case 52479: // Gift of the Harvester
                     if (unitTarget && unitCaster)
                         unitCaster->CastSpell(unitTarget, urand(0, 1) ? damage : 52505, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
-                            .SetOriginalCastId(m_castId));
-                    return;
-                case 53110: // Devour Humanoid
-                    if (unitTarget)
-                        unitTarget->CastSpell(m_caster, damage, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
                             .SetOriginalCastId(m_castId));
                     return;
                 case 57347: // Retrieving (Wintergrasp RP-GG pickup spell)
