@@ -1371,5 +1371,4 @@ void AddSC_priest_spell_scripts()
     new spell_pri_vampiric_touch();
     new spell_pri_angelic_feather_trigger();
     new areatrigger_pri_angelic_feather();
-    RegisterAuraScript(spell_pri_mind_bomb);
 }
