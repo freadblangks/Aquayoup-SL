@@ -725,48 +725,6 @@ class spell_mage_imp_mana_gems : public AuraScript
     }
 };
 
-// 1463 - Incanter's Flow
-class spell_mage_incanters_flow : public AuraScript
-{
-    PrepareAuraScript(spell_mage_incanters_flow);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_MAGE_INCANTERS_FLOW });
-    }
-
-    void HandlePeriodicTick(AuraEffect const* /*aurEff*/)
-    {
-        // Incanter's flow should not cycle out of combat
-        if (!GetTarget()->IsInCombat())
-            return;
-
-        if (Aura* aura = GetTarget()->GetAura(SPELL_MAGE_INCANTERS_FLOW))
-        {
-            uint32 stacks = aura->GetStackAmount();
-
-            // Force always to values between 1 and 5
-            if ((modifier == -1 && stacks == 1) || (modifier == 1 && stacks == 5))
-            {
-                modifier *= -1;
-                return;
-            }
-
-            aura->ModStackAmount(modifier);
-        }
-        else
-            GetTarget()->CastSpell(GetTarget(), SPELL_MAGE_INCANTERS_FLOW, true);
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_mage_incanters_flow::HandlePeriodicTick, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
-    }
-
-private:
-    int8 modifier = 1;
-};
-
 // 44457 - Living Bomb
 class spell_mage_living_bomb : public SpellScript
 {
