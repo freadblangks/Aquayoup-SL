@@ -45,6 +45,7 @@
 PreserveCustomChannelInterval = 5
 Quests.WeeklyResetWDay = 3
 Guild.SaveInterval = 15
+Calendar.DeleteOldEventsHour = 6
 ###################################################################################################
 # EXAMPLE CONFIG
 #
