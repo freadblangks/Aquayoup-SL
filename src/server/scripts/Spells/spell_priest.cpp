@@ -79,6 +79,8 @@ enum PriestSpells
     SPELL_PRIEST_PRAYER_OF_MENDING_AURA             = 41635,
     SPELL_PRIEST_PRAYER_OF_MENDING_HEAL             = 33110,
     SPELL_PRIEST_PRAYER_OF_MENDING_JUMP             = 155793,
+	SPELL_PRIEST_MASOCHISM_TALENT                   = 193063,
+    SPELL_PRIEST_MASOCHISM_PERIODIC_HEAL            = 193065,
 };
 
 enum MiscSpells
@@ -971,7 +973,7 @@ class spell_pri_shadow_mend : public SpellScript
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_PRIEST_ATONEMENT, SPELL_PRIEST_ATONEMENT_TRIGGERED, SPELL_PRIEST_TRINITY });
+        return ValidateSpellInfo({ SPELL_PRIEST_ATONEMENT, SPELL_PRIEST_ATONEMENT_TRIGGERED, SPELL_PRIEST_TRINITY, SPELL_PRIEST_MASOCHISM_TALENT, SPELL_PRIEST_MASOCHISM_PERIODIC_HEAL });
     }
 
     void HandleEffectHit(SpellEffIndex /*effIndex*/)
@@ -979,8 +981,14 @@ class spell_pri_shadow_mend : public SpellScript
         if (Unit* target = GetHitUnit())
         {
             Unit* caster = GetCaster();
+
             if (caster->HasAura(SPELL_PRIEST_ATONEMENT) && !caster->HasAura(SPELL_PRIEST_TRINITY))
                 caster->CastSpell(target, SPELL_PRIEST_ATONEMENT_TRIGGERED, true);
+			
+            // Handle Masochism talent
+            int32 periodicAmount = GetHitHeal() / 20;
+            if (caster->HasAura(SPELL_PRIEST_MASOCHISM_TALENT) && caster->GetGUID() == target->GetGUID())
+                caster->CastSpell(caster, SPELL_PRIEST_MASOCHISM_PERIODIC_HEAL, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellMod(SPELLVALUE_BASE_POINT0, periodicAmount));
         }
     }
 
