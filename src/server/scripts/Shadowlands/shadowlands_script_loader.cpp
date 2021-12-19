@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 TrinityCore
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,9 +17,12 @@
 
 //Zones
 void AddSC_zone_exiles_reach();
-
+void AddSC_boss_sylvanas_windrunner();
+void AddSC_instance_sanctum_of_domination();
 void AddShadowlandsScripts()
 {
 	//Zones
-	AddSC_zone_exiles_reach();
+  AddSC_zone_exiles_reach();
+  AddSC_boss_sylvanas_windrunner();
+  AddSC_instance_sanctum_of_domination();
 }
