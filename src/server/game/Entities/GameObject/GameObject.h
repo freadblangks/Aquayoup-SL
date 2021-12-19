@@ -69,8 +69,6 @@ union GameObjectValue
         uint32 Health;
         uint32 MaxHealth;
     } Building;
-};
-
     //42 GAMEOBJECT_TYPE_CAPTURE_POINT
     struct
     {
@@ -78,6 +76,7 @@ union GameObjectValue
         WorldPackets::Battleground::BattlegroundCapturePointState State;
         uint32 AssaultTimer;
     } CapturePoint;
+};
 
 // For containers:  [GO_NOT_READY]->GO_READY (close)->GO_ACTIVATED (open) ->GO_JUST_DEACTIVATED->GO_READY        -> ...
 // For bobber:      GO_NOT_READY  ->GO_READY (close)->GO_ACTIVATED (open) ->GO_JUST_DEACTIVATED-><deleted>
