@@ -377,6 +377,7 @@ class TC_GAME_API Spell
         void EffectActivateGarrisonBuilding();
         void EffectHealBattlePetPct();
         void EffectEnableBattlePets();
+        void EffectChangeBattlePetQuality();
         void EffectLaunchQuestChoice();
         void EffectUncageBattlePet();
         void EffectCreateHeirloomItem();
@@ -594,6 +595,8 @@ class TC_GAME_API Spell
         uint64 GetDelayMoment() const { return m_delayMoment; }
         uint64 CalculateDelayMomentForDst(float launchDelay) const;
         void RecalculateDelayMomentForDst();
+        uint8 GetRuneState() const { return m_runesState; }
+        void SetRuneState(uint8 value) { m_runesState = value; }
 
         bool IsNeedSendToClient() const;
 
@@ -641,7 +644,7 @@ class TC_GAME_API Spell
                                                             // e.g. damage around area spell trigered by victim aura and damage enemies of aura caster
         Unit* m_originalCaster;                             // cached pointer for m_originalCaster, updated at Spell::UpdatePointers()
 
-        //Spell data
+        // Spell data
         SpellSchoolMask m_spellSchoolMask;                  // Spell school (can be overwrite for some spells (wand shoot for example)
         WeaponAttackType m_attackType;                      // For weapon based attack
 

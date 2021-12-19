@@ -420,8 +420,12 @@ void PetAI::DoAttack(Unit* target, bool chase)
 
             if (me->HasUnitState(UNIT_STATE_FOLLOW))
                 me->GetMotionMaster()->Remove(FOLLOW_MOTION_TYPE);
-
-            me->GetMotionMaster()->MoveChase(target, me->GetPetChaseDistance(), float(M_PI));
+            
+            // Pets with ranged attacks should not care about the chase angle at all.
+            float chaseDistance = me->GetPetChaseDistance();
+            float angle = chaseDistance == 0.f ? float(M_PI) : 0.f;
+            float tolerance = chaseDistance == 0.f ? float(M_PI_4) : float(M_PI * 2);
+            me->GetMotionMaster()->MoveChase(target, ChaseRange(0.f, chaseDistance), ChaseAngle(angle, tolerance));
         }
         else // (Stay && ((Aggressive || Defensive) && In Melee Range)))
         {
@@ -487,7 +491,11 @@ bool PetAI::CanAttack(Unit* target)
         return false;
     }
 
-    ASSERT(me->GetCharmInfo());
+    if (!me->GetCharmInfo())
+    {
+        TC_LOG_ERROR("scripts.ai.petai", "me->GetCharmInfo() is NULL in PetAI::CanAttack(). Debug info: %s", GetDebugInfo().c_str());
+        return false;
+    }
 
     // Passive - passive pets can attack if told to
     if (me->HasReactState(REACT_PASSIVE))

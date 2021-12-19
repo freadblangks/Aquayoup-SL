@@ -46,20 +46,21 @@ void WorldSession::HandleDismissCritter(WorldPackets::Pet::DismissCritter& packe
 
     if (!pet)
     {
-        TC_LOG_DEBUG("entities.pet", "Vanitypet (%s) does not exist - player '%s' (%s / account: %u) attempted to dismiss it (possibly lagged out)",
+        TC_LOG_DEBUG("entities.pet", "Critter (%s) does not exist - player '%s' (%s / account: %u) attempted to dismiss it (possibly lagged out)",
             packet.CritterGUID.ToString().c_str(), GetPlayer()->GetName().c_str(), GetPlayer()->GetGUID().ToString().c_str(), GetAccountId());
         return;
     }
 
     if (_player->GetCritterGUID() == pet->GetGUID())
     {
-         if (pet->GetTypeId() == TYPEID_UNIT && pet->IsSummon())
-             pet->ToTempSummon()->UnSummon();
-    }
-}
+        if (pet->GetTypeId() == TYPEID_UNIT && pet->IsSummon())
+        {
+            if (!_player->GetSummonedBattlePetGUID().IsEmpty() && _player->GetSummonedBattlePetGUID() == pet->GetBattlePetCompanionGUID())
+                _player->SetBattlePetData(nullptr);
 
-void WorldSession::HandleRequestPetInfo(WorldPackets::Pet::RequestPetInfo& /*packet */)
-{
+            pet->ToTempSummon()->UnSummon();
+        }
+    }
 }
 
 void WorldSession::HandlePetAction(WorldPackets::Pet::PetAction& packet)
@@ -248,8 +249,7 @@ void WorldSession::HandlePetActionHelper(Unit* pet, ObjectGuid guid1, uint32 spe
                             if (((Pet*)pet)->getPetType() == HUNTER_PET)
                                 GetPlayer()->RemovePet((Pet*)pet, PET_SAVE_AS_DELETED);
                             else
-                                // dismissing a summoned pet is like killing them (this prevents returning a soulshard...)
-                                pet->setDeathState(CORPSE);
+                                GetPlayer()->RemovePet((Pet*)pet, PET_SAVE_NOT_IN_SLOT);
                         }
                         else if (pet->HasUnitTypeMask(UNIT_MASK_MINION))
                         {
@@ -332,14 +332,14 @@ void WorldSession::HandlePetActionHelper(Unit* pet, ObjectGuid guid1, uint32 spe
             {
                 if (unit_target)
                 {
-                    if (!pet->IsFocusing())
+                    if (!pet->HasSpellFocus())
                         pet->SetInFront(unit_target);
                     if (Player* player = unit_target->ToPlayer())
                         pet->SendUpdateToPlayer(player);
                 }
                 else if (Unit* unit_target2 = spell->m_targets.GetUnitTarget())
                 {
-                    if (!pet->IsFocusing())
+                    if (!pet->HasSpellFocus())
                         pet->SetInFront(unit_target2);
                     if (Player* player = unit_target2->ToPlayer())
                         pet->SendUpdateToPlayer(player);
@@ -743,4 +743,9 @@ void WorldSession::SendPetNameInvalid(uint32 error, const std::string& name, Dec
         petNameInvalid.RenameData.DeclinedNames = *declinedName;
 
     SendPacket(petNameInvalid.Write());
+}
+
+void WorldSession::HandleRequestPetInfo(WorldPackets::Pet::RequestPetInfo& /*requestPetInfo*/)
+{
+    GetPlayer()->PetSpellInitialize();
 }

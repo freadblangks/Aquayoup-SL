@@ -40,7 +40,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-class BattlePetMgr;
 class BlackMarketEntry;
 class CollectionMgr;
 class Creature;
@@ -64,6 +63,11 @@ enum class AuctionCommand : int8;
 enum class AuctionResult : int8;
 enum InventoryResult : uint8;
 enum class StableResult : uint8;
+
+namespace BattlePets
+{
+    class BattlePetMgr;
+}
 
 namespace lfg
 {
@@ -1142,8 +1146,12 @@ class TC_GAME_API WorldSession
         void SendTimeSync();
         uint32 AdjustClientMovementTime(uint32 time) const;
 
+        // Packets cooldown
+        time_t GetCalendarEventCreationCooldown() const { return _calendarEventCreationCooldown; }
+        void SetCalendarEventCreationCooldown(time_t cooldown) { _calendarEventCreationCooldown = cooldown; }
+
         // Battle Pets
-        BattlePetMgr* GetBattlePetMgr() const { return _battlePetMgr.get(); }
+        BattlePets::BattlePetMgr* GetBattlePetMgr() const { return _battlePetMgr.get(); }
 
         CollectionMgr* GetCollectionMgr() const { return _collectionMgr.get(); }
 
@@ -1304,7 +1312,6 @@ class TC_GAME_API WorldSession
         void HandleRequestRaidInfoOpcode(WorldPackets::Party::RequestRaidInfo& packet);
 
         void HandlePartyInviteOpcode(WorldPackets::Party::PartyInviteClient& packet);
-        //void HandleGroupCancelOpcode(WorldPacket& recvPacket);
         void HandlePartyInviteResponseOpcode(WorldPackets::Party::PartyInviteResponse& packet);
         void HandlePartyUninviteOpcode(WorldPackets::Party::PartyUninvite& packet);
         void HandleSetPartyLeaderOpcode(WorldPackets::Party::SetPartyLeader& packet);
@@ -1625,7 +1632,7 @@ class TC_GAME_API WorldSession
         void SendLfgTeleportError(lfg::LfgTeleportResult err);
 
         void HandleSelfResOpcode(WorldPackets::Spells::SelfRes& selfRes);
-        void HandleRequestPetInfo(WorldPackets::Pet::RequestPetInfo& packet);
+        void HandleRequestPetInfo(WorldPackets::Pet::RequestPetInfo& requestPetInfo);
 
         // Socket gem
         void HandleSocketGems(WorldPackets::Item::SocketGems& socketGems);
@@ -1929,7 +1936,10 @@ class TC_GAME_API WorldSession
         uint32 _timeSyncNextCounter;
         uint32 _timeSyncTimer;
 
-        std::unique_ptr<BattlePetMgr> _battlePetMgr;
+        // Packets cooldown
+        time_t _calendarEventCreationCooldown;
+
+        std::unique_ptr<BattlePets::BattlePetMgr> _battlePetMgr;
 
         std::unique_ptr<CollectionMgr> _collectionMgr;
 

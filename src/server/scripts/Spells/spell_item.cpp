@@ -3230,6 +3230,29 @@ class spell_item_rocket_boots : public SpellScript
     }
 };
 
+// 67489 - Runic Healing Injector
+class spell_item_runic_healing_injector : public SpellScript
+{
+    PrepareSpellScript(spell_item_runic_healing_injector);
+
+    bool Load() override
+    {
+        return GetCaster()->GetTypeId() == TYPEID_PLAYER;
+    }
+
+    void HandleHeal(SpellEffIndex /*effIndex*/)
+    {
+        if (Player* caster = GetCaster()->ToPlayer())
+            if (caster->HasSkill(SKILL_ENGINEERING))
+                SetHitHeal(GetHitHeal() * 1.25f);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_item_runic_healing_injector::HandleHeal, EFFECT_0, SPELL_EFFECT_HEAL);
+    }
+};
+
 enum PygmyOil
 {
     SPELL_PYGMY_OIL_PYGMY_AURA      = 53806,
@@ -4384,6 +4407,34 @@ class spell_item_crazy_alchemists_potion : public SpellScript
     }
 };
 
+enum Eggnog
+{
+    SPELL_EGG_NOG_REINDEER    = 21936,
+    SPELL_EGG_NOG_SNOWMAN     = 21980,
+};
+
+// 21149 - Egg Nog
+class spell_item_eggnog : public SpellScript
+{
+    PrepareSpellScript(spell_item_eggnog);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_EGG_NOG_REINDEER, SPELL_EGG_NOG_SNOWMAN});
+    }
+
+    void HandleScript(SpellEffIndex /* effIndex */)
+    {
+        if (roll_chance_i(40))
+            GetCaster()->CastSpell(GetHitUnit(), roll_chance_i(50) ? SPELL_EGG_NOG_REINDEER : SPELL_EGG_NOG_SNOWMAN, GetCastItem());
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_item_eggnog::HandleScript, EFFECT_2, SPELL_EFFECT_INEBRIATE);
+    }
+};
+
 // 277253 - Heart of Azeroth
 class spell_item_heart_of_azeroth : public AuraScript
 {
@@ -4514,6 +4565,7 @@ void AddSC_item_spell_scripts()
     RegisterAuraScript(spell_item_nitro_boosts_backfire);
     RegisterSpellScript(spell_item_teach_language);
     RegisterSpellScript(spell_item_rocket_boots);
+    RegisterSpellScript(spell_item_runic_healing_injector);
     RegisterSpellScript(spell_item_pygmy_oil);
     RegisterSpellScript(spell_item_unusual_compass);
     RegisterSpellScript(spell_item_chicken_cover);
@@ -4550,6 +4602,7 @@ void AddSC_item_spell_scripts()
 
     RegisterSpellScript(spell_item_mad_alchemists_potion);
     RegisterSpellScript(spell_item_crazy_alchemists_potion);
+    RegisterSpellScript(spell_item_eggnog);
 
     RegisterAuraScript(spell_item_heart_of_azeroth);
 }

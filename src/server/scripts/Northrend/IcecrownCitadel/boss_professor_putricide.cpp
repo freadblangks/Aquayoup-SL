@@ -428,7 +428,7 @@ class boss_professor_putricide : public CreatureScript
                         me->SetSpeedRate(MOVE_RUN, _baseSpeed*2.0f);
                         me->GetMotionMaster()->MovePoint(POINT_FESTERGUT, festergutWatchPos);
                         me->SetReactState(REACT_PASSIVE);
-                        DoZoneInCombat(me);
+                        EngagementStart(nullptr);
                         if (IsHeroic())
                             events.ScheduleEvent(EVENT_FESTERGUT_GOO, urand(13000, 18000), 0, PHASE_FESTERGUT);
                         break;
@@ -440,13 +440,12 @@ class boss_professor_putricide : public CreatureScript
                         events.ScheduleEvent(EVENT_FESTERGUT_DIES, 4s, 0, PHASE_FESTERGUT);
                         break;
                     case ACTION_ROTFACE_COMBAT:
-                    {
                         SetPhase(PHASE_ROTFACE);
                         me->SetSpeedRate(MOVE_RUN, _baseSpeed*2.0f);
                         me->GetMotionMaster()->MovePoint(POINT_ROTFACE, rotfaceWatchPos);
                         me->SetReactState(REACT_PASSIVE);
+                        EngagementStart(nullptr);
                         _oozeFloodStage = 0;
-                        DoZoneInCombat(me);
                         // init random sequence of floods
                         if (Creature* rotface = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_ROTFACE)))
                         {
@@ -472,7 +471,6 @@ class boss_professor_putricide : public CreatureScript
                             }
                         }
                         break;
-                    }
                     case ACTION_ROTFACE_OOZE:
                         Talk(SAY_ROTFACE_OOZE_FLOOD);
                         if (Creature* dummy = ObjectAccessor::GetCreature(*me, _oozeFloodDummyGUIDs[_oozeFloodStage]))
@@ -625,7 +623,6 @@ class boss_professor_putricide : public CreatureScript
                             AttackStart(me->GetVictim());
                             // remove Tear Gas
                             me->RemoveAurasDueToSpell(SPELL_TEAR_GAS_PERIODIC_TRIGGER);
-                            instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_TEAR_GAS_TRIGGER_MISSILE, true, true);
                             DoCastAOE(SPELL_TEAR_GAS_CANCEL);
                             instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_GAS_VARIABLE);
                             instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_OOZE_VARIABLE);
@@ -1604,7 +1601,14 @@ class spell_putricide_clear_aura_effect_value : public SpellScriptLoader
             void HandleScript(SpellEffIndex effIndex)
             {
                 PreventHitDefaultEffect(effIndex);
-                GetHitUnit()->RemoveAurasDueToSpell(GetEffectValue());
+                Unit* target = GetHitUnit();
+                uint32 auraId = GetEffectValue();
+                target->RemoveAurasDueToSpell(auraId);
+                if (m_scriptSpellId == SPELL_TEAR_GAS_CANCEL && GetSpellInfo()->GetEffects().size() >= EFFECT_1)
+                {
+                    uint32 auraId2 = GetSpellInfo()->GetEffect(EFFECT_1).CalcValue();
+                    target->RemoveAurasDueToSpell(auraId2);
+                }
             }
 
             void Register() override
@@ -1650,6 +1654,29 @@ class spell_stinky_precious_decimate : public SpellScriptLoader
         }
 };
 
+// 70402, 72511, 72512, 72513 - Mutated Transformation
+class spell_abomination_mutated_transformation : public SpellScript
+{
+    PrepareSpellScript(spell_abomination_mutated_transformation);
+
+    /* Resist system always pick the min resist value for spells with multiple schools.
+       But following some combat logs of retail, this spell is a exception and need get the sum of both schools. */
+    void HandleResistance(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        uint32 damage = GetHitDamage();
+        Unit* target = GetHitUnit();
+        damage -= Unit::CalcSpellResistedDamage(caster, target, GetHitDamage(), SPELL_SCHOOL_MASK_SHADOW, nullptr);
+        damage -= Unit::CalcSpellResistedDamage(caster, target, GetHitDamage(), SPELL_SCHOOL_MASK_NATURE, nullptr);
+        SetHitDamage(damage);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_abomination_mutated_transformation::HandleResistance, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
 void AddSC_boss_professor_putricide()
 {
     new boss_professor_putricide();
@@ -1673,4 +1700,5 @@ void AddSC_boss_professor_putricide()
     new spell_putricide_regurgitated_ooze();
     new spell_putricide_clear_aura_effect_value();
     new spell_stinky_precious_decimate();
+    RegisterSpellScript(spell_abomination_mutated_transformation);
 }

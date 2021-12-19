@@ -25,6 +25,8 @@
 
 struct BattlePetSpeciesEntry;
 
+namespace BattlePets
+{
 enum BattlePetMisc
 {
     DEFAULT_MAX_BATTLE_PETS_PER_SPECIES = 3,
@@ -36,6 +38,7 @@ enum BattlePetMisc
     SPELL_SUMMON_BATTLE_PET             = 118301
 };
 
+static constexpr uint16 MAX_BATTLE_PET_LEVEL = 25;
 static constexpr Milliseconds REVIVE_BATTLE_PETS_COOLDOWN = 180s;
 
 enum class BattlePetBreedQuality : uint8
@@ -123,19 +126,19 @@ enum BattlePetSaveInfo
     BATTLE_PET_REMOVED   = 3
 };
 
+struct BattlePet
+{
+    void CalculateStats();
+
+    WorldPackets::BattlePet::BattlePet PacketInfo;
+    time_t NameTimestamp = time_t(0);
+    std::unique_ptr<::DeclinedName> DeclinedName;
+    BattlePetSaveInfo SaveInfo = BATTLE_PET_UNCHANGED;
+};
+
 class BattlePetMgr
 {
 public:
-    struct BattlePet
-    {
-        void CalculateStats();
-
-        WorldPackets::BattlePet::BattlePet PacketInfo;
-        time_t NameTimestamp = time_t(0);
-        std::unique_ptr<::DeclinedName> DeclinedName;
-        BattlePetSaveInfo SaveInfo = BATTLE_PET_UNCHANGED;
-    };
-
     explicit BattlePetMgr(WorldSession* owner);
 
     static void Initialize();
@@ -168,6 +171,7 @@ public:
     std::vector<WorldPackets::BattlePet::BattlePetSlot> const& GetSlots() const { return _slots; }
 
     void CageBattlePet(ObjectGuid guid);
+    void ChangeBattlePetQuality(ObjectGuid guid, BattlePetBreedQuality quality);
     void HealBattlePetsPct(uint8 pct);
 
     void SummonPet(ObjectGuid guid);
@@ -193,12 +197,6 @@ private:
 
     static void LoadAvailablePetBreeds();
     static void LoadDefaultPetQualities();
-
-    // hash no longer required in C++14
-    static std::unordered_map<uint16 /*BreedID*/, std::unordered_map<BattlePetState /*state*/, int32 /*value*/, std::hash<std::underlying_type<BattlePetState>::type> >> _battlePetBreedStates;
-    static std::unordered_map<uint32 /*SpeciesID*/, std::unordered_map<BattlePetState /*state*/, int32 /*value*/, std::hash<std::underlying_type<BattlePetState>::type> >> _battlePetSpeciesStates;
-    static std::unordered_map<uint32 /*SpeciesID*/, std::unordered_set<uint8 /*breed*/>> _availableBreedsPerSpecies;
-    static std::unordered_map<uint32 /*SpeciesID*/, uint8 /*quality*/> _defaultQualityPerSpecies;
 };
-
+}
 #endif // BattlePetMgr_h__

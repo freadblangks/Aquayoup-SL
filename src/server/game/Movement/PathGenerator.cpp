@@ -205,23 +205,22 @@ void PathGenerator::BuildPolyPath(G3D::Vector3 const& startPos, G3D::Vector3 con
         TC_LOG_DEBUG("maps.mmaps", "++ BuildPolyPath :: farFromPoly distToStartPoly=%.3f distToEndPoly=%.3f", distToStartPoly, distToEndPoly);
 
         bool buildShotrcut = false;
-        if (_sourceUnit->GetTypeId() == TYPEID_UNIT)
-        {
-            Creature* owner = (Creature*)_sourceUnit;
 
-            G3D::Vector3 const& p = (distToStartPoly > 7.0f) ? startPos : endPos;
-            if (_sourceUnit->GetMap()->IsUnderWater(_sourceUnit->GetPhaseShift(), p.x, p.y, p.z))
-            {
-                TC_LOG_DEBUG("maps.mmaps", "++ BuildPolyPath :: underWater case");
-                if (owner->CanSwim())
-                    buildShotrcut = true;
-            }
-            else
-            {
-                TC_LOG_DEBUG("maps.mmaps", "++ BuildPolyPath :: flying case");
-                if (owner->CanFly())
-                    buildShotrcut = true;
-            }
+        G3D::Vector3 const& p = (distToStartPoly > 7.0f) ? startPos : endPos;
+        if (_sourceUnit->GetMap()->IsUnderWater(_sourceUnit->GetPhaseShift(), p.x, p.y, p.z))
+        {
+            TC_LOG_DEBUG("maps.mmaps", "++ BuildPolyPath :: underWater case");
+            if (_sourceUnit->CanSwim())
+                buildShotrcut = true;
+        }
+        else
+        {
+            TC_LOG_DEBUG("maps.mmaps", "++ BuildPolyPath :: flying case");
+            if (_sourceUnit->CanFly())
+                buildShotrcut = true;
+            // Allow to build a shortcut if the unit is falling and it's trying to move downwards towards a target (i.e. charging)
+            else if (_sourceUnit->IsFalling() && endPos.z < startPos.z)
+                buildShotrcut = true;
         }
 
         if (buildShotrcut)
@@ -823,7 +822,7 @@ dtStatus PathGenerator::FindSmoothPath(float const* startPos, float const* endPo
         npolys = FixupCorridor(polys, npolys, MAX_PATH_LENGTH, visited, nvisited);
 
         if (dtStatusFailed(_navMeshQuery->getPolyHeight(polys[0], result, &result[1])))
-            return DT_FAILURE;
+            TC_LOG_DEBUG("maps.mmaps", "Cannot find height at position X: %f Y: %f Z: %f for %s", result[2], result[0], result[1], _sourceUnit->GetDebugInfo().c_str());
         result[1] += 0.5f;
         dtVcopy(iterPos, result);
 
@@ -927,6 +926,7 @@ void PathGenerator::ShortenPathUntilDist(G3D::Vector3 const& target, float dist)
         return;
 
     size_t i = _pathPoints.size()-1;
+    float x, y, z, collisionHeight = _sourceUnit->GetCollisionHeight();
     // find the first i s.t.:
     //  - _pathPoints[i] is still too close
     //  - _pathPoints[i-1] is too far away
@@ -936,6 +936,15 @@ void PathGenerator::ShortenPathUntilDist(G3D::Vector3 const& target, float dist)
         // we know that pathPoints[i] is too close already (from the previous iteration)
         if ((_pathPoints[i-1] - target).squaredLength() >= distSq)
             break; // bingo!
+
+        // check if the shortened path is still in LoS with the target
+        _sourceUnit->GetHitSpherePointFor({ _pathPoints[i - 1].x, _pathPoints[i - 1].y, _pathPoints[i - 1].z + collisionHeight }, x, y, z);
+        if (!_sourceUnit->GetMap()->isInLineOfSight(_sourceUnit->GetPhaseShift(), x, y, z, _pathPoints[i - 1].x, _pathPoints[i - 1].y, _pathPoints[i - 1].z + collisionHeight, LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing))
+        {
+            // whenver we find a point that is not in LoS anymore, simply use last valid path
+            _pathPoints.resize(i + 1);
+            return;
+        }
 
         if (!--i)
         {

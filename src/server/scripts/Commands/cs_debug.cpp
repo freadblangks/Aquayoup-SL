@@ -32,6 +32,7 @@ EndScriptData */
 #include "ChatPackets.h"
 #include "Conversation.h"
 #include "DB2Stores.h"
+#include "GameTime.h"
 #include "GossipDef.h"
 #include "GridNotifiersImpl.h"
 #include "InstanceScript.h"
@@ -43,6 +44,8 @@ EndScriptData */
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "PhasingHandler.h"
+#include "PoolMgr.h"
+#include "QuestPools.h"
 #include "RBAC.h"
 #include "SpellMgr.h"
 #include "SpellPackets.h"
@@ -55,6 +58,7 @@ EndScriptData */
 #include <set>
 #include <sstream>
 
+using namespace Trinity::ChatCommands;
 class debug_commandscript : public CommandScript
 {
 public:
@@ -122,6 +126,8 @@ public:
             { "wsexpression" , rbac::RBAC_PERM_COMMAND_DEBUG,               false, &HandleDebugWSExpressionCommand,     "" },
             { "dummy",         rbac::RBAC_PERM_COMMAND_DEBUG_DUMMY,         false, &HandleDebugDummyCommand,            "" },
             { "asan",          rbac::RBAC_PERM_COMMAND_DEBUG_ASAN,          true,  nullptr,                             "", debugAsanCommandTable },
+            { "guidlimits",    rbac::RBAC_PERM_COMMAND_DEBUG,               true,  &HandleDebugGuidLimitsCommand,       "" },
+            { "questreset",    rbac::RBAC_PERM_COMMAND_DEBUG_QUESTRESET,    true,  &HandleDebugQuestResetCommand,       "" }
         };
         static std::vector<ChatCommand> commandTable =
         {
@@ -868,7 +874,7 @@ public:
         ThreatManager& mgr = target->GetThreatManager();
         if (!target->IsAlive())
         {
-            handler->PSendSysMessage("%s (%s) is not alive.", target->GetName().c_str(), target->GetGUID().ToString().c_str());
+            handler->PSendSysMessage("%s (%s) is not alive.%s", target->GetName().c_str(), target->GetGUID().ToString().c_str(), target->IsEngaged() ? " (It is, however, engaged. Huh?)" : "");
             return true;
         }
 
@@ -1461,6 +1467,42 @@ public:
         return true;
     }
 
+    static bool HandleDebugQuestResetCommand(ChatHandler* handler, std::string arg)
+    {
+        if (!Utf8ToUpperOnlyLatin(arg))
+            return false;
+
+        bool daily = false, weekly = false, monthly = false;
+        if (arg == "ALL")
+            daily = weekly = monthly = true;
+        else if (arg == "DAILY")
+            daily = true;
+        else if (arg == "WEEKLY")
+            weekly = true;
+        else if (arg == "MONTHLY")
+            monthly = true;
+        else
+            return false;
+
+        if (daily)
+        {
+            sWorld->DailyReset();
+            handler->PSendSysMessage("Daily quests have been reset. Next scheduled reset: %s", TimeToHumanReadable(sWorld->getWorldState(WS_DAILY_QUEST_RESET_TIME)).c_str());
+        }
+        if (weekly)
+        {
+            sWorld->ResetWeeklyQuests();
+            handler->PSendSysMessage("Weekly quests have been reset. Next scheduled reset: %s", TimeToHumanReadable(sWorld->getWorldState(WS_WEEKLY_QUEST_RESET_TIME)).c_str());
+        }
+        if (monthly)
+        {
+            sWorld->ResetMonthlyQuests();
+            handler->PSendSysMessage("Monthly quests have been reset. Next scheduled reset: %s", TimeToHumanReadable(sWorld->getWorldState(WS_MONTHLY_QUEST_RESET_TIME)).c_str());
+        }
+
+        return true;
+    }
+
     static bool HandleDebugNearGraveyard(ChatHandler* handler, char const* args)
     {
         Player* player = handler->GetSession()->GetPlayer();
@@ -1721,6 +1763,39 @@ public:
         uint8* leak = new uint8();
         handler->PSendSysMessage("Leaked 1 uint8 object at address %p", leak);
         return true;
+    }
+
+    static bool HandleDebugGuidLimitsCommand(ChatHandler* handler, CommandArgs* args)
+    {
+        auto mapId = args->TryConsume<uint32>();
+        if (mapId)
+        {
+            sMapMgr->DoForAllMapsWithMapId(mapId.get(),
+                [handler](Map* map) -> void
+                {
+                    HandleDebugGuidLimitsMap(handler, map);
+                }
+            );
+        }
+        else
+        {
+            sMapMgr->DoForAllMaps(
+                [handler](Map* map) -> void
+                {
+                    HandleDebugGuidLimitsMap(handler, map);
+                }
+            );
+        }
+
+        handler->PSendSysMessage("Guid Warn Level: %u", sWorld->getIntConfig(CONFIG_RESPAWN_GUIDWARNLEVEL));
+        handler->PSendSysMessage("Guid Alert Level: %u", sWorld->getIntConfig(CONFIG_RESPAWN_GUIDALERTLEVEL));
+        return true;
+    }
+
+    static void HandleDebugGuidLimitsMap(ChatHandler* handler, Map* map)
+    {
+        handler->PSendSysMessage("Map Id: %u Name: '%s' Instance Id: %u Highest Guid Creature: " UI64FMTD " GameObject: " UI64FMTD,
+            map->GetId(), map->GetMapName(), map->GetInstanceId(), uint64(map->GenerateLowGuid<HighGuid::Creature>()), uint64(map->GetMaxLowGuid<HighGuid::GameObject>()));
     }
 
     static bool HandleDebugDummyCommand(ChatHandler* handler, CommandArgs* /*args*/)
