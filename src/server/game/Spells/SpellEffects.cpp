@@ -2342,7 +2342,7 @@ void Spell::EffectEnchantItemPerm()
     else
     {
         // do not increase skill if vellum used
-        if (!(m_CastItem && m_CastItem->GetTemplate()->GetFlags() & ITEM_FLAG_NO_REAGENT_COST))
+        if (!(m_CastItem && m_CastItem->GetTemplate()->HasFlag(ITEM_FLAG_NO_REAGENT_COST)))
             player->UpdateCraftSkill(m_spellInfo->Id);
 
         uint32 enchant_id = effectInfo->MiscValue;
@@ -3071,11 +3071,6 @@ void Spell::EffectScriptEffect()
                 case 60243: // Blood Parrot Despawn
                     if (unitTarget->GetTypeId() == TYPEID_UNIT && unitTarget->IsSummon())
                         unitTarget->ToTempSummon()->UnSummon();
-                    return;
-                case 52479: // Gift of the Harvester
-                    if (unitTarget && unitCaster)
-                        unitCaster->CastSpell(unitTarget, urand(0, 1) ? damage : 52505, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
-                            .SetOriginalCastId(m_castId));
                     return;
                 case 57347: // Retrieving (Wintergrasp RP-GG pickup spell)
                 {
@@ -4390,7 +4385,7 @@ void Spell::EffectProspecting()
     if (!player)
         return;
 
-    if (!itemTarget || !(itemTarget->GetTemplate()->GetFlags() & ITEM_FLAG_IS_PROSPECTABLE))
+    if (!itemTarget || !itemTarget->GetTemplate()->HasFlag(ITEM_FLAG_IS_PROSPECTABLE))
         return;
 
     if (itemTarget->GetCount() < 5)
@@ -4415,7 +4410,7 @@ void Spell::EffectMilling()
     if (!player)
         return;
 
-    if (!itemTarget || !(itemTarget->GetTemplate()->GetFlags() & ITEM_FLAG_IS_MILLABLE))
+    if (!itemTarget || !itemTarget->GetTemplate()->HasFlag(ITEM_FLAG_IS_MILLABLE))
         return;
 
     if (itemTarget->GetCount() < 5)
