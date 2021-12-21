@@ -329,7 +329,7 @@ class TC_GAME_API BossAI : public ScriptedAI
         virtual void ScheduleTasks() { }
 
         void Reset() override { _Reset(); }
-        void JustEngagedWith(Unit* who) override { _JustEngagedWith(who); }
+        void JustEngagedWith(Unit* /*who*/) override { _JustEngagedWith(); }
         void JustDied(Unit* /*killer*/) override { _JustDied(); }
         void JustReachedHome() override { _JustReachedHome(); }
 
@@ -342,6 +342,7 @@ class TC_GAME_API BossAI : public ScriptedAI
         void _JustReachedHome();
         void _DespawnAtEvade(Seconds delayToRespawn, Creature* who = nullptr);
         void _DespawnAtEvade(uint32 delayToRespawn = 30, Creature* who = nullptr) { _DespawnAtEvade(Seconds(delayToRespawn), who); }
+
         void TeleportCheaters();
 
         EventMap events;
