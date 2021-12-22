@@ -3128,29 +3128,14 @@ float Creature::GetAggroRange(Unit const* target) const
     return 0.0f;
 }
 
-void Creature::AddInstanceEncounterFrame(uint8 priority /*= 0*/)
-{
-    if (InstanceScript* instance = GetInstanceScript())
-        instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, this, priority);
-}
-
-void Creature::RemoveInstanceEncounterFrame(uint8 priority /*= 0*/)
-{
-    if (InstanceScript* instance = GetInstanceScript())
-        instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, this, priority);
-}
-
-Unit* Creature::SelectNearestHostileUnitInAggroRange(bool useLOS) const
 Unit* Creature::SelectNearestHostileUnitInAggroRange(bool useLOS, bool ignoreCivilians) const
-
 {
     // Selects nearest hostile target within creature's aggro range. Used primarily by
     //  pets set to aggressive. Will not return neutral or friendly targets.
 
     Unit* target = nullptr;
 
-    Trinity::NearestHostileUnitInAggroRangeCheck u_check(this, useLOS);
-	Trinity::NearestHostileUnitInAggroRangeCheck u_check(this, useLOS, ignoreCivilians);
+    Trinity::NearestHostileUnitInAggroRangeCheck u_check(this, useLOS, ignoreCivilians);
     Trinity::UnitSearcher<Trinity::NearestHostileUnitInAggroRangeCheck> searcher(this, target, u_check);
 
     Cell::VisitGridObjects(this, searcher, MAX_AGGRO_RADIUS);
