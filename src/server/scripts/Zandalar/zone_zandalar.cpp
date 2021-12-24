@@ -13,15 +13,22 @@
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
- */
-
-// The name of this function should match:
-// void Add${NameOfDirectory}Scripts()
-
-void AddSC_zone_zandalar();
+Completed:0%
+*/
 
 
-void AddZandalarScripts()
+#include "AreaTrigger.h"
+#include "GameObject.h"
+#include "GameObjectAI.h"
+#include "Garrison.h"
+#include "ObjectMgr.h"
+#include "ScriptMgr.h"
+#include "ScriptedCreature.h"
+#include "ScriptedGossip.h"
+#include "ScriptedEscortAI.h"
+
+
+void AddSC_zone_zandalar()
 {
-    AddSC_zone_zandalar();
-}
+
+};
