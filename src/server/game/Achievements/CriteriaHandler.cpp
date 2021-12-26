@@ -369,7 +369,7 @@ bool CriteriaData::Meets(uint32 criteriaId, Player const* source, WorldObject co
         case CRITERIA_DATA_TYPE_HOLIDAY:
             return IsHolidayActive(HolidayIds(Holiday.Id));
         case CRITERIA_DATA_TYPE_GAME_EVENT:
-            return IsEventActive(uint16(GameEvent.Id));
+            return IsEventActive(uint32(GameEvent.Id));
         case CRITERIA_DATA_TYPE_BG_LOSS_TEAM_SCORE:
         {
             Battleground* bg = source->GetBattleground();
