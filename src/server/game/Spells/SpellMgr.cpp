@@ -4616,6 +4616,24 @@ void SpellMgr::LoadSpellInfoCorrections()
             spellEffectInfo->ApplyAuraName = SPELL_AURA_MOD_DECREASE_SPEED;
         });
     });
+	
+// GILNEAS SPELLS
+    //
+    // Curse of the Worgen
+    ApplySpellFix({ 69123 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(135); // 100yd
+    });
+
+    // Forcecast summon personal Godfrey
+    ApplySpellFix({ 68635, 68636 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+            spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_UNIT_SUMMONER);
+        });
+    });
+    // ENDOF GILNEAS SPELLS
 
     //
     // FIRELANDS SPELLS
