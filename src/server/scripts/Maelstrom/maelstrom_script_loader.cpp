@@ -19,6 +19,7 @@
 void AddSC_kezan();
 void AddSC_instance_stonecore(); // Stonecore
 void AddSC_stonecore();
+void AddSC_deepholm();
 void AddSC_boss_corborus();
 void AddSC_boss_slabhide();
 void AddSC_boss_ozruk();
@@ -31,6 +32,7 @@ void AddMaelstromScripts()
     AddSC_kezan();
     AddSC_instance_stonecore(); // Stonecore
     AddSC_stonecore();
+    AddSC_deepholm();
     AddSC_boss_corborus();
     AddSC_boss_slabhide();
     AddSC_boss_ozruk();
