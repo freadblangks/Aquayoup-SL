@@ -1,5 +1,5 @@
 /*
- * This file is part of the TrinityCore Project 2021. See AUTHORS file for Copyright information
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -425,15 +425,7 @@ namespace WorldPackets
 
             void Read() override { }
         };
-        
-        class BattlemasterJoinArenaSkirmish final : public ClientPacket
-        {
-        public:
-            BattlemasterJoinArenaSkirmish(WorldPacket&& packet) : ClientPacket(CMSG_BATTLEMASTER_JOIN_SKIRMISH, std::move(packet)) { }
 
-            void Read() override;
-        };
-        
         class RatedPvpInfo final : public ServerPacket
         {
         public:
@@ -497,34 +489,6 @@ namespace WorldPackets
             uint8 Winner = 0;
             WorldPackets::Duration<Seconds> Duration;
             Optional<PVPMatchStatistics> LogData;
-          };
-
-        enum class BattlegroundCapturePointState : uint8
-        {
-            Neutral = 1,
-            ContestedHorde = 2,
-            ContestedAlliance = 3,
-            HordeCaptured = 4,
-            AllianceCaptured = 5
-        };
-
-        struct BattlegroundCapturePointInfo
-        {
-            ObjectGuid Guid;
-            TaggedPosition<Position::XY> Pos;
-            BattlegroundCapturePointState State = BattlegroundCapturePointState::Neutral;
-            Timestamp<> CaptureTime;
-            Duration<Milliseconds, uint32> CaptureTotalDuration;
-        };
-
-        class UpdateCapturePoint final : public ServerPacket
-        {
-        public:
-            UpdateCapturePoint() : ServerPacket(SMSG_UPDATE_CAPTURE_POINT) { }
-
-            WorldPacket const* Write() override;
-
-            BattlegroundCapturePointInfo CapturePointInfo;
         };
 
         enum class BattlegroundCapturePointState : uint8
