@@ -27,6 +27,7 @@
 #include "DB2Stores.h"
 #include "GameTime.h"
 #include "GridNotifiersImpl.h"
+#include "G3DPosition.hpp"
 #include "InstanceScenario.h"
 #include "Item.h"
 #include "Log.h"
@@ -36,6 +37,7 @@
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvPMgr.h"
+#include "PathGenerator.h"
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "ReputationMgr.h"
@@ -721,10 +723,7 @@ void Object::BuildValuesUpdateWithFlag(ByteBuffer* data, UF::UpdateFieldFlag /*f
 void Object::AddToObjectUpdateIfNeeded()
 {
     if (m_inWorld && !m_objectUpdated)
-    {
-        AddToObjectUpdate();
-        m_objectUpdated = true;
-    }
+        m_objectUpdated = AddToObjectUpdate();
 }
 
 void Object::ClearUpdateMask(bool remove)
@@ -2119,16 +2118,20 @@ float WorldObject::ApplyEffectModifiers(SpellInfo const* spellInfo, uint8 effInd
 
 int32 WorldObject::CalcSpellDuration(SpellInfo const* spellInfo) const
 {
-    uint8 comboPoints = 0;
+    int32 comboPoints = 0;
+    int32 maxComboPoints = 5;
     if (Unit const* unit = ToUnit())
+    {
         comboPoints = unit->GetPower(POWER_COMBO_POINTS);
+        maxComboPoints = unit->GetMaxPower(POWER_COMBO_POINTS);
+    }
 
     int32 minduration = spellInfo->GetDuration();
     int32 maxduration = spellInfo->GetMaxDuration();
 
     int32 duration;
     if (comboPoints && minduration != -1 && minduration != maxduration)
-        duration = minduration + int32((maxduration - minduration) * comboPoints / 5);
+        duration = minduration + int32((maxduration - minduration) * comboPoints / maxComboPoints);
     else
         duration = minduration;
 
@@ -3190,6 +3193,14 @@ void WorldObject::MovePositionToFirstCollision(Position &pos, float dist, float 
         return;
     }
 
+    // Use a detour raycast to get our first collision point
+    PathGenerator path(this);
+    path.CalculatePath(destx, desty, destz, false, true);
+    G3D::Vector3 result = path.GetPath().back();
+    destx = result.x;
+    desty = result.y;
+    destz = result.z;
+
     float halfHeight = GetCollisionHeight() * 0.5f;
     UpdateAllowedPositionZ(destx, desty, destz);
     bool col = VMAP::VMapFactory::createOrGetVMapManager()->getObjectHitPos(PhasingHandler::GetTerrainMapId(GetPhaseShift(), GetMap(), pos.m_positionX, pos.m_positionY),
@@ -3403,9 +3414,10 @@ void WorldObject::BuildUpdate(UpdateDataMapType& data_map)
     ClearUpdateMask(false);
 }
 
-void WorldObject::AddToObjectUpdate()
+bool WorldObject::AddToObjectUpdate()
 {
     GetMap()->AddUpdateObject(this);
+    return true;
 }
 
 void WorldObject::RemoveFromObjectUpdate()

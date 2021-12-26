@@ -34,6 +34,7 @@
 #include "LFGMgr.h"
 #include "Log.h"
 #include "NPCPackets.h"
+#include "ObjectMgr.h"
 #include "Pet.h"
 #include "ReputationMgr.h"
 #include "SkillDiscovery.h"
@@ -192,7 +193,6 @@ class spell_gen_animal_blood : public AuraScript
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         if (Unit* owner = GetUnitOwner())
-            if (owner->IsInWater())
                 owner->CastSpell(owner, SPELL_SPAWN_BLOOD_POOL, true);
     }
 
@@ -3399,12 +3399,17 @@ class spell_gen_turkey_marker : public AuraScript
 
     void OnPeriodic(AuraEffect const* /*aurEff*/)
     {
-        if (_applyTimes.empty())
-            return;
+        int32 removeCount = 0;
 
-        // pop stack if it expired for us
-        if (_applyTimes.front() + GetMaxDuration() < GameTime::GetGameTimeMS())
-            ModStackAmount(-1, AURA_REMOVE_BY_EXPIRE);
+        // pop expired times off of the stack
+        while (!_applyTimes.empty() && _applyTimes.front() + GetMaxDuration() < GameTime::GetGameTimeMS())
+        {
+            _applyTimes.pop_front();
+            removeCount++;
+        }
+
+        if (removeCount)
+            ModStackAmount(-removeCount, AURA_REMOVE_BY_EXPIRE);
     }
 
     void Register() override
@@ -4582,6 +4587,34 @@ class spell_defender_of_azeroth_speak_with_mograine : public SpellScript
     }
 };
 
+// 118301 - Summon Battle Pet
+class spell_summon_battle_pet : public SpellScript
+{
+    PrepareSpellScript(spell_summon_battle_pet);
+
+    void HandleSummon(SpellEffIndex effIndex)
+    {
+        uint32 creatureId = uint32(GetSpellValue()->EffectBasePoints[effIndex]);
+        if (sObjectMgr->GetCreatureTemplate(creatureId))
+        {
+            PreventHitDefaultEffect(effIndex);
+
+            Unit* caster = GetCaster();
+            SummonPropertiesEntry const* properties = sSummonPropertiesStore.LookupEntry(uint32(GetEffectInfo().MiscValueB));
+            uint32 duration = uint32(GetSpellInfo()->CalcDuration(caster));
+            Position pos = GetHitDest()->GetPosition();
+
+            if (Creature* summon = caster->GetMap()->SummonCreature(creatureId, pos, properties, duration, caster, GetSpellInfo()->Id))
+                summon->SetImmuneToAll(true);
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHit += SpellEffectFn(spell_summon_battle_pet::HandleSummon, EFFECT_0, SPELL_EFFECT_SUMMON);
+    }
+};
+
 void AddSC_generic_spell_scripts()
 {
     RegisterAuraScript(spell_gen_absorb0_hitlimit1);
@@ -4718,4 +4751,5 @@ void AddSC_generic_spell_scripts()
     RegisterAuraScript(spell_gen_impatient_mind);
     RegisterSpellScript(spell_defender_of_azeroth_death_gate_selector);
     RegisterSpellScript(spell_defender_of_azeroth_speak_with_mograine);
+    RegisterSpellScript(spell_summon_battle_pet);
 }

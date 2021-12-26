@@ -573,12 +573,12 @@ void MotionMaster::MoveTargetedHome()
     }
 }
 
-void MotionMaster::MoveRandom(float spawndist)
+void MotionMaster::MoveRandom(float wanderDistance)
 {
     if (_owner->GetTypeId() == TYPEID_UNIT)
     {
-        TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MoveRandom: '%s', started random movement (spawnDist: %f)", _owner->GetGUID().ToString().c_str(), spawndist);
-        Add(new RandomMovementGenerator<Creature>(spawndist), MOTION_SLOT_DEFAULT);
+        TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MoveRandom: '%s', started random movement (spawnDist: %f)", _owner->GetGUID().ToString().c_str(), wanderDistance);
+        Add(new RandomMovementGenerator<Creature>(wanderDistance), MOTION_SLOT_DEFAULT);
     }
 }
 
@@ -859,6 +859,9 @@ void MotionMaster::MoveCirclePath(float x, float y, float z, float radius, bool 
 
     Movement::MoveSplineInit init(_owner);
 
+    // add the owner's current position as starting point as it gets removed after entering the cycle
+    init.Path().push_back(G3D::Vector3(_owner->GetPositionX(), _owner->GetPositionY(), _owner->GetPositionZ()));
+
     for (uint8 i = 0; i < stepCount; angle += step, ++i)
     {
         G3D::Vector3 point;
@@ -961,7 +964,7 @@ void MotionMaster::MoveFall(uint32 id/* = 0*/)
         return;
 
     // rooted units don't move (also setting falling+root flag causes client freezes)
-    if (_owner->HasUnitState(UNIT_STATE_ROOT))
+    if (_owner->HasUnitState(UNIT_STATE_ROOT | UNIT_STATE_STUNNED))
         return;
 
     _owner->SetFall(true);
@@ -984,12 +987,13 @@ void MotionMaster::MoveFall(uint32 id/* = 0*/)
 
 void MotionMaster::MoveSeekAssistance(float x, float y, float z)
 {
-    if (_owner->GetTypeId() == TYPEID_UNIT)
+    if (Creature* creature = _owner->ToCreature())
     {
-        TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MoveSeekAssistance: '%s', seeks assistance (X: %f, Y: %f, Z: %f)", _owner->GetGUID().ToString().c_str(), x, y, z);
-        _owner->AttackStop();
-        _owner->CastStop();
-        _owner->ToCreature()->SetReactState(REACT_PASSIVE);
+        TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MoveSeekAssistance: '%s', seeks assistance (X: %f, Y: %f, Z: %f)", creature->GetGUID().ToString().c_str(), x, y, z);
+        creature->AttackStop();
+        creature->CastStop();
+        creature->DoNotReacquireSpellFocusTarget();
+        creature->SetReactState(REACT_PASSIVE);
         Add(new AssistanceMovementGenerator(EVENT_ASSIST_MOVE, x, y, z));
     }
     else
@@ -1194,7 +1198,10 @@ void MotionMaster::DirectAdd(MovementGenerator* movement, MovementSlot slot/* = 
     {
         case MOTION_SLOT_DEFAULT:
             if (_defaultGenerator)
+            {
                 _defaultGenerator->Finalize(_owner, _generators.empty(), false);
+                _defaultGenerator->NotifyAIOnFinalize(_owner);
+            }
 
             _defaultGenerator = MovementGeneratorPointer(movement);
             if (IsStatic(movement))
@@ -1239,6 +1246,7 @@ void MotionMaster::Delete(MovementGenerator* movement, bool active, bool movemen
         movement->Priority, movement->Flags, movement->BaseUnitState, movement->GetMovementGeneratorType(), _owner->GetGUID().ToString().c_str());
 
     movement->Finalize(_owner, active, movementInform);
+    movement->NotifyAIOnFinalize(_owner);
     ClearBaseUnitState(movement);
     MovementGeneratorPointerDeleter(movement);
 }
@@ -1249,6 +1257,7 @@ void MotionMaster::DeleteDefault(bool active, bool movementInform)
         _defaultGenerator->Priority, _defaultGenerator->Flags, _defaultGenerator->BaseUnitState, _defaultGenerator->GetMovementGeneratorType(), _owner->GetGUID().ToString().c_str());
 
     _defaultGenerator->Finalize(_owner, active, movementInform);
+    _defaultGenerator->NotifyAIOnFinalize(_owner);
     _defaultGenerator = MovementGeneratorPointer(GetIdleMovementGenerator());
     AddFlag(MOTIONMASTER_FLAG_STATIC_INITIALIZATION_PENDING);
 }

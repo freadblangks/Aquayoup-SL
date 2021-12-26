@@ -55,6 +55,8 @@ enum PriestSpells
     SPELL_PRIEST_ITEM_EFFICIENCY                    = 37595,
     SPELL_PRIEST_LEAP_OF_FAITH_EFFECT               = 92832,
     SPELL_PRIEST_LEVITATE_EFFECT                    = 111759,
+    SPELL_PRIEST_MASOCHISM_TALENT                   = 193063,
+    SPELL_PRIEST_MASOCHISM_PERIODIC_HEAL            = 193065,
     SPELL_PRIEST_MIND_BOMB_STUN                     = 226943,
     SPELL_PRIEST_ORACULAR_HEAL                      = 26170,
     SPELL_PRIEST_PENANCE_R1                         = 47540,
@@ -984,7 +986,7 @@ class spell_pri_shadow_mend : public SpellScript
 
             if (caster->HasAura(SPELL_PRIEST_ATONEMENT) && !caster->HasAura(SPELL_PRIEST_TRINITY))
                 caster->CastSpell(target, SPELL_PRIEST_ATONEMENT_TRIGGERED, true);
-			
+
             // Handle Masochism talent
             int32 periodicAmount = GetHitHeal() / 20;
             if (caster->HasAura(SPELL_PRIEST_MASOCHISM_TALENT) && caster->GetGUID() == target->GetGUID())

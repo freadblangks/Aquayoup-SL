@@ -226,7 +226,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectTriggerSpell,                             //142 SPELL_EFFECT_TRIGGER_SPELL_WITH_VALUE
     &Spell::EffectUnused,                                   //143 SPELL_EFFECT_APPLY_AREA_AURA_OWNER
     &Spell::EffectKnockBack,                                //144 SPELL_EFFECT_KNOCK_BACK_DEST
-    &Spell::EffectPullTowards,                              //145 SPELL_EFFECT_PULL_TOWARDS_DEST                      Black Hole Effect
+    &Spell::EffectPullTowardsDest,                          //145 SPELL_EFFECT_PULL_TOWARDS_DEST        Black Hole Effect
     &Spell::EffectNULL,                                     //146 SPELL_EFFECT_RESTORE_GARRISON_TROOP_VITALITY
     &Spell::EffectQuestFail,                                //147 SPELL_EFFECT_QUEST_FAIL               quest fail
     &Spell::EffectTriggerMissileSpell,                      //148 SPELL_EFFECT_TRIGGER_MISSILE_SPELL_WITH_VALUE
@@ -1929,9 +1929,6 @@ void Spell::EffectSummonType()
                     if (!summon || !summon->HasUnitTypeMask(UNIT_MASK_MINION))
                         return;
 
-                    summon->SelectLevel();       // some summoned creaters have different from 1 DB data for level/hp
-                    summon->SetNpcFlags(NPCFlags(summon->GetCreatureTemplate()->npcflag & 0xFFFFFFFF));
-                    summon->SetNpcFlags2(NPCFlags2(summon->GetCreatureTemplate()->npcflag >> 32));
                     summon->SetImmuneToAll(true);
                     break;
                 }
@@ -2153,8 +2150,6 @@ void Spell::EffectDispel()
         WorldPackets::CombatLog::SpellDispellData dispellData;
         dispellData.SpellID = dispelableAura.GetAura()->GetId();
         dispellData.Harmful = false;      // TODO: use me
-        dispellData.Rolled = boost::none; // TODO: use me
-        dispellData.Needed = boost::none; // TODO: use me
 
         unitTarget->RemoveAurasDueToSpellByDispel(dispelableAura.GetAura()->GetId(), m_spellInfo->Id, dispelableAura.GetAura()->GetCasterGUID(), m_caster, dispelableAura.GetDispelCharges());
 
@@ -2342,7 +2337,7 @@ void Spell::EffectEnchantItemPerm()
     else
     {
         // do not increase skill if vellum used
-        if (!(m_CastItem && m_CastItem->GetTemplate()->GetFlags() & ITEM_FLAG_NO_REAGENT_COST))
+        if (!(m_CastItem && m_CastItem->GetTemplate()->HasFlag(ITEM_FLAG_NO_REAGENT_COST)))
             player->UpdateCraftSkill(m_spellInfo->Id);
 
         uint32 enchant_id = effectInfo->MiscValue;
@@ -3071,11 +3066,6 @@ void Spell::EffectScriptEffect()
                 case 60243: // Blood Parrot Despawn
                     if (unitTarget->GetTypeId() == TYPEID_UNIT && unitTarget->IsSummon())
                         unitTarget->ToTempSummon()->UnSummon();
-                    return;
-                case 52479: // Gift of the Harvester
-                    if (unitTarget && unitCaster)
-                        unitCaster->CastSpell(unitTarget, urand(0, 1) ? damage : 52505, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
-                            .SetOriginalCastId(m_castId));
                     return;
                 case 57347: // Retrieving (Wintergrasp RP-GG pickup spell)
                 {
@@ -4014,23 +4004,40 @@ void Spell::EffectPullTowards()
     if (!unitTarget)
         return;
 
-    Position pos;
-    if (effectInfo->Effect == SPELL_EFFECT_PULL_TOWARDS_DEST)
+    Position pos = m_caster->GetFirstCollisionPosition(m_caster->GetCombatReach(), m_caster->GetRelativeAngle(unitTarget));
+
+    // This is a blizzlike mistake: this should be 2D distance according to projectile motion formulas, but Blizzard erroneously used 3D distance.
+    float distXY = unitTarget->GetExactDist(pos);
+    float distZ = pos.GetPositionZ() - unitTarget->GetPositionZ();
+    float speedXY = effectInfo->MiscValue ? effectInfo->MiscValue / 10.0f : 30.0f;
+    float speedZ = (2 * speedXY * speedXY * distZ + Movement::gravity * distXY * distXY) / (2 * speedXY * distXY);
+
+    unitTarget->JumpTo(speedXY, speedZ, true, pos);
+}
+
+void Spell::EffectPullTowardsDest()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget)
+        return;
+
+    if (!m_targets.HasDst())
     {
-        if (m_targets.HasDst())
-            pos.Relocate(*destTarget);
-        else
-            return;
-    }
-    else //if (m_spellInfo->Effects[i].Effect == SPELL_EFFECT_PULL_TOWARDS)
-    {
-        pos.Relocate(m_caster);
+        TC_LOG_ERROR("spells", "Spell %u with SPELL_EFFECT_PULL_TOWARDS_DEST has no dest target", m_spellInfo->Id);
+        return;
     }
 
-    float speedXY = float(effectInfo->MiscValue) * 0.1f;
-    float speedZ = unitTarget->GetDistance(pos) / speedXY * 0.5f * Movement::gravity;
+    Position const* pos = m_targets.GetDstPos();
+    // This is a blizzlike mistake: this should be 2D distance according to projectile motion formulas, but Blizzard erroneously used 3D distance
+    float distXY = unitTarget->GetExactDist(pos);
+    float distZ = pos->GetPositionZ() - unitTarget->GetPositionZ();
 
-    unitTarget->GetMotionMaster()->MoveJump(pos, speedXY, speedZ);
+    float speedXY = effectInfo->MiscValue / 10.0f;
+    float speedZ = (2 * speedXY * speedXY * distZ + Movement::gravity * distXY * distXY) / (2 * speedXY * distXY);
+
+    unitTarget->JumpTo(speedXY, speedZ, true, *pos);
 }
 
 void Spell::EffectChangeRaidMarker()
@@ -4390,7 +4397,7 @@ void Spell::EffectProspecting()
     if (!player)
         return;
 
-    if (!itemTarget || !(itemTarget->GetTemplate()->GetFlags() & ITEM_FLAG_IS_PROSPECTABLE))
+    if (!itemTarget || !itemTarget->GetTemplate()->HasFlag(ITEM_FLAG_IS_PROSPECTABLE))
         return;
 
     if (itemTarget->GetCount() < 5)
@@ -4415,7 +4422,7 @@ void Spell::EffectMilling()
     if (!player)
         return;
 
-    if (!itemTarget || !(itemTarget->GetTemplate()->GetFlags() & ITEM_FLAG_IS_MILLABLE))
+    if (!itemTarget || !itemTarget->GetTemplate()->HasFlag(ITEM_FLAG_IS_MILLABLE))
         return;
 
     if (itemTarget->GetCount() < 5)
@@ -4578,8 +4585,6 @@ void Spell::EffectStealBeneficialBuff()
         WorldPackets::CombatLog::SpellDispellData dispellData;
         dispellData.SpellID = dispell.first;
         dispellData.Harmful = false;      // TODO: use me
-        dispellData.Rolled = boost::none; // TODO: use me
-        dispellData.Needed = boost::none; // TODO: use me
 
         unitTarget->RemoveAurasDueToSpellBySteal(dispell.first, dispell.second, m_caster);
 
@@ -4760,15 +4765,6 @@ void Spell::SummonGuardian(SpellEffectInfo const* effect, uint32 entry, SummonPr
         unitCaster = unitCaster->ToTotem()->GetOwner();
 
     // in another case summon new
-    uint8 level = unitCaster->GetLevel();
-
-    // level of pet summoned using engineering item based at engineering skill level
-    if (m_CastItem && unitCaster->GetTypeId() == TYPEID_PLAYER)
-        if (ItemTemplate const* proto = m_CastItem->GetTemplate())
-            if (proto->GetRequiredSkill() == SKILL_ENGINEERING)
-                if (uint16 skill202 = unitCaster->ToPlayer()->GetSkillValue(SKILL_ENGINEERING))
-                    level = skill202 / 5;
-
     float radius = 5.0f;
     int32 duration = m_spellInfo->CalcDuration(m_originalCaster);
 
@@ -4788,7 +4784,20 @@ void Spell::SummonGuardian(SpellEffectInfo const* effect, uint32 entry, SummonPr
             return;
 
         if (summon->HasUnitTypeMask(UNIT_MASK_GUARDIAN))
+        {
+            uint8 level = summon->GetLevel();
+            if (properties && !properties->GetFlags().HasFlag(SummonPropertiesFlags::UseCreatureLevel))
+                level = unitCaster->GetLevel();
+
+            // level of pet summoned using engineering item based at engineering skill level
+            if (m_CastItem && unitCaster->GetTypeId() == TYPEID_PLAYER)
+                if (ItemTemplate const* proto = m_CastItem->GetTemplate())
+                    if (proto->GetRequiredSkill() == SKILL_ENGINEERING)
+                        if (uint16 skill202 = unitCaster->ToPlayer()->GetSkillValue(SKILL_ENGINEERING))
+                            level = skill202 / 5;
+
             ((Guardian*)summon)->InitStatsForLevel(level);
+        }
 
         if (summon->HasUnitTypeMask(UNIT_MASK_MINION) && m_targets.HasDst())
             ((Minion*)summon)->SetFollowAngle(unitCaster->GetAbsoluteAngle(summon));

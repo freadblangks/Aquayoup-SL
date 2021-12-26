@@ -479,6 +479,15 @@ void Unit::Update(uint32 p_time)
     UpdateSplineMovement(p_time);
     i_motionMaster->Update(p_time);
 
+    // Wait with the aura interrupts until we have updated our movement generators and position
+    if (GetTypeId() == TYPEID_PLAYER)
+        InterruptMovementBasedAuras();
+    else if (!movespline->Finalized())
+        InterruptMovementBasedAuras();
+
+    // All position info based actions have been executed, reset info
+    _positionUpdateInfo.Reset();
+
     if (!GetAI() && (GetTypeId() != TYPEID_PLAYER || (IsCharmed() && GetCharmerGUID().IsCreature())))
         UpdateCharmAI();
     RefreshAI();
@@ -508,19 +517,28 @@ void Unit::UpdateSplineMovement(uint32 t_diff)
     movespline->updateState(t_diff);
     bool arrived = movespline->Finalized();
 
+    if (movespline->isCyclic())
+    {
+        m_splineSyncTimer.Update(t_diff);
+        if (m_splineSyncTimer.Passed())
+        {
+            m_splineSyncTimer.Reset(5000); // Retail value, do not change
+
+            WorldPackets::Movement::FlightSplineSync flightSplineSync;
+            flightSplineSync.Guid = GetGUID();
+            flightSplineSync.SplineDist = movespline->timePassed() / movespline->Duration();
+            SendMessageToSet(flightSplineSync.Write(), true);
+        }
+    }
+
     if (arrived)
         DisableSpline();
 
-    m_movesplineTimer.Update(t_diff);
-    if (m_movesplineTimer.Passed() || arrived)
-        UpdateSplinePosition();
+    UpdateSplinePosition();
 }
 
 void Unit::UpdateSplinePosition()
 {
-    static uint32 const positionUpdateDelay = 400;
-
-    m_movesplineTimer.Reset(positionUpdateDelay);
     Movement::Location loc = movespline->ComputePosition();
 
     if (movespline->onTransport)
@@ -541,6 +559,16 @@ void Unit::UpdateSplinePosition()
         loc.orientation = GetOrientation();
 
     UpdatePosition(loc.x, loc.y, loc.z, loc.orientation);
+}
+
+void Unit::InterruptMovementBasedAuras()
+{
+    // TODO: Check if orientation transport offset changed instead of only global orientation
+    if (_positionUpdateInfo.Turned)
+        RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Turning);
+
+    if (_positionUpdateInfo.Relocated && !GetVehicle())
+        RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Moving);
 }
 
 void Unit::DisableSpline()
@@ -1486,13 +1514,13 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
     }
 }
 
-void Unit::HandleEmoteCommand(uint32 anim_id, Player* target /*=nullptr*/, Trinity::IteratorPair<int32 const*> spellVisualKitIds /*= {}*/)
+void Unit::HandleEmoteCommand(uint32 emoteId, Player* target /*=nullptr*/, Trinity::IteratorPair<int32 const*> spellVisualKitIds /*= {}*/)
 {
     WorldPackets::Chat::Emote packet;
     packet.Guid = GetGUID();
-    packet.EmoteID = anim_id;
+    packet.EmoteID = emoteId;
 
-    if (EmotesEntry const* emotesEntry = sEmotesStore.LookupEntry(anim_id))
+    if (EmotesEntry const* emotesEntry = sEmotesStore.LookupEntry(emoteId))
         if (emotesEntry->AnimID == ANIM_MOUNT_SPECIAL || emotesEntry->AnimID == ANIM_MOUNT_SELF_SPECIAL)
             std::copy(spellVisualKitIds.begin(), spellVisualKitIds.end(), std::back_inserter(packet.SpellVisualKitIDs));
 
@@ -1960,6 +1988,9 @@ void Unit::HandleEmoteCommand(uint32 anim_id, Player* target /*=nullptr*/, Trini
 void Unit::AttackerStateUpdate(Unit* victim, WeaponAttackType attType, bool extra)
 {
     if (HasUnitState(UNIT_STATE_CANNOT_AUTOATTACK) || HasUnitFlag(UNIT_FLAG_PACIFIED))
+        return;
+
+    if (HasAuraType(SPELL_AURA_DISABLE_ATTACKING_EXCEPT_ABILITIES))
         return;
 
     if (!victim->IsAlive())
@@ -4431,6 +4462,14 @@ bool Unit::HasAuraTypeWithValue(AuraType auraType, int32 value) const
     return false;
 }
 
+bool Unit::HasAuraTypeWithTriggerSpell(AuraType auratype, uint32 triggerSpell) const
+{
+    for (AuraEffect const* aura : GetAuraEffectsByType(auratype))
+        if (aura->GetSpellEffectInfo().TriggerSpell == triggerSpell)
+            return true;
+    return false;
+}
+
 template <typename InterruptFlags>
 bool Unit::HasNegativeAuraWithInterruptFlag(InterruptFlags flag, ObjectGuid guid) const
 {
@@ -5383,12 +5422,6 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     if (creature && creature->IsInEvadeMode())
         return false;
 
-    if (HasUnitFlag(UNIT_FLAG_PACIFIED))
-        return false;
-
-    if (HasAuraType(SPELL_AURA_DISABLE_ATTACKING_EXCEPT_ABILITIES))
-        return false;
-
     // nobody can attack GM in GM-mode
     if (victim->GetTypeId() == TYPEID_PLAYER)
     {
@@ -5502,12 +5535,6 @@ bool Unit::AttackStop()
     if (Creature* creature = ToCreature())
     {
         creature->SetNoCallAssistance(false);
-
-        if (creature->HasSearchedAssistance())
-        {
-            creature->SetNoSearchAssistance(false);
-            UpdateSpeed(MOVE_RUN);
-        }
     }
 
     SendMeleeAttackStop(victim);
@@ -5800,16 +5827,26 @@ void Unit::SetMinion(Minion *minion, bool apply)
                 SetMinionGUID(minion->GetGUID());
         }
 
-        if (minion->m_Properties && SummonTitle(minion->m_Properties->Title) == SummonTitle::Companion)
+        SummonPropertiesEntry const* properties = minion->m_Properties;
+        if (properties && SummonTitle(properties->Title) == SummonTitle::Companion)
         {
             SetCritterGUID(minion->GetGUID());
             if (Player const* thisPlayer = ToPlayer())
             {
-                if (BattlePets::BattlePet const* pet = thisPlayer->GetSession()->GetBattlePetMgr()->GetPet(thisPlayer->GetSummonedBattlePetGUID()))
+                if (properties->GetFlags().HasFlag(SummonPropertiesFlags::SummonFromBattlePetJournal))
                 {
-                    minion->SetBattlePetCompanionGUID(thisPlayer->GetSummonedBattlePetGUID());
-                    minion->SetBattlePetCompanionNameTimestamp(pet->NameTimestamp);
-                    minion->SetWildBattlePetLevel(pet->PacketInfo.Level);
+                    if (BattlePets::BattlePet const* pet = thisPlayer->GetSession()->GetBattlePetMgr()->GetPet(thisPlayer->GetSummonedBattlePetGUID()))
+                    {
+                        minion->SetBattlePetCompanionGUID(thisPlayer->GetSummonedBattlePetGUID());
+                        minion->SetBattlePetCompanionNameTimestamp(pet->NameTimestamp);
+                        minion->SetWildBattlePetLevel(pet->PacketInfo.Level);
+
+                        if (uint32 display = pet->PacketInfo.DisplayID)
+                        {
+                            minion->SetDisplayId(display);
+                            minion->SetNativeDisplayId(display);
+                        }
+                    }
                 }
             }
         }
@@ -7127,7 +7164,9 @@ bool Unit::IsImmunedToSpell(SpellInfo const* spellInfo, WorldObject const* caste
                 continue;
 
             SpellInfo const* immuneSpellInfo = sSpellMgr->GetSpellInfo(itr->second, GetMap()->GetDifficultyID());
-            if (!(immuneSpellInfo && immuneSpellInfo->IsPositive() && spellInfo->IsPositive() && caster && IsFriendlyTo(caster)))
+            // Consider the school immune if any of these conditions are not satisfied.
+            // In case of no immuneSpellInfo, ignore that condition and check only the other conditions
+            if ((immuneSpellInfo && !immuneSpellInfo->IsPositive()) || !spellInfo->IsPositive() || !caster || !IsFriendlyTo(caster))
                 if (!spellInfo->CanPierceImmuneAura(immuneSpellInfo))
                     schoolImmunityMask |= itr->first;
         }
@@ -7665,9 +7704,6 @@ void Unit::EngageWithTarget(Unit* enemy)
     if (!enemy)
         return;
 
-    if (IsEngagedBy(enemy))
-        return;
-
     if (CanHaveThreatList())
         m_threatManager.AddThreat(enemy, 0.0f, nullptr, true, true);
     else
@@ -7817,6 +7853,32 @@ int64 Unit::GetHealthGain(int64 dVal)
         gain = maxHealth - curHealth;
 
     return gain;
+}
+
+void Unit::TriggerOnHealthChangeAuras(uint64 oldVal, uint64 newVal)
+{
+    for (AuraEffect const* effect : GetAuraEffectsByType(SPELL_AURA_TRIGGER_SPELL_ON_HEALTH_PCT))
+    {
+        uint32 triggerHealthPct = effect->GetAmount();
+        uint32 triggerSpell = effect->GetSpellEffectInfo().TriggerSpell;
+        uint64 threshold = CountPctFromMaxHealth(triggerHealthPct);
+
+        switch (AuraTriggerOnHealthChangeDirection(effect->GetMiscValue()))
+        {
+            case AuraTriggerOnHealthChangeDirection::Above:
+                if (newVal < threshold || oldVal > threshold)
+                    continue;
+                break;
+            case AuraTriggerOnHealthChangeDirection::Below:
+                if (newVal > threshold || oldVal < threshold)
+                    continue;
+                break;
+            default:
+                break;
+        }
+
+        CastSpell(this, triggerSpell, effect);
+    }
 }
 
 // returns negative amount on power reduction
@@ -8022,10 +8084,6 @@ void Unit::UpdateSpeed(UnitMoveType mtype)
 
     if (Creature* creature = ToCreature())
     {
-        // for creature case, we check explicit if mob searched for assistance
-        if (creature->HasSearchedAssistance())
-            speed *= 0.66f;                                 // best guessed value, so this will be 33% reduction. Based off initial speed, mob can then "run", "walk fast" or "walk".
-
         if (creature->HasUnitTypeMask(UNIT_MASK_MINION) && !creature->IsInCombat())
         {
             if (GetMotionMaster()->GetCurrentMovementGeneratorType() == FOLLOW_MOTION_TYPE)
@@ -8861,7 +8919,10 @@ void Unit::SetHealth(uint64 val)
             val = maxHealth;
     }
 
+    uint64 oldVal = GetHealth();
     SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Health), val);
+
+    TriggerOnHealthChangeAuras(oldVal, val);
 
     // group update
     if (Player* player = ToPlayer())
@@ -9782,7 +9843,8 @@ void Unit::StopMoving()
         return;
 
     // Update position now since Stop does not start a new movement that can be updated later
-    UpdateSplinePosition();
+    if (movespline->HasStarted())
+        UpdateSplinePosition();
     Movement::MoveSplineInit init(this);
     init.Stop();
 }
@@ -10000,6 +10062,8 @@ void Unit::UpdateReactives(uint32 p_time)
                 case REACTIVE_DEFENSE_2:
                     if (HasAuraState(AURA_STATE_DEFENSIVE_2))
                         ModifyAuraState(AURA_STATE_DEFENSIVE_2, false);
+                    break;
+                default:
                     break;
             }
         }
@@ -11626,9 +11690,12 @@ uint32 Unit::GetModelForForm(ShapeshiftForm form, uint32 spellId) const
     return modelid;
 }
 
-void Unit::JumpTo(float speedXY, float speedZ, bool forward)
+void Unit::JumpTo(float speedXY, float speedZ, bool forward, Optional<Position> dest)
 {
     float angle = forward ? 0 : float(M_PI);
+    if (dest)
+        angle += GetRelativeAngle(*dest);
+
     if (GetTypeId() == TYPEID_UNIT)
         GetMotionMaster()->MoveJumpTo(angle, speedXY, speedZ);
     else
@@ -11852,6 +11919,7 @@ void Unit::_ExitVehicle(Position const* exitPosition)
         return;
 
     // This should be done before dismiss, because there may be some aura removal
+    VehicleSeatAddon const* seatAddon = m_vehicle->GetSeatAddonForSeatOfPassenger(this);
     Vehicle* vehicle = m_vehicle->RemovePassenger(this);
 
     Player* player = ToPlayer();
@@ -11876,7 +11944,18 @@ void Unit::_ExitVehicle(Position const* exitPosition)
         // Set exit position to vehicle position and use the current orientation
         pos = vehicle->GetBase()->GetPosition();
         pos.SetOrientation(GetOrientation());
+
+        // To-do: snap this hook out of existance
         sScriptMgr->ModifyVehiclePassengerExitPos(this, vehicle, pos);
+
+        // Change exit position based on seat entry addon data
+        if (seatAddon)
+        {
+            if (seatAddon->ExitParameter == VehicleExitParameters::VehicleExitParamOffset)
+                pos.RelocateOffset({ seatAddon->ExitParameterX, seatAddon->ExitParameterY, seatAddon->ExitParameterZ, seatAddon->ExitParameterO });
+            else if (seatAddon->ExitParameter == VehicleExitParameters::VehicleExitParamDest)
+                pos.Relocate({ seatAddon->ExitParameterX, seatAddon->ExitParameterY, seatAddon->ExitParameterZ, seatAddon->ExitParameterO });
+        }
     }
 
     float height = pos.GetPositionZ() + vehicle->GetBase()->GetCollisionHeight();
@@ -12005,15 +12084,8 @@ bool Unit::UpdatePosition(float x, float y, float z, float orientation, bool tel
         std::fabs(GetPositionY() - y) > 0.001f ||
         std::fabs(GetPositionZ() - z) > 0.001f);
 
-    // TODO: Check if orientation transport offset changed instead of only global orientation
-    if (turn)
-        RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Turning);
-
     if (relocated)
     {
-        if (!GetVehicle())
-            RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Moving);
-
         // move and update visible state if need
         if (GetTypeId() == TYPEID_PLAYER)
             GetMap()->PlayerRelocation(ToPlayer(), x, y, z, orientation);
@@ -12024,6 +12096,9 @@ bool Unit::UpdatePosition(float x, float y, float z, float orientation, bool tel
         UpdateOrientation(orientation);
 
     UpdatePositionData();
+
+    _positionUpdateInfo.Relocated = relocated;
+    _positionUpdateInfo.Turned = turn;
 
     bool isInWater = IsInWater();
     if (!IsFalling() || isInWater || IsFlying())

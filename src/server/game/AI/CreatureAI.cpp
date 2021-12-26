@@ -31,6 +31,7 @@
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "SpellMgr.h"
+#include "SpellHistory.h"
 #include "TemporarySummon.h"
 #include "Vehicle.h"
 #include "World.h"
@@ -69,6 +70,9 @@ void CreatureAI::OnCharmed(bool isNew)
         }
 
         me->LastCharmerGUID.Clear();
+
+        if (!me->IsInCombat())
+            EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
     }
 
     UnitAI::OnCharmed(isNew);
@@ -86,11 +90,10 @@ void CreatureAI::DoZoneInCombat(Creature* creature /*= nullptr*/)
         return;
     }
 
-    Map::PlayerList const& playerList = map->GetPlayers();
-    if (playerList.isEmpty())
+    if (!map->HavePlayers())
         return;
 
-    for (auto const& ref : playerList)
+    for (MapReference const& ref : map->GetPlayers())
     {
         if (Player* player = ref.GetSource())
         {
@@ -288,7 +291,7 @@ void CreatureAI::EngagementOver()
 {
     if (!_isEngaged)
     {
-        TC_LOG_ERROR("scripts.ai", "CreatureAI::EngagementOver called even though creature is not currently engaged. Creature debug info:\n%s", me->GetDebugInfo().c_str());
+        TC_LOG_DEBUG("scripts.ai", "CreatureAI::EngagementOver called even though creature is not currently engaged. Creature debug info:\n%s", me->GetDebugInfo().c_str());
         return;
     }
     _isEngaged = false;
@@ -298,7 +301,7 @@ void CreatureAI::EngagementOver()
 
 bool CreatureAI::_EnterEvadeMode(EvadeReason /*why*/)
 {
-    if (!IsEngaged())
+    if (me->IsInEvadeMode())
         return false;
 
     if (!me->IsAlive())
@@ -315,6 +318,8 @@ bool CreatureAI::_EnterEvadeMode(EvadeReason /*why*/)
     me->SetLastDamagedTime(0);
     me->SetCannotReachTarget(false);
     me->DoNotReacquireSpellFocusTarget();
+    me->SetTarget(ObjectGuid::Empty);
+    me->GetSpellHistory()->ResetAllCooldowns();
     EngagementOver();
 
     return true;
