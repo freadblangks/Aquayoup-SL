@@ -4633,6 +4633,16 @@ void SpellMgr::LoadSpellInfoCorrections()
             spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_UNIT_SUMMONER);
         });
     });
+	
+    // Pull-to
+    ApplySpellFix({ 67357 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+            spellEffectInfo->MiscValue = 150;
+        });
+    });
+
     // ENDOF GILNEAS SPELLS
 
     //
