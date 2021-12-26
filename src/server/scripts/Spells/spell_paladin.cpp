@@ -1299,30 +1299,6 @@ class spell_pal_zeal : public AuraScript
     }
 };
 
-// 205191 - Eye for an Eye
-class spell_pal_eye_for_an_eye : public AuraScript
-{
-    PrepareAuraScript(spell_pal_eye_for_an_eye);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo
-        ({
-            SPELL_PALADIN_EYE_FOR_AN_EYE_TRIGGERED
-        });
-    }
-
-    void HandleEffectProc(AuraEffect* /*aurEff*/, ProcEventInfo& eventInfo)
-    {
-        GetTarget()->CastSpell(eventInfo.GetActor(), SPELL_PALADIN_EYE_FOR_AN_EYE_TRIGGERED, true);
-    }
-
-    void Register() override
-    {
-        OnEffectProc += AuraEffectProcFn(spell_pal_eye_for_an_eye::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
 void AddSC_paladin_spell_scripts()
 {
     //new spell_pal_ardent_defender();
@@ -1339,7 +1315,6 @@ void AddSC_paladin_spell_scripts()
     RegisterAuraScript(spell_pal_fist_of_justice);
     RegisterSpellScript(spell_pal_glyph_of_holy_light);
     new spell_pal_grand_crusader();
-    RegisterAuraScript(spell_pal_eye_for_an_eye);
     new spell_pal_hand_of_sacrifice();
     RegisterSpellScript(spell_pal_hammer_of_the_righteous);
     RegisterSpellScript(spell_pal_moment_of_glory);

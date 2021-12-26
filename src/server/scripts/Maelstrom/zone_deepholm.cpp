@@ -183,7 +183,7 @@ class spell_deepholm_twilight_buffet_targeting : public SpellScript
     void HandleDummyEffect(SpellEffIndex effIndex)
     {
         if (Unit* caster = GetCaster())
-            caster->CastSpell(GetHitUnit(), GetSpellInfo()->GetEffect(effIndex)->BasePoints, true);
+            caster->CastSpell(GetHitUnit(), GetSpellInfo()->GetEffect(effIndex).BasePoints, true);
     }
 
     void Register() override
