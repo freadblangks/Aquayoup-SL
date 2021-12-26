@@ -4668,6 +4668,15 @@ void SpellMgr::LoadSpellInfoCorrections()
         });
     });
 
+    // Zero Power
+    ApplySpellFix({ 87239 }, [](SpellInfo* spellInfo)
+        {
+            ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
+                {
+                    spellEffectInfo->MiscValue = 3; 
+                });
+        });
+
     for (SpellInfo const& s : mSpellInfoMap)
     {
         SpellInfo* spellInfo = &const_cast<SpellInfo&>(s);
