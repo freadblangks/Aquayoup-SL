@@ -45,25 +45,25 @@ enum InnkeeperSpells
 #define LOCALE_TRICK_OR_TREAT_0 "Trick or Treat!"
 #define LOCALE_TRICK_OR_TREAT_1 "사탕 하나 주면 안 잡아먹지!"
 #define LOCALE_TRICK_OR_TREAT_2 "Des bonbons ou des blagues!"
-#define LOCALE_TRICK_OR_TREAT_3 "Süßes oder Saures!"
+#define LOCALE_TRICK_OR_TREAT_3 "Su?es oder Saures!"
 #define LOCALE_TRICK_OR_TREAT_4 "没有糖果就捣乱！"
 #define LOCALE_TRICK_OR_TREAT_5 "不給糖就搗蛋!"
-#define LOCALE_TRICK_OR_TREAT_6 "¡Truco o trato!"
-#define LOCALE_TRICK_OR_TREAT_7 "¡Truco o trato!"
+#define LOCALE_TRICK_OR_TREAT_6 "?Truco o trato!"
+#define LOCALE_TRICK_OR_TREAT_7 "?Truco o trato!"
 #define LOCALE_TRICK_OR_TREAT_8 "Конфета или жизнь!"
-#define LOCALE_TRICK_OR_TREAT_10 "Doçura ou travessura!"
+#define LOCALE_TRICK_OR_TREAT_10 "Docura ou travessura!"
 #define LOCALE_TRICK_OR_TREAT_11 "Dolcetto o scherzetto!"
 
 #define LOCALE_INNKEEPER_0 "Make this inn my home."
 #define LOCALE_INNKEEPER_1 "이 여관을 귀환 장소로 사용합니다."
 #define LOCALE_INNKEEPER_2 "Faites de cette auberge votre foyer."
-#define LOCALE_INNKEEPER_3 "Ich möchte dieses Gasthaus zu meinem Heimatort machen."
+#define LOCALE_INNKEEPER_3 "Ich mochte dieses Gasthaus zu meinem Heimatort machen."
 #define LOCALE_INNKEEPER_4 "将这座旅店设为你的家。"
 #define LOCALE_INNKEEPER_5 "將這座旅店設為你的家。"
 #define LOCALE_INNKEEPER_6 "Fija tu hogar en esta taberna."
 #define LOCALE_INNKEEPER_7 "Fija tu hogar en esta taberna."
 #define LOCALE_INNKEEPER_8 "Я хочу остановиться здесь."
-#define LOCALE_INNKEEPER_10 "Faça desta estalagem seu lar."
+#define LOCALE_INNKEEPER_10 "Faca desta estalagem seu lar."
 #define LOCALE_INNKEEPER_11 "Rendi questo luogo la mia dimora."
 
 #define LOCALE_VENDOR_0 "I want to browse your goods."
@@ -72,8 +72,8 @@ enum InnkeeperSpells
 #define LOCALE_VENDOR_3 "Ich sehe mich nur mal um."
 #define LOCALE_VENDOR_4 "我想要看看你卖的货物。"
 #define LOCALE_VENDOR_5 "我想要看看你賣的貨物。"
-#define LOCALE_VENDOR_6 "Quiero ver tus mercancías."
-#define LOCALE_VENDOR_7 "Quiero ver tus mercancías."
+#define LOCALE_VENDOR_6 "Quiero ver tus mercancias."
+#define LOCALE_VENDOR_7 "Quiero ver tus mercancias."
 #define LOCALE_VENDOR_8 "Я хочу посмотреть на ваши товары."
 #define LOCALE_VENDOR_10 "Deixe-me dar uma olhada nas suas mercadorias."
 #define LOCALE_VENDOR_11 "Fammi vedere la tua merce."
@@ -126,7 +126,7 @@ struct npc_innkeeper : public ScriptedAI
                     break;
             }
 
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, localizedEntry, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+            AddGossipItemFor(player, GossipOptionIcon::None, localizedEntry, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
         }
 
         if (me->IsQuestGiver())
@@ -174,7 +174,7 @@ struct npc_innkeeper : public ScriptedAI
                     break;
             }
 
-            AddGossipItemFor(player, GOSSIP_ICON_VENDOR, localizedEntry, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
+            AddGossipItemFor(player, GossipOptionIcon::Vendor, localizedEntry, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
         }
 
 
@@ -220,7 +220,7 @@ struct npc_innkeeper : public ScriptedAI
                     break;
             }
 
-            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, localizedEntry, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INN);
+            AddGossipItemFor(player, GossipOptionIcon::Binder, localizedEntry, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INN);
         }
 
         player->TalkedToCreature(me->GetEntry(), me->GetGUID());
