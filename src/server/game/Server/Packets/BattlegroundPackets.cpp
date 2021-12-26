@@ -342,11 +342,6 @@ WorldPacket const* WorldPackets::Battleground::RatedPvpInfo::Write()
     return &_worldPacket;
 }
 
-void WorldPackets::Battleground::BattlemasterJoinArenaSkirmish::Read()
-{
-    _worldPacket.clear();
-}
-
 WorldPacket const* WorldPackets::Battleground::PVPMatchInitialize::Write()
 {
     _worldPacket << uint32(MapID);
