@@ -20,9 +20,9 @@
 #include "AzeriteItem.h"
 #include "AzeritePackets.h"
 #include "Battleground.h"
-#include "BattlegroundPackets.h"
 #include "CellImpl.h"
 #include "CreatureAISelector.h"
+#include "BattlegroundPackets.h"
 #include "DatabaseEnv.h"
 #include "GameObjectAI.h"
 #include "GameObjectModel.h"
@@ -437,11 +437,11 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
             AddFlag(GameObjectFlags((m_goInfo->phaseableMO.AreaNameSet & 0xF) << 8));
             break;
         case GAMEOBJECT_TYPE_CAPTURE_POINT:
+            SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::SpellVisualID), m_goInfo->capturePoint.SpellVisual1);
             m_goValue.CapturePoint.AssaultTimer = 0;
             m_goValue.CapturePoint.LastTeamCapture = TEAM_NEUTRAL;
             m_goValue.CapturePoint.State = WorldPackets::Battleground::BattlegroundCapturePointState::Neutral;
             UpdateCapturePoint();
- SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::SpellVisualID), m_goInfo->capturePoint.SpellVisual1);
             break;
         default:
             SetGoAnimProgress(animProgress);
@@ -3090,7 +3090,7 @@ void GameObject::UpdateCapturePoint()
         SendCustomAnim(customAnim);
 
     SetSpellVisualId(spellVisualId);
-    AddDynamicFlag(GO_DYNFLAG_LO_NO_INTERACT);
+    UpdateDynamicFlagsForNearbyPlayers();
 
     if (BattlegroundMap* map = GetMap()->ToBattlegroundMap())
     {
@@ -3145,6 +3145,32 @@ public:
 private:
     GameObject* _owner;
 };
+
+void GameObject::UpdateDynamicFlagsForNearbyPlayers() const
+{
+    std::list<Player*> players;
+    Trinity::AnyPlayerInObjectRangeCheck checker(this, GetVisibilityRange());
+    Trinity::PlayerListSearcher<Trinity::AnyPlayerInObjectRangeCheck> searcher(this, players, checker);
+    Cell::VisitWorldObjects(this, searcher, GetVisibilityRange());
+
+    UF::ObjectData::Base objMask;
+    UF::GameObjectData::Base const goMask;
+    objMask.MarkChanged(&UF::ObjectData::DynamicFlags);
+
+    for (Player const* player : players)
+    {
+        if (!player->HaveAtClient(this))
+            continue;
+
+        UpdateData udata(GetMapId());
+        WorldPacket packet;
+
+        BuildValuesUpdateForPlayerWithMask(&udata, objMask.GetChangesMask(), goMask.GetChangesMask(), player);
+
+        udata.BuildPacket(&packet);
+        player->SendDirectMessage(&packet);
+    }
+}
 
 void GameObject::CreateModel()
 {

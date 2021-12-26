@@ -605,8 +605,13 @@ enum SMART_ACTION
     SMART_ACTION_PLAY_SPELL_VISUAL_KIT              = 137,    // spellVisualKitId, kitType (unknown values, copypaste from packet dumps), duration
     SMART_ACTION_OVERRIDE_LIGHT                     = 138,    // zoneId, overrideLightID, transitionMilliseconds
     SMART_ACTION_OVERRIDE_WEATHER                   = 139,    // zoneId, weatherId, intensity
-    SMART_ACTION_CREATE_CONVERSATION                = 143,    // conversation_template.id
-    SMART_ACTION_END                                = 144
+    SMART_ACTION_CREATE_CONVERSATION                = 143,    // conversation_template.id, includeCreatorAsActor (1=yes,0=no)
+    SMART_ACTION_SET_IMMUNE_PC                      = 144,    // 0/1
+    SMART_ACTION_SET_IMMUNE_NPC                     = 145,    // 0/1
+    SMART_ACTION_SET_UNINTERACTIBLE                 = 146,    // 0/1
+    SMART_ACTION_ACTIVATE_GAMEOBJECT                = 147,    // GameObjectActions
+    SMART_ACTION_ADD_TO_STORED_TARGET_LIST          = 148,    // varID
+    SMART_ACTION_END                                = 149
 };
 
 enum class SmartActionSummonCreatureFlags
@@ -1227,7 +1232,13 @@ struct SmartAction
         struct
         {
             uint32 id;
+            uint32 includeCreatorAsActor;
         } conversation;
+
+        struct
+        {
+            uint32 id;
+        } addToStoredTargets;
 
         //! Note for any new future actions
         //! All parameters must have type uint32
@@ -1639,6 +1650,8 @@ class ObjectGuidVector
             UpdateObjects(ref);
             return &_objectVector;
         }
+
+        void AddGuid(ObjectGuid const& guid) { _guidVector.push_back(guid); }
 
         ~ObjectGuidVector() { }
 

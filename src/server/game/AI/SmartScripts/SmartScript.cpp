@@ -115,6 +115,14 @@ void SmartScript::StoreTargetList(ObjectVector const& targets, uint32 id)
     _storedTargets.emplace(id, ObjectGuidVector(targets));
 }
 
+void SmartScript::AddToStoredTargetList(ObjectVector const& targets, uint32 id)
+{
+    auto [itr, inserted] = _storedTargets.try_emplace(id, targets);
+    if (!inserted)
+        for (WorldObject* obj : targets)
+            itr->second.AddGuid(obj->GetGUID());
+}
+
 ObjectVector const* SmartScript::GetStoredTargetVector(uint32 id, WorldObject const& ref) const
 {
     auto itr = _storedTargets.find(id);
@@ -2469,17 +2477,34 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
         {
             WorldObject* baseObject = GetBaseObject();
 
+            GuidVector dynamicActors;
+            Player* creator = nullptr;
+
             for (WorldObject* const target : targets)
             {
-                if (Player* playerTarget = target->ToPlayer())
+                // first player in target list will implicitly be creator
+                if (!creator && target->IsPlayer())
                 {
-                    Conversation* conversation = Conversation::CreateConversation(e.action.conversation.id, playerTarget,
-                        *playerTarget, playerTarget->GetGUID(), nullptr);
-                    if (!conversation)
-                        TC_LOG_WARN("scripts.ai", "SmartScript::ProcessAction:: SMART_ACTION_CREATE_CONVERSATION: id %u, baseObject %s, target %s - failed to create conversation",
-                            e.action.conversation.id, !baseObject ? "" : baseObject->GetName().c_str(), playerTarget->GetName().c_str());
+                    creator = target->ToPlayer();
+
+                    if (e.action.conversation.includeCreatorAsActor)
+                        dynamicActors.push_back(target->GetGUID());
                 }
+                else
+                    dynamicActors.push_back(target->GetGUID());
             }
+
+            if (!creator)
+            {
+                TC_LOG_ERROR("sql.sql", "SmartScript::ProcessAction: SMART_ACTION_CREATE_CONVERSATION: id %u, baseObject %s - unable to find creating player", e.action.conversation.id, !baseObject ? "" : baseObject->GetName().c_str());
+                break;
+            }
+
+            Conversation* conversation = Conversation::CreateConversation(e.action.conversation.id, creator,
+                *creator, { creator->GetGUID() }, nullptr, dynamicActors);
+            if (!conversation)
+                TC_LOG_WARN("scripts.ai", "SmartScript::ProcessAction:: SMART_ACTION_CREATE_CONVERSATION: id %u, baseObject %s, target %s - failed to create conversation",
+                    e.action.conversation.id, !baseObject ? "" : baseObject->GetName().c_str(), creator->GetName().c_str());
 
             break;
         }
@@ -2491,6 +2516,18 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                     continue;
 
                 target->ToPlayer()->SendCinematicStart(e.action.cinematic.entry);
+            }
+            break;
+        }
+        case SMART_ACTION_ADD_TO_STORED_TARGET_LIST:
+        {
+            if (!targets.empty())
+                AddToStoredTargetList(targets, e.action.addToStoredTargets.id);
+            else
+            {
+                WorldObject* baseObject = GetBaseObject();
+                TC_LOG_WARN("scripts.ai", "SmartScript::ProcessAction:: SMART_ACTION_ADD_TO_STORED_TARGET_LIST: var %u, baseObject %s, event %u - tried to add no targets to stored target list",
+                    e.action.addToStoredTargets.id, !baseObject ? "" : baseObject->GetName().c_str(), e.event_id);
             }
             break;
         }

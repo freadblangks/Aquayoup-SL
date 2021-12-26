@@ -332,13 +332,15 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void AssaultCapturePoint(Player* player);
         void UpdateCapturePoint();
         bool CanInteractWithCapturePoint(Player const* target) const;
-        
+
         void AIM_Destroy();
         bool AIM_Initialize();
 
         std::string GetDebugInfo() const override;
 
         UF::UpdateField<UF::GameObjectData, 0, TYPEID_GAMEOBJECT> m_gameObjectData;
+
+        void UpdateDynamicFlagsForNearbyPlayers() const;
 
     protected:
         void CreateModel();

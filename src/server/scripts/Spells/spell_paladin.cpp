@@ -779,15 +779,15 @@ class spell_pal_holy_prism_selector : public SpellScript
 
     void FilterTargets(std::list<WorldObject*>& targets)
     {
-        if (GetSpellInfo()->Id == SPELL_PALADIN_HOLY_PRISM_TARGET_ALLY)
-            targets.sort(Trinity::HealthPctOrderPred());
-
         uint8 const maxTargets = 5;
 
         if (targets.size() > maxTargets)
         {
             if (GetSpellInfo()->Id == SPELL_PALADIN_HOLY_PRISM_TARGET_ALLY)
+            {
+                targets.sort(Trinity::HealthPctOrderPred());
                 targets.resize(maxTargets);
+            }
             else
                 Trinity::Containers::RandomResize(targets, maxTargets);
         }
@@ -809,18 +809,13 @@ class spell_pal_holy_prism_selector : public SpellScript
     void Register() override
     {
         if (m_scriptSpellId == SPELL_PALADIN_HOLY_PRISM_TARGET_ENEMY)
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_pal_holy_prism_selector::SaveTargetGuid, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
             OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_pal_holy_prism_selector::FilterTargets, EFFECT_1, TARGET_UNIT_DEST_AREA_ALLY);
-        }
-
-        if (m_scriptSpellId == SPELL_PALADIN_HOLY_PRISM_TARGET_ALLY)
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_pal_holy_prism_selector::SaveTargetGuid, EFFECT_0, SPELL_EFFECT_HEAL);
+        else if (m_scriptSpellId == SPELL_PALADIN_HOLY_PRISM_TARGET_ALLY)
             OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_pal_holy_prism_selector::FilterTargets, EFFECT_1, TARGET_UNIT_DEST_AREA_ENEMY);
-        }
 
         OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_pal_holy_prism_selector::ShareTargets, EFFECT_2, TARGET_UNIT_DEST_AREA_ENTRY);
+
+        OnEffectHitTarget += SpellEffectFn(spell_pal_holy_prism_selector::SaveTargetGuid, EFFECT_0, SPELL_EFFECT_ANY);
         OnEffectHitTarget += SpellEffectFn(spell_pal_holy_prism_selector::HandleScript, EFFECT_2, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 
@@ -1304,6 +1299,30 @@ class spell_pal_zeal : public AuraScript
     }
 };
 
+// 205191 - Eye for an Eye
+class spell_pal_eye_for_an_eye : public AuraScript
+{
+    PrepareAuraScript(spell_pal_eye_for_an_eye);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo
+        ({
+            SPELL_PALADIN_EYE_FOR_AN_EYE_TRIGGERED
+        });
+    }
+
+    void HandleEffectProc(AuraEffect* /*aurEff*/, ProcEventInfo& eventInfo)
+    {
+        GetTarget()->CastSpell(eventInfo.GetActor(), SPELL_PALADIN_EYE_FOR_AN_EYE_TRIGGERED, true);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_pal_eye_for_an_eye::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
 void AddSC_paladin_spell_scripts()
 {
     //new spell_pal_ardent_defender();
@@ -1320,6 +1339,7 @@ void AddSC_paladin_spell_scripts()
     RegisterAuraScript(spell_pal_fist_of_justice);
     RegisterSpellScript(spell_pal_glyph_of_holy_light);
     new spell_pal_grand_crusader();
+    RegisterAuraScript(spell_pal_eye_for_an_eye);
     new spell_pal_hand_of_sacrifice();
     RegisterSpellScript(spell_pal_hammer_of_the_righteous);
     RegisterSpellScript(spell_pal_moment_of_glory);
