@@ -559,6 +559,8 @@ public:
         TemplateNPC_AI(Creature* creature) : ScriptedAI(creature) { }
         bool OnGossipHello(Player* player) override
         {
+			if (player->GetLevel() > 79)
+		{	
             switch (player->GetClass())
             {
             case CLASS_PRIEST:
@@ -613,19 +615,26 @@ public:
                 AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|cff00ff00|TInterface\\icons\\spell_deathknight_unholypresence:30|t|r Use Unholy Spec", GOSSIP_SENDER_MAIN, 29);
                 break;
             }
+						std::ostringstream messageG;
+            messageG << BOOSTCOST << Boost_Costs << GOLDTEXT;
 
             /*AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|cff00ff00|TInterface\\icons\\Spell_ChargeNegative:30|t|r Remove all glyphs", GOSSIP_SENDER_MAIN, 30);
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|cff00ff00|TInterface\\icons\\Spell_ChargeNegative:30|t|r Destroy my equipped gear", GOSSIP_SENDER_MAIN, 32);
 			AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|cff00ff00|TInterface\\icons\\Spell_ChargeNegative:30|t|r Reset Talents", GOSSIP_SENDER_MAIN, 31);*/
+		}
+		
+			AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|cff00ff00|TInterface\\icons\\Spell_ChargeNegative:30|t|r Remove all glyphs", GOSSIP_SENDER_MAIN, 30);
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|cff00ff00|TInterface\\icons\\Spell_ChargeNegative:30|t|r Destroy my equipped gear", GOSSIP_SENDER_MAIN, 32);
+			AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|cff00ff00|TInterface\\icons\\Spell_ChargeNegative:30|t|r Reset Talents", GOSSIP_SENDER_MAIN, 31);
+		
 			std::ostringstream messageG;
             messageG << BOOSTCOST << Boost_Costs << GOLDTEXT;
-			if (player->GetLevel() < 80)
-			{
-			AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, messageG.str(), GOSSIP_SENDER_MAIN, 33);
-			}
-			
-            SendGossipMenuFor(player, 55002, me->GetGUID());
-            return true;
+		if (player->GetLevel() < 79)
+		{
+			AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, messageG.str(), GOSSIP_SENDER_MAIN, 33);	
+		}
+			SendGossipMenuFor(player, 55002, me->GetGUID());
+			return true;  
         }
 
         static void EquipFullTemplateGear(Player* player, std::string& playerSpecStr) // Merge
@@ -1013,6 +1022,10 @@ public:
             }
 				 CloseGossipMenuFor(player);	
 				break;	
+				
+				
+			 case 99: // empty
+                break;	
 
             case 100: // Use Discipline Priest Spec
                 sTemplateNpcMgr->sTalentsSpec = "Discipline";

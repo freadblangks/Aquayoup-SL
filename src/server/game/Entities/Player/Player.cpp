@@ -27104,17 +27104,46 @@ Pet* Player::SummonPet(uint32 entry, float x, float y, float z, float ang, PetTy
     ASSERT(!petStable.CurrentPet && (petType != HUNTER_PET || !petStable.GetUnslottedHunterPet()));
     pet->FillPetInfo(&petStable.CurrentPet.emplace());
 
-    switch (petType)
-    {
-        case SUMMON_PET:
-            pet->InitPetCreateSpells();
-            pet->InitTalentForLevel();
-            pet->SavePetToDB(PET_SAVE_AS_CURRENT);
-            PetSpellInitialize();
-            break;
-        default:
-            break;
-    }
+
+//skuly Tame All
+if (sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
+{
+	
+		switch (petType)
+		{
+			case SUMMON_PET:
+				pet->InitPetCreateSpells();
+				pet->InitTalentForLevel();
+				pet->SavePetToDB(PET_SAVE_AS_CURRENT);
+				PetSpellInitialize();
+				break;
+			case HUNTER_PET:
+				pet->InitPetCreateSpells();
+				pet->InitTalentForLevel();
+				pet->SavePetToDB(PET_SAVE_AS_CURRENT);
+				PetSpellInitialize();
+				break;
+			default:
+				break;
+		}
+}
+	else
+	{
+		
+		switch (petType)
+		{
+			case SUMMON_PET:
+				pet->InitPetCreateSpells();
+				pet->InitTalentForLevel();
+				pet->SavePetToDB(PET_SAVE_AS_CURRENT);
+				PetSpellInitialize();
+				break;
+			default:
+				break;
+		}
+		
+	}
+	
 
     if (petType == SUMMON_PET)
     {
@@ -27131,6 +27160,17 @@ Pet* Player::SummonPet(uint32 entry, float x, float y, float z, float ang, PetTy
                 ++itr;
         }
     }
+	
+	
+	//skuly Tame All
+	if (sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
+	{
+		if (petType == HUNTER_PET )
+		{
+			SetPowerType(POWER_FOCUS);
+		}
+	}
+	
 
     if (duration > 0)
         pet->SetDuration(duration);
