@@ -17,6 +17,7 @@
 
 #include "Pet.h"
 #include "Common.h"
+#include "Config.h"
 #include "DatabaseEnv.h"
 #include "Formulas.h"
 #include "Group.h"
@@ -874,25 +875,47 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
 
     //Determine pet type
     PetType petType = MAX_PET_TYPE;
-    if (IsPet() && GetOwner()->GetTypeId() == TYPEID_PLAYER)
-    {
-        if (GetOwner()->GetClass() == CLASS_WARLOCK
-            || GetOwner()->GetClass() == CLASS_SHAMAN        // Fire Elemental
-            || GetOwner()->GetClass() == CLASS_DEATH_KNIGHT) // Risen Ghoul
-        {
-            petType = SUMMON_PET;
-        }
-        else if (GetOwner()->GetClass() == CLASS_HUNTER)
-        {
-            petType = HUNTER_PET;
-            m_unitTypeMask |= UNIT_MASK_HUNTER_PET;
-        }
+	//skuly Tame All
+if (sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
+{
+	
+	  if (IsPet() && GetOwner()->GetTypeId() == TYPEID_PLAYER)
+		{
+			if (cinfo->type == CREATURE_TYPE_BEAST) 
+			{
+				petType = HUNTER_PET;
+				m_unitTypeMask |= UNIT_MASK_HUNTER_PET; 
+			}
         else
-        {
-            TC_LOG_ERROR("entities.pet", "Unknown type pet %u is summoned by player class %u",
-                           GetEntry(), GetOwner()->GetClass());
-        }
-    }
+			{
+				petType = SUMMON_PET;
+			}
+
+		}
+	
+}
+	else
+	{
+		if (IsPet() && GetOwner()->GetTypeId() == TYPEID_PLAYER)
+		{
+			if (GetOwner()->GetClass() == CLASS_WARLOCK
+				|| GetOwner()->GetClass() == CLASS_SHAMAN        // Fire Elemental
+				|| GetOwner()->GetClass() == CLASS_DEATH_KNIGHT) // Risen Ghoul
+			{
+				petType = SUMMON_PET;
+			}
+			else if (GetOwner()->GetClass() == CLASS_HUNTER)
+			{
+				petType = HUNTER_PET;
+				m_unitTypeMask |= UNIT_MASK_HUNTER_PET;
+			}
+			else
+			{
+				TC_LOG_ERROR("entities.pet", "Unknown type pet %u is summoned by player class %u",
+							GetEntry(), GetOwner()->GetClass());
+			}
+		}
+	}
 
     uint32 creature_ID = (petType == HUNTER_PET) ? 1 : cinfo->Entry;
 

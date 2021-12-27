@@ -49,6 +49,7 @@
 #	 LFG DESERTER
 #	 DYNAMIC RESURRECTION
 #	 SOLOCRAFT
+#	 ALL CLASSES TAME
 #
 ###################################################################################################
 
@@ -4670,7 +4671,7 @@ AutoBalance.DungeonsOnly = 1
 #		 name, currently applies to both dungeons and raids).
 #        Default:     0 (1 = ON, 0 = OFF)
 
-AutoBalance.RaidsOnly = 1
+AutoBalance.RaidsOnly = 0
 
 #
 #     AutoBalance.PlayerChangeNotify
@@ -5233,3 +5234,10 @@ Solocraft.HallsOfReflection.Level = 78
 Solocraft.ChamberOfAspectsRed.Level = 80
 #
 ################################################################################################
+###ALL CLASSES TAME###
+#All classes can use tame. 
+#	The lua_script "TameBeast_AllClasses.lua" will give players taming spells at
+#	certain levels if "local enabled = false" is set to true
+Tame.All.Enabled = false
+#############################################################################################
+
