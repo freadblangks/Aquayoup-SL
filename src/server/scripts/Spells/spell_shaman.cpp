@@ -63,7 +63,7 @@ enum ShamanSpells
     SPELL_SHAMAN_FLAMETONGUE_WEAPON_AURA        = 319778,
     SPELL_SHAMAN_GATHERING_STORMS               = 198299,
     SPELL_SHAMAN_GATHERING_STORMS_BUFF          = 198300,
-    SPELL_SHAMAN_HEALING_RAIN_VISUAL            = 147490,
+    SPELL_SHAMAN_HEALING_RAIN_DYNOBJECT         = 142923,
     SPELL_SHAMAN_HEALING_RAIN_HEAL              = 73921,
     SPELL_SHAMAN_ITEM_LIGHTNING_SHIELD          = 23552,
     SPELL_SHAMAN_ITEM_LIGHTNING_SHIELD_DAMAGE   = 27635,
@@ -96,11 +96,6 @@ enum MiscSpells
     SPELL_HUNTER_INSANITY                       = 95809,
     SPELL_MAGE_TEMPORAL_DISPLACEMENT            = 80354,
     SPELL_PET_NETHERWINDS_FATIGUED              = 160455
-};
-
-enum MiscNpcs
-{
-    NPC_HEALING_RAIN_INVISIBLE_STALKER          = 73400,
 };
 
 // 273221 - Aftershock
@@ -587,35 +582,23 @@ class spell_sha_ghost_wolf : public AuraScript
 // 73920 - Healing Rain (Aura)
 class spell_sha_healing_rain_aura : public AuraScript
 {
-public:
-    void SetVisualDummy(TempSummon* summon)
-    {
-        _visualDummy = summon->GetGUID();
-        _dest = summon->GetPosition();
-    }
-
-private:
     PrepareAuraScript(spell_sha_healing_rain_aura);
 
-    void HandleEffectPeriodic(AuraEffect const* aurEff)
+    void HandleEffectPeriodic(AuraEffect const* /*aurEff*/)
     {
-        GetTarget()->CastSpell(_dest, SPELL_SHAMAN_HEALING_RAIN_HEAL, aurEff);
-    }
+        Unit* caster = GetCaster();
 
-    void HandleEffecRemoved(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        if (Creature* summon = ObjectAccessor::GetCreature(*GetTarget(), _visualDummy))
-            summon->DespawnOrUnsummon();
+        if (!caster)
+            return;
+
+        if (DynamicObject* dynObj = caster->GetDynObject(SPELL_SHAMAN_HEALING_RAIN_DYNOBJECT))
+            caster->CastSpell(Position{ dynObj->GetPositionX(), dynObj->GetPositionY(), dynObj->GetPositionZ() }, SPELL_SHAMAN_HEALING_RAIN_HEAL, true);
     }
 
     void Register() override
     {
-        OnEffectRemove += AuraEffectRemoveFn(spell_sha_healing_rain_aura::HandleEffecRemoved, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY, AURA_EFFECT_HANDLE_REAL);
         OnEffectPeriodic += AuraEffectPeriodicFn(spell_sha_healing_rain_aura::HandleEffectPeriodic, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY);
     }
-
-    ObjectGuid _visualDummy;
-    Position _dest;
 };
 
 // 73920 - Healing Rain
@@ -623,28 +606,47 @@ class spell_sha_healing_rain : public SpellScript
 {
     PrepareSpellScript(spell_sha_healing_rain);
 
-    void InitializeVisualStalker()
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        if (Aura* aura = GetHitAura())
+        return ValidateSpellInfo({ SPELL_SHAMAN_HEALING_RAIN_DYNOBJECT, SPELL_SHAMAN_HEALING_RAIN_HEAL });
+    }
+
+    void HandleOnHit()
+    {
+        if (WorldLocation const* loc = GetExplTargetDest())
         {
-            if (WorldLocation const* dest = GetExplTargetDest())
-            {
-                int32 duration = GetSpellInfo()->CalcDuration(GetOriginalCaster());
-                TempSummon* summon = GetCaster()->GetMap()->SummonCreature(NPC_HEALING_RAIN_INVISIBLE_STALKER, *dest, nullptr, duration, GetOriginalCaster());
-                if (!summon)
-                    return;
+            Unit* caster = GetCaster();
 
-                summon->CastSpell(summon, SPELL_SHAMAN_HEALING_RAIN_VISUAL, true);
+            caster->RemoveDynObject(SPELL_SHAMAN_HEALING_RAIN_DYNOBJECT);
+            caster->CastSpell(*loc, SPELL_SHAMAN_HEALING_RAIN_DYNOBJECT, true);
+        }
+    }
 
-                if (spell_sha_healing_rain_aura* script = aura->GetScript<spell_sha_healing_rain_aura>())
-                    script->SetVisualDummy(summon);
-            }
+
+    void Register() override
+    {
+        OnHit += SpellHitFn(spell_sha_healing_rain::HandleOnHit);
+    }
+};
+
+// 73921 - Healing Rain (Heal)
+class spell_sha_healing_rain_heal : public SpellScript
+{
+    PrepareSpellScript(spell_sha_healing_rain_heal);
+
+    void FilterTargets(std::list<WorldObject*>& targets)
+    {
+        uint32 const maxTargets = 6;
+        if (targets.size() > maxTargets)
+        {
+            targets.sort(Trinity::HealthPctOrderPred());
+            targets.resize(maxTargets);
         }
     }
 
     void Register() override
     {
-        OnHit += SpellHitFn(spell_sha_healing_rain::InitializeVisualStalker);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_healing_rain_heal::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
     }
 };
 
@@ -1430,6 +1432,7 @@ void AddSC_shaman_spell_scripts()
     RegisterAuraScript(spell_sha_flametongue_weapon_aura);
     RegisterAuraScript(spell_sha_ghost_wolf);
     RegisterSpellAndAuraScriptPair(spell_sha_healing_rain, spell_sha_healing_rain_aura);
+    RegisterSpellScript(spell_sha_healing_rain_heal);
     RegisterSpellScript(spell_sha_healing_stream_totem_heal);
     RegisterSpellScript(spell_sha_heroism);
     RegisterAuraScript(spell_sha_item_lightning_shield);
