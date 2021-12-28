@@ -1005,6 +1005,22 @@ class spell_sha_liquid_magma_totem : public SpellScript
     }
 };
 
+// 30884 - Nature's Guardian
+class spell_sha_natures_guardian : public AuraScript
+{
+    PrepareAuraScript(spell_sha_natures_guardian);
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        return eventInfo.GetActionTarget()->HealthBelowPct(GetEffect(EFFECT_0)->GetAmount());
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_sha_natures_guardian::CheckProc);
+    }
+};
+
 // 210621 - Path of Flames Spread
 class spell_sha_path_of_flames_spread : public SpellScript
 {
@@ -1424,6 +1440,7 @@ void AddSC_shaman_spell_scripts()
     RegisterSpellScript(spell_sha_lightning_bolt);
     RegisterSpellScript(spell_sha_lightning_bolt_overload);
     RegisterSpellScript(spell_sha_liquid_magma_totem);
+    RegisterAuraScript(spell_sha_natures_guardian);
     RegisterSpellScript(spell_sha_path_of_flames_spread);
     RegisterAuraScript(spell_sha_ghost_wolf);
     RegisterAuraScript(spell_sha_tidal_waves);
