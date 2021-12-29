@@ -389,9 +389,16 @@ void ObjectMgr::LoadCreatureTemplates()
     // We load the creature models after loading but before checking
     LoadCreatureTemplateModels();
 
-    // Checking needs to be done after loading because of the difficulty self referencing
     for (auto const& ctPair : _creatureTemplateStore)
+    {
+        // Checking needs to be done after loading because of the difficulty self referencing
         CheckCreatureTemplate(&ctPair.second);
+        if (CreatureDifficultyEntry const* creatureDifficulty = sDB2Manager.GetCreatureDifficulty(ctPair.first))
+        {
+            if (creatureDifficulty->Flags[3] & CREATURE_DIFFICULTYFLAGS_4_NO_NPC_DAMAGE_BELOW_85PCT)
+                _creatureTemplateSparringStore[ctPair.first].push_back(85.0f);
+        }
+    }
 
     TC_LOG_INFO("server.loading", ">> Loaded " SZFMTD " creature definitions in %u ms", _creatureTemplateStore.size(), GetMSTimeDiffToNow(oldMSTime));
 }
@@ -750,6 +757,47 @@ void ObjectMgr::LoadCreatureTemplateAddons()
     while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %u creature template addons in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+void ObjectMgr::LoadCreatureTemplateSparring()
+{
+    uint32 oldMSTime = getMSTime();
+
+    //                                                 0               1
+    QueryResult result = WorldDatabase.Query("SELECT Entry, NoNPCDamageBelowHealthPct FROM creature_template_sparring");
+
+    if (!result)
+    {
+        TC_LOG_INFO("server.loading", ">> Loaded 0 creature template sparring definitions. DB table `creature_template_sparring` is empty.");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+
+        uint32 entry = fields[0].GetUInt32();
+        uint8 noNPCDamageBelowHealthPct = fields[1].GetUInt8();
+
+        if (!sObjectMgr->GetCreatureTemplate(entry))
+        {
+            TC_LOG_ERROR("sql.sql", "Creature template (Entry: %u) does not exist but has a record in `creature_template_sparring`", entry);
+            continue;
+        }
+
+        if (noNPCDamageBelowHealthPct < 0 || noNPCDamageBelowHealthPct > 100)
+        {
+            TC_LOG_ERROR("sql.sql", "Creature (Entry: %u) has invalid NoNPCDamageBelowHealthPct (%u) defined in `creature_template_sparring`. Skipping",
+                entry, noNPCDamageBelowHealthPct);
+            continue;
+        }
+        _creatureTemplateSparringStore[entry].push_back(noNPCDamageBelowHealthPct);
+
+        ++count;
+    } while (result->NextRow());
+
+    TC_LOG_INFO("server.loading", ">> Loaded %u creature template sparring in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
 
 void ObjectMgr::LoadCreatureScalingData()
@@ -1389,6 +1437,11 @@ CreatureAddon const* ObjectMgr::GetCreatureTemplateAddon(uint32 entry) const
         return &(itr->second);
 
     return nullptr;
+}
+
+std::vector<float> const* ObjectMgr::GetCreatureTemplateSparringValues(uint32 entry) const
+{
+    return Trinity::Containers::MapGetValuePtr(_creatureTemplateSparringStore, entry);
 }
 
 CreatureMovementData const* ObjectMgr::GetCreatureMovementOverride(ObjectGuid::LowType spawnId) const
@@ -2300,31 +2353,68 @@ void ObjectMgr::LoadCreatures()
 
         // Add to grid if not managed by the game event or pool system
         if (gameEvent == 0 && PoolId == 0)
-            AddCreatureToGrid(guid, &data);
+            AddCreatureToGrid(&data);
     }
     while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded " SZFMTD " creatures in %u ms", _creatureDataStore.size(), GetMSTimeDiffToNow(oldMSTime));
 }
 
-void ObjectMgr::AddCreatureToGrid(ObjectGuid::LowType guid, CreatureData const* data)
+bool ObjectMgr::HasPersonalSpawns(uint32 mapid, Difficulty spawnMode, uint32 phaseId) const
 {
-    for (Difficulty difficulty : data->spawnDifficulties)
+    return Trinity::Containers::MapGetValuePtr(_mapPersonalObjectGuidsStore, { mapid, spawnMode, phaseId }) != nullptr;
+}
+
+CellObjectGuids const* ObjectMgr::GetCellPersonalObjectGuids(uint32 mapid, Difficulty spawnMode, uint32 phaseId, uint32 cell_id) const
+{
+    if (CellObjectGuidsMap const* guids = Trinity::Containers::MapGetValuePtr(_mapPersonalObjectGuidsStore, { mapid, spawnMode, phaseId }))
+        return Trinity::Containers::MapGetValuePtr(*guids, cell_id);
+
+    return nullptr;
+}
+
+template<CellGuidSet CellObjectGuids::*guids>
+void ObjectMgr::AddSpawnDataToGrid(SpawnData const* data)
+{
+    uint32 cellId = Trinity::ComputeCellCoord(data->spawnPoint.GetPositionX(), data->spawnPoint.GetPositionY()).GetId();
+    bool isPersonalPhase = PhasingHandler::IsPersonalPhase(data->phaseId);
+    if (!isPersonalPhase)
     {
-        CellCoord cellCoord = Trinity::ComputeCellCoord(data->spawnPoint.GetPositionX(), data->spawnPoint.GetPositionY());
-        CellObjectGuids& cell_guids = _mapObjectGuidsStore[MAKE_PAIR32(data->mapId, difficulty)][cellCoord.GetId()];
-        cell_guids.creatures.insert(guid);
+        for (Difficulty difficulty : data->spawnDifficulties)
+            (_mapObjectGuidsStore[{ data->mapId, difficulty }][cellId].*guids).insert(data->spawnId);
+    }
+    else
+    {
+        for (Difficulty difficulty : data->spawnDifficulties)
+            (_mapPersonalObjectGuidsStore[{ data->mapId, difficulty, data->phaseId }][cellId].*guids).insert(data->spawnId);
     }
 }
 
-void ObjectMgr::RemoveCreatureFromGrid(ObjectGuid::LowType guid, CreatureData const* data)
+template<CellGuidSet CellObjectGuids::*guids>
+void ObjectMgr::RemoveSpawnDataFromGrid(SpawnData const* data)
 {
-    for (Difficulty difficulty : data->spawnDifficulties)
+    uint32 cellId = Trinity::ComputeCellCoord(data->spawnPoint.GetPositionX(), data->spawnPoint.GetPositionY()).GetId();
+    bool isPersonalPhase = PhasingHandler::IsPersonalPhase(data->phaseId);
+    if (!isPersonalPhase)
     {
-        CellCoord cellCoord = Trinity::ComputeCellCoord(data->spawnPoint.GetPositionX(), data->spawnPoint.GetPositionY());
-        CellObjectGuids& cell_guids = _mapObjectGuidsStore[MAKE_PAIR32(data->mapId, difficulty)][cellCoord.GetId()];
-        cell_guids.creatures.erase(guid);
+        for (Difficulty difficulty : data->spawnDifficulties)
+            (_mapObjectGuidsStore[{ data->mapId, difficulty }][cellId].*guids).erase(data->spawnId);
     }
+    else
+    {
+        for (Difficulty difficulty : data->spawnDifficulties)
+            (_mapPersonalObjectGuidsStore[{ data->mapId, difficulty, data->phaseId }][cellId].*guids).erase(data->spawnId);
+    }
+}
+
+void ObjectMgr::AddCreatureToGrid(CreatureData const* data)
+{
+    AddSpawnDataToGrid<&CellObjectGuids::creatures>(data);
+}
+
+void ObjectMgr::RemoveCreatureFromGrid(CreatureData const* data)
+{
+    RemoveSpawnDataFromGrid<&CellObjectGuids::creatures>(data);
 }
 
 ObjectGuid::LowType ObjectMgr::AddGameObjectData(uint32 entry, uint32 mapId, Position const& pos, QuaternionData const& rot, uint32 spawntimedelay /*= 0*/)
@@ -2352,7 +2442,7 @@ ObjectGuid::LowType ObjectMgr::AddGameObjectData(uint32 entry, uint32 mapId, Pos
     data.dbData         = false;
     data.spawnGroupData = GetLegacySpawnGroup();
 
-    AddGameobjectToGrid(spawnId, &data);
+    AddGameobjectToGrid(&data);
 
     // Spawn if necessary (loaded grids only)
     // We use spawn coords to spawn
@@ -2407,7 +2497,7 @@ ObjectGuid::LowType ObjectMgr::AddCreatureData(uint32 entry, uint32 mapId, Posit
     data.dynamicflags = cInfo->dynamicflags;
     data.spawnGroupData = GetLegacySpawnGroup();
 
-    AddCreatureToGrid(spawnId, &data);
+    AddCreatureToGrid(&data);
 
     // We use spawn coords to spawn
     if (!map->Instanceable() && !map->IsRemovalGrid(data.spawnPoint))
@@ -2663,7 +2753,7 @@ void ObjectMgr::LoadGameObjects()
         }
 
         if (gameEvent == 0 && PoolId == 0)                      // if not this is to be managed by GameEvent System or Pool system
-            AddGameobjectToGrid(guid, &data);
+            AddGameobjectToGrid(&data);
     }
     while (result->NextRow());
 
@@ -2885,24 +2975,14 @@ void ObjectMgr::OnDeleteSpawnData(SpawnData const* data)
     ASSERT(false, "Spawn data (%u," UI64FMTD ") being removed is member of spawn group %u, but not actually listed in the lookup table for that group!", uint32(data->type), data->spawnId, data->spawnGroupData->groupId);
 }
 
-void ObjectMgr::AddGameobjectToGrid(ObjectGuid::LowType guid, GameObjectData const* data)
+void ObjectMgr::AddGameobjectToGrid(GameObjectData const* data)
 {
-    for (Difficulty difficulty : data->spawnDifficulties)
-    {
-        CellCoord cellCoord = Trinity::ComputeCellCoord(data->spawnPoint.GetPositionX(), data->spawnPoint.GetPositionY());
-        CellObjectGuids& cell_guids = _mapObjectGuidsStore[MAKE_PAIR32(data->mapId, difficulty)][cellCoord.GetId()];
-        cell_guids.gameobjects.insert(guid);
-    }
+    AddSpawnDataToGrid<&CellObjectGuids::gameobjects>(data);
 }
 
-void ObjectMgr::RemoveGameobjectFromGrid(ObjectGuid::LowType guid, GameObjectData const* data)
+void ObjectMgr::RemoveGameobjectFromGrid(GameObjectData const* data)
 {
-    for (Difficulty difficulty : data->spawnDifficulties)
-    {
-        CellCoord cellCoord = Trinity::ComputeCellCoord(data->spawnPoint.GetPositionX(), data->spawnPoint.GetPositionY());
-        CellObjectGuids& cell_guids = _mapObjectGuidsStore[MAKE_PAIR32(data->mapId, difficulty)][cellCoord.GetId()];
-        cell_guids.gameobjects.erase(guid);
-    }
+    RemoveSpawnDataFromGrid<&CellObjectGuids::gameobjects>(data);
 }
 
 uint32 FillMaxDurability(uint32 itemClass, uint32 itemSubClass, uint32 inventoryType, uint32 quality, uint32 itemLevel)
@@ -8431,7 +8511,7 @@ void ObjectMgr::DeleteCreatureData(ObjectGuid::LowType guid)
     CreatureData const* data = GetCreatureData(guid);
     if (data)
     {
-        RemoveCreatureFromGrid(guid, data);
+        RemoveCreatureFromGrid(data);
         OnDeleteSpawnData(data);
     }
 
@@ -8444,7 +8524,7 @@ void ObjectMgr::DeleteGameObjectData(ObjectGuid::LowType guid)
     GameObjectData const* data = GetGameObjectData(guid);
     if (data)
     {
-        RemoveGameobjectFromGrid(guid, data);
+        RemoveGameobjectFromGrid(data);
         OnDeleteSpawnData(data);
     }
 

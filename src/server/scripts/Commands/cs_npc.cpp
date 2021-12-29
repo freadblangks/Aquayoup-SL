@@ -225,7 +225,7 @@ public:
             if (Creature* creature = trans->CreateNPCPassenger(guid, &data))
             {
                 creature->SaveToDB(trans->GetGOInfo()->moTransport.SpawnMap, { map->GetDifficultyID() });
-                sObjectMgr->AddCreatureToGrid(guid, &data);
+                sObjectMgr->AddCreatureToGrid(&data);
             }
             return true;
         }
@@ -248,7 +248,7 @@ public:
         if (!creature)
             return false;
 
-        sObjectMgr->AddCreatureToGrid(db_guid, sObjectMgr->GetCreatureData(db_guid));
+        sObjectMgr->AddCreatureToGrid(sObjectMgr->GetCreatureData(db_guid));
         return true;
     }
 
@@ -697,7 +697,7 @@ public:
         if (CreatureData const* data = sObjectMgr->GetCreatureData(target->GetSpawnId()))
         {
             handler->PSendSysMessage(LANG_NPCINFO_PHASES, data->phaseId, data->phaseGroup);
-            PhasingHandler::PrintToChat(handler, target->GetPhaseShift());
+            PhasingHandler::PrintToChat(handler, target);
         }
 
         handler->PSendSysMessage(LANG_NPCINFO_ARMOR, target->GetArmor());
@@ -812,9 +812,9 @@ public:
         }
 
         // update position in memory
-        sObjectMgr->RemoveCreatureFromGrid(lowguid, data);
+        sObjectMgr->RemoveCreatureFromGrid(data);
         const_cast<CreatureData*>(data)->spawnPoint.Relocate(*player);
-        sObjectMgr->AddCreatureToGrid(lowguid, data);
+        sObjectMgr->AddCreatureToGrid(data);
 
         // update position in DB
         WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_POSITION);
@@ -1636,35 +1636,27 @@ public:
     {
         /*if (!*args)
             return false;
-
         uint64 guid = handler->GetSession()->GetPlayer()->GetSelection();
         if (guid == 0)
         {
             handler->SendSysMessage(LANG_NO_SELECTION);
             return true;
         }
-
         Creature* creature = ObjectAccessor::GetCreature(*handler->GetSession()->GetPlayer(), guid);
-
         if (!creature)
         {
             handler->SendSysMessage(LANG_SELECT_CREATURE);
             return true;
         }
-
         char* pSlotID = strtok((char*)args, " ");
         if (!pSlotID)
             return false;
-
         char* pItemID = strtok(nullptr, " ");
         if (!pItemID)
             return false;
-
         uint32 ItemID = atoi(pItemID);
         uint32 SlotID = atoi(pSlotID);
-
         ItemTemplate* tmpItem = sObjectMgr->GetItemTemplate(ItemID);
-
         bool added = false;
         if (tmpItem)
         {
@@ -1687,7 +1679,6 @@ public:
                     added = false;
                     break;
             }
-
             if (added)
                 handler->PSendSysMessage(LANG_ITEM_ADDED_TO_SLOT, ItemID, tmpItem->Name1, SlotID);
         }

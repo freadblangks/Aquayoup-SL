@@ -82,6 +82,7 @@ TC_GAME_API extern DB2Storage<CinematicSequencesEntry>              sCinematicSe
 TC_GAME_API extern DB2Storage<ContentTuningEntry>                   sContentTuningStore;
 TC_GAME_API extern DB2Storage<ConversationLineEntry>                sConversationLineStore;
 TC_GAME_API extern DB2Storage<CorruptionEffectsEntry>               sCorruptionEffectsStore;
+TC_GAME_API extern DB2Storage<CreatureDifficultyEntry>              sCreatureDifficultyStore;
 TC_GAME_API extern DB2Storage<CreatureDisplayInfoEntry>             sCreatureDisplayInfoStore;
 TC_GAME_API extern DB2Storage<CreatureDisplayInfoExtraEntry>        sCreatureDisplayInfoExtraStore;
 TC_GAME_API extern DB2Storage<CreatureFamilyEntry>                  sCreatureFamilyStore;
@@ -299,9 +300,9 @@ class TC_GAME_API DB2Manager
 {
 public:
     DEFINE_DB2_SET_COMPARATOR(FriendshipRepReactionEntry)
-        DEFINE_DB2_SET_COMPARATOR(MountTypeXCapabilityEntry)
+    DEFINE_DB2_SET_COMPARATOR(MountTypeXCapabilityEntry)
 
-        struct HotfixId
+    struct HotfixId
     {
         int32 PushID = 0;
         uint32 UniqueID = 0;
@@ -316,11 +317,11 @@ public:
     {
         enum class Status : uint8
         {
-            NotSet = 0,
-            Valid = 1,
-            RecordRemoved = 2,
-            Invalid = 3,
-            NotPublic = 4
+            NotSet          = 0,
+            Valid           = 1,
+            RecordRemoved   = 2,
+            Invalid         = 3,
+            NotPublic       = 4
         };
 
         uint32 TableHash = 0;
@@ -378,6 +379,7 @@ public:
     static char const* GetBroadcastTextValue(BroadcastTextEntry const* broadcastText, LocaleConstant locale = DEFAULT_LOCALE, uint8 gender = GENDER_MALE, bool forceGender = false);
     int32 const* GetBroadcastTextDuration(int32 broadcastTextId, LocaleConstant locale = DEFAULT_LOCALE) const;
     ChrClassUIDisplayEntry const* GetUiDisplayForClass(Classes unitClass) const;
+    CreatureDifficultyEntry const* GetCreatureDifficulty(uint32 creatureId) const;
     static char const* GetClassName(uint8 class_, LocaleConstant locale = DEFAULT_LOCALE);
     uint32 GetPowerIndexByClass(Powers power, uint32 classId) const;
     std::vector<ChrCustomizationChoiceEntry const*> const* GetCustomiztionChoices(uint32 chrCustomizationOptionId) const;
@@ -390,6 +392,7 @@ public:
     Optional<ContentTuningLevels> GetContentTuningData(uint32 contentTuningId, uint32 replacementConditionMask, bool forItem = false) const;
     static char const* GetCreatureFamilyPetName(uint32 petfamily, LocaleConstant locale);
     CurrencyContainerEntry const* GetCurrencyContainerForCurrencyQuantity(uint32 currencyId, int32 quantity) const;
+    std::pair<float, float> GetCurveXAxisRange(uint32 curveId) const;
     float GetCurveValueAt(uint32 curveId, float x) const;
     EmotesTextSoundEntry const* GetTextSoundEmoteFor(uint32 emote, uint8 race, uint8 gender, uint8 class_) const;
     float EvaluateExpectedStat(ExpectedStatType stat, uint32 level, int32 expansion, uint32 contentTuningId, Classes unitClass) const;
@@ -419,7 +422,7 @@ public:
     MapDifficultyContainer const& GetMapDifficulties() const;
     MapDifficultyEntry const* GetDefaultMapDifficulty(uint32 mapId, Difficulty* difficulty = nullptr) const;
     MapDifficultyEntry const* GetMapDifficultyData(uint32 mapId, Difficulty difficulty) const;
-    MapDifficultyEntry const* GetDownscaledMapDifficultyData(uint32 mapId, Difficulty& difficulty) const;
+    MapDifficultyEntry const* GetDownscaledMapDifficultyData(uint32 mapId, Difficulty &difficulty) const;
     MapDifficultyConditionsContainer const* GetMapDifficultyConditions(uint32 mapDifficultyId) const;
     MountEntry const* GetMount(uint32 spellId) const;
     MountEntry const* GetMountById(uint32 id) const;
