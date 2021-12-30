@@ -19,3 +19,16 @@ Legends of Azeroth core, based on Trinity Core
 We recruiting members
 ## Links
 Welcome to our Discord! * [Discord](https://discord.gg/8UvdZkUx7Z)
+
+![This is an image](https://user-images.githubusercontent.com/81566364/147739032-63e8c906-bca5-4280-a83d-d079ccba1ac5.jpg)
+
+
+Legends of Azeroth core, based on TrinityCore is a MMORPG Framework based mostly in C++.
+
+It is derived from MaNGOS, the Massive Network Game Object Server, and is based on the code of that project with extensive changes over time to optimize, improve and cleanup the codebase at the same time as improving the in-game mechanics and functionality.
+
+It is completely open source; community involvement is highly encouraged.
+
+If you wish to contribute ideas or code, please visit our site linked below or make pull requests to our Github repository.![1616983419_14-p-silvana-oboi-14]
+
+
