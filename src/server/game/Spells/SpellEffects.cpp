@@ -1580,11 +1580,6 @@ void Spell::EffectOpenLock()
                 return;
             }
         }
-        else if (goInfo->type == GAMEOBJECT_TYPE_CAPTURE_POINT)
-        {
-            gameObjTarget->AssaultCapturePoint(player);
-            return;
-        }
         else if (goInfo->type == GAMEOBJECT_TYPE_FLAGSTAND)
         {
             //CanUseBattlegroundObject() already called in CheckCast()
@@ -5740,5 +5735,5 @@ void Spell::EffectGrantBattlePetExperience()
     if (!unitTarget || !unitTarget->IsCreature())
         return;
 
-    playerCaster->GetSession()->GetBattlePetMgr()->GrantBattlePetExperience(unitTarget->GetBattlePetCompanionGUID(), damage);
+    playerCaster->GetSession()->GetBattlePetMgr()->GrantBattlePetExperience(unitTarget->GetBattlePetCompanionGUID(), damage, BattlePets::BattlePetXpSource::SpellEffect);
 }
