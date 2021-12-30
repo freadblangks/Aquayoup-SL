@@ -1,3 +1,4 @@
+-- 
 DELETE FROM `npc_spellclick_spells` WHERE `npc_entry` IN(143567, 144181);
 INSERT INTO `npc_spellclick_spells` (`npc_entry`, `spell_id`, `cast_flags`, `user_type`) VALUES
 (143567, 281587, 1, 1), -- Ride Vehicle
