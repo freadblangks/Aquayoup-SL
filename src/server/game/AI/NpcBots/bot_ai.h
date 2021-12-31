@@ -131,6 +131,10 @@ class bot_ai : public CreatureAI
         static uint32 DefaultRolesForClass(uint8 m_class);
         bool IsTank(Unit const* unit = nullptr) const;
         bool IsOffTank(Unit const* unit = nullptr) const;
+
+        uint32 GetLastZoneId() const { return _lastZoneId; }
+        bool IsInHeroicOrRaid() const;
+
         bool IAmFree() const;
 
         static bool CCed(Unit const* target, bool root = false);
@@ -423,6 +427,9 @@ class bot_ai : public CreatureAI
         void BotSay(const std::string &text, Player const* target = nullptr) const;
         void BotWhisper(const std::string &text, Player const* target = nullptr) const;
         void BotYell(const std::string &text, Player const* target = nullptr) const;
+        void BotSay(std::string&& text, Player const* target = nullptr) const;
+        void BotWhisper(std::string&& text, Player const* target = nullptr) const;
+        void BotYell(std::string&& text, Player const* target = nullptr) const;
 
         void ReportSpellCast(uint32 spellId, const std::string& followedByString, Player const* target) const;
 

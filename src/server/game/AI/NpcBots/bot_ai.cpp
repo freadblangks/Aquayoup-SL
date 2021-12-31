@@ -290,7 +290,7 @@ void bot_ai::BotSay(const std::string &text, Player const* target) const
     if (!target)
         return;
 
-    me->Say(text.c_str(), LANG_UNIVERSAL, target);
+    me->Say(text, LANG_UNIVERSAL, target);
 }
 void bot_ai::BotWhisper(const std::string &text, Player const* target) const
 {
@@ -301,7 +301,7 @@ void bot_ai::BotWhisper(const std::string &text, Player const* target) const
 
     Player* playerTarget = const_cast<Player*>(target);
 
-    me->Whisper(text.c_str(), LANG_UNIVERSAL, playerTarget);
+    me->Whisper(text, LANG_UNIVERSAL, playerTarget);
 }
 void bot_ai::BotYell(const std::string &text, Player const* /*target*/) const
 {
@@ -310,7 +310,31 @@ void bot_ai::BotYell(const std::string &text, Player const* /*target*/) const
     //if (!target)
     //    return;
 
-    me->Yell(text.c_str(), LANG_UNIVERSAL);
+    me->Yell(text, LANG_UNIVERSAL);
+}
+void bot_ai::BotSay(std::string&& text, Player const* target) const
+{
+    if (!target && master->GetTypeId() == TYPEID_PLAYER)
+        target = master;
+    if (!target)
+        return;
+
+    me->Say(text, LANG_UNIVERSAL, target);
+}
+void bot_ai::BotWhisper(std::string&& text, Player const* target) const
+{
+    if (!target && master->GetTypeId() == TYPEID_PLAYER)
+        target = master;
+    if (!target)
+        return;
+
+    Player* playerTarget = const_cast<Player*>(target);
+
+    me->Whisper(text, LANG_UNIVERSAL, playerTarget);
+}
+void bot_ai::BotYell(std::string&& text, Player const* /*target*/) const
+{
+    me->Yell(text, LANG_UNIVERSAL);
 }
 
 void bot_ai::ReportSpellCast(uint32 spellId, const std::string& followedByString, Player const* target) const
@@ -1665,6 +1689,7 @@ bool bot_ai::_canCureTarget(Unit const* target, uint32 cureSpell) const
     if (me->GetLevel() < 10 || target->GetLevel() < 10) return false;
     if (target->HasUnitState(UNIT_STATE_ISOLATED)) return false;
     if (target->GetTypeId() == TYPEID_UNIT && target->ToCreature()->IsTempBot()) return false;
+    if (target->HasAuraType(SPELL_AURA_MOD_POSSESS) && !IsInBotParty(target)) return false;
 
     SpellInfo const* info = sSpellMgr->GetSpellInfo(cureSpell);
     if (!info)
@@ -3989,26 +4014,76 @@ bool bot_ai::ProcessImmediateNonAttackTarget()
     }
     if (me->GetMapId() == 564 && isInWMOArea(WMOAreaGroupNajentus) && Rand() < 10) // Black Temple - High Warlord Naj'entus
     {
-        if (Group* const gr = master->GetGroup())
+        if (Group const* gr = master->GetGroup())
         {
-            std::vector<Player*> spines;
+            if (Rand() < 4)
+            {
+                InstanceScript* iscript = me->GetMap()->ToInstanceMap()->GetInstanceScript();
+                Unit* najentus = iscript ? iscript->GetCreature(0) : nullptr; // boss_warlord_najentus.cpp::DATA_HIGH_WARLORD_NAJENTUS
+
+                if (najentus && najentus->HasAuraTypeWithMiscvalue(SPELL_AURA_SCHOOL_IMMUNITY, 127)) // Tidal Shield
+                {
+                    //Try to grab spines from corpses of dead players
+                    std::vector<Player*> spiners;
+                    for (GroupReference const* itr = gr->GetFirstMember(); itr != nullptr; itr = itr->next())
+                    {
+                        Player* pl = itr->GetSource();
+                        if (pl && pl->IsInWorld() && me->GetMap() == pl->FindMap() && !pl->IsAlive() &&
+                            me->GetDistance(pl) < 25.f && pl->HasItemCount(32408)) // Naj'entus Spine
+                            spiners.push_back(pl);
+                    }
+
+                    if (Player* pl = spiners.empty() ? nullptr : spiners.size() == 1u ? spiners.front() :
+                        Trinity::Containers::SelectRandomContainerElement(spiners))
+                    {
+                        BotWhisper("Taking 1 Naj'entus Spine from you");
+                        me->CastSpell(najentus, 39948, true); // Hurl Spine
+                        pl->DestroyItemCount(32408, 1, true); // Naj'entus Spine
+                    }
+                }
+            }
+
+            std::vector<Unit*> spines;
             //Find and free impaled player (player gets the spine)
             for (GroupReference const* itr = gr->GetFirstMember(); itr != nullptr; itr = itr->next())
             {
                 Player* pl = itr->GetSource();
                 //We don't make bots run to player to "click" the spine, so range is rather big
-                if (pl && pl->IsInWorld() && pl->IsAlive() && me->GetMap() == pl->FindMap() && pl->HasUnitState(UNIT_STATE_STUNNED) &&
-                    me->GetDistance(pl) < 25.f && pl->HasAura(39837)) // "Impaling Spine"
-                    spines.push_back(pl);
+                if (pl && pl->IsInWorld() && me->GetMap() == pl->FindMap())
+                {
+                    auto is_impaled = [=](Unit const* unit) -> bool {
+                        return unit->IsAlive() && unit->HasUnitState(UNIT_STATE_STUNNED) &&
+                            me->GetDistance(unit) < 25.f && unit->HasAura(39837); // "Impaling Spine"
+                    };
+
+                    if (is_impaled(pl))
+                        spines.push_back(pl->ToUnit());
+                    if (pl->HaveBot())
+                    {
+                        BotMap const* bmap = pl->GetBotMgr()->GetBotMap();
+                        for (BotMap::const_iterator ci = bmap->begin(); ci != bmap->end(); ++ci)
+                        {
+                            Creature* bot = ci->second;
+                            if (bot && is_impaled(bot))
+                                spines.push_back(bot->ToUnit());
+                        }
+                    }
+                }
             }
 
-            if (Player* pl = spines.empty() ? nullptr : spines.size() == 1u ? spines.front() :
+            if (Unit* u = spines.empty() ? nullptr : spines.size() == 1u ? spines.front() :
                 Trinity::Containers::SelectRandomContainerElement(spines))
             {
-                if (GameObject const* spine = pl->GetFirstGameObjectById(185584)) // Naj'entus Spine
+                if (GameObject const* spine = u->GetFirstGameObjectById(185584)) // Naj'entus Spine
                 {
-                    if (spine->AI() && spine->AI()->OnGossipHello(pl))
+                    Player* receiver = u->GetTypeId() == TYPEID_PLAYER ? u->ToPlayer() : master;
+                    if (spine->AI() && spine->AI()->OnGossipHello(receiver))
+                    {
+                        // Item is created by spell 39956 Create Naj'entus Spine - cannot target dead, force add item
+                        if (!receiver->IsAlive())
+                            receiver->AddItem(32408, 1); // Naj'entus Spine
                         return true;
+                    }
                 }
             }
         }
@@ -5203,7 +5278,7 @@ Unit* bot_ai::FindDrainTarget(float maxdist) const
 {
     Unit* unit = nullptr;
 
-    ManaDrainUnitCheck check(me, maxdist);
+    ManaDrainUnitCheck check(me, maxdist, this);
     Trinity::UnitLastSearcher <ManaDrainUnitCheck> searcher(me, unit, check);
     Cell::VisitAllObjects(me, searcher, maxdist);
     //me->VisitNearbyObject(maxdist, searcher);
@@ -5795,6 +5870,11 @@ void bot_ai::_OnAreaUpdate(uint32 areaId)
                 botPet->CastSpell(botPet, itr->second->spellId, true);
         }
     }
+}
+
+bool bot_ai::IsInHeroicOrRaid() const
+{
+    return me->FindMap() && (me->GetMap()->IsHeroic() || me->GetMap()->IsRaid());
 }
 
 //SpellHit()... OnSpellHit()
