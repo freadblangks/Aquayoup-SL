@@ -1424,7 +1424,7 @@ void Guild::SendGuildRankInfo(WorldSession* session) const
         rankData.RankID = uint32(rankInfo.GetId());
         rankData.RankOrder = uint32(rankInfo.GetOrder());
         rankData.Flags = rankInfo.GetRights();
-        rankData.WithdrawGoldLimit = rankInfo.GetBankMoneyPerDay();
+        rankData.WithdrawGoldLimit = rankInfo.GetBankMoneyPerDay() / GOLD;
         rankData.RankName = rankInfo.GetName();
 
         for (uint8 j = 0; j < GUILD_BANK_MAX_TABS; ++j)
