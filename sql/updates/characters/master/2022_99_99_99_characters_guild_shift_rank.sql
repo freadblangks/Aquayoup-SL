@@ -1,3 +1,2 @@
 ALTER TABLE `guild_rank`
   ADD COLUMN `rorder` TINYINT(3) UNSIGNED NOT NULL DEFAULT 0 AFTER `rid`;
-  
