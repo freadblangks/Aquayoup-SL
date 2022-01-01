@@ -546,7 +546,7 @@ class TC_GAME_API Guild
                 RankInfo(): m_guildId(UI64LIT(0)), m_rankId(GUILD_RANK_NONE), m_rankOrder(0), m_rights(GR_RIGHT_NONE), m_bankMoneyPerDay(0) { }
                 RankInfo(ObjectGuid::LowType guildId) : m_guildId(guildId), m_rankId(GUILD_RANK_NONE), m_rankOrder(0), m_rights(GR_RIGHT_NONE), m_bankMoneyPerDay(0) { }
                 RankInfo(ObjectGuid::LowType guildId, uint8 rankId, uint8 rankOrder, std::string const& name, uint32 rights, uint32 money) :
-                    m_guildId(guildId), m_rankId(rankId), m_rankOrder(0), m_name(name), m_rights(rights), m_bankMoneyPerDay(money) { }
+                    m_guildId(guildId), m_rankId(rankId), m_rankOrder(rankOrder), m_name(name), m_rights(rights), m_bankMoneyPerDay(money) { }
 
                 void LoadFromDB(Field* fields);
                 void SaveToDB(CharacterDatabaseTransaction& trans) const;
