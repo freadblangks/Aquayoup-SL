@@ -2582,10 +2582,12 @@ void Spell::TargetInfo::DoDamageAndTriggers(Spell* spell)
 
         // All calculated do it!
         // Do healing
+        bool hasHealing = false;
         std::unique_ptr<DamageInfo> spellDamageInfo;
         std::unique_ptr<HealInfo> healInfo;
         if (spell->m_healing > 0)
         {
+            hasHealing = true;
             uint32 addhealth = spell->m_healing;
             if (IsCrit)
             {
@@ -2604,8 +2606,10 @@ void Spell::TargetInfo::DoDamageAndTriggers(Spell* spell)
         }
 
         // Do damage
+        bool hasDamage = false;
         if (spell->m_damage > 0)
         {
+            hasDamage = true;
             // Fill base damage struct (unitTarget - is real spell target)
             SpellNonMeleeDamage damageInfo(caster, spell->unitTarget, spell->m_spellInfo, spell->m_SpellVisual, spell->m_spellSchoolMask, spell->m_castId);
             // Check damage immunity
@@ -2650,7 +2654,7 @@ void Spell::TargetInfo::DoDamageAndTriggers(Spell* spell)
         }
 
         // Passive spell hits/misses or active spells only misses (only triggers)
-        if (spell->m_damage <= 0 && spell->m_healing <= 0)
+        if (!hasHealing && !hasDamage)
         {
             // Fill base damage struct (unitTarget - is real spell target)
             SpellNonMeleeDamage damageInfo(caster, spell->unitTarget, spell->m_spellInfo, spell->m_SpellVisual, spell->m_spellSchoolMask);
@@ -5406,7 +5410,9 @@ SpellCastResult Spell::CheckCast(bool strict, int32* param1 /*= nullptr*/, int32
     {
         // Check explicit target for m_originalCaster - todo: get rid of such workarounds
         WorldObject* caster = m_caster;
-        if (m_originalCaster)
+        // in case of gameobjects like traps, we need the gameobject itself to check target validity
+        // otherwise, if originalCaster is far away and cannot detect the target, the trap would not hit the target
+        if (m_originalCaster && !caster->ToGameObject())
             caster = m_originalCaster;
 
         SpellCastResult castResult = m_spellInfo->CheckExplicitTarget(caster, m_targets.GetObjectTarget(), m_targets.GetItemTarget());
@@ -5571,6 +5577,8 @@ SpellCastResult Spell::CheckCast(bool strict, int32* param1 /*= nullptr*/, int32
     if (castResult != SPELL_CAST_OK)
         return castResult;
 
+    uint32 approximateAuraEffectMask = 0;
+    uint32 nonAuraEffectMask = 0;
     for (SpellEffectInfo const& spellEffectInfo : m_spellInfo->GetEffects())
     {
         // for effects of spells that have only one target
@@ -6128,6 +6136,11 @@ SpellCastResult Spell::CheckCast(bool strict, int32* param1 /*= nullptr*/, int32
             default:
                 break;
         }
+
+        if (spellEffectInfo.IsAura())
+            approximateAuraEffectMask |= 1 << spellEffectInfo.EffectIndex;
+        else if (spellEffectInfo.IsEffect())
+            nonAuraEffectMask |= 1 << spellEffectInfo.EffectIndex;
     }
 
     for (SpellEffectInfo const& spellEffectInfo : m_spellInfo->GetEffects())
@@ -6247,6 +6260,14 @@ SpellCastResult Spell::CheckCast(bool strict, int32* param1 /*= nullptr*/, int32
             default:
                 break;
         }
+
+        // check if target already has the same type, but more powerful aura
+        if (!nonAuraEffectMask && (approximateAuraEffectMask & (1 << spellEffectInfo.EffectIndex)) && !m_spellInfo->IsTargetingArea())
+            if (Unit* target = m_targets.GetUnitTarget())
+                if (!target->IsHighestExclusiveAuraEffect(m_spellInfo, spellEffectInfo.ApplyAuraName,
+                    spellEffectInfo.CalcValue(m_caster, &m_spellValue->EffectBasePoints[spellEffectInfo.EffectIndex], nullptr, nullptr, m_castItemEntry, m_castItemLevel),
+                    approximateAuraEffectMask, false))
+                    return SPELL_FAILED_AURA_BOUNCED;
     }
 
     // check trade slot case (last, for allow catch any another cast problems)
@@ -6405,6 +6426,8 @@ SpellCastResult Spell::CheckCasterAuras(int32* param1) const
                 result = mechanicResult;
         }
         else if (!CheckSpellCancelsStun(param1))
+            result = SPELL_FAILED_STUNNED;
+        else if ((m_spellInfo->Mechanic & MECHANIC_IMMUNE_SHIELD) && m_caster->ToUnit() && m_caster->ToUnit()->HasAuraWithMechanic(1 << MECHANIC_BANISH))
             result = SPELL_FAILED_STUNNED;
     }
     else if (unitflag & UNIT_FLAG_SILENCED && m_spellInfo->PreventionType & SPELL_PREVENTION_TYPE_SILENCE && !CheckSpellCancelsSilence(param1))
@@ -6989,13 +7012,17 @@ SpellCastResult Spell::CheckItems(int32* param1 /*= nullptr*/, int32* param2 /*=
 
                     if (spellEffectInfo.ItemType)
                     {
+                        ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(spellEffectInfo.ItemType);
+                        if (!itemTemplate)
+                            return SPELL_FAILED_ITEM_NOT_FOUND;
+
+                        uint32 createCount = std::clamp<uint32>(spellEffectInfo.CalcValue(), 1u, itemTemplate->GetMaxStackSize());
                         ItemPosCountVec dest;
-                        InventoryResult msg = target->ToPlayer()->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, spellEffectInfo.ItemType, spellEffectInfo.CalcValue());
+                        InventoryResult msg = target->ToPlayer()->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, spellEffectInfo.ItemType, createCount);
                         if (msg != EQUIP_ERR_OK)
                         {
-                            ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(spellEffectInfo.ItemType);
                             /// @todo Needs review
-                            if (itemTemplate && !itemTemplate->GetItemLimitCategory())
+                            if (!itemTemplate->GetItemLimitCategory())
                             {
                                 player->SendEquipError(msg, nullptr, nullptr, spellEffectInfo.ItemType);
                                 return SPELL_FAILED_DONT_REPORT;
@@ -7506,7 +7533,7 @@ bool Spell::CheckEffectTarget(Unit const* target, SpellEffectInfo const& spellEf
         case SPELL_AURA_MOD_CHARM:
         case SPELL_AURA_MOD_POSSESS_PET:
         case SPELL_AURA_AOE_CHARM:
-            if (target->GetTypeId() == TYPEID_UNIT && target->IsVehicle())
+            if (target->GetVehicleKit() && target->GetVehicleKit()->IsControllableVehicle())
                 return false;
             if (target->IsMounted())
                 return false;
