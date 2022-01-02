@@ -597,3 +597,11 @@ void WorldSession::HandleGuildGetAchievementMembers(WorldPackets::Achievement::G
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->HandleGetAchievementMembers(this, uint32(getAchievementMembers.AchievementID));
 }
+
+void WorldSession::HandleGuildShiftRank(WorldPackets::Guild::GuildShiftRank& packet)
+{
+    TC_LOG_DEBUG("guild", "CMSG_GUILD_SHIFT_RANK [%s]: RankOrder: %u, ShiftUp: %u", GetPlayerInfo().c_str(), packet.RankOrder, packet.ShiftUp);
+
+    if (Guild* guild = GetPlayer()->GetGuild())
+        guild->HandleShiftRank(this, packet.RankOrder, packet.ShiftUp);
+}
