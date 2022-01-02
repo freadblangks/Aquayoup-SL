@@ -568,7 +568,7 @@ bool Creature::InitEntry(uint32 entry, CreatureData const* data /*= nullptr*/)
     SetSpeedRate(MOVE_FLIGHT, 1.0f); // using 1.0 rate
 
     // Will set UNIT_FIELD_BOUNDINGRADIUS, UNIT_FIELD_COMBATREACH and UNIT_FIELD_DISPLAYSCALE
-    SetObjectScale(cinfo->scale);
+    SetObjectScale(GetNativeObjectScale());
 
     SetHoverHeight(cinfo->HoverHeight);
 
@@ -1717,7 +1717,8 @@ bool Creature::CreateFromProto(ObjectGuid::LowType guidlow, uint32 entry, Creatu
     }
 
     if (vehId)
-        CreateVehicleKit(vehId, entry, true);
+        if (CreateVehicleKit(vehId, entry, true))
+            UpdateDisplayPower();
 
     return true;
 }
@@ -3173,6 +3174,11 @@ Unit* Creature::SelectNearestHostileUnitInAggroRange(bool useLOS, bool ignoreCiv
     Cell::VisitGridObjects(this, searcher, MAX_AGGRO_RADIUS);
 
     return target;
+}
+
+float Creature::GetNativeObjectScale() const
+{
+    return GetCreatureTemplate()->scale;
 }
 
 void Creature::SetObjectScale(float scale)
