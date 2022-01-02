@@ -4633,6 +4633,71 @@ void SpellMgr::LoadSpellInfoCorrections()
         });
     });
 	
+//
+    // DEADMINES SPELLS
+    //
+    // Glubtok
+    // Fists of Flame
+    ApplySpellFix({ 87874, 91268, 87896, 91269 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(2); // Combat Range
+    });
+
+    // Fists of Frost
+    ApplySpellFix({ 87899, 91272, 87901, 91273,}, [](SpellInfo* spellInfo)
+    {
+        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(2); // Combat Range
+    });
+
+    // Helix Gearbreaker
+    // Charge
+    ApplySpellFix({ 88295 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+           spellEffectInfo->RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_100_YARDS);
+        });
+    });
+
+    // "Captain" Cookie
+    // Rotten Aura
+    ApplySpellFix({
+        89735,
+        92065,
+        }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->AttributesCu |= SPELL_ATTR0_CU_NO_INITIAL_THREAT;
+        });
+
+    // Vanessa VanCleef
+    // Spark
+    ApplySpellFix({ 95520 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+            spellEffectInfo->RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_1_YARD);
+        });
+    });
+
+    // Summon Defias
+    ApplySpellFix({ 92616, 92617,  92618  }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+            spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_DEST_DEST);
+        });
+
+        spellInfo->AttributesEx2 |= SPELL_ATTR2_CAN_TARGET_NOT_IN_LOS;
+    });
+
+    // Fiery Blaze
+    ApplySpellFix({ 93485 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->AttributesCu |= SPELL_ATTR0_CU_NO_INITIAL_THREAT;
+        });
+
+    // END OF DEADMINES SPELLS
+
 // GILNEAS SPELLS
     //
     // Curse of the Worgen
