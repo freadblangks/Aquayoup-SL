@@ -337,9 +337,9 @@ struct boss_sister_svalna : public BossAI
         }
     }
 
-    void JustEngagedWith(Unit* /*attacker*/) override
+    void JustEngagedWith(Unit* who) override
     {
-        _JustEngagedWith();
+        BossAI::JustEngagedWith(who);
         if (Creature* crok = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_CROK_SCOURGEBANE)))
             crok->AI()->Talk(SAY_CROK_COMBAT_SVALNA);
         DoCastSelf(SPELL_DIVINE_SURGE, true);
@@ -389,11 +389,14 @@ struct boss_sister_svalna : public BossAI
                 DoCastSelf(SPELL_CARESS_OF_DEATH, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellMod(SPELLVALUE_MAX_TARGETS, 1));
                 break;
             case ACTION_START_GAUNTLET:
-                me->setActive(true);
-                me->SetFarVisible(true);
-                _isEventInProgress = true;
-                me->SetImmuneToAll(true);
-                events.ScheduleEvent(EVENT_SVALNA_START, 25s);
+                if (me->IsAlive())
+                {
+                    me->setActive(true);
+                    me->SetFarVisible(true);
+                    _isEventInProgress = true;
+                    me->SetImmuneToAll(true);
+                    events.ScheduleEvent(EVENT_SVALNA_START, 25s);
+                }
                 break;
             case ACTION_RESURRECT_CAPTAINS:
                 events.ScheduleEvent(EVENT_SVALNA_RESURRECT, 7s);

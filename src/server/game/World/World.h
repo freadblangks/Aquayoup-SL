@@ -171,7 +171,6 @@ enum WorldBoolConfigs
     CONFIG_STATS_LIMITS_ENABLE,
     CONFIG_INSTANCES_RESET_ANNOUNCE,
     CONFIG_IP_BASED_ACTION_LOGGING,
-    CONFIG_ALLOW_TRACK_BOTH_RESOURCES,
     CONFIG_CALCULATE_CREATURE_ZONE_AREA_DATA,
     CONFIG_CALCULATE_GAMEOBJECT_ZONE_AREA_DATA,
     CONFIG_FEATURE_SYSTEM_BPAY_STORE_ENABLED,
@@ -218,6 +217,9 @@ enum WorldFloatConfigs
     CONFIG_ARENA_MATCHMAKER_RATING_MODIFIER,
     CONFIG_RESPAWN_DYNAMICRATE_CREATURE,
     CONFIG_RESPAWN_DYNAMICRATE_GAMEOBJECT,
+    CONFIG_CALL_TO_ARMS_5_PCT,
+    CONFIG_CALL_TO_ARMS_10_PCT,
+    CONFIG_CALL_TO_ARMS_20_PCT,
     FLOAT_CONFIG_VALUE_COUNT
 };
 
@@ -421,6 +423,7 @@ enum WorldIntConfigs
     CONFIG_SOCKET_TIMEOUTTIME_ACTIVE,
     CONFIG_BLACKMARKET_MAXAUCTIONS,
     CONFIG_BLACKMARKET_UPDATE_PERIOD,
+    CONFIG_FACTION_BALANCE_LEVEL_CHECK_DIFF,
     INT_CONFIG_VALUE_COUNT
 };
 
@@ -808,6 +811,12 @@ class TC_GAME_API World
         bool IsGuidWarning() { return _guidWarn; }
         bool IsGuidAlert() { return _guidAlert; }
 
+        // War mode balancing
+        TeamId GetWarModeDominantFaction() const { return _warModeDominantFaction; }
+        int32 GetWarModeOutnumberedFactionReward() const { return _warModeOutnumberedFactionReward; }
+        void SetForcedWarModeFactionBalanceState(TeamId team, int32 reward = 0);
+        void DisableForcedWarModeFactionBalanceState();
+
     protected:
         void _UpdateGameTime();
 
@@ -930,6 +939,12 @@ class TC_GAME_API World
         bool _guidAlert;
         uint32 _warnDiff;
         time_t _warnShutdownTime;
+
+        // War mode balancing
+        void UpdateWarModeRewardValues();
+
+        TeamId _warModeDominantFaction; // the team that has higher percentage
+        int32 _warModeOutnumberedFactionReward;
 
     friend class debug_commandscript;
 };
