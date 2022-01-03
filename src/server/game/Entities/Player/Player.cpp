@@ -217,7 +217,6 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this)
 
     m_MirrorTimerFlags = UNDERWATER_NONE;
     m_MirrorTimerFlagsLast = UNDERWATER_NONE;
-    m_isInWater = false;
     m_hostileReferenceCheckTimer = 0;
     m_drunkTimer = 0;
     m_deathTimer = 0;
@@ -693,11 +692,11 @@ uint32 Player::EnvironmentalDamage(EnviromentalDamage type, uint32 damage)
     {
         if (type == DAMAGE_FALL)                               // DealDamage does not apply item durability loss from self-induced damage.
         {
-            TC_LOG_DEBUG("entities.player", "Player::EnvironmentalDamage: Player '%s' (%s) fall to death, loosing 10%% durability",
-                GetName().c_str(), GetGUID().ToString().c_str());
-            DurabilityLossAll(0.10f, false);
+            TC_LOG_DEBUG("entities.player", "Player::EnvironmentalDamage: Player '%s' (%s) fall to death, losing %f%% durability",
+                GetName().c_str(), GetGUID().ToString().c_str(), sWorld->getRate(RATE_DURABILITY_LOSS_ON_DEATH));
+            DurabilityLossAll(sWorld->getRate(RATE_DURABILITY_LOSS_ON_DEATH), false);
             // durability lost message
-            SendDurabilityLoss(this, 10);
+            SendDurabilityLoss(this, uint32(sWorld->getRate(RATE_DURABILITY_LOSS_ON_DEATH) * 100.0f));
         }
 
         UpdateCriteria(CriteriaType::DieFromEnviromentalDamage, 1, type);
@@ -1239,7 +1238,6 @@ void Player::Update(uint32 p_time)
     //because we don't want player's ghost teleported from graveyard
     if (IsHasDelayedTeleport() && IsAlive())
         TeleportTo(m_teleport_dest, m_teleport_options);
-
 }
 
 void Player::setDeathState(DeathState s)
@@ -1311,7 +1309,7 @@ uint8 Player::GetChatFlags() const
         tag |= CHAT_FLAG_DND;
     if (isAFK())
         tag |= CHAT_FLAG_AFK;
-    if (HasPlayerFlag(PLAYER_FLAGS_DEVELOPER))
+    if (IsDeveloper())
         tag |= CHAT_FLAG_DEV;
 
     return tag;
@@ -2085,28 +2083,6 @@ GameObject* Player::GetGameObjectIfCanInteractWith(ObjectGuid const& guid, Gameo
     return go;
 }
 
-bool Player::IsUnderWater() const
-{
-    return IsInWater() &&
-        GetPositionZ() < (GetMap()->GetWaterLevel(GetPhaseShift(), GetPositionX(), GetPositionY()) - 2);
-}
-
-void Player::SetInWater(bool inWater)
-{
-    if (m_isInWater == inWater)
-        return;
-
-    //define player in water by opcodes
-    //move player's guid into HateOfflineList of those mobs
-    //which can't swim and move guid back into ThreatList when
-    //on surface.
-    /// @todo exist also swimming mobs, and function must be symmetric to enter/leave water
-    m_isInWater = inWater;
-
-    // Call base
-    Unit::SetInWater(inWater);
-}
-
 bool Player::IsInAreaTriggerRadius(AreaTriggerEntry const* trigger) const
 {
     if (!trigger)
@@ -2394,9 +2370,6 @@ void Player::GiveLevel(uint8 level)
     InitTalentForLevel();
     InitTaxiNodesForLevel();
 
-    if (level < PLAYER_LEVEL_MIN_HONOR)
-        ResetPvpTalents();
-
     UpdateAllStats();
 
     _ApplyAllLevelScaleItemMods(true); // Moved to above SetFullHealth so player will have full health from Heirlooms
@@ -2457,6 +2430,12 @@ void Player::InitTalentForLevel()
     }
 
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::MaxTalentTiers), talentTiers);
+
+    if (!GetSession()->HasPermission(rbac::RBAC_PERM_SKIP_CHECK_MORE_TALENTS_THAN_ALLOWED))
+        for (uint8 spec = 0; spec < MAX_SPECIALIZATIONS; ++spec)
+            for (size_t slot = sDB2Manager.GetPvpTalentNumSlotsAtLevel(level, Classes(GetClass())); slot < MAX_PVP_TALENT_SLOTS; ++slot)
+                if (PvpTalentEntry const* pvpTalent = sPvpTalentStore.LookupEntry(GetPvpTalentMap(spec)[slot]))
+                    RemovePvpTalent(pvpTalent, spec);
 
     if (!GetSession()->PlayerLoading())
         SendTalentsInfoData(); // update at client
@@ -3511,19 +3490,10 @@ bool Player::ResetTalents(bool noCost)
 
 void Player::ResetPvpTalents()
 {
-    for (uint32 talentId = 0; talentId < sPvpTalentStore.GetNumRows(); ++talentId)
-    {
-        PvpTalentEntry const* talentInfo = sPvpTalentStore.LookupEntry(talentId);
-        if (!talentInfo)
-            continue;
-
-        RemovePvpTalent(talentInfo);
-    }
-
-    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
-    _SaveTalents(trans);
-    _SaveSpells(trans);
-    CharacterDatabase.CommitTransaction(trans);
+    for (uint8 spec = 0; spec < MAX_SPECIALIZATIONS; ++spec)
+        for (uint32 talentId : GetPvpTalentMap(spec))
+            if (PvpTalentEntry const* talentInfo = sPvpTalentStore.LookupEntry(talentId))
+                RemovePvpTalent(talentInfo, spec);
 }
 
 Mail* Player::GetMail(uint32 id)
@@ -4405,18 +4375,19 @@ void Player::ResurrectPlayer(float restore_percent, bool applySickness)
     //for each level they are above 10.
     //Characters level 20 and up suffer from ten minutes of sickness.
     int32 startLevel = sWorld->getIntConfig(CONFIG_DEATH_SICKNESS_LEVEL);
+    ChrRacesEntry const* raceEntry = sChrRacesStore.AssertEntry(GetRace());
 
     if (int32(GetLevel()) >= startLevel)
     {
         // set resurrection sickness
-        CastSpell(this, 15007, true);
+        CastSpell(this, raceEntry->ResSicknessSpellID, true);
 
         // not full duration
         if (int32(GetLevel()) < startLevel+9)
         {
             int32 delta = (int32(GetLevel()) - startLevel + 1)*MINUTE;
 
-            if (Aura* aur = GetAura(15007, GetGUID()))
+            if (Aura* aur = GetAura(raceEntry->ResSicknessSpellID, GetGUID()))
             {
                 aur->SetDuration(delta*IN_MILLISECONDS);
             }
@@ -8019,11 +7990,6 @@ void Player::ApplyItemEquipSpell(Item* item, bool apply, bool formChange /*= fal
         if (!spellproto)
             continue;
 
-        if (spellproto->HasAura(SPELL_AURA_MOD_XP_PCT)
-            && !GetSession()->GetCollectionMgr()->CanApplyHeirloomXpBonus(item->GetEntry(), GetLevel())
-            && sDB2Manager.GetHeirloomByItemId(item->GetEntry()))
-            continue;
-
         if (effectData->ChrSpecializationID && effectData->ChrSpecializationID != GetPrimarySpecialization())
             continue;
 
@@ -8560,7 +8526,7 @@ void Player::_RemoveAllItemMods()
 
             // item set bonuses not dependent from item broken state
             if (proto->GetItemSet())
-                RemoveItemsSetItem(this, proto);
+                RemoveItemsSetItem(this, m_items[i]);
 
             if (m_items[i]->IsBroken() || !CanUseAttackType(Player::GetAttackBySlot(i, m_items[i]->GetTemplate()->GetInventoryType())))
                 continue;
@@ -8640,6 +8606,15 @@ void Player::_ApplyAllLevelScaleItemMods(bool apply)
                 continue;
 
             _ApplyItemMods(m_items[i], i, apply);
+
+            // Update item sets for heirlooms
+            if (sDB2Manager.GetHeirloomByItemId(m_items[i]->GetEntry()) && m_items[i]->GetTemplate()->GetItemSet())
+            {
+                if (apply)
+                    AddItemsSetItem(this, m_items[i]);
+                else
+                    RemoveItemsSetItem(this, m_items[i]);
+            }
         }
     }
 }
@@ -11263,41 +11238,57 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* offending
 {
     Item* item2;
 
-    // fill space table
-    uint32 inventoryCounts[INVENTORY_SLOT_ITEM_END - INVENTORY_SLOT_ITEM_START];
-    uint32 bagCounts[INVENTORY_SLOT_BAG_END - INVENTORY_SLOT_BAG_START][MAX_BAG_SIZE];
+    // fill space tables, creating a mock-up of the player's inventory
 
-    memset(inventoryCounts, 0, sizeof(uint32) * (INVENTORY_SLOT_ITEM_END - INVENTORY_SLOT_ITEM_START));
-    memset(bagCounts, 0, sizeof(uint32) * (INVENTORY_SLOT_BAG_END - INVENTORY_SLOT_BAG_START) * MAX_BAG_SIZE);
+    // counts
+    uint32 inventoryCounts[INVENTORY_SLOT_ITEM_END - INVENTORY_SLOT_ITEM_START] = {};
+    uint32 bagCounts[INVENTORY_SLOT_BAG_END - INVENTORY_SLOT_BAG_START][MAX_BAG_SIZE] = {};
+
+    // Item pointers
+    Item* inventoryPointers[INVENTORY_SLOT_ITEM_END - INVENTORY_SLOT_ITEM_START] = {};
+    Item* bagPointers[INVENTORY_SLOT_BAG_END - INVENTORY_SLOT_BAG_START][MAX_BAG_SIZE] = {};
 
     uint8 inventoryEnd = INVENTORY_SLOT_ITEM_START + GetInventorySlotCount();
+
+    // filling inventory
     for (uint8 i = INVENTORY_SLOT_ITEM_START; i < inventoryEnd; i++)
     {
+        // build items in stock backpack
         item2 = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (item2 && !item2->IsInTrade())
+        {
             inventoryCounts[i - INVENTORY_SLOT_ITEM_START] = item2->GetCount();
+            inventoryPointers[i - INVENTORY_SLOT_ITEM_START] = item2;
+        }
     }
 
     for (uint8 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; i++)
         if (Bag* pBag = GetBagByPos(i))
             for (uint32 j = 0; j < pBag->GetBagSize(); j++)
             {
+                // build item counts in equippable bags
                 item2 = GetItemByPos(i, j);
                 if (item2 && !item2->IsInTrade())
+                {
                     bagCounts[i - INVENTORY_SLOT_BAG_START][j] = item2->GetCount();
+                    bagPointers[i - INVENTORY_SLOT_BAG_START][j] = item2;
+                }
             }
 
-    // check free space for all items
+    // check free space for all items that we wish to add
     for (int k = 0; k < count; ++k)
     {
+        // Incoming item
         Item* item = items[k];
 
         // no item
         if (!item)
             continue;
 
+        uint32_t remaining_count = item->GetCount();
+
         TC_LOG_DEBUG("entities.player.items", "Player::CanStoreItems: Player '%s' (%s), Index: %i ItemID: %u, Count: %u",
-            GetName().c_str(), GetGUID().ToString().c_str(), k + 1, item->GetEntry(), item->GetCount());
+            GetName().c_str(), GetGUID().ToString().c_str(), k + 1, item->GetEntry(), remaining_count);
         ItemTemplate const* pProto = item->GetTemplate();
 
         // strange item
@@ -11326,14 +11317,19 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* offending
 
             for (int t = INVENTORY_SLOT_ITEM_START; t < inventoryEnd; ++t)
             {
-                item2 = GetItemByPos(INVENTORY_SLOT_BAG_0, t);
-                if (item2 && item2->CanBeMergedPartlyWith(pProto) == EQUIP_ERR_OK && inventoryCounts[t-INVENTORY_SLOT_ITEM_START] + item->GetCount() <= pProto->GetMaxStackSize())
+                item2 = inventoryPointers[t-INVENTORY_SLOT_ITEM_START];
+                if (item2 && item2->CanBeMergedPartlyWith(pProto) == EQUIP_ERR_OK && inventoryCounts[t-INVENTORY_SLOT_ITEM_START] < pProto->GetMaxStackSize())
                 {
-                    inventoryCounts[t-INVENTORY_SLOT_ITEM_START] += item->GetCount();
-                    b_found = true;
-                    break;
+                    inventoryCounts[t-INVENTORY_SLOT_ITEM_START] += remaining_count;
+                    remaining_count = inventoryCounts[t-INVENTORY_SLOT_ITEM_START] < pProto->GetMaxStackSize() ? 0 : inventoryCounts[t-INVENTORY_SLOT_ITEM_START] - pProto->GetMaxStackSize();
+
+                    b_found = remaining_count == 0;
+                    // if no pieces of the stack remain, then stop checking stock bag
+                    if (b_found)
+                        break;
                 }
             }
+
             if (b_found)
                 continue;
 
@@ -11341,21 +11337,28 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* offending
             {
                 if (Bag* bag = GetBagByPos(t))
                 {
-                    if (ItemCanGoIntoBag(item->GetTemplate(), bag->GetTemplate()))
+                    if (!ItemCanGoIntoBag(item->GetTemplate(), bag->GetTemplate()))
+                        continue;
+
+                    for (uint32 j = 0; j < bag->GetBagSize(); j++)
                     {
-                        for (uint32 j = 0; j < bag->GetBagSize(); j++)
+                        item2 = bagPointers[t-INVENTORY_SLOT_BAG_START][j];
+                        if (item2 && item2->CanBeMergedPartlyWith(pProto) == EQUIP_ERR_OK && bagCounts[t-INVENTORY_SLOT_BAG_START][j] < pProto->GetMaxStackSize())
                         {
-                            item2 = GetItemByPos(t, j);
-                            if (item2 && item2->CanBeMergedPartlyWith(pProto) == EQUIP_ERR_OK && bagCounts[t-INVENTORY_SLOT_BAG_START][j] + item->GetCount() <= pProto->GetMaxStackSize())
-                            {
-                                bagCounts[t-INVENTORY_SLOT_BAG_START][j] += item->GetCount();
-                                b_found = true;
+                            // add count to stack so that later items in the list do not double-book
+                            bagCounts[t-INVENTORY_SLOT_BAG_START][j] += remaining_count;
+                            remaining_count = bagCounts[t-INVENTORY_SLOT_BAG_START][j] < pProto->GetMaxStackSize() ? 0 : bagCounts[t-INVENTORY_SLOT_BAG_START][j] - pProto->GetMaxStackSize();
+
+                            b_found = remaining_count == 0;
+
+                            // if no pieces of the stack remain, then stop checking equippable bags
+                            if (b_found)
                                 break;
-                            }
                         }
                     }
                 }
             }
+
             if (b_found)
                 continue;
         }
@@ -11379,7 +11382,9 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* offending
                         {
                             if (bagCounts[t-INVENTORY_SLOT_BAG_START][j] == 0)
                             {
-                                bagCounts[t-INVENTORY_SLOT_BAG_START][j] = 1;
+                                bagCounts[t-INVENTORY_SLOT_BAG_START][j] = remaining_count;
+                                bagPointers[t-INVENTORY_SLOT_BAG_START][j] = item;
+
                                 b_found = true;
                                 break;
                             }
@@ -11387,6 +11392,7 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* offending
                     }
                 }
             }
+
             if (b_found)
                 continue;
         }
@@ -11397,11 +11403,14 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* offending
         {
             if (inventoryCounts[t-INVENTORY_SLOT_ITEM_START] == 0)
             {
-                inventoryCounts[t-INVENTORY_SLOT_ITEM_START] = 1;
+                inventoryCounts[t-INVENTORY_SLOT_ITEM_START] = remaining_count;
+                inventoryPointers[t-INVENTORY_SLOT_ITEM_START] = item;
+
                 b_found = true;
                 break;
             }
         }
+
         if (b_found)
             continue;
 
@@ -11420,7 +11429,9 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* offending
                 {
                     if (bagCounts[t - INVENTORY_SLOT_BAG_START][j] == 0)
                     {
-                        bagCounts[t - INVENTORY_SLOT_BAG_START][j] = 1;
+                        bagCounts[t-INVENTORY_SLOT_BAG_START][j] = remaining_count;
+                        bagPointers[t-INVENTORY_SLOT_BAG_START][j] = item;
+
                         b_found = true;
                         break;
                     }
@@ -11428,7 +11439,7 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* offending
             }
         }
 
-        // no free slot found?
+        // if no free slot found for all pieces of the item, then return an error
         if (!b_found)
             return EQUIP_ERR_BAG_FULL;
     }
@@ -12603,7 +12614,7 @@ void Player::RemoveItem(uint8 bag, uint8 slot, bool update)
                 // item set bonuses applied only at equip and removed at unequip, and still active for broken items
                 ItemTemplate const* pProto = ASSERT_NOTNULL(pItem->GetTemplate());
                 if (pProto->GetItemSet())
-                    RemoveItemsSetItem(this, pProto);
+                    RemoveItemsSetItem(this, pItem);
 
                 _ApplyItemMods(pItem, slot, false, update);
 
@@ -12743,7 +12754,7 @@ void Player::DestroyItem(uint8 bag, uint8 slot, bool update)
             {
                 // item set bonuses applied only at equip and removed at unequip, and still active for broken items
                 if (pProto->GetItemSet())
-                    RemoveItemsSetItem(this, pProto);
+                    RemoveItemsSetItem(this, pItem);
 
                 _ApplyItemMods(pItem, slot, false);
             }
@@ -18498,8 +18509,6 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder* holder)
     InitTalentForLevel();
     LearnDefaultSkills();
     LearnCustomSpells();
-    if (GetLevel() < PLAYER_LEVEL_MIN_HONOR)
-        ResetPvpTalents();
 
     // must be before inventory (some items required reputation check)
     m_reputationMgr->LoadFromDB(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_REPUTATION));
@@ -19214,23 +19223,23 @@ Item* Player::_LoadItem(CharacterDatabaseTransaction& trans, uint32 zoneId, uint
             // Do not allow to have item limited to another map/zone in alive state
             if (IsAlive() && item->IsLimitedToAnotherMapOrZone(GetMapId(), zoneId))
             {
-                TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s', map: %u) has item (%s, entry: %u) limited to another map (%u). Deleting item.",
-                    GetGUID().ToString().c_str(), GetName().c_str(), GetMapId(), item->GetGUID().ToString().c_str(), item->GetEntry(), zoneId);
+                TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s', map: %u) has item (%s) limited to another map (%u). Deleting item.",
+                    GetGUID().ToString().c_str(), GetName().c_str(), GetMapId(), item->GetGUID().ToString().c_str(), zoneId);
                 remove = true;
             }
             // "Conjured items disappear if you are logged out for more than 15 minutes"
             else if (timeDiff > 15 * MINUTE && proto->HasFlag(ITEM_FLAG_CONJURED))
             {
-                TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s', diff: %u) has conjured item (%s, entry: %u) with expired lifetime (15 minutes). Deleting item.",
-                    GetGUID().ToString().c_str(), GetName().c_str(), timeDiff, item->GetGUID().ToString().c_str(), item->GetEntry());
+                TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s', diff: %u) has conjured item (%s) with expired lifetime (15 minutes). Deleting item.",
+                    GetGUID().ToString().c_str(), GetName().c_str(), timeDiff, item->GetGUID().ToString().c_str());
                 remove = true;
             }
             else if (item->IsRefundable())
             {
                 if (item->GetPlayedTime() > (2 * HOUR))
                 {
-                    TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s') has item (%s, entry: %u) with expired refund time (%u). Deleting refund data and removing refundable flag.",
-                        GetGUID().ToString().c_str(), GetName().c_str(), item->GetGUID().ToString().c_str(), item->GetEntry(), item->GetPlayedTime());
+                    TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s') has item (%s) with expired refund time (%u). Deleting refund data and removing refundable flag.",
+                        GetGUID().ToString().c_str(), GetName().c_str(), item->GetGUID().ToString().c_str(), item->GetPlayedTime());
 
                     stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ITEM_REFUND_INSTANCE);
                     stmt->setUInt64(0, item->GetGUID().GetCounter());
@@ -19252,8 +19261,8 @@ Item* Player::_LoadItem(CharacterDatabaseTransaction& trans, uint32 zoneId, uint
                     }
                     else
                     {
-                        TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s') has item (%s, entry: %u) with refundable flags, but without data in item_refund_instance. Removing flag.",
-                            GetGUID().ToString().c_str(), GetName().c_str(), item->GetGUID().ToString().c_str(), item->GetEntry());
+                        TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s') has item (%s) with refundable flags, but without data in item_refund_instance. Removing flag.",
+                            GetGUID().ToString().c_str(), GetName().c_str(), item->GetGUID().ToString().c_str());
                         item->RemoveItemFlag(ITEM_FIELD_FLAG_REFUNDABLE);
                     }
                 }
@@ -19280,8 +19289,8 @@ Item* Player::_LoadItem(CharacterDatabaseTransaction& trans, uint32 zoneId, uint
                 }
                 else
                 {
-                    TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s') has item (%s, entry: %u) with ITEM_FIELD_FLAG_BOP_TRADEABLE flag, but without data in item_soulbound_trade_data. Removing flag.",
-                        GetGUID().ToString().c_str(), GetName().c_str(), item->GetGUID().ToString().c_str(), item->GetEntry());
+                    TC_LOG_DEBUG("entities.player.loading", "Player::_LoadInventory: player (%s, name: '%s') has item (%s) with ITEM_FLAG_BOP_TRADEABLE flag, but without data in item_soulbound_trade_data. Removing flag.",
+                        GetGUID().ToString().c_str(), GetName().c_str(), item->GetGUID().ToString().c_str());
                     item->RemoveItemFlag(ITEM_FIELD_FLAG_BOP_TRADEABLE);
                 }
             }
@@ -19302,7 +19311,7 @@ Item* Player::_LoadItem(CharacterDatabaseTransaction& trans, uint32 zoneId, uint
         }
         else
         {
-            TC_LOG_ERROR("entities.player", "Player::_LoadInventory: player (%s, name: '%s') has broken item (GUID: " UI64FMTD ", entry: %u) in inventory. Deleting item.",
+            TC_LOG_ERROR("entities.player", "Player::_LoadInventory: player (%s, name: '%s') has a broken item (GUID: " UI64FMTD ", entry: %u) in inventory. Deleting item.",
                 GetGUID().ToString().c_str(), GetName().c_str(), itemGuid, itemEntry);
             remove = true;
         }
@@ -19317,7 +19326,7 @@ Item* Player::_LoadItem(CharacterDatabaseTransaction& trans, uint32 zoneId, uint
     }
     else
     {
-        TC_LOG_ERROR("entities.player", "Player::_LoadInventory: player (%s, name: '%s') has unknown item (entry: %u) in inventory. Deleting item.",
+        TC_LOG_ERROR("entities.player", "Player::_LoadInventory: player (%s, name: '%s') has an unknown item (entry: %u) in inventory. Deleting item.",
             GetGUID().ToString().c_str(), GetName().c_str(), itemEntry);
         Item::DeleteFromInventoryDB(trans, itemGuid);
         Item::DeleteFromDB(trans, itemGuid);
@@ -24030,7 +24039,7 @@ void Player::ReportedAfkBy(Player* reporter)
 uint8 Player::GetStartLevel(uint8 race, uint8 playerClass, Optional<int32> characterTemplateId) const
 {
     uint8 startLevel = sWorld->getIntConfig(CONFIG_START_PLAYER_LEVEL);
-    if (sChrRacesStore.AssertEntry(race)->GetFlags().HasFlag(ChrRacesFlag::AlliedRace))
+    if (sChrRacesStore.AssertEntry(race)->GetFlags().HasFlag(ChrRacesFlag::IsAlliedRace))
         startLevel = sWorld->getIntConfig(CONFIG_START_ALLIED_RACE_LEVEL);
 
     if (playerClass == CLASS_DEATH_KNIGHT)
@@ -24181,7 +24190,7 @@ void Player::UpdateVisibilityOf(WorldObject* target)
             m_clientGUIDs.erase(target->GetGUID());
 
             #ifdef TRINITY_DEBUG
-            TC_LOG_DEBUG("maps", "%s out of range for %s. Distance = %f", target->GetGUID().ToString().c_str(), GetGUID().ToString().c_str(), GetDistance(target));
+                TC_LOG_DEBUG("maps", "Object %s out of range for player %s. Distance = %f", target->GetGUID().ToString().c_str(), GetGUID().ToString().c_str(), GetDistance(target));
             #endif
         }
     }
@@ -24193,7 +24202,7 @@ void Player::UpdateVisibilityOf(WorldObject* target)
             m_clientGUIDs.insert(target->GetGUID());
 
             #ifdef TRINITY_DEBUG
-            TC_LOG_DEBUG("maps", "%s is visible now for %s. Distance = %f", target->GetGUID().ToString().c_str(), GetGUID().ToString().c_str(), GetDistance(target));
+                TC_LOG_DEBUG("maps", "Object %s is visible now for player %s. Distance = %f", target->GetGUID().ToString().c_str(), GetGUID().ToString().c_str(), GetDistance(target));
             #endif
 
             // target aura duration for caster show only if target exist at caster client
@@ -24268,7 +24277,7 @@ void Player::UpdateVisibilityOf(T* target, UpdateData& data, std::set<Unit*>& vi
             m_clientGUIDs.erase(target->GetGUID());
 
             #ifdef TRINITY_DEBUG
-            TC_LOG_DEBUG("maps", "Object %s (%u) is out of range for %s. Distance = %f", target->GetGUID().ToString().c_str(), target->GetEntry(), GetGUID().ToString().c_str(), GetDistance(target));
+                TC_LOG_DEBUG("maps", "Object %s is out of range for player %s. Distance = %f", target->GetGUID().ToString().c_str(), GetGUID().ToString().c_str(), GetDistance(target));
             #endif
         }
     }
@@ -24280,7 +24289,7 @@ void Player::UpdateVisibilityOf(T* target, UpdateData& data, std::set<Unit*>& vi
             UpdateVisibilityOf_helper(m_clientGUIDs, target, visibleNow);
 
             #ifdef TRINITY_DEBUG
-            TC_LOG_DEBUG("maps", "Object %s (%u) is visible now for %s. Distance = %f", target->GetGUID().ToString().c_str(), target->GetEntry(), GetGUID().ToString().c_str(), GetDistance(target));
+                TC_LOG_DEBUG("maps", "Object %s is visible now for player %s. Distance = %f", target->GetGUID().ToString().c_str(), GetGUID().ToString().c_str(), GetDistance(target));
             #endif
         }
     }
@@ -26113,42 +26122,42 @@ int32 Player::NextGroupUpdateSequenceNumber(GroupCategory category)
     return m_groupUpdateSequences[category].UpdateSequenceNumber++;
 }
 
-void Player::ProcessTerrainStatusUpdate(ZLiquidStatus status, Optional<LiquidData> const& liquidData)
+void Player::ProcessTerrainStatusUpdate(ZLiquidStatus oldLiquidStatus, Optional<LiquidData> const& newLiquidData)
 {
     // process liquid auras using generic unit code
-    Unit::ProcessTerrainStatusUpdate(status, liquidData);
+    Unit::ProcessTerrainStatusUpdate(oldLiquidStatus, newLiquidData);
 
     // player specific logic for mirror timers
-    if (status && liquidData)
+    if (GetLiquidStatus() && newLiquidData)
     {
         // Breath bar state (under water in any liquid type)
-        if (liquidData->type_flags.HasFlag(map_liquidHeaderTypeFlags::AllLiquids))
+        if (newLiquidData->type_flags.HasFlag(map_liquidHeaderTypeFlags::AllLiquids))
         {
-            if (status & LIQUID_MAP_UNDER_WATER)
+            if (GetLiquidStatus() & LIQUID_MAP_UNDER_WATER)
                 m_MirrorTimerFlags |= UNDERWATER_INWATER;
             else
                 m_MirrorTimerFlags &= ~UNDERWATER_INWATER;
         }
 
         // Fatigue bar state (if not on flight path or transport)
-        if (liquidData->type_flags.HasFlag(map_liquidHeaderTypeFlags::DarkWater) && !IsInFlight() && !GetTransport())
+        if (newLiquidData->type_flags.HasFlag(map_liquidHeaderTypeFlags::DarkWater) && !IsInFlight() && !GetTransport())
             m_MirrorTimerFlags |= UNDERWATER_INDARKWATER;
         else
             m_MirrorTimerFlags &= ~UNDERWATER_INDARKWATER;
 
         // Lava state (any contact)
-        if (liquidData->type_flags.HasFlag(map_liquidHeaderTypeFlags::Magma))
+        if (newLiquidData->type_flags.HasFlag(map_liquidHeaderTypeFlags::Magma))
         {
-            if (status & MAP_LIQUID_STATUS_IN_CONTACT)
+            if (GetLiquidStatus() & MAP_LIQUID_STATUS_IN_CONTACT)
                 m_MirrorTimerFlags |= UNDERWATER_INLAVA;
             else
                 m_MirrorTimerFlags &= ~UNDERWATER_INLAVA;
         }
 
         // Slime state (any contact)
-        if (liquidData->type_flags.HasFlag(map_liquidHeaderTypeFlags::Slime))
+        if (newLiquidData->type_flags.HasFlag(map_liquidHeaderTypeFlags::Slime))
         {
-            if (status & MAP_LIQUID_STATUS_IN_CONTACT)
+            if (GetLiquidStatus() & MAP_LIQUID_STATUS_IN_CONTACT)
                 m_MirrorTimerFlags |= UNDERWATER_INSLIME;
             else
                 m_MirrorTimerFlags &= ~UNDERWATER_INSLIME;
@@ -26993,6 +27002,8 @@ void Player::ResetTalentSpecialization()
                 for (TalentEntry const* talent : sDB2Manager.GetTalentsByPosition(class_, t, c))
                     RemoveTalent(talent);
 
+    ResetPvpTalents();
+
     RemoveSpecializationSpells();
 
     ChrSpecializationEntry const* defaultSpec = ASSERT_NOTNULL(sDB2Manager.GetDefaultChrSpecializationForClass(GetClass()));
@@ -27048,7 +27059,7 @@ TalentLearnResult Player::LearnPvpTalent(uint32 talentID, uint8 slot, int32* spe
             return TALENT_FAILED_CANT_REMOVE_TALENT;
         }
 
-        RemovePvpTalent(talent);
+        RemovePvpTalent(talent, GetActiveTalentGroup());
     }
 
     if (!AddPvpTalent(talentInfo, GetActiveTalentGroup(), slot))
@@ -27085,7 +27096,7 @@ bool Player::AddPvpTalent(PvpTalentEntry const* talent, uint8 activeTalentGroup,
     return true;
 }
 
-void Player::RemovePvpTalent(PvpTalentEntry const* talent)
+void Player::RemovePvpTalent(PvpTalentEntry const* talent, uint8 activeTalentGroup)
 {
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(talent->SpellID, DIFFICULTY_NONE);
     if (!spellInfo)
@@ -27098,8 +27109,8 @@ void Player::RemovePvpTalent(PvpTalentEntry const* talent)
         RemoveOverrideSpell(talent->OverridesSpellID, talent->SpellID);
 
     // if this talent rank can be found in the PlayerTalentMap, mark the talent as removed so it gets deleted
-    auto plrPvpTalent = std::find(GetPvpTalentMap(GetActiveTalentGroup()).begin(), GetPvpTalentMap(GetActiveTalentGroup()).end(), talent->ID);
-    if (plrPvpTalent != GetPvpTalentMap(GetActiveTalentGroup()).end())
+    auto plrPvpTalent = std::find(GetPvpTalentMap(activeTalentGroup).begin(), GetPvpTalentMap(activeTalentGroup).end(), talent->ID);
+    if (plrPvpTalent != GetPvpTalentMap(activeTalentGroup).end())
         *plrPvpTalent = 0;
 }
 
@@ -29171,6 +29182,13 @@ void Player::UpdateWarModeAuras()
         RemovePlayerFlag(PLAYER_FLAGS_WAR_MODE_ACTIVE);
         RemovePvpFlag(UNIT_BYTE2_FLAG_PVP);
     }
+}
+
+void Player::OnPhaseChange()
+{
+    Unit::OnPhaseChange();
+
+    GetMap()->UpdatePersonalPhasesForPlayer(this);
 }
 
 std::string Player::GetDebugInfo() const

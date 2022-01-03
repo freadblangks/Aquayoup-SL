@@ -399,6 +399,7 @@ class TC_GAME_API Spell
         void EffectLearnAzeriteEssencePower();
         void EffectCreatePrivateConversation();
         void EffectSendChatMessage();
+        void EffectGrantBattlePetExperience();
 
         typedef std::unordered_set<Aura*> UsedSpellMods;
 
@@ -904,9 +905,10 @@ namespace Trinity
 
     struct TC_GAME_API WorldObjectSpellConeTargetCheck : public WorldObjectSpellAreaTargetCheck
     {
+        Position _coneSrc;
         float _coneAngle;
         float _lineWidth;
-        WorldObjectSpellConeTargetCheck(float coneAngle, float lineWidth, float range, WorldObject* caster,
+        WorldObjectSpellConeTargetCheck(Position const& coneSrc, float coneAngle, float lineWidth, float range, WorldObject* caster,
             SpellInfo const* spellInfo, SpellTargetCheckTypes selectionType, ConditionContainer const* condList, SpellTargetObjectTypes objectType);
 
         bool operator()(WorldObject* target) const;
@@ -931,6 +933,8 @@ namespace Trinity
 
         bool operator()(WorldObject* target) const;
     };
+
+    TC_GAME_API void SelectRandomInjuredTargets(std::list<WorldObject*>& targets, size_t maxTargets, bool prioritizePlayers);
 }
 
 using SpellEffectHandlerFn = void(Spell::*)();

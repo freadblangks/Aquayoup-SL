@@ -305,7 +305,7 @@ class spell_sha_crash_lightning : public SpellScript
 
     void Register() override
     {
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_crash_lightning::CountTargets, EFFECT_0, TARGET_UNIT_CONE_ENEMY_104);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_crash_lightning::CountTargets, EFFECT_0, TARGET_UNIT_CONE_CASTER_TO_DEST_ENEMY);
         AfterCast += SpellCastFn(spell_sha_crash_lightning::TriggerCleaveBuff);
     }
 
@@ -324,12 +324,7 @@ class spell_sha_downpour : public SpellScript
 
     void FilterTargets(std::list<WorldObject*>& targets)
     {
-        uint32 const maxTargets = 6;
-        if (targets.size() > maxTargets)
-        {
-            targets.sort(Trinity::HealthPctOrderPred());
-            targets.resize(maxTargets);
-        }
+        Trinity::SelectRandomInjuredTargets(targets, 6, true);
     }
 
     void CountEffectivelyHealedTarget()
@@ -1002,6 +997,22 @@ class spell_sha_liquid_magma_totem : public SpellScript
     }
 };
 
+// 30884 - Nature's Guardian
+class spell_sha_natures_guardian : public AuraScript
+{
+    PrepareAuraScript(spell_sha_natures_guardian);
+
+    bool CheckProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        return eventInfo.GetActionTarget()->HealthBelowPct(aurEff->GetAmount());
+    }
+
+    void Register() override
+    {
+        DoCheckEffectProc += AuraCheckEffectProcFn(spell_sha_natures_guardian::CheckProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 // 210621 - Path of Flames Spread
 class spell_sha_path_of_flames_spread : public SpellScript
 {
@@ -1392,6 +1403,7 @@ void AddSC_shaman_spell_scripts()
     RegisterSpellScript(spell_sha_lightning_bolt);
     RegisterSpellScript(spell_sha_lightning_bolt_overload);
     RegisterSpellScript(spell_sha_liquid_magma_totem);
+    RegisterAuraScript(spell_sha_natures_guardian);
     RegisterSpellScript(spell_sha_path_of_flames_spread);
     RegisterAuraScript(spell_sha_tidal_waves);
     RegisterAuraScript(spell_sha_t3_6p_bonus);

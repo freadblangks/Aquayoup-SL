@@ -166,7 +166,7 @@ void WorldSession::HandleOpenItemOpcode(WorldPackets::Spells::OpenItem& packet)
     if (!proto->HasFlag(ITEM_FLAG_HAS_LOOT) && !item->IsWrapped())
     {
         player->SendEquipError(EQUIP_ERR_CLIENT_LOCKED_OUT, item, nullptr);
-        TC_LOG_ERROR("entities.player.cheat", "Possible hacking attempt: Player %s [%s] tried to open item [%s, entry: %u] which is not openable!",
+        TC_LOG_ERROR("entities.player.cheat", "Possible hacking attempt: Player %s %s tried to open item [%s, entry: %u] which is not openable!",
             player->GetName().c_str(), player->GetGUID().ToString().c_str(), item->GetGUID().ToString().c_str(), proto->GetId());
         return;
     }
@@ -180,7 +180,7 @@ void WorldSession::HandleOpenItemOpcode(WorldPackets::Spells::OpenItem& packet)
         if (!lockInfo)
         {
             player->SendEquipError(EQUIP_ERR_ITEM_LOCKED, item, nullptr);
-            TC_LOG_ERROR("network", "WORLD::OpenItem: item [%s] has an unknown lockId: %u!", item->GetGUID().ToString().c_str(), lockId);
+            TC_LOG_ERROR("network", "WORLD::OpenItem: item %s has an unknown lockId: %u!", item->GetGUID().ToString().c_str(), lockId);
             return;
         }
 
@@ -217,7 +217,7 @@ void WorldSession::HandleOpenWrappedItemCallback(uint16 pos, ObjectGuid itemGuid
 
     if (!result)
     {
-        TC_LOG_ERROR("network", "Wrapped item %s don't have record in character_gifts table and will deleted", item->GetGUID().ToString().c_str());
+        TC_LOG_ERROR("network", "Wrapped item %s does't have record in character_gifts table and will deleted", item->GetGUID().ToString().c_str());
         GetPlayer()->DestroyItem(item->GetBagSlot(), item->GetSlot(), true);
         return;
     }
@@ -399,25 +399,6 @@ void WorldSession::HandleCancelAuraOpcode(WorldPackets::Spells::CancelAura& canc
         return;
 
     _player->RemoveOwnedAura(cancelAura.SpellID, cancelAura.CasterGUID, 0, AURA_REMOVE_BY_CANCEL);
-
-    // If spell being removed is a resource tracker, see if player was tracking both (herbs / minerals) and remove the other
-    if (sWorld->getBoolConfig(CONFIG_ALLOW_TRACK_BOTH_RESOURCES) && spellInfo->HasAura(SPELL_AURA_TRACK_RESOURCES))
-    {
-        Unit::AuraEffectList const& auraEffects = _player->GetAuraEffectsByType(SPELL_AURA_TRACK_RESOURCES);
-        if (!auraEffects.empty())
-        {
-            // Build list of spell IDs to cancel. Trying to cancel the aura while iterating
-            //  over AuraEffectList caused "incompatible iterator" errors on second pass
-            std::list<uint32> spellIDs;
-
-            for (Unit::AuraEffectList::const_iterator auraEffect = auraEffects.begin(); auraEffect != auraEffects.end(); ++auraEffect)
-                spellIDs.push_back((*auraEffect)->GetId());
-
-            // Remove all auras related to resource tracking (only Herbs and Minerals in 3.3.5a)
-            for (std::list<uint32>::iterator it = spellIDs.begin(); it != spellIDs.end(); ++it)
-                _player->RemoveOwnedAura(*it, cancelAura.CasterGUID, 0, AURA_REMOVE_BY_CANCEL);
-        }
-    }
 }
 
 void WorldSession::HandlePetCancelAuraOpcode(WorldPackets::Spells::PetCancelAura& packet)
