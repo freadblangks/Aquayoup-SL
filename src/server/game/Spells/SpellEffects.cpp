@@ -2958,11 +2958,10 @@ void Spell::EffectTameCreature()
     Unit* unitCaster = GetUnitCasterForEffectHandlers();
 	
 	//skuly Tame All
-	if (!sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
+	if (unitCaster->GetClass() != CLASS_HUNTER && !sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
 	{
-		if (unitCaster->GetClass() != CLASS_HUNTER)
 		unitCaster->ToPlayer()->GetSession()->SendAreaTriggerMessage("Only Hunters can Tame Beast!");
-			return;
+		return;
 	}
 	
     if (!unitCaster || unitCaster->GetPetGUID())
