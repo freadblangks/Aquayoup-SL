@@ -1,4 +1,4 @@
-ET @CGUID :=810000;
+SET @CGUID = 901164;
 
 -- Queststarter & ender
 DELETE FROM `creature_queststarter` WHERE `id` = 143845 AND `quest` = 51485;
