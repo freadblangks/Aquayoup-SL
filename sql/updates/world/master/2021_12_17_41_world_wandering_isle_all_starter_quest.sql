@@ -13,11 +13,7 @@ INSERT INTO `gossip_menu_option_trainer` (`MenuId`, `OptionIndex`, `TrainerId`) 
 
 ALTER TABLE `areatrigger_template`
 DROP PRIMARY KEY,
-DROP `IsServerSide`,
 ADD PRIMARY KEY (`Id`);
-
-ALTER TABLE `creature_template`
-ADD COLUMN `InhabitType` tinyint(3) unsigned NOT NULL DEFAULT '3' AFTER `MovementType`;
 
 -- 
 DELETE FROM `gossip_menu` WHERE (`MenuId`=7489 AND `TextId`=9107) OR (`MenuId`=7465 AND `TextId`=9076) OR (`MenuId`=7547 AND `TextId`=9162) OR (`MenuId`=7544 AND `TextId`=9153) OR (`MenuId`=7542 AND `TextId`=9148) OR (`MenuId`=7545 AND `TextId`=9155) OR (`MenuId`=7546 AND `TextId`=9158) OR (`MenuId`=7543 AND `TextId`=9151) OR (`MenuId`=7541 AND `TextId`=9145) OR (`MenuId`=14149 AND `TextId`=8588) OR (`MenuId`=14153 AND `TextId`=8592) OR (`MenuId`=14147 AND `TextId`=8584) OR (`MenuId`=14145 AND `TextId`=8586);
@@ -9960,6 +9956,20 @@ INSERT INTO `pool_template` (`entry`, `max_limit`, `description`) VALUES
 (@POOL_ENTRY+114, 1, 'Broken Bamboo Stalk (lying) Spawnpoint'),
 (@POOL_ENTRY+115, 1, 'Broken Bamboo Stalk (lying) Spawnpoint');
 
+
+-- ----------------------------
+-- Table structure for pool_gameobject
+-- ----------------------------
+DROP TABLE IF EXISTS `pool_gameobject`;
+CREATE TABLE `pool_gameobject`  (
+  `guid` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `pool_entry` mediumint(8) UNSIGNED NOT NULL DEFAULT 0,
+  `chance` float UNSIGNED NOT NULL DEFAULT 0,
+  `description` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+  PRIMARY KEY (`guid`) USING BTREE,
+  INDEX `idx_guid`(`guid`) USING BTREE
+) ENGINE = MyISAM CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
+
 DELETE FROM `pool_gameobject` WHERE `pool_entry` BETWEEN @POOL_ENTRY AND @POOL_ENTRY+115;
 INSERT INTO `pool_gameobject` (`guid`, `pool_entry`, `chance`, `description`) VALUES
 (@OGUID+122, @POOL_ENTRY+0, 0, 'Pilfered Pumpkin'),
@@ -16261,7 +16271,7 @@ INSERT INTO `gameobject_loot_template` (`Entry`,`Item`,`Chance`,`QuestRequired`)
 
 DELETE FROM `quest_objectives` WHERE `ID` = 286629; -- This item is not available to players. ( Old ! )
 
-UPDATE `quest_objectives` SET `QuestID` = 30027, `Type` = 0, `Order` = 0, `StorageIndex` = 0, `ObjectID` = 54139, `Amount` = 1, `Flags` = 0, `Flags2` = 0, `ProgressBarWeight` = 0, `Description` = 'Loot and Equip a Trainee´s Staff', `VerifiedBuild` = 41031 WHERE `ID` = 253214;
+UPDATE `quest_objectives` SET `QuestID` = 30027, `Type` = 0, `Order` = 0, `StorageIndex` = 0, `ObjectID` = 54139, `Amount` = 1, `Flags` = 0, `Flags2` = 0, `ProgressBarWeight` = 0, `Description` = 'Loot and Equip a TraineeР’Т‘s Staff', `VerifiedBuild` = 41031 WHERE `ID` = 253214;
 
 -- The Wandering Isle ==>  Quest : The Lesson of the Iron Bough ( END )
 

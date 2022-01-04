@@ -164,7 +164,7 @@ INSERT INTO `spell_target_position` (`id`, `EffectIndex`, `MapID`, `PositionX`, 
 
 -- add areatrigger definition
 DELETE FROM `areatrigger_template` WHERE `Id` = @ATT_START+1 AND `IsServerSide` = 1;
-INSERT INTO `areatrigger_template` (`Id`, `IsServerSide`, `Type`, `Flags`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `ScriptName`, `VerifiedBuild`) VALUES
+replace INTO `areatrigger_template` (`Id`, `IsServerSide`, `Type`, `Flags`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `ScriptName`, `VerifiedBuild`) VALUES
 (@ATT_START+1, 1, 1, 0, 20, 20, 20, 0, 0, 0, 'SmartAreaTriggerAI', 0);
 
 -- Add areatrigger (serverside, position)
@@ -244,7 +244,7 @@ INSERT INTO `conversation_line_template` (`Id`, `StartTime`, `UiCameraID`, `Acto
 
 -- Add areatrigger template (box definition)
 DELETE FROM `areatrigger_template` WHERE `Id` = @ATT_START+2 AND `IsServerSide` = 1;
-INSERT INTO `areatrigger_template` (`Id`, `IsServerSide`, `Type`, `Flags`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `ScriptName`, `VerifiedBuild`) VALUES
+replace INTO `areatrigger_template` (`Id`, `IsServerSide`, `Type`, `Flags`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `ScriptName`, `VerifiedBuild`) VALUES
 (@ATT_START+2, 1, 1, 0, 3.6, 3.442, 2, 0, 0, 0, '', 0);
 
 -- Add areatrigger (serverside, position)
@@ -266,7 +266,7 @@ INSERT INTO `spell_target_position` (`id`, `EffectIndex`, `MapID`, `PositionX`, 
 
 -- Add areatrigger template (box definition)
 DELETE FROM `areatrigger_template` WHERE `Id` = @ATT_START+3 AND `IsServerSide` = 1;
-INSERT INTO `areatrigger_template` (`Id`, `IsServerSide`, `Type`, `Flags`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `ScriptName`, `VerifiedBuild`) VALUES
+replace INTO `areatrigger_template` (`Id`, `IsServerSide`, `Type`, `Flags`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `ScriptName`, `VerifiedBuild`) VALUES
   (@ATT_START+3, 1, 1, 0, 50, 50, 50, 0, 0, 0, 'SmartAreaTriggerAI', 0);
 
 -- Add areatrigger (serverside, position)

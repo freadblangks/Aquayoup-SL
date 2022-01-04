@@ -1,5 +1,5 @@
-SET @CGUID := xxxxx; -- fill in these values according to the actuality
-SET @OGUID := xxxxx; -- fill in these values according to the actuality
+SET @CGUID := 901087; -- fill in these values according to the actuality
+SET @OGUID := 901088; -- fill in these values according to the actuality
 
 DELETE FROM `gameobject_template_addon` WHERE `entry` IN (209354 /*209354*/, 213091 /*213091*/, 209353 /*209353*/, 215133 /*215133*/, 215834 /*215834*/, 215835 /*215835*/, 187191 /*187191*/, 210805 /*210805*/, 278575 /*278575*/, 215318 /*215318*/, 216302 /*216302*/, 213090 /*213090*/, 213270 /*213270*/, 213271 /*213271*/, 213268 /*213268*/, 213269 /*213269*/, 215973 /*215973*/);
 INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`, `WorldEffectID`, `AIAnimKitID`) VALUES
@@ -77,7 +77,7 @@ INSERT INTO `quest_poi_points` (`QuestID`, `Idx1`, `Idx2`, `X`, `Y`, `Z`, `Verif
 (36239, 0, 0, 1699, -1606, 0, 41488); -- 36239
 
 DELETE FROM `creature` WHERE `guid` BETWEEN @CGUID+0 AND @CGUID+125;
-INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `PhaseId`, `PhaseGroup`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `VerifiedBuild`) VALUES
+replace INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `PhaseId`, `PhaseGroup`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `VerifiedBuild`) VALUES
 (@CGUID+0, 66350, 870, 5785, 6516, '0', '0', 0, 0, 0, -276.555572509765625, -1672.8055419921875, 54.42720794677734375, 4.560758113861083984, 120, 0, 0, 9945, 0, 0, 0, 0, 0, 41488), -- 66350 (Area: 6516 - Difficulty: 0) (Auras: 122236 - 122236)
 (@CGUID+1, 65909, 870, 5785, 6516, '0', '0', 0, 0, 0, -291.907989501953125, -1709.1822509765625, 53.1901702880859375, 1.58149266242980957, 120, 0, 0, 1989, 0, 0, 0, 0, 0, 41488), -- 65909 (Area: 6516 - Difficulty: 0)
 (@CGUID+2, 54896, 870, 5785, 6516, '0', '0', 0, 0, 0, -306.54974365234375, -1601.2734375, 36.30849075317382812, 5.681499004364013671, 120, 10, 0, 1989, 0, 1, 0, 0, 0, 41488), -- 54896 (Area: 6516 - Difficulty: 0) (possible waypoints or random movement)
@@ -724,7 +724,7 @@ INSERT INTO `gossip_menu_option_action` (`MenuId`, `OptionIndex`, `ActionMenuId`
 (9821, 3, 15145, 0);
 
 DELETE FROM `creature_template` WHERE `entry` IN (59743 /*59743*/, 59666 /*59666*/, 59744 /*59744*/, 59785 /*59785*/, 65917 /*65917*/, 66092 /*66092*/, 65908 /*65908*/, 59311 /*59311*/, 63715 /*63715*/, 63004 /*63004*/, 64761 /*64761*/, 66351 /*66351*/, 65982 /*65982*/, 65983 /*65983*/, 65923 /*65923*/, 65980 /*65980*/, 67026 /*67026*/, 65893 /*65893*/, 65927 /*65927*/, 61492 /*61492*/, 67024 /*67024*/, 59745 /*59745*/, 67025 /*67025*/, 66266 /*66266*/, 59312 /*59312*/, 65907 /*65907*/, 64596 /*64596*/, 66666 /*66666*/, 67020 /*67020*/, 54627 /*54627*/, 66432 /*66432*/, 65937 /*65937*/, 65900 /*65900*/, 66459 /*66459*/, 66023 /*66023*/, 65981 /*65981*/, 65926 /*65926*/, 59979 /*59979*/, 66433 /*66433*/, 65914 /*65914*/, 65979 /*65979*/, 66963 /*66963*/, 54896 /*54896*/, 65909 /*65909*/, 66350 /*66350*/);
-INSERT INTO `creature_template` (`entry`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `BaseAttackTime`, `RangeAttackTime`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `VehicleId`, `HoverHeight`) VALUES
+replace INTO `creature_template` (`entry`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `BaseAttackTime`, `RangeAttackTime`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `VehicleId`, `HoverHeight`) VALUES
 (59743, 0, 35, 35, 2000, 0, 1, 1.142857193946838378, 2000, 0, 0, 2048, 0, 0, 0, 1), -- 59743
 (59666, 0, 1, 1, 190, 0, 1, 1.142857193946838378, 2000, 0, 32768, 2048, 0, 0, 0, 1), -- 59666
 (59744, 0, 35, 35, 2000, 0, 1, 1.142857193946838378, 2000, 0, 0, 2048, 0, 0, 0, 1), -- 59744
@@ -771,7 +771,7 @@ INSERT INTO `creature_template` (`entry`, `gossip_menu_id`, `minlevel`, `maxleve
 (65909, 14932, 35, 35, 2602, 1, 1, 1.142857193946838378, 2000, 0, 32768, 2048, 0, 0, 0, 1), -- 65909
 (66350, 14635, 35, 35, 2598, 1, 1, 1.142857193946838378, 2000, 0, 0, 2048, 0, 0, 0, 1); -- 66350
 
-INSERT INTO `creature_text` (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`, `BroadcastTextId`, `comment`) VALUES
+replace INTO `creature_text` (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`, `BroadcastTextId`, `comment`) VALUES
 (65900, 0, 0, 'That is an awfully impressive weapon for someone that comes in peace, stranger.', 12, 0, 100, 0, 0, 0, 0, 'Jadori Ironeye to Player'),
 (65907, 0, 0, 'Are you two going to order anything?', 12, 0, 100, 6, 0, 0, 0, 'Jiayi Applebloom to Blacktalon Agent'),
 (65937, 0, 0, 'Why should we trade with you? How are you any different than your Horde friends save the color of your banner?', 12, 0, 100, 0, 0, 0, 0, 'Craftsman Hui to Player'),
@@ -780,7 +780,7 @@ INSERT INTO `creature_text` (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Lan
 (66666, 0, 0, 'Another stranger comes to our village... a $c by the look of it. Enter, but do not draw your weapons against us as the Horde did.', 12, 0, 100, 0, 0, 0, 0, 'Paw\'don Defender to Player'),
 (66963, 0, 0, '$n? What are you doing here? We need you up on the Skyfire! Quick, take the portal!', 12, 0, 100, 0, 0, 0, 0, 'Alliance Battlemage to Player');
 
-INSERT INTO `npc_spellclick_spells` (`npc_entry`, `spell_id`, `cast_flags`, `user_type`) VALUES
+replace INTO `npc_spellclick_spells` (`npc_entry`, `spell_id`, `cast_flags`, `user_type`) VALUES
 (61492, 131845, 0, 0);
 
 DELETE FROM `quest_template` WHERE `ID` IN (50604 /*50604*/, 31309 /*31309*/, 50562 /*50562*/, 38258 /*38258*/, 50599 /*50599*/, 46736 /*46736*/, 50417 /*50417*/, 46735 /*46735*/, 36239 /*36239*/, 53436 /*53436*/, 36495 /*36495*/, 46277 /*46277*/, 49929 /*49929*/);
