@@ -138,7 +138,179 @@ private:
     EventMap _events;
 };
 
+enum WantedHogger
+{
+    // Hogger
+    SPELL_VICIOUS_SLICE = 87337,
+    SPELL_SUMMON_MINIONS = 87366,
+    SPELL_EATING = 87351,
+    SPELL_UPSET_STOMACH = 87352,
+    SPELL_TELEPORT_VISUAL = 64446,
+
+    SAY_HELP_HOGGER = 0,
+    SAY_ANNOUNCE_HEAL = 1,
+    SAY_ANNOUNCE_STUN = 2,
+    SAY_SURRENDER = 3,
+    SAY_OUTRO_1 = 4,
+    SAY_OUTRO_2 = 5,
+
+    EVENT_VICIOUS_SLICE = 1,
+    EVENT_MOVE_TO_MEAT = 2,
+    EVENT_EAT_MEAT = 3,
+    EVENT_MAKE_AGGRESSIVE = 4,
+    EVENT_SUMMON_GENERAL = 5,
+    EVENT_FACE_TO_GENERAL = 6,
+    EVENT_SAY_OUTRO_2 = 7,
+    EVENT_CAST_TELEPORT = 8,
+    EVENT_DESPAWN = 9,
+
+    POINT_EAT_MEAT = 1,
+    POINT_SURRENDER = 2,
+};
+
+Position const HoggerMeatPos = { -10145.12f, 667.582f, 37.53608f };
+Position const HoggerEndPos = { -10136.9f, 670.009f, 36.03682f };
+
+struct npc_hogger : public ScriptedAI
+{
+    npc_hogger(Creature* creature) : ScriptedAI(creature), _calledForHelp(false), _defeated(false) { }
+
+    void Reset() override
+    {
+        me->GetMotionMaster()->MoveRandom(7.0f);
+        me->SetReactState(REACT_AGGRESSIVE);
+        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+        _events.Reset();
+        _calledForHelp = false;
+        _defeated = false;
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        _events.ScheduleEvent(EVENT_VICIOUS_SLICE, 5s);
+        me->GetMotionMaster()->Clear(MOTION_SLOT_DEFAULT);
+    }
+
+    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+    {
+        if (damage >= me->GetHealth() && !_defeated)
+        {
+            _events.Reset();
+            me->SetReactState(REACT_PASSIVE);
+            me->RemoveAllAuras();
+            me->KillSelf();
+            me->setDeathState(ALIVE);
+            me->SetHealth(1);
+            me->AddUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+            Talk(SAY_SURRENDER);
+            me->GetMotionMaster()->MovePoint(POINT_SURRENDER, HoggerEndPos, true);
+            _defeated = true;
+        }
+        else if (!_calledForHelp && me->HealthBelowPctDamaged(50, damage))
+        {
+            Talk(SAY_HELP_HOGGER);
+            DoCast(SPELL_SUMMON_MINIONS);
+            _events.ScheduleEvent(EVENT_MOVE_TO_MEAT, 4s);
+            _calledForHelp = true;
+        }
+
+        // Hogger may not be killed at all
+        if (damage >= me->GetHealth())
+            damage = me->GetHealth() - 1;
+    }
+
+    void MovementInform(uint32 type, uint32 pointId) override
+    {
+        if (type != POINT_MOTION_TYPE)
+            return;
+
+        switch (pointId)
+        {
+        case POINT_EAT_MEAT:
+            _events.ScheduleEvent(EVENT_EAT_MEAT, 1ms);
+            break;
+        case POINT_SURRENDER:
+            _events.ScheduleEvent(EVENT_SUMMON_GENERAL, 1ms);
+            break;
+        default:
+            break;
+        }
+    }
+
+    void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
+    {
+        if (spell->Id == SPELL_UPSET_STOMACH)
+        {
+            _events.CancelEvent(EVENT_MAKE_AGGRESSIVE);
+            me->SetReactState(REACT_AGGRESSIVE);
+            Talk(SAY_ANNOUNCE_STUN);
+        }
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!_defeated && !UpdateVictim())
+            return;
+
+        _events.Update(diff);
+
+        while (uint32 eventId = _events.ExecuteEvent())
+        {
+            switch (eventId)
+            {
+            case EVENT_VICIOUS_SLICE:
+                DoCastVictim(SPELL_VICIOUS_SLICE);
+                _events.Repeat(11s, 12s);
+                break;
+            case EVENT_MOVE_TO_MEAT:
+                me->AttackStop();
+                me->SetReactState(REACT_PASSIVE);
+                Talk(SAY_ANNOUNCE_HEAL);
+                me->GetMotionMaster()->MovePoint(POINT_EAT_MEAT, HoggerMeatPos, true);
+                break;
+            case EVENT_EAT_MEAT:
+                DoCast(me, SPELL_EATING);
+                _events.ScheduleEvent(EVENT_MAKE_AGGRESSIVE, 12s);
+                break;
+            case EVENT_MAKE_AGGRESSIVE:
+                me->SetReactState(REACT_AGGRESSIVE);
+                break;
+            case EVENT_SUMMON_GENERAL:
+                me->SummonCreatureGroup(0);
+                _events.ScheduleEvent(EVENT_FACE_TO_GENERAL, 12s);
+                break;
+            case EVENT_FACE_TO_GENERAL:
+                Talk(SAY_OUTRO_1);
+                me->SetFacingTo(5.339049f);
+                _events.ScheduleEvent(EVENT_SAY_OUTRO_2, 15s);
+                break;
+            case EVENT_SAY_OUTRO_2:
+                Talk(SAY_OUTRO_2);
+                _events.ScheduleEvent(EVENT_CAST_TELEPORT, 7s);
+                break;
+            case EVENT_CAST_TELEPORT:
+                DoCast(me, SPELL_TELEPORT_VISUAL, true);
+                _events.ScheduleEvent(EVENT_DESPAWN, 2s);
+                break;
+            case EVENT_DESPAWN:
+                me->DespawnOrUnsummon();
+                break;
+            default:
+                break;
+            }
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    EventMap _events;
+    bool _calledForHelp;
+    bool _defeated;
+};
+
 void AddSC_elwynn_forest()
 {
     RegisterCreatureAI(npc_elwynn_stormwind_charger);
+    RegisterCreatureAI(npc_hogger);
 }
