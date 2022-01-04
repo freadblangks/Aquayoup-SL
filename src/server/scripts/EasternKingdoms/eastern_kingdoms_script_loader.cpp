@@ -210,6 +210,7 @@ void AddSC_western_plaguelands();
 void AddSC_gilneas_chapter_1();
 void AddSC_gilneas_chapter_2();
 void AddSC_westfall();
+void AddSC_elwynn_forest();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
@@ -410,4 +411,5 @@ void AddEasternKingdomsScripts()
     AddSC_gilneas_chapter_1();
     AddSC_gilneas_chapter_2();
 	AddSC_westfall();
+	AddSC_elwynn_forest();
 }

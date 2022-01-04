@@ -18,6 +18,7 @@
 #include "MoveSpline.h"
 #include "Log.h"
 #include "Creature.h"
+#include "G3DPosition.hpp"
 #include "DB2Stores.h"
 
 #include <sstream>

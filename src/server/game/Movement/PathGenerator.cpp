@@ -17,6 +17,7 @@
 
 #include "PathGenerator.h"
 #include "Creature.h"
+#include "G3DPosition.hpp"
 #include "DetourCommon.h"
 #include "DetourNavMeshQuery.h"
 #include "DisableMgr.h"
@@ -54,21 +55,20 @@ PathGenerator::~PathGenerator()
     TC_LOG_DEBUG("maps.mmaps", "++ PathGenerator::~PathGenerator() for %s", _source->GetGUID().ToString().c_str());
 }
 
-bool PathGenerator::CalculatePath(float destX, float destY, float destZ, bool forceDest, bool straightLine)
+bool PathGenerator::CalculatePath(float destX, float destY, float destZ, bool forceDest /*= false*/)
 {
-    float x, y, z;
-    _source->GetPosition(x, y, z);
+    return CalculatePath(PositionToVector3(_source->GetPosition()), G3D::Vector3(destX, destY, destZ), forceDest);
+}
 
-    if (!Trinity::IsValidMapCoord(destX, destY, destZ) || !Trinity::IsValidMapCoord(x, y, z))
+bool PathGenerator::CalculatePath(G3D::Vector3 const& startPoint, G3D::Vector3 const& endPoint, bool forceDest /*= false*/, bool straightLine)
+{
+    if (!Trinity::IsValidMapCoord(startPoint.x, startPoint.y, startPoint.z) || !Trinity::IsValidMapCoord(endPoint.x, endPoint.y, endPoint.z))
         return false;
 
     TC_METRIC_EVENT("mmap_events", "CalculatePath", "");
 
-    G3D::Vector3 dest(destX, destY, destZ);
-    SetEndPosition(dest);
-
-    G3D::Vector3 start(x, y, z);
-    SetStartPosition(start);
+    SetEndPosition(endPoint);
+    SetStartPosition(startPoint);
 
     _forceDestination = forceDest;
     _straightLine = straightLine;
@@ -79,7 +79,7 @@ bool PathGenerator::CalculatePath(float destX, float destY, float destZ, bool fo
     // check if the start and end point have a .mmtile loaded (can we pass via not loaded tile on the way?)
     Unit const* _sourceUnit = _source->ToUnit();
     if (!_navMesh || !_navMeshQuery || (_sourceUnit && _sourceUnit->HasUnitState(UNIT_STATE_IGNORE_PATHFINDING)) ||
-        !HaveTile(start) || !HaveTile(dest))
+        !HaveTile(startPoint) || !HaveTile(endPoint))
     {
         BuildShortcut();
         _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
@@ -88,7 +88,7 @@ bool PathGenerator::CalculatePath(float destX, float destY, float destZ, bool fo
 
     UpdateFilter();
 
-    BuildPolyPath(start, dest);
+    BuildPolyPath(startPoint, endPoint);
     return true;
 }
 
@@ -539,12 +539,12 @@ void PathGenerator::BuildPointPath(const float *startPoint, const float *endPoin
         G3D::Vector3 diffVec = (endVec - startVec);
         G3D::Vector3 prevVec = startVec;
         float len = diffVec.length();
-        diffVec *= SMOOTH_PATH_STEP_SIZE / len;
+        diffVec *= RECAST_PATH_STEP_SIZE / len;
 
         // If the path is short PATHFIND_SHORT will be set as type
-        while (len > SMOOTH_PATH_STEP_SIZE && pointCount < MAX_POINT_PATH_LENGTH)
+        while (len > RECAST_PATH_STEP_SIZE && pointCount < MAX_POINT_PATH_LENGTH)
         {
-            len -= SMOOTH_PATH_STEP_SIZE;
+            len -= RECAST_PATH_STEP_SIZE;
             prevVec += diffVec;
             pathPoints[VERTEX_SIZE * pointCount + 0] = prevVec.x;
             pathPoints[VERTEX_SIZE * pointCount + 1] = prevVec.y;
@@ -609,14 +609,25 @@ void PathGenerator::BuildPointPath(const float *startPoint, const float *endPoin
         return;
     }
 
-    _pathPoints.resize(pointCount);
+    // We are only going to use the path points that are 4yrds apart from each other as well as the first and final point to get a blizzlike result
+    uint32 splinePointCount = 1 + (pointCount / SMOOTH_PATH_MULTIPLIER) + (pointCount % SMOOTH_PATH_MULTIPLIER ? 1 : 0);
+    _pathPoints.resize(splinePointCount);
+
+    uint32 splineIndex = 0;
     for (uint32 i = 0; i < pointCount; ++i)
-        _pathPoints[i] = G3D::Vector3(pathPoints[i*VERTEX_SIZE+2], pathPoints[i*VERTEX_SIZE], pathPoints[i*VERTEX_SIZE+1]);
+    {
+        // We only want every 8th waypoint as well as the first and final point of pathPoints
+        if (i == 0 || !((i + 1) % SMOOTH_PATH_MULTIPLIER) || i == (pointCount - 1))
+        {
+            _pathPoints[splineIndex] = G3D::Vector3(pathPoints[i*VERTEX_SIZE+2], pathPoints[i*VERTEX_SIZE], pathPoints[i*VERTEX_SIZE+1]);
+            ++splineIndex;
+        }
+    }
 
     NormalizePath();
 
-    // first point is always our current location - we need the next one
-    SetActualEndPosition(_pathPoints[pointCount-1]);
+    // Set the actual end position to be our final path point which is at the end of the _pathPoints vector
+    SetActualEndPosition(_pathPoints[_pathPoints.size()-1]);
 
     // force the given destination, if needed
     if (_forceDestination &&
@@ -858,8 +869,7 @@ dtStatus PathGenerator::FindSmoothPath(float const* startPos, float const* endPo
     dtVcopy(&smoothPath[nsmoothPath*VERTEX_SIZE], iterPos);
     nsmoothPath++;
 
-    // Move towards target a small advancement at a time until target reached or
-    // when ran out of memory to store the path.
+    // Move towards target a small advancement at a time until target reached or when ran out of memory to store the path.
     while (npolys && nsmoothPath < maxSmoothPathSize)
     {
         // Find location to steer towards.
@@ -878,10 +888,10 @@ dtStatus PathGenerator::FindSmoothPath(float const* startPos, float const* endPo
         dtVsub(delta, steerPos, iterPos);
         float len = dtMathSqrtf(dtVdot(delta, delta));
         // If the steer target is end of path or off-mesh link, do not move past the location.
-        if ((endOfPath || offMeshConnection) && len < SMOOTH_PATH_STEP_SIZE)
+        if ((endOfPath || offMeshConnection) && len < RECAST_PATH_STEP_SIZE)
             len = 1.0f;
         else
-            len = SMOOTH_PATH_STEP_SIZE / len;
+            len = RECAST_PATH_STEP_SIZE / len;
 
         float moveTgt[VERTEX_SIZE];
         dtVmad(moveTgt, iterPos, delta, len);
@@ -1044,8 +1054,5 @@ bool PathGenerator::IsInvalidDestinationZ(WorldObject const* target) const
 
 void PathGenerator::SetPathLengthLimit(float length)
 {
-    if (!(uint32(length) % uint32(SMOOTH_PATH_STEP_SIZE)))
-        _pointPathLimit = std::min<uint32>(length / SMOOTH_PATH_STEP_SIZE, MAX_POINT_PATH_LENGTH);
-    else
-        _pointPathLimit = std::min<uint32>((length + SMOOTH_PATH_STEP_SIZE) / SMOOTH_PATH_STEP_SIZE, MAX_POINT_PATH_LENGTH);
+    _pointPathLimit = std::min<uint32>(uint32(ceilf(length / RECAST_PATH_STEP_SIZE)), MAX_PATH_LENGTH);
 }
