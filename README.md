@@ -29,6 +29,6 @@ It is derived from MaNGOS, the Massive Network Game Object Server, and is based 
 
 It is completely open source; community involvement is highly encouraged.
 
-If you wish to contribute ideas or code, please visit our site linked below or make pull requests to our Github repository.![1616983419_14-p-silvana-oboi-14]
+If you wish to contribute ideas or code, please visit our site linked below or make pull requests to our Github repository.!
 
 
