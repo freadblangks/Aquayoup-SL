@@ -4767,7 +4767,38 @@ void SpellMgr::LoadSpellInfoCorrections()
     });
 
     // ENDOF ANTORUS THE BURNING THRONE SPELLS
+     //start zul
+    // Shadow Spike
+    ApplySpellFix({ 97158 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
 
+    // Call Spirit
+    ApplySpellFix({ 97152 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
+
+    // Spirit Warrior's Gaze
+    ApplySpellFix({ 97597 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
+
+    // Sunder Rift
+    ApplySpellFix({ 96964 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(18); // 20seconds
+    });
+
+    // Rolling Boulders Search Effect
+    ApplySpellFix({ 96839 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
+    // ENDOF ZUL'GURUB SPELLS
+	
     // Summon Master Li Fei
     ApplySpellFix({ 102445 }, [](SpellInfo* spellInfo)
     {
