@@ -107,12 +107,12 @@ void WaypointMgr::LoadWaypointAddons()
         uint32 pointId = fields[1].GetUInt32();
 
 
-        std::vector<WaypointNode>::iterator itr = std::find_if(path.nodes.begin(), path.nodes.end(), [pointId](WaypointNode const& node)
+        std::vector<WaypointNode>::iterator itr = std::find_if(path.Nodes.begin(), path.Nodes.end(), [pointId](WaypointNode const& node)
         {
-            return node.id == pointId;
+            return node.Id == pointId;
         });
 
-        if (itr == path.nodes.end())
+        if (itr == path.Nodes.end())
         {
             TC_LOG_ERROR("sql.sql", "Tried to load waypoint_data_addon data for PointID %u of PathID %u but there is no such point in waypoint_data. Ignoring.", pointId, pathId);
             continue;
