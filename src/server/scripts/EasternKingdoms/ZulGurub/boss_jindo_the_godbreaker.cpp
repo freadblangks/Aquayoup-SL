@@ -233,7 +233,7 @@ struct boss_jindo_the_godbreaker : public BossAI
 
     void JustEngagedWith(Unit* who) override
     {
-        _JustEngagedWith(who);
+        void JustEngagedWith(Unit * who);
         instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
         Talk(SAY_AGGRO);
         events.SetPhase(PHASE_ONE);
