@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +19,14 @@
 #include "PhasingHandler.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "InstanceScript.h"
+#include "MotionMaster.h"
+#include "Map.h"
+#include "ObjectAccessor.h"
+#include "SpellScript.h"
+#include "TemporarySummon.h"
+#include "Unit.h"
+#include "SpellInfo.h"
 #include "zulgurub.h"
 
 enum Yells
@@ -233,7 +241,7 @@ struct boss_jindo_the_godbreaker : public BossAI
 
     void JustEngagedWith(Unit* who) override
     {
-        void JustEngagedWith(Unit * who);
+        BossAI::JustEngagedWith(who);
         instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
         Talk(SAY_AGGRO);
         events.SetPhase(PHASE_ONE);
@@ -277,7 +285,7 @@ struct boss_jindo_the_godbreaker : public BossAI
         {
             me->SetFacingTo(1.570796f);
             events.ScheduleEvent(EVENT_ENTER_SPIRIT_WORLD, 1s);
-            me->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
         }
     }
 
@@ -292,8 +300,8 @@ struct boss_jindo_the_godbreaker : public BossAI
                 summon->CastSpell(summon, SPELL_BRITTLE_BARRIER);
                 summon->CastSpell(summon, SPELL_HAKKARS_CHAINS);
                 summon->SetReactState(REACT_PASSIVE);
-                summon->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                // no break here
+                summon->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                [[fallthrough]];
             case NPC_JINDO_THE_GODBREAKER:
             case NPC_SPIRIT_OF_HAKKAR:
             case NPC_GURUBASHI_SPIRIT:
@@ -343,7 +351,10 @@ struct boss_jindo_the_godbreaker : public BossAI
                         return;
 
                     if (Creature* shadow = map->SummonCreature(NPC_GURUBASHI_SHADOW, summon->GetHomePosition()))
+                    {
+                        shadow->SetReactState(REACT_PASSIVE);
                         shadow->GetMotionMaster()->MoveRandom(8.0f);
+                    }
 
                     if (Creature* spirit = map->SummonCreature(NPC_GURUBASHI_SPIRIT, summon->GetHomePosition()))
                         spirit->GetMotionMaster()->MoveRandom(8.0f);
@@ -376,7 +387,7 @@ struct boss_jindo_the_godbreaker : public BossAI
                         spirit->CastSpell(spirit, SPELL_HAKKAR_BREAKS_FREE);
 
                         me->KillSelf();
-                        me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                         spirit->m_Events.AddEventAtOffset(new FaceToJindoEvent(spirit), 1s + 500ms);
                         spirit->m_Events.AddEventAtOffset(new AttackJindoEvent(spirit), 19s + 500ms);
 
@@ -405,11 +416,9 @@ struct boss_jindo_the_godbreaker : public BossAI
         switch (action)
         {
             case ACTION_TRIGGER_JINDO_INTRO:
-                if (me->HasUnitFlag(UNIT_FLAG_NOT_SELECTABLE))
+                if (me->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE))
                 {
-                    me->RemoveUnitFlag(UNIT_FLAG_IMMUNE_TO_NPC);
-                    me->RemoveUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
-                    me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
                     me->RemoveAurasDueToSpell(SPELL_COSMETIC_ALPHA_STATE_25_PCT);
                     events.ScheduleEvent(EVENT_TALK_INTRO, 11s, 0, PHASE_PRE_FIGHT);
                 }
@@ -492,9 +501,16 @@ private:
             return;
 
         // We need to summon the creatures via map to avoid them to use Jin'do's PhaseShift
-        map->SummonCreature(NPC_JINDO_THE_GODBREAKER, JindoTheGodBreakerSpiritWorldSummonPos);
-        map->SummonCreature(NPC_SPIRIT_OF_HAKKAR, HakkarSummonPos);
-        map->SummonCreature(NPC_SHADOW_OF_HAKKAR, HakkarSummonPos);
+
+        if (Creature* jindo = map->SummonCreature(NPC_JINDO_THE_GODBREAKER, JindoTheGodBreakerSpiritWorldSummonPos))
+            jindo->SetReactState(REACT_PASSIVE);
+
+        if (Creature* spirit = map->SummonCreature(NPC_SPIRIT_OF_HAKKAR, HakkarSummonPos))
+            spirit->SetReactState(REACT_PASSIVE);
+
+        if (Creature* shadow = map->SummonCreature(NPC_SHADOW_OF_HAKKAR, HakkarSummonPos))
+            shadow->SetReactState(REACT_PASSIVE);
+
         map->SummonCreatureGroup(urand(SUMMON_GROUP_HAKKARS_CHAINS_1, SUMMON_GROUP_HAKKARS_CHAINS_3));
         map->SummonCreatureGroup(SUMMON_GROUP_TWISTED_SHADOW);
         map->SummonCreatureGroup(SUMMON_GROUP_SPIRIT_PORTAL);
@@ -591,61 +607,53 @@ private:
 
 struct spell_jindo_shadow_spike : public SpellScript
 {
-    PrepareSpellScript(spell_jindo_shadow_spike);
-
     void HandleDummyEffect(SpellEffIndex effIndex)
     {
         if (Unit* caster = GetCaster())
-            caster->CastSpell(GetHitUnit(), GetSpellInfo()->GetEffect(effIndex).BasePoints, true);
+            caster->CastSpell(GetHitUnit(), GetSpellInfo()->Effects[effIndex].BasePoints, true);
     }
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_jindo_shadow_spike::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnEffectHitTarget.Register(&spell_jindo_shadow_spike::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
 struct spell_jindo_call_spirit : public SpellScript
 {
-    PrepareSpellScript(spell_jindo_call_spirit);
-
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_SUMMON_SPIRIT });
     }
 
-    void HandleDummyEffect(SpellEffIndex effIndex)
+    void HandleDummyEffect(SpellEffIndex /*effIndex*/)
     {
         GetHitUnit()->CastSpell(GetHitUnit(), SPELL_SUMMON_SPIRIT, false);
     }
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_jindo_call_spirit::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnEffectHitTarget.Register(&spell_jindo_call_spirit::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
 struct spell_jindo_spirit_warriors_gaze : public SpellScript
 {
-    PrepareSpellScript(spell_jindo_spirit_warriors_gaze);
-
     void HandleDummyEffect(SpellEffIndex effIndex)
     {
         if (Unit* caster = GetCaster())
-            caster->CastSpell(GetHitUnit(), GetSpellInfo()->GetEffect(effIndex).BasePoints, false);
+            caster->CastSpell(GetHitUnit(), GetSpellInfo()->Effects[effIndex].BasePoints, false);
     }
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_jindo_spirit_warriors_gaze::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
+        OnEffectHitTarget.Register(&spell_jindo_spirit_warriors_gaze::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
     }
 };
 
 struct spell_jindo_body_slam : public SpellScript
 {
-    PrepareSpellScript(spell_jindo_body_slam);
-
-    void HandleShieldBreakEffect(SpellEffIndex effIndex)
+    void HandleShieldBreakEffect(SpellEffIndex /*effIndex*/)
     {
         Unit* target = GetHitCreature();
         if (!target)
@@ -660,7 +668,7 @@ struct spell_jindo_body_slam : public SpellScript
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_jindo_body_slam::HandleShieldBreakEffect, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+        OnEffectHitTarget.Register(&spell_jindo_body_slam::HandleShieldBreakEffect, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
     }
 };
 
@@ -673,3 +681,4 @@ void AddSC_boss_jindo_the_godbreaker()
     RegisterSpellScript(spell_jindo_spirit_warriors_gaze);
     RegisterSpellScript(spell_jindo_body_slam);
 }
+
