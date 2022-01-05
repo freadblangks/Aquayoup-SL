@@ -4767,31 +4767,38 @@ void SpellMgr::LoadSpellInfoCorrections()
     });
 
     // ENDOF ANTORUS THE BURNING THRONE SPELLS
-
-    //
-    // SANCTUM OF DOMINATION
-    //
-
-    // Domination Chain (Player)
-    ApplySpellFix({ 349451 }, [](SpellInfo* spellInfo)
+     //start zul
+    // Shadow Spike
+    ApplySpellFix({ 97158 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->AttributesEx2 |= SPELL_ATTR2_CAN_TARGET_NOT_IN_LOS;
+        spellInfo->MaxAffectedTargets = 1;
     });
 
-    // Rive Marker
-    ApplySpellFix({ 353419 }, [](SpellInfo* spellInfo)
+    // Call Spirit
+    ApplySpellFix({ 97152 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(28); // 5s
+        spellInfo->MaxAffectedTargets = 1;
     });
 
-    // Banshee Wail (Marker)
-    ApplySpellFix({ 357719 }, [](SpellInfo* spellInfo)
+    // Spirit Warrior's Gaze
+    ApplySpellFix({ 97597 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Attributes |= SPELL_ATTR0_NEGATIVE_1;
+        spellInfo->MaxAffectedTargets = 1;
     });
 
-    // END OF SANCTUM OF DOMINATION
+    // Sunder Rift
+    ApplySpellFix({ 96964 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(18); // 20seconds
+    });
 
+    // Rolling Boulders Search Effect
+    ApplySpellFix({ 96839 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
+    // ENDOF ZUL'GURUB SPELLS
+	
     // Summon Master Li Fei
     ApplySpellFix({ 102445 }, [](SpellInfo* spellInfo)
     {
