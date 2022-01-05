@@ -111,9 +111,9 @@ INSERT INTO `vehicle_template_accessory` (`entry`, `accessory_entry`, `seat_id`,
 
 SET @PATH := 45004 * 100;
 DELETE FROM `waypoint_data` WHERE `id`= @PATH;
-INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `move_type`, `velocity`) VALUES
-(@PATH, 0, 893.021, 788.55, -245.521, 0, 32),
-(@PATH, 1, 869.17, 497.146, -22.7786, 0, 32);
+INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `move_type`) VALUES
+(@PATH, 0, 893.021, 788.55, -245.521, 0),
+(@PATH, 1, 869.17, 497.146, -22.7786, 0);
 
 DELETE FROM `waypoint_data_addon` WHERE `PathID`= @PATH;
 INSERT INTO `waypoint_data_addon` (`PathID`, `PointID`, `SplinePointIndex`, `PositionX`, `PositionY`, `PositionZ`) VALUES
@@ -133,9 +133,9 @@ INSERT INTO `waypoint_data_addon` (`PathID`, `PointID`, `SplinePointIndex`, `Pos
 
 SET @PATH := 45024 * 100;
 DELETE FROM `waypoint_data` WHERE `id`= @PATH;
-INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `move_type`, `velocity`) VALUES
-(@PATH, 0, 935.057, 506.95, -48.1708, 0, 16),
-(@PATH, 1, 909.137, 502.672, -17.6993, 0, 16);
+INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `move_type`) VALUES
+(@PATH, 0, 935.057, 506.95, -48.1708, 0),
+(@PATH, 1, 909.137, 502.672, -17.6993, 0);
 
 DELETE FROM `waypoint_data_addon` WHERE `PathID`= @PATH;
 INSERT INTO `waypoint_data_addon` (`PathID`, `PointID`, `SplinePointIndex`, `PositionX`, `PositionY`, `PositionZ`) VALUES
