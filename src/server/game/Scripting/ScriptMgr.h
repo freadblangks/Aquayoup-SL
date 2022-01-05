@@ -692,7 +692,10 @@ class TC_GAME_API PlayerScript : public ScriptObject
 
         // Called when a player is created.
         virtual void OnCreate(Player* /*player*/) { }
-
+        
+        // Called when a player is update.
+        virtual void OnUpdate(Player* /*player*/, uint32 /*diff*/) { }
+        
         // Called when a player is deleted.
         virtual void OnDelete(ObjectGuid /*guid*/, uint32 /*accountId*/) { }
 
@@ -1095,6 +1098,7 @@ class TC_GAME_API ScriptMgr
         void OnPlayerLogin(Player* player, bool firstLogin);
         void OnPlayerLogout(Player* player);
         void OnPlayerCreate(Player* player);
+        void OnPlayerUpdate(Player* player, uint32 diff);
         void OnPlayerDelete(ObjectGuid guid, uint32 accountId);
         void OnPlayerFailedDelete(ObjectGuid guid, uint32 accountId);
         void OnPlayerSave(Player* player);
