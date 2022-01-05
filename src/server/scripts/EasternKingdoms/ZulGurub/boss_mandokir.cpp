@@ -108,7 +108,7 @@ class boss_mandokir : public CreatureScript
 
         struct boss_mandokirAI : public BossAI
         {
-            boss_mandokirAI(Creature* creature) : BossAI(creature, DATA_MANDOKIR)
+            boss_mandokirAI(Creature* creature) : BossAI(creature, DATA_BLOODLORD_MANDOKIR)
             {
                 Initialize();
             }
@@ -329,7 +329,7 @@ class npc_ohgan : public CreatureScript
                     DoCast(me, SPELL_CLEAR_ALL, true);
                     DoCast(me, SPELL_PERMANENT_FEIGN_DEATH);
 
-                    if (Creature* mandokir = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_MANDOKIR)))
+                    if (Creature* mandokir = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_BLOODLORD_MANDOKIR)))
                         mandokir->AI()->DoAction(ACTION_OHGAN_IS_DEATH);
                 }
             }
@@ -418,7 +418,7 @@ class npc_chained_spirit : public CreatureScript
                 if (!target || target->IsAlive())
                     return;
 
-                if (Creature* mandokir = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_MANDOKIR)))
+                if (Creature* mandokir = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_BLOODLORD_MANDOKIR)))
                 {
                     mandokir->GetAI()->SetGUID(target->GetGUID());
                     mandokir->GetAI()->DoAction(ACTION_START_REVIVE);
