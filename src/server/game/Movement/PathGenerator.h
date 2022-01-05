@@ -26,20 +26,17 @@
 
 class WorldObject;
 
-// 592*0.5f=296y  number_of_points*interval = max_path_len
+// 74*4.0f=296y number_of_points*interval = max_path_len
 // this is way more than actual evade range
 // I think we can safely cut those down even more
-constexpr uint32 const MAX_PATH_LENGTH          = 592;
-constexpr uint32 const MAX_POINT_PATH_LENGTH    = 592;
+#define MAX_PATH_LENGTH         74
+#define MAX_POINT_PATH_LENGTH   74
 
-// Retail spline points are 4yrds apart from each other so we use a multiplier of 4 / RECAST_PATH_STEP_SIZE to skip unneeded generated points
-constexpr uint8 const  SMOOTH_PATH_MULTIPLIER   = 8;
+#define SMOOTH_PATH_STEP_SIZE   4.0f
+#define SMOOTH_PATH_SLOP        0.3f
 
-constexpr float const  RECAST_PATH_STEP_SIZE    = 0.5f;
-constexpr float const  SMOOTH_PATH_SLOP         = 0.3f;
-
-constexpr uint8 const VERTEX_SIZE               = 3;
-constexpr uint8 const INVALID_POLYREF           = 0;
+#define VERTEX_SIZE       3
+#define INVALID_POLYREF   0
 
 enum PathType
 {
@@ -64,14 +61,12 @@ class TC_GAME_API PathGenerator
         // Calculate the path from owner to given destination
         // return: true if new path was calculated, false otherwise (no change needed)
         bool CalculatePath(float destX, float destY, float destZ, bool forceDest = false);
-        // Calculates the path from start point to given destination
-        bool CalculatePath(G3D::Vector3 const& startPoint, G3D::Vector3 const& endPoint, bool forceDest = false, bool straightLine = false);
         bool IsInvalidDestinationZ(WorldObject const* target) const;
 
         // option setters - use optional
         void SetUseStraightPath(bool useStraightPath) { _useStraightPath = useStraightPath; }
-        void SetPathLengthLimit(float length);
-		void SetUseRaycast(bool useRaycast) { _useRaycast = useRaycast; }
+        void SetPathLengthLimit(float distance) { _pointPathLimit = std::min<uint32>(uint32(distance/SMOOTH_PATH_STEP_SIZE), MAX_POINT_PATH_LENGTH); }
+        void SetUseRaycast(bool useRaycast) { _useRaycast = useRaycast; }
 
         // result getters
         G3D::Vector3 const& GetStartPosition() const { return _startPosition; }
@@ -96,7 +91,6 @@ class TC_GAME_API PathGenerator
         bool _useStraightPath;  // type of path will be generated
         bool _forceDestination; // when set, we will always arrive at given point
         uint32 _pointPathLimit; // limit point path size; min(this, MAX_POINT_PATH_LENGTH)
-        bool _straightLine;     // use raycast if true for a straight line path
         bool _useRaycast;       // use raycast if true for a straight line path
 
         G3D::Vector3 _startPosition;        // {x, y, z} of current location
@@ -143,6 +137,8 @@ class TC_GAME_API PathGenerator
         dtStatus FindSmoothPath(float const* startPos, float const* endPos,
                               dtPolyRef const* polyPath, uint32 polyPathSize,
                               float* smoothPath, int* smoothPathSize, uint32 smoothPathMaxSize);
+
+        void AddFarFromPolyFlags(bool startFarFromPoly, bool endFarFromPoly);
 };
 
 #endif

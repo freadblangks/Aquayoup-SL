@@ -1422,21 +1422,7 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffectInfo const& spellEffectIn
             Position pos = dest._position;
 
             unitCaster->MovePositionToFirstCollision(pos, dist, angle);
-            // Generate path to that point.
-            if (!m_preGeneratedPath)
-                m_preGeneratedPath = std::make_unique<PathGenerator>(unitCaster);
-
-            m_preGeneratedPath->SetPathLengthLimit(dist);
-
-            // Should we use straightline here ? What do we do when we don't have a full path ?
-            bool pathResult = m_preGeneratedPath->CalculatePath(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), true);
-            if (pathResult && m_preGeneratedPath->GetPathType() & (PATHFIND_NORMAL | PATHFIND_SHORTCUT))
-            {
-                pos.m_positionX = m_preGeneratedPath->GetActualEndPosition().x;
-                pos.m_positionY = m_preGeneratedPath->GetActualEndPosition().y;
-                pos.m_positionZ = m_preGeneratedPath->GetActualEndPosition().z;
-                dest.Relocate(pos);
-            }
+            dest.Relocate(pos);
             break;
         }
         case TARGET_DEST_CASTER_GROUND:
@@ -2626,10 +2612,6 @@ void Spell::TargetInfo::DoDamageAndTriggers(Spell* spell)
                 caster->CalculateSpellDamageTaken(&damageInfo, spell->m_damage, spell->m_spellInfo, spell->m_attackType, IsCrit);
                 Unit::DealDamageMods(damageInfo.attacker, damageInfo.target, damageInfo.damage, &damageInfo.absorb);
 
-            // sparring
-            if (Creature* victimCreature = damageInfo.target->ToCreature())
-                damageInfo.damage = victimCreature->CalculateDamageForSparring(damageInfo.attacker, damageInfo.damage);
-
                 hitMask |= createProcHitMask(&damageInfo, MissCondition);
                 procVictim |= PROC_FLAG_TAKEN_DAMAGE;
 
@@ -2646,10 +2628,6 @@ void Spell::TargetInfo::DoDamageAndTriggers(Spell* spell)
             {
                 spellDamageInfo = std::make_unique<DamageInfo>(damageInfo, SPELL_DIRECT_DAMAGE, spell->m_attackType, hitMask);
                 procSpellType |= PROC_SPELL_TYPE_DAMAGE;
-
-                if (caster->GetTypeId() == TYPEID_PLAYER && !spell->m_spellInfo->HasAttribute(SPELL_ATTR0_STOP_ATTACK_TARGET) && !spell->m_spellInfo->HasAttribute(SPELL_ATTR4_SUPPRESS_WEAPON_PROCS) &&
-                    (spell->m_spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MELEE || spell->m_spellInfo->DmgClass == SPELL_DAMAGE_CLASS_RANGED))
-                    caster->ToPlayer()->CastItemCombatSpell(*spellDamageInfo);
             }
         }
 
@@ -6076,7 +6054,6 @@ SpellCastResult Spell::CheckCast(bool strict, int32* param1 /*= nullptr*/, int32
                 break;
             }
             case SPELL_EFFECT_CHANGE_BATTLEPET_QUALITY:
-            case SPELL_EFFECT_GRANT_BATTLEPET_LEVEL:
             case SPELL_EFFECT_GRANT_BATTLEPET_EXPERIENCE:
             {
                 Player* playerCaster = m_caster->ToPlayer();
@@ -6123,7 +6100,7 @@ SpellCastResult Spell::CheckCast(bool strict, int32* param1 /*= nullptr*/, int32
                                     return SPELL_FAILED_CANT_UPGRADE_BATTLE_PET;
                             }
 
-                            if (spellEffectInfo.Effect == SPELL_EFFECT_GRANT_BATTLEPET_LEVEL || spellEffectInfo.Effect == SPELL_EFFECT_GRANT_BATTLEPET_EXPERIENCE)
+                            if (spellEffectInfo.Effect == SPELL_EFFECT_GRANT_BATTLEPET_EXPERIENCE)
                                 if (battlePet->PacketInfo.Level >= BattlePets::MAX_BATTLE_PET_LEVEL)
                                     return GRANT_PET_LEVEL_FAIL;
 
@@ -6661,11 +6638,6 @@ SpellCastResult Spell::CheckRange(bool strict) const
     Unit* target = m_targets.GetUnitTarget();
     if (target && target != m_caster)
     {
-        // is this check needed by 236299? - this spell is cast on enemies and hove 0 max range
-        // this is triggered by other spell - possibly we should omit range check in this case?
-        if (m_spellInfo->RangeEntry && m_spellInfo->RangeEntry->ID == 1)
-            return SPELL_CAST_OK;
-
         if (m_caster->GetExactDistSq(target) > maxRange)
             return SPELL_FAILED_OUT_OF_RANGE;
 
