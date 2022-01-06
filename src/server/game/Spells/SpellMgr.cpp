@@ -4726,6 +4726,22 @@ void SpellMgr::LoadSpellInfoCorrections()
 
     // ENDOF GILNEAS SPELLS
 
+    // Horde / Alliance switch (BG mercenary system)
+    ApplySpellFix({ 195838, 195843 }, [](SpellInfo* spellInfo)
+    {
+         ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+         {
+             spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA;
+         });
+         ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
+         {
+                 spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA; 
+         });
+         ApplySpellEffectFix(spellInfo, EFFECT_2, [](SpellEffectInfo* spellEffectInfo)
+         {
+                 spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA; 
+         });
+    });
     //
     // FIRELANDS SPELLS
     //

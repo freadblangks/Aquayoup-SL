@@ -7685,4 +7685,10 @@ enum class MountResult : uint32
     Ok             = 10 // never sent
 };
 
+enum SpecialSpells : uint32
+{
+    SPELL_MERCENARY_CONTRACT_HORDE      = 193472,
+    SPELL_MERCENARY_CONTRACT_ALLIANCE   = 193475,
+};
+
 #endif
