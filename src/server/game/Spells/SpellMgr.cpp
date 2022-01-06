@@ -4729,11 +4729,19 @@ void SpellMgr::LoadSpellInfoCorrections()
     // Horde / Alliance switch (BG mercenary system)
     ApplySpellFix({ 195838, 195843 }, [](SpellInfo* spellInfo)
     {
-        const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_0))->Effect = SPELL_EFFECT_APPLY_AURA;
-        const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_1))->Effect = SPELL_EFFECT_APPLY_AURA;
-        const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_2))->Effect = SPELL_EFFECT_APPLY_AURA;
+         ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+         {
+             spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA;
+         });
+         ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
+         {
+                 spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA; 
+         });
+         ApplySpellEffectFix(spellInfo, EFFECT_2, [](SpellEffectInfo* spellEffectInfo)
+         {
+                 spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA; 
+         });
     });
-
     //
     // FIRELANDS SPELLS
     //
