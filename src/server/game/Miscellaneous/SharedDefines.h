@@ -7689,6 +7689,7 @@ enum SpecialSpells : uint32
 {
     SPELL_MERCENARY_CONTRACT_HORDE      = 193472,
     SPELL_MERCENARY_CONTRACT_ALLIANCE   = 193475,
+};
 
 enum AreaId : uint32
 {
