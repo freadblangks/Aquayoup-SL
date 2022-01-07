@@ -238,7 +238,7 @@ struct boss_glubtok : public BossAI
             switch (eventId)
             {
             case EVENT_BLINK:
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 50.0f, true, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 50.0f, true, true))
                 {
                     DoCast(target, SPELL_BLINK);
                     if (IsHeroic())

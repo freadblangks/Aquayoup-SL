@@ -87,9 +87,9 @@ struct npc_gilneas_horrid_abomination : public ScriptedAI
         me->GetMotionMaster()->MoveRandom(6.0f);
     }
 
-    void SpellHit(Unit* caster, SpellInfo const* spell) override
+    void SpellHit(WorldObject* caster, SpellInfo const* spellInfo) override
     {
-        switch (spell->Id)
+        switch (spellInfo->Id)
         {
             case SPELL_KEG_PLACED:
                 Talk(SAY_KEG_PLACED);
@@ -245,9 +245,9 @@ struct npc_gilneas_save_the_children : public ScriptedAI
             _events.ScheduleEvent(EVENT_CRY, Seconds(1));
     }
 
-    void SpellHit(Unit* caster, SpellInfo const* spell) override
+    void SpellHit(WorldObject* caster, SpellInfo const* spellInfo) override
     {
-        switch (spell->Id)
+        switch (spellInfo->Id)
         {
             case SPELL_GILNEAS_QUEST_SAVE_JAMES:
             case SPELL_GILNEAS_QUEST_SAVE_CYNTHIA:
@@ -393,9 +393,9 @@ struct npc_gilneas_forsaken_catapult : public VehicleAI
             _events.ScheduleEvent(EVENT_CHECK_AREA, Milliseconds(1));
     }
 
-    void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
+    void SpellHit(WorldObject* /*caster*/, SpellInfo const* spellInfo) override
     {
-        switch (spell->Id)
+        switch (spellInfo->Id)
         {
             case SPELL_LAUNCH_INTERNAL:
                 DoCastSelf(SPELL_LAUNCH_INTERNAL_2, true);
@@ -410,17 +410,21 @@ struct npc_gilneas_forsaken_catapult : public VehicleAI
         _targetPos = pos;
     }
 
-    void SpellHitTarget(Unit* target, SpellInfo const* spell) override
+    void SpellHitTarget(WorldObject* target, SpellInfo const* spellInfo) override
     {
-        switch (spell->Id)
+        Unit* unitTarget = target->ToUnit();
+        if (!unitTarget)
+            return;
+
+        switch (spellInfo->Id)
         {
             case SPELL_LAUNCH:
-                if (target->GetVehicleCreatureBase())
+                if (unitTarget->GetVehicleCreatureBase())
                 {
-                    Position pos = target->GetPosition();
+                    Position pos = unitTarget->GetPosition();
                     pos.m_positionZ += 6.0f;
-                    target->ExitVehicle(&pos);
-                    target->GetMotionMaster()->MoveJump(_targetPos, 58.62504f, 12.75955f);
+                    unitTarget->ExitVehicle(&pos);
+                    unitTarget->GetMotionMaster()->MoveJump(_targetPos, 58.62504f, 12.75955f);
                 }
                 break;
             default:

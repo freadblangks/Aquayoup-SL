@@ -227,9 +227,9 @@ class boss_foe_reaper_5000 : public CreatureScript
                 }
             }
 
-            void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
+            void SpellHit(WorldObject* /*caster*/, SpellInfo const* spellInfo) override
             {
-                switch (spell->Id)
+                switch (spellInfo->Id)
                 {
                     case SPELL_ENERGIZE:
                         if (me->GetPower(POWER_ENERGY) == 100)
