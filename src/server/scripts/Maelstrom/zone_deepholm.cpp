@@ -138,12 +138,12 @@ struct npc_deepholm_xariona : public ScriptedAI
                     _events.ScheduleEvent(EVENT_FURY_OF_THE_TWILIGHT_FLIGHT, 1ms);
                     break;
                 case EVENT_TWILIGHT_FISSURE:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 45.f, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 45.f, true))
                         DoCast(target, SPELL_TWILIGHT_FISSURE);
                     _events.Repeat(29s);
                     break;
                 case EVENT_TWILIGHT_ZONE:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 55.f, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 55.f, true))
                         DoCast(target, SPELL_TWILIGHT_ZONE);
                     _events.Repeat(31s);
                     break;

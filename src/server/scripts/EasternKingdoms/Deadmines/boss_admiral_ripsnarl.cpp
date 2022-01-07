@@ -313,9 +313,9 @@ public:
             me->DespawnOrUnsummon(Seconds(5));
         }
 
-        void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
+        void SpellHit(WorldObject* /*caster*/, SpellInfo const* spellInfo) override
         {
-            if (spell->Id == SPELL_VAPOR_ANIMUS)
+            if (spellInfo->Id == SPELL_VAPOR_ANIMUS)
                 DoCastAOE(SPELL_COALESCE, true);
         }
 

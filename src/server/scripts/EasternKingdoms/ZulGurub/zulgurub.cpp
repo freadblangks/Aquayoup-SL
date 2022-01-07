@@ -132,13 +132,17 @@ struct npc_zulgurub_berserking_boulder_roller : public ScriptedAI
         me->GetMotionMaster()->MoveTargetedHome();
     }
 
-    void SpellHitTarget(Unit* target, SpellInfo const* spell) override
+    void SpellHitTarget(WorldObject* target, SpellInfo const* spellInfo) override
     {
-        if (spell->Id == SPELL_ROLLING_BOULDERS_SEARCH_EFFECT)
+        Unit* unitTarget = target->ToUnit();
+        if (!unitTarget)
+            return;
+
+        if (spellInfo->Id == SPELL_ROLLING_BOULDERS_SEARCH_EFFECT)
         {
             me->SetReactState(REACT_AGGRESSIVE);
             me->RemoveAurasDueToSpell(SPELL_ROLLING_BOULDERS_PERIODIC_AURA);
-            AttackStart(target);
+            AttackStart(unitTarget);
         }
     }
 

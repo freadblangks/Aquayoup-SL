@@ -237,9 +237,9 @@ struct npc_hogger : public ScriptedAI
         }
     }
 
-    void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
+    void SpellHit(WorldObject* /*caster*/, SpellInfo const* spellInfo) override
     {
-        if (spell->Id == SPELL_UPSET_STOMACH)
+        if (spellInfo->Id == SPELL_UPSET_STOMACH)
         {
             _events.CancelEvent(EVENT_MAKE_AGGRESSIVE);
             me->SetReactState(REACT_AGGRESSIVE);
