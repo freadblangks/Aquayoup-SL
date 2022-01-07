@@ -196,7 +196,7 @@ void AddSC_dun_morogh();
 void AddSC_dun_morogh_area_coldridge_valley();
 void AddSC_duskwood();
 //void AddSC_eastern_plaguelands();
-void AddSC_ghostlands();
+//void AddSC_ghostlands();
 void AddSC_goldshire();
 void AddSC_hinterlands();
 void AddSC_isle_of_queldanas();
@@ -398,7 +398,7 @@ void AddEasternKingdomsScripts()
     AddSC_dun_morogh_area_coldridge_valley();
     AddSC_duskwood();
     //AddSC_eastern_plaguelands();
-    AddSC_ghostlands();
+    //AddSC_ghostlands();
     AddSC_goldshire();
     AddSC_hinterlands();
     AddSC_isle_of_queldanas();
@@ -414,4 +414,5 @@ void AddEasternKingdomsScripts()
     AddSC_gilneas_chapter_2();
 	AddSC_westfall();
 	AddSC_elwynn_forest();
+
 }
