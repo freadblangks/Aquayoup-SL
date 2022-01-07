@@ -23,7 +23,7 @@
 
 class Quest;
 
-#define DEFAULT_MAX_PLAYER_DISTANCE 100
+#define DEFAULT_MAX_PLAYER_DISTANCE 50
 
 enum EscortState : uint32
 {

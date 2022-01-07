@@ -179,7 +179,7 @@ struct BroggokPrisionersAI : public ScriptedAI
 
     virtual void ScheduleEvents() = 0;
 
-    void JustReachedHome() override
+    void EnterEvadeMode(EvadeReason why) override
     {
         if (instance->GetBossState(DATA_BROGGOK) == IN_PROGRESS)
         {
@@ -187,7 +187,7 @@ struct BroggokPrisionersAI : public ScriptedAI
                 broggok->AI()->DoAction(ACTION_RESET_BROGGOK);
         }
 
-        ScriptedAI::JustReachedHome();
+        ScriptedAI::EnterEvadeMode(why);
     }
 
     void UpdateAI(uint32 diff) override

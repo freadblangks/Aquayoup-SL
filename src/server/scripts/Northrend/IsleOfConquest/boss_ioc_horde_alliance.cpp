@@ -68,14 +68,10 @@ public:
             _events.ScheduleEvent(EVENT_CRUSHING_LEAP, 15s);
         }
 
-        void SpellHit(WorldObject* caster, SpellInfo const* /*spellInfo*/) override
+        void SpellHit(Unit* caster, SpellInfo const* /*spell*/) override
         {
-            Unit* unitCaster = caster->ToUnit();
-            if (!unitCaster)
-                return;
-
-            if (unitCaster->IsVehicle())
-                Unit::Kill(me, unitCaster);
+            if (caster->IsVehicle())
+                Unit::Kill(me, caster);
         }
 
         void UpdateAI(uint32 diff) override
@@ -97,7 +93,7 @@ public:
                         _events.ScheduleEvent(EVENT_BRUTAL_STRIKE, 5s);
                         break;
                     case EVENT_DAGGER_THROW:
-                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1))
+                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1))
                             DoCast(target, SPELL_DAGGER_THROW);
                         _events.ScheduleEvent(EVENT_DAGGER_THROW, 7s);
                         break;

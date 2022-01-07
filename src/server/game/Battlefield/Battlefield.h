@@ -25,9 +25,8 @@
 
 enum BattlefieldTypes
 {
-    BATTLEFIELD_WG = 1,                                     // Wintergrasp
-    BATTLEFIELD_TB = 2,                                     // Tol Barad (cataclysm)
-    BATTLEFIELD_MAX
+    BATTLEFIELD_WG,                                         // Wintergrasp
+    BATTLEFIELD_TB                                          // Tol Barad (cataclysm)
 };
 
 enum BattlefieldIDs
@@ -223,8 +222,6 @@ class TC_GAME_API Battlefield : public ZoneScript
 
         /// Call this to init the Battlefield
         virtual bool SetupBattlefield() { return true; }
-
-        void SendInitWorldStatesTo(Player* player);
 
         /// Update data of a worldstate to all players present in zone
         void SendUpdateWorldState(uint32 variable, uint32 value, bool hidden = false);

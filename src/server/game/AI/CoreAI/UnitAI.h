@@ -35,7 +35,7 @@ T* EnsureAI(U* ai)
     T* cast_ai = dynamic_cast<T*>(ai);
     ASSERT(cast_ai);
     return cast_ai;
-}
+};
 
 class Player;
 class Quest;
@@ -47,14 +47,14 @@ enum Difficulty : uint8;
 enum MovementGeneratorType : uint8;
 enum SpellEffIndex : uint8;
 
-// Selection method used by SelectTarget
-enum class SelectTargetMethod
+//Selection method used by SelectTarget
+enum SelectAggroTarget
 {
-    Random,      // just pick a random target
-    MaxThreat,   // prefer targets higher in the threat list
-    MinThreat,   // prefer targets lower in the threat list
-    MaxDistance, // prefer targets further from us
-    MinDistance  // prefer targets closer to us
+    SELECT_TARGET_RANDOM = 0,  // just pick a random target
+    SELECT_TARGET_MAXTHREAT,   // prefer targets higher in the threat list
+    SELECT_TARGET_MINTHREAT,   // prefer targets lower in the threat list
+    SELECT_TARGET_MAXDISTANCE, // prefer targets further from us
+    SELECT_TARGET_MINDISTANCE  // prefer targets closer to us
 };
 
 // default predicate function to select target based on distance, player and/or aura criteria
@@ -161,21 +161,18 @@ class TC_GAME_API UnitAI
         virtual ObjectGuid GetGUID(int32 /*id*/ = 0) const { return ObjectGuid::Empty; }
 
         // Select the best target (in <targetType> order) from the threat list that fulfill the following:
-        // - Not among the first <offset> entries in <targetType> order (or SelectTargetMethod::MaxThreat order,
-        //   if <targetType> is SelectTargetMethod::Random).
+        // - Not among the first <offset> entries in <targetType> order (or MAXTHREAT order, if <targetType> is RANDOM).
         // - Within at most <dist> yards (if dist > 0.0f)
         // - At least -<dist> yards away (if dist < 0.0f)
         // - Is a player (if playerOnly = true)
         // - Not the current tank (if withTank = false)
         // - Has aura with ID <aura> (if aura > 0)
         // - Does not have aura with ID -<aura> (if aura < 0)
-        Unit* SelectTarget(SelectTargetMethod targetType, uint32 offset = 0, float dist = 0.0f, bool playerOnly = false, bool withTank = true, int32 aura = 0);
-
+        Unit* SelectTarget(SelectAggroTarget targetType, uint32 offset = 0, float dist = 0.0f, bool playerOnly = false, bool withTank = true, int32 aura = 0);
         // Select the best target (in <targetType> order) satisfying <predicate> from the threat list.
-        // If <offset> is nonzero, the first <offset> entries in <targetType> order (or SelectTargetMethod::MaxThreat
-        // order, if <targetType> is SelectTargetMethod::Random) are skipped.
+        // If <offset> is nonzero, the first <offset> entries in <targetType> order (or MAXTHREAT order, if <targetType> is RANDOM) are skipped.
         template<class PREDICATE>
-        Unit* SelectTarget(SelectTargetMethod targetType, uint32 offset, PREDICATE const& predicate)
+        Unit* SelectTarget(SelectAggroTarget targetType, uint32 offset, PREDICATE const& predicate)
         {
             ThreatManager& mgr = GetThreatManager();
             // shortcut: if we ignore the first <offset> elements, and there are at most <offset> elements, then we ignore ALL elements
@@ -191,12 +188,12 @@ class TC_GAME_API UnitAI
 
             switch (targetType)
             {
-                case SelectTargetMethod::MaxThreat:
-                case SelectTargetMethod::MinThreat:
-                case SelectTargetMethod::MaxDistance:
-                case SelectTargetMethod::MinDistance:
+                case SELECT_TARGET_MAXTHREAT:
+                case SELECT_TARGET_MINTHREAT:
+                case SELECT_TARGET_MAXDISTANCE:
+                case SELECT_TARGET_MINDISTANCE:
                     return targetList.front();
-                case SelectTargetMethod::Random:
+                case SELECT_TARGET_RANDOM:
                     return Trinity::Containers::SelectRandomContainerElement(targetList);
                 default:
                     return nullptr;
@@ -204,8 +201,7 @@ class TC_GAME_API UnitAI
         }
 
         // Select the best (up to) <num> targets (in <targetType> order) from the threat list that fulfill the following:
-        // - Not among the first <offset> entries in <targetType> order (or SelectTargetMethod::MaxThreat order,
-        //   if <targetType> is SelectTargetMethod::Random).
+        // - Not among the first <offset> entries in <targetType> order (or MAXTHREAT order, if <targetType> is RANDOM).
         // - Within at most <dist> yards (if dist > 0.0f)
         // - At least -<dist> yards away (if dist < 0.0f)
         // - Is a player (if playerOnly = true)
@@ -213,13 +209,12 @@ class TC_GAME_API UnitAI
         // - Has aura with ID <aura> (if aura > 0)
         // - Does not have aura with ID -<aura> (if aura < 0)
         // The resulting targets are stored in <targetList> (which is cleared first).
-        void SelectTargetList(std::list<Unit*>& targetList, uint32 num, SelectTargetMethod targetType, uint32 offset = 0, float dist = 0.0f, bool playerOnly = false, bool withTank = true, int32 aura = 0);
+        void SelectTargetList(std::list<Unit*>& targetList, uint32 num, SelectAggroTarget targetType, uint32 offset = 0, float dist = 0.0f, bool playerOnly = false, bool withTank = true, int32 aura = 0);
 
         // Select the best (up to) <num> targets (in <targetType> order) satisfying <predicate> from the threat list and stores them in <targetList> (which is cleared first).
-        // If <offset> is nonzero, the first <offset> entries in <targetType> order (or SelectTargetMethod::MaxThreat
-        // order, if <targetType> is SelectTargetMethod::Random) are skipped.
+        // If <offset> is nonzero, the first <offset> entries in <targetType> order (or MAXTHREAT order, if <targetType> is RANDOM) are skipped.
         template <class PREDICATE>
-        void SelectTargetList(std::list<Unit*>& targetList, uint32 num, SelectTargetMethod targetType, uint32 offset, PREDICATE const& predicate)
+        void SelectTargetList(std::list<Unit*>& targetList, uint32 num, SelectAggroTarget targetType, uint32 offset, PREDICATE const& predicate)
         {
             targetList.clear();
             ThreatManager& mgr = GetThreatManager();
@@ -227,7 +222,7 @@ class TC_GAME_API UnitAI
             if (mgr.GetThreatListSize() <= offset)
                 return;
 
-            if (targetType == SelectTargetMethod::MaxDistance || targetType == SelectTargetMethod::MinDistance)
+            if (targetType == SELECT_TARGET_MAXDISTANCE || targetType == SELECT_TARGET_MINDISTANCE)
             {
                 for (ThreatReference const* ref : mgr.GetUnsortedThreatList())
                 {
@@ -261,12 +256,12 @@ class TC_GAME_API UnitAI
                 return;
             }
 
-            // right now, list is unsorted for DISTANCE types - re-sort by SelectTargetMethod::MaxDistance
-            if (targetType == SelectTargetMethod::MaxDistance || targetType == SelectTargetMethod::MinDistance)
-                SortByDistance(targetList, targetType == SelectTargetMethod::MinDistance);
+            // right now, list is unsorted for DISTANCE types - re-sort by MAXDISTANCE
+            if (targetType == SELECT_TARGET_MAXDISTANCE || targetType == SELECT_TARGET_MINDISTANCE)
+                SortByDistance(targetList, targetType == SELECT_TARGET_MINDISTANCE);
 
             // now the list is MAX sorted, reverse for MIN types
-            if (targetType == SelectTargetMethod::MinThreat)
+            if (targetType == SELECT_TARGET_MINTHREAT)
                 targetList.reverse();
 
             // ignore the first <offset> elements
@@ -282,7 +277,7 @@ class TC_GAME_API UnitAI
             if (targetList.size() <= num)
                 return;
 
-            if (targetType == SelectTargetMethod::Random)
+            if (targetType == SELECT_TARGET_RANDOM)
                 Trinity::Containers::RandomResize(targetList, num);
             else
                 targetList.resize(num);

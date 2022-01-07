@@ -37,16 +37,7 @@
 #if TRINITY_PLATFORM != TRINITY_PLATFORM_WINDOWS
 #include <readline/readline.h>
 #include <readline/history.h>
-#endif
 
-static constexpr char CLI_PREFIX[] = "TC> ";
-
-static inline void PrintCliPrefix()
-{
-    printf("%s", CLI_PREFIX);
-}
-
-#if TRINITY_PLATFORM != TRINITY_PLATFORM_WINDOWS
 char* command_finder(char const* text, int state)
 {
     static size_t idx, len;
@@ -116,7 +107,7 @@ void utf8print(void* /*arg*/, char const* str)
 
 void commandFinished(void*, bool /*success*/)
 {
-    PrintCliPrefix();
+    printf("TC> ");
     fflush(stdout);
 }
 
@@ -138,17 +129,19 @@ int kb_hit_return()
 /// %Thread start
 void CliThread()
 {
-#if TRINITY_PLATFORM == TRINITY_PLATFORM_WINDOWS
-    // print this here the first time
-    // later it will be printed after command queue updates
-    PrintCliPrefix();
-#else
+    ///- Display the list of available CLI functions then beep
+    //TC_LOG_INFO("server.worldserver", "");
+#if TRINITY_PLATFORM != TRINITY_PLATFORM_WINDOWS
     rl_attempted_completion_function = cli_completion;
     rl_event_hook = cli_hook_func;
 #endif
 
     if (sConfigMgr->GetBoolDefault("BeepAtStart", true))
         printf("\a");                                       // \a = Alert
+
+    // print this here the first time
+    // later it will be printed after command queue updates
+    printf("TC>");
 
     ///- As long as the World is running (no World::m_stopEvent), get the command line and handle it
     while (!World::IsStopped())
@@ -163,12 +156,12 @@ void CliThread()
         {
             if (!WStrToUtf8(commandbuf, wcslen(commandbuf), command))
             {
-                PrintCliPrefix();
+                printf("TC>");
                 continue;
             }
         }
 #else
-        char* command_str = readline(CLI_PREFIX);
+        char* command_str = readline("TC>");
         rl_bind_key('\t', rl_complete);
         if (command_str != nullptr)
         {
@@ -185,7 +178,7 @@ void CliThread()
                 if (nextLineIndex == 0)
                 {
 #if TRINITY_PLATFORM == TRINITY_PLATFORM_WINDOWS
-                    PrintCliPrefix();
+                    printf("TC>");
 #endif
                     continue;
                 }

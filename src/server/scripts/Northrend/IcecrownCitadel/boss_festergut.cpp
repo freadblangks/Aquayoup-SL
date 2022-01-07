@@ -160,14 +160,10 @@ class boss_festergut : public CreatureScript
                     Talk(SAY_KILL);
             }
 
-            void SpellHitTarget(WorldObject* target, SpellInfo const* spellInfo) override
+            void SpellHitTarget(Unit* target, SpellInfo const* spell) override
             {
-                Unit* unitTarget = target->ToUnit();
-                if (!unitTarget)
-                    return;
-
-                if (spellInfo->Id == PUNGENT_BLIGHT_HELPER)
-                    unitTarget->RemoveAurasDueToSpell(INOCULATED_HELPER);
+                if (spell->Id == PUNGENT_BLIGHT_HELPER)
+                    target->RemoveAurasDueToSpell(INOCULATED_HELPER);
             }
 
             void UpdateAI(uint32 diff) override
@@ -214,8 +210,8 @@ class boss_festergut : public CreatureScript
                         {
                             std::list<Unit*> ranged, melee;
                             uint32 minTargets = RAID_MODE<uint32>(3, 8, 3, 8);
-                            SelectTargetList(ranged, 25, SelectTargetMethod::Random, 0, -5.0f, true);
-                            SelectTargetList(melee, 25, SelectTargetMethod::Random, 0, 5.0f, true);
+                            SelectTargetList(ranged, 25, SELECT_TARGET_RANDOM, 0, -5.0f, true);
+                            SelectTargetList(melee, 25, SELECT_TARGET_RANDOM, 0, 5.0f, true);
                             while (ranged.size() < minTargets)
                             {
                                 if (melee.empty())
