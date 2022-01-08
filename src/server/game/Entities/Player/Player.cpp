@@ -9231,6 +9231,13 @@ void Player::SendInitWorldStates(uint32 zoneId, uint32 areaId)
         case 2257: // Deeprun Tram
         case 3703: // Shattrath City
             break;
+        case 5736:                                          // The Wandering Isle
+            if (areaId == 5833)                                 // Wreck of the Skyseeker
+            {
+                packet.Worldstates.emplace_back(6488, 0x0); // Healers Active
+                packet.Worldstates.emplace_back(6489, 0x1); // Healers Active enabled
+            }
+            break;
         case 1377: // Silithus
             if (outdoorPvP && outdoorPvP->GetTypeId() == OUTDOOR_PVP_SI)
                 outdoorPvP->FillInitialWorldStates(packet);
@@ -28949,6 +28956,12 @@ uint32 Player::DoRandomRoll(uint32 minimum, uint32 maximum)
         SendDirectMessage(randomRoll.Write());
 
     return roll;
+}
+
+void Player::ShowNeutralPlayerFactionSelectUI()
+{
+    WorldPackets::Misc::FactionSelectUI packet;
+    GetSession()->SendPacket(packet.Write());
 }
 
 void Player::UpdateItemLevelAreaBasedScaling()
