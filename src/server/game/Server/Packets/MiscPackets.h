@@ -964,35 +964,24 @@ namespace WorldPackets
 
             int32 UISplashScreenID = 0;
         };
-        
-        class ChromieTimeSelectExpansion final : public ClientPacket
-             {
+
+        class FactionSelectUI final : public ServerPacket
+        {
         public:
-            ChromieTimeSelectExpansion(WorldPacket && packet) : ClientPacket(CMSG_CHROMIE_TIME_SELECT_EXPANSION, std::move(packet)) { }
+            FactionSelectUI() : ServerPacket(SMSG_SHOW_NEUTRAL_PLAYER_FACTION_SELECT_UI, 0) { }
 
-                void Read() override;
+            WorldPacket const* Write() override { return &_worldPacket; }
+        };
 
-                ObjectGuid ObjGUID;
-                uint32 Expansion = 0;
-            };
+        class FactionSelect final : public ClientPacket
+        {
+        public:
+            FactionSelect(WorldPacket&& packet) : ClientPacket(CMSG_NEUTRAL_PLAYER_SELECT_FACTION, std::move(packet)) { }
 
-            class ChromieTimeOpenNpc  final : public ServerPacket
-            {
-            public:
-                ChromieTimeOpenNpc() : ServerPacket(SMSG_CHROMIE_TIME_OPEN_NPC, 11) { }
+            void Read() override;
 
-                    WorldPacket const* Write() override;
-
-                    ObjectGuid ObjGUID;
-            };
-
-            class ChromieTimeSelectExpansionSuccess  final : public ServerPacket
-             {
-            public:
-                ChromieTimeSelectExpansionSuccess() : ServerPacket(SMSG_CHROMIE_TIME_SELECT_EXPANSION_SUCCESS) { }
-
-                WorldPacket const* Write() override;
-             };
+            uint32 FactionChoice = 0;
+        };
     }
 }
 

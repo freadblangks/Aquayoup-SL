@@ -299,7 +299,7 @@ class TC_GAME_API ConditionMgr
 
         ConditionContainer const* GetConditionsForAreaTrigger(uint32 areaTriggerId, bool isServerSide) const;
         bool IsObjectMeetingTrainerSpellConditions(uint32 trainerId, uint32 spellId, Player* player) const;
-        bool IsObjectMeetingSpawnConditions(uint32 objectType, uint32 entry, WorldObject* seer) const;
+		bool IsObjectMeetingSpawnConditions(uint32 objectType, uint32 entry, WorldObject* seer) const;
 
         static uint32 GetPlayerConditionLfgValue(Player const* player, PlayerConditionLfgStatus status);
         static bool IsPlayerMeetingCondition(Player const* player, PlayerConditionEntry const* condition);
