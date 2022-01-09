@@ -83,41 +83,49 @@ public:
                     TerragrueGUID = creature->GetGUID();
                     break;
                 }
+
                 case BOSS_THE_EYE_OF_THE_JAILER:
                 {
                     EyeoftheJailerGUID = creature->GetGUID();
                     break;
                 }
+
                 case BOSS_SKYJA:
                 {
                     SkyjaGUID = creature->GetGUID();
                     break;
                 }
+
                 case BOSS_REMNANT_OF_NERZHUL:
                 {
                     RemnantofNerzhulGUID = creature->GetGUID();
                     break;
                 }
+
                 case BOSS_SOULRENDER_DORMAZAIN:
                 {
                     SoulrenderDormazainGUID = creature->GetGUID();
                     break;
                 }
+
                 case BOSS_PAINSMITH_RAZNAL:
                 {
                     PainsmithRaznalGUID = creature->GetGUID();
                     break;
                 }
+
                 case BOSS_GUARDIAN_OF_THE_FIRST_ONES:
                 {
                     GuardianoftheFirstOnesGUID = creature->GetGUID();
                     break;
                 }
+
                 case BOSS_FATESCRIBE_ROHKALO:
                 {
                     FatescribeRohkaloGUID = creature->GetGUID();
                     break;
                 }
+
                 case BOSS_KELTHUZAD:
                 {
                     KelthuzadGUID = creature->GetGUID();

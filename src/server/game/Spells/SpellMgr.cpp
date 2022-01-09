@@ -634,10 +634,7 @@ SpellEnchantProcEntry const* SpellMgr::GetSpellEnchantProcEvent(uint32 enchId) c
 
 bool SpellMgr::IsArenaAllowedEnchancment(uint32 ench_id) const
 {
-    if (SpellItemEnchantmentEntry const* enchantment = sSpellItemEnchantmentStore.LookupEntry(ench_id))
-        return enchantment->GetFlags().HasFlag(SpellItemEnchantmentFlags::AllowEnteringArena);
-
-    return false;
+    return mEnchantCustomAttr[ench_id];
 }
 
 std::vector<int32> const* SpellMgr::GetSpellLinked(int32 spell_id) const
@@ -1989,6 +1986,42 @@ void SpellMgr::LoadSpellPetAuras()
     } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %u spell pet auras in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+// Fill custom data about enchancments
+void SpellMgr::LoadEnchantCustomAttr()
+{
+    uint32 oldMSTime = getMSTime();
+
+    uint32 size = sSpellItemEnchantmentStore.GetNumRows();
+    mEnchantCustomAttr.resize(size);
+
+    for (uint32 i = 0; i < size; ++i)
+       mEnchantCustomAttr[i] = false;
+
+    uint32 count = 0;
+    for (SpellInfo const& spellInfo : mSpellInfoMap)
+    {
+        /// @todo find a better check
+        if (!spellInfo.HasAttribute(SPELL_ATTR2_PRESERVE_ENCHANT_IN_ARENA) || !spellInfo.HasAttribute(SPELL_ATTR0_NOT_SHAPESHIFT))
+            continue;
+
+        for (SpellEffectInfo const& spellEffectInfo : spellInfo.GetEffects())
+        {
+            if (spellEffectInfo.Effect == SPELL_EFFECT_ENCHANT_ITEM_TEMPORARY)
+            {
+                uint32 enchId = spellEffectInfo.MiscValue;
+                SpellItemEnchantmentEntry const* ench = sSpellItemEnchantmentStore.LookupEntry(enchId);
+                if (!ench)
+                    continue;
+                mEnchantCustomAttr[enchId] = true;
+                ++count;
+                break;
+            }
+        }
+    }
+
+    TC_LOG_INFO("server.loading", ">> Loaded %u custom enchant attributes in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
 
 void SpellMgr::LoadSpellEnchantProcData()
@@ -4597,116 +4630,7 @@ void SpellMgr::LoadSpellInfoCorrections()
             spellEffectInfo->ApplyAuraName = SPELL_AURA_MOD_DECREASE_SPEED;
         });
     });
-	
-//
-    // DEADMINES SPELLS
-    //
-    // Glubtok
-    // Fists of Flame
-    ApplySpellFix({ 87874, 91268, 87896, 91269 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(2); // Combat Range
-    });
 
-    // Fists of Frost
-    ApplySpellFix({ 87899, 91272, 87901, 91273,}, [](SpellInfo* spellInfo)
-    {
-        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(2); // Combat Range
-    });
-
-    // Helix Gearbreaker
-    // Charge
-    ApplySpellFix({ 88295 }, [](SpellInfo* spellInfo)
-    {
-        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
-        {
-           spellEffectInfo->RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_100_YARDS);
-        });
-    });
-
-    // "Captain" Cookie
-    // Rotten Aura
-    ApplySpellFix({
-        89735,
-        92065,
-        }, [](SpellInfo* spellInfo)
-        {
-            spellInfo->AttributesCu |= SPELL_ATTR0_CU_NO_INITIAL_THREAT;
-        });
-
-    // Vanessa VanCleef
-    // Spark
-    ApplySpellFix({ 95520 }, [](SpellInfo* spellInfo)
-    {
-        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
-        {
-            spellEffectInfo->RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_1_YARD);
-        });
-    });
-
-    // Summon Defias
-    ApplySpellFix({ 92616, 92617,  92618  }, [](SpellInfo* spellInfo)
-    {
-        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
-        {
-            spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_DEST_DEST);
-        });
-
-        spellInfo->AttributesEx2 |= SPELL_ATTR2_CAN_TARGET_NOT_IN_LOS;
-    });
-
-    // Fiery Blaze
-    ApplySpellFix({ 93485 }, [](SpellInfo* spellInfo)
-        {
-            spellInfo->AttributesCu |= SPELL_ATTR0_CU_NO_INITIAL_THREAT;
-        });
-
-    // END OF DEADMINES SPELLS
-
-// GILNEAS SPELLS
-    //
-    // Curse of the Worgen
-    ApplySpellFix({ 69123 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(135); // 100yd
-    });
-
-    // Forcecast summon personal Godfrey
-    ApplySpellFix({ 68635, 68636 }, [](SpellInfo* spellInfo)
-    {
-        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
-        {
-            spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_UNIT_SUMMONER);
-        });
-    });
-	
-    // Pull-to
-    ApplySpellFix({ 67357 }, [](SpellInfo* spellInfo)
-    {
-        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
-        {
-            spellEffectInfo->MiscValue = 150;
-        });
-    });
-
-    // ENDOF GILNEAS SPELLS
-
-    // Horde / Alliance switch (BG mercenary system)
-    ApplySpellFix({ 195838, 195843 }, [](SpellInfo* spellInfo)
-    {
-         ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
-         {
-             spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA;
-         });
-         ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
-         {
-                 spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA; 
-         });
-         ApplySpellEffectFix(spellInfo, EFFECT_2, [](SpellEffectInfo* spellEffectInfo)
-         {
-                 spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA; 
-         });
-    });
     //
     // FIRELANDS SPELLS
     //
@@ -4748,144 +4672,39 @@ void SpellMgr::LoadSpellInfoCorrections()
     });
 
     // ENDOF ANTORUS THE BURNING THRONE SPELLS
-     //start zul
-    // Shadow Spike
-    ApplySpellFix({ 97158 }, [](SpellInfo* spellInfo)
+
+    //
+    // SANCTUM OF DOMINATION
+    //
+
+    // Domination Chain (Player)
+    ApplySpellFix({ 349451 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->MaxAffectedTargets = 1;
+        spellInfo->AttributesEx2 |= SPELL_ATTR2_CAN_TARGET_NOT_IN_LOS;
     });
 
-    // Call Spirit
-    ApplySpellFix({ 97152 }, [](SpellInfo* spellInfo)
+    // Rive Marker
+    ApplySpellFix({ 353419 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->MaxAffectedTargets = 1;
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(28); // 5s
     });
 
-    // Spirit Warrior's Gaze
-    ApplySpellFix({ 97597 }, [](SpellInfo* spellInfo)
+    // Banshee Wail (Marker)
+    ApplySpellFix({ 357719 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->MaxAffectedTargets = 1;
+        spellInfo->Attributes |= SPELL_ATTR0_NEGATIVE_1;
     });
 
-    // Sunder Rift
-    ApplySpellFix({ 96964 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(18); // 20seconds
-    });
+    // END OF SANCTUM OF DOMINATION
 
-    // Rolling Boulders Search Effect
-    ApplySpellFix({ 96839 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->MaxAffectedTargets = 1;
-    });
-    // ENDOF ZUL'GURUB SPELLS
-	
-    // THE WANDERING ISLE SPELLS
-    // Summon Pet
-    ApplySpellFix({ 107924 }, [](SpellInfo* spellInfo)
-    {
-       ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
-       {
-            spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER);
-       });
-    });
-
-    ApplySpellFix({
-        102445, // Summon Master Li Fei
-        102499, // Fire Crash
-        118499, // Summon Aysa
-        118500, // Summon Ji
-        116190, // Summon Child 1
-        116191, // Summon Child 2
-        108786, // Summon Stack of Reeds
-        108827, // Summon Stack of Planks
-        108847, // Summon Stack of Blocks
-        108858, // Summon Tiger Stand
-        104450, // Summon Ji Yuan
-        104571, // Summon Aysa
-        126040, // Summon Master Shang Xi
-        115334, // Summon Aysa
-        115336, // Summon Ji
-        115338, // Summon Jojo
-        115493, // Summon Aysa
-        115494, // Summon Ji
-        115495, // Summon Jojo
-        117597  // Summon Ji
-    }, [](SpellInfo* spellInfo)
+    // Summon Master Li Fei
+    ApplySpellFix({ 102445 }, [](SpellInfo* spellInfo)
     {
         ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
         {
             spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_DEST_DB);
         });
     });
-
- ApplySpellFix({
-        114710, // Forcecast Summon Amberleaf Troublemaker
-        118032  // Water Spout
-    }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->MaxAffectedTargets = 1;
-    });
-
-    // Summon Lightning
-    ApplySpellFix({ 109062 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->CastTimeEntry = sSpellCastTimesStore.LookupEntry(1);
-    });
-
-    // Flame Spout
-    ApplySpellFix({ 114685 }, [](SpellInfo* spellInfo)
-        {
-            ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
-                {
-                    spellEffectInfo->MaxRadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_1_YARD);
-                });
-        });
-
-
-    // Ride Vehicle
-    ApplySpellFix({ 102717 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->RecoveryTime = 0;
-    });
-
-    // Summon Jojo Ironbrow
-    ApplySpellFix({ 108845 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(4); // 120 seconds
-    });
-
-    // Eject Passenger 1
-    ApplySpellFix({ 60603 }, [](SpellInfo* spellInfo)
-        {
-            ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
-                {
-                    spellEffectInfo->BasePoints = 1;
-                });
-        });
-
-
-    ApplySpellFix({
-        104012, // Break Gong Credit
-        105002, // Summon Hot Air Balloon
-        120344, // Summon Aysa
-        120345, // Summon Jojo
-        120749, // Summon Ji
-        120753  // Summon Garrosh
-    }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(7); // 10yd
-    });
-    // ENDOF THE WANDERING ISLE SPELLS
-
-    // Zero Power
-    ApplySpellFix({ 87239 }, [](SpellInfo* spellInfo)
-        {
-            ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
-                {
-                    spellEffectInfo->MiscValue = 3; 
-                });
-        });
 
     for (SpellInfo const& s : mSpellInfoMap)
     {
