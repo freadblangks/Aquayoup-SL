@@ -25,7 +25,7 @@ void AddSC_instance_sanctum_of_domination();
 void AddSC_ShadowlandsIntro();
 void AddShadowlandsScripts()
 {
-  AddSC_zone_exiles_reach
+    AddSC_zone_exiles_reach;
   AddSC_boss_sylvanas_windrunner();
   AddSC_instance_sanctum_of_domination();
  //shadowlands intro
