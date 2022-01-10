@@ -2151,7 +2151,7 @@ void ScriptMgr::OnFailedPasswordChange(uint32 accountId)
 }
 
 // Guild
-void ScriptMgr::OnGuildAddMember(Guild* guild, Player* player, uint8& plRank)
+void ScriptMgr::OnGuildAddMember(Guild* guild, Player* player, uint8 plRank)
 {
     FOREACH_SCRIPT(GuildScript)->OnAddMember(guild, player, plRank);
 }
