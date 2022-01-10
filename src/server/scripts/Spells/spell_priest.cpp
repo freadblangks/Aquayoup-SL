@@ -975,18 +975,10 @@ class spell_pri_shadow_mend : public SpellScript
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo
-        ({
-            SPELL_PRIEST_ATONEMENT,
-            SPELL_PRIEST_ATONEMENT_TRIGGERED,
-            SPELL_PRIEST_TRINITY,
-            SPELL_PRIEST_MASOCHISM_TALENT,
-            SPELL_PRIEST_MASOCHISM_PERIODIC_HEAL,
-            SPELL_PRIEST_SHADOW_MEND_PERIODIC_DUMMY
-        });
+        return ValidateSpellInfo({ SPELL_PRIEST_ATONEMENT, SPELL_PRIEST_ATONEMENT_TRIGGERED, SPELL_PRIEST_TRINITY, SPELL_PRIEST_MASOCHISM_TALENT, SPELL_PRIEST_MASOCHISM_PERIODIC_HEAL, SPELL_PRIEST_SHADOW_MEND_PERIODIC_DUMMY });
     }
 
-    void HandleEffectHit()
+    void HandleEffectHit(SpellEffIndex /*effIndex*/)
     {
         if (Unit* target = GetHitUnit())
         {
@@ -995,16 +987,15 @@ class spell_pri_shadow_mend : public SpellScript
             int32 periodicAmount = GetHitHeal() / 20;
             int32 damageForAuraRemoveAmount = periodicAmount * 10;
             if (caster->HasAura(SPELL_PRIEST_ATONEMENT) && !caster->HasAura(SPELL_PRIEST_TRINITY))
-                caster->CastSpell(target, SPELL_PRIEST_ATONEMENT_TRIGGERED, GetSpell());
+                caster->CastSpell(target, SPELL_PRIEST_ATONEMENT_TRIGGERED, true);
 
             // Handle Masochism talent
             if (caster->HasAura(SPELL_PRIEST_MASOCHISM_TALENT) && caster->GetGUID() == target->GetGUID())
-                caster->CastSpell(caster, SPELL_PRIEST_MASOCHISM_PERIODIC_HEAL, CastSpellExtraArgs(GetSpell()).AddSpellMod(SPELLVALUE_BASE_POINT0, periodicAmount));
-            else if (target->IsInCombat() && periodicAmount)
+                caster->CastSpell(caster, SPELL_PRIEST_MASOCHISM_PERIODIC_HEAL, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellMod(SPELLVALUE_BASE_POINT0, periodicAmount));
+            else if (target->IsInCombat())
             {
                 CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                args.SetTriggeringSpell(GetSpell());
-                args.AddSpellMod(SPELLVALUE_BASE_POINT0, periodicAmount);
+                args.AddSpellBP0(periodicAmount);
                 args.AddSpellMod(SPELLVALUE_BASE_POINT1, damageForAuraRemoveAmount);
                 caster->CastSpell(target, SPELL_PRIEST_SHADOW_MEND_PERIODIC_DUMMY, args);
             }
@@ -1013,7 +1004,7 @@ class spell_pri_shadow_mend : public SpellScript
 
     void Register() override
     {
-        AfterHit += SpellHitFn(spell_pri_shadow_mend::HandleEffectHit);
+        OnEffectHitTarget += SpellEffectFn(spell_pri_shadow_mend::HandleEffectHit, EFFECT_0, SPELL_EFFECT_HEAL);
     }
 };
 
@@ -1029,11 +1020,15 @@ class spell_pri_shadow_mend_periodic_damage : public AuraScript
 
     void HandleDummyTick(AuraEffect const* aurEff)
     {
-        CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-        args.SetOriginalCaster(GetCasterGUID());
-        args.SetTriggeringAura(aurEff);
-        args.AddSpellMod(SPELLVALUE_BASE_POINT0, aurEff->GetAmount());
-        GetTarget()->CastSpell(GetTarget(), SPELL_PRIEST_SHADOW_MEND_DAMAGE, args);
+        if (GetTarget()->IsInCombat())
+        {
+            CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
+            args.OriginalCaster = GetCasterGUID();
+            args.AddSpellBP0(aurEff->GetAmount());
+            GetTarget()->CastSpell(GetTarget(), SPELL_PRIEST_SHADOW_MEND_DAMAGE, args);
+        }
+        else
+            Remove();
     }
 
     bool CheckProc(ProcEventInfo& eventInfo)
@@ -1045,9 +1040,10 @@ class spell_pri_shadow_mend_periodic_damage : public AuraScript
     {
         int32 newAmount = aurEff->GetAmount() - eventInfo.GetDamageInfo()->GetDamage();
 
-        aurEff->ChangeAmount(newAmount);
         if (newAmount < 0)
             Remove();
+        else
+            aurEff->ChangeAmount(newAmount);
     }
 
     void Register() override

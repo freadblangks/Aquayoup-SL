@@ -251,12 +251,12 @@ void Guild::NewsLogEntry::WritePacket(WorldPackets::Guild::GuildNews& newsPacket
 // RankInfo
 void Guild::RankInfo::LoadFromDB(Field* fields)
 {
-    m_rankId            = GuildRankId(fields[1].GetUInt8());
-    m_rankOrder         = GuildRankOrder(fields[2].GetUInt8());
+    m_rankId            = fields[1].GetUInt8();
+    m_rankOrder         = fields[2].GetUInt8() ? fields[2].GetUInt8() : m_rankId; // set default value for rank order
     m_name              = fields[3].GetString();
     m_rights            = fields[4].GetUInt32();
     m_bankMoneyPerDay   = fields[5].GetUInt32();
-    if (m_rankId == GuildRankId::GuildMaster)           // Prevent loss of leader rights
+    if (m_rankId == GR_GUILDMASTER)                     // Prevent loss of leader rights
         m_rights |= GR_RIGHT_ALL;
 }
 
@@ -264,8 +264,8 @@ void Guild::RankInfo::SaveToDB(CharacterDatabaseTransaction& trans) const
 {
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GUILD_RANK);
     stmt->setUInt64(0, m_guildId);
-    stmt->setUInt8 (1, AsUnderlyingType(m_rankId));
-    stmt->setUInt8 (2, AsUnderlyingType(m_rankOrder));
+    stmt->setUInt8 (1, m_rankId);
+    stmt->setUInt8 (2, m_rankOrder);
     stmt->setString(3, m_name);
     stmt->setUInt32(4, m_rights);
     stmt->setUInt32(5, m_bankMoneyPerDay);
@@ -281,20 +281,34 @@ void Guild::RankInfo::CreateMissingTabsIfNeeded(uint8 tabs, CharacterDatabaseTra
             continue;
 
         rightsAndSlots.SetTabId(i);
-        if (m_rankId == GuildRankId::GuildMaster)
+        if (m_rankId == GR_GUILDMASTER)
             rightsAndSlots.SetGuildMasterValues();
 
         if (logOnCreate)
-            TC_LOG_ERROR("guild", "Guild " UI64FMTD " has broken Tab %u for rank %u. Created default tab.", m_guildId, i, uint32(m_rankId));
+            TC_LOG_ERROR("guild", "Guild " UI64FMTD " has broken Tab %u for rank %u. Created default tab.", m_guildId, i, m_rankId);
 
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GUILD_BANK_RIGHT);
         stmt->setUInt64(0, m_guildId);
         stmt->setUInt8(1, i);
-        stmt->setUInt8(2, AsUnderlyingType(m_rankId));
+        stmt->setUInt8(2, m_rankId);
         stmt->setInt8(3,  rightsAndSlots.GetRights());
         stmt->setInt32(4, rightsAndSlots.GetSlots());
         trans->Append(stmt);
     }
+}
+
+void Guild::RankInfo::SetOrder(uint8 order)
+{
+    if (m_rankOrder == order)
+        return;
+
+    m_rankOrder = order;
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RANK_ORDER);
+    stmt->setUInt8(0, m_rankOrder);
+    stmt->setUInt8(1, m_rankId);
+    stmt->setUInt64(2, m_guildId);
+    CharacterDatabase.Execute(stmt);
 }
 
 void Guild::RankInfo::SetName(std::string const& name)
@@ -306,14 +320,14 @@ void Guild::RankInfo::SetName(std::string const& name)
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RANK_NAME);
     stmt->setString(0, m_name);
-    stmt->setUInt8 (1, AsUnderlyingType(m_rankId));
+    stmt->setUInt8 (1, m_rankId);
     stmt->setUInt64(2, m_guildId);
     CharacterDatabase.Execute(stmt);
 }
 
 void Guild::RankInfo::SetRights(uint32 rights)
 {
-    if (m_rankId == GuildRankId::GuildMaster)           // Prevent loss of leader rights
+    if (m_rankId == GR_GUILDMASTER)                     // Prevent loss of leader rights
         rights = GR_RIGHT_ALL;
 
     if (m_rights == rights)
@@ -323,7 +337,7 @@ void Guild::RankInfo::SetRights(uint32 rights)
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RANK_RIGHTS);
     stmt->setUInt32(0, m_rights);
-    stmt->setUInt8 (1, AsUnderlyingType(m_rankId));
+    stmt->setUInt8 (1, m_rankId);
     stmt->setUInt64(2, m_guildId);
     CharacterDatabase.Execute(stmt);
 }
@@ -337,14 +351,14 @@ void Guild::RankInfo::SetBankMoneyPerDay(uint32 money)
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RANK_BANK_MONEY);
     stmt->setUInt32(0, money);
-    stmt->setUInt8 (1, AsUnderlyingType(m_rankId));
+    stmt->setUInt8 (1, m_rankId);
     stmt->setUInt64(2, m_guildId);
     CharacterDatabase.Execute(stmt);
 }
 
 void Guild::RankInfo::SetBankTabSlotsAndRights(GuildBankRightsAndSlots rightsAndSlots, bool saveToDB)
 {
-    if (m_rankId == GuildRankId::GuildMaster)           // Prevent loss of leader rights
+    if (m_rankId == GR_GUILDMASTER)                     // Prevent loss of leader rights
         rightsAndSlots.SetGuildMasterValues();
 
     GuildBankRightsAndSlots& guildBR = m_bankTabRightsAndSlots[rightsAndSlots.GetTabId()];
@@ -355,7 +369,7 @@ void Guild::RankInfo::SetBankTabSlotsAndRights(GuildBankRightsAndSlots rightsAnd
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GUILD_BANK_RIGHT);
         stmt->setUInt64(0, m_guildId);
         stmt->setUInt8 (1, guildBR.GetTabId());
-        stmt->setUInt8 (2, AsUnderlyingType(m_rankId));
+        stmt->setUInt8 (2, m_rankId);
         stmt->setInt8  (3, guildBR.GetRights());
         stmt->setInt32 (4, guildBR.GetSlots());
         CharacterDatabase.Execute(stmt);
@@ -513,7 +527,7 @@ void Guild::BankTab::SendText(Guild const* guild, WorldSession* session) const
 }
 
 // Member
-Guild::Member::Member(ObjectGuid::LowType guildId, ObjectGuid guid, GuildRankId rankId) :
+Guild::Member::Member(ObjectGuid::LowType guildId, ObjectGuid guid, uint8 rankId) :
     m_guildId(guildId),
     m_guid(guid),
     m_zoneId(0),
@@ -582,16 +596,16 @@ void Guild::Member::SetOfficerNote(std::string const& officerNote)
     CharacterDatabase.Execute(stmt);
 }
 
-void Guild::Member::ChangeRank(CharacterDatabaseTransaction& trans, GuildRankId newRank)
+void Guild::Member::ChangeRank(CharacterDatabaseTransaction& trans, uint8 newRank)
 {
     m_rankId = newRank;
 
     // Update rank information in player's field, if he is online.
     if (Player* player = FindConnectedPlayer())
-        player->SetGuildRank(AsUnderlyingType(newRank));
+        player->SetGuildRank(newRank);
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_MEMBER_RANK);
-    stmt->setUInt8 (0, AsUnderlyingType(newRank));
+    stmt->setUInt8 (0, newRank);
     stmt->setUInt64(1, m_guid.GetCounter());
     CharacterDatabase.ExecuteOrAppend(trans, stmt);
 }
@@ -606,7 +620,7 @@ void Guild::Member::SaveToDB(CharacterDatabaseTransaction& trans) const
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GUILD_MEMBER);
     stmt->setUInt64(0, m_guildId);
     stmt->setUInt64(1, m_guid.GetCounter());
-    stmt->setUInt8 (2, AsUnderlyingType(m_rankId));
+    stmt->setUInt8 (2, m_rankId);
     stmt->setString(3, m_publicNote);
     stmt->setString(4, m_officerNote);
     CharacterDatabase.ExecuteOrAppend(trans, stmt);
@@ -672,6 +686,11 @@ float Guild::Member::GetInactiveDays() const
     if (IsOnline())
         return 0.0f;
     return float(GameTime::GetGameTime() - GetLogoutTime()) / float(DAY);
+}
+
+bool Guild::Member::IsRankNotLower(uint8 rankOrder, Guild* guild) const
+{
+    return guild->GetRankOrderByRankId(m_rankId) <= rankOrder;
 }
 
 // Decreases amount of slots left for today.
@@ -1191,7 +1210,7 @@ bool Guild::Create(Player* pLeader, std::string const& name)
     trans->Append(stmt);
 
     _CreateDefaultGuildRanks(trans, pLeaderSession->GetSessionDbLocaleIndex()); // Create default ranks
-    bool ret = AddMember(trans, m_leaderGuid, GuildRankId::GuildMaster);        // Add guildmaster
+    bool ret = AddMember(trans, m_leaderGuid, GR_GUILDMASTER);                  // Add guildmaster
 
     CharacterDatabase.CommitTransaction(trans);
 
@@ -1385,8 +1404,8 @@ void Guild::SendQueryResponse(WorldSession* session, ObjectGuid const& playerGui
     response.Info->BorderColor = m_emblemInfo.GetBorderColor();
     response.Info->BackgroundColor = m_emblemInfo.GetBackgroundColor();
 
-    for (RankInfo const& rankInfo : m_ranks)
-        response.Info->Ranks.emplace_back(AsUnderlyingType(rankInfo.GetId()), AsUnderlyingType(rankInfo.GetOrder()), rankInfo.GetName());
+    for (RankInfo const& rank : m_ranks)
+        response.Info->Ranks.emplace(rank.GetId(), rank.GetOrder(), rank.GetName());
 
     response.Info->GuildName = m_name;
 
@@ -1398,16 +1417,14 @@ void Guild::SendGuildRankInfo(WorldSession* session) const
 {
     WorldPackets::Guild::GuildRanks ranks;
 
-    ranks.Ranks.reserve(_GetRanksSize());
-
     for (RankInfo const& rankInfo : m_ranks)
     {
         WorldPackets::Guild::GuildRankData rankData;
 
-        rankData.RankID = AsUnderlyingType(rankInfo.GetId());
-        rankData.RankOrder = AsUnderlyingType(rankInfo.GetOrder());
+        rankData.RankID = uint32(rankInfo.GetId());
+        rankData.RankOrder = uint32(rankInfo.GetOrder());
         rankData.Flags = rankInfo.GetRights();
-        rankData.WithdrawGoldLimit = (rankInfo.GetId() == GuildRankId::GuildMaster ? (-1) : int32(rankInfo.GetBankMoneyPerDay() / GOLD));
+        rankData.WithdrawGoldLimit = rankInfo.GetBankMoneyPerDay() / GOLD;
         rankData.RankName = rankInfo.GetName();
 
         for (uint8 j = 0; j < GUILD_BANK_MAX_TABS; ++j)
@@ -1416,7 +1433,7 @@ void Guild::SendGuildRankInfo(WorldSession* session) const
             rankData.TabWithdrawItemLimit[j] = uint32(rankInfo.GetBankTabSlotsPerDay(j));
         }
 
-        ranks.Ranks.push_back(rankData);
+        ranks.Ranks.insert(rankData);
     }
 
     session->SendPacket(ranks.Write());
@@ -1537,10 +1554,7 @@ void Guild::HandleSetNewGuildMaster(WorldSession* session, std::string const& na
         if (!newGuildMaster)
             return;
 
-        RankInfo const* oldRank = GetRankInfo(newGuildMaster->GetRankId());
-
-        if (oldRank->GetOrder() != GuildRankOrder(1) // only second highest rank can take over guild
-            || uint32(oldGuildMaster->GetInactiveDays()) < GUILD_MASTER_DETHRONE_INACTIVE_DAYS)
+        if (!newGuildMaster->IsRankNotLower(GR_MEMBER, this) || uint32(oldGuildMaster->GetInactiveDays()) < GUILD_MASTER_DETHRONE_INACTIVE_DAYS)
         {
             SendCommandResult(session, GUILD_COMMAND_CHANGE_LEADER, ERR_GUILD_PERMISSIONS);
             return;
@@ -1562,7 +1576,7 @@ void Guild::HandleSetNewGuildMaster(WorldSession* session, std::string const& na
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
 
     _SetLeader(trans, newGuildMaster);
-    oldGuildMaster->ChangeRank(trans, _GetLowestRankId());
+    oldGuildMaster->ChangeRank(trans, GR_INITIATE);
 
     SendEventNewLeader(newGuildMaster, oldGuildMaster, isSelfPromote);
 
@@ -1608,25 +1622,161 @@ void Guild::HandleSetMemberNote(WorldSession* session, std::string const& note, 
     }
 }
 
-void Guild::HandleSetRankInfo(WorldSession* session, GuildRankId rankId, std::string const& name, uint32 rights, uint32 moneyPerDay, GuildBankRightsAndSlotsVec const& rightsAndSlots)
+void Guild::HandleSetRankInfo(WorldSession* session, uint8 rankOrder, std::string const& name, uint32 rights, uint32 moneyPerDay, GuildBankRightsAndSlotsVec const& rightsAndSlots)
 {
     // Only leader can modify ranks
     if (!_IsLeader(session->GetPlayer()))
         SendCommandResult(session, GUILD_COMMAND_CHANGE_RANK, ERR_GUILD_PERMISSIONS);
-    else if (RankInfo* rankInfo = GetRankInfo(rankId))
+    else if (RankInfo* rankInfo = GetRankInfoByOrder(rankOrder))
     {
         TC_LOG_DEBUG("guild", "Changed RankName to '%s', rights to 0x%08X", name.c_str(), rights);
 
         rankInfo->SetName(name);
         rankInfo->SetRights(rights);
-        _SetRankBankMoneyPerDay(rankId, moneyPerDay * GOLD);
+        _SetRankBankMoneyPerDay(rankInfo->GetId(), moneyPerDay * GOLD);
 
         for (auto itr = rightsAndSlots.begin(); itr != rightsAndSlots.end(); ++itr)
-            _SetRankBankTabRightsAndSlots(rankId, *itr);
+            _SetRankBankTabRightsAndSlots(rankInfo->GetId(), *itr);
 
         WorldPackets::Guild::GuildEventRankChanged packet;
-        packet.RankID = AsUnderlyingType(rankId);
+        packet.RankID = rankInfo->GetId();
         BroadcastPacket(packet.Write());
+    }
+}
+
+Guild::RankInfo const* Guild::GetRankInfoById(uint8 rankId) const
+{
+    std::vector<RankInfo>::const_iterator it = std::find_if(m_ranks.begin(), m_ranks.end(), [=](RankInfo const& r)
+    {
+        return r.GetId() == rankId;
+    });
+
+    if (it != m_ranks.end())
+        return &*it;
+
+    return nullptr;
+}
+
+Guild::RankInfo* Guild::GetRankInfoById(uint8 rankId)
+{
+    std::vector<RankInfo>::iterator it = std::find_if(m_ranks.begin(), m_ranks.end(), [=](RankInfo const& r)
+    {
+        return r.GetId() == rankId;
+    });
+
+    if (it != m_ranks.end())
+        return &*it;
+
+    return nullptr;
+}
+
+Guild::RankInfo const* Guild::GetRankInfoByOrder(uint8 rankOrder) const
+{
+    return rankOrder < _GetRanksSize() ? &m_ranks[rankOrder] : nullptr;
+}
+
+Guild::RankInfo* Guild::GetRankInfoByOrder(uint8 rankOrder)
+{
+    return rankOrder < _GetRanksSize() ? &m_ranks[rankOrder] : nullptr;
+}
+
+uint8 Guild::GetRankIdByRankOrder(uint8 rankOrder) const
+{
+    if (RankInfo const* rankInfo = GetRankInfoByOrder(rankOrder))
+        return rankInfo->GetId();
+
+    return GUILD_RANKS_MAX_COUNT;
+}
+
+uint8 Guild::GetRankOrderByRankId(uint8 rankId) const
+{
+    if (RankInfo const* rankInfo = GetRankInfoById(rankId))
+        return rankInfo->GetOrder();
+
+    return GUILD_RANKS_MAX_COUNT;
+}
+
+uint8 Guild::GetFirstAvailableRankId() const
+{
+    uint8 rankId = 0;
+    if (m_ranks.empty())
+        return rankId;
+
+    for (; rankId < GUILD_RANKS_MAX_COUNT; ++rankId)
+    {
+        if (!GetRankInfoById(rankId))
+            break;
+    }
+
+    return rankId;
+}
+
+uint8 Guild::GetFirstAvailableRankOrder() const
+{
+    return uint8(m_ranks.size());
+}
+
+uint8 Guild::_GetLowestRankId() const
+{
+    // should never happen
+    ASSERT(!m_ranks.empty());
+
+    return m_ranks.back().GetId();
+}
+
+uint8 Guild::_GetLowestRankOrder() const
+{
+    // should never happen
+    ASSERT(!m_ranks.empty());
+
+    return m_ranks.back().GetOrder();
+}
+
+void Guild::SanitizeRankOrders()
+{
+    if (m_ranks.empty())
+        return;
+
+    std::sort(m_ranks.begin(), m_ranks.end(), [](RankInfo const& lhs, RankInfo const& rhs)
+    {
+        return lhs.GetOrder() < rhs.GetOrder();
+    });
+
+    for (uint8 i = 0; i < _GetRanksSize(); ++i)
+    {
+        if (RankInfo* rankInfo = GetRankInfoByOrder(i))
+        {
+            // found a gap: fill it!
+            if (rankInfo->GetOrder() != i)
+                rankInfo->SetOrder(i);
+        }
+    }
+}
+
+void Guild::HandleShiftRank(WorldSession* session, uint32 rankOrder, bool shiftUp)
+{
+    uint32 otherRankOrder = shiftUp ? rankOrder - 1 : rankOrder + 1;
+
+    // can't shift guild master rank (rank id = 0) - there's already a client-side limitation for it so that's just a safe-guard
+    if (!rankOrder || !otherRankOrder)
+        return;
+
+    RankInfo* rankInfo = GetRankInfoByOrder(rankOrder);
+    RankInfo* otherRankInfo = GetRankInfoByOrder(otherRankOrder);
+
+    // Only leader can modify ranks
+    if (!_IsLeader(session->GetPlayer()))
+        SendCommandResult(session, GUILD_COMMAND_CHANGE_RANK, ERR_GUILD_PERMISSIONS);
+    else if (rankInfo && otherRankInfo)
+    {
+        rankInfo->SetOrder(otherRankOrder);
+        otherRankInfo->SetOrder(rankOrder);
+
+        // reorder ranks after shifting
+        SanitizeRankOrders();
+
+        // force client to re-request SMSG_GUILD_RANKS
+        BroadcastPacket(WorldPackets::Guild::GuildEventRanksUpdated().Write());
     }
 }
 
@@ -1801,16 +1951,13 @@ void Guild::HandleRemoveMember(WorldSession* session, ObjectGuid guid)
         std::string name = member->GetName();
 
         // Guild masters cannot be removed
-        if (member->IsRank(GuildRankId::GuildMaster))
+        if (member->IsRank(GR_GUILDMASTER))
             SendCommandResult(session, GUILD_COMMAND_REMOVE_PLAYER, ERR_GUILD_LEADER_LEAVE);
         // Do not allow to remove player with the same rank or higher
         else
         {
             Member* memberMe = GetMember(player->GetGUID());
-            RankInfo const* myRank = GetRankInfo(memberMe->GetRankId());
-            RankInfo const* targetRank = GetRankInfo(member->GetRankId());
-
-            if (!memberMe || targetRank->GetOrder() <= myRank->GetOrder())
+            if (!memberMe || member->IsRankNotLower(GetRankOrderByRankId(memberMe->GetRankId()), this))
                 SendCommandResult(session, GUILD_COMMAND_REMOVE_PLAYER, ERR_GUILD_RANK_TOO_HIGH_S, name);
             else
             {
@@ -1847,48 +1994,42 @@ void Guild::HandleUpdateMemberRank(WorldSession* session, ObjectGuid guid, bool 
 
         Member const* memberMe = GetMember(player->GetGUID());
         ASSERT(memberMe);
-        RankInfo const* myRank = GetRankInfo(memberMe->GetRankId());
-        RankInfo const* oldRank = GetRankInfo(member->GetRankId());
-        GuildRankId newRankId;
+        uint8 myRankId = memberMe->GetRankId();
+        uint8 myRankOrder = GetRankOrderByRankId(myRankId);
         if (demote)
         {
             // Player can demote only lower rank members
-            if (oldRank->GetOrder() <= myRank->GetOrder())
+            if (member->IsRankNotLower(myRankOrder, this))
             {
                 SendCommandResult(session, type, ERR_GUILD_RANK_TOO_HIGH_S, name);
                 return;
             }
             // Lowest rank cannot be demoted
-            RankInfo const* newRank = GetRankInfo(GuildRankOrder(AsUnderlyingType(oldRank->GetOrder()) + 1));
-            if (!newRank)
+            if (GetRankOrderByRankId(member->GetRankId()) >= _GetLowestRankOrder())
             {
                 SendCommandResult(session, type, ERR_GUILD_RANK_TOO_LOW_S, name);
                 return;
             }
-
-            newRankId = newRank->GetId();
         }
         else
         {
             // Allow to promote only to lower rank than member's rank
-            // memberMe->GetRankId() + 1 is the highest rank that current player can promote to
-            if (GuildRankOrder(AsUnderlyingType(oldRank->GetOrder()) - 1) <= myRank->GetOrder())
+            // The player must be at least 2 levels or more below your rank.
+            if (member->IsRankNotLower(myRankOrder + 1, this))
             {
                 SendCommandResult(session, type, ERR_GUILD_RANK_TOO_HIGH_S, name);
                 return;
             }
-
-            newRankId = ASSERT_NOTNULL(GetRankInfo(GuildRankOrder(AsUnderlyingType(oldRank->GetOrder()) - 1)))->GetId();
         }
 
+        uint32 rankOrder = GetRankOrderByRankId(member->GetRankId()) + (demote ? 1 : -1);
         CharacterDatabaseTransaction trans(nullptr);
-        member->ChangeRank(trans, newRankId);
-        _LogEvent(demote ? GUILD_EVENT_LOG_DEMOTE_PLAYER : GUILD_EVENT_LOG_PROMOTE_PLAYER, player->GetGUID().GetCounter(), member->GetGUID().GetCounter(), AsUnderlyingType(newRankId));
-        //_BroadcastEvent(demote ? GE_DEMOTION : GE_PROMOTION, ObjectGuid::Empty, player->GetName().c_str(), name.c_str(), _GetRankName(newRankId).c_str());
+        _LogEvent(demote ? GUILD_EVENT_LOG_DEMOTE_PLAYER : GUILD_EVENT_LOG_PROMOTE_PLAYER, player->GetGUID().GetCounter(), member->GetGUID().GetCounter(), GetRankIdByRankOrder(rankOrder));
+        SendGuildRanksUpdate(player->GetGUID(), member->GetGUID(), rankOrder);
     }
 }
 
-void Guild::HandleSetMemberRank(WorldSession* session, ObjectGuid targetGuid, ObjectGuid setterGuid, GuildRankOrder rank)
+void Guild::HandleSetMemberRank(WorldSession* session, ObjectGuid targetGuid, ObjectGuid setterGuid, uint32 rankOrder)
 {
     Player* player = session->GetPlayer();
     Member* member = GetMember(targetGuid);
@@ -1897,12 +2038,10 @@ void Guild::HandleSetMemberRank(WorldSession* session, ObjectGuid targetGuid, Ob
     GuildRankRights rights = GR_RIGHT_PROMOTE;
     GuildCommandType type = GUILD_COMMAND_PROMOTE_PLAYER;
 
-    RankInfo const* oldRank = GetRankInfo(member->GetRankId());
-    RankInfo const* newRank = GetRankInfo(rank);
-    if (!oldRank || !newRank)
+    if (!GetRankInfoByOrder(rankOrder))
         return;
 
-    if (rank > oldRank->GetOrder())
+    if (rankOrder > GetRankOrderByRankId(member->GetRankId()))
     {
         rights = GR_RIGHT_DEMOTE;
         type = GUILD_COMMAND_DEMOTE_PLAYER;
@@ -1922,7 +2061,7 @@ void Guild::HandleSetMemberRank(WorldSession* session, ObjectGuid targetGuid, Ob
         return;
     }
 
-    SendGuildRanksUpdate(setterGuid, targetGuid, newRank->GetId());
+    SendGuildRanksUpdate(setterGuid, targetGuid, rankOrder);
 }
 
 void Guild::HandleAddNewRank(WorldSession* session, std::string const& name)
@@ -1943,95 +2082,38 @@ void Guild::HandleAddNewRank(WorldSession* session, std::string const& name)
     }
 }
 
-void Guild::HandleRemoveRank(WorldSession* session, GuildRankOrder rankOrder)
+void Guild::HandleRemoveRank(WorldSession* session, uint32 rankOrder)
 {
+    std::vector<RankInfo>::iterator rankInfo = std::find_if(m_ranks.begin(), m_ranks.end(), [rankOrder](RankInfo const& r) { return r.GetOrder() == rankOrder; });
+    if (rankInfo == m_ranks.end())
+        return;
+
+    uint32 rankId = rankInfo->GetId();
+
     // Cannot remove rank if total count is minimum allowed by the client or is not leader
     if (_GetRanksSize() <= GUILD_RANKS_MIN_COUNT || !_IsLeader(session->GetPlayer()))
         return;
 
-    auto rankItr = std::find_if(m_ranks.begin(), m_ranks.end(), [rankOrder](RankInfo const& rank)
-    {
-        return rank.GetOrder() == rankOrder;
-    });
-
-    if (rankItr == m_ranks.end())
-        return;
-
-    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
-
     // Delete bank rights for rank
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_GUILD_BANK_RIGHTS_FOR_RANK);
     stmt->setUInt64(0, m_id);
-    stmt->setUInt8(1, AsUnderlyingType(rankItr->GetId()));
-    trans->Append(stmt);
+    stmt->setUInt8(1, rankId);
+    CharacterDatabase.Execute(stmt);
 
     // Delete rank
     stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_GUILD_RANK);
     stmt->setUInt64(0, m_id);
-    stmt->setUInt8(1, AsUnderlyingType(rankItr->GetId()));
-    trans->Append(stmt);
+    stmt->setUInt8(1, rankId);
+    CharacterDatabase.Execute(stmt);
 
-    m_ranks.erase(rankItr);
+    m_ranks.erase(rankInfo);
 
-    // correct order of other ranks
-    for (RankInfo& otherRank : m_ranks)
-    {
-        if (otherRank.GetOrder() < rankOrder)
-            continue;
-
-        otherRank.SetOrder(GuildRankOrder(AsUnderlyingType(otherRank.GetOrder()) - 1));
-
-        stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RANK_ORDER);
-        stmt->setUInt8(0, AsUnderlyingType(otherRank.GetOrder()));
-        stmt->setUInt8(1, AsUnderlyingType(otherRank.GetId()));
-        stmt->setUInt64(2, m_id);
-        trans->Append(stmt);
-    }
-
-    CharacterDatabase.CommitTransaction(trans);
-
-    WorldPackets::Guild::GuildEventRanksUpdated eventPacket;
-    BroadcastPacket(eventPacket.Write());
-}
-
-void Guild::HandleShiftRank(WorldSession* session, GuildRankOrder rankOrder, bool shiftUp)
-{
-    // Only leader can modify ranks
-    if (!_IsLeader(session->GetPlayer()))
-        return;
-
-    GuildRankOrder otherRankOrder = GuildRankOrder(AsUnderlyingType(rankOrder) + (shiftUp ? -1 : 1));
-
-    RankInfo* rankInfo = GetRankInfo(rankOrder);
-    RankInfo* otherRankInfo = GetRankInfo(otherRankOrder);
-    if (!rankInfo || !otherRankInfo)
-        return;
-
-    // can't shift guild master rank (rank id = 0) - there's already a client-side limitation for it so that's just a safe-guard
-    if (rankInfo->GetId() == GuildRankId::GuildMaster || otherRankInfo->GetId() == GuildRankId::GuildMaster)
-        return;
-
-    rankInfo->SetOrder(otherRankOrder);
-    otherRankInfo->SetOrder(rankOrder);
-
-    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
-
-    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RANK_ORDER);
-    stmt->setUInt8(0, AsUnderlyingType(rankInfo->GetOrder()));
-    stmt->setUInt8(1, AsUnderlyingType(rankInfo->GetId()));
-    stmt->setUInt64(2, m_id);
-    trans->Append(stmt);
-
-    stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RANK_ORDER);
-    stmt->setUInt8(0, AsUnderlyingType(otherRankInfo->GetOrder()));
-    stmt->setUInt8(1, AsUnderlyingType(otherRankInfo->GetId()));
-    stmt->setUInt64(2, m_id);
-    trans->Append(stmt);
-
-    CharacterDatabase.CommitTransaction(trans);
+    // reorder remaining ranks after deletion
+    SanitizeRankOrders();
 
     // force client to re-request SMSG_GUILD_RANKS
-    BroadcastPacket(WorldPackets::Guild::GuildEventRanksUpdated().Write());
+    WorldPackets::Guild::GuildEventRanksUpdated eventPacket;
+    BroadcastPacket(eventPacket.Write());
 }
 
 void Guild::HandleMemberDepositMoney(WorldSession* session, uint64 amount, bool cashFlow /*=false*/)
@@ -2266,10 +2348,10 @@ void Guild::SendPermissions(WorldSession* session) const
     if (!member)
         return;
 
-    GuildRankId rankId = member->GetRankId();
+    uint8 rankId = member->GetRankId();
 
     WorldPackets::Guild::GuildPermissionsQueryResults queryResult;
-    queryResult.RankID = AsUnderlyingType(rankId);
+    queryResult.RankID = rankId;
     queryResult.WithdrawGoldLimit = _GetRankBankMoneyPerDay(rankId);
     queryResult.Flags = _GetRankRights(rankId);
     queryResult.NumTabs = _GetPurchasedTabsSize();
@@ -2284,7 +2366,7 @@ void Guild::SendPermissions(WorldSession* session) const
     }
 
     session->SendPacket(queryResult.Write());
-    TC_LOG_DEBUG("guild", "SMSG_GUILD_PERMISSIONS_QUERY_RESULTS [%s] Rank: %u", session->GetPlayerInfo().c_str(), uint32(rankId));
+    TC_LOG_DEBUG("guild", "SMSG_GUILD_PERMISSIONS_QUERY_RESULTS [%s] Rank: %u", session->GetPlayerInfo().c_str(), rankId);
 }
 
 void Guild::SendMoneyInfo(WorldSession* session) const
@@ -2489,7 +2571,7 @@ bool Guild::LoadMemberFromDB(Field* fields)
 {
     ObjectGuid::LowType lowguid = fields[1].GetUInt64();
     ObjectGuid playerGuid(ObjectGuid::Create<HighGuid::Player>(lowguid));
-    Member* member = new Member(m_id, playerGuid, GuildRankId(fields[2].GetUInt8()));
+    Member* member = new Member(m_id, playerGuid, fields[2].GetUInt8());
     if (!member->LoadFromDB(fields))
     {
         CharacterDatabaseTransaction trans(nullptr);
@@ -2508,7 +2590,7 @@ void Guild::LoadBankRightFromDB(Field* fields)
                                            // tabId              rights               slots
     GuildBankRightsAndSlots rightsAndSlots(fields[1].GetUInt8(), fields[3].GetInt8(), fields[4].GetInt32());
                                   // rankId
-    _SetRankBankTabRightsAndSlots(GuildRankId(fields[2].GetUInt8()), rightsAndSlots, false);
+    _SetRankBankTabRightsAndSlots(fields[2].GetUInt8(), rightsAndSlots, false);
 }
 
 bool Guild::LoadEventLogFromDB(Field* fields) const
@@ -2609,42 +2691,30 @@ bool Guild::Validate()
 {
     // Validate ranks data
     // GUILD RANKS represent a sequence starting from 0 = GUILD_MASTER (ALL PRIVILEGES) to max 9 (lowest privileges).
-    // The lower rank id is considered higher rank - so promotion does rank-- and demotion does rank++
+    // The lower rank order is considered higher rank - so promotion does rank-- and demotion does rank++
     // Between ranks in sequence cannot be gaps - so 0, 1, 2, 4 is impossible
     // Min ranks count is 2 and max is 10.
-    bool broken_ranks = false;
     uint8 ranks = _GetRanksSize();
 
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
     if (ranks < GUILD_RANKS_MIN_COUNT || ranks > GUILD_RANKS_MAX_COUNT)
     {
         TC_LOG_ERROR("guild", "Guild " UI64FMTD " has invalid number of ranks, creating new...", m_id);
-        broken_ranks = true;
+        m_ranks.clear();
+        _CreateDefaultGuildRanks(trans, sWorld->GetDefaultDbcLocale());
     }
     else
     {
-        for (uint8 rankId = 0; rankId < ranks; ++rankId)
-        {
-            RankInfo* rankInfo = GetRankInfo(GuildRankId(rankId));
-            if (rankInfo->GetId() != GuildRankId(rankId))
-            {
-                TC_LOG_ERROR("guild", "Guild " UI64FMTD " has broken rank id %u, creating default set of ranks...", m_id, rankId);
-                broken_ranks = true;
-            }
-            else
-                rankInfo->CreateMissingTabsIfNeeded(_GetPurchasedTabsSize(), trans, true);
-        }
+        for (RankInfo& rank : m_ranks)
+            rank.CreateMissingTabsIfNeeded(_GetPurchasedTabsSize(), trans, true);
     }
 
-    if (broken_ranks)
-    {
-        m_ranks.clear();
-        _CreateDefaultGuildRanks(trans, DEFAULT_LOCALE);
-    }
+    // Sanitize ranks order after ranks loading
+    SanitizeRankOrders();
 
     // Validate members' data
     for (auto itr = m_members.begin(); itr != m_members.end(); ++itr)
-        if (!GetRankInfo(itr->second->GetRankId()))
+        if (!GetRankInfoById(itr->second->GetRankId()))
             itr->second->ChangeRank(trans, _GetLowestRankId());
 
     // Repair the structure of the guild.
@@ -2662,14 +2732,14 @@ bool Guild::Validate()
             return false;
         }
     }
-    else if (!leader->IsRank(GuildRankId::GuildMaster))
+    else if (!leader->IsRank(GR_GUILDMASTER))
         _SetLeader(trans, leader);
 
     // Check config if multiple guildmasters are allowed
     if (!sConfigMgr->GetBoolDefault("Guild.AllowMultipleGuildMaster", false))
         for (auto itr = m_members.begin(); itr != m_members.end(); ++itr)
-            if (itr->second->GetRankId() == GuildRankId::GuildMaster && !itr->second->IsSamePlayer(m_leaderGuid))
-                itr->second->ChangeRank(trans, GetRankInfo(GuildRankOrder(1))->GetId());
+            if (itr->second->GetRankId() == GR_GUILDMASTER && !itr->second->IsSamePlayer(m_leaderGuid))
+                itr->second->ChangeRank(trans, GR_OFFICER);
 
     if (trans->GetSize() > 0)
         CharacterDatabase.CommitTransaction(trans);
@@ -2709,7 +2779,7 @@ void Guild::BroadcastAddonToGuild(WorldSession* session, bool officerOnly, std::
     }
 }
 
-void Guild::BroadcastPacketToRank(WorldPacket const* packet, GuildRankId rankId) const
+void Guild::BroadcastPacketToRank(WorldPacket const* packet, uint8 rankId) const
 {
     for (auto itr = m_members.begin(); itr != m_members.end(); ++itr)
         if (itr->second->IsRank(rankId))
@@ -2732,7 +2802,7 @@ void Guild::BroadcastPacketIfTrackingAchievement(WorldPacket const* packet, uint
                 player->GetSession()->SendPacket(packet);
 }
 
-void Guild::MassInviteToEvent(WorldSession* session, uint32 minLevel, uint32 maxLevel, GuildRankOrder minRank)
+void Guild::MassInviteToEvent(WorldSession* session, uint32 minLevel, uint32 maxLevel, uint32 maxRankOrder)
 {
     WorldPackets::Calendar::CalendarCommunityInvite packet;
 
@@ -2747,25 +2817,17 @@ void Guild::MassInviteToEvent(WorldSession* session, uint32 minLevel, uint32 max
         }
 
         Member* member = itr->second;
-        if (member->GetGUID() == session->GetPlayer()->GetGUID())
-            continue;
-
         uint32 level = sCharacterCache->GetCharacterLevelByGuid(member->GetGUID());
-        if (level < minLevel || level > maxLevel)
-            continue;
 
-        RankInfo const* rank = GetRankInfo(member->GetRankId());
-        if (rank->GetOrder() > minRank)
-            continue;
-
-        packet.Invites.emplace_back(member->GetGUID(), level);
+        if (member->GetGUID() != session->GetPlayer()->GetGUID() && level >= minLevel && level <= maxLevel && member->IsRankNotLower(maxRankOrder, this))
+            packet.Invites.emplace_back(member->GetGUID(), level);
     }
 
     session->SendPacket(packet.Write());
 }
 
 // Members handling
-bool Guild::AddMember(CharacterDatabaseTransaction& trans, ObjectGuid guid, Optional<GuildRankId> rankId /*= {}*/)
+bool Guild::AddMember(CharacterDatabaseTransaction& trans, ObjectGuid guid, uint8 rankId)
 {
     Player* player = ObjectAccessor::FindConnectedPlayer(guid);
     // Player cannot be in guild
@@ -2784,17 +2846,17 @@ bool Guild::AddMember(CharacterDatabaseTransaction& trans, ObjectGuid guid, Opti
     ObjectGuid::LowType lowguid = guid.GetCounter();
 
     // If rank was not passed, assign lowest possible rank
-    if (!rankId)
+    if (rankId == GUILD_RANK_NONE)
         rankId = _GetLowestRankId();
 
-    Member* member = new Member(m_id, guid, *rankId);
+    Member* member = new Member(m_id, guid, rankId);
     std::string name;
     if (player)
     {
         m_members[guid] = member;
         player->SetInGuild(m_id);
         player->SetGuildIdInvited(UI64LIT(0));
-        player->SetGuildRank(AsUnderlyingType(*rankId));
+        player->SetGuildRank(rankId);
         player->SetGuildLevel(GetLevel());
         SendLoginInfo(player->GetSession());
         name = player->GetName();
@@ -2844,7 +2906,7 @@ bool Guild::AddMember(CharacterDatabaseTransaction& trans, ObjectGuid guid, Opti
     BroadcastPacket(joinNotificationPacket.Write());
 
     // Call scripts if member was succesfully added (and stored to database)
-    sScriptMgr->OnGuildAddMember(this, player, AsUnderlyingType(*rankId));
+    sScriptMgr->OnGuildAddMember(this, player, rankId);
 
     return true;
 }
@@ -2911,9 +2973,9 @@ void Guild::DeleteMember(CharacterDatabaseTransaction& trans, ObjectGuid guid, b
         _UpdateAccountsNumber();
 }
 
-bool Guild::ChangeMemberRank(CharacterDatabaseTransaction& trans, ObjectGuid guid, GuildRankId newRank)
+bool Guild::ChangeMemberRank(CharacterDatabaseTransaction& trans, ObjectGuid guid, uint8 newRank)
 {
-    if (GetRankInfo(newRank))                             // Validate rank (allow only existing ranks)
+    if (GetRankInfoById(newRank))                    // Validate rank (allow only existing ranks)
     {
         if (Member* member = GetMember(guid))
         {
@@ -2971,46 +3033,6 @@ void Guild::SetBankTabText(uint8 tabId, std::string const& text)
         eventPacket.Tab = tabId;
         BroadcastPacket(eventPacket.Write());
     }
-}
-
-Guild::Guild::RankInfo const* Guild::GetRankInfo(GuildRankId rankId) const
-{
-    auto rankItr = std::find_if(m_ranks.begin(), m_ranks.end(), [rankId](RankInfo const& rank)
-    {
-        return rank.GetId() == rankId;
-    });
-
-    return rankItr != m_ranks.end() ? &*rankItr : nullptr;
-}
-
-Guild::RankInfo* Guild::GetRankInfo(GuildRankId rankId)
-{
-    auto rankItr = std::find_if(m_ranks.begin(), m_ranks.end(), [rankId](RankInfo const& rank)
-    {
-        return rank.GetId() == rankId;
-    });
-
-    return rankItr != m_ranks.end() ? &*rankItr : nullptr;
-}
-
-Guild::Guild::RankInfo const* Guild::GetRankInfo(GuildRankOrder rankOrder) const
-{
-    auto rankItr = std::find_if(m_ranks.begin(), m_ranks.end(), [rankOrder](RankInfo const& rank)
-    {
-        return rank.GetOrder() == rankOrder;
-    });
-
-    return rankItr != m_ranks.end() ? &*rankItr : nullptr;
-}
-
-Guild::Guild::RankInfo* Guild::GetRankInfo(GuildRankOrder rankOrder)
-{
-    auto rankItr = std::find_if(m_ranks.begin(), m_ranks.end(), [rankOrder](RankInfo const& rank)
-    {
-        return rank.GetOrder() == rankOrder;
-    });
-
-    return rankItr != m_ranks.end() ? &*rankItr : nullptr;
 }
 
 bool Guild::_HasRankRight(Player const* player, uint32 right) const
@@ -3082,20 +3104,13 @@ void Guild::_CreateDefaultGuildRanks(CharacterDatabaseTransaction& trans, Locale
 
 bool Guild::_CreateRank(CharacterDatabaseTransaction& trans, std::string const& name, uint32 rights)
 {
-    if (m_ranks.size() >= GUILD_RANKS_MAX_COUNT)
+    uint8 newRankId = GetFirstAvailableRankId();
+    uint8 newRankOrder = GetFirstAvailableRankOrder();
+    if (newRankId >= GUILD_RANKS_MAX_COUNT || newRankOrder >= GUILD_RANKS_MAX_COUNT)
         return false;
 
-    uint8 newRankId = [&]()
-    {
-        uint8 freeRankId = 0;
-        while (GetRankInfo(GuildRankId(freeRankId)))
-            ++freeRankId;
-
-        return freeRankId;
-    }();
-
     // Ranks represent sequence 0, 1, 2, ... where 0 means guildmaster
-    RankInfo info(m_id, GuildRankId(newRankId), GuildRankOrder(m_ranks.size()), name, rights, 0);
+    RankInfo info(m_id, newRankId, newRankOrder, name, rights, 0);
     m_ranks.push_back(info);
 
     bool const isInTransaction = bool(trans);
@@ -3131,7 +3146,7 @@ bool Guild::_IsLeader(Player* player) const
     if (player->GetGUID() == m_leaderGuid)
         return true;
     if (Member const* member = GetMember(player->GetGUID()))
-        return member->IsRank(GuildRankId::GuildMaster);
+        return member->IsRank(GR_GUILDMASTER);
     return false;
 }
 
@@ -3175,7 +3190,7 @@ void Guild::_SetLeader(CharacterDatabaseTransaction& trans, Member* leader)
         trans = CharacterDatabase.BeginTransaction();
 
     m_leaderGuid = leader->GetGUID();
-    leader->ChangeRank(trans, GuildRankId::GuildMaster);
+    leader->ChangeRank(trans, GR_GUILDMASTER);
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_LEADER);
     stmt->setUInt64(0, m_leaderGuid.GetCounter());
@@ -3186,53 +3201,53 @@ void Guild::_SetLeader(CharacterDatabaseTransaction& trans, Member* leader)
         CharacterDatabase.CommitTransaction(trans);
 }
 
-void Guild::_SetRankBankMoneyPerDay(GuildRankId rankId, uint32 moneyPerDay)
+void Guild::_SetRankBankMoneyPerDay(uint8 rankId, uint32 moneyPerDay)
 {
-    if (RankInfo* rankInfo = GetRankInfo(rankId))
+    if (RankInfo* rankInfo = GetRankInfoById(rankId))
         rankInfo->SetBankMoneyPerDay(moneyPerDay);
 }
 
-void Guild::_SetRankBankTabRightsAndSlots(GuildRankId rankId, GuildBankRightsAndSlots rightsAndSlots, bool saveToDB)
+void Guild::_SetRankBankTabRightsAndSlots(uint8 rankId, GuildBankRightsAndSlots rightsAndSlots, bool saveToDB)
 {
     if (rightsAndSlots.GetTabId() >= _GetPurchasedTabsSize())
         return;
 
-    if (RankInfo* rankInfo = GetRankInfo(rankId))
+    if (RankInfo* rankInfo = GetRankInfoById(rankId))
         rankInfo->SetBankTabSlotsAndRights(rightsAndSlots, saveToDB);
 }
 
-inline std::string Guild::_GetRankName(GuildRankId rankId) const
+inline std::string Guild::_GetRankName(uint8 rankId) const
 {
-    if (RankInfo const* rankInfo = GetRankInfo(rankId))
+    if (RankInfo const* rankInfo = GetRankInfoById(rankId))
         return rankInfo->GetName();
     return "<unknown>";
 }
 
-inline uint32 Guild::_GetRankRights(GuildRankId rankId) const
+inline uint32 Guild::_GetRankRights(uint8 rankId) const
 {
-    if (RankInfo const* rankInfo = GetRankInfo(rankId))
+    if (RankInfo const* rankInfo = GetRankInfoById(rankId))
         return rankInfo->GetRights();
     return 0;
 }
 
-inline uint32 Guild::_GetRankBankMoneyPerDay(GuildRankId rankId) const
+inline uint32 Guild::_GetRankBankMoneyPerDay(uint8 rankId) const
 {
-    if (RankInfo const* rankInfo = GetRankInfo(rankId))
+    if (RankInfo const* rankInfo = GetRankInfoById(rankId))
         return rankInfo->GetBankMoneyPerDay();
     return 0;
 }
 
-inline int32 Guild::_GetRankBankTabSlotsPerDay(GuildRankId rankId, uint8 tabId) const
+inline int32 Guild::_GetRankBankTabSlotsPerDay(uint8 rankId, uint8 tabId) const
 {
     if (tabId < _GetPurchasedTabsSize())
-        if (RankInfo const* rankInfo = GetRankInfo(rankId))
+        if (RankInfo const* rankInfo = GetRankInfoById(rankId))
             return rankInfo->GetBankTabSlotsPerDay(tabId);
     return 0;
 }
 
-inline int8 Guild::_GetRankBankTabRights(GuildRankId rankId, uint8 tabId) const
+inline int8 Guild::_GetRankBankTabRights(uint8 rankId, uint8 tabId) const
 {
-    if (RankInfo const* rankInfo = GetRankInfo(rankId))
+    if (RankInfo const* rankInfo = GetRankInfoById(rankId))
         return rankInfo->GetBankTabRights(tabId);
     return 0;
 }
@@ -3241,8 +3256,8 @@ inline int32 Guild::_GetMemberRemainingSlots(Member const* member, uint8 tabId) 
 {
     if (member)
     {
-        GuildRankId rankId = member->GetRankId();
-        if (rankId == GuildRankId::GuildMaster)
+        uint8 rankId = member->GetRankId();
+        if (rankId == GR_GUILDMASTER)
             return static_cast<int32>(GUILD_WITHDRAW_SLOT_UNLIMITED);
         if ((_GetRankBankTabRights(rankId, tabId) & GUILD_BANK_RIGHT_VIEW_TAB) != 0)
         {
@@ -3258,8 +3273,8 @@ inline int64 Guild::_GetMemberRemainingMoney(Member const* member) const
 {
     if (member)
     {
-        GuildRankId rankId = member->GetRankId();
-        if (rankId == GuildRankId::GuildMaster)
+        uint8 rankId = member->GetRankId();
+        if (rankId == GR_GUILDMASTER)
             return std::numeric_limits<int64>::max();
 
         if ((_GetRankRights(rankId) & (GR_RIGHT_WITHDRAW_REPAIR | GR_RIGHT_WITHDRAW_GOLD)) != 0)
@@ -3283,7 +3298,7 @@ inline bool Guild::_MemberHasTabRights(ObjectGuid guid, uint8 tabId, int32 right
     if (Member const* member = GetMember(guid))
     {
         // Leader always has full rights
-        if (member->IsRank(GuildRankId::GuildMaster) || m_leaderGuid == guid)
+        if (member->IsRank(GR_GUILDMASTER) || m_leaderGuid == guid)
             return true;
         return (_GetRankBankTabRights(member->GetRankId(), tabId) & rights) == rights;
     }
@@ -3604,23 +3619,25 @@ void Guild::SendBankList(WorldSession* session, uint8 tabId, bool fullUpdate) co
     session->SendPacket(packet.Write());
 }
 
-void Guild::SendGuildRanksUpdate(ObjectGuid setterGuid, ObjectGuid targetGuid, GuildRankId rank)
+void Guild::SendGuildRanksUpdate(ObjectGuid setterGuid, ObjectGuid targetGuid, uint32 rankOrder)
 {
     Member* member = GetMember(targetGuid);
     ASSERT(member);
 
+    uint8 newRankId = GetRankIdByRankOrder(rankOrder);
+
     WorldPackets::Guild::GuildSendRankChange rankChange;
     rankChange.Officer = setterGuid;
     rankChange.Other = targetGuid;
-    rankChange.RankID = AsUnderlyingType(rank);
-    rankChange.Promote = (rank < member->GetRankId());
+    rankChange.RankID = newRankId;
+    rankChange.Promote = (rankOrder < GetRankOrderByRankId(member->GetRankId()));
     BroadcastPacket(rankChange.Write());
 
     CharacterDatabaseTransaction trans;
-    member->ChangeRank(trans, rank);
+    member->ChangeRank(trans, newRankId);
 
-    TC_LOG_DEBUG("network", "SMSG_GUILD_RANKS_UPDATE [Broadcast] Target: %s, Issuer: %s, RankId: %u",
-        targetGuid.ToString().c_str(), setterGuid.ToString().c_str(), uint32(rank));
+    TC_LOG_DEBUG("network", "SMSG_GUILD_SEND_RANK_CHANGE [Broadcast] Target: %s, Issuer: %s, RankId: %u",
+        targetGuid.ToString().c_str(), setterGuid.ToString().c_str(), newRankId);
 }
 
 void Guild::ResetTimes(bool weekly)
