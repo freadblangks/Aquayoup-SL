@@ -59,14 +59,10 @@ namespace WorldPackets
                     uint32 RankID;
                     uint32 RankOrder;
                     std::string RankName;
-
-                    bool operator<(GuildInfoRank const& right) const
-                    {
-                        return RankID < right.RankID;
-                    }
+            
                 };
 
-                std::set<GuildInfoRank> Ranks; ///< Ordered by RankID ascending
+                std::vector<GuildInfoRank> Ranks;
 
                 uint32 EmblemStyle = 0;
                 uint32 EmblemColor = 0;
