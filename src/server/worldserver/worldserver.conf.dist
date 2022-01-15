@@ -51,6 +51,7 @@
 #	 SOLOCRAFT
 #	 ALL CLASSES TAME
 #	 GAINHONORONGUARDKILL
+#	 CUSTOMSPEEDGAME
 #
 ###################################################################################################
 
@@ -5254,16 +5255,90 @@ Tame.Instant = false
 # as so in the database.
 # Default : 0 (No honor when you kill a guard)
 #
-
 Custom.GainHonorOnGuardKill = 0
-
 #
 # Custom.GainHonorOnEliteKill
 # Set it to 1 to gain honor when you kill an elite mob (this does not apply on rare mob, unless he is also elite).
 # Default : 0 (No honor when you kill an elite mob)
 #
-
 Custom.GainHonorOnEliteKill = 0
-
 #
-###################################################################################################
+# Custom.GainHonorOnBossKill
+# Set it to 1 to gain honor when you kill a boss.
+# Default : 0 (No honor when you kill a boss)
+#
+Custom.GainHonorOnBossKill = 0
+#
+##########BONUS###########################
+# Custom.GainHonorOnGuardKill.Bonus
+# Give a bonus amount of honor.
+# Set it to 1000 and an extra 1000 honor would be added to whatever amount of honor is given.
+# Default : 0 (No bonus honor will be given )
+#
+Custom.GainHonorOnGuardKill.Bonus = 0
+#
+# Custom.GainHonorOnEliteKill.Bonus
+# Give a bonus amount of honor.
+# Set it to 1000 and an extra 1000 honor would be added to whatever amount of honor is given.
+# Default : 0 (No bonus honor will be given )
+#
+Custom.GainHonorOnEliteKill.Bonus = 0
+#
+# Custom.GainHonorOnBossKill.Bonus
+# Give a bonus amount of honor.
+# Set it to 1000 and an extra 1000 honor would be added to whatever amount of honor is given.
+# Default : 0 (No bonus honor will be given )
+#
+Custom.GainHonorOnBossKill.Bonus = 0
+#
+##########AREANA_POINTS###########################
+# Custom.GainHonorOnGuardKill.AreanPoints
+# Also give Arena Points on Guard kills.
+# Set it to 1 to also receive AP.
+# Default : 0 (No AP will be given )
+#
+Custom.GainHonorOnGuardKill.AreanPoints = 0
+#
+# Custom.GainHonorOnEliteKill.AreanPoints
+# Also give Arena Points on Elite kills.
+# Set it to 1 to also receive AP.
+# Default : 0 (No AP will be given )
+#
+Custom.GainHonorOnEliteKill.AreanPoints = 0
+#
+# Custom.GainHonorOnBossKill.AreanPoints
+# Also give Arena Points on Boss kills.
+# Set it to 1 to also receive AP.
+# Default : 0 (No AP will be given )
+#
+Custom.GainHonorOnBossKill.AreanPoints = 0
+#
+##########GOLD###########################
+# Custom.GainHonorOnGuardKill.Gold
+# Also give gold on Guard kills.
+# Default : 0 (No gold will be given )
+#
+Custom.GainHonorOnGuardKill.Gold = 0
+#
+# Custom.GainHonorOnEliteKill.Gold
+# Also give gold on Elite kills.
+# Default : 0 (No gold will be given )
+#
+Custom.GainHonorOnEliteKill.Gold = 0
+#
+# Custom.GainHonorOnBossKill.Gold
+# Also give gold on Boss kills.
+# Default : 0 (No gold will be given )
+#
+Custom.GainHonorOnBossKill.Gold = 0
+#
+#############CUSTOMSPEEDGAME#############################################################################
+#
+# Custom.SpeedGame
+# Set it to a number upper than 1 to speed up realm timer
+# Default : 1 (Real Time)
+# Example : 60 to force 1scde (real time) = 1 minute (realm timer)
+#
+Custom.SpeedGame = 1
+#
+################################################################################################### 
