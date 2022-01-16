@@ -658,6 +658,17 @@ void World::LoadConfigSettings(bool reload)
 	/// -Read guard elite honor patch from the config file
 	m_bool_configs[CONFIG_GAIN_HONOR_GUARD] = sConfigMgr->GetBoolDefault("Custom.GainHonorOnGuardKill", false);
     m_bool_configs[CONFIG_GAIN_HONOR_ELITE] = sConfigMgr->GetBoolDefault("Custom.GainHonorOnEliteKill", false);
+	 m_bool_configs[CONFIG_GAIN_HONOR_BOSS] = sConfigMgr->GetBoolDefault("Custom.GainHonorOnBossKill", false);
+	m_bool_configs[CONFIG_GAIN_HONOR_GUARD_AP] = sConfigMgr->GetBoolDefault("Custom.GainHonorOnGuardKill.AreanPoints", false);
+    m_bool_configs[CONFIG_GAIN_HONOR_ELITE_AP] = sConfigMgr->GetBoolDefault("Custom.GainHonorOnEliteKill.AreanPoints", false);
+	m_bool_configs[CONFIG_GAIN_HONOR_BOSS_AP] = sConfigMgr->GetBoolDefault("Custom.GainHonorOnBossKill.AreanPoints", false);
+	m_int_configs[CONFIG_GAIN_HONOR_GUARD_BONUS] = sConfigMgr->GetIntDefault("Custom.GainHonorOnGuardKill.Bonus", 0);
+	m_int_configs[CONFIG_GAIN_HONOR_ELITE_BONUS] = sConfigMgr->GetIntDefault("Custom.GainHonorOnEliteKill.Bonus", 0);
+	m_int_configs[CONFIG_GAIN_HONOR_BOSS_BONUS] = sConfigMgr->GetIntDefault("Custom.GainHonorOnBossKill.Bonus", 0);
+	m_int_configs[CONFIG_GAIN_HONOR_GUARD_GOLD] = sConfigMgr->GetIntDefault("Custom.GainHonorOnGuardKill.Gold", 0);
+	m_int_configs[CONFIG_GAIN_HONOR_ELITE_GOLD] = sConfigMgr->GetIntDefault("Custom.GainHonorOnEliteKill.Gold", 0);
+	m_int_configs[CONFIG_GAIN_HONOR_BOSS_GOLD] = sConfigMgr->GetIntDefault("Custom.GainHonorOnBossKill.Gold", 0);
+	
 	///- Read other configuration items from the config file
     m_bool_configs[CONFIG_DURABILITY_LOSS_IN_PVP] = sConfigMgr->GetBoolDefault("DurabilityLoss.InPvP", false);
 
@@ -1307,6 +1318,7 @@ void World::LoadConfigSettings(bool reload)
     m_visibility_notify_periodInArenas     = sConfigMgr->GetIntDefault("Visibility.Notify.Period.InArenas",     DEFAULT_VISIBILITY_NOTIFY_PERIOD);
 
 	m_float_configs[CONFIG_SPEED_TAXI] = sConfigMgr->GetFloatDefault("Custom.SpeedTaxi", 1.0f);
+	m_float_configs[CONFIG_SPEED_GAME] = sConfigMgr->GetFloatDefault("Custom.SpeedGame", 1.0f);
 	
     ///- Load the CharDelete related config options
     m_int_configs[CONFIG_CHARDELETE_METHOD] = sConfigMgr->GetIntDefault("CharDelete.Method", 0);
