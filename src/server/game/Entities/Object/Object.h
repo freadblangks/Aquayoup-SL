@@ -63,6 +63,9 @@ class ZoneScript;
 struct FactionTemplateEntry;
 struct PositionFullTerrainStatus;
 struct QuaternionData;
+#ifdef ELUNA
+class ElunaEventProcessor;
+#endif
 enum ZLiquidStatus : uint32;
 
 namespace WorldPackets
@@ -146,6 +149,7 @@ float const DEFAULT_COLLISION_HEIGHT = 2.03128f; // Most common value in dbc
 class TC_GAME_API Object
 {
     public:
+        ThisCore::AnyData Variables;
         virtual ~Object();
 
         bool IsInWorld() const { return m_inWorld; }
@@ -441,7 +445,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
     public:
         virtual ~WorldObject();
 
-        virtual void Update(uint32 /*time_diff*/) { }
+        virtual void Update(uint32 time_diff);
 
         void AddToWorld() override;
         void RemoveFromWorld() override;
@@ -674,6 +678,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void SetFarVisible(bool on);
         bool IsVisibilityOverridden() const { return m_visibilityDistanceOverride.is_initialized(); }
         void SetVisibilityDistanceOverride(VisibilityDistanceType type);
+        void SetVisibilityDistanceOverride(float distance);
         void SetWorldObject(bool apply);
         bool IsPermanentWorldObject() const { return m_isWorldObject; }
         bool IsWorldObject() const;
@@ -719,6 +724,10 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         ObjectGuid GetPrivateObjectOwner() const { return _privateObjectOwner; }
         void SetPrivateObjectOwner(ObjectGuid const& owner) { _privateObjectOwner = owner; }
         bool CheckPrivateObjectOwnerVisibility(WorldObject const* seer) const;
+
+#ifdef ELUNA
+        ElunaEventProcessor* ElunaEvents;
+#endif
 
     protected:
         std::string m_name;

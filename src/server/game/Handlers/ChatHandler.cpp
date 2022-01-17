@@ -177,6 +177,7 @@ void WorldSession::HandleChatMessage(ChatMsg type, Language lang, std::string ms
         {
             switch (type)
             {
+                case CHAT_MSG_EMOTE:
                 case CHAT_MSG_PARTY:
                 case CHAT_MSG_RAID:
                 case CHAT_MSG_RAID_WARNING:
@@ -306,11 +307,11 @@ void WorldSession::HandleChatMessage(ChatMsg type, Language lang, std::string ms
                     return;
                 }
 
-                if (GetPlayer()->GetTeam() != receiver->GetTeam() && !HasPermission(rbac::RBAC_PERM_TWO_SIDE_INTERACTION_CHAT))
+                /*if (GetPlayer()->GetTeam() != receiver->GetTeam() && !HasPermission(rbac::RBAC_PERM_TWO_SIDE_INTERACTION_CHAT))
                 {
                     SendChatPlayerNotfoundNotice(target);
                     return;
-                }
+                }*/
             }
 
             if (GetPlayer()->HasAura(1852) && !receiver->IsGameMaster())
