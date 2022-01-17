@@ -66,6 +66,7 @@ enum ShamanSpells
     SPELL_SHAMAN_FLAMETONGUE_WEAPON_AURA        = 319778,
     SPELL_SHAMAN_GATHERING_STORMS               = 198299,
     SPELL_SHAMAN_GATHERING_STORMS_BUFF          = 198300,
+    SPELL_SHAMAN_GHOST_WOLF                     = 2645,
     SPELL_SHAMAN_HEALING_RAIN_VISUAL            = 147490,
     SPELL_SHAMAN_HEALING_RAIN_HEAL              = 73921,
     SPELL_SHAMAN_ICEFURY                        = 210714,
@@ -79,11 +80,6 @@ enum ShamanSpells
     SPELL_SHAMAN_LAVA_BURST_BONUS_DAMAGE        = 71824,
     SPELL_SHAMAN_LAVA_BURST_OVERLOAD            = 77451,
     SPELL_SHAMAN_LAVA_SURGE                     = 77762,
-<<<<<<< HEAD
-    SPELL_SHAMAN_LAVA_BURST_DAMAGE              = 285452,
-    SPELL_SHAMAN_LAVA_BURST_OVERLOAD            = 77451,
-=======
->>>>>>> pr/95
     SPELL_SHAMAN_LIGHTNING_BOLT                 = 188196,
     SPELL_SHAMAN_LIGHTNING_BOLT_ENERGIZE        = 214815,
     SPELL_SHAMAN_LIGHTNING_BOLT_OVERLOAD        = 45284,
@@ -95,12 +91,9 @@ enum ShamanSpells
     SPELL_SHAMAN_PATH_OF_FLAMES_TALENT          = 201909,
     SPELL_SHAMAN_POWER_SURGE                    = 40466,
     SPELL_SHAMAN_SATED                          = 57724,
-<<<<<<< HEAD
-=======
     SPELL_SHAMAN_SPIRIT_WOLF_TALENT             = 260878,
     SPELL_SHAMAN_SPIRIT_WOLF_PERIODIC           = 260882,
     SPELL_SHAMAN_SPIRIT_WOLF_AURA               = 260881,
->>>>>>> pr/95
     SPELL_SHAMAN_STORMKEEPER                    = 191634,
     SPELL_SHAMAN_TIDAL_WAVES                    = 53390,
     SPELL_SHAMAN_TOTEMIC_POWER_MP5              = 28824,
@@ -109,8 +102,7 @@ enum ShamanSpells
     SPELL_SHAMAN_TOTEMIC_POWER_ARMOR            = 28827,
     SPELL_SHAMAN_UNLIMITED_POWER_BUFF           = 272737,
     SPELL_SHAMAN_WINDFURY_ATTACK                = 25504,
-    SPELL_SHAMAN_UNLIMITED_POWER_BUFF           = 272737,
-    SPELL_SHAMAN_UNLIMITED_POWER_TALENT         = 260895,
+    SPELL_SHAMAN_WINDFURY_ENCHANTMENT           = 334302,
     SPELL_SHAMAN_WIND_RUSH                      = 192082,
 };
 
@@ -197,7 +189,7 @@ class spell_sha_ancestral_guidance : public AuraScript
     void Register() override
     {
         DoCheckProc += AuraCheckProcFn(spell_sha_ancestral_guidance::CheckProc);
-        OnEffectProc += AuraEffectProcFn(spell_sha_ancestral_guidance::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectProc += AuraEffectProcFn(spell_sha_ancestral_guidance::HandleEffectProc, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
 
@@ -213,7 +205,7 @@ class spell_sha_ancestral_guidance_heal : public SpellScript
 
     void ResizeTargets(std::list<WorldObject*>& targets)
     {
-        Trinity::Containers::RandomResize(targets, 3);
+        Trinity::SelectRandomInjuredTargets(targets, 3, true);
     }
 
     void Register() override
@@ -630,7 +622,23 @@ class spell_sha_healing_rain : public SpellScript
 
     void Register() override
     {
-        OnHit += SpellHitFn(spell_sha_healing_rain::InitializeVisualStalker);
+        AfterHit += SpellHitFn(spell_sha_healing_rain::InitializeVisualStalker);
+    }
+};
+
+// 73921 - Healing Rain
+class spell_sha_healing_rain_target_limit : public SpellScript
+{
+    PrepareSpellScript(spell_sha_healing_rain_target_limit);
+
+    void SelectTargets(std::list<WorldObject*>& targets)
+    {
+        Trinity::SelectRandomInjuredTargets(targets, 6, true);
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_healing_rain_target_limit::SelectTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
     }
 };
 
@@ -641,15 +649,7 @@ class spell_sha_healing_stream_totem_heal : public SpellScript
 
     void SelectTargets(std::list<WorldObject*>& targets)
     {
-        targets.remove_if([](WorldObject* target)
-        {
-            return !target->ToUnit() || target->ToUnit()->IsFullHealth();
-        });
-
-        Trinity::Containers::RandomResize(targets, 1);
-
-        if (targets.empty())
-            targets.push_back(GetOriginalCaster());
+        Trinity::SelectRandomInjuredTargets(targets, 1, true);
     }
 
     void Register() override
@@ -882,14 +882,13 @@ class spell_sha_lava_burst : public SpellScript
     void HandleScript(SpellEffIndex /*effIndex*/)
     {
         if (Unit* caster = GetCaster())
-            if (Unit* target = GetExplTargetUnit())
-                if (caster->HasAura(SPELL_SHAMAN_PATH_OF_FLAMES_TALENT))
-                    caster->CastSpell(target, SPELL_SHAMAN_PATH_OF_FLAMES_SPREAD, true);
+            if (caster->HasAura(SPELL_SHAMAN_PATH_OF_FLAMES_TALENT))
+                caster->CastSpell(GetHitUnit(), SPELL_SHAMAN_PATH_OF_FLAMES_SPREAD, GetSpell());
     }
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_sha_lava_burst::HandleScript, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+        OnEffectHitTarget += SpellEffectFn(spell_sha_lava_burst::HandleScript, EFFECT_0, SPELL_EFFECT_TRIGGER_MISSILE);
     }
 };
 
@@ -1030,106 +1029,6 @@ class spell_sha_mastery_elemental_overload : public AuraScript
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-<<<<<<< HEAD
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_LIGHTNING_BOLT,
-                SPELL_SHAMAN_LIGHTNING_BOLT_OVERLOAD,
-                SPELL_SHAMAN_ELEMENTAL_BLAST,
-                SPELL_SHAMAN_ELEMENTAL_BLAST_OVERLOAD,
-                SPELL_SHAMAN_ICEFURY,
-                SPELL_SHAMAN_ICEFURY_OVERLOAD,
-                SPELL_SHAMAN_LAVA_BURST_DAMAGE,
-                SPELL_SHAMAN_LAVA_BURST_OVERLOAD,
-                SPELL_SHAMAN_CHAIN_LIGHTNING,
-                SPELL_SHAMAN_CHAIN_LIGHTNING_OVERLOAD,
-                SPELL_SHAMAN_LAVA_BEAM,
-                SPELL_SHAMAN_LAVA_BEAM_OVERLOAD,
-                SPELL_SHAMAN_STORMKEEPER,
-                SPELL_SHAMAN_UNLIMITED_POWER_TALENT,
-                SPELL_SHAMAN_UNLIMITED_POWER_BUFF
-            });
-    }
-
-    bool Load() override
-    {
-        _overloadSpellsMap =
-        {
-            { SPELL_SHAMAN_LIGHTNING_BOLT, SPELL_SHAMAN_LIGHTNING_BOLT_OVERLOAD },
-            { SPELL_SHAMAN_ELEMENTAL_BLAST, SPELL_SHAMAN_ELEMENTAL_BLAST_OVERLOAD },
-            { SPELL_SHAMAN_ICEFURY, SPELL_SHAMAN_ICEFURY_OVERLOAD },
-            { SPELL_SHAMAN_LAVA_BURST_DAMAGE, SPELL_SHAMAN_LAVA_BURST_OVERLOAD },
-            { SPELL_SHAMAN_CHAIN_LIGHTNING, SPELL_SHAMAN_CHAIN_LIGHTNING_OVERLOAD },
-            { SPELL_SHAMAN_LAVA_BEAM, SPELL_SHAMAN_LAVA_BEAM_OVERLOAD }
-        };
-
-        return true;
-    }
-
-    bool CheckProc(ProcEventInfo& eventInfo)
-    {
-        SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
-        if (!spellInfo)
-            return false;
-
-        if (!Trinity::Containers::MapGetValuePtr(_overloadSpellsMap, spellInfo->Id))
-            return false;
-
-        int chance = GetEffect(EFFECT_0)->GetAmount();   // Mastery % amount
-
-        if (spellInfo->Id == SPELL_SHAMAN_LIGHTNING_BOLT || spellInfo->Id == SPELL_SHAMAN_CHAIN_LIGHTNING)
-            if (GetCaster()->ToPlayer()->HasAura(SPELL_SHAMAN_STORMKEEPER))
-                chance = 100;
-
-        return roll_chance_i(chance);
-    }
-
-    void HandleProc(ProcEventInfo& procInfo)
-    {
-        PreventDefaultAction();
-
-        if (auto spellOverloadID = Trinity::Containers::MapGetValuePtr(_overloadSpellsMap, procInfo.GetSpellInfo()->Id))
-        {
-            Unit* caster = GetCaster();
-            Unit* target = procInfo.GetProcTarget();
-
-            CastSpellExtraArgs args(TRIGGERED_CAST_DIRECTLY);
-            caster->CastSpell(target, *spellOverloadID, args);
-
-            if (caster->HasAura(SPELL_SHAMAN_UNLIMITED_POWER_TALENT))
-            {
-                if (Aura* aura = caster->GetAura(SPELL_SHAMAN_UNLIMITED_POWER_BUFF))
-                    aura->SetStackAmount(aura->GetStackAmount() + 1);
-                else
-                    caster->CastSpell(caster, SPELL_SHAMAN_UNLIMITED_POWER_BUFF, true);
-            }
-        }
-    }
-
-    void HandleEffectCalcSpellMod(AuraEffect const* aurEff, SpellModifier*& spellMod)
-    {
-        if (!spellMod)
-        {
-            SpellModifierByClassMask* mod = new SpellModifierByClassMask(GetAura());
-            mod->op = SpellModOp::BonusCoefficient;
-            mod->type = SPELLMOD_PCT;
-            mod->spellId = GetId();
-            spellMod = mod;
-        }
-        static_cast<SpellModifierByClassMask*>(spellMod)->value = aurEff->GetAmount() - 100;
-        static_cast<SpellModifierByClassMask*>(spellMod)->mask[2] = 0x8000; // all overload spells
-    }
-
-    void Register() override
-    {
-        DoCheckProc += AuraCheckProcFn(spell_sha_mastery_elemental_overload::CheckProc);
-        OnProc += AuraProcFn(spell_sha_mastery_elemental_overload::HandleProc);
-        DoEffectCalcSpellMod += AuraEffectCalcSpellModFn(spell_sha_mastery_elemental_overload::HandleEffectCalcSpellMod, EFFECT_1, SPELL_AURA_DUMMY);
-    }
-
-private:
-    std::map<uint32, uint32> _overloadSpellsMap;
-=======
         return ValidateSpellInfo
         ({
             SPELL_SHAMAN_LIGHTNING_BOLT,
@@ -1232,7 +1131,6 @@ class spell_sha_mastery_elemental_overload_proc : public SpellScript
     {
         OnEffectHitTarget += SpellEffectFn(spell_sha_mastery_elemental_overload_proc::ApplyDamageModifier, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
     }
->>>>>>> pr/95
 };
 
 // 30884 - Nature's Guardian
@@ -1289,6 +1187,37 @@ class spell_sha_path_of_flames_spread : public SpellScript
     {
         OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_path_of_flames_spread::FilterTargets, EFFECT_1, TARGET_UNIT_DEST_AREA_ENEMY);
         OnEffectHitTarget += SpellEffectFn(spell_sha_path_of_flames_spread::HandleScript, EFFECT_1, SPELL_EFFECT_DUMMY);
+    }
+};
+
+// 2645 - Ghost Wolf
+// 260878 - Spirit Wolf
+class spell_sha_spirit_wolf : public AuraScript
+{
+    PrepareAuraScript(spell_sha_spirit_wolf);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_GHOST_WOLF, SPELL_SHAMAN_SPIRIT_WOLF_TALENT, SPELL_SHAMAN_SPIRIT_WOLF_PERIODIC, SPELL_SHAMAN_SPIRIT_WOLF_AURA });
+    }
+
+    void OnApply(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        Unit* target = GetTarget();
+        if (target->HasAura(SPELL_SHAMAN_SPIRIT_WOLF_TALENT) && target->HasAura(SPELL_SHAMAN_GHOST_WOLF))
+            target->CastSpell(target, SPELL_SHAMAN_SPIRIT_WOLF_PERIODIC, aurEff);
+    }
+
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_SHAMAN_SPIRIT_WOLF_PERIODIC);
+        GetTarget()->RemoveAurasDueToSpell(SPELL_SHAMAN_SPIRIT_WOLF_AURA);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(spell_sha_spirit_wolf::OnApply, EFFECT_0, SPELL_AURA_ANY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_sha_spirit_wolf::OnRemove, EFFECT_0, SPELL_AURA_ANY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
@@ -1542,10 +1471,6 @@ class spell_sha_t10_restoration_4p_bonus : public AuraScript
     }
 };
 
-<<<<<<< HEAD
-// 33757 - Windfury
-class spell_sha_windfury : public AuraScript
-=======
 // 260895 - Unlimited Power
 class spell_sha_unlimited_power : public AuraScript
 {
@@ -1602,9 +1527,8 @@ class spell_sha_windfury_weapon : public SpellScript
 
 // 319773 - Windfury Weapon (proc)
 class spell_sha_windfury_weapon_proc : public AuraScript
->>>>>>> pr/95
 {
-    PrepareAuraScript(spell_sha_windfury);
+    PrepareAuraScript(spell_sha_windfury_weapon_proc);
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
@@ -1621,7 +1545,7 @@ class spell_sha_windfury_weapon_proc : public AuraScript
 
     void Register() override
     {
-        OnEffectProc += AuraEffectProcFn(spell_sha_windfury::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectProc += AuraEffectProcFn(spell_sha_windfury_weapon_proc::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
 
@@ -1686,6 +1610,7 @@ void AddSC_shaman_spell_scripts()
     RegisterSpellScript(spell_sha_flametongue_weapon);
     RegisterAuraScript(spell_sha_flametongue_weapon_aura);
     RegisterSpellAndAuraScriptPair(spell_sha_healing_rain, spell_sha_healing_rain_aura);
+    RegisterSpellScript(spell_sha_healing_rain_target_limit);
     RegisterSpellScript(spell_sha_healing_stream_totem_heal);
     RegisterSpellScript(spell_sha_heroism);
     RegisterAuraScript(spell_sha_item_lightning_shield);
@@ -1701,12 +1626,10 @@ void AddSC_shaman_spell_scripts()
     RegisterSpellScript(spell_sha_lightning_bolt_overload);
     RegisterSpellScript(spell_sha_liquid_magma_totem);
     RegisterAuraScript(spell_sha_mastery_elemental_overload);
-<<<<<<< HEAD
-=======
     RegisterSpellScript(spell_sha_mastery_elemental_overload_proc);
->>>>>>> pr/95
     RegisterAuraScript(spell_sha_natures_guardian);
     RegisterSpellScript(spell_sha_path_of_flames_spread);
+    RegisterAuraScript(spell_sha_spirit_wolf);
     RegisterAuraScript(spell_sha_tidal_waves);
     RegisterAuraScript(spell_sha_t3_6p_bonus);
     RegisterAuraScript(spell_sha_t3_8p_bonus);
@@ -1714,12 +1637,8 @@ void AddSC_shaman_spell_scripts()
     RegisterAuraScript(spell_sha_t9_elemental_4p_bonus);
     RegisterAuraScript(spell_sha_t10_elemental_4p_bonus);
     RegisterAuraScript(spell_sha_t10_restoration_4p_bonus);
-<<<<<<< HEAD
-    RegisterAuraScript(spell_sha_windfury);
-=======
     RegisterAuraScript(spell_sha_unlimited_power);
     RegisterSpellScript(spell_sha_windfury_weapon);
     RegisterAuraScript(spell_sha_windfury_weapon_proc);
->>>>>>> pr/95
     RegisterAreaTriggerAI(areatrigger_sha_wind_rush_totem);
 }

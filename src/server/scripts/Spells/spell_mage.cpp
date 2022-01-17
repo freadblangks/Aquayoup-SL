@@ -481,24 +481,6 @@ class spell_mage_conjure_refreshment : public SpellScript
     }
 };
 
-// 235711 - Chrono Shift
-class spell_mage_chrono_shift : public AuraScript
-{
-    PrepareAuraScript(spell_mage_chrono_shift);
-
-    void HandleProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-
-        GetTarget()->CastSpell((GetEffectInfo(aurEff->GetEffIndex())).EffectIndex == EFFECT_1 ? eventInfo.GetActionTarget() : GetTarget(), (GetEffectInfo(aurEff->GetEffIndex())).TriggerSpell, true);
-    }
-
-    void Register() override
-    {
-        OnEffectProc += AuraEffectProcFn(spell_mage_chrono_shift::HandleProc, EFFECT_ALL, SPELL_AURA_PROC_TRIGGER_SPELL);
-    }
-};
-
 // 112965 - Fingers of Frost
 class spell_mage_fingers_of_frost : public AuraScript
 {
@@ -536,20 +518,6 @@ class spell_mage_fingers_of_frost : public AuraScript
 };
 
 // 133 - Fireball
-<<<<<<< HEAD
-class spell_mage_fireball : public SpellScript
-{
-    PrepareSpellScript(spell_mage_fireball);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo ({ SPELL_MAGE_FIRESTARTER }); // valid for spell_mage_pyroblast script
-    }
-
-    void HandleCritChance(Unit const* victim, float& critChance)
-    {
-        if (AuraEffect* aurEff = GetCaster()->GetAuraEffect(SPELL_MAGE_FIRESTARTER, EFFECT_0))
-=======
 // 11366 - Pyroblast
 class spell_mage_firestarter : public SpellScript
 {
@@ -563,16 +531,12 @@ class spell_mage_firestarter : public SpellScript
     void CalcCritChance(Unit const* victim, float& critChance)
     {
         if (AuraEffect const* aurEff = GetCaster()->GetAuraEffect(SPELL_MAGE_FIRESTARTER, EFFECT_0))
->>>>>>> pr/95
             if (victim->GetHealthPct() >= aurEff->GetAmount())
                 critChance = 100.0f;
     }
 
     void Register() override
     {
-<<<<<<< HEAD
-        OnCalcCritChance += SpellOnCalcCritChanceFn(spell_mage_fireball::HandleCritChance);
-=======
         OnCalcCritChance += SpellOnCalcCritChanceFn(spell_mage_firestarter::CalcCritChance);
     }
 };
@@ -597,7 +561,6 @@ class spell_mage_firestarter_dots : public AuraScript
     void Register() override
     {
         DoEffectCalcCritChance += AuraEffectCalcCritChanceFn(spell_mage_firestarter_dots::CalcCritChance, EFFECT_ALL, SPELL_AURA_PERIODIC_DAMAGE);
->>>>>>> pr/95
     }
 };
 
@@ -987,24 +950,6 @@ class spell_mage_prismatic_barrier : public AuraScript
     }
 };
 
-// 11366 - Pyroblast
-class spell_mage_pyroblast : public SpellScript
-{
-    PrepareSpellScript(spell_mage_pyroblast);
-
-    void HandleCritChance(Unit const* victim, float& critChance)
-    {
-        if (AuraEffect* aurEff = GetCaster()->GetAuraEffect(SPELL_MAGE_FIRESTARTER, EFFECT_0))
-            if (victim->GetHealthPct() >= aurEff->GetAmount())
-                critChance = 100.0f;
-    }
-
-    void Register() override
-    {
-        OnCalcCritChance += SpellOnCalcCritChanceFn(spell_mage_pyroblast::HandleCritChance);
-    }
-};
-
 // 136511 - Ring of Frost
 class spell_mage_ring_of_frost : public AuraScript
 {
@@ -1257,14 +1202,9 @@ void AddSC_mage_spell_scripts()
     RegisterSpellScript(spell_mage_cold_snap);
     RegisterSpellScript(spell_mage_cone_of_cold);
     RegisterSpellScript(spell_mage_conjure_refreshment);
-    RegisterAuraScript(spell_mage_chrono_shift);
     RegisterAuraScript(spell_mage_fingers_of_frost);
-<<<<<<< HEAD
-    RegisterSpellScript(spell_mage_fireball);
-=======
     RegisterSpellScript(spell_mage_firestarter);
     RegisterAuraScript(spell_mage_firestarter_dots);
->>>>>>> pr/95
     RegisterAuraScript(spell_mage_ice_barrier);
     RegisterSpellScript(spell_mage_ice_block);
     RegisterSpellScript(spell_mage_ice_lance);
@@ -1277,7 +1217,6 @@ void AddSC_mage_spell_scripts()
     RegisterAuraScript(spell_mage_living_bomb_periodic);
     RegisterSpellScript(spell_mage_polymorph_visual);
     RegisterAuraScript(spell_mage_prismatic_barrier);
-    RegisterSpellScript(spell_mage_pyroblast);
     RegisterAuraScript(spell_mage_ring_of_frost);
     RegisterSpellAndAuraScriptPair(spell_mage_ring_of_frost_freeze, spell_mage_ring_of_frost_freeze_AuraScript);
     RegisterSpellScript(spell_mage_time_warp);
