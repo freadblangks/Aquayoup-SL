@@ -4642,6 +4642,30 @@ void SpellMgr::LoadSpellInfoCorrections()
 
     // ENDOF ANTORUS THE BURNING THRONE SPELLS
 
+    //
+    // SANCTUM OF DOMINATION
+    //
+
+    // Domination Chain (Player)
+    ApplySpellFix({ 349451 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->AttributesEx2 |= SPELL_ATTR2_CAN_TARGET_NOT_IN_LOS;
+    });
+
+    // Rive Marker
+    ApplySpellFix({ 353419 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(28); // 5s
+    });
+
+    // Banshee Wail (Marker)
+    ApplySpellFix({ 357719 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->Attributes |= SPELL_ATTR0_NEGATIVE_1;
+    });
+
+    // END OF SANCTUM OF DOMINATION
+
     // Summon Master Li Fei
     ApplySpellFix({ 102445 }, [](SpellInfo* spellInfo)
         {

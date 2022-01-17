@@ -1,15 +1,16 @@
  -- Sanctum of Domination
+ 
 SET @CGUID := 1200000;
 SET @OGUID := 650000;
 
-DELETE FROM `access_requirement` WHERE `mapId` IN (2450);
+DELETE FROM `access_requirement` WHERE `mapId`=2450;
 INSERT INTO `access_requirement` (`mapId`, `difficulty`, `level_min`, `level_max`, `item`, `item2`, `quest_done_A`, `quest_done_H`, `completed_achievement`, `quest_failed_text`, `comment`) VALUES 
 (2450, 17, 60, 0, 0, 0, 0, 0, 0, NULL, 'Sanctum of Domination - Looking for Raid Mode'),
 (2450, 14, 60, 0, 0, 0, 0, 0, 0, NULL, 'Sanctum of Domination - Normal Mode'),
 (2450, 15, 60, 0, 0, 0, 0, 0, 0, NULL, 'Sanctum of Domination - Heroic Mode'),
 (2450, 16, 60, 0, 0, 0, 0, 0, 0, NULL, 'Sanctum of Domination - Mythic Mode');
 
-DELETE FROM `instance_template` WHERE `map` IN (2450);
+DELETE FROM `instance_template` WHERE `map`=2450;
 INSERT INTO `instance_template` (`map`, `parent`, `script`) VALUES
 (2450, 0, 'instance_sanctum_of_domination');
 
@@ -23,42 +24,42 @@ INSERT INTO `scene_template` (`SceneId`, `Flags`, `ScriptPackageID`, `Encrypted`
 (2723, 20, 3218, 0),
 (2799, 16, 3314, 0);
 
- -- 
- -- PHASE 1
-
-DELETE FROM `conversation_template` WHERE `Id` IN (17368, 17375);
+ --
+ -- Introduction
+ 
+DELETE FROM `conversation_template` WHERE `Id`=17368;
 INSERT INTO `conversation_template` (`Id`, `FirstLineId`, `TextureKitId`, `ScriptName`, `VerifiedBuild`) VALUES 
-(17368, 44215, 0, '', 41079),
-(17375, 54141, 0, '', 41079);
+(17368, 44215, 0, '', 41079);
 
-DELETE FROM `conversation_actors` WHERE `ConversationId` IN (17368, 17375);
+DELETE FROM `conversation_actors` WHERE `ConversationId`=17368;
 INSERT INTO `conversation_actors` (`ConversationId`, `ConversationActorId`, `ConversationActorGuid`, `Idx`, `CreatureId`, `CreatureDisplayInfoId`, `VerifiedBuild`) VALUES 
 (17368, 80339, 1200000, 0, 0, 0, 41079),
-(17368, 81173, 1200001, 1, 0, 0, 41079),
-(17375, 81173, 0, 0, 0, 0, 41079),
-(17375, 80411, 0, 1, 0, 0, 41079),
-(17375, 80412, 0, 2, 0, 0, 41079);
+(17368, 81173, 1200001, 1, 0, 0, 41079);
 
-DELETE FROM `conversation_line_template` WHERE `Id` IN (44219, 44218, 44217, 44216, 44215, 44244, 44245, 44246, 44247, 44248, 44249, 44250, 44251);
+DELETE FROM `conversation_line_template` WHERE `Id` IN (44219, 44218, 44217, 44216, 44215);
 INSERT INTO `conversation_line_template` (`Id`, `UiCameraID`, `ActorIdx`, `Flags`, `VerifiedBuild`) VALUES
 (44219, 0, 0, 1, 41079),
 (44218, 0, 0, 1, 41079),
 (44217, 0, 1, 1, 41079),
 (44216, 0, 0, 1, 41079),
-(44215, 0, 0, 1, 41079),
-(44244, 0, 0, 0, 41079),
-(44245, 0, 1, 0, 41079),
-(44246, 0, 0, 0, 41079),
-(44247, 0, 2, 0, 41079),
-(44248, 0, 1, 0, 41079),
-(44249, 0, 2, 0, 41079),
-(44250, 0, 0, 0, 41079),
-(44251, 0, 0, 1, 41079);
+(44215, 0, 0, 1, 41079);
+
+ -- 
+ -- Phase 1
 
  -- Throne of the Damned
-DELETE FROM `creature_template` WHERE `entry`=180803;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(180803, 'Throne of the Damned', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 190, 16777216, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 768, 67143680, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, '', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=190, `npcflag`=16777216, `BaseAttackTime`=2000, `unit_flags`=768, `unit_flags2`=67143680, `unit_flags3`=1 WHERE `entry`=180803;
+
+DELETE FROM `creature_template_addon` WHERE `entry`=180803;
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES 
+(180803, 0, 0, 0, 1, 0, 0, 0, 0, 0, '355809');
+
+DELETE FROM `creature_template_scaling` WHERE `Entry`=180803;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(180803, 14, 0, 0, 2104, 41488),
+(180803, 15, 0, 0, 2105, 41488),
+(180803, 16, 0, 0, 2106, 41488),
+(180803, 17, 0, 0, 2107, 41488);
 
 DELETE FROM `npc_spellclick_spells` WHERE `npc_entry`=180803 AND `spell_id`=358839;
 INSERT INTO `npc_spellclick_spells` (`npc_entry`, `spell_id`, `cast_flags`, `user_type`) VALUES 
@@ -68,14 +69,12 @@ DELETE FROM `spell_target_position` WHERE `ID`=358839 AND `EffectIndex`=0;
 INSERT INTO `spell_target_position` (`ID`, `EffectIndex`, `MapID`, `PositionX`, `PositionY`, `PositionZ`, `VerifiedBuild`) VALUES 
 (358839, 0, 0, 0, 0, 0, 41079);
 
- -- Sylvanas Windrunner
-DELETE FROM `creature_template` WHERE `entry`=175732;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(175732, 'Sylvanas Windrunner', NULL, NULL, NULL, NULL, 0, 63, 63, 8, 0, 0, 16, 0, 1.6, 2, 1, 3, 0, 1000, 1750, 1, 1, 4, 64, 1073741824, 8388610, 0, 0, 0, 0, 4, 0, 0, 0, 0, 7461, 0, 0, '', 0, 1, 1443.76, 1, 1, 1, 1, 1, 1, 0, 183, 204626, 0, 0, 1, 617299839, 0, 0, 'boss_sylvanas_windrunner', 41079);
+ -- Sylvanas Windrunner																																				  At the end=8396803
+UPDATE `creature_template` SET `minlevel`=63, `maxlevel`=63, `faction`=16, `speed_walk`=1.60000002384185791, `speed_run`=2, `BaseAttackTime`=1000, `unit_flags`=832, `unit_flags3`=0, `VehicleId`=7461, `mechanic_immune_mask`=617299839, `ScriptName`='boss_sylvanas_windrunner' WHERE `entry`=175732; 
 
 DELETE FROM `creature_template_addon` WHERE `entry`=175732;
-INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
-(175732, 0, 0, 0, 1, 0, 0, 0, 4, '');
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES 
+(175732, 0, 0, 0, 2, 0, 0, 0, 0, 4, '');
 
 DELETE FROM `creature_equip_template` WHERE `CreatureID`=175732;
 INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `AppearanceModID1`, `ItemVisual1`, `ItemID2`, `AppearanceModID2`, `ItemVisual2`, `ItemID3`, `AppearanceModID3`, `ItemVisual3`) VALUES
@@ -83,10 +82,10 @@ INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `Appearanc
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=175732;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(175732, 17, 3, 3, 2107, 41079),
 (175732, 14, 3, 3, 2104, 41079),
 (175732, 15, 3, 3, 2105, 41079),
-(175732, 16, 3, 3, 2106, 41079);
+(175732, 16, 3, 3, 2106, 41079),
+(175732, 17, 3, 3, 2107, 41079);
 
 DELETE FROM `creature_model_info` WHERE `DisplayID`=101311;
 INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `DisplayID_Other_Gender`, `VerifiedBuild`) VALUES 
@@ -94,13 +93,7 @@ INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`,
 
 DELETE FROM `creature` WHERE `guid`=@CGUID+0;
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `phaseUseFlags`, `PhaseId`, `PhaseGroup`, `terrainSwapMap`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `ScriptName`, `VerifiedBuild`) VALUES 
-(@CGUID+0, 175732, 2450, 13561, 13653, '14', 0, 0, 0, -1, 0, 1, 225.432, -843.832, 4105.07, 4.05589, 7200, 0, 0, 33925767, 100, 0, 0, 0, 0, 0, 0, '', 41079);
-
-DELETE FROM `creature_summon_groups` WHERE `summonerId`=175732;
-INSERT INTO `creature_summon_groups` (`summonerId`, `summonerType`, `groupId`, `entry`, `position_x`, `position_y`, `position_z`, `orientation`, `summonType`, `summonTime`) VALUES 
-(175732, 0, 0, 178081, 239.795135498046875, -806.06427001953125, 4105.0732421875, 4.772064208984375, 7, 0),
-(175732, 0, 0, 176533, 231.595489501953125, -801.5, 4105.07421875, 5.021806240081787109, 7, 0),
-(175732, 0, 0, 176532, 243.6614532470703125, -804.61456298828125, 4105.07421875, 4.285292625427246093, 7, 0);
+(@CGUID+0, 175732, 2450, 13561, 13653, '14,15,16,17', 0, 0, 0, -1, 0, 1, 225.432, -843.832, 4105.07, 4.05589, 7200, 0, 0, 33925767, 100, 0, 0, 0, 0, 0, 0, '', 41079);
 
 DELETE FROM `creature_text` WHERE `CreatureID`=175732;
 INSERT INTO `creature_text` (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`, `SoundPlayType`, `BroadcastTextId`, `TextRange`, `comment`) VALUES 
@@ -156,46 +149,46 @@ INSERT INTO `npc_spellclick_spells` (`npc_entry`, `spell_id`, `cast_flags`, `use
 
 DELETE FROM `vehicle_template_accessory` WHERE `entry`=175732;
 INSERT INTO `vehicle_template_accessory` (`entry`, `accessory_entry`, `seat_id`, `minion`, `description`, `summontype`, `summontimer`) VALUES 
-(175732, 178355, 0, 0, 'Sylvanas Windrunner on top of Sylvanas', 6, 30000);
+(175732, 178355, 0, 0, 'Sylvanas Windrunner - Shadowcopy', 6, 30000);
 
  -- Sylvanas Shadowcopy (Fight)
-DELETE FROM `creature_template` WHERE `entry`=176369;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(176369, 'Sylvanas', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 16, 0, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 33554432, 2099200, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 'npc_sylvanas_windrunner_shadowcopy', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=16, `BaseAttackTime`=2000, `unit_flags`=33554432, `unit_flags2`=2099200, `unit_flags3`=1, `ScriptName`='npc_sylvanas_windrunner_shadowcopy' WHERE `entry`=176369;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=176369;
-INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
-(176369, 0, 0, 0, 1, 0, 0, 0, 4, '');
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES 
+(176369, 0, 0, 50331648, 1, 0, 0, 0, 0, 4, '');
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=176369;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(176369, 14, 0, 0, 2104, 41079);
+(176369, 14, 0, 0, 2104, 41079),
+(176369, 15, 0, 0, 2105, 41079),
+(176369, 16, 0, 0, 2106, 41079),
+(176369, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=176369;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
 (176369, 1, 0, 1, 0, 0, 0);
 
  -- Sylvanas Shadowcopy (Riding)
-DELETE FROM `creature_template` WHERE `entry`=178355;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(178355, 'Sylvanas', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 16, 0, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 33554432, 35653664, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7461, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 'npc_sylvanas_windrunner_shadowcopy_riding', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=16, `BaseAttackTime`=2000, `unit_flags`=33554432, `unit_flags2`=35653664, `unit_flags3`=1, `ScriptName`='npc_sylvanas_windrunner_shadowcopy_riding' WHERE `entry`=178355;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=178355;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
-(178355, 0, 0, 50331648, 1, 0, 0, 0, 4, '');
+(178355, 0, 0, 0, 1, 0, 0, 0, 4, '');
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=178355;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(178355, 14, 0, 0, 2104, 41079);
+(178355, 14, 0, 0, 2104, 41079),
+(178355, 15, 0, 0, 2105, 41079),
+(178355, 16, 0, 0, 2106, 41079),
+(178355, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=178355;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
 (178355, 1, 0, 1, 0, 0, 0);
 
  -- Domination Arrow
-DELETE FROM `creature_template` WHERE `entry`=176920;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(176920, 'Domination Arrow', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 16, 0, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 0, 4194304, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 'npc_sylvanas_windrunner_domination_arrow', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=16, `BaseAttackTime`=2000, `unit_flags2`=4194304, `unit_flags3`=1, `ScriptName`='npc_sylvanas_windrunner_domination_arrow' WHERE `entry`=176920;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=176920;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -207,13 +200,23 @@ INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`,
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=176920;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(176920, 14, 0, 0, 2104, 41079);
+(176920, 14, 0, 0, 2104, 41079),
+(176920, 15, 0, 0, 2105, 41079),
+(176920, 16, 0, 0, 2106, 41079),
+(176920, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=176920;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
 (176920, 1, 0, 0, 1, 0, 0);
 
  -- Dark Sentinel
+DELETE FROM `creature_template_scaling` WHERE `Entry`=176920;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(176920, 14, 0, 0, 2104, 41079),
+(176920, 15, 0, 0, 2105, 41079),
+(176920, 16, 0, 0, 2106, 41079),
+(176920, 17, 0, 0, 2107, 41079);
+
 DELETE FROM `creature_equip_template` WHERE `CreatureID`=176404;
 INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `AppearanceModID1`, `ItemVisual1`, `ItemID2`, `AppearanceModID2`, `ItemVisual2`, `ItemID3`, `AppearanceModID3`, `ItemVisual3`) VALUES
 (176404, 1, 185997, 0, 0, 185997, 0, 0, 0, 0, 41359);
@@ -375,30 +378,7 @@ DELETE FROM `spell_script_names` WHERE `spell_id`=359431 AND `ScriptName`='spell
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES 
 (359431, 'spell_sylvanas_windrunner_activate_finish_boss');
 
- -- Torghast Spike
-DELETE FROM `gameobject_template` WHERE `entry` IN (368743, 368744, 368745, 368746, 368747, 368748, 368749, 368750, 368751, 368752, 368753, 368754, 365171, 368343, 368344, 368345, 368346, 365172);
---INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconName`, `castBarCaption`, `unk1`, `size`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `Data6`, `Data7`, `Data8`, `Data9`, `Data10`, `Data11`, `Data12`, `Data13`, `Data14`, `Data15`, `Data16`, `Data17`, `Data18`, `Data19`, `Data20`, `Data21`, `Data22`, `Data23`, `Data24`, `Data25`, `Data26`, `Data27`, `Data28`, `Data29`, `Data30`, `Data31`, `Data32`, `Data33`, `Data34`, `ContentTuningId`, `AIName`, `ScriptName`, `VerifiedBuild`) VALUES 
---(368743, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368744, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368745, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368746, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368747, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368748, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368749, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368750, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368751, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368752, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368753, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(368754, 10, 69768, 'Torghast Spike', '', '', '', 0.854589, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41079),
---(365171, 43, 70051, 'Frozen Bridge', '', '', '',  1, 2485, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41359),
---(368343, 43, 70205, 'Frozen Bridge', '', '', '',  1, 2486, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41359),
---(368344, 43, 69874, 'Frozen Bridge', '', '', '',  1, 2487, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41359),
---(368345, 43, 70203, 'Earthen Bridge', '', '', '', 1, 2489, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41359),
---(368346, 43, 70202, 'Earthen Bridge', '', '', '', 1, 2490, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41359),
---(365172, 43, 70204, 'Earthen Bridge', '', '', '', 1, 2488, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', 41359);
---
-
-DELETE FROM `gameobject_template_addon` WHERE `entry` IN (368743, 368744, 368745, 368746, 368747, 368748, 368749, 368750, 368751, 368752, 368753, 368754, 365171, 368343, 368344, 368345, 368346, 365172);
+DELETE FROM `gameobject_template_addon` WHERE `entry` IN (368743, 368744, 368745, 368746, 368747, 368748, 368749, 368750, 368751, 368752, 368753, 368754, 365171, 368343, 368344, 368345, 368346, 365172, 368958, 369242, 369898);
 INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`, `mingold`, `maxgold`, `WorldEffectID`, `AIAnimKitID`) VALUES 
 (368743, 1375, 0, 0, 0, 0, 0),
 (368744, 1375, 0, 0, 0, 0, 0),
@@ -417,22 +397,25 @@ INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`, `mingold`,
 (368344, 2110, 1048608, 0, 0, 0, 0),
 (368345, 2110, 1048608, 0, 0, 0, 0),
 (368346, 2110, 1048608, 0, 0, 0, 0),
-(365172, 2110, 1048608, 0, 0, 0, 0);
+(365172, 2110, 1048608, 0, 0, 0, 0),
+(368958, 0, 48, 0, 0, 0, 0),
+(369242, 1375, 32, 0, 0, 0, 0),
+(369898, 94, 2113568, 0, 0, 0, 0);
 
 DELETE FROM `gameobject` WHERE `guid` BETWEEN @OGUID+0 AND @OGUID+11;
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `PhaseId`, `PhaseGroup`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `VerifiedBuild`) VALUES
-(@OGUID+0, 368743, 2450, 13561, 13653, '14', 0, 0, 305.796173095703125, -801.1678466796875, 4105.228515625, 3.535023689270019531, 0, 0, -0.9807138442993164, 0.19544917345046997, 7200, 255, 1, 41079),
-(@OGUID+1, 368744, 2450, 13561, 13653, '14', 0, 0, 289.4208984375, -775.50555419921875, 4105.228515625, 3.957568168640136718, 0, 0, -0.91792106628417968, 0.396763056516647338, 7200, 255, 1, 41079),
-(@OGUID+2, 368745, 2450, 13561, 13653, '14', 0, 0, 263.83319091796875, -759.12677001953125, 4105.228515625, 4.214824676513671875, 0, 0, -0.85944366455078125, 0.51123046875, 7200, 255, 1, 41079),
-(@OGUID+3, 368746, 2450, 13561, 13653, '14', 0, 0, 206.823974609375, -759.0166015625, 4105.228515625, 5.038183212280273437, 0, 0, -0.58306884765625, 0.812422752380371093, 7200, 255, 1, 41079),
-(@OGUID+4, 368747, 2450, 13561, 13653, '14', 0, 0, 181.166412353515625, -776.0484619140625, 4105.228515625, 5.486774444580078125, 0, 0, -0.38776493072509765, 0.921758294105529785, 7200, 255, 1, 41079),
-(@OGUID+5, 368748, 2450, 13561, 13653, '14', 0, 0, 164.420166015625, -801.205810546875, 4105.228515625, 5.90371561050415039, 0, 0, -0.1885986328125, 0.98205423355102539, 7200, 255, 1, 41079),
-(@OGUID+6, 368749, 2450, 13561, 13653, '14', 0, 0, 164.071502685546875, -858.43328857421875, 4105.228515625, 0.348650813102722167, 0, 0, 0.173443794250488281, 0.984843790531158447, 7200, 255, 1, 41079),
-(@OGUID+7, 368750, 2450, 13561, 13653, '14', 0, 0, 181.0986328125, -884.01446533203125, 4105.22900390625, 0.774075925350189208, 0, 0, 0.377447128295898437, 0.926031172275543212, 7200, 255, 1, 41079),
-(@OGUID+8, 368751, 2450, 13561, 13653, '14', 0, 0, 206.4611053466796875, -900.602294921875, 4105.22900390625, 1.173270940780639648, 0, 0, 0.553562164306640625, 0.832807838916778564, 7200, 255, 1, 41079),
-(@OGUID+9, 368752, 2450, 13561, 13653, '14', 0, 0, 263.236236572265625, -900.9161376953125, 4105.22900390625, 1.914117217063903808, 0, 0, 0.817501068115234375, 0.57592707872390747, 7200, 255, 1, 41079),
-(@OGUID+10, 368753, 2450, 13561, 13653, '14', 0, 0, 288.707855224609375, -884.2554931640625, 4105.22900390625, 2.352296829223632812, 0, 0, 0.923131942749023437, 0.384483277797698974, 7200, 255, 1, 41079), 
-(@OGUID+11, 368754, 2450, 13561, 13653, '14', 0, 0, 305.86798095703125, -858.4576416015625, 4105.22900390625, 2.739951372146606445, 0, 0, 0.979903221130371093, 0.199473500251770019, 7200, 255, 1, 41079);
+(@OGUID+0, 368743, 2450, 13561, 13653, '14,15,16,17', 0, 0, 305.796173095703125, -801.1678466796875, 4105.228515625, 3.535023689270019531, 0, 0, -0.9807138442993164, 0.19544917345046997, 7200, 255, 1, 41079),
+(@OGUID+1, 368744, 2450, 13561, 13653, '14,15,16,17', 0, 0, 289.4208984375, -775.50555419921875, 4105.228515625, 3.957568168640136718, 0, 0, -0.91792106628417968, 0.396763056516647338, 7200, 255, 1, 41079),
+(@OGUID+2, 368745, 2450, 13561, 13653, '14,15,16,17', 0, 0, 263.83319091796875, -759.12677001953125, 4105.228515625, 4.214824676513671875, 0, 0, -0.85944366455078125, 0.51123046875, 7200, 255, 1, 41079),
+(@OGUID+3, 368746, 2450, 13561, 13653, '14,15,16,17', 0, 0, 206.823974609375, -759.0166015625, 4105.228515625, 5.038183212280273437, 0, 0, -0.58306884765625, 0.812422752380371093, 7200, 255, 1, 41079),
+(@OGUID+4, 368747, 2450, 13561, 13653, '14,15,16,17', 0, 0, 181.166412353515625, -776.0484619140625, 4105.228515625, 5.486774444580078125, 0, 0, -0.38776493072509765, 0.921758294105529785, 7200, 255, 1, 41079),
+(@OGUID+5, 368748, 2450, 13561, 13653, '14,15,16,17', 0, 0, 164.420166015625, -801.205810546875, 4105.228515625, 5.90371561050415039, 0, 0, -0.1885986328125, 0.98205423355102539, 7200, 255, 1, 41079),
+(@OGUID+6, 368749, 2450, 13561, 13653, '14,15,16,17', 0, 0, 164.071502685546875, -858.43328857421875, 4105.228515625, 0.348650813102722167, 0, 0, 0.173443794250488281, 0.984843790531158447, 7200, 255, 1, 41079),
+(@OGUID+7, 368750, 2450, 13561, 13653, '14,15,16,17', 0, 0, 181.0986328125, -884.01446533203125, 4105.22900390625, 0.774075925350189208, 0, 0, 0.377447128295898437, 0.926031172275543212, 7200, 255, 1, 41079),
+(@OGUID+8, 368751, 2450, 13561, 13653, '14,15,16,17', 0, 0, 206.4611053466796875, -900.602294921875, 4105.22900390625, 1.173270940780639648, 0, 0, 0.553562164306640625, 0.832807838916778564, 7200, 255, 1, 41079),
+(@OGUID+9, 368752, 2450, 13561, 13653, '14,15,16,17', 0, 0, 263.236236572265625, -900.9161376953125, 4105.22900390625, 1.914117217063903808, 0, 0, 0.817501068115234375, 0.57592707872390747, 7200, 255, 1, 41079),
+(@OGUID+10, 368753, 2450, 13561, 13653, '14,15,16,17', 0, 0, 288.707855224609375, -884.2554931640625, 4105.22900390625, 2.352296829223632812, 0, 0, 0.923131942749023437, 0.384483277797698974, 7200, 255, 1, 41079), 
+(@OGUID+11, 368754, 2450, 13561, 13653, '14,15,16,17', 0, 0, 305.86798095703125, -858.4576416015625, 4105.22900390625, 2.739951372146606445, 0, 0, 0.979903221130371093, 0.199473500251770019, 7200, 255, 1, 41079);
  
 DELETE FROM `gameobject_addon` WHERE `guid` BETWEEN @OGUID+0 AND @OGUID+11;
 INSERT INTO `gameobject_addon` (`guid`, `parent_rotation0`, `parent_rotation1`, `parent_rotation2`, `parent_rotation3`, `WorldEffectID`, `AIAnimKitID`) VALUES
@@ -477,7 +460,7 @@ INSERT INTO `areatrigger_create_properties` (`Id`, `AreaTriggerId`, `MoveCurveId
 
 DELETE FROM `areatrigger_create_properties_spline_point` WHERE `AreaTriggerCreatePropertiesId` IN (23028, 23694, 23693);
 INSERT INTO `areatrigger_create_properties_spline_point` (`AreaTriggerCreatePropertiesId`, `Idx`, `X`, `Y`, `Z`, `VerifiedBuild`) VALUES
-(23028, 0, 0, 0, 0, 41359),
+(23028, 0, 0, 0, 0, 41359), -- Rive
 (23028, 1, -49.9645919799804687, 1.881691813468933105, 0, 41359), 
 (23028, 2, -64.953948974609375, 2.446214675903320312, 0, 41359), 
 (23028, 3, -72.4486541748046875, 2.728454351425170898, 0, 41359), 
@@ -498,9 +481,7 @@ INSERT INTO `areatrigger_create_properties_spline_point` (`AreaTriggerCreateProp
 (23693, 1, 100.0000076293945312, 0.000041824499930953, 0, 41488);
 
  -- Highlord Bolvar Fordragon
-DELETE FROM `creature_template` WHERE `entry`=178081;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(178081, 'Highlord Bolvar Fordragon', NULL, 'Knights of the Ebon Blade', NULL, NULL, 0, 60, 60, 0, 0, 0, 2110, 35184372088832, 1.2, 1.42857, 1, 3, 0, 2000, 0, 1, 1, 2, 32768, 1073741828, 65568, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 'npc_sylvanas_windrunner_bolvar', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=35, `npcflag`=35184372088832, `speed_walk`=1.20000004768371582, `speed_run`=1.428571462631225585, `BaseAttackTime`=2000, `unit_flags`=32784, `unit_flags2`=1073741828, `unit_flags3`=65568, `ScriptName`='npc_sylvanas_windrunner_bolvar' WHERE `entry`=178081;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=178081;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -516,7 +497,10 @@ INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`,
 
 DELETE FROM `creature_template_scaling` WHERE `Entry` = 178081;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(178081, 0, 0, 0, 837, 41079);
+(178081, 14, 0, 0, 837, 41079),
+(178081, 15, 0, 0, 837, 41488),
+(178081, 16, 0, 0, 837, 41079),
+(178081, 17, 0, 0, 837, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=178081;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
@@ -524,7 +508,7 @@ INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Fligh
 
 DELETE FROM `creature` WHERE `guid`=@CGUID+1;
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `phaseUseFlags`, `PhaseId`, `PhaseGroup`, `terrainSwapMap`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `ScriptName`, `VerifiedBuild`) VALUES 
-(@CGUID+1, 178081, 2450, 13561, 13653, '14', 0, 0, 0, -1, 0, 1, 239.795, -806.064, 4105.07, 4.77206, 30, 0, 0, 1179100, 2434, 0, 0, 0, 0, 0, 0, '', 41079);
+(@CGUID+1, 178081, 2450, 13561, 13653, '14,15,16,17', 0, 0, 0, -1, 0, 1, 239.795, -806.064, 4105.07, 4.77206, 30, 0, 0, 1179100, 2434, 0, 0, 0, 0, 0, 0, '', 41079);
 
 DELETE FROM `creature_text` WHERE `CreatureID`=178081;
 INSERT INTO `creature_text` (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`, `SoundPlayType`, `BroadcastTextId`, `TextRange`, `comment`) VALUES 
@@ -561,9 +545,7 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 (13, 1, 356941, 0, 0, 31, 0, 3, 175732, 0, 0, 0, 0, '', 'Winds of Icecrown - Target Sylvanas Windrunner');
 
  -- Thrall
-DELETE FROM `creature_template` WHERE `entry`=176532;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(176532, 'Thrall', NULL, NULL, NULL, NULL, 0, 62, 62, 0, 0, 0, 2110, 35184372088832, 1.2, 1.14286, 1, 1, 0, 2000, 0, 1, 1, 1, 32768, 1073741828, 65568, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 'npc_sylvanas_windrunner_thrall', 41079);
+UPDATE `creature_template` SET `minlevel`=62, `maxlevel`=62, `faction`=35, `npcflag`=35184372088832, `speed_walk`=1.20000004768371582, `BaseAttackTime`=2000, `unit_flags`=32768, `unit_flags2`=1073741828, `unit_flags3`=65568, `ScriptName`='npc_sylvanas_windrunner_thrall' WHERE `entry`=176532;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=176532;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -579,7 +561,10 @@ INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`,
 
 DELETE FROM `creature_template_scaling` WHERE `Entry` = 176532;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(176532, 0, 2, 2, 2104, 41079);
+(176532, 14, 2, 2, 2104, 41079),
+(176532, 15, 2, 2, 2105, 41488),
+(176532, 16, 2, 2, 2106, 41488),
+(176532, 17, 2, 2, 2107, 41488);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=176532;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
@@ -587,7 +572,7 @@ INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Fligh
 
 DELETE FROM `creature` WHERE `guid`=@CGUID+3;
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `phaseUseFlags`, `PhaseId`, `PhaseGroup`, `terrainSwapMap`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `ScriptName`, `VerifiedBuild`) VALUES 
-(@CGUID+3, 176532, 2450, 13561, 13653, '14', 0, 0, 0, -1, 0, 1, 243.661, -804.615, 4105.07, 4.28529, 30, 0, 0, 4611600, 0, 0, 0, 0, 0, 0, 0, '', 41079);
+(@CGUID+3, 176532, 2450, 13561, 13653, '14,15,16,17', 0, 0, 0, -1, 0, 1, 243.661, -804.615, 4105.07, 4.28529, 30, 0, 0, 4611600, 0, 0, 0, 0, 0, 0, 0, '', 41079);
 
 DELETE FROM `creature_text` WHERE `CreatureID`=176532;
 INSERT INTO `creature_text` (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`, `SoundPlayType`, `BroadcastTextId`, `TextRange`, `comment`) VALUES 
@@ -637,15 +622,24 @@ INSERT INTO `jump_charge_params` (`id`, `speed`, `treatSpeedAsMoveTimeSeconds`, 
 (574, 0.04, 1, 5234.23, 108414, 0, NULL);
 
  -- Lady Jaina Proudmoore
-DELETE FROM `creature_template` WHERE `entry`=176533;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(176533, 'Lady Jaina Proudmoore', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 2110, 0, 1.6, 1.14286, 1, 1, 0, 2000, 0, 1, 1, 2, 32832, 1073741824, 65568, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 'npc_sylvanas_windrunner_jaina', 41079);
+UPDATE  `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=35, `npcflag`=35184372088832, `speed_walk`=1.60000002384185791, `BaseAttackTime`=2000, `unit_flags`=32832, `unit_flags2`=1073741828, `unit_flags3`=65568, `ScriptName`='npc_sylvanas_windrunner_jaina' WHERE `entry`=176533;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=176533;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
 (176533, 0, 0, 0, 1, 654, 0, 0, 0, '');
 
-DELETE FROM `creature_equip_template` WHERE `CreatureID` = 176533;
+DELETE FROM `creature_template_scaling` WHERE `Entry` = 176533;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(176533, 14, 0, 0, 2104, 41488),
+(176533, 15, 0, 0, 2105, 41488),
+(176533, 16, 0, 0, 2106, 41488),
+(176533, 17, 0, 0, 2107, 41488);
+
+DELETE FROM `creature_template_movement` WHERE `CreatureId`=176533;
+INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
+(176533, 1, 0, 0, 0, 0, 0);
+
+DELETE FROM `creature_equip_template` WHERE `CreatureID`=176533;
 INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `AppearanceModID1`, `ItemVisual1`, `ItemID2`, `AppearanceModID2`, `ItemVisual2`, `ItemID3`, `AppearanceModID3`, `ItemVisual3`) VALUES
 (176533, 1, 153575, 0, 0, 0, 0, 0, 0, 0, 0);
 
@@ -653,17 +647,9 @@ DELETE FROM `creature_model_info` WHERE `DisplayID`=101962;
 INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `DisplayID_Other_Gender`, `VerifiedBuild`) VALUES 
 (101962, 0.652598, 0, 1, 41359);
 
-DELETE FROM `creature_template_scaling` WHERE `Entry` = 176533;
-INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(176533, 0, 0, 0, 2104, 41079);
-
-DELETE FROM `creature_template_movement` WHERE `CreatureId`=176533;
-INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
-(176533, 1, 0, 0, 0, 0, 0);
-
 DELETE FROM `creature` WHERE `guid`=@CGUID+2;
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `phaseUseFlags`, `PhaseId`, `PhaseGroup`, `terrainSwapMap`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `ScriptName`, `VerifiedBuild`) VALUES 
-(@CGUID+2, 176533, 2450, 13561, 13653, '14', 0, 0, 0, -1, 0, 1, 231.595, -801.5, 4105.07, 5.02181, 30, 0, 0, 2249600, 2434, 0, 0, 0, 0, 0, 0, '', 41079);
+(@CGUID+2, 176533, 2450, 13561, 13653, '14,15,16,17', 0, 0, 0, -1, 0, 1, 231.595, -801.5, 4105.07, 5.02181, 30, 0, 0, 2249600, 2434, 0, 0, 0, 0, 0, 0, '', 41079);
 
 DELETE FROM `creature_text` WHERE `CreatureID`=176533;
 INSERT INTO `creature_text` (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`, `SoundPlayType`, `BroadcastTextId`, `TextRange`, `comment`) VALUES 
@@ -707,12 +693,146 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (357103, 'spell_sylvanas_windrunner_teleport');
 
  --
- -- PHASE 2
+ -- Phase 2
+  
+ -- Mawsworn Hopebreaker
+UPDATE `creature_template` SET `minlevel`=61, `maxlevel`=61, `faction`=16, `speed_walk`=1.20000004768371582, `speed_run`=1, `BaseAttackTime`=2000, `unit_flags`=33587200, `unit_flags2`=2099200 WHERE `entry`=177787;
 
+DELETE FROM `creature_template_addon` WHERE `entry`=177787;
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
+(177787, 0, 0, 0, 1, 0, 0, 0, 0, '351109'); -- Aura may be wrong, check
 
+DELETE FROM `creature_template_scaling` WHERE `Entry`=177787;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(177787, 14, 1, 1, 2104, 41488),
+(177787, 15, 1, 1, 2105, 41488),
+(177787, 16, 1, 1, 2106, 41488),
+(177787, 17, 1, 1, 2107, 41488);
 
+DELETE FROM `creature_equip_template` WHERE `CreatureID`=177787;
+INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `AppearanceModID1`, `ItemVisual1`, `ItemID2`, `AppearanceModID2`, `ItemVisual2`, `ItemID3`, `AppearanceModID3`, `ItemVisual3`) VALUES
+(177787, 1, 185377, 0, 0, 0, 0, 0, 0, 0, 0), 
+(177787, 2, 185908, 0, 0, 0, 0, 0, 0, 0, 0);
+
+ -- Mawsworn Vanguard
+UPDATE `creature_template` SET `minlevel`=61, `maxlevel`=61, `faction`=16, `speed_walk`=1.20000004768371582, `speed_run`=1, `BaseAttackTime`=2000, `unit_flags`=33587200, `unit_flags2`=2099200 WHERE `entry`=177154;
+
+DELETE FROM `creature_template_scaling` WHERE `Entry`=177154;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(177154, 14, 1, 1, 2104, 41488),
+(177154, 15, 1, 1, 2105, 41488),
+(177154, 16, 1, 1, 2106, 41488),
+(177154, 17, 1, 1, 2107, 41488);
+
+DELETE FROM `creature_equip_template` WHERE `ID`=1 AND `CreatureID`=177154;
+INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `AppearanceModID1`, `ItemVisual1`, `ItemID2`, `AppearanceModID2`, `ItemVisual2`, `ItemID3`, `AppearanceModID3`, `ItemVisual3`) VALUES
+(177154, 1, 179720, 0, 0, 0, 0, 0, 0, 0, 0);
+
+ -- Mawforged Goliath
+UPDATE `creature_template` SET `minlevel`=62, `maxlevel`=62, `faction`=16, `speed_walk`=6, `speed_run`=2.142857074737548828, `BaseAttackTime`=3000, `unit_flags`=33587200, `unit_flags2`=2099200 WHERE `entry`=177892;
+
+DELETE FROM `creature_template_addon` WHERE `entry`=177892;
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
+(177892, 0, 0, 0, 1, 0, 0, 0, 0, '350580');
+
+DELETE FROM `creature_template_scaling` WHERE `Entry`=177892;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(177892, 14, 2, 2, 2104, 41488),
+(177892, 15, 2, 2, 2105, 41488),
+(177892, 16, 2, 2, 2106, 41488),
+(177892, 17, 2, 2, 2107, 41488);
+
+ -- Mawforged Summoner
+UPDATE `creature_template` SET `minlevel`=62, `maxlevel`=62, `faction`=16, `speed_walk`=1.20000004768371582, `speed_run`=1, `BaseAttackTime`=2000, `unit_flags`=33587200, `unit_flags2`=2099200, `HoverHeight`=1.70000004768371582 WHERE `entry`=177891;
+
+DELETE FROM `creature_equip_template` WHERE `ID`=1 AND `CreatureID`=177891;
+INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `AppearanceModID1`, `ItemVisual1`, `ItemID2`, `AppearanceModID2`, `ItemVisual2`, `ItemID3`, `AppearanceModID3`, `ItemVisual3`) VALUES
+(177891, 1, 184708, 0, 0, 185371, 0, 0, 0, 0, 0);
+
+DELETE FROM `creature_template_scaling` WHERE `Entry`=177891;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(177891, 14, 2, 2, 2104, 41488),
+(177891, 15, 2, 2, 2105, 41488),
+(177891, 16, 2, 2, 2106, 41488),
+(177891, 17, 2, 2, 2107, 41488);
+
+ -- Mawforged Souljudge
+UPDATE `creature_template` SET `minlevel`=62, `maxlevel`=62, `faction`=16, `speed_walk`=1.20000004768371582, `speed_run`=1, `BaseAttackTime`=2000, `unit_flags`=33587200, `unit_flags2`=2097152 WHERE `entry`=177889;
+
+DELETE FROM `creature_template_addon` WHERE `entry`=177889;
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
+(177889, 0, 0, 0, 1, 0, 0, 0, 0, '357734'); -- Aura may be wrong
+
+DELETE FROM `creature_template_scaling` WHERE `Entry`=177889;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(177889, 14, 2, 2, 2104, 41488),
+(177889, 15, 2, 2, 2105, 41488),
+(177889, 16, 2, 2, 2106, 41488),
+(177889, 17, 2, 2, 2107, 41488);
+
+DELETE FROM `creature_equip_template` WHERE `ID`=1 AND `CreatureID`=177889;
+INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `AppearanceModID1`, `ItemVisual1`, `ItemID2`, `AppearanceModID2`, `ItemVisual2`, `ItemID3`, `AppearanceModID3`, `ItemVisual3`) VALUES
+(177889, 1, 185443, 0, 0, 0, 0, 0, 0, 0, 0);
+
+ -- Decrepit Orb
+UPDATE `creature_template` SET `minlevel`=61, `maxlevel`=61, `faction`=16, `BaseAttackTime`=2000, `unit_flags`=32768, `unit_flags2`=35651584, `unit_flags3`=1 WHERE `entry`=178008;
+
+DELETE FROM `creature_template_addon` WHERE `entry`=178008;
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
+(178008, 0, 0, 0, 1, 0, 0, 0, 0, '351317');
+
+DELETE FROM `creature_template_scaling` WHERE `Entry`=178008;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(178008, 14, 1, 1, 2104, 41488),
+(178008, 15, 1, 1, 2105, 41488),
+(178008, 16, 1, 1, 2106, 41488),
+(178008, 17, 1, 1, 2107, 41488);
+
+ -- Focusing Prism
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=35, `npcflag`=16777216, `BaseAttackTime`=2000, `unit_flags2`=100681760, `unit_flags3`=1 WHERE `entry`=180623;
+
+DELETE FROM `creature_template_addon` WHERE `entry`=180623;
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
+(180623, 0, 0, 0, 1, 0, 0, 0, 0, '358159');
+
+DELETE FROM `creature_template_scaling` WHERE `Entry`=180623;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(180623, 14, 0, 0, 2104, 41488),
+(180623, 15, 0, 0, 2105, 41488),
+(180623, 16, 0, 0, 2106, 41488),
+(180623, 17, 0, 0, 2107, 41488);
+
+ -- Sylvanas (Invisible Walls)
+DELETE FROM `gameobject` WHERE `guid` BETWEEN @OGUID+12 AND @OGUID+36;
+INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `PhaseId`, `PhaseGroup`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `VerifiedBuild`) VALUES
+(@OGUID+12, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 170.05035400390625, -931.0694580078125, 4991.85400390625, 0.785396754741668701, 0, 0, 0.38268280029296875, 0.923879802227020263, 604800, 255, 1, 41488),
+(@OGUID+13, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -10.1371526718139648, -888.99481201171875, 4991.85400390625, 0.785396754741668701, 0, 0, 0.38268280029296875, 0.923879802227020263, 604800, 255, 1, 41488), 
+(@OGUID+14, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 30.09375, -1070.657958984375, 4991.85400390625, 0.785396754741668701, 0, 0, 0.38268280029296875, 0.923879802227020263, 604800, 255, 1, 41488), 
+(@OGUID+15, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 240.6961822509765625, -860.810791015625, 4994.47802734375, 2.356194972991943359, 0, 0, 0.923879623413085937, 0.382683247327804565, 604800, 255, 1, 41488), 
+(@OGUID+16, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 221.607635498046875, -771.34027099609375, 4991.85400390625, 1.832594871520996093, 0, 0, 0.793353080749511718, 0.608761727809906005, 604800, 255, 1, 41488), 
+(@OGUID+17, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 65.78472137451171875, -826.69268798828125, 4994.47802734375, 2.356194972991943359, 0, 0, 0.923879623413085937, 0.382683247327804565, 604800, 255, 1, 41488), 
+(@OGUID+18, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -39.1649322509765625, -1141.1978759765625, 4994.47802734375, 2.356194972991943359, 0, 0, 0.923879623413085937, 0.382683247327804565, 604800, 255, 1, 41488), 
+(@OGUID+19, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -125.767356872558593, -1123.29345703125, 4991.85400390625, 6.021387100219726562, 0, 0, -0.13052558898925781, 0.991444945335388183, 604800, 255, 1, 41488), 
+(@OGUID+20, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 152.123260498046875, -845.8836669921875, 4991.85400390625, 6.021387100219726562, 0, 0, -0.13052558898925781, 0.991444945335388183, 604800, 255, 1, 41488), 
+(@OGUID+21, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 312.09027099609375, -793.00347900390625, 4994.47802734375, 0.785396754741668701, 0, 0, 0.38268280029296875, 0.923879802227020263, 604800, 255, 1, 41488), 
+(@OGUID+22, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 10.56597232818603515, -984.50518798828125, 4991.85400390625, 6.021387100219726562, 0, 0, -0.13052558898925781, 0.991444945335388183, 604800, 255, 1, 41488), 
+(@OGUID+23, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -104.651039123535156, -1215.77783203125, 4991.85400390625, 0.785396754741668701, 0, 0, 0.38268280029296875, 0.923879802227020263, 604800, 255, 1, 41488), 
+(@OGUID+24, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -69.5833358764648437, -969.7899169921875, 4994.47802734375, 2.356194972991943359, 0, 0, 0.923879623413085937, 0.382683247327804565, 604800, 255, 1, 41488), 
+(@OGUID+25, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 98.07291412353515625, -999.16668701171875, 4994.47802734375, 2.356194972991943359, 0, 0, 0.923879623413085937, 0.382683247327804565, 604800, 255, 1, 41488), 
+(@OGUID+26, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 82.49478912353515625, -911.72052001953125, 4991.85400390625, 1.832594871520996093, 0, 0, 0.793353080749511718, 0.608761727809906005, 604800, 255, 1, 41488), 
+(@OGUID+27, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, 131.9322967529296875, -754.43231201171875, 4991.85400390625, 0.785396754741668701, 0, 0, 0.38268280029296875, 0.923879802227020263, 604800, 255, 1, 41488), 
+(@OGUID+28, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -149.854171752929687, -1028.55908203125, 4991.85400390625, 0.785396754741668701, 0, 0, 0.38268280029296875, 0.923879802227020263, 604800, 255, 1, 41488), 
+(@OGUID+29, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -56.2413215637207031, -1052.7864990234375, 4991.85400390625, 1.832594871520996093, 0, 0, 0.793353080749511718, 0.608761727809906005, 604800, 255, 1, 41488), 
+(@OGUID+30, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -289.814239501953125, -1170.6492919921875, 4994.47802734375, 0.785396754741668701, 0, 0, 0.38268280029296875, 0.923879802227020263, 604800, 255, 1, 41488), 
+(@OGUID+31, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -268.9288330078125, -1265.4166259765625, 4991.85400390625, 6.021387100219726562, 0, 0, -0.13052558898925781, 0.991444945335388183, 604800, 255, 1, 41488), 
+(@OGUID+32, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -182.038192749023437, -1278.814208984375, 4994.47802734375, 2.356194972991943359, 0, 0, 0.923879623413085937, 0.382683247327804565, 604800, 255, 1, 41488), 
+(@OGUID+33, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -196.642364501953125, -1191.142333984375, 4991.85400390625, 1.832594871520996093, 0, 0, 0.793353080749511718, 0.608761727809906005, 604800, 255, 1, 41488), 
+(@OGUID+34, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -214.451385498046875, -1105.2117919921875, 4994.47802734375, 2.356194972991943359, 0, 0, 0.923879623413085937, 0.382683247327804565, 604800, 255, 1, 41488), 
+(@OGUID+35, 369242, 2450, 13561, 13653, '14,15,16,17', '0', 0, -252.965286254882812, -1346.6302490234375, 4994.47802734375, 0.785396754741668701, 0, 0, 0.38268280029296875, 0.923879802227020263, 604800, 255, 1, 41488),
+(@OGUID+36, 368958, 2450, 13561, 13653, '14,15,16,17', '0', 0, 233.2272796630859375, -708.3814697265625, 3690.4580078125, 4.712392330169677734, 0, 0, -0.70710563659667968, 0.707107901573181152, 604800, 255, 0, 41488);
+ 
  --
- -- PHASE 3
+ -- Phase 3
  
  -- Invigorating Field
 DELETE FROM `jump_charge_params` WHERE `id`=566;
@@ -730,9 +850,7 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (354147, 'spell_sylvanas_windrunner_raze');
 
  -- The Jailer
-DELETE FROM `creature_template` WHERE `entry`=178079;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(178079, 'The Jailer', NULL, NULL, NULL, NULL, 0, 63, 63, 0, 0, 0, 16, 0, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 32832, 71303168, 32769, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7513, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, '', 41079);
+UPDATE `creature_template` SET `minlevel`=63, `maxlevel`=63, `faction`=16, `BaseAttackTime`=2000, `unit_flags`=32832, `unit_flags2`=71303168, `unit_flags3`=32769, `VehicleId`=7513 WHERE `entry`=178079;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=178079;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -740,7 +858,10 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=178079;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(178079, 14, 3, 0, 2104, 41079);
+(178079, 14, 3, 3, 2104, 41488),
+(178079, 15, 3, 3, 2105, 41488),
+(178079, 16, 3, 3, 2106, 41488),
+(178079, 17, 3, 3, 2107, 41488);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=178079;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
@@ -756,12 +877,10 @@ INSERT INTO `vehicle_template_accessory` (`entry`, `accessory_entry`, `seat_id`,
 
 DELETE FROM `creature` WHERE `guid`=@CGUID+4;
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `phaseUseFlags`, `PhaseId`, `PhaseGroup`, `terrainSwapMap`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `ScriptName`, `VerifiedBuild`) VALUES 
-(@CGUID+4, 178079, 2450, 13561, 13655, '14', 0, 0, 0, -1, 0, 0, -249.634, -1227.17, 5672.13, 4.67994, 7200, 0, 0, 11248000, 0, 0, 0, 0, 0, 0, 0, '', 41079);
+(@CGUID+4, 178079, 2450, 13561, 13655, '14,15,16,17', 0, 0, 0, -1, 0, 0, -249.634, -1227.17, 5672.13, 4.67994, 7200, 0, 0, 11248000, 0, 0, 0, 0, 0, 0, 0, '', 41079);
 
  -- Soul Leader 1 (Last Phase - Rides 178079)
-DELETE FROM `creature_template` WHERE `entry`=179788;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(179788, 'Sylvanas', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 16, 0, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 33554432, 33556512, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7536, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, '', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=16, `BaseAttackTime`=2000, `unit_flags`=33554432, `unit_flags2`=33556512, `unit_flags3`=1, `VehicleId`=7536 WHERE `entry`=179788;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=179788;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -769,7 +888,10 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=179788;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(179788, 14, 0, 0, 2104, 41079);
+(179788, 14, 0, 0, 2104, 41079),
+(179788, 15, 0, 0, 2105, 41079),
+(179788, 16, 0, 0, 2106, 41079),
+(179788, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=179788;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
@@ -784,9 +906,7 @@ INSERT INTO `vehicle_template_accessory` (`entry`, `accessory_entry`, `seat_id`,
 (179788, 179787, 0, 1, 'Soul Leader 1 - Soul Leader 2', 6, 30000);
 
  -- Soul Leader 2 (Last Phase - Rides 179788)
-DELETE FROM `creature_template` WHERE `entry`=179787;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(179787, 'Sylvanas', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 16, 0, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 33554432, 33556512, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7535, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, '', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=16, `BaseAttackTime`=2000, `unit_flags`=33554432, `unit_flags2`=33556512, `unit_flags3`=1, `VehicleId`=7535 WHERE `entry`=179787;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=179787;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -794,7 +914,10 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=179787;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(179787, 14, 0, 0, 2104, 41079);
+(179787, 14, 0, 0, 2104, 41079),
+(179787, 15, 0, 0, 2105, 41079),
+(179787, 16, 0, 0, 2106, 41079),
+(179787, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=179787;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
@@ -815,9 +938,7 @@ INSERT INTO `vehicle_template_accessory` (`entry`, `accessory_entry`, `seat_id`,
 (179787, 179262, 6, 1, 'Soul Leader 2 - Soul Follower 1', 6, 30000);
 
  -- Soul Leader 3 (Last Phase - Rides 178079)
-DELETE FROM `creature_template` WHERE `entry`=179784;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(179784, 'Sylvanas', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 16, 0, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 33554432, 33556512, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7533, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, '', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=16, `BaseAttackTime`=2000, `unit_flags`=33554432, `unit_flags2`=33556512, `unit_flags3`=1, `VehicleId`=7533 WHERE `entry`=179784;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=179784;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -825,7 +946,10 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=179784;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(179784, 14, 0, 0, 2104, 41079);
+(179784, 14, 0, 0, 2104, 41079),
+(179784, 15, 0, 0, 2105, 41079),
+(179784, 16, 0, 0, 2106, 41079),
+(179784, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=179784;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
@@ -840,9 +964,7 @@ INSERT INTO `vehicle_template_accessory` (`entry`, `accessory_entry`, `seat_id`,
 (179784, 179261, 0, 1, 'Soul Leader 3 - Soul Leader 4', 6, 30000);
 
  -- Soul Leader 4 (Last Phase - Rides 179784)
-DELETE FROM `creature_template` WHERE `entry`=179261;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(179261, 'Sylvanas', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 16, 0, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 33554432, 33556512, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7514, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, '', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=16, `BaseAttackTime`=2000, `unit_flags`=33554432, `unit_flags2`=33556512, `unit_flags3`=1, `VehicleId`=7514 WHERE `entry`=179261;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=179261;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -850,7 +972,10 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=179261;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(179261, 14, 0, 0, 2104, 41079);
+(179261, 14, 0, 0, 2104, 41079),
+(179261, 15, 0, 0, 2105, 41079),
+(179261, 16, 0, 0, 2106, 41079),
+(179261, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=179261;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
@@ -872,9 +997,7 @@ INSERT INTO `vehicle_template_accessory` (`entry`, `accessory_entry`, `seat_id`,
 (179261, 179262, 7, 1, 'Soul Leader 4 - Soul Follower 1', 6, 30000);
 
  -- Soul Follower 1 (Last Phase - inside 179261)
-DELETE FROM `creature_template` WHERE `entry`=179262;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(179262, 'Sylvanas', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 16, 0, 1, 1.14286, 1, 0, 0, 2000, 0, 1, 1, 0, 33554432, 33556512, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, '', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=16, `BaseAttackTime`=2000, `unit_flags`=33554432, `unit_flags2`=33556512, `unit_flags3`=1 WHERE `entry`=179262;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=179262;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -882,16 +1005,17 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=179262;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(179262, 14, 0, 0, 2104, 41079);
+(179262, 14, 0, 0, 2104, 41079),
+(179262, 15, 0, 0, 2105, 41079),
+(179262, 16, 0, 0, 2106, 41079),
+(179262, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=179262;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
 (179262, 1, 0, 1, 0, 0, 0);
 
  -- Anduin Wrynn
-DELETE FROM `creature_template` WHERE `entry`=178072;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(178072, 'Anduin Wrynn', NULL, NULL, NULL, NULL, 0, 62, 62, 0, 0, 0, 14, 35184372088832, 1, 1.14286, 1, 1, 0, 2000, 0, 1, 1, 2, 32784, 71303168, 98336, 0, 0, 0, 0, 0, 0, 0, 0, 0, 584, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 'npc_sylvanas_windrunner_anduin', 41079);
+UPDATE `creature_template` SET `minlevel`=62, `maxlevel`=62, `faction`=14, `npcflag`=35184372088832, `BaseAttackTime`=2000, `unit_flags`=32768, `unit_flags2`=71303168, `unit_flags3`=98336, `VehicleId`=584, `ScriptName`='npc_sylvanas_windrunner_anduin' WHERE `entry`=178072;
 
 DELETE FROM `creature_template_addon` WHERE `entry`=178072;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
@@ -899,11 +1023,14 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 
 DELETE FROM `creature_model_info` WHERE `DisplayID`=99092;
 INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `DisplayID_Other_Gender`, `VerifiedBuild`) VALUES 
-(99092, 0.616386, 0, 0, 41359);
+(99092, 0.616385638713836669, 0, 0, 41359);
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=178072;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(178072, 14, 0, 0, 2104, 41079);
+(178072, 14, 0, 0, 2104, 41079),
+(178072, 15, 0, 0, 2105, 41079),
+(178072, 16, 0, 0, 2106, 41079),
+(178072, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_equip_template` WHERE `CreatureID`=178072 AND `ID`=1;
 INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `AppearanceModID1`, `ItemVisual1`, `ItemID2`, `AppearanceModID2`, `ItemVisual2`, `ItemID3`, `AppearanceModID3`, `ItemVisual3`, `VerifiedBuild`) VALUES 
@@ -915,7 +1042,7 @@ INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Fligh
  
 DELETE FROM `creature` WHERE `guid`=@CGUID+5;
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `phaseUseFlags`, `PhaseId`, `PhaseGroup`, `terrainSwapMap`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `ScriptName`, `VerifiedBuild`) VALUES 
-(@CGUID+5, 178072, 2450, 13561, 13655, '14', 0, 0, 0, -1, 0, 1, -249.161, -1271.62, 5667.08, 4.56334, 7200, 0, 0, 23058000, 2568, 0, 0, 0, 0, 0, 0, '', 41079);
+(@CGUID+5, 178072, 2450, 13561, 13655, '14,15,16,17', 0, 0, 0, -1, 0, 1, -249.161, -1271.62, 5667.08, 4.56334, 7200, 0, 0, 23058000, 2568, 0, 0, 0, 0, 0, 0, '', 41079);
 
  -- Blasphemy 
 DELETE FROM `spell_script_names` WHERE `spell_id`=357729 AND `ScriptName`='spell_sylvanas_windrunner_blasphemy_pre';
@@ -928,13 +1055,18 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (357730, 'spell_sylvanas_windrunner_blasphemy');
 
  -- The Arbiter
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=35, `speed_walk`=0.699999988079071044, `speed_run`=0.25, `BaseAttackTime`=2000, `unit_flags`=32832, `unit_flags2`=71827456, `unit_flags3`=32769 WHERE `entry`=178082;
+
 DELETE FROM `creature_template_addon` WHERE `entry`=178082;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
 (178082, 0, 0, 50331648, 1, 0, 0, 0, 0, '357738');
 
 DELETE FROM `creature_template_scaling` WHERE `Entry`=178082;
 INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
-(178082, 14, 0, 0, 2104, 41079);
+(178082, 14, 0, 0, 2104, 41079),
+(178082, 15, 0, 0, 2105, 41079),
+(178082, 16, 0, 0, 2106, 41079),
+(178082, 17, 0, 0, 2107, 41079);
 
 DELETE FROM `creature_template_movement` WHERE `CreatureId`=178082;
 INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES 
@@ -942,12 +1074,41 @@ INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Fligh
 
 DELETE FROM `creature` WHERE `guid`=@CGUID+6;
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `phaseUseFlags`, `PhaseId`, `PhaseGroup`, `terrainSwapMap`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `ScriptName`, `VerifiedBuild`) VALUES 
-(@CGUID+6, 178082, 2450, 13561, 13655, '14', 0, 0, 0, -1, 0, 0, -250.247, -1385.28, 5640.44, 1.57011, 7200, 0, 0, 11248000, 0, 0, 0, 0, 0, 0, 0, '', 41079);
+(@CGUID+6, 178082, 2450, 13561, 13655, '14,15,16,17', 0, 0, 0, -1, 0, 0, -250.247, -1385.28, 5640.44, 1.57011, 7200, 0, 0, 11248000, 0, 0, 0, 0, 0, 0, 0, '', 41079);
+
+
+ -- Outroduction
+ 
+DELETE FROM `conversation_template` WHERE `Id` =17375;
+INSERT INTO `conversation_template` (`Id`, `FirstLineId`, `TextureKitId`, `ScriptName`, `VerifiedBuild`) VALUES 
+(17375, 54141, 0, '', 41079);
+
+DELETE FROM `conversation_actors` WHERE `ConversationId` =17375;
+INSERT INTO `conversation_actors` (`ConversationId`, `ConversationActorId`, `ConversationActorGuid`, `Idx`, `CreatureId`, `CreatureDisplayInfoId`, `VerifiedBuild`) VALUES 
+(17375, 81173, 0, 0, 0, 0, 41079),
+(17375, 80411, 0, 1, 0, 0, 41079),
+(17375, 80412, 0, 2, 0, 0, 41079);
+
+DELETE FROM `conversation_line_template` WHERE `Id` IN (44244, 44245, 44246, 44247, 44248, 44249, 44250, 44251);
+INSERT INTO `conversation_line_template` (`Id`, `UiCameraID`, `ActorIdx`, `Flags`, `VerifiedBuild`) VALUES
+(44244, 0, 0, 0, 41079),
+(44245, 0, 1, 0, 41079),
+(44246, 0, 0, 0, 41079),
+(44247, 0, 2, 0, 41079),
+(44248, 0, 1, 0, 41079),
+(44249, 0, 2, 0, 41079),
+(44250, 0, 0, 0, 41079),
+(44251, 0, 0, 1, 41079);
 
  -- Death Gate
-DELETE FROM `creature_template` WHERE `entry`=182021;
-INSERT INTO `creature_template` (`entry`, `name`, `femaleName`, `subname`, `TitleAlt`, `IconName`, `gossip_menu_id`, `minlevel`, `maxlevel`, `HealthScalingExpansion`, `RequiredExpansion`, `VignetteID`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `scale`, `rank`, `dmgschool`, `BaseAttackTime`, `RangeAttackTime`, `BaseVariance`, `RangeVariance`, `unit_class`, `unit_flags`, `unit_flags2`, `unit_flags3`, `dynamicflags`, `family`, `trainer_class`, `type`, `type_flags`, `type_flags2`, `lootid`, `pickpocketloot`, `skinloot`, `VehicleId`, `mingold`, `maxgold`, `AIName`, `MovementType`, `HoverHeight`, `HealthModifier`, `HealthModifierExtra`, `ManaModifier`, `ManaModifierExtra`, `ArmorModifier`, `DamageModifier`, `ExperienceModifier`, `RacialLeader`, `movementId`, `CreatureDifficultyID`, `WidgetSetID`, `WidgetSetUnitConditionID`, `RegenHealth`, `mechanic_immune_mask`, `spell_school_immune_mask`, `flags_extra`, `ScriptName`, `VerifiedBuild`) VALUES 
-(182021, 'Death Gate', NULL, NULL, NULL, NULL, 0, 60, 60, 0, 0, 0, 190, 16777216, 1, 1, 1, 0, 0, 1000, 0, 1, 1, 0, 768, 101189632, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, '', 41079);
+UPDATE `creature_template` SET `minlevel`=60, `maxlevel`=60, `faction`=190, `npcflag`=16777216, `speed_run`=1, `BaseAttackTime`=1000, `unit_flags`=768, `unit_flags2`=101189632 WHERE `entry`=182021;
+
+DELETE FROM `creature_template_scaling` WHERE `Entry`=182021;
+INSERT INTO `creature_template_scaling` (`Entry`, `DifficultyID`, `LevelScalingDeltaMin`, `LevelScalingDeltaMax`, `ContentTuningID`, `VerifiedBuild`) VALUES
+(182021, 14, 0, 0, 2104, 41488),
+(182021, 15, 0, 0, 2105, 41488),
+(182021, 16, 0, 0, 2106, 41488),
+(182021, 17, 0, 0, 2107, 41488);
 
 DELETE FROM `npc_spellclick_spells` WHERE `npc_entry`=182021 AND `spell_id`=360276;
 INSERT INTO `npc_spellclick_spells` (`npc_entry`, `spell_id`, `cast_flags`, `user_type`) VALUES 
