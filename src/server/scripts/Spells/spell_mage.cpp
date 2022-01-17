@@ -536,6 +536,7 @@ class spell_mage_fingers_of_frost : public AuraScript
 };
 
 // 133 - Fireball
+<<<<<<< HEAD
 class spell_mage_fireball : public SpellScript
 {
     PrepareSpellScript(spell_mage_fireball);
@@ -548,13 +549,55 @@ class spell_mage_fireball : public SpellScript
     void HandleCritChance(Unit const* victim, float& critChance)
     {
         if (AuraEffect* aurEff = GetCaster()->GetAuraEffect(SPELL_MAGE_FIRESTARTER, EFFECT_0))
+=======
+// 11366 - Pyroblast
+class spell_mage_firestarter : public SpellScript
+{
+    PrepareSpellScript(spell_mage_firestarter);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_MAGE_FIRESTARTER });
+    }
+
+    void CalcCritChance(Unit const* victim, float& critChance)
+    {
+        if (AuraEffect const* aurEff = GetCaster()->GetAuraEffect(SPELL_MAGE_FIRESTARTER, EFFECT_0))
+>>>>>>> pr/95
             if (victim->GetHealthPct() >= aurEff->GetAmount())
                 critChance = 100.0f;
     }
 
     void Register() override
     {
+<<<<<<< HEAD
         OnCalcCritChance += SpellOnCalcCritChanceFn(spell_mage_fireball::HandleCritChance);
+=======
+        OnCalcCritChance += SpellOnCalcCritChanceFn(spell_mage_firestarter::CalcCritChance);
+    }
+};
+
+// 321712 - Pyroblast
+class spell_mage_firestarter_dots : public AuraScript
+{
+    PrepareAuraScript(spell_mage_firestarter_dots);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_MAGE_FIRESTARTER });
+    }
+
+    void CalcCritChance(AuraEffect const* /*aurEff*/, Unit const* victim, float& critChance)
+    {
+        if (AuraEffect const* aurEff = GetCaster()->GetAuraEffect(SPELL_MAGE_FIRESTARTER, EFFECT_0))
+            if (victim->GetHealthPct() >= aurEff->GetAmount())
+                critChance = 100.0f;
+    }
+
+    void Register() override
+    {
+        DoEffectCalcCritChance += AuraEffectCalcCritChanceFn(spell_mage_firestarter_dots::CalcCritChance, EFFECT_ALL, SPELL_AURA_PERIODIC_DAMAGE);
+>>>>>>> pr/95
     }
 };
 
@@ -1216,7 +1259,12 @@ void AddSC_mage_spell_scripts()
     RegisterSpellScript(spell_mage_conjure_refreshment);
     RegisterAuraScript(spell_mage_chrono_shift);
     RegisterAuraScript(spell_mage_fingers_of_frost);
+<<<<<<< HEAD
     RegisterSpellScript(spell_mage_fireball);
+=======
+    RegisterSpellScript(spell_mage_firestarter);
+    RegisterAuraScript(spell_mage_firestarter_dots);
+>>>>>>> pr/95
     RegisterAuraScript(spell_mage_ice_barrier);
     RegisterSpellScript(spell_mage_ice_block);
     RegisterSpellScript(spell_mage_ice_lance);
