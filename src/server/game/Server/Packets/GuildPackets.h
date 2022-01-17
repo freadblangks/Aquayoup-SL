@@ -59,7 +59,6 @@ namespace WorldPackets
                     uint32 RankID;
                     uint32 RankOrder;
                     std::string RankName;
-            
                 };
 
                 std::vector<GuildInfoRank> Ranks;
@@ -504,11 +503,6 @@ namespace WorldPackets
             std::string RankName;
             uint32 TabFlags[GUILD_BANK_MAX_TABS];
             uint32 TabWithdrawItemLimit[GUILD_BANK_MAX_TABS];
-
-            bool operator<(GuildRankData const& right) const
-            {
-                return RankID < right.RankID;
-            }
         };
 
         class GuildRanks final : public ServerPacket
@@ -518,7 +512,7 @@ namespace WorldPackets
 
             WorldPacket const* Write() override;
 
-            std::set<GuildRankData> Ranks; ///< Ordered by RankID ascending
+            std::vector<GuildRankData> Ranks;
         };
 
         class GuildSendRankChange final : public ServerPacket
