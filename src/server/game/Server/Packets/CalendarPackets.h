@@ -55,7 +55,7 @@ namespace WorldPackets
 
             uint64 ClubID = 0;
             uint8 MinLevel = 1;
-            uint8 MaxLevel = 60;
+            uint8 MaxLevel = 100;
             uint8 MaxRankOrder = 0;
         };
 
