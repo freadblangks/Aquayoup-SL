@@ -1637,27 +1637,35 @@ public:
     {
         /*if (!*args)
             return false;
+
         uint64 guid = handler->GetSession()->GetPlayer()->GetSelection();
         if (guid == 0)
         {
             handler->SendSysMessage(LANG_NO_SELECTION);
             return true;
         }
+
         Creature* creature = ObjectAccessor::GetCreature(*handler->GetSession()->GetPlayer(), guid);
+
         if (!creature)
         {
             handler->SendSysMessage(LANG_SELECT_CREATURE);
             return true;
         }
+
         char* pSlotID = strtok((char*)args, " ");
         if (!pSlotID)
             return false;
+
         char* pItemID = strtok(nullptr, " ");
         if (!pItemID)
             return false;
+
         uint32 ItemID = atoi(pItemID);
         uint32 SlotID = atoi(pSlotID);
+
         ItemTemplate* tmpItem = sObjectMgr->GetItemTemplate(ItemID);
+
         bool added = false;
         if (tmpItem)
         {
@@ -1680,6 +1688,7 @@ public:
                     added = false;
                     break;
             }
+
             if (added)
                 handler->PSendSysMessage(LANG_ITEM_ADDED_TO_SLOT, ItemID, tmpItem->Name1, SlotID);
         }

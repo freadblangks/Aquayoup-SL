@@ -512,9 +512,11 @@ public:
         char* id = handler->extractKeyFromLink((char*)args, "Hgameobject");
         if (!id)
             return false;
+
         ObjectGuid::LowType guidLow = atoull(id);
         if (!guidLow)
             return false;
+
         GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object)
         {
@@ -522,6 +524,7 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
+
         char* phase = strtok (nullptr, " ");
         uint32 phaseMask = phase ? atoul(phase) : 0;
         if (phaseMask == 0)
@@ -530,6 +533,7 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
+
         object->SetPhaseMask(phaseMask, true);
         object->SaveToDB();*/
         return true;

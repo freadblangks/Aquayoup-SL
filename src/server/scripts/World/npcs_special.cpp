@@ -40,9 +40,9 @@
 #include "TemporarySummon.h"
 #include "Vehicle.h"
 
- /*########
- # npc_air_force_bots
- #########*/
+/*########
+# npc_air_force_bots
+#########*/
 
 enum AirForceBots
 {
@@ -52,7 +52,7 @@ enum AirForceBots
     SPELL_GUARDS_MARK = 38067
 };
 
-float constexpr RANGE_TRIPWIRE = 15.0f;
+float constexpr RANGE_TRIPWIRE =  15.0f;
 float constexpr RANGE_ALARMBOT = 100.0f;
 
 struct AirForceSpawn
@@ -182,10 +182,10 @@ public:
             _toAttack.insert(who->GetGUID());
         }
 
-    private:
-        AirForceSpawn const& _spawn;
-        ObjectGuid _myGuard;
-        std::unordered_set<ObjectGuid> _toAttack;
+        private:
+            AirForceSpawn const& _spawn;
+            ObjectGuid _myGuard;
+            std::unordered_set<ObjectGuid> _toAttack;
 
     };
 
@@ -201,11 +201,11 @@ public:
 
 enum ChickenCluck
 {
-    EMOTE_HELLO_A = 0,
-    EMOTE_HELLO_H = 1,
-    EMOTE_CLUCK_TEXT = 2,
+    EMOTE_HELLO_A       = 0,
+    EMOTE_HELLO_H       = 1,
+    EMOTE_CLUCK_TEXT    = 2,
 
-    QUEST_CLUCK = 3861,
+    QUEST_CLUCK         = 3861,
 };
 
 class npc_chicken_cluck : public CreatureScript
@@ -258,22 +258,22 @@ public:
         {
             switch (emote)
             {
-            case TEXT_EMOTE_CHICKEN:
-                if (player->GetQuestStatus(QUEST_CLUCK) == QUEST_STATUS_NONE && rand32() % 30 == 1)
-                {
-                    me->AddNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
-                    me->SetFaction(FACTION_FRIENDLY);
-                    Talk(player->GetTeam() == HORDE ? EMOTE_HELLO_H : EMOTE_HELLO_A);
-                }
-                break;
-            case TEXT_EMOTE_CHEER:
-                if (player->GetQuestStatus(QUEST_CLUCK) == QUEST_STATUS_COMPLETE)
-                {
-                    me->AddNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
-                    me->SetFaction(FACTION_FRIENDLY);
-                    Talk(EMOTE_CLUCK_TEXT);
-                }
-                break;
+                case TEXT_EMOTE_CHICKEN:
+                    if (player->GetQuestStatus(QUEST_CLUCK) == QUEST_STATUS_NONE && rand32() % 30 == 1)
+                    {
+                        me->AddNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
+                        me->SetFaction(FACTION_FRIENDLY);
+                        Talk(player->GetTeam() == HORDE ? EMOTE_HELLO_H : EMOTE_HELLO_A);
+                    }
+                    break;
+                case TEXT_EMOTE_CHEER:
+                    if (player->GetQuestStatus(QUEST_CLUCK) == QUEST_STATUS_COMPLETE)
+                    {
+                        me->AddNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
+                        me->SetFaction(FACTION_FRIENDLY);
+                        Talk(EMOTE_CLUCK_TEXT);
+                    }
+                    break;
             }
         }
 
@@ -302,9 +302,9 @@ public:
 
 enum DancingFlames
 {
-    SPELL_BRAZIER = 45423,
-    SPELL_SEDUCTION = 47057,
-    SPELL_FIERY_AURA = 45427
+    SPELL_BRAZIER           = 45423,
+    SPELL_SEDUCTION         = 47057,
+    SPELL_FIERY_AURA        = 45427
 };
 
 class npc_dancing_flames : public CreatureScript
@@ -366,22 +366,22 @@ public:
 
                 switch (emote)
                 {
-                case TEXT_EMOTE_KISS:
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_SHY);
-                    break;
-                case TEXT_EMOTE_WAVE:
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_WAVE);
-                    break;
-                case TEXT_EMOTE_BOW:
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_BOW);
-                    break;
-                case TEXT_EMOTE_JOKE:
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_LAUGH);
-                    break;
-                case TEXT_EMOTE_DANCE:
-                    if (!player->HasAura(SPELL_SEDUCTION))
-                        DoCast(player, SPELL_SEDUCTION, true);
-                    break;
+                    case TEXT_EMOTE_KISS:
+                        me->HandleEmoteCommand(EMOTE_ONESHOT_SHY);
+                        break;
+                    case TEXT_EMOTE_WAVE:
+                        me->HandleEmoteCommand(EMOTE_ONESHOT_WAVE);
+                        break;
+                    case TEXT_EMOTE_BOW:
+                        me->HandleEmoteCommand(EMOTE_ONESHOT_BOW);
+                        break;
+                    case TEXT_EMOTE_JOKE:
+                        me->HandleEmoteCommand(EMOTE_ONESHOT_LAUGH);
+                        break;
+                    case TEXT_EMOTE_DANCE:
+                        if (!player->HasAura(SPELL_SEDUCTION))
+                            DoCast(player, SPELL_SEDUCTION, true);
+                        break;
                 }
             }
         }
@@ -399,7 +399,7 @@ public:
 
 enum TorchTossingTarget
 {
-    SPELL_TORCH_TARGET_PICKER = 45907
+    SPELL_TORCH_TARGET_PICKER      = 45907
 };
 
 class npc_torch_tossing_target_bunny_controller : public CreatureScript
@@ -414,14 +414,14 @@ public:
         void Reset() override
         {
             _scheduler.Schedule(Seconds(2), [this](TaskContext context)
+            {
+                me->CastSpell(nullptr, SPELL_TORCH_TARGET_PICKER);
+                _scheduler.Schedule(Seconds(3), [this](TaskContext /*context*/)
                 {
                     me->CastSpell(nullptr, SPELL_TORCH_TARGET_PICKER);
-                    _scheduler.Schedule(Seconds(3), [this](TaskContext /*context*/)
-                        {
-                            me->CastSpell(nullptr, SPELL_TORCH_TARGET_PICKER);
-                        });
-                    context.Repeat(Seconds(5));
                 });
+                context.Repeat(Seconds(5));
+            });
         }
 
         void UpdateAI(uint32 diff) override
@@ -445,12 +445,12 @@ public:
 
 enum RibbonPoleData
 {
-    GO_RIBBON_POLE = 181605,
+    GO_RIBBON_POLE              = 181605,
     SPELL_RIBBON_DANCE_COSMETIC = 29726,
-    SPELL_RED_FIRE_RING = 46836,
-    SPELL_BLUE_FIRE_RING = 46842,
-    EVENT_CAST_RED_FIRE_RING = 1,
-    EVENT_CAST_BLUE_FIRE_RING = 2
+    SPELL_RED_FIRE_RING         = 46836,
+    SPELL_BLUE_FIRE_RING        = 46842,
+    EVENT_CAST_RED_FIRE_RING    = 1,
+    EVENT_CAST_BLUE_FIRE_RING   = 2
 };
 
 class npc_midsummer_bunny_pole : public CreatureScript
@@ -554,15 +554,15 @@ public:
 
 enum Doctor
 {
-    SAY_DOC = 0,
+    SAY_DOC             = 0,
 
-    DOCTOR_ALLIANCE = 12939,
-    DOCTOR_HORDE = 12920,
-    ALLIANCE_COORDS = 7,
-    HORDE_COORDS = 6
+    DOCTOR_ALLIANCE     = 12939,
+    DOCTOR_HORDE        = 12920,
+    ALLIANCE_COORDS     = 7,
+    HORDE_COORDS        = 6
 };
 
-Position const AllianceCoords[] =
+Position const AllianceCoords[]=
 {
     {-3757.38f, -4533.05f, 14.16f, 3.62f},                      // Top-far-right bunk as seen from entrance
     {-3754.36f, -4539.13f, 14.16f, 5.13f},                      // Top-far-left bunk
@@ -578,7 +578,7 @@ Position const AllianceCoords[] =
 #define A_RUNTOY -4531.52f
 #define A_RUNTOZ 11.91f
 
-Position const HordeCoords[] =
+Position const HordeCoords[]=
 {
     {-1013.75f, -3492.59f, 62.62f, 4.34f},                      // Left, Behind
     {-1017.72f, -3490.92f, 62.62f, 4.34f},                      // Right, Behind
@@ -666,14 +666,14 @@ public:
 
             switch (me->GetEntry())
             {
-            case DOCTOR_ALLIANCE:
-                for (uint8 i = 0; i < ALLIANCE_COORDS; ++i)
-                    Coordinates.push_back(&AllianceCoords[i]);
-                break;
-            case DOCTOR_HORDE:
-                for (uint8 i = 0; i < HORDE_COORDS; ++i)
-                    Coordinates.push_back(&HordeCoords[i]);
-                break;
+                case DOCTOR_ALLIANCE:
+                    for (uint8 i = 0; i < ALLIANCE_COORDS; ++i)
+                        Coordinates.push_back(&AllianceCoords[i]);
+                    break;
+                case DOCTOR_HORDE:
+                    for (uint8 i = 0; i < HORDE_COORDS; ++i)
+                        Coordinates.push_back(&HordeCoords[i]);
+                    break;
             }
 
             Event = true;
@@ -797,18 +797,18 @@ public:
 
             switch (mobId)
             {                                                   //lower max health
-            case 12923:
-            case 12938:                                     //Injured Soldier
-                me->SetHealth(me->CountPctFromMaxHealth(75));
-                break;
-            case 12924:
-            case 12936:                                     //Badly injured Soldier
-                me->SetHealth(me->CountPctFromMaxHealth(50));
-                break;
-            case 12925:
-            case 12937:                                     //Critically injured Soldier
-                me->SetHealth(me->CountPctFromMaxHealth(25));
-                break;
+                case 12923:
+                case 12938:                                     //Injured Soldier
+                    me->SetHealth(me->CountPctFromMaxHealth(75));
+                    break;
+                case 12924:
+                case 12936:                                     //Badly injured Soldier
+                    me->SetHealth(me->CountPctFromMaxHealth(50));
+                    break;
+                case 12925:
+                case 12937:                                     //Critically injured Soldier
+                    me->SetHealth(me->CountPctFromMaxHealth(25));
+                    break;
             }
         }
 
@@ -841,16 +841,16 @@ public:
 
             switch (mobId)
             {
-            case 12923:
-            case 12924:
-            case 12925:
-                me->GetMotionMaster()->MovePoint(0, H_RUNTOX, H_RUNTOY, H_RUNTOZ);
-                break;
-            case 12936:
-            case 12937:
-            case 12938:
-                me->GetMotionMaster()->MovePoint(0, A_RUNTOX, A_RUNTOY, A_RUNTOZ);
-                break;
+                case 12923:
+                case 12924:
+                case 12925:
+                    me->GetMotionMaster()->MovePoint(0, H_RUNTOX, H_RUNTOY, H_RUNTOZ);
+                    break;
+                case 12936:
+                case 12937:
+                case 12938:
+                    me->GetMotionMaster()->MovePoint(0, A_RUNTOX, A_RUNTOY, A_RUNTOZ);
+                    break;
             }
         }
 
@@ -899,15 +899,15 @@ void npc_doctor::npc_doctorAI::UpdateAI(uint32 diff)
 
             switch (me->GetEntry())
             {
-            case DOCTOR_ALLIANCE:
-                patientEntry = AllianceSoldierId[rand32() % 3];
-                break;
-            case DOCTOR_HORDE:
-                patientEntry = HordeSoldierId[rand32() % 3];
-                break;
-            default:
-                TC_LOG_ERROR("scripts", "Invalid entry for Triage doctor. Please check your database");
-                return;
+                case DOCTOR_ALLIANCE:
+                    patientEntry = AllianceSoldierId[rand32() % 3];
+                    break;
+                case DOCTOR_HORDE:
+                    patientEntry = HordeSoldierId[rand32() % 3];
+                    break;
+                default:
+                    TC_LOG_ERROR("scripts", "Invalid entry for Triage doctor. Please check your database");
+                    return;
             }
 
             std::vector<Position const*>::iterator point = Coordinates.begin();
@@ -941,25 +941,25 @@ void npc_doctor::npc_doctorAI::UpdateAI(uint32 diff)
 
 enum Garments
 {
-    SPELL_LESSER_HEAL_R2 = 2052,
-    SPELL_FORTITUDE_R1 = 1243,
+    SPELL_LESSER_HEAL_R2    = 2052,
+    SPELL_FORTITUDE_R1      = 1243,
 
-    QUEST_MOON = 5621,
-    QUEST_LIGHT_1 = 5624,
-    QUEST_LIGHT_2 = 5625,
-    QUEST_SPIRIT = 5648,
-    QUEST_DARKNESS = 5650,
+    QUEST_MOON              = 5621,
+    QUEST_LIGHT_1           = 5624,
+    QUEST_LIGHT_2           = 5625,
+    QUEST_SPIRIT            = 5648,
+    QUEST_DARKNESS          = 5650,
 
-    ENTRY_SHAYA = 12429,
-    ENTRY_ROBERTS = 12423,
-    ENTRY_DOLF = 12427,
-    ENTRY_KORJA = 12430,
-    ENTRY_DG_KEL = 12428,
+    ENTRY_SHAYA             = 12429,
+    ENTRY_ROBERTS           = 12423,
+    ENTRY_DOLF              = 12427,
+    ENTRY_KORJA             = 12430,
+    ENTRY_DG_KEL            = 12428,
 
     // used by 12429, 12423, 12427, 12430, 12428, but signed for 12429
-    SAY_THANKS = 0,
-    SAY_GOODBYE = 1,
-    SAY_HEALED = 2,
+    SAY_THANKS              = 0,
+    SAY_GOODBYE             = 1,
+    SAY_HEALED              = 2,
 };
 
 class npc_garments_of_quests : public CreatureScript
@@ -973,24 +973,24 @@ public:
         {
             switch (me->GetEntry())
             {
-            case ENTRY_SHAYA:
-                quest = QUEST_MOON;
-                break;
-            case ENTRY_ROBERTS:
-                quest = QUEST_LIGHT_1;
-                break;
-            case ENTRY_DOLF:
-                quest = QUEST_LIGHT_2;
-                break;
-            case ENTRY_KORJA:
-                quest = QUEST_SPIRIT;
-                break;
-            case ENTRY_DG_KEL:
-                quest = QUEST_DARKNESS;
-                break;
-            default:
-                quest = 0;
-                break;
+                case ENTRY_SHAYA:
+                    quest = QUEST_MOON;
+                    break;
+                case ENTRY_ROBERTS:
+                    quest = QUEST_LIGHT_1;
+                    break;
+                case ENTRY_DOLF:
+                    quest = QUEST_LIGHT_2;
+                    break;
+                case ENTRY_KORJA:
+                    quest = QUEST_SPIRIT;
+                    break;
+                case ENTRY_DG_KEL:
+                    quest = QUEST_DARKNESS;
+                    break;
+                default:
+                    quest = 0;
+                    break;
             }
 
             Reset();
@@ -1067,13 +1067,13 @@ public:
                     {
                         switch (me->GetEntry())
                         {
-                        case ENTRY_SHAYA:
-                        case ENTRY_ROBERTS:
-                        case ENTRY_DOLF:
-                        case ENTRY_KORJA:
-                        case ENTRY_DG_KEL:
-                            Talk(SAY_GOODBYE, unit);
-                            break;
+                            case ENTRY_SHAYA:
+                            case ENTRY_ROBERTS:
+                            case ENTRY_DOLF:
+                            case ENTRY_KORJA:
+                            case ENTRY_DG_KEL:
+                                Talk(SAY_GOODBYE, unit);
+                                break;
                         }
 
                         Start(false, true);
@@ -1103,7 +1103,7 @@ public:
 
 enum GuardianSpells
 {
-    SPELL_DEATHTOUCH = 5
+    SPELL_DEATHTOUCH            = 5
 };
 
 class npc_guardian : public CreatureScript
@@ -1178,7 +1178,7 @@ public:
 
 enum TonkMine
 {
-    SPELL_TONK_MINE_DETONATE = 25099
+    SPELL_TONK_MINE_DETONATE    = 25099
 };
 
 class npc_tonk_mine : public CreatureScript
@@ -1231,244 +1231,244 @@ public:
 
 enum TournamentPennantSpells
 {
-    SPELL_PENNANT_STORMWIND_ASPIRANT = 62595,
-    SPELL_PENNANT_STORMWIND_VALIANT = 62596,
-    SPELL_PENNANT_STORMWIND_CHAMPION = 62594,
-    SPELL_PENNANT_GNOMEREGAN_ASPIRANT = 63394,
-    SPELL_PENNANT_GNOMEREGAN_VALIANT = 63395,
-    SPELL_PENNANT_GNOMEREGAN_CHAMPION = 63396,
-    SPELL_PENNANT_SEN_JIN_ASPIRANT = 63397,
-    SPELL_PENNANT_SEN_JIN_VALIANT = 63398,
-    SPELL_PENNANT_SEN_JIN_CHAMPION = 63399,
-    SPELL_PENNANT_SILVERMOON_ASPIRANT = 63401,
-    SPELL_PENNANT_SILVERMOON_VALIANT = 63402,
-    SPELL_PENNANT_SILVERMOON_CHAMPION = 63403,
-    SPELL_PENNANT_DARNASSUS_ASPIRANT = 63404,
-    SPELL_PENNANT_DARNASSUS_VALIANT = 63405,
-    SPELL_PENNANT_DARNASSUS_CHAMPION = 63406,
-    SPELL_PENNANT_EXODAR_ASPIRANT = 63421,
-    SPELL_PENNANT_EXODAR_VALIANT = 63422,
-    SPELL_PENNANT_EXODAR_CHAMPION = 63423,
-    SPELL_PENNANT_IRONFORGE_ASPIRANT = 63425,
-    SPELL_PENNANT_IRONFORGE_VALIANT = 63426,
-    SPELL_PENNANT_IRONFORGE_CHAMPION = 63427,
-    SPELL_PENNANT_UNDERCITY_ASPIRANT = 63428,
-    SPELL_PENNANT_UNDERCITY_VALIANT = 63429,
-    SPELL_PENNANT_UNDERCITY_CHAMPION = 63430,
-    SPELL_PENNANT_ORGRIMMAR_ASPIRANT = 63431,
-    SPELL_PENNANT_ORGRIMMAR_VALIANT = 63432,
-    SPELL_PENNANT_ORGRIMMAR_CHAMPION = 63433,
-    SPELL_PENNANT_THUNDER_BLUFF_ASPIRANT = 63434,
-    SPELL_PENNANT_THUNDER_BLUFF_VALIANT = 63435,
-    SPELL_PENNANT_THUNDER_BLUFF_CHAMPION = 63436,
-    SPELL_PENNANT_ARGENT_CRUSADE_ASPIRANT = 63606,
-    SPELL_PENNANT_ARGENT_CRUSADE_VALIANT = 63500,
-    SPELL_PENNANT_ARGENT_CRUSADE_CHAMPION = 63501,
-    SPELL_PENNANT_EBON_BLADE_ASPIRANT = 63607,
-    SPELL_PENNANT_EBON_BLADE_VALIANT = 63608,
-    SPELL_PENNANT_EBON_BLADE_CHAMPION = 63609
+    SPELL_PENNANT_STORMWIND_ASPIRANT        = 62595,
+    SPELL_PENNANT_STORMWIND_VALIANT         = 62596,
+    SPELL_PENNANT_STORMWIND_CHAMPION        = 62594,
+    SPELL_PENNANT_GNOMEREGAN_ASPIRANT       = 63394,
+    SPELL_PENNANT_GNOMEREGAN_VALIANT        = 63395,
+    SPELL_PENNANT_GNOMEREGAN_CHAMPION       = 63396,
+    SPELL_PENNANT_SEN_JIN_ASPIRANT          = 63397,
+    SPELL_PENNANT_SEN_JIN_VALIANT           = 63398,
+    SPELL_PENNANT_SEN_JIN_CHAMPION          = 63399,
+    SPELL_PENNANT_SILVERMOON_ASPIRANT       = 63401,
+    SPELL_PENNANT_SILVERMOON_VALIANT        = 63402,
+    SPELL_PENNANT_SILVERMOON_CHAMPION       = 63403,
+    SPELL_PENNANT_DARNASSUS_ASPIRANT        = 63404,
+    SPELL_PENNANT_DARNASSUS_VALIANT         = 63405,
+    SPELL_PENNANT_DARNASSUS_CHAMPION        = 63406,
+    SPELL_PENNANT_EXODAR_ASPIRANT           = 63421,
+    SPELL_PENNANT_EXODAR_VALIANT            = 63422,
+    SPELL_PENNANT_EXODAR_CHAMPION           = 63423,
+    SPELL_PENNANT_IRONFORGE_ASPIRANT        = 63425,
+    SPELL_PENNANT_IRONFORGE_VALIANT         = 63426,
+    SPELL_PENNANT_IRONFORGE_CHAMPION        = 63427,
+    SPELL_PENNANT_UNDERCITY_ASPIRANT        = 63428,
+    SPELL_PENNANT_UNDERCITY_VALIANT         = 63429,
+    SPELL_PENNANT_UNDERCITY_CHAMPION        = 63430,
+    SPELL_PENNANT_ORGRIMMAR_ASPIRANT        = 63431,
+    SPELL_PENNANT_ORGRIMMAR_VALIANT         = 63432,
+    SPELL_PENNANT_ORGRIMMAR_CHAMPION        = 63433,
+    SPELL_PENNANT_THUNDER_BLUFF_ASPIRANT    = 63434,
+    SPELL_PENNANT_THUNDER_BLUFF_VALIANT     = 63435,
+    SPELL_PENNANT_THUNDER_BLUFF_CHAMPION    = 63436,
+    SPELL_PENNANT_ARGENT_CRUSADE_ASPIRANT   = 63606,
+    SPELL_PENNANT_ARGENT_CRUSADE_VALIANT    = 63500,
+    SPELL_PENNANT_ARGENT_CRUSADE_CHAMPION   = 63501,
+    SPELL_PENNANT_EBON_BLADE_ASPIRANT       = 63607,
+    SPELL_PENNANT_EBON_BLADE_VALIANT        = 63608,
+    SPELL_PENNANT_EBON_BLADE_CHAMPION       = 63609
 };
 
-enum TournamentMounts
+ enum TournamentMounts
 {
-    NPC_STORMWIND_STEED = 33217,
-    NPC_IRONFORGE_RAM = 33316,
-    NPC_GNOMEREGAN_MECHANOSTRIDER = 33317,
-    NPC_EXODAR_ELEKK = 33318,
-    NPC_DARNASSIAN_NIGHTSABER = 33319,
-    NPC_ORGRIMMAR_WOLF = 33320,
-    NPC_DARK_SPEAR_RAPTOR = 33321,
-    NPC_THUNDER_BLUFF_KODO = 33322,
-    NPC_SILVERMOON_HAWKSTRIDER = 33323,
-    NPC_FORSAKEN_WARHORSE = 33324,
-    NPC_ARGENT_WARHORSE = 33782,
-    NPC_ARGENT_STEED_ASPIRANT = 33845,
-    NPC_ARGENT_HAWKSTRIDER_ASPIRANT = 33844
+    NPC_STORMWIND_STEED                     = 33217,
+    NPC_IRONFORGE_RAM                       = 33316,
+    NPC_GNOMEREGAN_MECHANOSTRIDER           = 33317,
+    NPC_EXODAR_ELEKK                        = 33318,
+    NPC_DARNASSIAN_NIGHTSABER               = 33319,
+    NPC_ORGRIMMAR_WOLF                      = 33320,
+    NPC_DARK_SPEAR_RAPTOR                   = 33321,
+    NPC_THUNDER_BLUFF_KODO                  = 33322,
+    NPC_SILVERMOON_HAWKSTRIDER              = 33323,
+    NPC_FORSAKEN_WARHORSE                   = 33324,
+    NPC_ARGENT_WARHORSE                     = 33782,
+    NPC_ARGENT_STEED_ASPIRANT               = 33845,
+    NPC_ARGENT_HAWKSTRIDER_ASPIRANT         = 33844
 };
 
-enum TournamentQuestsAchievements
+ enum TournamentQuestsAchievements
 {
-    ACHIEVEMENT_CHAMPION_STORMWIND = 2781,
-    ACHIEVEMENT_CHAMPION_DARNASSUS = 2777,
-    ACHIEVEMENT_CHAMPION_IRONFORGE = 2780,
-    ACHIEVEMENT_CHAMPION_GNOMEREGAN = 2779,
-    ACHIEVEMENT_CHAMPION_THE_EXODAR = 2778,
-    ACHIEVEMENT_CHAMPION_ORGRIMMAR = 2783,
-    ACHIEVEMENT_CHAMPION_SEN_JIN = 2784,
-    ACHIEVEMENT_CHAMPION_THUNDER_BLUFF = 2786,
-    ACHIEVEMENT_CHAMPION_UNDERCITY = 2787,
-    ACHIEVEMENT_CHAMPION_SILVERMOON = 2785,
-    ACHIEVEMENT_ARGENT_VALOR = 2758,
-    ACHIEVEMENT_CHAMPION_ALLIANCE = 2782,
-    ACHIEVEMENT_CHAMPION_HORDE = 2788,
+    ACHIEVEMENT_CHAMPION_STORMWIND          = 2781,
+    ACHIEVEMENT_CHAMPION_DARNASSUS          = 2777,
+    ACHIEVEMENT_CHAMPION_IRONFORGE          = 2780,
+    ACHIEVEMENT_CHAMPION_GNOMEREGAN         = 2779,
+    ACHIEVEMENT_CHAMPION_THE_EXODAR         = 2778,
+    ACHIEVEMENT_CHAMPION_ORGRIMMAR          = 2783,
+    ACHIEVEMENT_CHAMPION_SEN_JIN            = 2784,
+    ACHIEVEMENT_CHAMPION_THUNDER_BLUFF      = 2786,
+    ACHIEVEMENT_CHAMPION_UNDERCITY          = 2787,
+    ACHIEVEMENT_CHAMPION_SILVERMOON         = 2785,
+    ACHIEVEMENT_ARGENT_VALOR                = 2758,
+    ACHIEVEMENT_CHAMPION_ALLIANCE           = 2782,
+    ACHIEVEMENT_CHAMPION_HORDE              = 2788,
 
-    QUEST_VALIANT_OF_STORMWIND = 13593,
-    QUEST_A_VALIANT_OF_STORMWIND = 13684,
-    QUEST_VALIANT_OF_DARNASSUS = 13706,
-    QUEST_A_VALIANT_OF_DARNASSUS = 13689,
-    QUEST_VALIANT_OF_IRONFORGE = 13703,
-    QUEST_A_VALIANT_OF_IRONFORGE = 13685,
-    QUEST_VALIANT_OF_GNOMEREGAN = 13704,
-    QUEST_A_VALIANT_OF_GNOMEREGAN = 13688,
-    QUEST_VALIANT_OF_THE_EXODAR = 13705,
-    QUEST_A_VALIANT_OF_THE_EXODAR = 13690,
-    QUEST_VALIANT_OF_ORGRIMMAR = 13707,
-    QUEST_A_VALIANT_OF_ORGRIMMAR = 13691,
-    QUEST_VALIANT_OF_SEN_JIN = 13708,
-    QUEST_A_VALIANT_OF_SEN_JIN = 13693,
-    QUEST_VALIANT_OF_THUNDER_BLUFF = 13709,
-    QUEST_A_VALIANT_OF_THUNDER_BLUFF = 13694,
-    QUEST_VALIANT_OF_UNDERCITY = 13710,
-    QUEST_A_VALIANT_OF_UNDERCITY = 13695,
-    QUEST_VALIANT_OF_SILVERMOON = 13711,
-    QUEST_A_VALIANT_OF_SILVERMOON = 13696
+     QUEST_VALIANT_OF_STORMWIND              = 13593,
+    QUEST_A_VALIANT_OF_STORMWIND            = 13684,
+    QUEST_VALIANT_OF_DARNASSUS              = 13706,
+    QUEST_A_VALIANT_OF_DARNASSUS            = 13689,
+    QUEST_VALIANT_OF_IRONFORGE              = 13703,
+    QUEST_A_VALIANT_OF_IRONFORGE            = 13685,
+    QUEST_VALIANT_OF_GNOMEREGAN             = 13704,
+    QUEST_A_VALIANT_OF_GNOMEREGAN           = 13688,
+    QUEST_VALIANT_OF_THE_EXODAR             = 13705,
+    QUEST_A_VALIANT_OF_THE_EXODAR           = 13690,
+    QUEST_VALIANT_OF_ORGRIMMAR              = 13707,
+    QUEST_A_VALIANT_OF_ORGRIMMAR            = 13691,
+    QUEST_VALIANT_OF_SEN_JIN                = 13708,
+    QUEST_A_VALIANT_OF_SEN_JIN              = 13693,
+    QUEST_VALIANT_OF_THUNDER_BLUFF          = 13709,
+    QUEST_A_VALIANT_OF_THUNDER_BLUFF        = 13694,
+    QUEST_VALIANT_OF_UNDERCITY              = 13710,
+    QUEST_A_VALIANT_OF_UNDERCITY            = 13695,
+    QUEST_VALIANT_OF_SILVERMOON             = 13711,
+    QUEST_A_VALIANT_OF_SILVERMOON           = 13696
 };
 
-class npc_tournament_mount : public CreatureScript
+ class npc_tournament_mount : public CreatureScript
 {
-public:
-    npc_tournament_mount() : CreatureScript("npc_tournament_mount") { }
+    public:
+        npc_tournament_mount() : CreatureScript("npc_tournament_mount") { }
 
-    struct npc_tournament_mountAI : public VehicleAI
-    {
-        npc_tournament_mountAI(Creature* creature) : VehicleAI(creature)
+         struct npc_tournament_mountAI : public VehicleAI
         {
-            _pennantSpellId = 0;
-        }
+            npc_tournament_mountAI(Creature* creature) : VehicleAI(creature)
+            {
+                _pennantSpellId = 0;
+            }
 
-        void PassengerBoarded(Unit* passenger, int8 /*seatId*/, bool apply) override
+             void PassengerBoarded(Unit* passenger, int8 /*seatId*/, bool apply) override
+            {
+                Player* player = passenger->ToPlayer();
+                if (!player)
+                    return;
+
+                 if (apply)
+                {
+                    _pennantSpellId = GetPennantSpellId(player);
+                    player->CastSpell(nullptr, _pennantSpellId, true);
+                }
+                else
+                    player->RemoveAurasDueToSpell(_pennantSpellId);
+            }
+
+         private:
+            uint32 _pennantSpellId;
+
+             uint32 GetPennantSpellId(Player* player) const
+            {
+                switch (me->GetEntry())
+                {
+                    case NPC_ARGENT_STEED_ASPIRANT:
+                    case NPC_STORMWIND_STEED:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_STORMWIND))
+                            return SPELL_PENNANT_STORMWIND_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_STORMWIND) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_STORMWIND))
+                            return SPELL_PENNANT_STORMWIND_VALIANT;
+                        else
+                            return SPELL_PENNANT_STORMWIND_ASPIRANT;
+                    }
+                    case NPC_GNOMEREGAN_MECHANOSTRIDER:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_GNOMEREGAN))
+                            return SPELL_PENNANT_GNOMEREGAN_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_GNOMEREGAN) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_GNOMEREGAN))
+                            return SPELL_PENNANT_GNOMEREGAN_VALIANT;
+                        else
+                            return SPELL_PENNANT_GNOMEREGAN_ASPIRANT;
+                    }
+                    case NPC_DARK_SPEAR_RAPTOR:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_SEN_JIN))
+                            return SPELL_PENNANT_SEN_JIN_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_SEN_JIN) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_SEN_JIN))
+                            return SPELL_PENNANT_SEN_JIN_VALIANT;
+                        else
+                            return SPELL_PENNANT_SEN_JIN_ASPIRANT;
+                    }
+                    case NPC_ARGENT_HAWKSTRIDER_ASPIRANT:
+                    case NPC_SILVERMOON_HAWKSTRIDER:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_SILVERMOON))
+                            return SPELL_PENNANT_SILVERMOON_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_SILVERMOON) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_SILVERMOON))
+                            return SPELL_PENNANT_SILVERMOON_VALIANT;
+                        else
+                            return SPELL_PENNANT_SILVERMOON_ASPIRANT;
+                    }
+                    case NPC_DARNASSIAN_NIGHTSABER:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_DARNASSUS))
+                            return SPELL_PENNANT_DARNASSUS_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_DARNASSUS) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_DARNASSUS))
+                            return SPELL_PENNANT_DARNASSUS_VALIANT;
+                        else
+                            return SPELL_PENNANT_DARNASSUS_ASPIRANT;
+                    }
+                    case NPC_EXODAR_ELEKK:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_THE_EXODAR))
+                            return SPELL_PENNANT_EXODAR_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_THE_EXODAR) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_THE_EXODAR))
+                            return SPELL_PENNANT_EXODAR_VALIANT;
+                        else
+                            return SPELL_PENNANT_EXODAR_ASPIRANT;
+                    }
+                    case NPC_IRONFORGE_RAM:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_IRONFORGE))
+                            return SPELL_PENNANT_IRONFORGE_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_IRONFORGE) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_IRONFORGE))
+                            return SPELL_PENNANT_IRONFORGE_VALIANT;
+                        else
+                            return SPELL_PENNANT_IRONFORGE_ASPIRANT;
+                    }
+                    case NPC_FORSAKEN_WARHORSE:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_UNDERCITY))
+                            return SPELL_PENNANT_UNDERCITY_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_UNDERCITY) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_UNDERCITY))
+                            return SPELL_PENNANT_UNDERCITY_VALIANT;
+                        else
+                            return SPELL_PENNANT_UNDERCITY_ASPIRANT;
+                    }
+                    case NPC_ORGRIMMAR_WOLF:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_ORGRIMMAR))
+                            return SPELL_PENNANT_ORGRIMMAR_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_ORGRIMMAR) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_ORGRIMMAR))
+                            return SPELL_PENNANT_ORGRIMMAR_VALIANT;
+                        else
+                            return SPELL_PENNANT_ORGRIMMAR_ASPIRANT;
+                    }
+                    case NPC_THUNDER_BLUFF_KODO:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_THUNDER_BLUFF))
+                            return SPELL_PENNANT_THUNDER_BLUFF_CHAMPION;
+                        else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_THUNDER_BLUFF) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_THUNDER_BLUFF))
+                            return SPELL_PENNANT_THUNDER_BLUFF_VALIANT;
+                        else
+                            return SPELL_PENNANT_THUNDER_BLUFF_ASPIRANT;
+                    }
+                    case NPC_ARGENT_WARHORSE:
+                    {
+                        if (player->HasAchieved(ACHIEVEMENT_CHAMPION_ALLIANCE) || player->HasAchieved(ACHIEVEMENT_CHAMPION_HORDE))
+                            return player->GetClass() == CLASS_DEATH_KNIGHT ? SPELL_PENNANT_EBON_BLADE_CHAMPION : SPELL_PENNANT_ARGENT_CRUSADE_CHAMPION;
+                        else if (player->HasAchieved(ACHIEVEMENT_ARGENT_VALOR))
+                            return player->GetClass() == CLASS_DEATH_KNIGHT ? SPELL_PENNANT_EBON_BLADE_VALIANT : SPELL_PENNANT_ARGENT_CRUSADE_VALIANT;
+                        else
+                            return player->GetClass() == CLASS_DEATH_KNIGHT ? SPELL_PENNANT_EBON_BLADE_ASPIRANT : SPELL_PENNANT_ARGENT_CRUSADE_ASPIRANT;
+                    }
+                    default:
+                        return 0;
+                }
+            }
+        };
+
+         CreatureAI* GetAI(Creature* creature) const override
         {
-            Player* player = passenger->ToPlayer();
-            if (!player)
-                return;
-
-            if (apply)
-            {
-                _pennantSpellId = GetPennantSpellId(player);
-                player->CastSpell(nullptr, _pennantSpellId, true);
-            }
-            else
-                player->RemoveAurasDueToSpell(_pennantSpellId);
+            return new npc_tournament_mountAI(creature);
         }
-
-    private:
-        uint32 _pennantSpellId;
-
-        uint32 GetPennantSpellId(Player* player) const
-        {
-            switch (me->GetEntry())
-            {
-            case NPC_ARGENT_STEED_ASPIRANT:
-            case NPC_STORMWIND_STEED:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_STORMWIND))
-                    return SPELL_PENNANT_STORMWIND_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_STORMWIND) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_STORMWIND))
-                    return SPELL_PENNANT_STORMWIND_VALIANT;
-                else
-                    return SPELL_PENNANT_STORMWIND_ASPIRANT;
-            }
-            case NPC_GNOMEREGAN_MECHANOSTRIDER:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_GNOMEREGAN))
-                    return SPELL_PENNANT_GNOMEREGAN_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_GNOMEREGAN) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_GNOMEREGAN))
-                    return SPELL_PENNANT_GNOMEREGAN_VALIANT;
-                else
-                    return SPELL_PENNANT_GNOMEREGAN_ASPIRANT;
-            }
-            case NPC_DARK_SPEAR_RAPTOR:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_SEN_JIN))
-                    return SPELL_PENNANT_SEN_JIN_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_SEN_JIN) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_SEN_JIN))
-                    return SPELL_PENNANT_SEN_JIN_VALIANT;
-                else
-                    return SPELL_PENNANT_SEN_JIN_ASPIRANT;
-            }
-            case NPC_ARGENT_HAWKSTRIDER_ASPIRANT:
-            case NPC_SILVERMOON_HAWKSTRIDER:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_SILVERMOON))
-                    return SPELL_PENNANT_SILVERMOON_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_SILVERMOON) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_SILVERMOON))
-                    return SPELL_PENNANT_SILVERMOON_VALIANT;
-                else
-                    return SPELL_PENNANT_SILVERMOON_ASPIRANT;
-            }
-            case NPC_DARNASSIAN_NIGHTSABER:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_DARNASSUS))
-                    return SPELL_PENNANT_DARNASSUS_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_DARNASSUS) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_DARNASSUS))
-                    return SPELL_PENNANT_DARNASSUS_VALIANT;
-                else
-                    return SPELL_PENNANT_DARNASSUS_ASPIRANT;
-            }
-            case NPC_EXODAR_ELEKK:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_THE_EXODAR))
-                    return SPELL_PENNANT_EXODAR_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_THE_EXODAR) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_THE_EXODAR))
-                    return SPELL_PENNANT_EXODAR_VALIANT;
-                else
-                    return SPELL_PENNANT_EXODAR_ASPIRANT;
-            }
-            case NPC_IRONFORGE_RAM:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_IRONFORGE))
-                    return SPELL_PENNANT_IRONFORGE_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_IRONFORGE) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_IRONFORGE))
-                    return SPELL_PENNANT_IRONFORGE_VALIANT;
-                else
-                    return SPELL_PENNANT_IRONFORGE_ASPIRANT;
-            }
-            case NPC_FORSAKEN_WARHORSE:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_UNDERCITY))
-                    return SPELL_PENNANT_UNDERCITY_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_UNDERCITY) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_UNDERCITY))
-                    return SPELL_PENNANT_UNDERCITY_VALIANT;
-                else
-                    return SPELL_PENNANT_UNDERCITY_ASPIRANT;
-            }
-            case NPC_ORGRIMMAR_WOLF:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_ORGRIMMAR))
-                    return SPELL_PENNANT_ORGRIMMAR_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_ORGRIMMAR) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_ORGRIMMAR))
-                    return SPELL_PENNANT_ORGRIMMAR_VALIANT;
-                else
-                    return SPELL_PENNANT_ORGRIMMAR_ASPIRANT;
-            }
-            case NPC_THUNDER_BLUFF_KODO:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_THUNDER_BLUFF))
-                    return SPELL_PENNANT_THUNDER_BLUFF_CHAMPION;
-                else if (player->GetQuestRewardStatus(QUEST_VALIANT_OF_THUNDER_BLUFF) || player->GetQuestRewardStatus(QUEST_A_VALIANT_OF_THUNDER_BLUFF))
-                    return SPELL_PENNANT_THUNDER_BLUFF_VALIANT;
-                else
-                    return SPELL_PENNANT_THUNDER_BLUFF_ASPIRANT;
-            }
-            case NPC_ARGENT_WARHORSE:
-            {
-                if (player->HasAchieved(ACHIEVEMENT_CHAMPION_ALLIANCE) || player->HasAchieved(ACHIEVEMENT_CHAMPION_HORDE))
-                    return player->GetClass() == CLASS_DEATH_KNIGHT ? SPELL_PENNANT_EBON_BLADE_CHAMPION : SPELL_PENNANT_ARGENT_CRUSADE_CHAMPION;
-                else if (player->HasAchieved(ACHIEVEMENT_ARGENT_VALOR))
-                    return player->GetClass() == CLASS_DEATH_KNIGHT ? SPELL_PENNANT_EBON_BLADE_VALIANT : SPELL_PENNANT_ARGENT_CRUSADE_VALIANT;
-                else
-                    return player->GetClass() == CLASS_DEATH_KNIGHT ? SPELL_PENNANT_EBON_BLADE_ASPIRANT : SPELL_PENNANT_ARGENT_CRUSADE_ASPIRANT;
-            }
-            default:
-                return 0;
-            }
-        }
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_tournament_mountAI(creature);
-    }
 };
 
 /*####
@@ -1482,33 +1482,33 @@ enum BrewfestReveler
 
 class npc_brewfest_reveler : public CreatureScript
 {
-public:
-    npc_brewfest_reveler() : CreatureScript("npc_brewfest_reveler") { }
+    public:
+        npc_brewfest_reveler() : CreatureScript("npc_brewfest_reveler") { }
 
-    struct npc_brewfest_revelerAI : public ScriptedAI
-    {
-        npc_brewfest_revelerAI(Creature* creature) : ScriptedAI(creature) { }
-
-        void ReceiveEmote(Player* player, uint32 emote) override
+        struct npc_brewfest_revelerAI : public ScriptedAI
         {
-            if (!IsHolidayActive(HOLIDAY_BREWFEST))
-                return;
+            npc_brewfest_revelerAI(Creature* creature) : ScriptedAI(creature) { }
 
-            if (emote == TEXT_EMOTE_DANCE)
-                me->CastSpell(player, SPELL_BREWFEST_TOAST, false);
+            void ReceiveEmote(Player* player, uint32 emote) override
+            {
+                if (!IsHolidayActive(HOLIDAY_BREWFEST))
+                    return;
+
+                if (emote == TEXT_EMOTE_DANCE)
+                    me->CastSpell(player, SPELL_BREWFEST_TOAST, false);
+            }
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_brewfest_revelerAI(creature);
         }
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_brewfest_revelerAI(creature);
-    }
 };
 
 enum TrainingDummy
 {
-    NPC_ADVANCED_TARGET_DUMMY = 2674,
-    NPC_TARGET_DUMMY = 2673
+    NPC_ADVANCED_TARGET_DUMMY                  = 2674,
+    NPC_TARGET_DUMMY                           = 2673
 };
 
 class npc_training_dummy : public CreatureScript
@@ -1599,111 +1599,111 @@ public:
 
 enum NPC_Wormhole
 {
-    MENU_ID_WORMHOLE = 10668, // "This tear in the fabric of time and space looks ominous."
-    NPC_TEXT_WORMHOLE = 14785, // (not 907 "What brings you to this part of the world, $n?")
-    GOSSIP_OPTION_1 = 0,     // "Borean Tundra"
-    GOSSIP_OPTION_2 = 1,     // "Howling Fjord"
-    GOSSIP_OPTION_3 = 2,     // "Sholazar Basin"
-    GOSSIP_OPTION_4 = 3,     // "Icecrown"
-    GOSSIP_OPTION_5 = 4,     // "Storm Peaks"
-    GOSSIP_OPTION_6 = 5,     // "Underground..."
+    MENU_ID_WORMHOLE      = 10668, // "This tear in the fabric of time and space looks ominous."
+    NPC_TEXT_WORMHOLE     = 14785, // (not 907 "What brings you to this part of the world, $n?")
+    GOSSIP_OPTION_1       = 0,     // "Borean Tundra"
+    GOSSIP_OPTION_2       = 1,     // "Howling Fjord"
+    GOSSIP_OPTION_3       = 2,     // "Sholazar Basin"
+    GOSSIP_OPTION_4       = 3,     // "Icecrown"
+    GOSSIP_OPTION_5       = 4,     // "Storm Peaks"
+    GOSSIP_OPTION_6       = 5,     // "Underground..."
 
-    SPELL_BOREAN_TUNDRA = 67834, // 0
-    SPELL_HOWLING_FJORD = 67838, // 1
-    SPELL_SHOLAZAR_BASIN = 67835, // 2
-    SPELL_ICECROWN = 67836, // 3
-    SPELL_STORM_PEAKS = 67837, // 4
-    SPELL_UNDERGROUND = 68081  // 5
+    SPELL_BOREAN_TUNDRA   = 67834, // 0
+    SPELL_HOWLING_FJORD   = 67838, // 1
+    SPELL_SHOLAZAR_BASIN  = 67835, // 2
+    SPELL_ICECROWN        = 67836, // 3
+    SPELL_STORM_PEAKS     = 67837, // 4
+    SPELL_UNDERGROUND     = 68081  // 5
 };
 
 class npc_wormhole : public CreatureScript
 {
-public:
-    npc_wormhole() : CreatureScript("npc_wormhole") { }
+    public:
+        npc_wormhole() : CreatureScript("npc_wormhole") { }
 
-    struct npc_wormholeAI : public PassiveAI
-    {
-        npc_wormholeAI(Creature* creature) : PassiveAI(creature)
+        struct npc_wormholeAI : public PassiveAI
         {
-            Initialize();
-        }
-
-        void Initialize()
-        {
-            _showUnderground = urand(0, 100) == 0; // Guessed value, it is really rare though
-        }
-
-        void InitializeAI() override
-        {
-            Initialize();
-        }
-
-        bool GossipHello(Player* player) override
-        {
-            if (me->IsSummon())
+            npc_wormholeAI(Creature* creature) : PassiveAI(creature)
             {
-                if (player == me->ToTempSummon()->GetSummoner())
+                Initialize();
+            }
+
+            void Initialize()
+            {
+                _showUnderground = urand(0, 100) == 0; // Guessed value, it is really rare though
+            }
+
+            void InitializeAI() override
+            {
+                Initialize();
+            }
+
+            bool GossipHello(Player* player) override
+            {
+                if (me->IsSummon())
                 {
-                    AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-                    AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
-                    AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
-                    AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_4, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 4);
-                    AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 5);
+                    if (player == me->ToTempSummon()->GetSummoner())
+                    {
+                        AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                        AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                        AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
+                        AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_4, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 4);
+                        AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_5, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 5);
 
-                    if (_showUnderground)
-                        AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_6, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 6);
+                        if (_showUnderground)
+                            AddGossipItemFor(player, MENU_ID_WORMHOLE, GOSSIP_OPTION_6, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 6);
 
-                    SendGossipMenuFor(player, NPC_TEXT_WORMHOLE, me->GetGUID());
+                        SendGossipMenuFor(player, NPC_TEXT_WORMHOLE, me->GetGUID());
+                    }
                 }
+
+                return true;
             }
 
-            return true;
-        }
-
-        bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
-        {
-            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
-            ClearGossipMenuFor(player);
-
-            switch (action)
+            bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
             {
-            case GOSSIP_ACTION_INFO_DEF + 1: // Borean Tundra
-                CloseGossipMenuFor(player);
-                DoCast(player, SPELL_BOREAN_TUNDRA, false);
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 2: // Howling Fjord
-                CloseGossipMenuFor(player);
-                DoCast(player, SPELL_HOWLING_FJORD, false);
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 3: // Sholazar Basin
-                CloseGossipMenuFor(player);
-                DoCast(player, SPELL_SHOLAZAR_BASIN, false);
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 4: // Icecrown
-                CloseGossipMenuFor(player);
-                DoCast(player, SPELL_ICECROWN, false);
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 5: // Storm peaks
-                CloseGossipMenuFor(player);
-                DoCast(player, SPELL_STORM_PEAKS, false);
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 6: // Underground
-                CloseGossipMenuFor(player);
-                DoCast(player, SPELL_UNDERGROUND, false);
-                break;
+                uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+                ClearGossipMenuFor(player);
+
+                switch (action)
+                {
+                    case GOSSIP_ACTION_INFO_DEF + 1: // Borean Tundra
+                        CloseGossipMenuFor(player);
+                        DoCast(player, SPELL_BOREAN_TUNDRA, false);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 2: // Howling Fjord
+                        CloseGossipMenuFor(player);
+                        DoCast(player, SPELL_HOWLING_FJORD, false);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 3: // Sholazar Basin
+                        CloseGossipMenuFor(player);
+                        DoCast(player, SPELL_SHOLAZAR_BASIN, false);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 4: // Icecrown
+                        CloseGossipMenuFor(player);
+                        DoCast(player, SPELL_ICECROWN, false);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 5: // Storm peaks
+                        CloseGossipMenuFor(player);
+                        DoCast(player, SPELL_STORM_PEAKS, false);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 6: // Underground
+                        CloseGossipMenuFor(player);
+                        DoCast(player, SPELL_UNDERGROUND, false);
+                        break;
+                }
+
+                return true;
             }
 
-            return true;
+        private:
+            bool _showUnderground;
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_wormholeAI(creature);
         }
-
-    private:
-        bool _showUnderground;
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_wormholeAI(creature);
-    }
 };
 
 /*######
@@ -1712,10 +1712,10 @@ public:
 
 enum BehstenSlahtz
 {
-    MENU_ID_XP_ON_OFF = 10638,
+    MENU_ID_XP_ON_OFF  = 10638,
     NPC_TEXT_XP_ON_OFF = 14736,
-    OPTION_ID_XP_OFF = 0,     // "I no longer wish to gain experience."
-    OPTION_ID_XP_ON = 1      // "I wish to start gaining experience again."
+    OPTION_ID_XP_OFF   = 0,     // "I no longer wish to gain experience."
+    OPTION_ID_XP_ON    = 1      // "I wish to start gaining experience again."
 };
 
 class npc_experience : public CreatureScript
@@ -1749,12 +1749,12 @@ public:
 
             switch (action)
             {
-            case GOSSIP_ACTION_INFO_DEF + 1: // XP ON selected
-                player->RemovePlayerFlag(PLAYER_FLAGS_NO_XP_GAIN); // turn on XP gain
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 2: // XP OFF selected
-                player->AddPlayerFlag(PLAYER_FLAGS_NO_XP_GAIN); // turn off XP gain
-                break;
+                case GOSSIP_ACTION_INFO_DEF + 1: // XP ON selected
+                    player->RemovePlayerFlag(PLAYER_FLAGS_NO_XP_GAIN); // turn on XP gain
+                    break;
+                case GOSSIP_ACTION_INFO_DEF + 2: // XP OFF selected
+                    player->AddPlayerFlag(PLAYER_FLAGS_NO_XP_GAIN); // turn off XP gain
+                    break;
             }
             CloseGossipMenuFor(player);
             return true;
@@ -1769,62 +1769,62 @@ public:
 
 enum Fireworks
 {
-    NPC_OMEN = 15467,
-    NPC_MINION_OF_OMEN = 15466,
-    NPC_FIREWORK_BLUE = 15879,
-    NPC_FIREWORK_GREEN = 15880,
-    NPC_FIREWORK_PURPLE = 15881,
-    NPC_FIREWORK_RED = 15882,
-    NPC_FIREWORK_YELLOW = 15883,
-    NPC_FIREWORK_WHITE = 15884,
-    NPC_FIREWORK_BIG_BLUE = 15885,
-    NPC_FIREWORK_BIG_GREEN = 15886,
+    NPC_OMEN                = 15467,
+    NPC_MINION_OF_OMEN      = 15466,
+    NPC_FIREWORK_BLUE       = 15879,
+    NPC_FIREWORK_GREEN      = 15880,
+    NPC_FIREWORK_PURPLE     = 15881,
+    NPC_FIREWORK_RED        = 15882,
+    NPC_FIREWORK_YELLOW     = 15883,
+    NPC_FIREWORK_WHITE      = 15884,
+    NPC_FIREWORK_BIG_BLUE   = 15885,
+    NPC_FIREWORK_BIG_GREEN  = 15886,
     NPC_FIREWORK_BIG_PURPLE = 15887,
-    NPC_FIREWORK_BIG_RED = 15888,
+    NPC_FIREWORK_BIG_RED    = 15888,
     NPC_FIREWORK_BIG_YELLOW = 15889,
-    NPC_FIREWORK_BIG_WHITE = 15890,
+    NPC_FIREWORK_BIG_WHITE  = 15890,
 
-    NPC_CLUSTER_BLUE = 15872,
-    NPC_CLUSTER_RED = 15873,
-    NPC_CLUSTER_GREEN = 15874,
-    NPC_CLUSTER_PURPLE = 15875,
-    NPC_CLUSTER_WHITE = 15876,
-    NPC_CLUSTER_YELLOW = 15877,
-    NPC_CLUSTER_BIG_BLUE = 15911,
-    NPC_CLUSTER_BIG_GREEN = 15912,
-    NPC_CLUSTER_BIG_PURPLE = 15913,
-    NPC_CLUSTER_BIG_RED = 15914,
-    NPC_CLUSTER_BIG_WHITE = 15915,
-    NPC_CLUSTER_BIG_YELLOW = 15916,
-    NPC_CLUSTER_ELUNE = 15918,
+    NPC_CLUSTER_BLUE        = 15872,
+    NPC_CLUSTER_RED         = 15873,
+    NPC_CLUSTER_GREEN       = 15874,
+    NPC_CLUSTER_PURPLE      = 15875,
+    NPC_CLUSTER_WHITE       = 15876,
+    NPC_CLUSTER_YELLOW      = 15877,
+    NPC_CLUSTER_BIG_BLUE    = 15911,
+    NPC_CLUSTER_BIG_GREEN   = 15912,
+    NPC_CLUSTER_BIG_PURPLE  = 15913,
+    NPC_CLUSTER_BIG_RED     = 15914,
+    NPC_CLUSTER_BIG_WHITE   = 15915,
+    NPC_CLUSTER_BIG_YELLOW  = 15916,
+    NPC_CLUSTER_ELUNE       = 15918,
 
-    GO_FIREWORK_LAUNCHER_1 = 180771,
-    GO_FIREWORK_LAUNCHER_2 = 180868,
-    GO_FIREWORK_LAUNCHER_3 = 180850,
-    GO_CLUSTER_LAUNCHER_1 = 180772,
-    GO_CLUSTER_LAUNCHER_2 = 180859,
-    GO_CLUSTER_LAUNCHER_3 = 180869,
-    GO_CLUSTER_LAUNCHER_4 = 180874,
+    GO_FIREWORK_LAUNCHER_1  = 180771,
+    GO_FIREWORK_LAUNCHER_2  = 180868,
+    GO_FIREWORK_LAUNCHER_3  = 180850,
+    GO_CLUSTER_LAUNCHER_1   = 180772,
+    GO_CLUSTER_LAUNCHER_2   = 180859,
+    GO_CLUSTER_LAUNCHER_3   = 180869,
+    GO_CLUSTER_LAUNCHER_4   = 180874,
 
-    SPELL_ROCKET_BLUE = 26344,
-    SPELL_ROCKET_GREEN = 26345,
-    SPELL_ROCKET_PURPLE = 26346,
-    SPELL_ROCKET_RED = 26347,
-    SPELL_ROCKET_WHITE = 26348,
-    SPELL_ROCKET_YELLOW = 26349,
-    SPELL_ROCKET_BIG_BLUE = 26351,
-    SPELL_ROCKET_BIG_GREEN = 26352,
+    SPELL_ROCKET_BLUE       = 26344,
+    SPELL_ROCKET_GREEN      = 26345,
+    SPELL_ROCKET_PURPLE     = 26346,
+    SPELL_ROCKET_RED        = 26347,
+    SPELL_ROCKET_WHITE      = 26348,
+    SPELL_ROCKET_YELLOW     = 26349,
+    SPELL_ROCKET_BIG_BLUE   = 26351,
+    SPELL_ROCKET_BIG_GREEN  = 26352,
     SPELL_ROCKET_BIG_PURPLE = 26353,
-    SPELL_ROCKET_BIG_RED = 26354,
-    SPELL_ROCKET_BIG_WHITE = 26355,
+    SPELL_ROCKET_BIG_RED    = 26354,
+    SPELL_ROCKET_BIG_WHITE  = 26355,
     SPELL_ROCKET_BIG_YELLOW = 26356,
-    SPELL_LUNAR_FORTUNE = 26522,
+    SPELL_LUNAR_FORTUNE     = 26522,
 
     ANIM_GO_LAUNCH_FIREWORK = 3,
-    ZONE_MOONGLADE = 493,
+    ZONE_MOONGLADE          = 493,
 };
 
-Position omenSummonPos = { 7558.993f, -2839.999f, 450.0214f, 4.46f };
+Position omenSummonPos = {7558.993f, -2839.999f, 450.0214f, 4.46f};
 
 class npc_firework : public CreatureScript
 {
@@ -1839,34 +1839,34 @@ public:
         {
             switch (me->GetEntry())
             {
-            case NPC_FIREWORK_BLUE:
-            case NPC_FIREWORK_GREEN:
-            case NPC_FIREWORK_PURPLE:
-            case NPC_FIREWORK_RED:
-            case NPC_FIREWORK_YELLOW:
-            case NPC_FIREWORK_WHITE:
-            case NPC_FIREWORK_BIG_BLUE:
-            case NPC_FIREWORK_BIG_GREEN:
-            case NPC_FIREWORK_BIG_PURPLE:
-            case NPC_FIREWORK_BIG_RED:
-            case NPC_FIREWORK_BIG_YELLOW:
-            case NPC_FIREWORK_BIG_WHITE:
-                return false;
-            case NPC_CLUSTER_BLUE:
-            case NPC_CLUSTER_GREEN:
-            case NPC_CLUSTER_PURPLE:
-            case NPC_CLUSTER_RED:
-            case NPC_CLUSTER_YELLOW:
-            case NPC_CLUSTER_WHITE:
-            case NPC_CLUSTER_BIG_BLUE:
-            case NPC_CLUSTER_BIG_GREEN:
-            case NPC_CLUSTER_BIG_PURPLE:
-            case NPC_CLUSTER_BIG_RED:
-            case NPC_CLUSTER_BIG_YELLOW:
-            case NPC_CLUSTER_BIG_WHITE:
-            case NPC_CLUSTER_ELUNE:
-            default:
-                return true;
+                case NPC_FIREWORK_BLUE:
+                case NPC_FIREWORK_GREEN:
+                case NPC_FIREWORK_PURPLE:
+                case NPC_FIREWORK_RED:
+                case NPC_FIREWORK_YELLOW:
+                case NPC_FIREWORK_WHITE:
+                case NPC_FIREWORK_BIG_BLUE:
+                case NPC_FIREWORK_BIG_GREEN:
+                case NPC_FIREWORK_BIG_PURPLE:
+                case NPC_FIREWORK_BIG_RED:
+                case NPC_FIREWORK_BIG_YELLOW:
+                case NPC_FIREWORK_BIG_WHITE:
+                    return false;
+                case NPC_CLUSTER_BLUE:
+                case NPC_CLUSTER_GREEN:
+                case NPC_CLUSTER_PURPLE:
+                case NPC_CLUSTER_RED:
+                case NPC_CLUSTER_YELLOW:
+                case NPC_CLUSTER_WHITE:
+                case NPC_CLUSTER_BIG_BLUE:
+                case NPC_CLUSTER_BIG_GREEN:
+                case NPC_CLUSTER_BIG_PURPLE:
+                case NPC_CLUSTER_BIG_RED:
+                case NPC_CLUSTER_BIG_YELLOW:
+                case NPC_CLUSTER_BIG_WHITE:
+                case NPC_CLUSTER_ELUNE:
+                default:
+                    return true;
             }
         }
 
@@ -1911,32 +1911,32 @@ public:
         {
             switch (entry)
             {
-            case NPC_FIREWORK_BLUE:
-                return SPELL_ROCKET_BLUE;
-            case NPC_FIREWORK_GREEN:
-                return SPELL_ROCKET_GREEN;
-            case NPC_FIREWORK_PURPLE:
-                return SPELL_ROCKET_PURPLE;
-            case NPC_FIREWORK_RED:
-                return SPELL_ROCKET_RED;
-            case NPC_FIREWORK_YELLOW:
-                return SPELL_ROCKET_YELLOW;
-            case NPC_FIREWORK_WHITE:
-                return SPELL_ROCKET_WHITE;
-            case NPC_FIREWORK_BIG_BLUE:
-                return SPELL_ROCKET_BIG_BLUE;
-            case NPC_FIREWORK_BIG_GREEN:
-                return SPELL_ROCKET_BIG_GREEN;
-            case NPC_FIREWORK_BIG_PURPLE:
-                return SPELL_ROCKET_BIG_PURPLE;
-            case NPC_FIREWORK_BIG_RED:
-                return SPELL_ROCKET_BIG_RED;
-            case NPC_FIREWORK_BIG_YELLOW:
-                return SPELL_ROCKET_BIG_YELLOW;
-            case NPC_FIREWORK_BIG_WHITE:
-                return SPELL_ROCKET_BIG_WHITE;
-            default:
-                return 0;
+                case NPC_FIREWORK_BLUE:
+                    return SPELL_ROCKET_BLUE;
+                case NPC_FIREWORK_GREEN:
+                    return SPELL_ROCKET_GREEN;
+                case NPC_FIREWORK_PURPLE:
+                    return SPELL_ROCKET_PURPLE;
+                case NPC_FIREWORK_RED:
+                    return SPELL_ROCKET_RED;
+                case NPC_FIREWORK_YELLOW:
+                    return SPELL_ROCKET_YELLOW;
+                case NPC_FIREWORK_WHITE:
+                    return SPELL_ROCKET_WHITE;
+                case NPC_FIREWORK_BIG_BLUE:
+                    return SPELL_ROCKET_BIG_BLUE;
+                case NPC_FIREWORK_BIG_GREEN:
+                    return SPELL_ROCKET_BIG_GREEN;
+                case NPC_FIREWORK_BIG_PURPLE:
+                    return SPELL_ROCKET_BIG_PURPLE;
+                case NPC_FIREWORK_BIG_RED:
+                    return SPELL_ROCKET_BIG_RED;
+                case NPC_FIREWORK_BIG_YELLOW:
+                    return SPELL_ROCKET_BIG_YELLOW;
+                case NPC_FIREWORK_BIG_WHITE:
+                    return SPELL_ROCKET_BIG_WHITE;
+                default:
+                    return 0;
             }
         }
 
@@ -1946,45 +1946,45 @@ public:
 
             switch (me->GetEntry())
             {
-            case NPC_CLUSTER_BLUE:
-                spellId = GetFireworkSpell(NPC_FIREWORK_BLUE);
-                break;
-            case NPC_CLUSTER_GREEN:
-                spellId = GetFireworkSpell(NPC_FIREWORK_GREEN);
-                break;
-            case NPC_CLUSTER_PURPLE:
-                spellId = GetFireworkSpell(NPC_FIREWORK_PURPLE);
-                break;
-            case NPC_CLUSTER_RED:
-                spellId = GetFireworkSpell(NPC_FIREWORK_RED);
-                break;
-            case NPC_CLUSTER_YELLOW:
-                spellId = GetFireworkSpell(NPC_FIREWORK_YELLOW);
-                break;
-            case NPC_CLUSTER_WHITE:
-                spellId = GetFireworkSpell(NPC_FIREWORK_WHITE);
-                break;
-            case NPC_CLUSTER_BIG_BLUE:
-                spellId = GetFireworkSpell(NPC_FIREWORK_BIG_BLUE);
-                break;
-            case NPC_CLUSTER_BIG_GREEN:
-                spellId = GetFireworkSpell(NPC_FIREWORK_BIG_GREEN);
-                break;
-            case NPC_CLUSTER_BIG_PURPLE:
-                spellId = GetFireworkSpell(NPC_FIREWORK_BIG_PURPLE);
-                break;
-            case NPC_CLUSTER_BIG_RED:
-                spellId = GetFireworkSpell(NPC_FIREWORK_BIG_RED);
-                break;
-            case NPC_CLUSTER_BIG_YELLOW:
-                spellId = GetFireworkSpell(NPC_FIREWORK_BIG_YELLOW);
-                break;
-            case NPC_CLUSTER_BIG_WHITE:
-                spellId = GetFireworkSpell(NPC_FIREWORK_BIG_WHITE);
-                break;
-            case NPC_CLUSTER_ELUNE:
-                spellId = GetFireworkSpell(urand(NPC_FIREWORK_BLUE, NPC_FIREWORK_WHITE));
-                break;
+                case NPC_CLUSTER_BLUE:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_BLUE);
+                    break;
+                case NPC_CLUSTER_GREEN:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_GREEN);
+                    break;
+                case NPC_CLUSTER_PURPLE:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_PURPLE);
+                    break;
+                case NPC_CLUSTER_RED:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_RED);
+                    break;
+                case NPC_CLUSTER_YELLOW:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_YELLOW);
+                    break;
+                case NPC_CLUSTER_WHITE:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_WHITE);
+                    break;
+                case NPC_CLUSTER_BIG_BLUE:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_BIG_BLUE);
+                    break;
+                case NPC_CLUSTER_BIG_GREEN:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_BIG_GREEN);
+                    break;
+                case NPC_CLUSTER_BIG_PURPLE:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_BIG_PURPLE);
+                    break;
+                case NPC_CLUSTER_BIG_RED:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_BIG_RED);
+                    break;
+                case NPC_CLUSTER_BIG_YELLOW:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_BIG_YELLOW);
+                    break;
+                case NPC_CLUSTER_BIG_WHITE:
+                    spellId = GetFireworkSpell(NPC_FIREWORK_BIG_WHITE);
+                    break;
+                case NPC_CLUSTER_ELUNE:
+                    spellId = GetFireworkSpell(urand(NPC_FIREWORK_BLUE, NPC_FIREWORK_WHITE));
+                    break;
             }
 
             SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE);
@@ -2014,16 +2014,16 @@ public:
                     {
                         switch (urand(0, 9))
                         {
-                        case 0:
-                        case 1:
-                        case 2:
-                        case 3:
-                            if (Creature* minion = me->SummonCreature(NPC_MINION_OF_OMEN, me->GetPositionX() + frand(-5.0f, 5.0f), me->GetPositionY() + frand(-5.0f, 5.0f), me->GetPositionZ(), 0.0f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 20000))
-                                minion->AI()->AttackStart(me->SelectNearestPlayer(20.0f));
-                            break;
-                        case 9:
-                            me->SummonCreature(NPC_OMEN, omenSummonPos);
-                            break;
+                            case 0:
+                            case 1:
+                            case 2:
+                            case 3:
+                                if (Creature* minion = me->SummonCreature(NPC_MINION_OF_OMEN, me->GetPositionX()+frand(-5.0f, 5.0f), me->GetPositionY()+frand(-5.0f, 5.0f), me->GetPositionZ(), 0.0f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 20000))
+                                    minion->AI()->AttackStart(me->SelectNearestPlayer(20.0f));
+                                break;
+                            case 9:
+                                me->SummonCreature(NPC_OMEN, omenSummonPos);
+                                break;
                         }
                     }
                 }
@@ -2052,12 +2052,12 @@ public:
 
 enum rabbitSpells
 {
-    SPELL_SPRING_FLING = 61875,
-    SPELL_SPRING_RABBIT_JUMP = 61724,
-    SPELL_SPRING_RABBIT_WANDER = 61726,
-    SPELL_SUMMON_BABY_BUNNY = 61727,
+    SPELL_SPRING_FLING          = 61875,
+    SPELL_SPRING_RABBIT_JUMP    = 61724,
+    SPELL_SPRING_RABBIT_WANDER  = 61726,
+    SPELL_SUMMON_BABY_BUNNY     = 61727,
     SPELL_SPRING_RABBIT_IN_LOVE = 61728,
-    NPC_SPRING_RABBIT = 32791
+    NPC_SPRING_RABBIT           = 32791
 };
 
 class npc_spring_rabbit : public CreatureScript
@@ -2117,15 +2117,13 @@ public:
                     if (Unit* rabbit = ObjectAccessor::GetUnit(*me, rabbitGUID))
                         DoCast(rabbit, SPELL_SPRING_RABBIT_JUMP);
                     jumpTimer = urand(5000, 10000);
-                }
-                else jumpTimer -= diff;
+                } else jumpTimer -= diff;
 
                 if (bunnyTimer <= diff)
                 {
                     DoCast(SPELL_SUMMON_BABY_BUNNY);
                     bunnyTimer = urand(20000, 40000);
-                }
-                else bunnyTimer -= diff;
+                } else bunnyTimer -= diff;
             }
             else
             {
@@ -2144,8 +2142,7 @@ public:
                         rabbitGUID = rabbit->GetGUID();
                     }
                     searchTimer = urand(5000, 10000);
-                }
-                else searchTimer -= diff;
+                } else searchTimer -= diff;
             }
         }
     };
@@ -2207,128 +2204,128 @@ public:
 
 enum TrainWrecker
 {
-    GO_TOY_TRAIN = 193963,
-    SPELL_TOY_TRAIN_PULSE = 61551,
-    SPELL_WRECK_TRAIN = 62943,
-    ACTION_WRECKED = 1,
-    EVENT_DO_JUMP = 1,
-    EVENT_DO_FACING = 2,
-    EVENT_DO_WRECK = 3,
-    EVENT_DO_DANCE = 4,
-    MOVEID_CHASE = 1,
-    MOVEID_JUMP = 2,
+    GO_TOY_TRAIN          = 193963,
+    SPELL_TOY_TRAIN_PULSE =  61551,
+    SPELL_WRECK_TRAIN     =  62943,
+    ACTION_WRECKED        =      1,
+    EVENT_DO_JUMP         =      1,
+    EVENT_DO_FACING       =      2,
+    EVENT_DO_WRECK        =      3,
+    EVENT_DO_DANCE        =      4,
+    MOVEID_CHASE          =      1,
+    MOVEID_JUMP           =      2,
 
     NPC_EXULTING_WIND_UP_TRAIN_WRECKER = 81071
 };
 class npc_train_wrecker : public CreatureScript
 {
-public:
-    npc_train_wrecker() : CreatureScript("npc_train_wrecker") { }
+    public:
+        npc_train_wrecker() : CreatureScript("npc_train_wrecker") { }
 
-    struct npc_train_wreckerAI : public NullCreatureAI
-    {
-        npc_train_wreckerAI(Creature* creature) : NullCreatureAI(creature), _isSearching(true), _nextAction(0), _timer(1 * IN_MILLISECONDS) { }
-
-        GameObject* VerifyTarget() const
+        struct npc_train_wreckerAI : public NullCreatureAI
         {
-            if (GameObject* target = ObjectAccessor::GetGameObject(*me, _target))
-                return target;
-            me->HandleEmoteCommand(EMOTE_ONESHOT_RUDE);
-            me->DespawnOrUnsummon(3 * IN_MILLISECONDS);
-            return nullptr;
-        }
+            npc_train_wreckerAI(Creature* creature) : NullCreatureAI(creature), _isSearching(true), _nextAction(0), _timer(1 * IN_MILLISECONDS) { }
 
-        void UpdateAI(uint32 diff) override
-        {
-            if (_isSearching)
+            GameObject* VerifyTarget() const
             {
-                if (diff < _timer)
-                    _timer -= diff;
+                if (GameObject* target = ObjectAccessor::GetGameObject(*me, _target))
+                    return target;
+                me->HandleEmoteCommand(EMOTE_ONESHOT_RUDE);
+                me->DespawnOrUnsummon(3 * IN_MILLISECONDS);
+                return nullptr;
+            }
+
+            void UpdateAI(uint32 diff) override
+            {
+                if (_isSearching)
+                {
+                    if (diff < _timer)
+                        _timer -= diff;
+                    else
+                    {
+                        if (GameObject* target = me->FindNearestGameObject(GO_TOY_TRAIN, 15.0f))
+                        {
+                            _isSearching = false;
+                            _target = target->GetGUID();
+                            me->SetWalk(true);
+                            me->GetMotionMaster()->MovePoint(MOVEID_CHASE, target->GetNearPosition(3.0f, target->GetAbsoluteAngle(me)));
+                        }
+                        else
+                            _timer = 3 * IN_MILLISECONDS;
+                    }
+                }
                 else
                 {
-                    if (GameObject* target = me->FindNearestGameObject(GO_TOY_TRAIN, 15.0f))
+                    switch (_nextAction)
                     {
-                        _isSearching = false;
-                        _target = target->GetGUID();
-                        me->SetWalk(true);
-                        me->GetMotionMaster()->MovePoint(MOVEID_CHASE, target->GetNearPosition(3.0f, target->GetAbsoluteAngle(me)));
+                        case EVENT_DO_JUMP:
+                            if (GameObject* target = VerifyTarget())
+                                me->GetMotionMaster()->MoveJump(*target, 5.0, 10.0, MOVEID_JUMP);
+                            _nextAction = 0;
+                            break;
+                        case EVENT_DO_FACING:
+                            if (GameObject* target = VerifyTarget())
+                            {
+                                me->SetFacingTo(target->GetOrientation());
+                                me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK1H);
+                                _timer = 1.5 * IN_MILLISECONDS;
+                                _nextAction = EVENT_DO_WRECK;
+                            }
+                            else
+                                _nextAction = 0;
+                            break;
+                        case EVENT_DO_WRECK:
+                            if (diff < _timer)
+                            {
+                                _timer -= diff;
+                                break;
+                            }
+                            if (GameObject* target = VerifyTarget())
+                            {
+                                me->CastSpell(target, SPELL_WRECK_TRAIN, false);
+                                target->AI()->DoAction(ACTION_WRECKED);
+                                _timer = 2 * IN_MILLISECONDS;
+                                _nextAction = EVENT_DO_DANCE;
+                            }
+                            else
+                                _nextAction = 0;
+                            break;
+                        case EVENT_DO_DANCE:
+                            if (diff < _timer)
+                            {
+                                _timer -= diff;
+                                break;
+                            }
+                            me->UpdateEntry(NPC_EXULTING_WIND_UP_TRAIN_WRECKER);
+                            me->SetEmoteState(EMOTE_ONESHOT_DANCE);
+                            me->DespawnOrUnsummon(5 * IN_MILLISECONDS);
+                            _nextAction = 0;
+                            break;
+                        default:
+                            break;
                     }
-                    else
-                        _timer = 3 * IN_MILLISECONDS;
                 }
             }
-            else
+
+            void MovementInform(uint32 /*type*/, uint32 id) override
             {
-                switch (_nextAction)
-                {
-                case EVENT_DO_JUMP:
-                    if (GameObject* target = VerifyTarget())
-                        me->GetMotionMaster()->MoveJump(*target, 5.0, 10.0, MOVEID_JUMP);
-                    _nextAction = 0;
-                    break;
-                case EVENT_DO_FACING:
-                    if (GameObject* target = VerifyTarget())
-                    {
-                        me->SetFacingTo(target->GetOrientation());
-                        me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK1H);
-                        _timer = 1.5 * IN_MILLISECONDS;
-                        _nextAction = EVENT_DO_WRECK;
-                    }
-                    else
-                        _nextAction = 0;
-                    break;
-                case EVENT_DO_WRECK:
-                    if (diff < _timer)
-                    {
-                        _timer -= diff;
-                        break;
-                    }
-                    if (GameObject* target = VerifyTarget())
-                    {
-                        me->CastSpell(target, SPELL_WRECK_TRAIN, false);
-                        target->AI()->DoAction(ACTION_WRECKED);
-                        _timer = 2 * IN_MILLISECONDS;
-                        _nextAction = EVENT_DO_DANCE;
-                    }
-                    else
-                        _nextAction = 0;
-                    break;
-                case EVENT_DO_DANCE:
-                    if (diff < _timer)
-                    {
-                        _timer -= diff;
-                        break;
-                    }
-                    me->UpdateEntry(NPC_EXULTING_WIND_UP_TRAIN_WRECKER);
-                    me->SetEmoteState(EMOTE_ONESHOT_DANCE);
-                    me->DespawnOrUnsummon(5 * IN_MILLISECONDS);
-                    _nextAction = 0;
-                    break;
-                default:
-                    break;
-                }
+                if (id == MOVEID_CHASE)
+                    _nextAction = EVENT_DO_JUMP;
+                else if (id == MOVEID_JUMP)
+                    _nextAction = EVENT_DO_FACING;
             }
-        }
 
-        void MovementInform(uint32 /*type*/, uint32 id) override
+        private:
+            bool _isSearching;
+            uint8 _nextAction;
+            uint32 _timer;
+            ObjectGuid _target;
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
         {
-            if (id == MOVEID_CHASE)
-                _nextAction = EVENT_DO_JUMP;
-            else if (id == MOVEID_JUMP)
-                _nextAction = EVENT_DO_FACING;
+            return new npc_train_wreckerAI(creature);
         }
-
-    private:
-        bool _isSearching;
-        uint8 _nextAction;
-        uint32 _timer;
-        ObjectGuid _target;
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_train_wreckerAI(creature);
-    }
 };
 
 /*######
@@ -2337,42 +2334,42 @@ public:
 
 enum Pennants
 {
-    SPELL_DARNASSUS_PENNANT = 63443,
-    SPELL_EXODAR_PENNANT = 63439,
-    SPELL_GNOMEREGAN_PENNANT = 63442,
-    SPELL_IRONFORGE_PENNANT = 63440,
-    SPELL_STORMWIND_PENNANT = 62727,
-    SPELL_SENJIN_PENNANT = 63446,
-    SPELL_UNDERCITY_PENNANT = 63441,
-    SPELL_ORGRIMMAR_PENNANT = 63444,
-    SPELL_SILVERMOON_PENNANT = 63438,
-    SPELL_THUNDERBLUFF_PENNANT = 63445,
-    SPELL_AURA_POSTMAN_S = 67376,
-    SPELL_AURA_SHOP_S = 67377,
-    SPELL_AURA_BANK_S = 67368,
-    SPELL_AURA_TIRED_S = 67401,
-    SPELL_AURA_BANK_G = 68849,
-    SPELL_AURA_POSTMAN_G = 68850,
-    SPELL_AURA_SHOP_G = 68851,
-    SPELL_AURA_TIRED_G = 68852,
-    SPELL_TIRED_PLAYER = 67334
+    SPELL_DARNASSUS_PENNANT     = 63443,
+    SPELL_EXODAR_PENNANT        = 63439,
+    SPELL_GNOMEREGAN_PENNANT    = 63442,
+    SPELL_IRONFORGE_PENNANT     = 63440,
+    SPELL_STORMWIND_PENNANT     = 62727,
+    SPELL_SENJIN_PENNANT        = 63446,
+    SPELL_UNDERCITY_PENNANT     = 63441,
+    SPELL_ORGRIMMAR_PENNANT     = 63444,
+    SPELL_SILVERMOON_PENNANT    = 63438,
+    SPELL_THUNDERBLUFF_PENNANT  = 63445,
+    SPELL_AURA_POSTMAN_S        = 67376,
+    SPELL_AURA_SHOP_S           = 67377,
+    SPELL_AURA_BANK_S           = 67368,
+    SPELL_AURA_TIRED_S          = 67401,
+    SPELL_AURA_BANK_G           = 68849,
+    SPELL_AURA_POSTMAN_G        = 68850,
+    SPELL_AURA_SHOP_G           = 68851,
+    SPELL_AURA_TIRED_G          = 68852,
+    SPELL_TIRED_PLAYER          = 67334
 };
 
 enum ArgentPetGossipOptions
 {
-    GOSSIP_OPTION_BANK = 0,
-    GOSSIP_OPTION_SHOP = 1,
-    GOSSIP_OPTION_MAIL = 2,
-    GOSSIP_OPTION_DARNASSUS_SENJIN_PENNANT = 3,
-    GOSSIP_OPTION_EXODAR_UNDERCITY_PENNANT = 4,
-    GOSSIP_OPTION_GNOMEREGAN_ORGRIMMAR_PENNANT = 5,
-    GOSSIP_OPTION_IRONFORGE_SILVERMOON_PENNANT = 6,
-    GOSSIP_OPTION_STORMWIND_THUNDERBLUFF_PENNANT = 7
+    GOSSIP_OPTION_BANK                            = 0,
+    GOSSIP_OPTION_SHOP                            = 1,
+    GOSSIP_OPTION_MAIL                            = 2,
+    GOSSIP_OPTION_DARNASSUS_SENJIN_PENNANT        = 3,
+    GOSSIP_OPTION_EXODAR_UNDERCITY_PENNANT        = 4,
+    GOSSIP_OPTION_GNOMEREGAN_ORGRIMMAR_PENNANT    = 5,
+    GOSSIP_OPTION_IRONFORGE_SILVERMOON_PENNANT    = 6,
+    GOSSIP_OPTION_STORMWIND_THUNDERBLUFF_PENNANT  = 7
 };
 
 enum Misc
 {
-    NPC_ARGENT_SQUIRE = 33238
+    NPC_ARGENT_SQUIRE  = 33238
 };
 
 struct ArgentPonyBannerSpells
@@ -2406,68 +2403,68 @@ public:
         {
             _scheduler
                 .Schedule(Seconds(1), [this](TaskContext /*context*/)
-                    {
-                        if (Aura* ownerTired = me->GetOwner()->GetAura(SPELL_TIRED_PLAYER))
-                            if (Aura* squireTired = me->AddAura(IsArgentSquire() ? SPELL_AURA_TIRED_S : SPELL_AURA_TIRED_G, me))
-                                squireTired->SetDuration(ownerTired->GetDuration());
-                    })
+                {
+                    if (Aura* ownerTired = me->GetOwner()->GetAura(SPELL_TIRED_PLAYER))
+                        if (Aura* squireTired = me->AddAura(IsArgentSquire() ? SPELL_AURA_TIRED_S : SPELL_AURA_TIRED_G, me))
+                            squireTired->SetDuration(ownerTired->GetDuration());
+                })
                 .Schedule(Seconds(1), [this](TaskContext context)
-                    {
-                        if ((me->HasAura(SPELL_AURA_TIRED_S) || me->HasAura(SPELL_AURA_TIRED_G)) && me->HasNpcFlag(NPCFlags(UNIT_NPC_FLAG_BANKER | UNIT_NPC_FLAG_MAILBOX | UNIT_NPC_FLAG_VENDOR)))
-                            me->RemoveNpcFlag(NPCFlags(UNIT_NPC_FLAG_BANKER | UNIT_NPC_FLAG_MAILBOX | UNIT_NPC_FLAG_VENDOR));
-                        context.Repeat();
-                    });
+                {
+                    if ((me->HasAura(SPELL_AURA_TIRED_S) || me->HasAura(SPELL_AURA_TIRED_G)) && me->HasNpcFlag(NPCFlags(UNIT_NPC_FLAG_BANKER | UNIT_NPC_FLAG_MAILBOX | UNIT_NPC_FLAG_VENDOR)))
+                        me->RemoveNpcFlag(NPCFlags(UNIT_NPC_FLAG_BANKER | UNIT_NPC_FLAG_MAILBOX | UNIT_NPC_FLAG_VENDOR));
+                    context.Repeat();
+                });
         }
 
         bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
         {
             switch (gossipListId)
             {
-            case GOSSIP_OPTION_BANK:
-            {
-                me->AddNpcFlag(UNIT_NPC_FLAG_BANKER);
-                uint32 _bankAura = IsArgentSquire() ? SPELL_AURA_BANK_S : SPELL_AURA_BANK_G;
-                if (!me->HasAura(_bankAura))
-                    DoCastSelf(_bankAura);
+                case GOSSIP_OPTION_BANK:
+                {
+                    me->AddNpcFlag(UNIT_NPC_FLAG_BANKER);
+                    uint32 _bankAura = IsArgentSquire() ? SPELL_AURA_BANK_S : SPELL_AURA_BANK_G;
+                    if (!me->HasAura(_bankAura))
+                        DoCastSelf(_bankAura);
 
-                if (!player->HasAura(SPELL_TIRED_PLAYER))
-                    player->CastSpell(player, SPELL_TIRED_PLAYER, true);
-                break;
-            }
-            case GOSSIP_OPTION_SHOP:
-            {
-                me->AddNpcFlag(UNIT_NPC_FLAG_VENDOR);
-                uint32 _shopAura = IsArgentSquire() ? SPELL_AURA_SHOP_S : SPELL_AURA_SHOP_G;
-                if (!me->HasAura(_shopAura))
-                    DoCastSelf(_shopAura);
+                    if (!player->HasAura(SPELL_TIRED_PLAYER))
+                        player->CastSpell(player, SPELL_TIRED_PLAYER, true);
+                    break;
+                }
+                case GOSSIP_OPTION_SHOP:
+                {
+                    me->AddNpcFlag(UNIT_NPC_FLAG_VENDOR);
+                    uint32 _shopAura = IsArgentSquire() ? SPELL_AURA_SHOP_S : SPELL_AURA_SHOP_G;
+                    if (!me->HasAura(_shopAura))
+                        DoCastSelf(_shopAura);
 
-                if (!player->HasAura(SPELL_TIRED_PLAYER))
-                    player->CastSpell(player, SPELL_TIRED_PLAYER, true);
-                break;
-            }
-            case GOSSIP_OPTION_MAIL:
-            {
-                me->AddNpcFlag(UNIT_NPC_FLAG_MAILBOX);
-                player->GetSession()->SendShowMailBox(me->GetGUID());
+                    if (!player->HasAura(SPELL_TIRED_PLAYER))
+                        player->CastSpell(player, SPELL_TIRED_PLAYER, true);
+                    break;
+                }
+                case GOSSIP_OPTION_MAIL:
+                {
+                    me->AddNpcFlag(UNIT_NPC_FLAG_MAILBOX);
+                    player->GetSession()->SendShowMailBox(me->GetGUID());
 
-                uint32 _mailAura = IsArgentSquire() ? SPELL_AURA_POSTMAN_S : SPELL_AURA_POSTMAN_G;
-                if (!me->HasAura(_mailAura))
-                    DoCastSelf(_mailAura);
+                    uint32 _mailAura = IsArgentSquire() ? SPELL_AURA_POSTMAN_S : SPELL_AURA_POSTMAN_G;
+                    if (!me->HasAura(_mailAura))
+                        DoCastSelf(_mailAura);
 
-                if (!player->HasAura(SPELL_TIRED_PLAYER))
-                    player->CastSpell(player, SPELL_TIRED_PLAYER, true);
-                break;
-            }
-            case GOSSIP_OPTION_DARNASSUS_SENJIN_PENNANT:
-            case GOSSIP_OPTION_EXODAR_UNDERCITY_PENNANT:
-            case GOSSIP_OPTION_GNOMEREGAN_ORGRIMMAR_PENNANT:
-            case GOSSIP_OPTION_IRONFORGE_SILVERMOON_PENNANT:
-            case GOSSIP_OPTION_STORMWIND_THUNDERBLUFF_PENNANT:
-                if (IsArgentSquire())
-                    DoCastSelf(bannerSpells[gossipListId - 3].spellSquire, true);
-                else
-                    DoCastSelf(bannerSpells[gossipListId - 3].spellGruntling, true);
-                break;
+                    if (!player->HasAura(SPELL_TIRED_PLAYER))
+                        player->CastSpell(player, SPELL_TIRED_PLAYER, true);
+                    break;
+                }
+                case GOSSIP_OPTION_DARNASSUS_SENJIN_PENNANT:
+                case GOSSIP_OPTION_EXODAR_UNDERCITY_PENNANT:
+                case GOSSIP_OPTION_GNOMEREGAN_ORGRIMMAR_PENNANT:
+                case GOSSIP_OPTION_IRONFORGE_SILVERMOON_PENNANT:
+                case GOSSIP_OPTION_STORMWIND_THUNDERBLUFF_PENNANT:
+                    if (IsArgentSquire())
+                        DoCastSelf(bannerSpells[gossipListId - 3].spellSquire, true);
+                    else
+                        DoCastSelf(bannerSpells[gossipListId - 3].spellGruntling, true);
+                    break;
             }
             player->PlayerTalkClass->SendCloseGossip();
             return false;
@@ -2484,7 +2481,7 @@ public:
         TaskScheduler _scheduler;
     };
 
-    CreatureAI* GetAI(Creature* creature) const override
+    CreatureAI* GetAI(Creature *creature) const override
     {
         return new npc_argent_squire_gruntlingAI(creature);
     }
@@ -2492,23 +2489,23 @@ public:
 
 enum BountifulTable
 {
-    SEAT_TURKEY_CHAIR = 0,
-    SEAT_CRANBERRY_CHAIR = 1,
-    SEAT_STUFFING_CHAIR = 2,
-    SEAT_SWEET_POTATO_CHAIR = 3,
-    SEAT_PIE_CHAIR = 4,
-    SEAT_FOOD_HOLDER = 5,
-    SEAT_PLATE_HOLDER = 6,
-    NPC_THE_TURKEY_CHAIR = 34812,
-    NPC_THE_CRANBERRY_CHAIR = 34823,
-    NPC_THE_STUFFING_CHAIR = 34819,
-    NPC_THE_SWEET_POTATO_CHAIR = 34824,
-    NPC_THE_PIE_CHAIR = 34822,
-    SPELL_CRANBERRY_SERVER = 61793,
-    SPELL_PIE_SERVER = 61794,
-    SPELL_STUFFING_SERVER = 61795,
-    SPELL_TURKEY_SERVER = 61796,
-    SPELL_SWEET_POTATOES_SERVER = 61797
+    SEAT_TURKEY_CHAIR                       = 0,
+    SEAT_CRANBERRY_CHAIR                    = 1,
+    SEAT_STUFFING_CHAIR                     = 2,
+    SEAT_SWEET_POTATO_CHAIR                 = 3,
+    SEAT_PIE_CHAIR                          = 4,
+    SEAT_FOOD_HOLDER                        = 5,
+    SEAT_PLATE_HOLDER                       = 6,
+    NPC_THE_TURKEY_CHAIR                    = 34812,
+    NPC_THE_CRANBERRY_CHAIR                 = 34823,
+    NPC_THE_STUFFING_CHAIR                  = 34819,
+    NPC_THE_SWEET_POTATO_CHAIR              = 34824,
+    NPC_THE_PIE_CHAIR                       = 34822,
+    SPELL_CRANBERRY_SERVER                  = 61793,
+    SPELL_PIE_SERVER                        = 61794,
+    SPELL_STUFFING_SERVER                   = 61795,
+    SPELL_TURKEY_SERVER                     = 61796,
+    SPELL_SWEET_POTATOES_SERVER             = 61797
 };
 
 typedef std::unordered_map<uint32 /*Entry*/, uint32 /*Spell*/> ChairSpells;
@@ -2523,18 +2520,18 @@ ChairSpells const _chairSpells =
 
 class CastFoodSpell : public BasicEvent
 {
-public:
-    CastFoodSpell(Unit* owner, uint32 spellId) : _owner(owner), _spellId(spellId) { }
+    public:
+        CastFoodSpell(Unit* owner, uint32 spellId) : _owner(owner), _spellId(spellId) { }
 
-    bool Execute(uint64 /*execTime*/, uint32 /*diff*/) override
-    {
-        _owner->CastSpell(_owner, _spellId, true);
-        return true;
-    }
+        bool Execute(uint64 /*execTime*/, uint32 /*diff*/) override
+        {
+            _owner->CastSpell(_owner, _spellId, true);
+            return true;
+        }
 
-private:
-    Unit* _owner;
-    uint32 _spellId;
+    private:
+        Unit* _owner;
+        uint32 _spellId;
 };
 
 class npc_bountiful_table : public CreatureScript
@@ -2555,36 +2552,36 @@ public:
 
             switch (seatId)
             {
-            case SEAT_TURKEY_CHAIR:
-                x = 3.87f;
-                y = 2.07f;
-                o = 3.700098f;
-                break;
-            case SEAT_CRANBERRY_CHAIR:
-                x = 3.87f;
-                y = -2.07f;
-                o = 2.460914f;
-                break;
-            case SEAT_STUFFING_CHAIR:
-                x = -2.52f;
-                break;
-            case SEAT_SWEET_POTATO_CHAIR:
-                x = -0.09f;
-                y = -3.24f;
-                o = 1.186824f;
-                break;
-            case SEAT_PIE_CHAIR:
-                x = -0.18f;
-                y = 3.24f;
-                o = 5.009095f;
-                break;
-            case SEAT_FOOD_HOLDER:
-            case SEAT_PLATE_HOLDER:
-                if (Vehicle* holders = who->GetVehicleKit())
-                    holders->InstallAllAccessories(true);
-                return;
-            default:
-                break;
+                case SEAT_TURKEY_CHAIR:
+                    x = 3.87f;
+                    y = 2.07f;
+                    o = 3.700098f;
+                    break;
+                case SEAT_CRANBERRY_CHAIR:
+                    x = 3.87f;
+                    y = -2.07f;
+                    o = 2.460914f;
+                    break;
+                case SEAT_STUFFING_CHAIR:
+                    x = -2.52f;
+                    break;
+                case SEAT_SWEET_POTATO_CHAIR:
+                    x = -0.09f;
+                    y = -3.24f;
+                    o = 1.186824f;
+                    break;
+                case SEAT_PIE_CHAIR:
+                    x = -0.18f;
+                    y = 3.24f;
+                    o = 5.009095f;
+                    break;
+                case SEAT_FOOD_HOLDER:
+                case SEAT_PLATE_HOLDER:
+                    if (Vehicle* holders = who->GetVehicleKit())
+                        holders->InstallAllAccessories(true);
+                    return;
+                default:
+                    break;
             }
 
             Movement::MoveSplineInit init(who);
