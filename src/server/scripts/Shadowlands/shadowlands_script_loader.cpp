@@ -17,16 +17,14 @@
  
 //Zones
 void AddSC_zone_exiles_reach();
-void AddSC_boss_sylvanas_windrunner();
-void AddSC_instance_sanctum_of_domination();
+
 
 //ShadowlandsIntro
 void AddSC_ShadowlandsIntro();
 void AddShadowlandsScripts()
 {
-    AddSC_zone_exiles_reach;
-  AddSC_boss_sylvanas_windrunner();
-  AddSC_instance_sanctum_of_domination();
+  AddSC_zone_exiles_reach;
+
   
  //shadowlands intro
   AddSC_ShadowlandsIntro();
