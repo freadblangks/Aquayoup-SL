@@ -17,15 +17,11 @@
  
 //Zones
 void AddSC_zone_exiles_reach();
-
-
-//ShadowlandsIntro
 void AddSC_ShadowlandsIntro();
 void AddShadowlandsScripts()
 {
-  AddSC_zone_exiles_reach;
-
   
- //shadowlands intro
+//shadowlands intro
   AddSC_ShadowlandsIntro();
+  AddSC_zone_exiles_reach();
 }
