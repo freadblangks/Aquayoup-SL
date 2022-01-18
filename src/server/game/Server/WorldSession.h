@@ -172,11 +172,11 @@ namespace WorldPackets
     namespace Bank
     {
         class AutoBankItem;
-        class AutoBankReagent;
         class AutoStoreBankItem;
-        class AutoStoreBankReagent;
         class BuyBankSlot;
-        class DepositReagentBank;
+        class AutoBankReagent;
+        class AutoStoreBankReagent;
+        class ReagentBank;
     }
 
     namespace Battlefield
@@ -1488,12 +1488,10 @@ class TC_GAME_API WorldSession
         void HandleAutoBankItemOpcode(WorldPackets::Bank::AutoBankItem& packet);
         void HandleAutoStoreBankItemOpcode(WorldPackets::Bank::AutoStoreBankItem& packet);
         void HandleBuyBankSlotOpcode(WorldPackets::Bank::BuyBankSlot& packet);
-
-        // Bank Reagent
-        void HandleAutoBankReagentOpcode(WorldPackets::Bank::AutoBankReagent& packet);
-        void HandleAutoStoreBankReagentOpcode(WorldPackets::Bank::AutoStoreBankReagent& packet);
-        void HandleBuyReagentBankOpcode(WorldPackets::NPC::Hello& packet);
-        void HandleDepositReagentBankOpcode(WorldPackets::Bank::DepositReagentBank& packet);
+        void HandleBuyReagentBankOpcode(WorldPackets::Bank::ReagentBank& reagentBank);
+        void HandleAutoBankReagentOpcode(WorldPackets::Bank::AutoBankReagent& autoBankRegent);
+        void HandleAutoStoreBankReagentOpcode(WorldPackets::Bank::AutoStoreBankReagent& autoStoreBankReagent);
+        void HandleReagentBankDepositOpcode(WorldPackets::Bank::ReagentBank& reagentBank);
 
         // Black Market
         void HandleBlackMarketOpen(WorldPackets::BlackMarket::BlackMarketOpen& blackMarketOpen);
@@ -1819,7 +1817,7 @@ class TC_GAME_API WorldSession
         void SendMakePurchase(ObjectGuid targetCharacter, uint32 clientToken, uint32 productID, WorldSession* session);
         void SendSyncWowEntitlements();
 
-        // Garrison
+        //Garrison
         void HandleGetGarrisonInfo(WorldPackets::Garrison::GetGarrisonInfo& getGarrisonInfo);
         void HandleGarrisonPurchaseBuilding(WorldPackets::Garrison::GarrisonPurchaseBuilding& garrisonPurchaseBuilding);
         void HandleGarrisonCancelConstruction(WorldPackets::Garrison::GarrisonCancelConstruction& garrisonCancelConstruction);

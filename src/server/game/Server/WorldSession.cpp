@@ -307,8 +307,8 @@ void WorldSession::SendPacket(WorldPacket const* packet, bool forced /*= false*/
     sScriptMgr->OnPacketSend(this, *packet);
 
 #ifdef ELUNA
-    if (!sEluna->OnPacketSend(this, *packet))
-        return;
+        if (!sEluna->OnPacketSend(this, *packet))
+            return;
 #endif
 
     TC_LOG_TRACE("network.opcode", "S->C: %s %s", GetPlayerInfo().c_str(), GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())).c_str());
@@ -401,8 +401,8 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                         sScriptMgr->OnPacketReceive(this, *packet);
 
 #ifdef ELUNA
-                        if (!sEluna->OnPacketReceive(this, *packet))
-                            break;
+                            if (!sEluna->OnPacketReceive(this, *packet))
+                                break;
 #endif
 
                         opHandle->Call(this, *packet);
@@ -1365,6 +1365,7 @@ uint32 WorldSession::DosProtection::GetMaxPacketCounterAllowed(uint16 opcode) co
         case CMSG_REQUEST_PARTY_MEMBER_STATS:           //   0               1.5
         case CMSG_QUEST_GIVER_COMPLETE_QUEST:           //   0               1.5
         case CMSG_SET_ACTION_BUTTON:                    //   0               1.5
+        case CMSG_SET_ACTION_BAR_TOGGLES:               // not profiled
         case CMSG_RESET_INSTANCES:                      //   0               1.5
         case CMSG_HEARTH_AND_RESURRECT:                 //   0               1.5
         case CMSG_TOGGLE_PVP:                           //   0               1.5
