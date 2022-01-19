@@ -755,7 +755,7 @@ public:
 
         void JustSummoned(Creature* summon) override
         {
-            Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 30, true);
+            Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 30, true);
             if (target)
                 summon->Attack(target, false);
             summons.Summon(summon);
@@ -1339,7 +1339,7 @@ public:
                 {
                     if (StrikeTimer <= diff)
                     {
-                        me->CastSpell({ DummyTarget[0], DummyTarget[1], DummyTarget[2] }, SPELL_GARGOYLE_STRIKE, false);
+                        me->CastSpell(Position{ DummyTarget[0], DummyTarget[1], DummyTarget[2] }, SPELL_GARGOYLE_STRIKE, false);
                         StrikeTimer = 2000 + rand32() % 1000;
                     } else StrikeTimer -= diff;
                     }
@@ -1353,7 +1353,7 @@ public:
                 if (forcemove)
                 {
                     forcemove = false;
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                         me->Attack(target, false);
                 }
                 if (MoveTimer <= diff)

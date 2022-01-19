@@ -91,7 +91,7 @@ public:
 
             if (BerserkerChargeTimer <= diff)
             {
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                     DoCast(target, SPELL_BERSERKER_CHARGE);
                 BerserkerChargeTimer = 25000;
             } else BerserkerChargeTimer -= diff;
@@ -141,7 +141,7 @@ public:
                 player->PrepareQuestMenu(me->GetGUID());
 
             if (player->GetQuestStatus(925) == QUEST_STATUS_INCOMPLETE)
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_HCB, GOSSIP_SENDER_MAIN, GOSSIP_SENDER_INFO);
+                AddGossipItemFor(player, GossipOptionIcon::None, GOSSIP_HCB, GOSSIP_SENDER_MAIN, GOSSIP_SENDER_INFO);
 
             SendGossipMenuFor(player, 7013, me->GetGUID());
 

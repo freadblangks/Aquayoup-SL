@@ -18,22 +18,23 @@
 /* ScriptData
 SDName: Terokkar_Forest
 SD%Complete: 85
-SDComment: Quest support: 9889, 10898, 10052, 10051.
+SDComment: Quest support: 9889, 10051, 10052.
 SDCategory: Terokkar Forest
 EndScriptData */
 
 /* ContentData
 npc_unkor_the_ruthless
 npc_isla_starmane
-npc_skywing
-npc_akuno
 EndContentData */
 
 #include "ScriptMgr.h"
 #include "GameObject.h"
 #include "Group.h"
+#include "Map.h"
 #include "Player.h"
 #include "ScriptedEscortAI.h"
+#include "Spell.h"
+#include "SpellScript.h"
 #include "WorldSession.h"
 
 /*######
@@ -92,8 +93,8 @@ public:
             me->SetFaction(FACTION_FRIENDLY);
             me->SetStandState(UNIT_STAND_STATE_SIT);
             me->RemoveAllAuras();
-            me->GetThreatManager().ClearAllThreat();
             me->CombatStop(true);
+            EngagementOver();
             UnkorUnfriendly_Timer = 60000;
         }
 
@@ -157,67 +158,6 @@ public:
             } else Pulverize_Timer -= diff;
 
             DoMeleeAttackIfReady();
-        }
-    };
-};
-
-/*######
-## npc_skywing
-######*/
-
-enum Skywing
-{
-    QUEST_SKYWING = 10898
-};
-
-class npc_skywing : public CreatureScript
-{
-public:
-    npc_skywing() : CreatureScript("npc_skywing") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_skywingAI(creature);
-    }
-
-    struct npc_skywingAI : public EscortAI
-    {
-    public:
-        npc_skywingAI(Creature* creature) : EscortAI(creature) { }
-
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
-        {
-            Player* player = GetPlayerForEscort();
-            if (!player)
-                return;
-
-            switch (waypointId)
-            {
-                case 8:
-                    player->AreaExploredOrEventHappens(QUEST_SKYWING);
-                    break;
-            }
-        }
-
-        void JustEngagedWith(Unit* /*who*/) override { }
-
-        void MoveInLineOfSight(Unit* who) override
-
-        {
-            if (HasEscortState(STATE_ESCORT_ESCORTING))
-                return;
-
-            Player* player = who->ToPlayer();
-            if (player && player->GetQuestStatus(QUEST_SKYWING) == QUEST_STATUS_INCOMPLETE)
-                if (me->IsWithinDistInMap(who, 10.0f))
-                    Start(false, false, who->GetGUID());
-        }
-
-        void Reset() override { }
-
-        void UpdateAI(uint32 diff) override
-        {
-            EscortAI::UpdateAI(diff);
         }
     };
 };
@@ -318,9 +258,25 @@ public:
     }
 };
 
+// 40655 - Skyguard Flare
+class spell_skyguard_flare : public SpellScript
+{
+    PrepareSpellScript(spell_skyguard_flare);
+
+    void ModDestHeight(SpellDestination& dest)
+    {
+        dest._position.m_positionZ = GetCaster()->GetMap()->GetHeight(GetCaster()->GetPhaseShift(), dest._position.GetPositionX(), dest._position.GetPositionY(), MAX_HEIGHT);
+    }
+
+    void Register() override
+    {
+        OnDestinationTargetSelect += SpellDestinationTargetSelectFn(spell_skyguard_flare::ModDestHeight, EFFECT_0, TARGET_DEST_TARGET_RANDOM);
+    }
+};
+
 void AddSC_terokkar_forest()
 {
     new npc_unkor_the_ruthless();
     new npc_isla_starmane();
-    new npc_skywing();
+    RegisterSpellScript(spell_skyguard_flare);
 }
