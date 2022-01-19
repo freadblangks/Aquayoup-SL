@@ -6270,6 +6270,25 @@ TeamId Player::TeamIdForRace(uint8 race)
     return TEAM_NEUTRAL;
 }
 
+void Player::SwitchToOppositeTeam(bool apply)
+{
+    m_team = GetNativeTeam();
+
+    if (apply)
+        m_team = (m_team == ALLIANCE) ? HORDE : ALLIANCE;
+}
+
+uint32 Player::GetBgQueueTeam() const
+{
+    if (HasAura(SPELL_MERCENARY_CONTRACT_HORDE))
+        return HORDE;
+
+    if (HasAura(SPELL_MERCENARY_CONTRACT_ALLIANCE))
+        return ALLIANCE;
+
+    return GetTeam();
+}
+
 void Player::SetFactionForRace(uint8 race)
 {
     m_team = TeamForRace(race);
@@ -9212,6 +9231,13 @@ void Player::SendInitWorldStates(uint32 zoneId, uint32 areaId)
         case 2257: // Deeprun Tram
         case 3703: // Shattrath City
             break;
+        case 5736:                                          // The Wandering Isle
+            if (areaId == 5833)                                 // Wreck of the Skyseeker
+            {
+                packet.Worldstates.emplace_back(6488, 0x0); // Healers Active
+                packet.Worldstates.emplace_back(6489, 0x1); // Healers Active enabled
+            }
+            break;
         case 1377: // Silithus
             if (outdoorPvP && outdoorPvP->GetTypeId() == OUTDOOR_PVP_SI)
                 outdoorPvP->FillInitialWorldStates(packet);
@@ -9325,7 +9351,7 @@ void Player::SendInitWorldStates(uint32 zoneId, uint32 areaId)
             }
             break;
         case 3358: // Arathi Basin
-            if (battleground && battleground->GetTypeID(true) == BATTLEGROUND_AB)
+            if (battleground && (battleground->GetTypeID(true) == BATTLEGROUND_AB || battleground->GetTypeID(true) == BATTLEGROUND_DOM_AB))
                 battleground->FillInitialWorldStates(packet);
             else
             {
@@ -28917,6 +28943,12 @@ uint32 Player::DoRandomRoll(uint32 minimum, uint32 maximum)
         SendDirectMessage(randomRoll.Write());
 
     return roll;
+}
+
+void Player::ShowNeutralPlayerFactionSelectUI()
+{
+    WorldPackets::Misc::FactionSelectUI packet;
+    GetSession()->SendPacket(packet.Write());
 }
 
 void Player::UpdateItemLevelAreaBasedScaling()

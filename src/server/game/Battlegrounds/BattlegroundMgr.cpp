@@ -342,6 +342,7 @@ Battleground* BattlegroundMgr::CreateNewBattleground(BattlegroundQueueTypeId que
             bg = new BattlegroundWS(*(BattlegroundWS*)bg_template);
             break;
         case BATTLEGROUND_AB:
+        case BATTLEGROUND_DOM_AB:
             bg = new BattlegroundAB(*(BattlegroundAB*)bg_template);
             break;
         case BATTLEGROUND_NA:
@@ -413,6 +414,7 @@ bool BattlegroundMgr::CreateBattleground(BattlegroundTemplate const* bgTemplate)
                 bg = new BattlegroundWS(bgTemplate);
                 break;
             case BATTLEGROUND_AB:
+            case BATTLEGROUND_DOM_AB:
                 bg = new BattlegroundAB(bgTemplate);
                 break;
             case BATTLEGROUND_NA:
@@ -620,12 +622,17 @@ void BattlegroundMgr::ToggleArenaTesting()
     sWorld->SendWorldText(m_ArenaTesting ? LANG_DEBUG_ARENA_ON : LANG_DEBUG_ARENA_OFF);
 }
 
-void BattlegroundMgr::SetHolidayWeekends(uint32 mask)
+void BattlegroundMgr::ResetHolidays()
 {
-    // The current code supports battlegrounds up to BattlegroundTypeId(31)
-    for (uint32 bgtype = 1; bgtype < MAX_BATTLEGROUND_TYPE_ID && bgtype < 32; ++bgtype)
-        if (Battleground* bg = GetBattlegroundTemplate(BattlegroundTypeId(bgtype)))
-            bg->SetHoliday((mask & (1 << bgtype)) != 0);
+  for (uint32 i = BATTLEGROUND_AV; i < MAX_BATTLEGROUND_TYPE_ID; i++)
+      if (Battleground* bg = GetBattlegroundTemplate(BattlegroundTypeId(i)))
+          bg->SetHoliday(false);
+}
+
+void BattlegroundMgr::SetHolidayActive(uint32 battlegroundId)
+{
+    if (Battleground* bg = GetBattlegroundTemplate(BattlegroundTypeId(battlegroundId)))
+        bg->SetHoliday(true);
 }
 
 bool BattlegroundMgr::IsValidQueueId(BattlegroundQueueTypeId bgQueueTypeId)

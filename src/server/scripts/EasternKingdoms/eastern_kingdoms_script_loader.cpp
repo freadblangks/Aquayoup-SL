@@ -69,7 +69,12 @@ void AddSC_boss_nefarian();
 void AddSC_instance_blackwing_lair();
 void AddSC_deadmines();                      //Deadmines
 void AddSC_instance_deadmines();
-void AddSC_boss_mr_smite();
+void AddSC_boss_glubtok();
+void AddSC_boss_helix_gearbreaker();
+void AddSC_boss_foe_reaper_5000();
+void AddSC_boss_captain_cookie();
+void AddSC_boss_vanessa_van_cleef();
+void AddSC_boss_admiral_ripsnarl();
 void AddSC_gnomeregan();                     //Gnomeregan
 void AddSC_instance_gnomeregan();
 void AddSC_boss_attumen();                   //Karazhan
@@ -182,6 +187,7 @@ void AddSC_boss_venoxis();
 void AddSC_boss_wushoolay();
 void AddSC_boss_zanzil();
 void AddSC_instance_zulgurub();
+void AddSC_zulgurub();
 //void AddSC_alterac_mountains();
 //void AddSC_arathi_highlands();
 void AddSC_blasted_lands();
@@ -201,6 +207,10 @@ void AddSC_stormwind_city();
 void AddSC_tirisfal_glades();
 void AddSC_tol_barad();
 void AddSC_undercity();
+void AddSC_gilneas_chapter_1();
+void AddSC_gilneas_chapter_2();
+void AddSC_westfall();
+void AddSC_elwynn_forest();
 //void AddSC_western_plaguelands();
 
 // The name of this function should match:
@@ -259,8 +269,13 @@ void AddEasternKingdomsScripts()
     AddSC_boss_nefarian();
     AddSC_instance_blackwing_lair();
     AddSC_deadmines();                      //Deadmines
-    AddSC_boss_mr_smite();
     AddSC_instance_deadmines();
+	AddSC_boss_glubtok();
+    AddSC_boss_helix_gearbreaker();
+    AddSC_boss_foe_reaper_5000();
+    AddSC_boss_captain_cookie();
+    AddSC_boss_vanessa_van_cleef();
+    AddSC_boss_admiral_ripsnarl();
     AddSC_gnomeregan();                     //Gnomeregan
     AddSC_instance_gnomeregan();
     AddSC_boss_attumen();                   //Karazhan
@@ -373,6 +388,7 @@ void AddEasternKingdomsScripts()
     AddSC_boss_wushoolay();
     AddSC_boss_zanzil();
     AddSC_instance_zulgurub();
+	AddSC_zulgurub();
 
     //AddSC_alterac_mountains();
     //AddSC_arathi_highlands();
@@ -394,4 +410,8 @@ void AddEasternKingdomsScripts()
     AddSC_tol_barad();
     AddSC_undercity();
     //AddSC_western_plaguelands();
+    AddSC_gilneas_chapter_1();
+    AddSC_gilneas_chapter_2();
+	AddSC_westfall();
+	AddSC_elwynn_forest();
 }

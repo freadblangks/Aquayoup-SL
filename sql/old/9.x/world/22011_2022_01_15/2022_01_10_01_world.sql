@@ -1,40 +1,18 @@
--- 
-DELETE FROM `quest_details` WHERE `ID` IN (59583 /*Welcome to Stormwind*/, 55991 /*An End to Beginnings*/, 55992 /*Dungeon: Darkmaul Citadel*/, 55988 /*Like Ogres to the Slaughter*/, 55989 /*Catapult Destruction*/, 55990 /*Controlling their Stones*/, 55981 /*Right Beneath Their Eyes*/, 56839 /*Killclaw the Terrible*/, 56344 /*To Darkmaul Citadel*/, 60168 /*The Art of Taming*/, 59356 /*Hunting the Stalker*/, 59355 /*A Hunter's Trap*/, 55882 /*Message to Base*/, 55764 /*Harpy Culling*/, 55881 /*Purge the Totems*/, 55763 /*The Rescue of Meredy Huntswell*/, 54933 /*Freeing the Light*/, 55639 /*Who Lurks in the Pit*/, 55196 /*The Harpy Problem*/, 55965 /*Westward Bound*/, 55194 /*Stocking Up on Supplies*/, 55879 /*Ride of the Scientifically Enhanced Boar*/, 56034 /*Re-sizing the Situation*/, 55193 /*The Scout-o-Matic 5000*/, 55184 /*Forbidden Quilboar Necromancy*/, 55186 /*Down with the Quilboar*/, 59342 /*Taming the Wilds*/, 55173 /*Northbound*/, 55174 /*Cooking Meat*/, 54952 /*Finding the Lost Expedition*/, 54951 /*Emergency First Aid*/, 55122 /*Murloc Mania*/);
-INSERT INTO `quest_details` (`ID`, `Emote1`, `Emote2`, `Emote3`, `Emote4`, `EmoteDelay1`, `EmoteDelay2`, `EmoteDelay3`, `EmoteDelay4`, `VerifiedBuild`) VALUES
-(59583, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Welcome to Stormwind
-(55991, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- An End to Beginnings
-(55992, 1, 6, 25, 5, 0, 0, 0, 0, 41488), -- Dungeon: Darkmaul Citadel
-(55988, 5, 6, 25, 1, 0, 0, 0, 0, 41488), -- Like Ogres to the Slaughter
-(55989, 5, 1, 25, 11, 0, 0, 0, 0, 41488), -- Catapult Destruction
-(55990, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Controlling their Stones
-(55981, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Right Beneath Their Eyes
-(56839, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Killclaw the Terrible
-(56344, 669, 669, 0, 0, 0, 0, 0, 0, 41488), -- To Darkmaul Citadel
-(60168, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- The Art of Taming
-(59356, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Hunting the Stalker
-(59355, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- A Hunter's Trap
-(55882, 4, 273, 1, 0, 0, 0, 0, 0, 41488), -- Message to Base
-(55764, 1, 5, 274, 25, 0, 0, 0, 0, 41488), -- Harpy Culling
-(55881, 1, 6, 1, 0, 0, 0, 0, 0, 41488), -- Purge the Totems
-(55763, 5, 1, 25, 0, 0, 0, 0, 0, 41488), -- The Rescue of Meredy Huntswell
-(54933, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Freeing the Light
-(55639, 1, 25, 6, 274, 0, 0, 0, 0, 41488), -- Who Lurks in the Pit
-(55196, 66, 1, 6, 0, 0, 0, 0, 0, 41488), -- The Harpy Problem
-(55965, 1, 25, 0, 0, 0, 0, 0, 0, 41488), -- Westward Bound
-(55194, 669, 0, 0, 0, 0, 0, 0, 0, 41488), -- Stocking Up on Supplies
-(55879, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Ride of the Scientifically Enhanced Boar
-(56034, 6, 274, 1, 4, 0, 0, 0, 0, 41488), -- Re-sizing the Situation
-(55193, 25, 4, 11, 1, 0, 0, 0, 0, 41488), -- The Scout-o-Matic 5000
-(55184, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Forbidden Quilboar Necromancy
-(55186, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Down with the Quilboar
-(59342, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Taming the Wilds
-(55173, 1, 6, 25, 0, 0, 0, 0, 0, 41488), -- Northbound
-(55174, 669, 0, 669, 0, 0, 0, 0, 0, 41488), -- Cooking Meat
-(54952, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Finding the Lost Expedition
-(54951, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Emergency First Aid
-(55122, 0, 0, 0, 0, 0, 0, 0, 0, 41488); -- Murloc Mania
-
-UPDATE `quest_details` SET `VerifiedBuild`=41488 WHERE `ID` IN (58208, 58209, 56775);
+DELETE FROM `scene_template` WHERE `SceneId` IN (2634, 2499, 2420, 2423, 2421, 2402, 2379, 2380, 2422, 2341, 2338, 2418, 2334);
+INSERT INTO `scene_template` (`SceneId`, `Flags`, `ScriptPackageID`, `Encrypted`) VALUES
+(2634, 26, 2972, 0),
+(2499, 17, 2908, 0),
+(2420, 16, 2822, 0),
+(2423, 16, 2825, 0),
+(2421, 16, 2823, 0),
+(2402, 16, 2809, 0),
+(2379, 17, 2775, 0),
+(2380, 16, 2773, 0),
+(2422, 16, 2824, 0),
+(2341, 17, 2933, 0),
+(2338, 16, 2712, 0),
+(2418, 16, 2932, 0),
+(2334, 16, 2708, 0);
 
 DELETE FROM `quest_offer_reward` WHERE `ID` IN (55991 /*An End to Beginnings*/, 55992 /*Dungeon: Darkmaul Citadel*/, 55990 /*Controlling their Stones*/, 55989 /*Catapult Destruction*/, 55988 /*Like Ogres to the Slaughter*/, 55981 /*Right Beneath Their Eyes*/, 56344 /*To Darkmaul Citadel*/, 56839 /*Killclaw the Terrible*/, 60168 /*The Art of Taming*/, 59356 /*Hunting the Stalker*/, 59355 /*A Hunter's Trap*/, 55882 /*Message to Base*/, 55881 /*Purge the Totems*/, 55764 /*Harpy Culling*/, 55763 /*The Rescue of Meredy Huntswell*/, 55196 /*The Harpy Problem*/, 54933 /*Freeing the Light*/, 55639 /*Who Lurks in the Pit*/, 55965 /*Westward Bound*/, 55194 /*Stocking Up on Supplies*/, 55879 /*Ride of the Scientifically Enhanced Boar*/, 56034 /*Re-sizing the Situation*/, 55193 /*The Scout-o-Matic 5000*/, 55186 /*Down with the Quilboar*/, 55184 /*Forbidden Quilboar Necromancy*/, 59342 /*Taming the Wilds*/, 55173 /*Northbound*/, 55174 /*Cooking Meat*/, 54952 /*Finding the Lost Expedition*/, 54951 /*Emergency First Aid*/, 55122 /*Murloc Mania*/, 58208 /*Brace for Impact*/);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `Emote2`, `Emote3`, `Emote4`, `EmoteDelay1`, `EmoteDelay2`, `EmoteDelay3`, `EmoteDelay4`, `RewardText`, `VerifiedBuild`) VALUES
@@ -142,35 +120,114 @@ INSERT INTO `quest_poi_points` (`QuestID`, `Idx1`, `Idx2`, `X`, `Y`, `Z`, `Verif
 
 UPDATE `quest_poi_points` SET `VerifiedBuild`=41488 WHERE (`QuestID`=59583 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=59583 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55991 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55991 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55991 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55992 AND `Idx1`=6 AND `Idx2`=0) OR (`QuestID`=55992 AND `Idx1`=5 AND `Idx2`=0) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=11) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=10) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=9) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=8) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=7) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=6) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=5) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=4) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=3) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=2) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=1) OR (`QuestID`=55992 AND `Idx1`=4 AND `Idx2`=0) OR (`QuestID`=55992 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=55992 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55992 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55992 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55988 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55988 AND `Idx1`=1 AND `Idx2`=6) OR (`QuestID`=55988 AND `Idx1`=1 AND `Idx2`=5) OR (`QuestID`=55988 AND `Idx1`=1 AND `Idx2`=4) OR (`QuestID`=55988 AND `Idx1`=1 AND `Idx2`=3) OR (`QuestID`=55988 AND `Idx1`=1 AND `Idx2`=2) OR (`QuestID`=55988 AND `Idx1`=1 AND `Idx2`=1) OR (`QuestID`=55988 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55988 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55990 AND `Idx1`=7 AND `Idx2`=0) OR (`QuestID`=55990 AND `Idx1`=6 AND `Idx2`=2) OR (`QuestID`=55990 AND `Idx1`=6 AND `Idx2`=1) OR (`QuestID`=55990 AND `Idx1`=6 AND `Idx2`=0) OR (`QuestID`=55990 AND `Idx1`=5 AND `Idx2`=0) OR (`QuestID`=55990 AND `Idx1`=4 AND `Idx2`=0) OR (`QuestID`=55990 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=55990 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55990 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55990 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55981 AND `Idx1`=7 AND `Idx2`=0) OR (`QuestID`=55981 AND `Idx1`=6 AND `Idx2`=0) OR (`QuestID`=55981 AND `Idx1`=5 AND `Idx2`=0) OR (`QuestID`=55981 AND `Idx1`=4 AND `Idx2`=0) OR (`QuestID`=55981 AND `Idx1`=3 AND `Idx2`=7) OR (`QuestID`=55981 AND `Idx1`=3 AND `Idx2`=6) OR (`QuestID`=55981 AND `Idx1`=3 AND `Idx2`=5) OR (`QuestID`=55981 AND `Idx1`=3 AND `Idx2`=4) OR (`QuestID`=55981 AND `Idx1`=3 AND `Idx2`=3) OR (`QuestID`=55981 AND `Idx1`=3 AND `Idx2`=2) OR (`QuestID`=55981 AND `Idx1`=3 AND `Idx2`=1) OR (`QuestID`=55981 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=55981 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55981 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55981 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=56839 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=56839 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=56839 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=56344 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=56344 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=60168 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=60168 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=60168 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=60168 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=59356 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=59356 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=11) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=10) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=9) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=8) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=7) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=6) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=5) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=4) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=3) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=2) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=1) OR (`QuestID`=59356 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=59356 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55882 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55882 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55764 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55764 AND `Idx1`=1 AND `Idx2`=3) OR (`QuestID`=55764 AND `Idx1`=1 AND `Idx2`=2) OR (`QuestID`=55764 AND `Idx1`=1 AND `Idx2`=1) OR (`QuestID`=55764 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55764 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55881 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55881 AND `Idx1`=1 AND `Idx2`=3) OR (`QuestID`=55881 AND `Idx1`=1 AND `Idx2`=2) OR (`QuestID`=55881 AND `Idx1`=1 AND `Idx2`=1) OR (`QuestID`=55881 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55881 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55763 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55763 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55763 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55639 AND `Idx1`=4 AND `Idx2`=0) OR (`QuestID`=55639 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=55639 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55639 AND `Idx1`=1 AND `Idx2`=4) OR (`QuestID`=55639 AND `Idx1`=1 AND `Idx2`=3) OR (`QuestID`=55639 AND `Idx1`=1 AND `Idx2`=2) OR (`QuestID`=55639 AND `Idx1`=1 AND `Idx2`=1) OR (`QuestID`=55639 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55639 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55196 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55196 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55196 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55965 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55965 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55194 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=55194 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55194 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55194 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=56034 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=11) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=10) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=9) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=8) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=7) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=6) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=5) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=4) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=3) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=2) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=1) OR (`QuestID`=56034 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=56034 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55193 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55193 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55193 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55184 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55184 AND `Idx1`=1 AND `Idx2`=7) OR (`QuestID`=55184 AND `Idx1`=1 AND `Idx2`=6) OR (`QuestID`=55184 AND `Idx1`=1 AND `Idx2`=5) OR (`QuestID`=55184 AND `Idx1`=1 AND `Idx2`=4) OR (`QuestID`=55184 AND `Idx1`=1 AND `Idx2`=3) OR (`QuestID`=55184 AND `Idx1`=1 AND `Idx2`=2) OR (`QuestID`=55184 AND `Idx1`=1 AND `Idx2`=1) OR (`QuestID`=55184 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55184 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=59342 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=11) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=10) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=9) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=8) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=7) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=6) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=5) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=4) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=3) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=2) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=1) OR (`QuestID`=59342 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=59342 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=59342 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55173 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55173 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55174 AND `Idx1`=4 AND `Idx2`=0) OR (`QuestID`=55174 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=11) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=10) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=9) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=8) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=7) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=6) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=5) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=4) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=3) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=2) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=1) OR (`QuestID`=55174 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55174 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55174 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=54952 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=54952 AND `Idx1`=1 AND `Idx2`=7) OR (`QuestID`=54952 AND `Idx1`=1 AND `Idx2`=6) OR (`QuestID`=54952 AND `Idx1`=1 AND `Idx2`=5) OR (`QuestID`=54952 AND `Idx1`=1 AND `Idx2`=4) OR (`QuestID`=54952 AND `Idx1`=1 AND `Idx2`=3) OR (`QuestID`=54952 AND `Idx1`=1 AND `Idx2`=2) OR (`QuestID`=54952 AND `Idx1`=1 AND `Idx2`=1) OR (`QuestID`=54952 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=54952 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=54951 AND `Idx1`=4 AND `Idx2`=0) OR (`QuestID`=54951 AND `Idx1`=3 AND `Idx2`=0) OR (`QuestID`=54951 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=54951 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=54951 AND `Idx1`=0 AND `Idx2`=0) OR (`QuestID`=55122 AND `Idx1`=2 AND `Idx2`=0) OR (`QuestID`=55122 AND `Idx1`=1 AND `Idx2`=6) OR (`QuestID`=55122 AND `Idx1`=1 AND `Idx2`=5) OR (`QuestID`=55122 AND `Idx1`=1 AND `Idx2`=4) OR (`QuestID`=55122 AND `Idx1`=1 AND `Idx2`=3) OR (`QuestID`=55122 AND `Idx1`=1 AND `Idx2`=2) OR (`QuestID`=55122 AND `Idx1`=1 AND `Idx2`=1) OR (`QuestID`=55122 AND `Idx1`=1 AND `Idx2`=0) OR (`QuestID`=55122 AND `Idx1`=0 AND `Idx2`=0);
 
-DELETE FROM `quest_request_items` WHERE `ID` IN (55174 /*Cooking Meat*/, 59355 /*A Hunter's Trap*/, 55122 /*Murloc Mania*/, 55990 /*Controlling their Stones*/);
-INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `EmoteOnCompleteDelay`, `EmoteOnIncompleteDelay`, `CompletionText`, `VerifiedBuild`) VALUES
-(55174, 0, 0, 0, 0, 'Please... I need... some food...', 0), -- Cooking Meat
-(59355, 0, 0, 0, 0, 'Did you get the supplies needed? Meredy should have the ice mote, while the other two should be nearby.', 0), -- A Hunter's Trap
-(55122, 0, 0, 0, 0, 'Did you recover the first aid kits? Don\'t take the murlocs lightly.', 0), -- Murloc Mania
-(55990, 0, 0, 0, 0, 'So, these were the stones used to bind me? The ogres clearly were concerned about you thwarting their plans.', 0); -- Controlling their Stones
+DELETE FROM `quest_details` WHERE `ID` IN (59583 /*Welcome to Stormwind*/, 55991 /*An End to Beginnings*/, 55992 /*Dungeon: Darkmaul Citadel*/, 55988 /*Like Ogres to the Slaughter*/, 55989 /*Catapult Destruction*/, 55990 /*Controlling their Stones*/, 55981 /*Right Beneath Their Eyes*/, 56839 /*Killclaw the Terrible*/, 56344 /*To Darkmaul Citadel*/, 60168 /*The Art of Taming*/, 59356 /*Hunting the Stalker*/, 59355 /*A Hunter's Trap*/, 55882 /*Message to Base*/, 55764 /*Harpy Culling*/, 55881 /*Purge the Totems*/, 55763 /*The Rescue of Meredy Huntswell*/, 54933 /*Freeing the Light*/, 55639 /*Who Lurks in the Pit*/, 55196 /*The Harpy Problem*/, 55965 /*Westward Bound*/, 55194 /*Stocking Up on Supplies*/, 55879 /*Ride of the Scientifically Enhanced Boar*/, 56034 /*Re-sizing the Situation*/, 55193 /*The Scout-o-Matic 5000*/, 55184 /*Forbidden Quilboar Necromancy*/, 55186 /*Down with the Quilboar*/, 59342 /*Taming the Wilds*/, 55173 /*Northbound*/, 55174 /*Cooking Meat*/, 54952 /*Finding the Lost Expedition*/, 54951 /*Emergency First Aid*/, 55122 /*Murloc Mania*/);
+INSERT INTO `quest_details` (`ID`, `Emote1`, `Emote2`, `Emote3`, `Emote4`, `EmoteDelay1`, `EmoteDelay2`, `EmoteDelay3`, `EmoteDelay4`, `VerifiedBuild`) VALUES
+(59583, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Welcome to Stormwind
+(55991, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- An End to Beginnings
+(55992, 1, 6, 25, 5, 0, 0, 0, 0, 41488), -- Dungeon: Darkmaul Citadel
+(55988, 5, 6, 25, 1, 0, 0, 0, 0, 41488), -- Like Ogres to the Slaughter
+(55989, 5, 1, 25, 11, 0, 0, 0, 0, 41488), -- Catapult Destruction
+(55990, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Controlling their Stones
+(55981, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Right Beneath Their Eyes
+(56839, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Killclaw the Terrible
+(56344, 669, 669, 0, 0, 0, 0, 0, 0, 41488), -- To Darkmaul Citadel
+(60168, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- The Art of Taming
+(59356, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Hunting the Stalker
+(59355, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- A Hunter's Trap
+(55882, 4, 273, 1, 0, 0, 0, 0, 0, 41488), -- Message to Base
+(55764, 1, 5, 274, 25, 0, 0, 0, 0, 41488), -- Harpy Culling
+(55881, 1, 6, 1, 0, 0, 0, 0, 0, 41488), -- Purge the Totems
+(55763, 5, 1, 25, 0, 0, 0, 0, 0, 41488), -- The Rescue of Meredy Huntswell
+(54933, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Freeing the Light
+(55639, 1, 25, 6, 274, 0, 0, 0, 0, 41488), -- Who Lurks in the Pit
+(55196, 66, 1, 6, 0, 0, 0, 0, 0, 41488), -- The Harpy Problem
+(55965, 1, 25, 0, 0, 0, 0, 0, 0, 41488), -- Westward Bound
+(55194, 669, 0, 0, 0, 0, 0, 0, 0, 41488), -- Stocking Up on Supplies
+(55879, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Ride of the Scientifically Enhanced Boar
+(56034, 6, 274, 1, 4, 0, 0, 0, 0, 41488), -- Re-sizing the Situation
+(55193, 25, 4, 11, 1, 0, 0, 0, 0, 41488), -- The Scout-o-Matic 5000
+(55184, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Forbidden Quilboar Necromancy
+(55186, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Down with the Quilboar
+(59342, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Taming the Wilds
+(55173, 1, 6, 25, 0, 0, 0, 0, 0, 41488), -- Northbound
+(55174, 669, 0, 669, 0, 0, 0, 0, 0, 41488), -- Cooking Meat
+(54952, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Finding the Lost Expedition
+(54951, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Emergency First Aid
+(55122, 0, 0, 0, 0, 0, 0, 0, 0, 41488); -- Murloc Mania
 
-DELETE FROM `scene_template` WHERE `SceneId` IN (2634, 2499, 2420, 2423, 2421, 2402, 2379, 2380, 2422, 2341, 2338, 2418, 2334);
-INSERT INTO `scene_template` (`SceneId`, `Flags`, `ScriptPackageID`, `Encrypted`) VALUES
-(2634, 26, 2972, 0),
-(2499, 17, 2908, 0),
-(2420, 16, 2822, 0),
-(2423, 16, 2825, 0),
-(2421, 16, 2823, 0),
-(2402, 16, 2809, 0),
-(2379, 17, 2775, 0),
-(2380, 16, 2773, 0),
-(2422, 16, 2824, 0),
-(2341, 17, 2933, 0),
-(2338, 16, 2712, 0),
-(2418, 16, 2932, 0),
-(2334, 16, 2708, 0);
+UPDATE `quest_details` SET `VerifiedBuild`=41488 WHERE `ID` IN (58208, 58209, 56775);
 
-DELETE FROM `spell_target_position` WHERE (`EffectIndex`=0 AND `ID` IN (319030,312548,305891)) OR (`EffectIndex`=4 AND `ID`=305425);
+DELETE FROM `spell_target_position` WHERE (`EffectIndex`=0 AND `ID` IN (327496,319030,312548,305891)) OR (`EffectIndex`=4 AND `ID`=305425);
 INSERT INTO `spell_target_position` (`ID`, `EffectIndex`, `MapID`, `PositionX`, `PositionY`, `PositionZ`, `VerifiedBuild`) VALUES
+(327496, 0, 0, -9058, 438.899993896484375, 93.09999847412109375, 41488), -- Spell: 327496 (Bind) Efffect: 11 (SPELL_EFFECT_BIND)
 (319030, 0, 2175, 721.70001220703125, -1838.4000244140625, 186.5, 41488), -- Spell: 319030 (Teleport (DNT)) Efffect: 252 (SPELL_EFFECT_TELEPORT_UNITS)
 (312548, 0, 2175, 108.8000030517578125, -2271.300048828125, 97.09999847412109375, 41488), -- Spell: 312548 (Teleport (DNT)) Efffect: 252 (SPELL_EFFECT_TELEPORT_UNITS)
 (305891, 0, 2175, 229.0800018310546875, -2296.739990234375, 80.90000152587890625, 41488), -- Spell: 305891 (Teleport (DNT)) Efffect: 252 (SPELL_EFFECT_TELEPORT_UNITS)
 (305425, 4, 2175, -462.399993896484375, -2619.800048828125, 0.400000005960464477, 41488); -- Spell: 305425 (Ship Crash (DNT)) Efffect: 252 (SPELL_EFFECT_TELEPORT_UNITS)
+
+DELETE FROM `creature_template_addon` WHERE `entry` IN (140146 /*140146 (Stormwind Infantry Captain)*/, 140022 /*140022 (Stormwind Infantry)*/, 154155 /*154155 (Alliance Gryphon)*/, 168255 /*168255 (Alliance Gryphon)*/, 163963 /*163963 (Brunston Hammersmith)*/, 165198 /*165198 (InvisBunny) - Necrotic Storm (Cosmetic 01)*/, 156814 /*156814 (Gor'groth) - Summon Ghouls*/, 156501 /*156501 (Ravnyr) - Awaken (DNT)*/, 161350 /*161350 (Captain Garrick) - Threat 5000%*/, 157328 /*157328 (Darkmaul Channeler) - Dark Ritual*/, 156828 /*156828 (Shadowy Orb) - Arcane Lock*/, 156821 /*156821 (Darkmaul Shadowcaller) - Mod Scale 90-110%, Arcane Channel*/, 153583 /*153583 (Jugnug) - Cosmetic - Sleep Zzz*/, 153581 /*153581 (Grunk) - Cosmetic - Sleep Zzz*/, 153582 /*153582 (Wug) - Enrage*/, 156954 /*156954 (Captain Kelra) - Necrotic Ritual (DNT)*/, 153580 /*153580 (Gor'groth) - Lightning Dissolve Out*/, 154103 /*154103 (Ogre Chef) - Cosmetic - Chef's Hat visual for Ogres*/, 153238 /*153238 (Tamed Boar) - Permanent Feign Death (Stun, Untrackable, Immune)*/, 153239 /*153239 (Ogre Brute) - Cosmetic - Sleep Zzz*/, 153242 /*153242 (Ogre Shadowcaster)*/, 155733 /*155733 (Hidden Treasure Chest)*/, 161006 /*161006 (Ogre Shadowcaster) - Permanent Feign Death (Stun, Untrackable, Immune)*/, 171997 /*171997 (Woodlands Watcher)*/, 163533 /*163533 (Hjalmar the Undying) - Permanent Feign Death (Stun, Untrackable, Immune)*/, 152571 /*152571 (Harpy Snatcher)*/, 152843 /*152843 (Harpy Boltcaller)*/, 153964 /*153964 (Bloodbeak)*/, 153211 /*153211 (Meredy Huntswell) - Necrotic Ritual (DNT)*/, 163069 /*163069 (Yorah) - Permanent Feign Death (Stun, Untrackable, Immune)*/, 160451 /*160451 (Hrun the Exiled) - Fire Burst*/, 156902 /*156902 (Ralia Dreamchaser) - Necrotic Ritual (DNT)*/, 160433 /*160433 (Barrow Spiderling) - Venomous Fangs*/, 156900 /*156900 (Hrun the Exiled) - Final Sacrifice*/, 160394 /*160394 (Barrow Spider) - Venomous Fangs*/, 153266 /*153266 (Killclaw the Terrible) - Old Wounds (DNT)*/, 157114 /*157114 (Lightspawn) - Bound (DNT)*/, 156799 /*156799 (Henry Garrick) - Necrotic Ritual (DNT), Necrotic Ritual*/, 156518 /*156518 (Scout-o-Matic 5000)*/, 156532 /*156532 (Zombie Servant)*/, 165727 /*165727 (Plains Doe)*/, 154268 /*154268 (Hungry Vulture)*/, 165730 /*165730 (Plains Stag)*/, 150237 /*150237 (Quilboar Warrior) - Quilboar Sleep (DNT)*/, 150238 /*150238 (Quilboar Geomancer) - Necrotic Burst*/, 165713 /*165713 (Scurrying Rat) - Ride Vehicle*/, 156662 /*156662 (Captain Garrick)*/, 154301 /*154301 (Lindie Springstock) - Necrotic Ritual (DNT)*/, 154327 /*154327 (Austin Huxworth)*/, 164827 /*164827 (Sharpbeak Hawk)*/, 156607 /*156607 (Alaria) - Starving*/, 161133 /*161133 (Coastal Albatross)*/, 156622 /*156622 (Quartermaster Richter)*/, 156610 /*156610 (Austin Huxworth)*/, 156609 /*156609 (Bjorn Stouthands)*/, 156612 /*156612 (Kee-La)*/, 156626 /*156626 (Captain Garrick) - Kneel*/, 149917 /*149917 (Private Cole)*/, 155125 /*155125 (InvisBunny) - Open Sea (DNT)*/, 157043 /*157043 (Kee-La)*/, 157046 /*157046 (Austin Huxworth)*/);
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `auras`) VALUES
+(140146, 0, 28912, 0, 1, 0, 0, 0, 0, ''), -- 140146 (Stormwind Infantry Captain)
+(140022, 0, 0, 0, 1, 0, 15998, 0, 0, ''), -- 140022 (Stormwind Infantry)
+(154155, 0, 0, 50331648, 1, 0, 0, 0, 0, ''), -- 154155 (Alliance Gryphon)
+(168255, 0, 0, 50331648, 1, 0, 0, 0, 0, ''), -- 168255 (Alliance Gryphon)
+(163963, 0, 85523, 0, 1, 0, 0, 0, 0, ''), -- 163963 (Brunston Hammersmith)
+(165198, 0, 0, 0, 1, 0, 0, 0, 0, '321806'), -- 165198 (InvisBunny) - Necrotic Storm (Cosmetic 01)
+(156814, 0, 0, 0, 1, 0, 0, 0, 0, '306097'), -- 156814 (Gor'groth) - Summon Ghouls
+(156501, 0, 0, 0, 1, 0, 11415, 0, 0, '318318'), -- 156501 (Ravnyr) - Awaken (DNT)
+(161350, 0, 0, 0, 1, 0, 0, 0, 0, '222584'), -- 161350 (Captain Garrick) - Threat 5000%
+(157328, 0, 0, 0, 1, 0, 0, 0, 0, '306457'), -- 157328 (Darkmaul Channeler) - Dark Ritual
+(156828, 0, 0, 50331648, 1, 0, 0, 0, 0, '305885'), -- 156828 (Shadowy Orb) - Arcane Lock
+(156821, 0, 0, 0, 1, 0, 0, 0, 0, '214567 305886'), -- 156821 (Darkmaul Shadowcaller) - Mod Scale 90-110%, Arcane Channel
+(153583, 0, 0, 0, 1, 0, 0, 0, 0, '145953'), -- 153583 (Jugnug) - Cosmetic - Sleep Zzz
+(153581, 0, 0, 0, 1, 0, 0, 0, 0, '246849'), -- 153581 (Grunk) - Cosmetic - Sleep Zzz
+(153582, 0, 0, 0, 1, 0, 0, 0, 0, '321820'), -- 153582 (Wug) - Enrage
+(156954, 0, 0, 0, 1, 0, 0, 0, 0, '305513'), -- 156954 (Captain Kelra) - Necrotic Ritual (DNT)
+(153580, 0, 0, 0, 1, 0, 0, 0, 0, '283844'), -- 153580 (Gor'groth) - Lightning Dissolve Out
+(154103, 0, 0, 8, 1, 0, 0, 0, 0, '299441'), -- 154103 (Ogre Chef) - Cosmetic - Chef's Hat visual for Ogres
+(153238, 0, 0, 262144, 1, 0, 0, 0, 0, '145363'), -- 153238 (Tamed Boar) - Permanent Feign Death (Stun, Untrackable, Immune)
+(153239, 0, 0, 0, 1, 0, 0, 0, 0, '145953'), -- 153239 (Ogre Brute) - Cosmetic - Sleep Zzz
+(153242, 0, 0, 1, 1, 0, 0, 0, 0, ''), -- 153242 (Ogre Shadowcaster)
+(155733, 0, 0, 50331648, 1, 0, 0, 0, 0, ''), -- 155733 (Hidden Treasure Chest)
+(161006, 0, 0, 262144, 1, 0, 0, 0, 0, '145363'), -- 161006 (Ogre Shadowcaster) - Permanent Feign Death (Stun, Untrackable, Immune)
+(171997, 0, 0, 50331649, 1, 0, 0, 0, 0, ''), -- 171997 (Woodlands Watcher)
+(163533, 0, 0, 262144, 1, 0, 0, 0, 0, '145363'), -- 163533 (Hjalmar the Undying) - Permanent Feign Death (Stun, Untrackable, Immune)
+(152571, 0, 0, 33554432, 1, 0, 0, 0, 0, ''), -- 152571 (Harpy Snatcher)
+(152843, 0, 0, 33554432, 1, 0, 0, 0, 0, ''), -- 152843 (Harpy Boltcaller)
+(153964, 0, 0, 50331648, 1, 0, 0, 0, 0, ''), -- 153964 (Bloodbeak)
+(153211, 0, 0, 0, 1, 0, 0, 0, 0, '305513'), -- 153211 (Meredy Huntswell) - Necrotic Ritual (DNT)
+(163069, 0, 0, 262144, 1, 0, 0, 0, 0, '145363'), -- 163069 (Yorah) - Permanent Feign Death (Stun, Untrackable, Immune)
+(160451, 0, 0, 0, 1, 0, 0, 0, 0, '298902'), -- 160451 (Hrun the Exiled) - Fire Burst
+(156902, 0, 0, 0, 1, 0, 0, 0, 0, '305513'), -- 156902 (Ralia Dreamchaser) - Necrotic Ritual (DNT)
+(160433, 0, 0, 0, 1, 0, 0, 0, 0, '316915'), -- 160433 (Barrow Spiderling) - Venomous Fangs
+(156900, 0, 0, 0, 1, 0, 0, 0, 0, '322352'), -- 156900 (Hrun the Exiled) - Final Sacrifice
+(160394, 0, 0, 0, 1, 0, 0, 0, 0, '316915'), -- 160394 (Barrow Spider) - Venomous Fangs
+(153266, 0, 0, 0, 1, 0, 0, 0, 0, '313373'), -- 153266 (Killclaw the Terrible) - Old Wounds (DNT)
+(157114, 0, 0, 0, 1, 0, 0, 0, 0, '319104'), -- 157114 (Lightspawn) - Bound (DNT)
+(156799, 0, 0, 0, 1, 0, 0, 0, 0, '305513 325408'), -- 156799 (Henry Garrick) - Necrotic Ritual (DNT), Necrotic Ritual
+(156518, 0, 0, 50331648, 1, 0, 0, 0, 0, ''), -- 156518 (Scout-o-Matic 5000)
+(156532, 0, 0, 0, 1, 0, 18607, 0, 0, ''), -- 156532 (Zombie Servant)
+(165727, 0, 0, 1, 1, 0, 0, 0, 0, ''), -- 165727 (Plains Doe)
+(154268, 0, 0, 50331648, 1, 0, 0, 0, 0, ''), -- 154268 (Hungry Vulture)
+(165730, 0, 0, 1, 1, 0, 0, 0, 0, ''), -- 165730 (Plains Stag)
+(150237, 0, 0, 0, 1, 0, 0, 0, 0, '313265'), -- 150237 (Quilboar Warrior) - Quilboar Sleep (DNT)
+(150238, 0, 0, 0, 1, 0, 0, 0, 0, '313261'), -- 150238 (Quilboar Geomancer) - Necrotic Burst
+(165713, 0, 0, 0, 1, 0, 0, 0, 0, '52391'), -- 165713 (Scurrying Rat) - Ride Vehicle
+(156662, 0, 0, 8, 1, 0, 0, 0, 0, ''), -- 156662 (Captain Garrick)
+(154301, 0, 0, 0, 1, 0, 0, 0, 0, '305513'), -- 154301 (Lindie Springstock) - Necrotic Ritual (DNT)
+(154327, 0, 0, 8, 1, 0, 0, 0, 0, ''), -- 154327 (Austin Huxworth)
+(164827, 0, 0, 50331648, 1, 0, 0, 0, 0, ''), -- 164827 (Sharpbeak Hawk)
+(156607, 0, 0, 0, 1, 0, 0, 0, 0, '313662'), -- 156607 (Alaria) - Starving
+(161133, 0, 0, 50331648, 1, 0, 0, 0, 0, ''), -- 161133 (Coastal Albatross)
+(156622, 0, 0, 3, 1, 0, 0, 0, 0, ''), -- 156622 (Quartermaster Richter)
+(156610, 0, 0, 3, 1, 0, 0, 0, 0, ''), -- 156610 (Austin Huxworth)
+(156609, 0, 0, 3, 1, 0, 0, 0, 0, ''), -- 156609 (Bjorn Stouthands)
+(156612, 0, 0, 3, 1, 0, 0, 0, 0, ''), -- 156612 (Kee-La)
+(156626, 0, 0, 0, 1, 0, 0, 0, 0, '313220'), -- 156626 (Captain Garrick) - Kneel
+(149917, 0, 0, 3, 1, 0, 0, 0, 0, ''), -- 149917 (Private Cole)
+(155125, 0, 0, 0, 1, 0, 0, 0, 0, '305351'), -- 155125 (InvisBunny) - Open Sea (DNT)
+(157043, 0, 0, 8, 1, 0, 0, 0, 0, ''), -- 157043 (Kee-La)
+(157046, 0, 0, 8, 1, 0, 0, 0, 0, ''); -- 157046 (Austin Huxworth)
 
 UPDATE `creature_template_scaling` SET `VerifiedBuild`=41488 WHERE (`DifficultyID`=0 AND `Entry` IN (17804,61080,154169,140146,4959,51348,68,32520,111190,140022,154155,163963,168255,156814,156501,157300,168738,168740,161350,157328,161504,156828,156821,156825,156965,174525,153583,153581,153582,156961,156960,156954,161306,154103,154146,153580,154147,154145,153238,153239,153242,156942,156944,156943,156941,164927,155733,172026,161006,163040,171997,172027,163533,163039,156887,156886,156885,156882,156986,155197,155199,169162,155192,153211,152843,152998,163069,164025,157104,164026,164022,156859,155572,156860,152571,172028,172029,162954,153964,156932,156929,160451,156902,156900,156891,89715,160394,160433,153266,156808,174977,161666,150245,165758,156833,168382,156807,162817,156595,154300,156803,156801,156800,156804,157114,156799,156518,157091,156532,154268,165711,165730,149899,165727,149915,165757,156716,151091,156676,155371,165713,150238,165712,156662,154301,164826,150237,154327,175031,164827,156651,156607,151089,154170,151088,167761,161131,161133,161265,161130,156622,156610,156609,156612,156626,149917,150229,161228,150228,161224,157070,155125,167345,160664,154867,156403,156280,156345,157049,157043,157042,157046,157044,167886,160737,174971)) OR (`DifficultyID`=150 AND `Entry` IN (156913,166262,165198));
 
@@ -276,133 +333,4 @@ INSERT INTO `gossip_menu_option` (`MenuId`, `OptionIndex`, `OptionIcon`, `Option
 (24886, 2, 0, 'I\'m ready to tame my pet, call them out.', 0, 41488),
 (25321, 1, 0, 'Meredy, do you have an ice mote I could use?', 0, 41488),
 (24887, 0, 0, 'I\'ll fight the harpies that come. Can you use your magic to break free?', 0, 41488),
-(24885, 0, 1, 'Let me browse your goods.', 2823, 41488); -- OptionBroadcastTextID: 2823 - 7509 - 8097
-
-UPDATE `quest_template` SET `VerifiedBuild`=41488 WHERE `ID` IN (59583, 55991, 55879, 55193, 53436, 62631, 56139, 63823, 55901, 63543, 56141, 63824, 63822, 46736, 46735, 46277);
-UPDATE `quest_template` SET `RewardMoney`=1720, `VerifiedBuild`=41488 WHERE `ID`=55988; -- Like Ogres to the Slaughter
-UPDATE `quest_template` SET `RewardMoney`=1720, `VerifiedBuild`=41488 WHERE `ID`=55989; -- Catapult Destruction
-UPDATE `quest_template` SET `RewardMoney`=1720, `VerifiedBuild`=41488 WHERE `ID`=55990; -- Controlling their Stones
-UPDATE `quest_template` SET `RewardMoney`=1470, `VerifiedBuild`=41488 WHERE `ID`=55981; -- Right Beneath Their Eyes
-UPDATE `quest_template` SET `RewardMoney`=4410, `RewardBonusMoney`=120, `VerifiedBuild`=41488 WHERE `ID`=56839; -- Killclaw the Terrible
-UPDATE `quest_template` SET `RewardMoney`=735, `RewardBonusMoney`=30, `VerifiedBuild`=41488 WHERE `ID`=56344; -- To Darkmaul Citadel
-UPDATE `quest_template` SET `RewardMoney`=1470, `VerifiedBuild`=41488 WHERE `ID`=60168; -- The Art of Taming
-UPDATE `quest_template` SET `RewardMoney`=1470, `VerifiedBuild`=41488 WHERE `ID`=59356; -- Hunting the Stalker
-UPDATE `quest_template` SET `RewardMoney`=1015, `RewardBonusMoney`=60, `VerifiedBuild`=41488 WHERE `ID`=59355; -- A Hunter's Trap
-UPDATE `quest_template` SET `RewardMoney`=510, `VerifiedBuild`=41488 WHERE `ID`=55882; -- Message to Base
-UPDATE `quest_template` SET `RewardMoney`=1015, `RewardBonusMoney`=60, `VerifiedBuild`=41488 WHERE `ID`=55764; -- Harpy Culling
-UPDATE `quest_template` SET `RewardMoney`=1015, `RewardBonusMoney`=60, `VerifiedBuild`=41488 WHERE `ID`=55881; -- Purge the Totems
-UPDATE `quest_template` SET `RewardMoney`=1015, `RewardBonusMoney`=60, `VerifiedBuild`=41488 WHERE `ID`=55763; -- The Rescue of Meredy Huntswell
-UPDATE `quest_template` SET `RewardMoney`=80, `VerifiedBuild`=41488 WHERE `ID`=54933; -- Freeing the Light
-UPDATE `quest_template` SET `RewardMoney`=1600, `RewardBonusMoney`=60, `VerifiedBuild`=41488 WHERE `ID`=55639; -- Who Lurks in the Pit
-UPDATE `quest_template` SET `RewardMoney`=400, `VerifiedBuild`=41488 WHERE `ID`=55196; -- The Harpy Problem
-UPDATE `quest_template` SET `RewardMoney`=400, `VerifiedBuild`=41488 WHERE `ID`=55965; -- Westward Bound
-UPDATE `quest_template` SET `RewardMoney`=600, `RewardBonusMoney`=30, `VerifiedBuild`=41488 WHERE `ID`=55194; -- Stocking Up on Supplies
-UPDATE `quest_template` SET `RewardMoney`=360, `RewardBonusMoney`=30, `VerifiedBuild`=41488 WHERE `ID`=55184; -- Forbidden Quilboar Necromancy
-UPDATE `quest_template` SET `RewardMoney`=360, `RewardBonusMoney`=30, `VerifiedBuild`=41488 WHERE `ID`=55186; -- Down with the Quilboar
-UPDATE `quest_template` SET `RewardMoney`=180, `VerifiedBuild`=41488 WHERE `ID`=55173; -- Northbound
-UPDATE `quest_template` SET `RewardMoney`=360, `RewardBonusMoney`=30, `VerifiedBuild`=41488 WHERE `ID`=55174; -- Cooking Meat
-UPDATE `quest_template` SET `RewardMoney`=100, `VerifiedBuild`=41488 WHERE `ID`=54952; -- Finding the Lost Expedition
-UPDATE `quest_template` SET `RewardMoney`=120, `RewardBonusMoney`=30, `VerifiedBuild`=41488 WHERE `ID`=55122; -- Murloc Mania
-UPDATE `quest_template` SET `RewardMoney`=30, `VerifiedBuild`=41488 WHERE `ID`=58208; -- Brace for Impact
-UPDATE `quest_template` SET `RewardMoney`=55, `RewardBonusMoney`=0, `VerifiedBuild`=41488 WHERE `ID`=58209; -- Stand Your Ground
-UPDATE `quest_template` SET `RewardMoney`=55, `RewardBonusMoney`=30, `VerifiedBuild`=41488 WHERE `ID`=28767; -- Beating Them Back!
-UPDATE `quest_template` SET `RewardMoney`=55, `RewardBonusMoney`=0, `VerifiedBuild`=41488 WHERE `ID`=56775; -- Warming Up
-UPDATE `quest_template` SET `RewardMoney`=55, `RewardBonusMoney`=0, `VerifiedBuild`=41488 WHERE `ID`=59342; -- Taming the Wilds
-UPDATE `quest_template` SET `RewardMoney`=4060, `RewardBonusMoney`=210, `VerifiedBuild`=41488 WHERE `ID`=55992; -- Dungeon: Darkmaul Citadel
-UPDATE `quest_template` SET `RewardMoney`=40, `RewardBonusMoney`=0, `VerifiedBuild`=41488 WHERE `ID`=56034; -- Re-sizing the Situation
-UPDATE `quest_template` SET `RewardMoney`=55, `RewardBonusMoney`=0, `VerifiedBuild`=41488 WHERE `ID`=54951; -- Emergency First Aid
-
-UPDATE `quest_objectives` SET `VerifiedBuild`=41488 WHERE `ID` IN (389997, 389990, 389991, 394292, 394291, 389996, 389995, 389994, 389970, 389973, 389972, 389971, 390205, 390204, 390131, 391409, 397753, 397752, 397751, 396417, 396413, 396412, 396411, 389603, 389809, 389775, 390025, 390024, 390023, 390022, 393740, 391940, 391939, 396763, 388875, 395073, 396499, 389796, 391875, 388849, 388852, 394179, 396789, 391866, 390721, 393824, 254418, 341370, 391353, 396359, 396360, 395924, 394065, 394461, 390101, 391859, 391858, 388448, 408081, 390315, 420312, 420311, 420310, 420308, 420309, 420428, 420427, 420307, 420298, 419883, 419882, 390377, 390376, 389986, 389887, 390148, 390135, 389886, 419452, 419666, 419665, 419617, 419746, 419447, 419729, 390322, 420138, 420122, 419902, 420876, 419901, 419899, 419900, 419898, 420677, 420676, 420028, 420027, 420026, 420025, 420024, 420032, 420022, 420021, 419998, 419913, 419997, 289536, 289535, 289167);
-
-UPDATE `quest_visual_effect` SET `VerifiedBuild`=41488 WHERE (`Index`=0 AND `ID` IN (389996,389995,389994,389971,390131,391409,397753,397752,396411,389775,393740,391940,391939,396763,388875,395073,388852,396789,391353,396359,396360,395924,394065,390101,420311,420310,420308,420309,420428,420427,420307,419882,419452,419729,419902,419900,419898,420676,420032,420021,419913,419997)) OR (`Index`=6 AND `ID`=397752) OR (`Index`=5 AND `ID`=397752) OR (`Index`=4 AND `ID` IN (397752,396359)) OR (`Index`=3 AND `ID` IN (397752,396359,420032)) OR (`Index`=2 AND `ID` IN (397752,396789,396359,420032)) OR (`Index`=1 AND `ID` IN (397752,396789,396359,394065,420311,420310,420308,420309,420427,420032));
-
-UPDATE `quest_reward_display_spell` SET `VerifiedBuild`=41488 WHERE (`Idx`=0 AND `QuestID` IN (59356,59355,54933));
-
-UPDATE `creature_template` SET `VerifiedBuild`=41488 WHERE `entry` IN (154146, 154147, 172026, 154155, 172027, 172028, 172029, 154169, 156403, 154170, 165352, 68, 168738, 168740, 155371, 160964, 154268, 32520, 156518, 153168, 156526, 156532, 154300, 154301, 161006, 154327, 153211, 153238, 153239, 167761, 153242, 156595, 149899, 156607, 156609, 156610, 156612, 153266, 149915, 149917, 156622, 156626, 156651, 174525, 156660, 161130, 156662, 161131, 161133, 151088, 151089, 156676, 151091, 155572, 167886, 156716, 155607, 89715, 156736, 156749, 161224, 161228, 165711, 165712, 140022, 165713, 156781, 165727, 165730, 161265, 156799, 156800, 156801, 156803, 156804, 156807, 156808, 165757, 165758, 163533, 156833, 161306, 155733, 156859, 156860, 18357, 18359, 18360, 18362, 4959, 169162, 161350, 156882, 18375, 18376, 156885, 156886, 156887, 156891, 156900, 140146, 156902, 18406, 153565, 153566, 156929, 150228, 153580, 150229, 156932, 153581, 153582, 153583, 150237, 150238, 156941, 156942, 156943, 156944, 156947, 150245, 156948, 156954, 156960, 156961, 156965, 156986, 111190, 164826, 164827, 161504, 152571, 157042, 160394, 157043, 157044, 157046, 157049, 157051, 157070, 160433, 174955, 168255, 157091, 174971, 160451, 154867, 157104, 174977, 164927, 157114, 61080, 175031, 164986, 164989, 164990, 161666, 168382, 162817, 163963, 167345, 160656, 32206, 152843, 160664, 153964, 164022, 164025, 164026, 165150, 155125, 162954, 165198, 156267, 160737, 156280, 155192, 17804, 155197, 155199, 32335, 163039, 154103, 163040, 156345, 51348, 152998, 171997, 163069, 154145);
-UPDATE `creature_template` SET `CreatureDifficultyID`=186220, `VerifiedBuild`=41488 WHERE `entry`=156501; -- Ravnyr
-UPDATE `creature_template` SET `CreatureDifficultyID`=186219, `VerifiedBuild`=41488 WHERE `entry`=156814; -- Gor'groth
-UPDATE `creature_template` SET `CreatureDifficultyID`=186222, `VerifiedBuild`=41488 WHERE `entry`=156821; -- Darkmaul Shadowcaller
-UPDATE `creature_template` SET `CreatureDifficultyID`=186221, `VerifiedBuild`=41488 WHERE `entry`=156825; -- Darkmaul Centurion
-UPDATE `creature_template` SET `CreatureDifficultyID`=186223, `VerifiedBuild`=41488 WHERE `entry`=156828; -- Shadowy Orb
-UPDATE `creature_template` SET `CreatureDifficultyID`=186225, `VerifiedBuild`=41488 WHERE `entry`=156913; -- Decaying Corpse
-UPDATE `creature_template` SET `CreatureDifficultyID`=186224, `VerifiedBuild`=41488 WHERE `entry`=157300; -- Tunk
-UPDATE `creature_template` SET `CreatureDifficultyID`=186954, `VerifiedBuild`=41488 WHERE `entry`=166262; -- Decaying Corpse
-UPDATE `creature_template` SET `CreatureDifficultyID`=186217, `VerifiedBuild`=41488 WHERE `entry`=157328; -- Darkmaul Channeler
-
-UPDATE `creature_template_model` SET `VerifiedBuild`=41488 WHERE (`Idx`=1 AND `CreatureID` IN (61080,111190,32520,140146,51348,68,140022,156913,166262,165198,156828,156825,168738,156821,161306,153239,153242,164927,172026,161006,163040,171997,172027,163039,169162,152998,164025,164026,164022,157104,172029,155572,162954,160451,160964,160433,160394,174977,165758,168382,156532,165711,165727,165713,150238,150237,164827,167761,161131,161133,161228,150229,150228,161224,157070,160656,155125,167886,156403,174971)) OR (`Idx`=0 AND `CreatureID` IN (61080,17804,111190,32520,154169,140146,51348,4959,68,140022,168255,163963,154155,156913,166262,165198,161350,157328,156828,156501,157300,168740,161504,156825,168738,156814,156821,156965,174525,153583,153581,153582,156961,156960,161306,156954,154103,154146,153580,154147,154145,153238,153239,153242,156948,156947,153566,153565,156944,156943,156942,156941,164927,155733,172026,161006,163040,171997,172027,164990,164989,164986,163533,163039,156887,156886,156885,156882,156986,155197,169162,155192,153211,152843,152998,164025,163069,164026,164022,157104,172029,172028,156860,156859,155572,152571,162954,155199,156932,153964,156929,165352,160451,156902,160964,156900,156891,89715,160433,160394,153266,156808,174977,150245,165758,161666,168382,156833,156807,162817,165150,156267,156781,156595,156736,156749,174955,156804,156803,156801,156800,154300,157114,156526,156799,156518,157091,156532,154268,165711,165730,165727,149899,149915,165757,156716,156676,155371,165713,151091,150238,165712,156662,154301,164826,150237,154327,156660,175031,164827,156651,156607,153168,151089,154170,151088,167761,161131,161133,161265,161130,156610,156609,149917,161228,156626,150229,156622,150228,161224,156612,157070,155607,157051,160656,32335,32206,18362,18376,18406,18359,18357,18375,18360,167345,157042,156280,157043,155125,167886,160664,156345,157049,154867,157046,156403,157044,160737,174971)) OR (`Idx`=3 AND `CreatureID` IN (68,153239,153242,161006,160964,156532,164827,167886)) OR (`Idx`=2 AND `CreatureID` IN (68,156913,166262,168738,156821,153239,153242,172026,161006,171997,160964,160433,160394,156532,165711,165727,164827,161133,167886));
-
-UPDATE `creature_questitem` SET `VerifiedBuild`=41488 WHERE (`Idx`=0 AND `CreatureEntry` IN (153583,153581,153582,150238,150237,161131,161133,161130,150229,150228));
-
-DELETE FROM `gameobject_template` WHERE `entry` IN (336441 /*Doodad_6DU_HighmaulRaid_Door_ThroneRoom001*/, 334502 /*TEMP DOOR*/, 334578 /*Shadowy Door*/, 336442 /*6DU_HighmaulRaid_Door02*/, 327407 /*Precious Ogre Stash*/, 339643 /*Darkmaul Door*/, 339865 /*Ogre Runestone*/, 326651 /*Catapult*/, 346113 /*Druid Stone*/, 341951 /*Withering Hemlock*/, 330627 /*Danger Sign*/, 346278 /*Rusted Chains*/, 346277 /*Old Spring*/, 329919 /*Stolen Supplies*/, 326718 /*Ritual Pedestal*/, 339568 /*Thick Cocoon*/, 327146 /*Harpy Totem*/, 339769 /*Campfire*/);
-INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconName`, `castBarCaption`, `unk1`, `size`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `Data6`, `Data7`, `Data8`, `Data9`, `Data10`, `Data11`, `Data12`, `Data13`, `Data14`, `Data15`, `Data16`, `Data17`, `Data18`, `Data19`, `Data20`, `Data21`, `Data22`, `Data23`, `Data24`, `Data25`, `Data26`, `Data27`, `Data28`, `Data29`, `Data30`, `Data31`, `Data32`, `Data33`, `Data34`, `ContentTuningId`, `VerifiedBuild`) VALUES
-(336441, 0, 17297, 'Doodad_6DU_HighmaulRaid_Door_ThroneRoom001', '', '', '', 0.701409876346588134, 0, 0, 3000, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Doodad_6DU_HighmaulRaid_Door_ThroneRoom001
-(334502, 0, 61459, 'TEMP DOOR', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- TEMP DOOR
-(334578, 0, 61459, 'Shadowy Door', '', '', '', 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Shadowy Door
-(336442, 0, 28699, '6DU_HighmaulRaid_Door02', '', '', '', 0.999999880790710449, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1038, 41488), -- 6DU_HighmaulRaid_Door02
-(327407, 3, 259, 'Precious Ogre Stash', '', 'Opening', '', 1.5, 57, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 21400, 0, 0, 0, 683, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3656, 97513, 0, 0, 0, 0, 683, 41488), -- Precious Ogre Stash
-(339643, 5, 17297, 'Darkmaul Door', 'questinteract', '', '', 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41488), -- Darkmaul Door
-(339865, 10, 59825, 'Ogre Runestone', 'questinteract', 'Disabling', '', 0.200000002980232238, 3155, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40509, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 956, 41488), -- Ogre Runestone
-(326651, 10, 14627, 'Catapult', 'questinteract', 'Placing', '', 1, 2173, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 35196, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 956, 41488), -- Catapult
-(346113, 10, 33468, 'Druid Stone', 'questinteract', 'Placing', '', 1.60000002384185791, 3194, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35196, 0, 0, 0, 0, 0, 1, 0, 79561, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 741, 41488), -- Druid Stone
-(341951, 3, 47462, 'Withering Hemlock', 'questinteract', 'Retrieving', '', 1, 1691, 0, 1, 0, 0, 0, 0, 0, 58917, 0, 0, 0, 0, 0, 23645, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100778, 1, 0, 0, 0, 741, 41488), -- Withering Hemlock
-(330627, 2, 14626, 'Danger Sign', '', '', '', 1, 0, 23167, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 741, 41488), -- Danger Sign
-(346278, 3, 26682, 'Rusted Chains', 'questinteract', 'Retrieving', '', 1, 1691, 0, 1, 0, 0, 0, 0, 0, 59355, 0, 0, 0, 0, 0, 23645, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 101445, 1, 0, 0, 0, 741, 41488), -- Rusted Chains
-(346277, 3, 6681, 'Old Spring', 'questinteract', 'Retrieving', '', 0.5, 1691, 0, 1, 0, 0, 0, 0, 0, 59355, 0, 0, 0, 0, 0, 23645, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 101444, 1, 0, 0, 0, 741, 41488), -- Old Spring
-(329919, 3, 49250, 'Stolen Supplies', '', 'Opening', '', 1.5, 57, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 21400, 0, 0, 0, 683, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3753, 97514, 0, 0, 0, 0, 683, 41488), -- Stolen Supplies
-(326718, 10, 56588, 'Ritual Pedestal', 'questinteract', 'Placing', '', 0.25, 3184, 0, 0, 3000, 0, 0, 0, 0, 0, 0, 301471, 0, 0, 0, 35196, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 955, 41488), -- Ritual Pedestal
-(339568, 10, 10461, 'Thick Cocoon', 'questinteract', 'Freeing', '', 1, 3196, 0, 0, 1, 0, 0, 0, 0, 0, 0, 313324, 0, 0, 0, 46504, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 955, 41488), -- Thick Cocoon
-(327146, 10, 30315, 'Harpy Totem', 'questinteract', 'Burning', '', 1, 2160, 0, 0, 3000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 155781, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 955, 41488), -- Harpy Totem
-(339769, 3, 39107, 'Campfire', 'questinteract', 'Cooking', '', 1, 43, 0, 1, 0, 0, 0, 0, 364418, 0, 0, 0, 0, 0, 0, 184789, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99778, 1, 0, 0, 0, 741, 41488); -- Campfire
-
-UPDATE `gameobject_template` SET `VerifiedBuild`=41488 WHERE `entry` IN (259008, 197144, 190536, 197141, 252247, 326719, 326717, 326716, 342131, 342365, 342366, 329918, 349948, 349947, 339770, 335718, 333479);
-
-DELETE FROM `gameobject_questitem` WHERE (`Idx`=0 AND `GameObjectEntry` IN (341951,346278,346277,339769));
-INSERT INTO `gameobject_questitem` (`GameObjectEntry`, `Idx`, `ItemId`, `VerifiedBuild`) VALUES
-(341951, 0, 174916, 41488), -- Withering Hemlock
-(346278, 0, 175981, 41488), -- Rusted Chains
-(346277, 0, 175980, 41488), -- Old Spring
-(339769, 0, 174074, 41488); -- Campfire
-
-UPDATE `gameobject_questitem` SET `VerifiedBuild`=41488 WHERE (`GameObjectEntry`=342366 AND `Idx`=0);
-
-DELETE FROM `gameobject_template_addon` WHERE `entry` IN (334502 /*TEMP DOOR*/, 336442 /*6DU_HighmaulRaid_Door02*/, 336441 /*Doodad_6DU_HighmaulRaid_Door_ThroneRoom001*/, 334578 /*Shadowy Door*/, 327407 /*Precious Ogre Stash*/, 339643 /*Darkmaul Door*/, 339865 /*Ogre Runestone*/, 326651 /*Catapult*/, 346113 /*Druid Stone*/, 341951 /*Withering Hemlock*/, 330627 /*Danger Sign*/, 346278 /*Rusted Chains*/, 346277 /*Old Spring*/, 329919 /*Stolen Supplies*/, 326718 /*Ritual Pedestal*/, 326719 /*Ritual Pedestal*/, 326717 /*Ritual Pedestal*/, 326716 /*Ritual Pedestal*/, 339568 /*Thick Cocoon*/, 342365 /*Campfire*/, 342366 /*Veil Blossom*/, 327146 /*Harpy Totem*/, 329918 /*Quilboar Treasures*/, 339770 /*Abandoned Treasure Chest*/, 339769 /*Campfire*/, 335718 /*Doodad_6DU_HighmaulRaid_Door_ThroneRoom001*/);
-INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`, `WorldEffectID`, `AIAnimKitID`) VALUES
-(334502, 0, 48, 0, 0), -- TEMP DOOR
-(336442, 0, 48, 0, 0), -- 6DU_HighmaulRaid_Door02
-(336441, 0, 32, 0, 0), -- Doodad_6DU_HighmaulRaid_Door_ThroneRoom001
-(334578, 1375, 48, 0, 0), -- Shadowy Door
-(327407, 0, 2113536, 2437, 0), -- Precious Ogre Stash
-(339643, 1375, 0, 0, 0), -- Darkmaul Door
-(339865, 0, 262144, 0, 0), -- Ogre Runestone
-(326651, 0, 262176, 0, 0), -- Catapult
-(346113, 0, 262144, 0, 0), -- Druid Stone
-(341951, 0, 2113540, 0, 7912), -- Withering Hemlock
-(330627, 0, 4, 0, 0), -- Danger Sign
-(346278, 0, 2113540, 0, 3737), -- Rusted Chains
-(346277, 0, 2113540, 0, 3737), -- Old Spring
-(329919, 0, 2113536, 2437, 0), -- Stolen Supplies
-(326718, 35, 262144, 0, 0), -- Ritual Pedestal
-(326719, 35, 262144, 0, 0), -- Ritual Pedestal
-(326717, 35, 262144, 0, 0), -- Ritual Pedestal
-(326716, 35, 262144, 0, 0), -- Ritual Pedestal
-(339568, 0, 262145, 0, 0), -- Thick Cocoon
-(342365, 0, 262144, 0, 0), -- Campfire
-(342366, 0, 4, 0, 3737), -- Veil Blossom
-(327146, 35, 262176, 0, 17848), -- Harpy Totem
-(329918, 0, 2113536, 2437, 0), -- Quilboar Treasures
-(339770, 0, 2113536, 2437, 0), -- Abandoned Treasure Chest
-(339769, 0, 2113540, 0, 0), -- Campfire
-(335718, 0, 32, 0, 0); -- Doodad_6DU_HighmaulRaid_Door_ThroneRoom001
-
-DELETE FROM `npc_text` WHERE `ID` IN (39683 /*39683*/, 39723 /*39723*/, 37957 /*37957*/, 39934 /*39934*/, 39219 /*39219*/, 38528 /*38528*/, 41368 /*41368*/, 38540 /*38540*/);
-INSERT INTO `npc_text` (`ID`, `Probability0`, `Probability1`, `Probability2`, `Probability3`, `Probability4`, `Probability5`, `Probability6`, `Probability7`, `BroadcastTextId0`, `BroadcastTextId1`, `BroadcastTextId2`, `BroadcastTextId3`, `BroadcastTextId4`, `BroadcastTextId5`, `BroadcastTextId6`, `BroadcastTextId7`, `VerifiedBuild`) VALUES
-(39683, 1, 0, 0, 0, 0, 0, 0, 0, 187746, 0, 0, 0, 0, 0, 0, 0, 41488), -- 39683
-(39723, 1, 0, 0, 0, 0, 0, 0, 0, 188023, 0, 0, 0, 0, 0, 0, 0, 41488), -- 39723
-(37957, 1, 0, 0, 0, 0, 0, 0, 0, 175131, 0, 0, 0, 0, 0, 0, 0, 41488), -- 37957
-(39934, 1, 0, 0, 0, 0, 0, 0, 0, 191017, 0, 0, 0, 0, 0, 0, 0, 41488), -- 39934
-(39219, 1, 0, 0, 0, 0, 0, 0, 0, 184681, 0, 0, 0, 0, 0, 0, 0, 41488), -- 39219
-(38528, 1, 0, 0, 0, 0, 0, 0, 0, 178847, 0, 0, 0, 0, 0, 0, 0, 41488), -- 38528
-(41368, 1, 1, 1, 0, 0, 0, 0, 0, 201865, 201864, 201863, 0, 0, 0, 0, 0, 41488), -- 41368
-(38540, 1, 0, 0, 0, 0, 0, 0, 0, 178946, 0, 0, 0, 0, 0, 0, 0, 41488); -- 38540
-
-UPDATE `npc_text` SET `VerifiedBuild`=41488 WHERE `ID`=13557;
+(24885, 0, 1, 'Let me browse your goods.', 128, 41488); -- OptionBroadcastTextID: 2823 - 7509 - 8097

@@ -46,7 +46,7 @@ class boss_kilnara : public CreatureScript
 
         struct boss_kilnaraAI : public BossAI
         {
-            boss_kilnaraAI(Creature* creature) : BossAI(creature, DATA_KILNARA) { }
+            boss_kilnaraAI(Creature* creature) : BossAI(creature, DATA_HIGH_PRIESTESS_KILNARA) { }
 
             void Reset() override
             {

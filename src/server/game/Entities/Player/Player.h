@@ -2157,8 +2157,13 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         static uint32 TeamForRace(uint8 race);
         static TeamId TeamIdForRace(uint8 race);
         uint32 GetTeam() const { return m_team; }
+        void SwitchToOppositeTeam(bool apply);
+        uint32 GetBgQueueTeam() const;
         TeamId GetTeamId() const { return m_team == ALLIANCE ? TEAM_ALLIANCE : TEAM_HORDE; }
         void SetFactionForRace(uint8 race);
+
+        uint32 GetNativeTeam() const { return TeamForRace(GetRace()); }
+        TeamId GetNativeTeamId() const { return TeamIdForRace(GetRace()); }
 
         void InitDisplayIds();
 
@@ -2453,6 +2458,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
 
         uint32 DoRandomRoll(uint32 minimum, uint32 maximum);
         uint8 GetItemLimitCategoryQuantity(ItemLimitCategoryEntry const* limitEntry) const;
+		void ShowNeutralPlayerFactionSelectUI();
 
         void UpdateItemLevelAreaBasedScaling();
         void ActivatePvpItemLevels(bool activate) { _usePvpItemLevels = activate; }

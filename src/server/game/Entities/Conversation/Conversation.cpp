@@ -18,6 +18,7 @@
 #include "Conversation.h"
 #include "ConditionMgr.h"
 #include "Containers.h"
+#include "ObjectAccessor.h"
 #include "ConversationDataStore.h"
 #include "Creature.h"
 #include "DB2Stores.h"
@@ -91,7 +92,7 @@ void Conversation::Remove()
     }
 }
 
-Conversation* Conversation::CreateConversation(uint32 conversationEntry, Unit* creator, Position const& pos, ObjectGuid privateObjectOwner, SpellInfo const* spellInfo /*= nullptr*/)
+Conversation* Conversation::CreateConversation(uint32 conversationEntry, Unit* creator, Position const& pos, ObjectGuid privateObjectOwner, SpellInfo const* spellInfo /*= nullptr*/, Optional<GuidVector> dynamicActors /*= boost::none*/)
 {
     ConversationTemplate const* conversationTemplate = sConversationDataStore->GetConversationTemplate(conversationEntry);
     if (!conversationTemplate)
@@ -100,7 +101,7 @@ Conversation* Conversation::CreateConversation(uint32 conversationEntry, Unit* c
     ObjectGuid::LowType lowGuid = creator->GetMap()->GenerateLowGuid<HighGuid::Conversation>();
 
     Conversation* conversation = new Conversation();
-    if (!conversation->Create(lowGuid, conversationEntry, creator->GetMap(), creator, pos, privateObjectOwner, spellInfo))
+    if (!conversation->Create(lowGuid, conversationEntry, creator->GetMap(), creator, pos, privateObjectOwner, spellInfo, dynamicActors))
     {
         delete conversation;
         return nullptr;
@@ -109,7 +110,7 @@ Conversation* Conversation::CreateConversation(uint32 conversationEntry, Unit* c
     return conversation;
 }
 
-bool Conversation::Create(ObjectGuid::LowType lowGuid, uint32 conversationEntry, Map* map, Unit* creator, Position const& pos, ObjectGuid privateObjectOwner, SpellInfo const* /*spellInfo = nullptr*/)
+bool Conversation::Create(ObjectGuid::LowType lowGuid, uint32 conversationEntry, Map* map, Unit* creator, Position const& pos, ObjectGuid privateObjectOwner, SpellInfo const* /*spellInfo = nullptr*/, Optional<GuidVector> dynamicActors /*= boost::none*/)
 {
     ConversationTemplate const* conversationTemplate = sConversationDataStore->GetConversationTemplate(conversationEntry);
     ASSERT(conversationTemplate);
@@ -138,7 +139,8 @@ bool Conversation::Create(ObjectGuid::LowType lowGuid, uint32 conversationEntry,
             actorField.Type = AsUnderlyingType(ActorType::CreatureActor);
     }
 
-    for (uint16 actorIndex = 0; actorIndex < conversationTemplate->ActorGuids.size(); ++actorIndex)
+    uint16 actorIndex = 0;
+    for (actorIndex = 0; actorIndex < conversationTemplate->ActorGuids.size(); ++actorIndex)
     {
         ObjectGuid::LowType actorGuid = conversationTemplate->ActorGuids[actorIndex];
         if (!actorGuid)
@@ -148,6 +150,23 @@ bool Conversation::Create(ObjectGuid::LowType lowGuid, uint32 conversationEntry,
         {
             // we just need the last one, overriding is legit
             AddActor(pair.second->GetGUID(), actorIndex);
+        }
+    }
+
+    if (dynamicActors)
+    {
+        for (ObjectGuid const& actorGuid : dynamicActors.get())
+        {
+            if (ObjectAccessor::GetWorldObject(*creator, actorGuid))
+            {
+                AddActor(actorGuid, actorIndex);
+                actorIndex++;
+            }
+            else
+            {
+                TC_LOG_ERROR("entities.conversation", "Failed to create conversation (Id: %u) due to non existent actor (ActorIdx: %u, Entry: %u).", conversationEntry, actorIndex, actorGuid.GetEntry());
+                return false;
+            }
         }
     }
 

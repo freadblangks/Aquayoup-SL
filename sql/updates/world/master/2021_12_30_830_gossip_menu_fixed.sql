@@ -1,0 +1,1105 @@
+DELETE FROM `gossip_menu` WHERE (`MenuId`=24406 AND `TextId` IN (38308,39630)) OR (`MenuId`=24116 AND `TextId`=37796) OR (`MenuId`=24443 AND `TextId`=38358) OR (`MenuId`=24480 AND `TextId` IN (38423,38424)) OR (`MenuId`=22966 AND `TextId` IN (36267,36266)) OR (`MenuId`=25036 AND `TextId`=39474) OR (`MenuId`=24883 AND `TextId`=39213) OR (`MenuId`=24881 AND `TextId`=39210) OR (`MenuId`=24884 AND `TextId`=39214) OR (`MenuId`=24882 AND `TextId`=39212) OR (`MenuId`=24870 AND `TextId`=39197) OR (`MenuId`=12953 AND `TextId`=18225) OR (`MenuId`=25247 AND `TextId`=39808) OR (`MenuId`=24760 AND `TextId`=38448) OR (`MenuId`=20443 AND `TextId` IN (30590,30386)) OR (`MenuId`=19903 AND `TextId`=29576) OR (`MenuId`=14096 AND `TextId`=3976) OR (`MenuId`=18765 AND `TextId`=27288) OR (`MenuId`=20005 AND `TextId`=29824) OR (`MenuId`=19900 AND `TextId`=29573) OR (`MenuId`=15729 AND `TextId`=22589) OR (`MenuId`=16246 AND `TextId`=23497) OR (`MenuId`=16450 AND `TextId`=23846) OR (`MenuId`=16472 AND `TextId`=23830) OR (`MenuId`=16503 AND `TextId`=23967) OR (`MenuId`=16438 AND `TextId`=23889) OR (`MenuId`=16995 AND `TextId`=24692) OR (`MenuId`=20308 AND `TextId`=30386) OR (`MenuId`=14622 AND `TextId`=20683) OR (`MenuId`=13757 AND `TextId`=19802) OR (`MenuId`=25069 AND `TextId`=39523) OR (`MenuId`=24384 AND `TextId` IN (38243,38244)) OR (`MenuId`=24383 AND `TextId` IN (38241,38242)) OR (`MenuId`=25070 AND `TextId`=39524) OR (`MenuId`=25071 AND `TextId`=39525) OR (`MenuId`=14260 AND `TextId`=5715) OR (`MenuId`=10528 AND `TextId`=14566) OR (`MenuId`=2861 AND `TextId`=3554) OR (`MenuId`=10520 AND `TextId`=14554) OR (`MenuId`=10521 AND `TextId`=14555) OR (`MenuId`=10519 AND `TextId`=14553) OR (`MenuId`=10514 AND `TextId`=14546) OR (`MenuId`=23533 AND `TextId` IN (37644,36477)) OR (`MenuId`=23235 AND `TextId`=35987) OR (`MenuId`=20990 AND `TextId`=31663) OR (`MenuId`=25400 AND `TextId`=39404) OR (`MenuId`=22430 AND `TextId`=34409) OR (`MenuId`=22428 AND `TextId`=34402) OR (`MenuId`=22429 AND `TextId`=34408) OR (`MenuId`=13069 AND `TextId`=18354) OR (`MenuId`=13149 AND `TextId`=18521) OR (`MenuId`=23397 AND `TextId`=36284) OR (`MenuId`=24955 AND `TextId` IN (39361,39362)) OR (`MenuId`=23795 AND `TextId` IN (37249,37251)) OR (`MenuId`=19132 AND `TextId`=27999) OR (`MenuId`=15875 AND `TextId`=22853) OR (`MenuId`=11236 AND `TextId`=15651) OR (`MenuId`=11220 AND `TextId`=15627) OR (`MenuId`=11166 AND `TextId`=15542) OR (`MenuId`=12475 AND `TextId`=17550) OR (`MenuId`=14167 AND `TextId`=14602) OR (`MenuId`=25243 AND `TextId`=39799) OR (`MenuId`=25244 AND `TextId`=39800) OR (`MenuId`=24994 AND `TextId`=39404) OR (`MenuId`=24140 AND `TextId` IN (39412,39464,39421,38531,39632)) OR (`MenuId`=24632 AND `TextId`=38726) OR (`MenuId`=25293 AND `TextId`=39880) OR (`MenuId`=24483 AND `TextId` IN (38447,38428)) OR (`MenuId`=24482 AND `TextId`=38429) OR (`MenuId`=24478 AND `TextId`=38426) OR (`MenuId`=24479 AND `TextId`=38425) OR (`MenuId`=24468 AND `TextId`=38411) OR (`MenuId`=25151 AND `TextId`=39629) OR (`MenuId`=25152 AND `TextId`=39631) OR (`MenuId`=25072 AND `TextId`=39526) OR (`MenuId`=22546 AND `TextId`=34675) OR (`MenuId`=22248 AND `TextId`=34086) OR (`MenuId`=22166 AND `TextId`=33964) OR (`MenuId`=24753 AND `TextId` IN (38953,38954)) OR (`MenuId`=24758 AND `TextId`=38962) OR (`MenuId`=24859 AND `TextId`=39178) OR (`MenuId`=25140 AND `TextId`=39607) OR (`MenuId`=23707 AND `TextId` IN (36893,36892)) OR (`MenuId`=10726 AND `TextId`=14888) OR (`MenuId`=10881 AND `TextId`=15113) OR (`MenuId`=10877 AND `TextId`=15104) OR (`MenuId`=24059 AND `TextId`=37704) OR (`MenuId`=22588 AND `TextId`=34746) OR (`MenuId`=25372 AND `TextId`=40008) OR (`MenuId`=21057 AND `TextId`=31826) OR (`MenuId`=6201 AND `TextId`=7381) OR (`MenuId`=20006 AND `TextId`=30532) OR (`MenuId`=25189 AND `TextId`=39719) OR (`MenuId`=23131 AND `TextId`=35763) OR (`MenuId`=22237 AND `TextId`=34338) OR (`MenuId`=22395 AND `TextId`=34349) OR (`MenuId`=21534 AND `TextId` IN (32821,34336)) OR (`MenuId`=19947 AND `TextId`=29650) OR (`MenuId`=20331 AND `TextId`=29882) OR (`MenuId`=20104 AND `TextId`=29882) OR (`MenuId`=19894 AND `TextId`=29565) OR (`MenuId`=18194 AND `TextId`=26130) OR (`MenuId`=19898 AND `TextId`=29570) OR (`MenuId`=9162 AND `TextId`=12756) OR (`MenuId`=12757 AND `TextId`=17907) OR (`MenuId`=24575 AND `TextId`=38628) OR (`MenuId`=10572 AND `TextId`=14631) OR (`MenuId`=10560 AND `TextId`=14616) OR (`MenuId`=24450 AND `TextId`=38369) OR (`MenuId`=24516 AND `TextId`=38479) OR (`MenuId`=25133 AND `TextId`=39607) OR (`MenuId`=20710 AND `TextId`=31854) OR (`MenuId`=24894 AND `TextId`=38807) OR (`MenuId`=25182 AND `TextId` IN (39707,39734)) OR (`MenuId`=25041 AND `TextId` IN (39480,39482)) OR (`MenuId`=16473 AND `TextId`=23890) OR (`MenuId`=16271 AND `TextId`=23530) OR (`MenuId`=16763 AND `TextId`=24357) OR (`MenuId`=16331 AND `TextId` IN (23241,22892)) OR (`MenuId`=15999 AND `TextId` IN (23724,23725,23727,23073)) OR (`MenuId`=16360 AND `TextId` IN (23715,23074,22872,23045)) OR (`MenuId`=15869 AND `TextId` IN (23717,23722,23720)) OR (`MenuId`=18428 AND `TextId`=26570) OR (`MenuId`=24895 AND `TextId`=39229) OR (`MenuId`=20614 AND `TextId` IN (30917,30916,30915,30914,30912)) OR (`MenuId`=24735 AND `TextId`=38915) OR (`MenuId`=24953 AND `TextId`=39356) OR (`MenuId`=20616 AND `TextId`=30918) OR (`MenuId`=13018 AND `TextId`=18289) OR (`MenuId`=23199 AND `TextId`=35886) OR (`MenuId`=24969 AND `TextId`=39384) OR (`MenuId`=15406 AND `TextId`=22144) OR (`MenuId`=15407 AND `TextId`=22145) OR (`MenuId`=15524 AND `TextId`=22295) OR (`MenuId`=15526 AND `TextId`=22298) OR (`MenuId`=15409 AND `TextId`=22147) OR (`MenuId`=15498 AND `TextId`=22240) OR (`MenuId`=15562 AND `TextId`=22356) OR (`MenuId`=15408 AND `TextId`=22146) OR (`MenuId`=15563 AND `TextId`=22357) OR (`MenuId`=15539 AND `TextId`=22330) OR (`MenuId`=15499 AND `TextId`=22242) OR (`MenuId`=15546 AND `TextId`=22339) OR (`MenuId`=15558 AND `TextId`=22351) OR (`MenuId`=15525 AND `TextId`=22297) OR (`MenuId`=23677 AND `TextId`=36799) OR (`MenuId`=18275 AND `TextId`=26285) OR (`MenuId`=17045 AND `TextId`=24957) OR (`MenuId`=17132 AND `TextId`=25180) OR (`MenuId`=24070 AND `TextId`=37720) OR (`MenuId`=22972 AND `TextId`=35540) OR (`MenuId`=23460 AND `TextId`=36455) OR (`MenuId`=24972 AND `TextId`=39387) OR (`MenuId`=24970 AND `TextId`=39385) OR (`MenuId`=15555 AND `TextId`=22350) OR (`MenuId`=15251 AND `TextId`=21863) OR (`MenuId`=15252 AND `TextId`=21859) OR (`MenuId`=15257 AND `TextId`=21867) OR (`MenuId`=14056 AND `TextId`=5714) OR (`MenuId`=14011 AND `TextId`=5714) OR (`MenuId`=15225 AND `TextId`=21822) OR (`MenuId`=15224 AND `TextId`=21823) OR (`MenuId`=15218 AND `TextId`=21817) OR (`MenuId`=15219 AND `TextId`=21816) OR (`MenuId`=15229 AND `TextId`=21827) OR (`MenuId`=15228 AND `TextId`=21826) OR (`MenuId`=15222 AND `TextId`=21821) OR (`MenuId`=15223 AND `TextId`=21820) OR (`MenuId`=15216 AND `TextId`=21815) OR (`MenuId`=15217 AND `TextId`=21814) OR (`MenuId`=20375 AND `TextId`=30468) OR (`MenuId`=18724 AND `TextId`=27208) OR (`MenuId`=19874 AND `TextId`=29525) OR (`MenuId`=19875 AND `TextId`=29527) OR (`MenuId`=22432 AND `TextId`=33964) OR (`MenuId`=20342 AND `TextId`=30405) OR (`MenuId`=24535 AND `TextId`=38511) OR (`MenuId`=19110 AND `TextId`=26451) OR (`MenuId`=20369 AND `TextId`=30462) OR (`MenuId`=19044 AND `TextId`=27824) OR (`MenuId`=19854 AND `TextId`=29486) OR (`MenuId`=19712 AND `TextId`=29237) OR (`MenuId`=19858 AND `TextId`=29494) OR (`MenuId`=19856 AND `TextId`=29489) OR (`MenuId`=23609 AND `TextId`=36617) OR (`MenuId`=23610 AND `TextId`=36619) OR (`MenuId`=23641 AND `TextId`=36580) OR (`MenuId`=23586 AND `TextId`=36580) OR (`MenuId`=23594 AND `TextId`=36591) OR (`MenuId`=23570 AND `TextId`=36537) OR (`MenuId`=23569 AND `TextId`=36535) OR (`MenuId`=21775 AND `TextId`=33242) OR (`MenuId`=21772 AND `TextId`=33240) OR (`MenuId`=22958 AND `TextId`=35519) OR (`MenuId`=22652 AND `TextId`=35049) OR (`MenuId`=23472 AND `TextId`=36402) OR (`MenuId`=21947 AND `TextId`=33575) OR (`MenuId`=12761 AND `TextId`=17947) OR (`MenuId`=21837 AND `TextId`=33371) OR (`MenuId`=21836 AND `TextId`=33370) OR (`MenuId`=21835 AND `TextId`=33369) OR (`MenuId`=21833 AND `TextId`=33367) OR (`MenuId`=14538 AND `TextId`=20558) OR (`MenuId`=14570 AND `TextId`=20599) OR (`MenuId`=14571 AND `TextId`=20600) OR (`MenuId`=15153 AND `TextId`=2593) OR (`MenuId`=15719 AND `TextId`=22577) OR (`MenuId`=24971 AND `TextId`=39386) OR (`MenuId`=20812 AND `TextId`=31240) OR (`MenuId`=20737 AND `TextId`=31129) OR (`MenuId`=21061 AND `TextId`=31860) OR (`MenuId`=24759 AND `TextId`=38963) OR (`MenuId`=23793 AND `TextId`=37234) OR (`MenuId`=22722 AND `TextId`=35140) OR (`MenuId`=24888 AND `TextId`=39220) OR (`MenuId`=19555 AND `TextId`=28903) OR (`MenuId`=23747 AND `TextId`=37030) OR (`MenuId`=23748 AND `TextId`=37029) OR (`MenuId`=24584 AND `TextId`=17791) OR (`MenuId`=24998 AND `TextId`=39416) OR (`MenuId`=25065 AND `TextId`=39513) OR (`MenuId`=24250 AND `TextId`=37989) OR (`MenuId`=13394 AND `TextId`=19023) OR (`MenuId`=13391 AND `TextId`=19020) OR (`MenuId`=13295 AND `TextId`=18800) OR (`MenuId`=13294 AND `TextId`=18799) OR (`MenuId`=13252 AND `TextId`=18698) OR (`MenuId`=13322 AND `TextId`=18867) OR (`MenuId`=13373 AND `TextId`=18978) OR (`MenuId`=13358 AND `TextId`=18954) OR (`MenuId`=13357 AND `TextId`=18953) OR (`MenuId`=13411 AND `TextId`=19058) OR (`MenuId`=24871 AND `TextId` IN (39199,39198)) OR (`MenuId`=23531 AND `TextId` IN (37645,36475)) OR (`MenuId`=24601 AND `TextId`=38661) OR (`MenuId`=24600 AND `TextId`=38663) OR (`MenuId`=24599 AND `TextId`=38662) OR (`MenuId`=10043 AND `TextId`=14014) OR (`MenuId`=18923 AND `TextId`=27591) OR (`MenuId`=21893 AND `TextId`=33458) OR (`MenuId`=21437 AND `TextId`=32860) OR (`MenuId`=21094 AND `TextId`=34355) OR (`MenuId`=21652 AND `TextId`=32977) OR (`MenuId`=21653 AND `TextId`=32978) OR (`MenuId`=15547 AND `TextId`=22277) OR (`MenuId`=15515 AND `TextId`=22277) OR (`MenuId`=15569 AND `TextId`=22364) OR (`MenuId`=22946 AND `TextId`=35505) OR (`MenuId`=12709 AND `TextId`=17840) OR (`MenuId`=16019 AND `TextId`=23109) OR (`MenuId`=23360 AND `TextId`=37178) OR (`MenuId`=16687 AND `TextId`=24238) OR (`MenuId`=18588 AND `TextId`=26949) OR (`MenuId`=19150 AND `TextId`=28043) OR (`MenuId`=19176 AND `TextId` IN (30273,28107)) OR (`MenuId`=19116 AND `TextId`=28026) OR (`MenuId`=20306 AND `TextId`=30383) OR (`MenuId`=20487 AND `TextId`=30649) OR (`MenuId`=17333 AND `TextId`=25785) OR (`MenuId`=16462 AND `TextId`=23875) OR (`MenuId`=21829 AND `TextId`=33359) OR (`MenuId`=21824 AND `TextId`=33354) OR (`MenuId`=24449 AND `TextId`=38369) OR (`MenuId`=22782 AND `TextId`=35259) OR (`MenuId`=22087 AND `TextId`=32139) OR (`MenuId`=21275 AND `TextId`=32285) OR (`MenuId`=16941 AND `TextId`=24653) OR (`MenuId`=16276 AND `TextId`=7778) OR (`MenuId`=21357 AND `TextId`=32498) OR (`MenuId`=21548 AND `TextId`=32857) OR (`MenuId`=20883 AND `TextId` IN (31388,31385)) OR (`MenuId`=20836 AND `TextId`=31306) OR (`MenuId`=20835 AND `TextId`=31305) OR (`MenuId`=20896 AND `TextId`=31428) OR (`MenuId`=24327 AND `TextId`=38163) OR (`MenuId`=24314 AND `TextId`=38144) OR (`MenuId`=23767 AND `TextId`=37146) OR (`MenuId`=24876 AND `TextId`=39211) OR (`MenuId`=24878 AND `TextId`=39216) OR (`MenuId`=18386 AND `TextId`=26486) OR (`MenuId`=18947 AND `TextId`=26757) OR (`MenuId`=14284 AND `TextId`=20135) OR (`MenuId`=12040 AND `TextId`=16870) OR (`MenuId`=10861 AND `TextId` IN (15084,15083)) OR (`MenuId`=10690 AND `TextId`=14826) OR (`MenuId`=10797 AND `TextId` IN (14970,14969)) OR (`MenuId`=10780 AND `TextId` IN (14971,14972,14964,14945)) OR (`MenuId`=10796 AND `TextId`=14967) OR (`MenuId`=10783 AND `TextId`=14948) OR (`MenuId`=10782 AND `TextId`=14947) OR (`MenuId`=10781 AND `TextId`=14946) OR (`MenuId`=10801 AND `TextId` IN (14977,15070)) OR (`MenuId`=11705 AND `TextId`=16386) OR (`MenuId`=24518 AND `TextId`=38482) OR (`MenuId`=22415 AND `TextId`=34383) OR (`MenuId`=20846 AND `TextId`=31318) OR (`MenuId`=20775 AND `TextId`=31199) OR (`MenuId`=20843 AND `TextId`=31199) OR (`MenuId`=20857 AND `TextId`=31346) OR (`MenuId`=20860 AND `TextId`=31351) OR (`MenuId`=20855 AND `TextId`=31341) OR (`MenuId`=24527 AND `TextId`=38498) OR (`MenuId`=24530 AND `TextId`=38502) OR (`MenuId`=24529 AND `TextId`=38500) OR (`MenuId`=15108 AND `TextId`=21614) OR (`MenuId`=22698 AND `TextId`=35082) OR (`MenuId`=22699 AND `TextId`=35083) OR (`MenuId`=22701 AND `TextId`=35085) OR (`MenuId`=22700 AND `TextId`=35084) OR (`MenuId`=21727 AND `TextId`=33107) OR (`MenuId`=22860 AND `TextId` IN (35426,35425)) OR (`MenuId`=24540 AND `TextId`=38523) OR (`MenuId`=13012 AND `TextId`=18284) OR (`MenuId`=24744 AND `TextId`=38924) OR (`MenuId`=21961 AND `TextId`=33608) OR (`MenuId`=21959 AND `TextId`=33599) OR (`MenuId`=23010 AND `TextId`=35594) OR (`MenuId`=23017 AND `TextId`=35600) OR (`MenuId`=20837 AND `TextId`=31308) OR (`MenuId`=20652 AND `TextId` IN (31302,30968)) OR (`MenuId`=20653 AND `TextId`=30969) OR (`MenuId`=19556 AND `TextId`=28911) OR (`MenuId`=22408 AND `TextId`=34375) OR (`MenuId`=21409 AND `TextId`=32610) OR (`MenuId`=22498 AND `TextId`=34551) OR (`MenuId`=24537 AND `TextId`=38516) OR (`MenuId`=11279 AND `TextId`=15718) OR (`MenuId`=12569 AND `TextId` IN (17668,17674)) OR (`MenuId`=23751 AND `TextId`=37035) OR (`MenuId`=23746 AND `TextId`=37027) OR (`MenuId`=16840 AND `TextId`=24483) OR (`MenuId`=17295 AND `TextId`=25637) OR (`MenuId`=16760 AND `TextId`=24354) OR (`MenuId`=13026 AND `TextId`=18298) OR (`MenuId`=24356 AND `TextId`=38207) OR (`MenuId`=16489 AND `TextId`=23939) OR (`MenuId`=16488 AND `TextId`=23938) OR (`MenuId`=20747 AND `TextId`=31152) OR (`MenuId`=20754 AND `TextId`=31164) OR (`MenuId`=24517 AND `TextId`=38478) OR (`MenuId`=10658 AND `TextId`=14768) OR (`MenuId`=10659 AND `TextId`=14770) OR (`MenuId`=24061 AND `TextId`=37706) OR (`MenuId`=24694 AND `TextId`=38826) OR (`MenuId`=24695 AND `TextId`=38828) OR (`MenuId`=23476 AND `TextId`=36417) OR (`MenuId`=23477 AND `TextId`=36418) OR (`MenuId`=23478 AND `TextId`=36419) OR (`MenuId`=23482 AND `TextId` IN (23136,38830)) OR (`MenuId`=24603 AND `TextId`=38668) OR (`MenuId`=23538 AND `TextId` IN (38667,38664)) OR (`MenuId`=23558 AND `TextId`=36517) OR (`MenuId`=23549 AND `TextId`=36504) OR (`MenuId`=24602 AND `TextId`=38665) OR (`MenuId`=24597 AND `TextId`=38659) OR (`MenuId`=23539 AND `TextId`=36486) OR (`MenuId`=24598 AND `TextId`=38660) OR (`MenuId`=23554 AND `TextId`=36512) OR (`MenuId`=24593 AND `TextId`=39119) OR (`MenuId`=23541 AND `TextId`=36495) OR (`MenuId`=24594 AND `TextId`=38656) OR (`MenuId`=24596 AND `TextId`=38658) OR (`MenuId`=23540 AND `TextId`=36494) OR (`MenuId`=24595 AND `TextId`=38657) OR (`MenuId`=23542 AND `TextId`=36496) OR (`MenuId`=23544 AND `TextId`=36500) OR (`MenuId`=24592 AND `TextId`=38654) OR (`MenuId`=24590 AND `TextId`=38652) OR (`MenuId`=24591 AND `TextId`=38653) OR (`MenuId`=24701 AND `TextId`=38840) OR (`MenuId`=23527 AND `TextId`=36467) OR (`MenuId`=23526 AND `TextId`=36466) OR (`MenuId`=23521 AND `TextId` IN (36459,36457)) OR (`MenuId`=23522 AND `TextId`=36458) OR (`MenuId`=23484 AND `TextId`=36424) OR (`MenuId`=23493 AND `TextId`=36424) OR (`MenuId`=23494 AND `TextId`=36424) OR (`MenuId`=23495 AND `TextId`=36424) OR (`MenuId`=23496 AND `TextId`=36424) OR (`MenuId`=23499 AND `TextId`=36424) OR (`MenuId`=23500 AND `TextId`=36424) OR (`MenuId`=23497 AND `TextId`=36424) OR (`MenuId`=23492 AND `TextId`=36424) OR (`MenuId`=23498 AND `TextId`=36424) OR (`MenuId`=23501 AND `TextId`=36424) OR (`MenuId`=25013 AND `TextId`=39436) OR (`MenuId`=9904 AND `TextId`=13786) OR (`MenuId`=24331 AND `TextId` IN (38171,38172)) OR (`MenuId`=21302 AND `TextId`=32351) OR (`MenuId`=21473 AND `TextId`=32706) OR (`MenuId`=20881 AND `TextId`=31387) OR (`MenuId`=20882 AND `TextId`=31386) OR (`MenuId`=23631 AND `TextId`=36660) OR (`MenuId`=22826 AND `TextId`=35373) OR (`MenuId`=22832 AND `TextId`=35379) OR (`MenuId`=24120 AND `TextId`=37784) OR (`MenuId`=23555 AND `TextId`=36513) OR (`MenuId`=22507 AND `TextId`=34566) OR (`MenuId`=14602 AND `TextId`=20659) OR (`MenuId`=14603 AND `TextId`=20658) OR (`MenuId`=2883 AND `TextId`=17960) OR (`MenuId`=10544 AND `TextId`=14584) OR (`MenuId`=24995 AND `TextId` IN (39408,39409)) OR (`MenuId`=7153 AND `TextId` IN (8425,8561)) OR (`MenuId`=7160 AND `TextId`=8495) OR (`MenuId`=7243 AND `TextId`=8550) OR (`MenuId`=7244 AND `TextId`=8553) OR (`MenuId`=7245 AND `TextId`=8557) OR (`MenuId`=23507 AND `TextId`=7778) OR (`MenuId`=6952 AND `TextId`=8240) OR (`MenuId`=13991 AND `TextId`=4973) OR (`MenuId`=25158 AND `TextId` IN (39480,39678)) OR (`MenuId`=14527 AND `TextId`=20537) OR (`MenuId`=23560 AND `TextId`=36520) OR (`MenuId`=23678 AND `TextId`=36800) OR (`MenuId`=23532 AND `TextId`=36476) OR (`MenuId`=23679 AND `TextId`=36801) OR (`MenuId`=23502 AND `TextId` IN (36519,36492,36431,36491,36489,37360)) OR (`MenuId`=23709 AND `TextId`=36900) OR (`MenuId`=23706 AND `TextId`=36887) OR (`MenuId`=23705 AND `TextId`=36883) OR (`MenuId`=23697 AND `TextId` IN (36853,36852)) OR (`MenuId`=23534 AND `TextId` IN (36478,37353,37352)) OR (`MenuId`=23833 AND `TextId`=37361) OR (`MenuId`=23653 AND `TextId`=36454) OR (`MenuId`=23466 AND `TextId`=36391) OR (`MenuId`=15773 AND `TextId`=22659) OR (`MenuId`=21980 AND `TextId`=33657) OR (`MenuId`=21303 AND `TextId`=32353);
+INSERT INTO `gossip_menu` (`MenuId`, `TextId`, `VerifiedBuild`) VALUES
+(24406, 38308, 33775), -- 155496
+(24116, 37796, 33775), -- 152993
+(24443, 38358, 33775), -- 155604
+(24480, 38423, 33775), -- 154444
+(22966, 36267, 34963), -- Baine Bloodhoof
+(25036, 39474, 34963), -- 162358
+(24883, 39213, 34963), -- 161000
+(24881, 39210, 34963), -- 160967
+(24884, 39214, 34963), -- 160999
+(24882, 39212, 34963), -- 160998
+(24870, 39197, 34963), -- 160961
+(12953, 18225, 34601), -- 54299 (Magma Orb)
+(25247, 39808, 34963), -- 151964
+(24760, 38448, 34963), -- 161989
+(20443, 30590, 34220), -- 90259 (Lord Maxwell Tyrosus)
+(19903, 29576, 34220), -- Vindicator Boros
+(14096, 3976, 34220), -- 92313 (Katherine the Pure)
+(18765, 27288, 34220), -- 90250 (Lord Grayson Shadowbreaker)
+(20005, 29824, 34220), -- 106447 (Commander Ansela)
+(19900, 29573, 34220), -- Lady Liadrin
+(15729, 22589, 34601), -- 70860 (Durotan)
+(16246, 23497, 34601), -- 226468
+(16450, 23846, 34601), -- 79740 (Warmaster Zog)
+(16472, 23830, 34601), -- 79971 (Rak'jin)
+(16503, 23967, 34601), -- 79892 (Mak'jin)
+(16438, 23889, 34601), -- Mokugg Lagerpounder
+(16995, 24692, 34601), -- 85783 (Nali Softsoil)
+(20308, 30386, 34220), -- 90259 (Lord Maxwell Tyrosus)
+(20443, 30386, 34220), -- 90259 (Lord Maxwell Tyrosus)
+(14622, 20683, 34220), -- 61348 (Lorewalker Cho)
+(13757, 19802, 34220), -- 61348 (Lorewalker Cho)
+(25069, 39523, 34220), -- 156003
+(24384, 38243, 34220), -- 155096
+(24383, 38241, 34220), -- 155095
+(25070, 39524, 33369), -- 155099
+(25071, 39525, 34220), -- 161405
+(14260, 5715, 33775), -- 50028 (Chintoka)
+(10528, 14566, 33775), -- 34578 (Rocco Whipshank)
+(2861, 3554, 33775), -- 3432 (Mankrik)
+(10520, 14554, 33775), -- 34513 (Togrik)
+(10521, 14555, 33775), -- 34523 (Captured Razormane)
+(10519, 14553, 33775), -- 34503 (Razormane Pillager)
+(10514, 14546, 33775), -- 34258 (Halga Bloodeye)
+(23533, 37644, 34220), -- 146124
+(23235, 35987, 34220), -- 142958
+(20990, 31663, 34220), -- 120725 (Zipp Fizzlebonk)
+(25400, 39404, 34963), -- 161720
+(22430, 34409, 34769), -- 135572
+(22428, 34402, 34769), -- 135536
+(22429, 34408, 34769), -- 135564
+(13069, 18354, 33775), -- 55007 (Exarch Larethor)
+(13149, 18521, 33775), -- 55658 (Seer Ixit)
+(23397, 36284, 33073), -- 142839
+(24955, 39361, 34220), -- 161458
+(23795, 37249, 34220), -- 149616
+(19132, 27999, 34220), -- 99915 (Sevis Brightflame)
+(15875, 22853, 34220), -- 73306 (Mistweaver Ku)
+(11236, 15651, 34601), -- 39594 (Thrall)
+(11220, 15627, 34601), -- 38518 (Warrior-Matic NX-01)
+(11166, 15542, 34601), -- 39066 (Kilag Gorefang)
+(12475, 17550, 34601), -- 48949 (Kezan Socialite)
+(14167, 14602, 34601), -- 34692 (Sister Goldskimmer)
+(25243, 39799, 33775), -- 164004
+(25244, 39800, 33775), -- 164002
+(24994, 39404, 33941), -- 160177
+(24140, 39412, 34963), -- 152194
+(24140, 39464, 34963), -- 152194
+(24140, 39421, 34963), -- 152194
+(24632, 38726, 34963), -- 157664
+(25293, 39880, 34963), -- 154532
+(24140, 38531, 34963), -- 152194
+(24483, 38447, 34963), -- 154418
+(24483, 38428, 34963), -- 154418
+(24482, 38429, 34963), -- 154418
+(24478, 38426, 34963), -- 154444
+(24479, 38425, 34963), -- 154444
+(24480, 38424, 34963), -- 154444
+(24468, 38411, 34963), -- 155336
+(25151, 39629, 34963), -- 152194
+(24140, 39632, 34963), -- 152194
+(25152, 39631, 34963), -- 155496
+(24406, 39630, 34963), -- 155496
+(25072, 39526, 34963), -- 159544
+(24383, 38242, 34963), -- 155095
+(24955, 39362, 34963), -- 161458
+(22546, 34675, 33369), -- 137027
+(22248, 34086, 33369), -- 133820
+(22166, 33964, 33369), -- 133490
+(24753, 38953, 33369), -- 154958
+(24758, 38962, 33369), -- 159462
+(24753, 38954, 33369), -- 159462
+(24859, 39178, 34220), -- 160252
+(25140, 39607, 33084), -- 163205
+(23707, 36893, 33084), -- 148496
+(23707, 36892, 33084), -- 148496
+(10726, 14888, 34220), -- 35142 (Ergll)
+(10881, 15113, 34220), -- 36895 (Sergeant Zelks)
+(10877, 15104, 34220), -- 36780 (Patch)
+(24059, 37704, 33369), -- 152076
+(22588, 34746, 33369), -- 137270
+(25372, 40008, 33941), -- 154677
+(21057, 31826, 34963), -- 120928 (Jay Maguire)
+(6201, 7381, 34963), -- 14849 (Darkmoon Carnie)
+(20006, 30532, 34220), -- 106448 (Commander Born)
+(25189, 39719, 33528), -- 164250
+(23131, 35763, 34769), -- 142179
+(22237, 34338, 34769), -- 135272
+(22395, 34349, 34769), -- 135308
+(21534, 32821, 34769), -- Pa'ku
+(21534, 34336, 34769), -- Pa'ku
+(19947, 29650, 34220), -- 90261 (Valgar Highforge)
+(20331, 29882, 34220), -- Delas Moonfang
+(20104, 29882, 34220), -- Delas Moonfang
+(19894, 29565, 34220), -- Justicar Julia Celeste
+(18194, 26130, 34220), -- 90249 (Lady Liadrin)
+(19898, 29570, 34220), -- Arator the Redeemer
+(9162, 12756, 33775), -- 25459 (Yanni)
+(12757, 17907, 33775), -- 34698 (Nozzlepot)
+(24575, 38628, 33775), -- 3391 (Gazlowe)
+(10572, 14631, 33775), -- 34782 (Alicia Cuthbert)
+(10560, 14616, 33775), -- 34754 (Chief Engineer Foote)
+(24450, 38369, 34220), -- 155707
+(24516, 38479, 33084), -- 156409
+(25133, 39607, 33084), -- 163151
+(20710, 31854, 34220), -- 116302 (Archmage Khadgar)
+(24894, 38807, 33115), -- 161126
+(25182, 39707, 33941), -- 161738
+(25041, 39480, 33073), -- 162419
+(25041, 39482, 33073), -- 162419
+(16473, 23890, 34601), -- 80221 (Libby Wrenchwrecker)
+(16271, 23530, 34601), -- Farseer Drek'Thar
+(16763, 24357, 34601), -- 83563 (Map of Tanaan Jungle)
+(16331, 23241, 34601), -- Archmage Khadgar
+(15999, 23724, 34601), -- Farseer Urquan
+(16360, 23715, 34601), -- Cordana Felsong
+(16331, 22892, 34601), -- Archmage Khadgar
+(15869, 23717, 34601), -- Image of Archmage Khadgar
+(15869, 23722, 34601), -- Image of Archmage Khadgar
+(15869, 23720, 34601), -- Image of Archmage Khadgar
+(15999, 23725, 34601), -- Farseer Urquan
+(16360, 23074, 34601), -- Cordana Felsong
+(16360, 22872, 34601), -- Cordana Felsong
+(15999, 23727, 34601), -- Farseer Urquan
+(16360, 23045, 34601), -- Cordana Felsong
+(15999, 23073, 34601), -- Farseer Urquan
+(18428, 26570, 34220), -- Ariok
+(24895, 39229, 33369), -- 161128
+(20614, 30917, 34963), -- 337246
+(24735, 38915, 34963), -- 337246
+(20614, 30916, 34963), -- 337246
+(20614, 30915, 34963), -- 337246
+(20614, 30914, 34963), -- 337246
+(20614, 30912, 34963), -- 337246
+(24953, 39356, 34963), -- 161519
+(20616, 30918, 34963), -- 337246
+(13018, 18289, 34963), -- 54601 (Mola)
+(23199, 35886, 34769), -- 136357
+(24969, 39384, 34601), -- 163397
+(15406, 22144, 34220), -- 67990 (Lor'themar Theron)
+(15407, 22145, 34220), -- 67989 (Grand Magister Rommath)
+(15524, 22295, 34220), -- 69389 (Ryshelle Brightlock)
+(15526, 22298, 34220), -- 67983 (Captain Aerthas Firehawk)
+(15409, 22147, 34220), -- 67984 (Kethiel Sunlance)
+(15498, 22240, 34220), -- 69418 (Elina Zaralae)
+(15562, 22356, 34220), -- 69371 (Amalia Penshire)
+(15408, 22146, 34220), -- 67660 (Archmage Aethas Sunreaver)
+(15563, 22357, 34220), -- 69425 (Sunwalker Dezco)
+(15539, 22330, 34220), -- 69252 (Ranger Shalan)
+(15499, 22242, 34220), -- 67985 (Scout Captain Elsia)
+(15546, 22339, 34220), -- 67673 (Girana the Blooded)
+(15558, 22351, 34220), -- 70160 (Taran Zhu)
+(15525, 22297, 34220), -- 69447 (Harlan Whitedawn)
+(23677, 36799, 33169), -- 146124
+(18275, 26285, 33941), -- 91483 (Fen Tao)
+(17045, 24957, 33941), -- Vivianne
+(17132, 25180, 33941), -- 86318 (Zarjhin)
+(24070, 37720, 33369), -- 122700
+(22972, 35540, 33369), -- 128087
+(23460, 36455, 34601), -- 131346
+(24972, 39387, 33115), -- 162127
+(24970, 39385, 33115), -- 162126
+(15555, 22350, 34220), -- 70166 (Jubeka Shadowbreaker)
+(15251, 21863, 34220), -- 68137 (Akama)
+(15252, 21859, 34220), -- 68137 (Akama)
+(15257, 21867, 34220), -- 216481
+(14056, 5714, 34220), -- 4563 (Kaal Soulreaper)
+(14011, 5714, 34220), -- 88705 (Kranosh)
+(15225, 21822, 34220), -- Voidwalker
+(15224, 21823, 34220), -- Voidwalker
+(15218, 21817, 34220), -- Succubus
+(15219, 21816, 34220), -- Succubus
+(15229, 21827, 34220), -- Felhunter
+(15228, 21826, 34220), -- Felhunter
+(15222, 21821, 34220), -- Imp
+(15223, 21820, 34220), -- Imp
+(15216, 21815, 34220), -- Felguard
+(15217, 21814, 34220), -- Felguard
+(20375, 30468, 34220), -- 112392 (Quartermaster Durnolf)
+(18724, 27208, 34220), -- 96679 (Aerylia)
+(19874, 29525, 34220), -- 93773 (High Overlord Saurfang)
+(19875, 29527, 34220), -- 93773 (High Overlord Saurfang)
+(22432, 33964, 34769), -- 133859
+(20342, 30405, 34769), -- 110434 (Kristoff)
+(24535, 38511, 33369), -- 156623
+(19110, 26451, 33941), -- 91190 (Sister Elda)
+(20369, 30462, 33941), -- Eadric the Pure
+(19044, 27824, 33941), -- 90369 (Lord Maxwell Tyrosus)
+(19854, 29486, 33941), -- Orik Trueheart
+(19712, 29237, 33941), -- Travard
+(19858, 29494, 33941), -- Orik Trueheart
+(19856, 29489, 33941), -- 108692 (Travard)
+(23609, 36617, 33237), -- 146323
+(23610, 36619, 33237), -- 146455
+(23641, 36580, 33237), -- 147187
+(23586, 36580, 33237), -- 149143
+(23594, 36591, 33237), -- 146758
+(23570, 36537, 33237), -- 146579
+(23569, 36535, 33237), -- 146539
+(21775, 33242, 34220), -- 129309
+(21772, 33240, 34220), -- 129296
+(22958, 35519, 33237), -- 141539
+(22652, 35049, 34769), -- 137982
+(23472, 36402, 34220), -- 145463
+(21947, 33575, 34220), -- 131379
+(12761, 17947, 34220), -- 52818 (Snixx Quickfreeze)
+(21837, 33371, 34220), -- 129995
+(21836, 33370, 34220), -- 129995
+(21835, 33369, 34220), -- 129995
+(21833, 33367, 34220), -- 129995
+(14538, 20558, 34220), -- 64531 (Lena Stonebrush)
+(14570, 20599, 34220), -- 64575 (Chan Hoi-San)
+(14571, 20600, 34220), -- 64561 (Jong Ming-Yiu)
+(15153, 2593, 34220), -- 64134 (Jontan Dum'okk)
+(15719, 22577, 34220), -- 66998 (Jinho the Wind Breaker)
+(24971, 39386, 33237), -- 162128
+(20812, 31240, 34220), -- 118183 (Commander Jarod Shadowsong)
+(20737, 31129, 34220), -- 101054 (Soul of Ravencrest)
+(21061, 31860, 34769), -- Prophet Velen
+(24759, 38963, 33369), -- 159426
+(23793, 37234, 33369), -- 149523
+(22722, 35140, 33237), -- 136728
+(23795, 37251, 33237), -- 149616
+(24888, 39220, 33115), -- 161087
+(19555, 28903, 33169), -- 106025 (Kira Iresoul)
+(23747, 37030, 33528), -- 149085
+(23748, 37029, 33528), -- 149085
+(24584, 17791, 33775), -- 334791
+(24998, 39416, 33775), -- 157664
+(25065, 39513, 33775), -- 162698
+(24250, 37989, 33775); -- 154095
+
+INSERT INTO `gossip_menu` (`MenuId`, `TextId`, `VerifiedBuild`) VALUES
+(24384, 38244, 33775), -- 155096
+(13394, 19023, 33775), -- 58207 (Alexstrasza)
+(13391, 19020, 33775), -- 58208 (Nozdormu)
+(13295, 18800, 33775), -- 56103 (Thrall)
+(13294, 18799, 33775), -- 56103 (Thrall)
+(13252, 18698, 33775), -- 55870 (Sky Captain Swayze)
+(13322, 18867, 33775), -- 56667 (Thrall)
+(13373, 18978, 33775), -- 56664 (Kalecgos)
+(13358, 18954, 33775), -- 55476 (Lord Afrasastrasz)
+(13357, 18953, 33775), -- 55476 (Lord Afrasastrasz)
+(13411, 19058, 33775), -- 55476 (Lord Afrasastrasz)
+(24871, 39199, 33775), -- 161031
+(23531, 37645, 34220), -- 146030
+(24601, 38661, 33237), -- 157615
+(24600, 38663, 33237), -- 157615
+(24599, 38662, 33237), -- 157615
+(10043, 14014, 34963), -- 32681 (The Magnificent Merleaux)
+(18923, 27591, 34963), -- 98690 (Auzin)
+(21893, 33458, 34963), -- 130654
+(21437, 32860, 34769), -- 128807
+(21094, 34355, 34769), -- 127570
+(21652, 32977, 34769), -- 127992
+(21653, 32978, 34769), -- 127992
+(15547, 22277, 33724), -- 218418
+(15515, 22277, 33724), -- 218417
+(15569, 22364, 33724), -- 70358 (Scout Captain Elsia)
+(22946, 35505, 34963), -- 141489
+(12709, 17840, 34963), -- 114492 (Azsuna Flame Guardian)
+(16019, 23109, 34601), -- Thrall
+(23360, 37178, 33528), -- 143831
+(16687, 24238, 34769), -- 84243 (Linny "The Skinny" Leadpockets)
+(18588, 26949, 34220), -- 95234 (Elthyn Da'rai)
+(19150, 28043, 34220), -- Nathanos Blightcaller
+(19176, 30273, 34220), -- Lady Sylvanas Windrunner
+(19176, 28107, 34220), -- Lady Sylvanas Windrunner
+(19116, 28026, 34220), -- 100636 (High Overlord Saurfang)
+(20306, 30383, 34220), -- 113118 (Captain Russo)
+(20487, 30649, 34220), -- 4311 (Holgar Stormaxe)
+(17333, 25785, 33941), -- 79858 (Serr'ah)
+(16462, 23875, 33941), -- 80151 (Provisioner Rashma)
+(21829, 33359, 33941), -- Grand Artificer Romuul
+(21824, 33354, 33941), -- High Exarch Turalyon
+(24449, 38369, 33115), -- 155700
+(22782, 35259, 34601), -- 133476
+(22087, 32139, 34601), -- Patch
+(21275, 32285, 34601), -- 124376
+(16941, 24653, 33941), -- 84739 (Arcanist Delath)
+(16276, 7778, 33941), -- 76782 (Pul Windcarver)
+(25182, 39734, 33084), -- 161738
+(21357, 32498, 34769), -- 125489
+(21548, 32857, 34769), -- 127444
+(20883, 31388, 33237), -- 119166 (Mor'zul Bloodbringer)
+(20883, 31385, 33237), -- 119166 (Mor'zul Bloodbringer)
+(20836, 31306, 33237), -- 118691 (Vethir)
+(20835, 31305, 33237), -- Val'kyr of Odyn
+(20896, 31428, 33237), -- 116868 (Vethir)
+(24327, 38163, 33369), -- 154534
+(24314, 38144, 33369), -- 154534
+(23767, 37146, 34220), -- 149279
+(24876, 39211, 33084), -- 160967
+(24878, 39216, 33084), -- 161000
+(18386, 26486, 34220), -- 92420 (Ysera)
+(18947, 26757, 34220), -- 95396 (Thaon Moonclaw)
+(14284, 20135, 34220), -- 60231 (Wing Nga)
+(12040, 16870, 33775), -- 43771 (Mixi)
+(10861, 15084, 33775), -- 37005 (Friz Groundspin)
+(10690, 14826, 33775), -- 35657 (Torg Twocrush)
+(10797, 14970, 33775), -- 36077 (Assistant Greely)
+(10780, 14971, 33775), -- 36297 (Gormungan)
+(10780, 14972, 33775), -- 36297 (Gormungan)
+(10796, 14967, 33775), -- 36297 (Gormungan)
+(10780, 14964, 33775), -- 36297 (Gormungan)
+(10780, 14945, 33775), -- 36297 (Gormungan)
+(10783, 14948, 33775), -- 36297 (Gormungan)
+(10782, 14947, 33775), -- 36297 (Gormungan)
+(10781, 14946, 33775), -- 36297 (Gormungan)
+(10797, 14969, 33775), -- 36077 (Assistant Greely)
+(10801, 14977, 33775), -- 36472 (Door Buzzer)
+(10801, 15070, 33775), -- 36472 (Door Buzzer)
+(10861, 15083, 33775), -- 37005 (Friz Groundspin)
+(11705, 16386, 33775), -- 43217 (Bilgewater Rocket-jockey)
+(24518, 38482, 33369), -- 156392
+(22415, 34383, 34601), -- 134553
+(20846, 31318, 34220), -- 119002 (Prince Farondis)
+(20775, 31199, 34220), -- 117774 (Prince Farondis)
+(20843, 31199, 34220), -- 118942 (Prince Farondis)
+(20857, 31346, 34220), -- 119172 (Vile Scavenger)
+(20860, 31351, 34220), -- 119154 (Dread Auditor)
+(20855, 31341, 34220), -- 119184 (Tehd Shoemaker)
+(24527, 38498, 33073), -- 159956
+(24530, 38502, 33073), -- 156521
+(24529, 38500, 33073), -- 156512
+(15108, 21614, 33073), -- 64582 (Gentle San)
+(22698, 35082, 33237), -- 123730
+(22699, 35083, 33237), -- 123728
+(22701, 35085, 33237), -- 123729
+(22700, 35084, 33237), -- 122725
+(21727, 33107, 33237), -- 128711
+(22860, 35426, 33237), -- 123876
+(22860, 35425, 33237), -- 123876
+(24540, 38523, 33369), -- 156390
+(13012, 18284, 34963), -- 54485 (Jessica Rogers)
+(24744, 38924, 33941), -- 159175
+(21961, 33608, 33369), -- 131506
+(21959, 33599, 33369), -- 131503
+(23010, 35594, 34963), -- Forsaken Battleguard
+(23017, 35600, 34963), -- Forsaken Battleguard
+(20837, 31308, 33237), -- 118927 (Kanrethad Ebonlocke)
+(20652, 31302, 33237), -- 115863 (Jubeka Shadowbreaker)
+(20652, 30968, 33237), -- 115863 (Jubeka Shadowbreaker)
+(20653, 30969, 33237), -- 115863 (Jubeka Shadowbreaker)
+(19556, 28911, 33237), -- 105928 (Lulubelle Fizzlebang)
+(22408, 34375, 34601), -- 121840
+(21409, 32610, 34769), -- 126009
+(22498, 34551, 34769), -- 125312
+(24537, 38516, 33073), -- 156645
+(11279, 15718, 33941), -- 39644 (Twilight Servitor)
+(12569, 17668, 33941), -- 50272 (Legionnaire Nazgrim)
+(24871, 39198, 33062), -- 161031
+(23751, 37035, 33237), -- Sira Moonwarden
+(23746, 37027, 33237), -- 148565
+(16840, 24483, 34769), -- 84213 (Taz'jari)
+(17295, 25637, 34769), -- 81920 (Taskmaster Gornek)
+(16760, 24354, 34769), -- 82612 (Hutou Featherwind)
+(13026, 18298, 34769), -- 54668 (Nahuud)
+(24356, 38207, 34601), -- 155069
+(16489, 23939, 33941), -- 79451 (Olin Umberhide)
+(16488, 23938, 33941), -- Lady Liadrin
+(20747, 31152, 33237), -- 117361 (Navarrogg)
+(20754, 31164, 33237), -- 117249 (Navarrogg)
+(24517, 38478, 33084), -- 156409
+(10658, 14768, 33775), -- 35595 (Archmage Selwyn)
+(10659, 14770, 33775), -- 35567 (Spirit of Kalytha)
+(24061, 37706, 34601), -- 152078
+(24694, 38826, 33169), -- 145418
+(24695, 38828, 33169), -- 145417
+(23476, 36417, 33169), -- 145533
+(23477, 36418, 33169), -- 145531
+(23478, 36419, 33169), -- 145532
+(23482, 23136, 33169), -- 145424
+(24603, 38668, 33169), -- 157685
+(23538, 38667, 33169), -- 146270
+(23538, 38664, 33169), -- 146270
+(23558, 36517, 33169), -- 146305
+(23549, 36504, 33169), -- 157668
+(24602, 38665, 33169), -- 146270
+(24597, 38659, 33169), -- 146273
+(23539, 36486, 33169), -- 146273
+(24598, 38660, 33169), -- 146273
+(23554, 36512, 33169), -- 146273
+(24593, 39119, 33169), -- 146277
+(23541, 36495, 33169), -- 146277
+(24594, 38656, 33169), -- 146277
+(24596, 38658, 33169), -- 146276
+(23540, 36494, 33169), -- 146276
+(24595, 38657, 33169), -- 146276
+(23542, 36496, 33169), -- 146276
+(23544, 36500, 33169), -- 146277
+(24592, 38654, 33169), -- 146273
+(24590, 38652, 33169), -- 146276
+(24591, 38653, 33169), -- 146277
+(24701, 38840, 33169), -- 146261
+(23527, 36467, 33169), -- Natal'hakata
+(23526, 36466, 33169), -- Natal'hakata
+(23521, 36459, 33169), -- 145978
+(23521, 36457, 33169), -- 145978
+(23522, 36458, 33169), -- 145651
+(23484, 36424, 33169), -- 145657
+(23493, 36424, 33169), -- 145658
+(23494, 36424, 33169), -- 145719
+(23495, 36424, 33169), -- 145720
+(23496, 36424, 33169), -- 145721
+(23499, 36424, 33169), -- 145724
+(23500, 36424, 33169), -- 145725
+(23497, 36424, 33169), -- 145722
+(23492, 36424, 33169), -- 145717
+(23498, 36424, 33169), -- 145723
+(23501, 36424, 33169), -- 145727
+(23482, 38830, 33169), -- 145424
+(25013, 39436, 33169), -- 162190
+(9904, 13786, 34963), -- 30400 (Goblin Mechanic)
+(24331, 38171, 33062), -- 328415
+(24331, 38172, 33062), -- 328320
+(21302, 32351, 34601), -- 124737
+(21473, 32706, 34601), -- 126588
+(20881, 31387, 33237), -- 119166 (Mor'zul Bloodbringer)
+(20882, 31386, 33237), -- 119166 (Mor'zul Bloodbringer)
+(23631, 36660, 33062), -- 147381
+(12569, 17674, 33941), -- 50272 (Legionnaire Nazgrim)
+(22826, 35373, 33169), -- Leana Darkwind
+(22832, 35379, 33169), -- Kwint
+(24120, 37784, 33169), -- 152439
+(23555, 36513, 33528), -- Sira Moonwarden
+(22507, 34566, 33369), -- 136411
+(14602, 20659, 33941), -- 64825 (Leng Windstaff)
+(14603, 20658, 33941), -- 64825 (Leng Windstaff)
+(2883, 17960, 33775), -- 3429 (Thork)
+(10544, 14584, 33775), -- 34638 (Shoe)
+(24995, 39408, 33062), -- 161938
+(24995, 39409, 33062), -- 161938
+(7153, 8425, 33775), -- 16197 (Arcanist Vandril)
+(7160, 8495, 33775), -- 16220 (Captain Helios)
+(7153, 8561, 33775), -- 16197 (Arcanist Vandril)
+(7243, 8550, 33775), -- 16442 (Vinemaster Suntouched)
+(7244, 8553, 33775), -- 16443 (Zalene Firstlight)
+(7245, 8557, 33775), -- 16444 (Halis Dawnstrider)
+(23507, 7778, 33775), -- 44036 (Skymaster Brightdawn)
+(6952, 8240, 33775), -- 15420 (Prospector Anvilward)
+(13991, 4973, 33775), -- 3059 (Harutt Thunderhorn)
+(25158, 39480, 34963), -- 163463
+(25158, 39678, 34963), -- 163463
+(14527, 20537, 34963), -- 64517 (Shado-Master Chum Kiu)
+(23560, 36520, 33169), -- 145374
+(23531, 36475, 33169), -- 146030
+(23678, 36800, 33169), -- Wardruid Loti
+(23532, 36476, 33169), -- General Rakera
+(23679, 36801, 33169), -- Hexlord Raal
+(23533, 36477, 33169), -- 146124
+(23502, 36519, 33169), -- Princess Talanji
+(23709, 36900, 33169), -- 146215
+(23502, 36492, 33169), -- Princess Talanji
+(23502, 36431, 33169), -- Princess Talanji
+(23706, 36887, 33169), -- 146209
+(23705, 36883, 33169), -- 146214
+(23502, 36491, 33169), -- Princess Talanji
+(23697, 36853, 33169), -- 146208
+(23502, 36489, 33169), -- Princess Talanji
+(23697, 36852, 33169), -- 146208
+(23534, 36478, 33169), -- 148096
+(23502, 37360, 33169), -- Princess Talanji
+(23534, 37353, 33169), -- 148096
+(23833, 37361, 33169), -- 149972
+(23653, 36454, 33169), -- 147781
+(23534, 37352, 33169), -- 148096
+(23466, 36391, 33169), -- Rokhan
+(15773, 22659, 34769), -- 25324 (Earthen Ring Guide)
+(21980, 33657, 34769), -- 131926
+(22966, 36266, 34769), -- Baine Bloodhoof
+(21303, 32353, 34769); -- King Rastakhan
+
+
+UPDATE `gossip_menu` SET `VerifiedBuild`=34963 WHERE (`MenuId`=23300 AND `TextId`=36114) OR (`MenuId`=21933 AND `TextId`=33493) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=23943 AND `TextId`=37537) OR (`MenuId`=23723 AND `TextId`=36983) OR (`MenuId`=24221 AND `TextId`=37527) OR (`MenuId`=23799 AND `TextId` IN (37277,37350)) OR (`MenuId`=24124 AND `TextId`=37792) OR (`MenuId`=21925 AND `TextId`=33525) OR (`MenuId`=24190 AND `TextId`=37879) OR (`MenuId`=6944 AND `TextId`=7778) OR (`MenuId`=24257 AND `TextId`=37995) OR (`MenuId`=22554 AND `TextId`=35126) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=22209 AND `TextId`=33743) OR (`MenuId`=22493 AND `TextId`=34543) OR (`MenuId`=22730 AND `TextId`=7778) OR (`MenuId`=24015 AND `TextId`=37617) OR (`MenuId`=24009 AND `TextId`=37616) OR (`MenuId`=23988 AND `TextId`=37595) OR (`MenuId`=23434 AND `TextId`=36306) OR (`MenuId`=24140 AND `TextId`=38087) OR (`MenuId`=23356 AND `TextId`=36210) OR (`MenuId`=21714 AND `TextId`=33080) OR (`MenuId`=10667 AND `TextId`=14783) OR (`MenuId`=19168 AND `TextId`=28096) OR (`MenuId`=24223 AND `TextId`=37932) OR (`MenuId`=12949 AND `TextId`=18217) OR (`MenuId`=23112 AND `TextId`=35741) OR (`MenuId`=24188 AND `TextId`=37876) OR (`MenuId`=24075 AND `TextId`=37727) OR (`MenuId`=24018 AND `TextId` IN (38115,38116,37621)) OR (`MenuId`=24053 AND `TextId`=37687) OR (`MenuId`=24040 AND `TextId`=37656) OR (`MenuId`=24019 AND `TextId`=37622) OR (`MenuId`=24363 AND `TextId`=38217) OR (`MenuId`=24359 AND `TextId`=38212) OR (`MenuId`=22557 AND `TextId` IN (38210,34708)) OR (`MenuId`=22559 AND `TextId`=34711) OR (`MenuId`=22716 AND `TextId`=35125) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=1951 AND `TextId`=2593) OR (`MenuId`=23396 AND `TextId`=36290) OR (`MenuId`=23745 AND `TextId`=37026) OR (`MenuId`=23120 AND `TextId` IN (35749,35752)) OR (`MenuId`=9904 AND `TextId`=13759) OR (`MenuId`=24402 AND `TextId`=38299) OR (`MenuId`=18860 AND `TextId`=27613) OR (`MenuId`=22845 AND `TextId`=35398) OR (`MenuId`=22417 AND `TextId`=34385) OR (`MenuId`=21150 AND `TextId`=32077) OR (`MenuId`=22338 AND `TextId`=34297) OR (`MenuId`=16593 AND `TextId`=7778) OR (`MenuId`=23411 AND `TextId`=35269) OR (`MenuId`=23989 AND `TextId`=36793) OR (`MenuId`=22084 AND `TextId`=33815) OR (`MenuId`=5921 AND `TextId`=7074) OR (`MenuId`=21043 AND `TextId`=31799) OR (`MenuId`=22966 AND `TextId`=35533) OR (`MenuId`=24060 AND `TextId`=37705) OR (`MenuId`=23352 AND `TextId`=28005) OR (`MenuId`=13131 AND `TextId`=18472) OR (`MenuId`=24386 AND `TextId`=38248) OR (`MenuId`=21514 AND `TextId`=32793) OR (`MenuId`=21515 AND `TextId`=32794) OR (`MenuId`=21516 AND `TextId`=32795) OR (`MenuId`=21844 AND `TextId`=33381) OR (`MenuId`=24125 AND `TextId`=37793) OR (`MenuId`=8764 AND `TextId`=11170) OR (`MenuId`=3841 AND `TextId`=4693) OR (`MenuId`=23994 AND `TextId`=37600) OR (`MenuId`=10923 AND `TextId`=15172) OR (`MenuId`=10009 AND `TextId`=13873) OR (`MenuId`=9993 AND `TextId`=13848) OR (`MenuId`=22583 AND `TextId`=34741) OR (`MenuId`=22585 AND `TextId`=34743) OR (`MenuId`=22584 AND `TextId`=34742) OR (`MenuId`=23572 AND `TextId`=36548) OR (`MenuId`=349 AND `TextId`=825) OR (`MenuId`=6161 AND `TextId`=7314) OR (`MenuId`=9278 AND `TextId`=12582) OR (`MenuId`=22946 AND `TextId`=35501) OR (`MenuId`=9204 AND `TextId`=12506) OR (`MenuId`=21720 AND `TextId` IN (33094,33093)) OR (`MenuId`=23730 AND `TextId`=12377) OR (`MenuId`=23729 AND `TextId`=12377) OR (`MenuId`=9148 AND `TextId`=12376) OR (`MenuId`=11389 AND `TextId`=15864) OR (`MenuId`=23417 AND `TextId`=36310) OR (`MenuId`=23431 AND `TextId`=36307) OR (`MenuId`=23436 AND `TextId`=36306) OR (`MenuId`=24220 AND `TextId`=37508) OR (`MenuId`=23873 AND `TextId`=37423) OR (`MenuId`=24138 AND `TextId`=37824) OR (`MenuId`=23922 AND `TextId`=37512) OR (`MenuId`=6184 AND `TextId`=7338) OR (`MenuId`=22155 AND `TextId`=33942) OR (`MenuId`=23414 AND `TextId`=36307) OR (`MenuId`=23358 AND `TextId`=36212) OR (`MenuId`=23359 AND `TextId`=36217) OR (`MenuId`=21672 AND `TextId`=33009) OR (`MenuId`=21951 AND `TextId`=33584) OR (`MenuId`=23715 AND `TextId`=36944) OR (`MenuId`=23828 AND `TextId`=37351) OR (`MenuId`=21330 AND `TextId`=32419) OR (`MenuId`=23573 AND `TextId`=36549) OR (`MenuId`=22595 AND `TextId`=34755) OR (`MenuId`=22757 AND `TextId`=35222) OR (`MenuId`=23302 AND `TextId`=36116) OR (`MenuId`=10129 AND `TextId`=14063) OR (`MenuId`=18962 AND `TextId`=27677) OR (`MenuId`=20726 AND `TextId`=31111) OR (`MenuId`=19312 AND `TextId`=28423) OR (`MenuId`=20506 AND `TextId`=14014) OR (`MenuId`=22724 AND `TextId`=35143) OR (`MenuId`=22284 AND `TextId`=34153) OR (`MenuId`=20743 AND `TextId`=31138) OR (`MenuId`=15958 AND `TextId`=22981) OR (`MenuId`=16962 AND `TextId`=24678) OR (`MenuId`=16801 AND `TextId`=24430) OR (`MenuId`=18380 AND `TextId`=14712) OR (`MenuId`=23764 AND `TextId`=37139);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33775 WHERE (`MenuId`=24140 AND `TextId`=38087) OR (`MenuId`=20506 AND `TextId`=14014) OR (`MenuId`=24188 AND `TextId`=37876) OR (`MenuId`=24125 AND `TextId`=37793) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=24124 AND `TextId`=37792) OR (`MenuId`=21714 AND `TextId`=33080) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=22557 AND `TextId`=34708) OR (`MenuId`=23352 AND `TextId`=28005) OR (`MenuId`=14227 AND `TextId`=17176) OR (`MenuId`=4043 AND `TextId`=4933) OR (`MenuId`=5349 AND `TextId`=6354) OR (`MenuId`=14598 AND `TextId`=20651) OR (`MenuId`=11441 AND `TextId`=15937) OR (`MenuId`=11440 AND `TextId`=15935) OR (`MenuId`=11451 AND `TextId`=15965) OR (`MenuId`=12125 AND `TextId`=17031) OR (`MenuId`=12563 AND `TextId`=17647) OR (`MenuId`=13052 AND `TextId`=18330) OR (`MenuId`=7984 AND `TextId`=9836) OR (`MenuId`=9166 AND `TextId`=12424) OR (`MenuId`=9199 AND `TextId`=12498) OR (`MenuId`=348 AND `TextId`=821) OR (`MenuId`=13207 AND `TextId`=18613) OR (`MenuId`=13191 AND `TextId`=18593) OR (`MenuId`=10012 AND `TextId`=13883) OR (`MenuId`=9669 AND `TextId`=13100) OR (`MenuId`=9997 AND `TextId`=13853) OR (`MenuId`=9993 AND `TextId`=13848) OR (`MenuId`=13147 AND `TextId`=18512) OR (`MenuId`=9164 AND `TextId`=12422) OR (`MenuId`=9162 AND `TextId`=12417) OR (`MenuId`=9144 AND `TextId`=12373) OR (`MenuId`=10224 AND `TextId`=14215) OR (`MenuId`=9150 AND `TextId`=12381) OR (`MenuId`=12152 AND `TextId`=17087) OR (`MenuId`=1882 AND `TextId`=2533) OR (`MenuId`=12549 AND `TextId`=17627) OR (`MenuId`=9665 AND `TextId`=13093) OR (`MenuId`=1966 AND `TextId`=2758) OR (`MenuId`=1963 AND `TextId`=2637) OR (`MenuId`=2283 AND `TextId`=2973) OR (`MenuId`=5749 AND `TextId`=6929) OR (`MenuId`=11425 AND `TextId`=15909) OR (`MenuId`=941 AND `TextId`=1517) OR (`MenuId`=11979 AND `TextId`=16796) OR (`MenuId`=16164 AND `TextId`=23349) OR (`MenuId`=16129 AND `TextId`=23246) OR (`MenuId`=16142 AND `TextId`=23267) OR (`MenuId`=16141 AND `TextId`=23266) OR (`MenuId`=16139 AND `TextId`=23265) OR (`MenuId`=16140 AND `TextId`=23264) OR (`MenuId`=349 AND `TextId`=825) OR (`MenuId`=10556 AND `TextId`=14612) OR (`MenuId`=19168 AND `TextId`=28096) OR (`MenuId`=10667 AND `TextId`=14783) OR (`MenuId`=23451 AND `TextId`=36331) OR (`MenuId`=22084 AND `TextId`=33815) OR (`MenuId`=22554 AND `TextId` IN (35126,36224)) OR (`MenuId`=8072 AND `TextId`=9977) OR (`MenuId`=21925 AND `TextId`=33525) OR (`MenuId`=16593 AND `TextId`=7778) OR (`MenuId`=24257 AND `TextId`=37995) OR (`MenuId`=21043 AND `TextId`=31799) OR (`MenuId`=22976 AND `TextId`=35541) OR (`MenuId`=23745 AND `TextId`=37026) OR (`MenuId`=23120 AND `TextId` IN (35754,35752,35749)) OR (`MenuId`=21867 AND `TextId`=33413) OR (`MenuId`=22205 AND `TextId`=34017) OR (`MenuId`=22559 AND `TextId`=34711) OR (`MenuId`=23573 AND `TextId`=36549) OR (`MenuId`=22020 AND `TextId`=33733) OR (`MenuId`=22570 AND `TextId`=34728) OR (`MenuId`=23112 AND `TextId`=35741) OR (`MenuId`=22209 AND `TextId`=33743) OR (`MenuId`=21933 AND `TextId`=33493) OR (`MenuId`=21923 AND `TextId`=33522) OR (`MenuId`=23625 AND `TextId`=36651) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=22155 AND `TextId`=33942) OR (`MenuId`=23411 AND `TextId`=35269) OR (`MenuId`=23396 AND `TextId`=36290) OR (`MenuId`=22835 AND `TextId`=35381) OR (`MenuId`=23764 AND `TextId`=37139) OR (`MenuId`=23359 AND `TextId`=36217) OR (`MenuId`=23361 AND `TextId`=36220) OR (`MenuId`=11904 AND `TextId`=16712) OR (`MenuId`=11907 AND `TextId`=16716) OR (`MenuId`=5711 AND `TextId`=6879) OR (`MenuId`=5710 AND `TextId`=6878) OR (`MenuId`=5304 AND `TextId`=6336) OR (`MenuId`=22966 AND `TextId`=35533) OR (`MenuId`=83 AND `TextId`=580) OR (`MenuId`=23316 AND `TextId`=36141) OR (`MenuId`=23943 AND `TextId`=37537) OR (`MenuId`=23417 AND `TextId`=36310) OR (`MenuId`=21952 AND `TextId`=33586) OR (`MenuId`=21079 AND `TextId`=31949) OR (`MenuId`=23988 AND `TextId`=37595) OR (`MenuId`=22730 AND `TextId`=7778) OR (`MenuId`=23431 AND `TextId`=36307) OR (`MenuId`=21951 AND `TextId`=33584) OR (`MenuId`=12760 AND `TextId`=17946) OR (`MenuId`=5752 AND `TextId`=6935) OR (`MenuId`=1951 AND `TextId`=2593) OR (`MenuId`=12949 AND `TextId`=18217) OR (`MenuId`=23073 AND `TextId`=35675) OR (`MenuId`=22587 AND `TextId`=34745) OR (`MenuId`=21672 AND `TextId`=33009) OR (`MenuId`=6944 AND `TextId`=7778) OR (`MenuId`=24002 AND `TextId`=37609) OR (`MenuId`=10641 AND `TextId`=14742) OR (`MenuId`=1049 AND `TextId`=1649) OR (`MenuId`=11870 AND `TextId`=16633) OR (`MenuId`=14590 AND `TextId` IN (20638,20632)) OR (`MenuId`=10640 AND `TextId`=14740) OR (`MenuId`=1401 AND `TextId`=14690) OR (`MenuId`=202 AND `TextId`=699) OR (`MenuId`=18346 AND `TextId`=26402) OR (`MenuId`=5715 AND `TextId`=6882) OR (`MenuId`=5708 AND `TextId`=6876) OR (`MenuId`=5729 AND `TextId`=6896) OR (`MenuId`=11910 AND `TextId`=16726) OR (`MenuId`=4342 AND `TextId`=5516) OR (`MenuId`=13813 AND `TextId`=19934) OR (`MenuId`=13814 AND `TextId`=19935) OR (`MenuId`=441 AND `TextId`=938) OR (`MenuId`=7147 AND `TextId`=8411) OR (`MenuId`=7149 AND `TextId`=8413) OR (`MenuId`=7251 AND `TextId`=8565) OR (`MenuId`=7153 AND `TextId`=8417) OR (`MenuId`=7172 AND `TextId`=8447) OR (`MenuId`=7155 AND `TextId`=8419) OR (`MenuId`=10181 AND `TextId`=14126) OR (`MenuId`=7148 AND `TextId`=8412) OR (`MenuId`=6942 AND `TextId`=8232) OR (`MenuId`=7256 AND `TextId`=8576) OR (`MenuId`=7344 AND `TextId`=8755) OR (`MenuId`=6939 AND `TextId`=8228) OR (`MenuId`=7140 AND `TextId`=8402) OR (`MenuId`=6938 AND `TextId`=8227) OR (`MenuId`=7247 AND `TextId`=8558) OR (`MenuId`=7324 AND `TextId`=8699) OR (`MenuId`=7156 AND `TextId`=8421) OR (`MenuId`=7479 AND `TextId`=9061) OR (`MenuId`=7288 AND `TextId`=8618) OR (`MenuId`=7642 AND `TextId`=9325) OR (`MenuId`=7845 AND `TextId`=9602) OR (`MenuId`=7633 AND `TextId`=9316) OR (`MenuId`=6940 AND `TextId`=8229) OR (`MenuId`=6953 AND `TextId`=8239) OR (`MenuId`=7325 AND `TextId`=8700) OR (`MenuId`=7234 AND `TextId`=8534) OR (`MenuId`=6620 AND `TextId`=7872) OR (`MenuId`=14991 AND `TextId`=20326) OR (`MenuId`=6569 AND `TextId`=7784) OR (`MenuId`=11902 AND `TextId`=16703) OR (`MenuId`=22754 AND `TextId`=35214);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33237 WHERE (`MenuId`=24188 AND `TextId`=37876) OR (`MenuId`=24125 AND `TextId`=37793) OR (`MenuId`=24041 AND `TextId`=37658) OR (`MenuId`=23879 AND `TextId`=37437) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=24224 AND `TextId`=37933) OR (`MenuId`=23950 AND `TextId`=37545) OR (`MenuId`=24349 AND `TextId`=38196) OR (`MenuId`=24124 AND `TextId`=37792) OR (`MenuId`=22557 AND `TextId`=34708) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=21001 AND `TextId`=31680) OR (`MenuId`=23300 AND `TextId`=36114) OR (`MenuId`=21844 AND `TextId`=33381) OR (`MenuId`=6944 AND `TextId`=7778) OR (`MenuId`=22559 AND `TextId`=34711) OR (`MenuId`=21925 AND `TextId`=33525) OR (`MenuId`=23396 AND `TextId`=36290) OR (`MenuId`=23799 AND `TextId`=37277) OR (`MenuId`=22730 AND `TextId`=7778) OR (`MenuId`=22554 AND `TextId` IN (35126,36224)) OR (`MenuId`=24257 AND `TextId`=37995) OR (`MenuId`=24038 AND `TextId`=37652) OR (`MenuId`=24392 AND `TextId`=38259) OR (`MenuId`=24046 AND `TextId`=37623) OR (`MenuId`=24021 AND `TextId`=37623) OR (`MenuId`=24020 AND `TextId`=37623) OR (`MenuId`=24299 AND `TextId`=38106) OR (`MenuId`=21714 AND `TextId`=33080) OR (`MenuId`=11386 AND `TextId`=15857) OR (`MenuId`=23451 AND `TextId`=36331) OR (`MenuId`=22966 AND `TextId`=35533) OR (`MenuId`=10667 AND `TextId`=14783) OR (`MenuId`=23764 AND `TextId`=37139) OR (`MenuId`=21043 AND `TextId`=31799) OR (`MenuId`=23120 AND `TextId`=35752) OR (`MenuId`=19168 AND `TextId`=28096) OR (`MenuId`=22726 AND `TextId`=35145) OR (`MenuId`=23358 AND `TextId`=36212) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=21764 AND `TextId`=33233) OR (`MenuId`=22020 AND `TextId`=33733) OR (`MenuId`=24221 AND `TextId`=37527) OR (`MenuId`=24220 AND `TextId`=37508) OR (`MenuId`=23745 AND `TextId`=37026) OR (`MenuId`=23352 AND `TextId`=28005) OR (`MenuId`=23112 AND `TextId`=35741) OR (`MenuId`=24386 AND `TextId`=38248) OR (`MenuId`=22445 AND `TextId`=34568) OR (`MenuId`=21939 AND `TextId`=33551) OR (`MenuId`=21943 AND `TextId`=33559) OR (`MenuId`=23411 AND `TextId`=35269) OR (`MenuId`=21919 AND `TextId`=33515) OR (`MenuId`=21920 AND `TextId`=33516) OR (`MenuId`=22452 AND `TextId`=34459) OR (`MenuId`=21918 AND `TextId`=33514) OR (`MenuId`=21527 AND `TextId`=32812) OR (`MenuId`=21528 AND `TextId`=32813) OR (`MenuId`=21529 AND `TextId`=32814) OR (`MenuId`=22806 AND `TextId`=35306) OR (`MenuId`=21940 AND `TextId`=33552) OR (`MenuId`=22800 AND `TextId`=33917) OR (`MenuId`=22775 AND `TextId`=35247) OR (`MenuId`=22774 AND `TextId`=35244) OR (`MenuId`=22150 AND `TextId`=33930) OR (`MenuId`=22772 AND `TextId`=32991) OR (`MenuId`=21185 AND `TextId`=32137) OR (`MenuId`=21670 AND `TextId`=33007) OR (`MenuId`=21188 AND `TextId`=32143) OR (`MenuId`=22263 AND `TextId`=34125) OR (`MenuId`=21656 AND `TextId`=32981) OR (`MenuId`=24262 AND `TextId`=38001) OR (`MenuId`=24238 AND `TextId`=37952) OR (`MenuId`=24263 AND `TextId`=38002) OR (`MenuId`=22625 AND `TextId`=34802) OR (`MenuId`=24138 AND `TextId`=37824) OR (`MenuId`=24214 AND `TextId`=37923) OR (`MenuId`=24302 AND `TextId`=38117) OR (`MenuId`=21187 AND `TextId`=32139) OR (`MenuId`=21987 AND `TextId`=33671) OR (`MenuId`=21986 AND `TextId`=33669) OR (`MenuId`=21435 AND `TextId`=32137) OR (`MenuId`=21346 AND `TextId`=32488) OR (`MenuId`=21289 AND `TextId`=32322) OR (`MenuId`=21411 AND `TextId`=32613) OR (`MenuId`=21310 AND `TextId`=32367) OR (`MenuId`=22256 AND `TextId`=34097) OR (`MenuId`=22255 AND `TextId`=34096) OR (`MenuId`=22254 AND `TextId`=34095) OR (`MenuId`=23458 AND `TextId`=36361) OR (`MenuId`=21661 AND `TextId`=32991) OR (`MenuId`=21667 AND `TextId`=32998) OR (`MenuId`=21657 AND `TextId`=32982) OR (`MenuId`=21901 AND `TextId`=33474) OR (`MenuId`=21762 AND `TextId` IN (33231,33362)) OR (`MenuId`=21486 AND `TextId`=32732) OR (`MenuId`=21177 AND `TextId`=32123) OR (`MenuId`=21781 AND `TextId`=33261) OR (`MenuId`=21533 AND `TextId` IN (32779,32819)) OR (`MenuId`=21787 AND `TextId`=33276) OR (`MenuId`=21786 AND `TextId`=33276) OR (`MenuId`=21785 AND `TextId`=33275) OR (`MenuId`=21766 AND `TextId`=33236) OR (`MenuId`=21530 AND `TextId`=32782) OR (`MenuId`=22439 AND `TextId`=34426) OR (`MenuId`=21487 AND `TextId`=32733) OR (`MenuId`=21814 AND `TextId`=33343) OR (`MenuId`=21132 AND `TextId`=32033) OR (`MenuId`=21433 AND `TextId` IN (32636,33494)) OR (`MenuId`=22213 AND `TextId`=34032) OR (`MenuId`=22422 AND `TextId`=34391) OR (`MenuId`=23237 AND `TextId`=35990) OR (`MenuId`=21891 AND `TextId`=33453) OR (`MenuId`=23141 AND `TextId`=35814) OR (`MenuId`=22011 AND `TextId`=33716) OR (`MenuId`=22537 AND `TextId`=33743) OR (`MenuId`=22620 AND `TextId`=34793) OR (`MenuId`=22787 AND `TextId`=563) OR (`MenuId`=18558 AND `TextId`=26867) OR (`MenuId`=23828 AND `TextId`=37351) OR (`MenuId`=19312 AND `TextId`=28423) OR (`MenuId`=21933 AND `TextId`=33493) OR (`MenuId`=22417 AND `TextId`=34385) OR (`MenuId`=23988 AND `TextId`=37595) OR (`MenuId`=24140 AND `TextId`=38087) OR (`MenuId`=23765 AND `TextId`=37144) OR (`MenuId`=20883 AND `TextId`=31384) OR (`MenuId`=18723 AND `TextId`=12487) OR (`MenuId`=18747 AND `TextId`=27251) OR (`MenuId`=20374 AND `TextId`=30467) OR (`MenuId`=19326 AND `TextId`=28460) OR (`MenuId`=20416 AND `TextId`=30519) OR (`MenuId`=19812 AND `TextId`=25240) OR (`MenuId`=19918 AND `TextId`=29593) OR (`MenuId`=19920 AND `TextId`=29595) OR (`MenuId`=21492 AND `TextId`=32741) OR (`MenuId`=21493 AND `TextId`=32743) OR (`MenuId`=21514 AND `TextId`=32793) OR (`MenuId`=21516 AND `TextId`=32795) OR (`MenuId`=21158 AND `TextId`=32096) OR (`MenuId`=22181 AND `TextId`=33983) OR (`MenuId`=21547 AND `TextId`=32856) OR (`MenuId`=21797 AND `TextId`=33309) OR (`MenuId`=21799 AND `TextId`=33310) OR (`MenuId`=21306 AND `TextId` IN (33287,33314)) OR (`MenuId`=22433 AND `TextId`=34418) OR (`MenuId`=21279 AND `TextId`=32292) OR (`MenuId`=22293 AND `TextId`=34164) OR (`MenuId`=22277 AND `TextId`=34145) OR (`MenuId`=22272 AND `TextId`=34144) OR (`MenuId`=22271 AND `TextId`=34143) OR (`MenuId`=22270 AND `TextId`=34140) OR (`MenuId`=22269 AND `TextId`=34139) OR (`MenuId`=22268 AND `TextId`=34135) OR (`MenuId`=22274 AND `TextId`=34138) OR (`MenuId`=22283 AND `TextId`=34152) OR (`MenuId`=22291 AND `TextId`=34161) OR (`MenuId`=22678 AND `TextId`=35046) OR (`MenuId`=22369 AND `TextId`=35013) OR (`MenuId`=22368 AND `TextId`=35045) OR (`MenuId`=22402 AND `TextId`=34364) OR (`MenuId`=22361 AND `TextId`=35048) OR (`MenuId`=21830 AND `TextId`=33360) OR (`MenuId`=22376 AND `TextId`=34181) OR (`MenuId`=22356 AND `TextId`=35044) OR (`MenuId`=22471 AND `TextId`=34508) OR (`MenuId`=21793 AND `TextId`=33295) OR (`MenuId`=21791 AND `TextId`=33293) OR (`MenuId`=21792 AND `TextId`=33294) OR (`MenuId`=21779 AND `TextId`=32243) OR (`MenuId`=21393 AND `TextId`=33253) OR (`MenuId`=21767 AND `TextId`=33252) OR (`MenuId`=21391 AND `TextId`=33254) OR (`MenuId`=21140 AND `TextId` IN (33235,32046)) OR (`MenuId`=22258 AND `TextId`=34113) OR (`MenuId`=21229 AND `TextId`=32210) OR (`MenuId`=21228 AND `TextId`=32209) OR (`MenuId`=21230 AND `TextId`=32211) OR (`MenuId`=22541 AND `TextId`=34673) OR (`MenuId`=21390 AND `TextId` IN (32767,32752)) OR (`MenuId`=22536 AND `TextId`=34672) OR (`MenuId`=22534 AND `TextId`=34539) OR (`MenuId`=22487 AND `TextId`=34671) OR (`MenuId`=22488 AND `TextId`=34538) OR (`MenuId`=22844 AND `TextId`=35397) OR (`MenuId`=22710 AND `TextId` IN (35102,35396)) OR (`MenuId`=21470 AND `TextId`=32704) OR (`MenuId`=21468 AND `TextId`=32702) OR (`MenuId`=22677 AND `TextId`=35011) OR (`MenuId`=21384 AND `TextId`=32577) OR (`MenuId`=21469 AND `TextId`=32703) OR (`MenuId`=21496 AND `TextId`=32759) OR (`MenuId`=22707 AND `TextId`=35099) OR (`MenuId`=23275 AND `TextId`=36069) OR (`MenuId`=21385 AND `TextId`=32578) OR (`MenuId`=22286 AND `TextId`=34155) OR (`MenuId`=22288 AND `TextId`=34156) OR (`MenuId`=22287 AND `TextId`=34157) OR (`MenuId`=22683 AND `TextId`=35030) OR (`MenuId`=21437 AND `TextId` IN (32859,32858,32640)) OR (`MenuId`=21604 AND `TextId`=32948) OR (`MenuId`=21606 AND `TextId`=32950) OR (`MenuId`=21623 AND `TextId`=32963) OR (`MenuId`=21601 AND `TextId` IN (32939,32937)) OR (`MenuId`=21655 AND `TextId`=32980) OR (`MenuId`=21645 AND `TextId`=32969) OR (`MenuId`=21651 AND `TextId`=32975) OR (`MenuId`=22423 AND `TextId` IN (34393,34392)) OR (`MenuId`=21094 AND `TextId`=32008) OR (`MenuId`=21877 AND `TextId`=33437) OR (`MenuId`=21875 AND `TextId`=33434) OR (`MenuId`=21097 AND `TextId`=31982) OR (`MenuId`=21189 AND `TextId`=32153) OR (`MenuId`=21096 AND `TextId`=31981) OR (`MenuId`=12949 AND `TextId`=18217) OR (`MenuId`=19595 AND `TextId`=29012) OR (`MenuId`=20779 AND `TextId`=31211) OR (`MenuId`=21664 AND `TextId`=32983) OR (`MenuId`=20181 AND `TextId`=30033) OR (`MenuId`=23739 AND `TextId`=37016) OR (`MenuId`=21066 AND `TextId`=31841) OR (`MenuId`=22561 AND `TextId`=34714) OR (`MenuId`=22724 AND `TextId`=35143) OR (`MenuId`=23943 AND `TextId`=37537) OR (`MenuId`=22084 AND `TextId`=33815) OR (`MenuId`=20578 AND `TextId`=30840) OR (`MenuId`=22249 AND `TextId`=34089) OR (`MenuId`=23417 AND `TextId`=36310) OR (`MenuId`=23433 AND `TextId`=36306) OR (`MenuId`=22329 AND `TextId`=34274) OR (`MenuId`=19865 AND `TextId`=29504) OR (`MenuId`=21923 AND `TextId`=33522) OR (`MenuId`=23631 AND `TextId`=36659) OR (`MenuId`=21150 AND `TextId`=32077) OR (`MenuId`=22209 AND `TextId`=33743) OR (`MenuId`=22976 AND `TextId`=35541);
+UPDATE `gossip_menu` SET `VerifiedBuild`=34601 WHERE (`TextId`=35752 AND `MenuId`=23120) OR (`TextId`=35126 AND `MenuId`=22554) OR (`TextId`=27278 AND `MenuId` IN (23395,18757)) OR (`TextId`=34385 AND `MenuId`=22417) OR (`TextId`=36306 AND `MenuId` IN (23434,23436)) OR (`TextId`=33584 AND `MenuId`=21951) OR (`TextId`=37995 AND `MenuId`=24257) OR (`TextId`=35541 AND `MenuId`=22976) OR (`TextId`=34714 AND `MenuId`=22561) OR (`TextId`=23790 AND `MenuId`=16420) OR (`TextId`=24678 AND `MenuId`=16962) OR (`TextId`=938 AND `MenuId`=441) OR (`TextId`=25490 AND `MenuId`=17222) OR (`TextId`=15701 AND `MenuId`=11244) OR (`TextId`=15698 AND `MenuId`=11274) OR (`TextId`=15697 AND `MenuId`=11273) OR (`TextId`=15667 AND `MenuId`=11243) OR (`TextId`=15696 AND `MenuId`=11272) OR (`TextId`=15695 AND `MenuId`=11271) OR (`TextId`=15674 AND `MenuId`=11250) OR (`TextId`=15597 AND `MenuId`=11199) OR (`TextId`=15595 AND `MenuId`=11198) OR (`TextId`=14881 AND `MenuId`=10722) OR (`TextId`=15566 AND `MenuId`=11184) OR (`TextId`=16824 AND `MenuId`=12002) OR (`TextId`=15543 AND `MenuId`=11167) OR (`TextId`=15516 AND `MenuId`=11146) OR (`TextId`=15418 AND `MenuId`=11081) OR (`TextId`=15419 AND `MenuId`=11082) OR (`TextId`=15387 AND `MenuId`=11067) OR (`TextId`=15316 AND `MenuId`=11011) OR (`TextId`=15313 AND `MenuId`=11009) OR (`TextId`=15422 AND `MenuId`=11085) OR (`TextId`=14985 AND `MenuId`=10808) OR (`TextId`=14789 AND `MenuId`=10671) OR (`TextId`=14799 AND `MenuId`=10677) OR (`TextId`=17541 AND `MenuId`=12469) OR (`TextId`=14681 AND `MenuId`=10611) OR (`TextId`=14590 AND `MenuId`=10547) OR (`TextId`=15121 AND `MenuId`=10884) OR (`TextId`=14705 AND `MenuId`=10623) OR (`TextId`=14703 AND `MenuId`=10624) OR (`TextId`=14698 AND `MenuId`=10619) OR (`TextId`=14697 AND `MenuId`=10620) OR (`TextId`=14702 AND `MenuId`=10621) OR (`TextId`=14700 AND `MenuId`=10622) OR (`TextId`=14657 AND `MenuId`=10595) OR (`TextId`=14684 AND `MenuId`=10613) OR (`TextId`=34711 AND `MenuId`=22559) OR (`TextId`=35143 AND `MenuId`=22724) OR (`TextId`=14783 AND `MenuId`=10667) OR (`TextId`=36331 AND `MenuId`=23451) OR (`TextId`=33525 AND `MenuId`=21925) OR (`TextId`=37792 AND `MenuId`=24124) OR (`TextId`=37793 AND `MenuId`=24125) OR (`TextId`=14127 AND `MenuId`=10182) OR (`TextId`=7778 AND `MenuId` IN (6944,16593)) OR (`TextId`=37537 AND `MenuId`=23943) OR (`TextId`=37595 AND `MenuId`=23988) OR (`TextId`=36310 AND `MenuId`=23417) OR (`TextId`=34160 AND `MenuId`=22290) OR (`TextId`=24741 AND `MenuId`=16994) OR (`TextId`=24424 AND `MenuId`=16797) OR (`TextId`=24430 AND `MenuId`=16801) OR (`TextId`=25119 AND `MenuId`=17090) OR (`TextId`=23892 AND `MenuId`=16475) OR (`TextId`=25077 AND `MenuId`=17068) OR (`TextId`=37932 AND `MenuId`=24223) OR (`TextId`=36290 AND `MenuId`=23396) OR (`TextId`=34422 AND `MenuId`=22435) OR (`TextId`=13584 AND `MenuId`=9821) OR (`TextId`=36307 AND `MenuId` IN (23425,23424)) OR (`TextId`=27251 AND `MenuId`=18747) OR (`TextId`=31696 AND `MenuId`=21005) OR (`TextId`=23141 AND `MenuId`=16042) OR (`TextId`=2593 AND `MenuId`=1951) OR (`TextId`=34708 AND `MenuId`=22557) OR (`TextId`=33493 AND `MenuId`=21933) OR (`TextId`=12487 AND `MenuId`=18723) OR (`TextId`=26287 AND `MenuId`=18276) OR (`TextId`=26286 AND `MenuId`=18275) OR (`TextId`=25172 AND `MenuId`=17126) OR (`TextId`=25174 AND `MenuId`=17128) OR (`TextId`=32008 AND `MenuId`=21121) OR (`TextId`=31982 AND `MenuId`=21097) OR (`TextId`=32153 AND `MenuId`=21189) OR (`TextId`=31981 AND `MenuId`=21096) OR (`TextId`=32636 AND `MenuId`=21433) OR (`TextId`=34568 AND `MenuId`=22445) OR (`TextId`=35533 AND `MenuId`=22966) OR (`TextId`=35306 AND `MenuId`=22806) OR (`TextId`=33552 AND `MenuId`=21940) OR (`TextId`=33917 AND `MenuId`=22800) OR (`TextId`=35247 AND `MenuId`=22775) OR (`TextId`=35244 AND `MenuId`=22774) OR (`TextId`=32991 AND `MenuId` IN (22772,21661)) OR (`TextId`=33930 AND `MenuId`=22150) OR (`TextId`=34125 AND `MenuId`=22263) OR (`TextId`=33524 AND `MenuId`=21924) OR (`TextId`=32143 AND `MenuId`=21188) OR (`TextId`=32981 AND `MenuId`=21656) OR (`TextId`=33669 AND `MenuId`=21986) OR (`TextId`=32488 AND `MenuId`=21346) OR (`TextId`=32322 AND `MenuId`=21289) OR (`TextId`=33671 AND `MenuId`=21987) OR (`TextId`=32137 AND `MenuId` IN (21435,21185)) OR (`TextId`=32435 AND `MenuId`=21335) OR (`TextId`=32139 AND `MenuId`=21187) OR (`TextId`=32613 AND `MenuId`=21411) OR (`TextId`=32367 AND `MenuId`=21310) OR (`TextId`=34089 AND `MenuId`=22249) OR (`TextId`=33080 AND `MenuId`=21714) OR (`TextId`=34834 AND `MenuId`=22632) OR (`TextId`=34017 AND `MenuId`=22205) OR (`TextId`=28096 AND `MenuId`=19168) OR (`TextId`=33815 AND `MenuId`=22084) OR (`TextId`=37609 AND `MenuId`=24002) OR (`TextId`=33522 AND `MenuId`=21923) OR (`TextId`=36548 AND `MenuId`=23572) OR (`TextId`=38087 AND `MenuId`=24140) OR (`TextId`=33381 AND `MenuId`=21844) OR (`TextId`=34384 AND `MenuId`=22416) OR (`TextId`=32756 AND `MenuId`=21487) OR (`TextId`=32733 AND `MenuId`=21487) OR (`TextId`=34426 AND `MenuId`=22439) OR (`TextId`=33343 AND `MenuId`=21814) OR (`TextId`=32033 AND `MenuId`=21132) OR (`TextId`=36361 AND `MenuId`=23458) OR (`TextId`=31680 AND `MenuId`=21001) OR (`TextId`=37139 AND `MenuId`=23764) OR (`TextId`=33743 AND `MenuId`=22209) OR (`TextId`=28005 AND `MenuId`=23352) OR (`TextId`=37026 AND `MenuId`=23745) OR (`TextId`=31799 AND `MenuId`=21043) OR (`TextId`=35741 AND `MenuId`=23112) OR (`TextId`=35754 AND `MenuId`=23120) OR (`TextId`=34742 AND `MenuId`=22584) OR (`TextId`=34743 AND `MenuId`=22585) OR (`TextId`=37705 AND `MenuId`=24060) OR (`TextId`=34745 AND `MenuId`=22587) OR (`TextId`=36220 AND `MenuId`=23361) OR (`TextId`=35749 AND `MenuId`=23120) OR (`TextId`=36114 AND `MenuId`=23300) OR (`TextId`=38248 AND `MenuId`=24386) OR (`TextId`=34097 AND `MenuId`=22256) OR (`TextId`=34096 AND `MenuId`=22255) OR (`TextId`=34095 AND `MenuId`=22254) OR (`TextId`=33007 AND `MenuId`=21670) OR (`TextId`=32998 AND `MenuId`=21667) OR (`TextId`=32379 AND `MenuId`=21295) OR (`TextId`=32346 AND `MenuId`=21301) OR (`TextId`=32328 AND `MenuId`=21295) OR (`TextId`=32982 AND `MenuId`=21657) OR (`TextId`=33551 AND `MenuId`=21939) OR (`TextId`=33559 AND `MenuId`=21943) OR (`TextId`=34459 AND `MenuId`=22452) OR (`TextId`=33514 AND `MenuId`=21918) OR (`TextId`=33515 AND `MenuId`=21919) OR (`TextId`=33516 AND `MenuId`=21920) OR (`TextId`=32812 AND `MenuId`=21527) OR (`TextId`=32813 AND `MenuId`=21528) OR (`TextId`=32814 AND `MenuId`=21529) OR (`TextId`=33474 AND `MenuId`=21901) OR (`TextId`=33231 AND `MenuId`=21762) OR (`TextId`=33362 AND `MenuId`=21762) OR (`TextId`=33261 AND `MenuId`=21781) OR (`TextId`=32779 AND `MenuId`=21533) OR (`TextId`=32819 AND `MenuId`=21533) OR (`TextId`=33276 AND `MenuId` IN (21786,21787)) OR (`TextId`=33275 AND `MenuId`=21785) OR (`TextId`=33236 AND `MenuId`=21766) OR (`TextId`=32782 AND `MenuId`=21530) OR (`TextId`=32755 AND `MenuId`=21494) OR (`TextId`=32122 AND `MenuId`=21176) OR (`TextId`=32732 AND `MenuId`=21486) OR (`TextId`=32123 AND `MenuId`=21177) OR (`TextId`=32627 AND `MenuId`=21425) OR (`TextId`=34543 AND `MenuId`=22493) OR (`TextId`=32077 AND `MenuId`=21150) OR (`TextId`=37277 AND `MenuId`=23799);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33528 WHERE (`MenuId`=10667 AND `TextId`=14783) OR (`MenuId`=22554 AND `TextId`=35126) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=24257 AND `TextId`=37995) OR (`MenuId`=9821 AND `TextId`=13584) OR (`MenuId`=21765 AND `TextId`=33234) OR (`MenuId`=24002 AND `TextId`=37609) OR (`MenuId`=21925 AND `TextId`=33525) OR (`MenuId`=22205 AND `TextId`=34017) OR (`MenuId`=23572 AND `TextId`=36548) OR (`MenuId`=24060 AND `TextId`=37705) OR (`MenuId`=23120 AND `TextId` IN (35752,35749)) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=24140 AND `TextId`=38087) OR (`MenuId`=23300 AND `TextId`=36114) OR (`MenuId`=24386 AND `TextId`=38248) OR (`MenuId`=21672 AND `TextId`=33009) OR (`MenuId`=23112 AND `TextId`=35741) OR (`MenuId`=23764 AND `TextId`=37139) OR (`MenuId`=23358 AND `TextId`=36212) OR (`MenuId`=23352 AND `TextId`=28005) OR (`MenuId`=22584 AND `TextId`=34742) OR (`MenuId`=24124 AND `TextId`=37792) OR (`MenuId`=22966 AND `TextId`=35533) OR (`MenuId`=21714 AND `TextId`=33080) OR (`MenuId`=22632 AND `TextId`=34834) OR (`MenuId`=6944 AND `TextId`=7778) OR (`MenuId`=24188 AND `TextId`=37876) OR (`MenuId`=23799 AND `TextId` IN (37277,37350)) OR (`MenuId`=22557 AND `TextId`=34708) OR (`MenuId`=24284 AND `TextId`=38078) OR (`MenuId`=9868 AND `TextId`=11714) OR (`MenuId`=19168 AND `TextId`=28096) OR (`MenuId`=22559 AND `TextId`=34711) OR (`MenuId`=22730 AND `TextId`=7778) OR (`MenuId`=21844 AND `TextId`=33381) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=23451 AND `TextId`=36331) OR (`MenuId`=23237 AND `TextId`=35990) OR (`MenuId`=22587 AND `TextId`=34745) OR (`MenuId`=22570 AND `TextId`=34728) OR (`MenuId`=22597 AND `TextId`=34753) OR (`MenuId`=23567 AND `TextId`=35269) OR (`MenuId`=22020 AND `TextId`=33733) OR (`MenuId`=23361 AND `TextId`=36220) OR (`MenuId`=23993 AND `TextId`=37599) OR (`MenuId`=24372 AND `TextId`=38227) OR (`MenuId`=22069 AND `TextId`=33798) OR (`MenuId`=21933 AND `TextId`=33493) OR (`MenuId`=21952 AND `TextId`=33586) OR (`MenuId`=22583 AND `TextId`=34741) OR (`MenuId`=12949 AND `TextId`=18217) OR (`MenuId`=23316 AND `TextId`=36141) OR (`MenuId`=22422 AND `TextId`=34391) OR (`MenuId`=23396 AND `TextId`=36290) OR (`MenuId`=24223 AND `TextId`=37932) OR (`MenuId`=21043 AND `TextId`=31799) OR (`MenuId`=23745 AND `TextId`=37026) OR (`MenuId`=23160 AND `TextId`=35832) OR (`MenuId`=23739 AND `TextId`=37016) OR (`MenuId`=22784 AND `TextId`=35269) OR (`MenuId`=24125 AND `TextId`=37793);
+UPDATE `gossip_menu` SET `VerifiedBuild`=34220 WHERE (`TextId`=7778 AND `MenuId` IN (16593,6944,22730)) OR (`TextId`=27251 AND `MenuId`=18747) OR (`TextId`=29569 AND `MenuId`=19897) OR (`TextId`=8582 AND `MenuId`=7260) OR (`TextId`=35754 AND `MenuId`=23120) OR (`TextId`=35752 AND `MenuId`=23120) OR (`TextId`=33009 AND `MenuId`=21672) OR (`TextId`=37793 AND `MenuId`=24125) OR (`TextId`=37512 AND `MenuId`=23922) OR (`TextId`=37758 AND `MenuId`=24099) OR (`TextId`=37824 AND `MenuId`=24138) OR (`TextId`=37898 AND `MenuId`=24204) OR (`TextId`=37437 AND `MenuId`=23879) OR (`TextId`=37759 AND `MenuId`=24100) OR (`TextId`=37952 AND `MenuId`=24238) OR (`TextId`=37929 AND `MenuId`=24222) OR (`TextId`=37792 AND `MenuId`=24124) OR (`TextId`=37865 AND `MenuId`=24179) OR (`TextId`=37863 AND `MenuId`=24176) OR (`TextId`=37861 AND `MenuId`=24173) OR (`TextId`=37858 AND `MenuId`=24172) OR (`TextId`=37821 AND `MenuId`=24136) OR (`TextId`=37822 AND `MenuId`=24137) OR (`TextId`=37871 AND `MenuId`=24184) OR (`TextId`=37823 AND `MenuId`=23828) OR (`TextId`=37967 AND `MenuId`=24119) OR (`TextId`=34711 AND `MenuId`=22559) OR (`TextId`=14128 AND `MenuId`=10188) OR (`TextId`=37702 AND `MenuId`=24057) OR (`TextId`=38227 AND `MenuId`=24372) OR (`TextId`=37873 AND `MenuId`=24186) OR (`TextId`=37684 AND `MenuId`=24051) OR (`TextId`=37995 AND `MenuId`=24257) OR (`TextId`=37812 AND `MenuId`=24130) OR (`TextId`=35143 AND `MenuId`=22724) OR (`TextId`=36306 AND `MenuId` IN (23432,23433,23434,23435,23436)) OR (`TextId`=37026 AND `MenuId`=23745) OR (`TextId`=34160 AND `MenuId`=22290) OR (`TextId`=33493 AND `MenuId`=21933) OR (`TextId`=33743 AND `MenuId`=22209) OR (`TextId`=14127 AND `MenuId` IN (10182,18383)) OR (`TextId`=36212 AND `MenuId`=23358) OR (`TextId`=34385 AND `MenuId`=22417) OR (`TextId`=38087 AND `MenuId`=24140) OR (`TextId`=37876 AND `MenuId`=24188) OR (`TextId`=34543 AND `MenuId`=22493) OR (`TextId`=37537 AND `MenuId`=23943) OR (`TextId`=37595 AND `MenuId`=23988) OR (`TextId`=36307 AND `MenuId` IN (23426,23431,23429)) OR (`TextId`=35126 AND `MenuId`=22554) OR (`TextId`=27278 AND `MenuId`=23395) OR (`TextId`=36331 AND `MenuId`=23451) OR (`TextId`=33525 AND `MenuId`=21925) OR (`TextId`=34089 AND `MenuId`=22249) OR (`TextId`=35533 AND `MenuId`=22966) OR (`TextId`=34744 AND `MenuId`=22586) OR (`TextId`=34708 AND `MenuId`=22557) OR (`TextId`=28005 AND `MenuId`=23352) OR (`TextId`=31835 AND `MenuId`=21060) OR (`TextId`=31089 AND `MenuId`=20710) OR (`TextId`=31696 AND `MenuId`=21005) OR (`TextId`=31599 AND `MenuId`=20974) OR (`TextId`=12487 AND `MenuId`=18723) OR (`TextId`=26867 AND `MenuId`=18558) OR (`TextId`=31799 AND `MenuId`=21043) OR (`TextId`=37351 AND `MenuId`=23828) OR (`TextId`=13584 AND `MenuId`=9821) OR (`TextId`=36220 AND `MenuId`=23361) OR (`TextId`=36217 AND `MenuId`=23359) OR (`TextId`=36548 AND `MenuId`=23572) OR (`TextId`=34017 AND `MenuId`=22205) OR (`TextId`=34742 AND `MenuId`=22584) OR (`TextId`=34741 AND `MenuId`=22583) OR (`TextId`=14783 AND `MenuId`=10667) OR (`TextId`=37277 AND `MenuId`=23799) OR (`TextId`=13005 AND `MenuId`=9619) OR (`TextId`=13006 AND `MenuId`=9620) OR (`TextId`=14014 AND `MenuId`=20506) OR (`TextId`=14077 AND `MenuId`=10139) OR (`TextId`=30756 AND `MenuId`=20457) OR (`TextId`=20326 AND `MenuId`=14991) OR (`TextId`=28256 AND `MenuId`=19176) OR (`TextId`=28253 AND `MenuId`=19116) OR (`TextId`=26564 AND `MenuId`=18424) OR (`TextId`=27763 AND `MenuId`=19012) OR (`TextId`=27274 AND `MenuId`=18831) OR (`TextId`=27430 AND `MenuId`=18832) OR (`TextId`=26525 AND `MenuId`=18397) OR (`TextId`=26566 AND `MenuId`=18426) OR (`TextId`=27419 AND `MenuId`=18774) OR (`TextId`=27307 AND `MenuId`=18776) OR (`TextId`=26592 AND `MenuId`=18435) OR (`TextId`=27421 AND `MenuId`=18823) OR (`TextId`=27622 AND `MenuId`=18935) OR (`TextId`=27624 AND `MenuId`=18937) OR (`TextId`=27623 AND `MenuId`=18936) OR (`TextId`=28106 AND `MenuId`=19175) OR (`TextId`=26129 AND `MenuId`=17260) OR (`TextId`=26832 AND `MenuId`=18434) OR (`TextId`=26676 AND `MenuId`=18447) OR (`TextId`=27770 AND `MenuId`=19016) OR (`TextId`=26813 AND `MenuId`=18438) OR (`TextId`=27768 AND `MenuId`=19015) OR (`TextId`=27545 AND `MenuId`=18899) OR (`TextId`=27283 AND `MenuId` IN (18993,18761)) OR (`TextId`=27471 AND `MenuId`=18864) OR (`TextId`=31138 AND `MenuId`=20743) OR (`TextId`=27379 AND `MenuId`=18748) OR (`TextId`=29607 AND `MenuId`=19929) OR (`TextId`=29022 AND `MenuId`=19601) OR (`TextId`=27677 AND `MenuId`=18962) OR (`TextId`=38248 AND `MenuId`=24386) OR (`TextId`=36944 AND `MenuId`=23715) OR (`TextId`=36983 AND `MenuId`=23723) OR (`TextId`=12381 AND `MenuId`=9150) OR (`TextId`=15909 AND `MenuId`=11425) OR (`TextId`=25240 AND `MenuId`=19646) OR (`TextId`=34714 AND `MenuId`=22561) OR (`TextId`=30055 AND `MenuId`=20188) OR (`TextId`=32428 AND `MenuId`=21332) OR (`TextId`=36290 AND `MenuId`=23396) OR (`TextId`=37705 AND `MenuId`=24060) OR (`TextId`=35269 AND `MenuId` IN (23567,23411)) OR (`TextId`=37527 AND `MenuId`=24221) OR (`TextId`=37508 AND `MenuId`=24220) OR (`TextId`=37423 AND `MenuId`=23873) OR (`TextId`=20071 AND `MenuId`=13884) OR (`TextId`=19989 AND `MenuId`=13841) OR (`TextId`=19990 AND `MenuId`=13842) OR (`TextId`=20012 AND `MenuId`=13849) OR (`TextId`=34787 AND `MenuId`=22615) OR (`TextId`=33733 AND `MenuId`=22020) OR (`TextId`=31680 AND `MenuId`=21001) OR (`TextId`=35381 AND `MenuId`=22835) OR (`TextId`=36114 AND `MenuId`=23300) OR (`TextId`=35006 AND `MenuId`=22672) OR (`TextId`=2593 AND `MenuId`=1951) OR (`TextId`=7010 AND `MenuId`=5848) OR (`TextId`=17941 AND `MenuId`=12759) OR (`TextId`=6993 AND `MenuId`=5820) OR (`TextId`=33080 AND `MenuId`=21714) OR (`TextId`=5006 AND `MenuId`=14008) OR (`TextId`=28096 AND `MenuId`=19168) OR (`TextId`=28490 AND `MenuId`=19337) OR (`TextId`=28361 AND `MenuId`=19287) OR (`TextId`=29467 AND `MenuId`=19843) OR (`TextId`=28172 AND `MenuId`=19214) OR (`TextId`=12976 AND `MenuId`=21161) OR (`TextId`=36310 AND `MenuId`=23417) OR (`TextId`=34568 AND `MenuId`=23454) OR (`TextId`=33381 AND `MenuId`=21844) OR (`TextId`=34297 AND `MenuId`=22338) OR (`TextId`=31859 AND `MenuId`=21062) OR (`TextId`=32117 AND `MenuId`=21173) OR (`TextId`=31290 AND `MenuId`=20834) OR (`TextId`=31837 AND `MenuId`=21062) OR (`TextId`=27967 AND `MenuId`=19135) OR (`TextId`=29496 AND `MenuId`=19861) OR (`TextId`=37252 AND `MenuId`=23796) OR (`TextId`=5516 AND `MenuId`=4342) OR (`TextId`=33815 AND `MenuId`=22084) OR (`TextId`=33584 AND `MenuId`=21951) OR (`TextId`=34391 AND `MenuId`=22422) OR (`TextId`=34716 AND `MenuId`=22561) OR (`TextId`=35145 AND `MenuId`=22726) OR (`TextId`=28656 AND `MenuId`=19419) OR (`TextId`=26623 AND `MenuId`=18443) OR (`TextId`=28728 AND `MenuId`=19405) OR (`TextId`=28727 AND `MenuId`=19405) OR (`TextId`=26957 AND `MenuId`=18593) OR (`TextId`=26531 AND `MenuId`=18402) OR (`TextId`=26620 AND `MenuId`=18440) OR (`TextId`=26617 AND `MenuId`=18439) OR (`TextId`=26237 AND `MenuId`=18250) OR (`TextId`=26757 AND `MenuId`=18679) OR (`TextId`=26240 AND `MenuId`=18252) OR (`TextId`=26241 AND `MenuId`=18252) OR (`TextId`=26233 AND `MenuId`=18247) OR (`TextId`=26234 AND `MenuId`=18248) OR (`TextId`=26707 AND `MenuId`=18480) OR (`TextId`=26703 AND `MenuId`=18480) OR (`TextId`=26333 AND `MenuId`=18314) OR (`TextId`=26330 AND `MenuId`=18312) OR (`TextId`=33019 AND `MenuId`=21675) OR (`TextId`=32550 AND `MenuId`=21377) OR (`TextId`=30575 AND `MenuId`=20430) OR (`TextId`=27060 AND `MenuId`=18555) OR (`TextId`=37609 AND `MenuId`=24002) OR (`TextId`=33882 AND `MenuId`=22120) OR (`TextId`=14125 AND `MenuId`=10183) OR (`TextId`=34727 AND `MenuId`=22569) OR (`TextId`=34749 AND `MenuId`=22591) OR (`TextId`=28226 AND `MenuId`=19230) OR (`TextId`=28225 AND `MenuId`=19229) OR (`TextId`=35832 AND `MenuId`=23160) OR (`TextId`=35749 AND `MenuId`=23120) OR (`TextId`=36659 AND `MenuId`=23631) OR (`TextId`=35528 AND `MenuId`=22962) OR (`TextId`=35511 AND `MenuId`=22951) OR (`TextId`=33942 AND `MenuId`=22155) OR (`TextId`=33798 AND `MenuId`=22069) OR (`TextId`=34743 AND `MenuId`=22585) OR (`TextId`=35741 AND `MenuId`=23112) OR (`TextId`=34745 AND `MenuId`=22587) OR (`TextId`=29926 AND `MenuId`=20122) OR (`TextId`=29642 AND `MenuId`=19939) OR (`TextId`=31842 AND `MenuId`=21067) OR (`TextId`=37139 AND `MenuId`=23764) OR (`TextId`=33586 AND `MenuId`=21952) OR (`TextId`=36210 AND `MenuId`=23356);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33115 WHERE (`MenuId`=22554 AND `TextId`=35126) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=22209 AND `TextId`=33743) OR (`MenuId`=21043 AND `TextId`=31799) OR (`MenuId`=23745 AND `TextId`=37026) OR (`MenuId`=23120 AND `TextId` IN (35754,35752)) OR (`MenuId`=21925 AND `TextId`=33525) OR (`MenuId`=22966 AND `TextId`=35533) OR (`MenuId`=21844 AND `TextId`=33381) OR (`MenuId`=6944 AND `TextId`=7778) OR (`MenuId`=22559 AND `TextId`=34711) OR (`MenuId`=23358 AND `TextId`=36212) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=22976 AND `TextId`=35541) OR (`MenuId`=23828 AND `TextId`=37351) OR (`MenuId`=12949 AND `TextId`=18217) OR (`MenuId`=24125 AND `TextId`=37793) OR (`MenuId`=23435 AND `TextId`=36306) OR (`MenuId`=22417 AND `TextId`=34385) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=24242 AND `TextId`=37959) OR (`MenuId`=24124 AND `TextId`=37792) OR (`MenuId`=23434 AND `TextId`=36306) OR (`MenuId`=23715 AND `TextId` IN (36945,36944)) OR (`MenuId`=24188 AND `TextId`=37876) OR (`MenuId`=19168 AND `TextId`=28096) OR (`MenuId`=24257 AND `TextId`=37995) OR (`MenuId`=24203 AND `TextId`=37921) OR (`MenuId`=23631 AND `TextId`=36659) OR (`MenuId`=23799 AND `TextId`=37277) OR (`MenuId`=22561 AND `TextId`=34714) OR (`MenuId`=24386 AND `TextId`=38248) OR (`MenuId`=23300 AND `TextId`=36114) OR (`MenuId`=21150 AND `TextId`=32077) OR (`MenuId`=5921 AND `TextId`=7074) OR (`MenuId`=21001 AND `TextId`=31680) OR (`MenuId`=21188 AND `TextId`=32143) OR (`MenuId`=23352 AND `TextId`=28005) OR (`MenuId`=23429 AND `TextId`=36307) OR (`MenuId`=22975 AND `TextId`=35177) OR (`MenuId`=22807 AND `TextId`=35310) OR (`MenuId`=22724 AND `TextId`=35143) OR (`MenuId`=10667 AND `TextId`=14783);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33369 WHERE (`MenuId`=22209 AND `TextId`=33743) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=24257 AND `TextId`=37995) OR (`MenuId`=22554 AND `TextId` IN (35126,36224)) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=23120 AND `TextId` IN (35752,35754)) OR (`MenuId`=24125 AND `TextId`=37793) OR (`MenuId`=23922 AND `TextId`=37512) OR (`MenuId`=23352 AND `TextId`=28005) OR (`MenuId`=22557 AND `TextId` IN (34708,38210)) OR (`MenuId`=21925 AND `TextId`=33525) OR (`MenuId`=22724 AND `TextId`=35143) OR (`MenuId`=22483 AND `TextId`=34534) OR (`MenuId`=22490 AND `TextId`=34540) OR (`MenuId`=22975 AND `TextId`=35177) OR (`MenuId`=22559 AND `TextId`=34711) OR (`MenuId`=23646 AND `TextId`=36699) OR (`MenuId`=22338 AND `TextId`=34297) OR (`MenuId`=22261 AND `TextId`=34123) OR (`MenuId`=24306 AND `TextId`=38122) OR (`MenuId`=10188 AND `TextId`=14128) OR (`MenuId`=24215 AND `TextId`=37924) OR (`MenuId`=24288 AND `TextId`=38084) OR (`MenuId`=24307 AND `TextId`=38123) OR (`MenuId`=22584 AND `TextId`=34742) OR (`MenuId`=22586 AND `TextId`=34744) OR (`MenuId`=23799 AND `TextId`=37277) OR (`MenuId`=22590 AND `TextId`=34748) OR (`MenuId`=22591 AND `TextId`=34749) OR (`MenuId`=21356 AND `TextId`=32495) OR (`MenuId`=24415 AND `TextId`=38317) OR (`MenuId`=23950 AND `TextId`=37545) OR (`MenuId`=24224 AND `TextId`=37933) OR (`MenuId`=24459 AND `TextId`=38397) OR (`MenuId`=24124 AND `TextId`=37792) OR (`MenuId`=23316 AND `TextId`=36141) OR (`MenuId`=23988 AND `TextId`=37595) OR (`MenuId`=24186 AND `TextId`=37873) OR (`MenuId`=24051 AND `TextId`=37684) OR (`MenuId`=24241 AND `TextId`=37958) OR (`MenuId`=24130 AND `TextId`=37812) OR (`MenuId`=23358 AND `TextId`=36212) OR (`MenuId`=23417 AND `TextId`=36310) OR (`MenuId`=22966 AND `TextId`=35533) OR (`MenuId`=21933 AND `TextId`=33493) OR (`MenuId`=22726 AND `TextId`=35145) OR (`MenuId`=21714 AND `TextId`=33080) OR (`MenuId`=24140 AND `TextId`=38087) OR (`MenuId`=24188 AND `TextId`=37876) OR (`MenuId`=23300 AND `TextId`=36114) OR (`MenuId`=22540 AND `TextId`=34658) OR (`MenuId`=9868 AND `TextId`=11714) OR (`MenuId`=22951 AND `TextId`=35511) OR (`MenuId`=21672 AND `TextId`=33009) OR (`MenuId`=24284 AND `TextId`=38078) OR (`MenuId`=18860 AND `TextId`=27613) OR (`MenuId`=22845 AND `TextId`=35398) OR (`MenuId`=24386 AND `TextId`=38248) OR (`MenuId`=22976 AND `TextId`=35541) OR (`MenuId`=23745 AND `TextId`=37026) OR (`MenuId`=10667 AND `TextId`=14783) OR (`MenuId`=19168 AND `TextId`=28096) OR (`MenuId`=14819 AND `TextId`=19719) OR (`MenuId`=12235 AND `TextId`=17180) OR (`MenuId`=22754 AND `TextId`=35214) OR (`MenuId`=22730 AND `TextId`=7778) OR (`MenuId`=23567 AND `TextId`=35269) OR (`MenuId`=6944 AND `TextId`=7778) OR (`MenuId`=9821 AND `TextId`=13584) OR (`MenuId`=24017 AND `TextId`=37620) OR (`MenuId`=22585 AND `TextId`=34743) OR (`MenuId`=23112 AND `TextId`=35741) OR (`MenuId`=23764 AND `TextId`=37139) OR (`MenuId`=21043 AND `TextId`=31799) OR (`MenuId`=21923 AND `TextId`=33522) OR (`MenuId`=21844 AND `TextId`=33381) OR (`MenuId`=12949 AND `TextId`=18217) OR (`MenuId`=24221 AND `TextId`=37527) OR (`MenuId`=23160 AND `TextId`=35832) OR (`MenuId`=24138 AND `TextId`=37824) OR (`MenuId`=24099 AND `TextId`=37758) OR (`MenuId`=24214 AND `TextId`=37923) OR (`MenuId`=24238 AND `TextId`=37952) OR (`MenuId`=24222 AND `TextId`=37929) OR (`MenuId`=24296 AND `TextId`=38093) OR (`MenuId`=24179 AND `TextId`=37865) OR (`MenuId`=24176 AND `TextId`=37863) OR (`MenuId`=24173 AND `TextId`=37861) OR (`MenuId`=24172 AND `TextId`=37858) OR (`MenuId`=24136 AND `TextId`=37821) OR (`MenuId`=24137 AND `TextId`=37822) OR (`MenuId`=24184 AND `TextId`=37871) OR (`MenuId`=23828 AND `TextId`=37823) OR (`MenuId`=24185 AND `TextId`=37872) OR (`MenuId`=24119 AND `TextId`=37967) OR (`MenuId`=22587 AND `TextId`=34745) OR (`MenuId`=22583 AND `TextId`=34741) OR (`MenuId`=23572 AND `TextId`=36548) OR (`MenuId`=24086 AND `TextId`=37745) OR (`MenuId`=24230 AND `TextId`=37941) OR (`MenuId`=24234 AND `TextId`=37945) OR (`MenuId`=21951 AND `TextId`=33584) OR (`MenuId`=24075 AND `TextId`=37727) OR (`MenuId`=24018 AND `TextId` IN (38115,38116,37621)) OR (`MenuId`=24053 AND `TextId`=37687) OR (`MenuId`=24040 AND `TextId`=37656) OR (`MenuId`=24170 AND `TextId`=37856) OR (`MenuId`=24169 AND `TextId`=37855) OR (`MenuId`=24019 AND `TextId`=37622) OR (`MenuId`=24363 AND `TextId`=38217) OR (`MenuId`=22561 AND `TextId` IN (34716,34714)) OR (`MenuId`=24359 AND `TextId`=38212) OR (`MenuId`=22716 AND `TextId`=35125) OR (`MenuId`=23415 AND `TextId`=36308) OR (`MenuId`=23943 AND `TextId`=37537) OR (`MenuId`=22417 AND `TextId`=34385) OR (`MenuId`=21150 AND `TextId`=32077) OR (`MenuId`=23434 AND `TextId`=36306) OR (`MenuId`=23263 AND `TextId`=36040) OR (`MenuId`=23424 AND `TextId`=36307) OR (`MenuId`=23895 AND `TextId`=37458) OR (`MenuId`=24424 AND `TextId`=38329) OR (`MenuId`=24057 AND `TextId`=37702) OR (`MenuId`=22069 AND `TextId`=33798) OR (`MenuId`=22737 AND `TextId`=35177) OR (`MenuId`=22589 AND `TextId`=34747) OR (`MenuId`=21764 AND `TextId`=33233) OR (`MenuId`=24002 AND `TextId`=37609) OR (`MenuId`=22205 AND `TextId`=34017) OR (`MenuId`=24182 AND `TextId`=37867) OR (`MenuId`=24428 AND `TextId`=38333) OR (`MenuId`=24427 AND `TextId`=38332) OR (`MenuId`=24111 AND `TextId`=37768) OR (`MenuId`=24150 AND `TextId`=37832) OR (`MenuId`=24426 AND `TextId`=38331) OR (`MenuId`=21097 AND `TextId`=31982) OR (`MenuId`=24403 AND `TextId`=38300) OR (`MenuId`=23879 AND `TextId`=37437) OR (`MenuId`=24100 AND `TextId`=37759) OR (`MenuId`=24263 AND `TextId`=38002) OR (`MenuId`=24262 AND `TextId`=38001) OR (`MenuId`=18848 AND `TextId`=27457) OR (`MenuId`=18723 AND `TextId`=12487) OR (`MenuId`=22020 AND `TextId`=33733) OR (`MenuId`=22672 AND `TextId`=35006) OR (`MenuId`=22505 AND `TextId`=34561) OR (`MenuId`=16680 AND `TextId`=25419) OR (`MenuId`=22384 AND `TextId`=34331) OR (`MenuId`=21797 AND `TextId`=33309) OR (`MenuId`=22445 AND `TextId`=34568) OR (`MenuId`=24305 AND `TextId`=38121) OR (`MenuId`=24372 AND `TextId`=38227) OR (`MenuId`=24321 AND `TextId`=38153) OR (`MenuId`=23715 AND `TextId`=36944) OR (`MenuId`=21516 AND `TextId`=32795) OR (`MenuId`=23436 AND `TextId`=36306) OR (`MenuId`=23237 AND `TextId`=35990) OR (`MenuId`=22665 AND `TextId` IN (35041,34975)) OR (`MenuId`=22770 AND `TextId`=35242) OR (`MenuId`=22646 AND `TextId`=34894) OR (`MenuId`=22636 AND `TextId`=34880) OR (`MenuId`=22637 AND `TextId`=34881) OR (`MenuId`=23454 AND `TextId`=34568) OR (`MenuId`=22695 AND `TextId`=35072) OR (`MenuId`=22694 AND `TextId`=35071) OR (`MenuId`=23332 AND `TextId`=36167) OR (`MenuId`=22691 AND `TextId`=35056) OR (`MenuId`=22661 AND `TextId`=34958) OR (`MenuId`=23356 AND `TextId` IN (36210,34710)) OR (`MenuId`=22558 AND `TextId`=34709) OR (`MenuId`=6121 AND `TextId`=7274) OR (`MenuId`=22604 AND `TextId`=34763) OR (`MenuId`=22622 AND `TextId`=34797) OR (`MenuId`=22623 AND `TextId`=34798) OR (`MenuId`=23411 AND `TextId`=35269) OR (`MenuId`=23451 AND `TextId`=36331) OR (`MenuId`=3841 AND `TextId`=4693);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33095 WHERE (`MenuId`=22557 AND `TextId`=34708) OR (`MenuId`=6944 AND `TextId`=7778) OR (`MenuId`=23458 AND `TextId`=36361) OR (`MenuId`=23416 AND `TextId`=36309) OR (`MenuId`=21784 AND `TextId`=33273) OR (`MenuId`=22417 AND `TextId`=34385) OR (`MenuId`=23988 AND `TextId`=37595) OR (`MenuId`=21933 AND `TextId`=33493) OR (`MenuId`=10181 AND `TextId`=14126) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=22554 AND `TextId`=35126) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=10667 AND `TextId`=14783) OR (`MenuId`=23300 AND `TextId`=36114) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=22209 AND `TextId`=33743);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33941 WHERE (`MenuId`=21188 AND `TextId`=32143) OR (`MenuId`=21987 AND `TextId`=33671) OR (`MenuId`=21335 AND `TextId`=32435) OR (`MenuId`=21411 AND `TextId`=32613) OR (`MenuId`=21925 AND `TextId`=33525) OR (`MenuId`=23358 AND `TextId`=36212) OR (`MenuId`=22554 AND `TextId`=35126) OR (`MenuId`=23764 AND `TextId`=37139) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=21001 AND `TextId`=31680) OR (`MenuId`=23174 AND `TextId`=35848) OR (`MenuId`=10667 AND `TextId`=14783) OR (`MenuId`=19168 AND `TextId`=28096) OR (`MenuId`=23799 AND `TextId` IN (37277,37350)) OR (`MenuId`=22966 AND `TextId`=35533) OR (`MenuId`=22595 AND `TextId`=34755) OR (`MenuId`=22597 AND `TextId`=34753) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=22730 AND `TextId`=7778) OR (`MenuId`=22559 AND `TextId`=34711) OR (`MenuId`=22417 AND `TextId`=34385) OR (`MenuId`=22557 AND `TextId` IN (34708,38210)) OR (`MenuId`=23352 AND `TextId`=28005) OR (`MenuId`=22835 AND `TextId`=35381) OR (`MenuId`=24124 AND `TextId`=37792) OR (`MenuId`=21714 AND `TextId`=33080) OR (`MenuId`=9868 AND `TextId`=11714) OR (`MenuId`=24140 AND `TextId`=38087) OR (`MenuId`=23828 AND `TextId`=37351) OR (`MenuId`=22249 AND `TextId`=34089) OR (`MenuId`=23424 AND `TextId`=36307) OR (`MenuId`=23434 AND `TextId`=36306) OR (`MenuId`=23988 AND `TextId`=37595) OR (`MenuId`=23300 AND `TextId`=36114) OR (`MenuId`=9821 AND `TextId`=13584) OR (`MenuId`=18276 AND `TextId`=26287) OR (`MenuId`=17126 AND `TextId`=25172) OR (`MenuId`=17128 AND `TextId`=25174) OR (`MenuId`=16593 AND `TextId`=7778) OR (`MenuId`=16420 AND `TextId`=23790) OR (`MenuId`=21844 AND `TextId`=33381) OR (`MenuId`=6944 AND `TextId`=7778) OR (`MenuId`=22561 AND `TextId`=34714) OR (`MenuId`=23943 AND `TextId`=37537) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=23451 AND `TextId`=36331) OR (`MenuId`=23120 AND `TextId` IN (35752,35754,35749)) OR (`MenuId`=23454 AND `TextId`=34568) OR (`MenuId`=22716 AND `TextId`=35125) OR (`MenuId`=18747 AND `TextId`=27251) OR (`MenuId`=7215 AND `TextId`=8506) OR (`MenuId`=20430 AND `TextId`=30575) OR (`MenuId`=22726 AND `TextId`=35145) OR (`MenuId`=24241 AND `TextId`=37958) OR (`MenuId`=24424 AND `TextId`=38329) OR (`MenuId`=24158 AND `TextId`=37842) OR (`MenuId`=24363 AND `TextId`=38217) OR (`MenuId`=23112 AND `TextId`=35741) OR (`MenuId`=23458 AND `TextId`=36361) OR (`MenuId`=24188 AND `TextId`=37876) OR (`MenuId`=24075 AND `TextId`=37727) OR (`MenuId`=24018 AND `TextId` IN (38115,37621)) OR (`MenuId`=24053 AND `TextId`=37687) OR (`MenuId`=24040 AND `TextId`=37656) OR (`MenuId`=24019 AND `TextId`=37622) OR (`MenuId`=22724 AND `TextId`=35143) OR (`MenuId`=22540 AND `TextId`=34658) OR (`MenuId`=22604 AND `TextId`=34763) OR (`MenuId`=22622 AND `TextId`=34797) OR (`MenuId`=22623 AND `TextId`=34798) OR (`MenuId`=23356 AND `TextId` IN (34710,36210)) OR (`MenuId`=22665 AND `TextId` IN (35041,34975)) OR (`MenuId`=22646 AND `TextId`=34894) OR (`MenuId`=22637 AND `TextId`=34881) OR (`MenuId`=22636 AND `TextId`=34880) OR (`MenuId`=20457 AND `TextId`=30756) OR (`MenuId`=19135 AND `TextId`=27967) OR (`MenuId`=19861 AND `TextId`=29496) OR (`MenuId`=17357 AND `TextId`=25809) OR (`MenuId`=17293 AND `TextId`=25634) OR (`MenuId`=18757 AND `TextId`=27278) OR (`MenuId`=12949 AND `TextId`=18217) OR (`MenuId`=21246 AND `TextId`=32245) OR (`MenuId`=21356 AND `TextId`=32495) OR (`MenuId`=23745 AND `TextId`=37026) OR (`MenuId`=22976 AND `TextId`=35541) OR (`MenuId`=23567 AND `TextId`=35269) OR (`MenuId`=21826 AND `TextId`=33356) OR (`MenuId`=21823 AND `TextId`=33353) OR (`MenuId`=21675 AND `TextId`=33019) OR (`MenuId`=22256 AND `TextId`=34097) OR (`MenuId`=22255 AND `TextId`=34096) OR (`MenuId`=22254 AND `TextId`=34095) OR (`MenuId`=21656 AND `TextId`=32981) OR (`MenuId`=21667 AND `TextId`=32998) OR (`MenuId`=21670 AND `TextId`=33007) OR (`MenuId`=21661 AND `TextId`=32991) OR (`MenuId`=21657 AND `TextId`=32982) OR (`MenuId`=21901 AND `TextId`=33474) OR (`MenuId`=21762 AND `TextId` IN (33231,33362)) OR (`MenuId`=21781 AND `TextId`=33261) OR (`MenuId`=21533 AND `TextId` IN (32779,32819)) OR (`MenuId`=21785 AND `TextId`=33275) OR (`MenuId`=21787 AND `TextId`=33276) OR (`MenuId`=21786 AND `TextId`=33276) OR (`MenuId`=21766 AND `TextId`=33236) OR (`MenuId`=21530 AND `TextId`=32782) OR (`MenuId`=21176 AND `TextId`=32122) OR (`MenuId`=21486 AND `TextId`=32732) OR (`MenuId`=21177 AND `TextId`=32123) OR (`MenuId`=22439 AND `TextId`=34426) OR (`MenuId`=21487 AND `TextId`=32733) OR (`MenuId`=23411 AND `TextId`=35269) OR (`MenuId`=21185 AND `TextId`=32137) OR (`MenuId`=21814 AND `TextId`=33343) OR (`MenuId`=21132 AND `TextId`=32033) OR (`MenuId`=22213 AND `TextId`=34032) OR (`MenuId`=21433 AND `TextId` IN (32636,33494)) OR (`MenuId`=22445 AND `TextId`=34568) OR (`MenuId`=21691 AND `TextId`=33048) OR (`MenuId`=22209 AND `TextId`=33743) OR (`MenuId`=16940 AND `TextId`=24652) OR (`MenuId`=24372 AND `TextId`=38227) OR (`MenuId`=24386 AND `TextId`=38248) OR (`MenuId`=21933 AND `TextId`=33493) OR (`MenuId`=22422 AND `TextId`=34391) OR (`MenuId`=23237 AND `TextId`=35990) OR (`MenuId`=21891 AND `TextId`=33453) OR (`MenuId`=21115 AND `TextId`=32003) OR (`MenuId`=23141 AND `TextId`=35814) OR (`MenuId`=21955 AND `TextId`=33592) OR (`MenuId`=24002 AND `TextId`=37609) OR (`MenuId`=24242 AND `TextId`=37959) OR (`MenuId`=24224 AND `TextId`=37933) OR (`MenuId`=21310 AND `TextId`=32367) OR (`MenuId`=24125 AND `TextId`=37793) OR (`MenuId`=21043 AND `TextId`=31799) OR (`MenuId`=21951 AND `TextId`=33584) OR (`MenuId`=24257 AND `TextId`=37995) OR (`MenuId`=22615 AND `TextId`=34787) OR (`MenuId`=24060 AND `TextId`=37705) OR (`MenuId`=22587 AND `TextId`=34745) OR (`MenuId`=11454 AND `TextId`=15971) OR (`MenuId`=11546 AND `TextId`=16117) OR (`MenuId`=11319 AND `TextId`=15774) OR (`MenuId`=11306 AND `TextId`=15760) OR (`MenuId`=11316 AND `TextId` IN (15784,15772)) OR (`MenuId`=11324 AND `TextId`=15780) OR (`MenuId`=11322 AND `TextId`=15778) OR (`MenuId`=11280 AND `TextId`=15715) OR (`MenuId`=12167 AND `TextId`=17107) OR (`MenuId`=11541 AND `TextId`=16112) OR (`MenuId`=11339 AND `TextId`=15794) OR (`MenuId`=12646 AND `TextId`=17791) OR (`MenuId`=11447 AND `TextId` IN (15953,15952)) OR (`MenuId`=12561 AND `TextId`=17638) OR (`MenuId`=11297 AND `TextId`=15742) OR (`MenuId`=11281 AND `TextId`=15711) OR (`MenuId`=11289 AND `TextId` IN (15738,15741,15725)) OR (`MenuId`=11226 AND `TextId` IN (15634,15633)) OR (`MenuId`=11451 AND `TextId`=15965) OR (`MenuId`=12613 AND `TextId`=17711) OR (`MenuId`=21672 AND `TextId`=33009) OR (`MenuId`=17090 AND `TextId`=25119) OR (`MenuId`=16475 AND `TextId`=23892) OR (`MenuId`=16518 AND `TextId`=23994) OR (`MenuId`=16858 AND `TextId`=24515) OR (`MenuId`=16433 AND `TextId`=23824) OR (`MenuId`=16432 AND `TextId`=23823) OR (`MenuId`=16405 AND `TextId`=23740) OR (`MenuId`=16641 AND `TextId`=24170) OR (`MenuId`=16376 AND `TextId`=23740) OR (`MenuId`=16693 AND `TextId`=24252) OR (`MenuId`=16863 AND `TextId`=24524) OR (`MenuId`=23796 AND `TextId`=37252) OR (`MenuId`=11470 AND `TextId`=15998) OR (`MenuId`=23994 AND `TextId`=37600) OR (`MenuId`=23417 AND `TextId`=36310) OR (`MenuId`=22011 AND `TextId`=33716) OR (`MenuId`=22537 AND `TextId`=33743) OR (`MenuId`=22620 AND `TextId`=34793) OR (`MenuId`=22650 AND `TextId`=34905) OR (`MenuId`=21895 AND `TextId`=33466) OR (`MenuId`=22787 AND `TextId`=563) OR (`MenuId`=10630 AND `TextId`=14723) OR (`MenuId`=18509 AND `TextId`=26758) OR (`MenuId`=18507 AND `TextId`=29307) OR (`MenuId`=18312 AND `TextId`=26330) OR (`MenuId`=18250 AND `TextId`=26237) OR (`MenuId`=18273 AND `TextId`=26277) OR (`MenuId`=18723 AND `TextId`=12487) OR (`MenuId`=23436 AND `TextId`=36306) OR (`MenuId`=21923 AND `TextId`=33522) OR (`MenuId`=23160 AND `TextId`=35832) OR (`MenuId`=14485 AND `TextId`=20430) OR (`MenuId`=22672 AND `TextId`=35006) OR (`MenuId`=23316 AND `TextId`=36141) OR (`MenuId`=23396 AND `TextId`=36290) OR (`MenuId`=22155 AND `TextId`=33942);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33169 WHERE (`TextId`=35126 AND `MenuId`=22554) OR (`TextId`=7778 AND `MenuId` IN (22730,6944)) OR (`TextId`=34711 AND `MenuId`=22559) OR (`TextId`=35143 AND `MenuId`=22724) OR (`TextId`=36306 AND `MenuId` IN (23432,23436)) OR (`TextId`=34385 AND `MenuId`=22417) OR (`TextId`=37595 AND `MenuId`=23988) OR (`TextId`=27278 AND `MenuId`=23395) OR (`TextId`=33080 AND `MenuId`=21714) OR (`TextId`=14127 AND `MenuId`=10182) OR (`TextId`=36114 AND `MenuId`=23300) OR (`TextId`=33493 AND `MenuId`=21933) OR (`TextId`=37351 AND `MenuId`=23828) OR (`TextId`=33743 AND `MenuId`=22209) OR (`TextId`=38248 AND `MenuId`=24386) OR (`TextId`=34708 AND `MenuId`=22557) OR (`TextId`=28005 AND `MenuId`=23352) OR (`TextId`=34391 AND `MenuId`=22422) OR (`TextId`=35990 AND `MenuId`=23237) OR (`TextId`=35994 AND `MenuId`=23241) OR (`TextId`=33983 AND `MenuId`=22181) OR (`TextId`=35754 AND `MenuId`=23120) OR (`TextId`=27251 AND `MenuId`=18747) OR (`TextId`=26867 AND `MenuId`=18558) OR (`TextId`=12487 AND `MenuId`=18723) OR (`TextId`=25240 AND `MenuId`=19812) OR (`TextId`=29518 AND `MenuId`=19555) OR (`TextId`=28910 AND `MenuId`=19556) OR (`TextId`=29593 AND `MenuId`=19918) OR (`TextId`=35752 AND `MenuId`=23120) OR (`TextId`=33525 AND `MenuId`=21925) OR (`TextId`=14126 AND `MenuId`=10181) OR (`TextId`=33413 AND `MenuId`=21867) OR (`TextId`=37277 AND `MenuId`=23799) OR (`TextId`=19876 AND `MenuId`=13789) OR (`TextId`=17423 AND `MenuId`=12396) OR (`TextId`=37792 AND `MenuId`=24124) OR (`TextId`=36040 AND `MenuId`=23263) OR (`TextId`=35006 AND `MenuId`=22672) OR (`TextId`=14783 AND `MenuId`=10667) OR (`TextId`=35741 AND `MenuId`=23112) OR (`TextId`=19719 AND `MenuId`=14955) OR (`TextId`=35381 AND `MenuId`=22835) OR (`TextId`=34160 AND `MenuId`=22290) OR (`TextId`=34324 AND `MenuId`=22375) OR (`TextId`=34119 AND `MenuId`=22259) OR (`TextId`=34003 AND `MenuId`=22195) OR (`TextId`=33984 AND `MenuId`=22182) OR (`TextId`=33522 AND `MenuId`=21923) OR (`TextId`=36307 AND `MenuId` IN (23424,23414)) OR (`TextId`=20269 AND `MenuId`=14357) OR (`TextId`=37995 AND `MenuId`=24257) OR (`TextId`=33733 AND `MenuId`=22020) OR (`TextId`=34787 AND `MenuId`=22615) OR (`TextId`=31680 AND `MenuId`=21001) OR (`TextId`=37026 AND `MenuId`=23745) OR (`TextId`=38087 AND `MenuId`=24140) OR (`TextId`=29022 AND `MenuId`=19601) OR (`TextId`=31855 AND `MenuId`=21060) OR (`TextId`=31842 AND `MenuId`=21067) OR (`TextId`=36290 AND `MenuId`=23396);
+UPDATE `gossip_menu` SET `VerifiedBuild`=34769 WHERE (`MenuId`=22554 AND `TextId`=35126) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=22209 AND `TextId`=33743) OR (`MenuId`=21933 AND `TextId`=33493) OR (`MenuId`=21678 AND `TextId` IN (33024,33025)) OR (`MenuId`=22417 AND `TextId`=34385) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=21925 AND `TextId`=33525) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=22557 AND `TextId`=34708) OR (`MenuId`=23943 AND `TextId`=37537) OR (`MenuId`=22559 AND `TextId`=34711) OR (`MenuId`=22384 AND `TextId`=34331) OR (`MenuId`=21797 AND `TextId`=33309) OR (`MenuId`=22561 AND `TextId`=34714) OR (`MenuId`=23411 AND `TextId`=35269) OR (`MenuId`=21934 AND `TextId`=33543) OR (`MenuId`=22976 AND `TextId`=35541) OR (`MenuId`=21043 AND `TextId`=31799) OR (`MenuId`=23745 AND `TextId`=37026) OR (`MenuId`=23120 AND `TextId` IN (35749,35752)) OR (`MenuId`=24386 AND `TextId`=38248) OR (`MenuId`=22615 AND `TextId` IN (34787,34786)) OR (`MenuId`=22422 AND `TextId`=34391) OR (`MenuId`=21330 AND `TextId`=32419) OR (`MenuId`=22626 AND `TextId`=34017) OR (`MenuId`=21777 AND `TextId`=33245) OR (`MenuId`=22178 AND `TextId`=33980) OR (`MenuId`=22205 AND `TextId`=34017) OR (`MenuId`=21038 AND `TextId`=31776) OR (`MenuId`=21492 AND `TextId`=32741) OR (`MenuId`=21493 AND `TextId`=32743) OR (`MenuId`=23211 AND `TextId`=35898) OR (`MenuId`=23195 AND `TextId`=35882) OR (`MenuId`=23202 AND `TextId`=35889) OR (`MenuId`=23200 AND `TextId`=35887) OR (`MenuId`=23207 AND `TextId`=35894) OR (`MenuId`=23208 AND `TextId`=35895) OR (`MenuId`=23209 AND `TextId`=35896) OR (`MenuId`=23210 AND `TextId`=35897) OR (`MenuId`=22455 AND `TextId`=34415) OR (`MenuId`=22431 AND `TextId`=34415) OR (`MenuId`=14324 AND `TextId`=20227) OR (`MenuId`=23458 AND `TextId`=36361) OR (`MenuId`=21174 AND `TextId`=32119) OR (`MenuId`=21180 AND `TextId`=32130) OR (`MenuId`=22257 AND `TextId`=34106) OR (`MenuId`=21942 AND `TextId`=33555) OR (`MenuId`=21231 AND `TextId`=32212) OR (`MenuId`=22654 AND `TextId`=34910) OR (`MenuId`=18747 AND `TextId`=27251) OR (`MenuId`=22471 AND `TextId`=34508) OR (`MenuId`=22712 AND `TextId`=35116) OR (`MenuId`=23352 AND `TextId`=28005) OR (`MenuId`=21279 AND `TextId`=32292) OR (`MenuId`=22253 AND `TextId`=33964) OR (`MenuId`=23275 AND `TextId`=36069) OR (`MenuId`=21306 AND `TextId`=33287) OR (`MenuId`=21094 AND `TextId` IN (31980,32008)) OR (`MenuId`=22433 AND `TextId`=34418) OR (`MenuId`=21468 AND `TextId`=32702) OR (`MenuId`=21469 AND `TextId`=32703) OR (`MenuId`=21470 AND `TextId`=32704) OR (`MenuId`=22677 AND `TextId`=35011) OR (`MenuId`=21384 AND `TextId`=32577) OR (`MenuId`=21496 AND `TextId`=32759) OR (`MenuId`=22678 AND `TextId`=35046) OR (`MenuId`=22369 AND `TextId`=35013) OR (`MenuId`=22368 AND `TextId`=35045) OR (`MenuId`=21830 AND `TextId`=33360) OR (`MenuId`=22402 AND `TextId`=34364) OR (`MenuId`=22361 AND `TextId`=35048) OR (`MenuId`=22376 AND `TextId`=34181) OR (`MenuId`=22356 AND `TextId`=35044) OR (`MenuId`=22472 AND `TextId`=34509) OR (`MenuId`=24125 AND `TextId`=37793) OR (`MenuId`=24124 AND `TextId`=37792) OR (`MenuId`=21844 AND `TextId`=33381) OR (`MenuId`=6944 AND `TextId`=7778) OR (`MenuId`=24257 AND `TextId`=37995) OR (`MenuId`=10667 AND `TextId`=14783) OR (`MenuId`=21062 AND `TextId`=31859) OR (`MenuId`=21005 AND `TextId`=31696) OR (`MenuId`=20430 AND `TextId`=30575) OR (`MenuId`=23799 AND `TextId` IN (37277,37350)) OR (`MenuId`=23988 AND `TextId`=37595) OR (`MenuId`=21385 AND `TextId`=32578) OR (`MenuId`=22286 AND `TextId`=34155) OR (`MenuId`=22288 AND `TextId`=34156) OR (`MenuId`=22287 AND `TextId`=34157) OR (`MenuId`=22683 AND `TextId`=35030) OR (`MenuId`=21437 AND `TextId` IN (32859,32858,32640)) OR (`MenuId`=21604 AND `TextId`=32948) OR (`MenuId`=21606 AND `TextId`=32950) OR (`MenuId`=21623 AND `TextId`=32963) OR (`MenuId`=21601 AND `TextId` IN (32939,32937)) OR (`MenuId`=21655 AND `TextId`=32980) OR (`MenuId`=21654 AND `TextId`=32979) OR (`MenuId`=21645 AND `TextId`=32969) OR (`MenuId`=22423 AND `TextId` IN (34393,34392)) OR (`MenuId`=21651 AND `TextId`=32975) OR (`MenuId`=21875 AND `TextId`=33434) OR (`MenuId`=21877 AND `TextId`=33437) OR (`MenuId`=21121 AND `TextId`=32008) OR (`MenuId`=24140 AND `TextId`=38087) OR (`MenuId`=21390 AND `TextId` IN (32752,32767)) OR (`MenuId`=23300 AND `TextId`=36114) OR (`MenuId`=16593 AND `TextId`=7778) OR (`MenuId`=9868 AND `TextId`=11714) OR (`MenuId`=10188 AND `TextId`=14128) OR (`MenuId`=22632 AND `TextId`=34834) OR (`MenuId`=9821 AND `TextId`=13584) OR (`MenuId`=21547 AND `TextId`=32856) OR (`MenuId`=22445 AND `TextId`=34568) OR (`MenuId`=23358 AND `TextId`=36212) OR (`MenuId`=23989 AND `TextId`=36793) OR (`MenuId`=9184 AND `TextId`=12472) OR (`MenuId`=9144 AND `TextId`=12373) OR (`MenuId`=9316 AND `TextId`=12626) OR (`MenuId`=9186 AND `TextId`=12477) OR (`MenuId`=9166 AND `TextId`=12424) OR (`MenuId`=9164 AND `TextId`=12422) OR (`MenuId`=10224 AND `TextId`=14215) OR (`MenuId`=13048 AND `TextId`=18324) OR (`MenuId`=21356 AND `TextId`=32495) OR (`MenuId`=21905 AND `TextId` IN (33486,33834)) OR (`MenuId`=21906 AND `TextId` IN (33490,33837)) OR (`MenuId`=22099 AND `TextId`=33839) OR (`MenuId`=22098 AND `TextId`=33838) OR (`MenuId`=22097 AND `TextId`=33836) OR (`MenuId`=22096 AND `TextId`=33835) OR (`MenuId`=21515 AND `TextId`=32794) OR (`MenuId`=23241 AND `TextId`=35994) OR (`MenuId`=22181 AND `TextId`=33983) OR (`MenuId`=21158 AND `TextId`=32096) OR (`MenuId`=23237 AND `TextId`=35990) OR (`MenuId`=21433 AND `TextId`=32636) OR (`MenuId`=23112 AND `TextId`=35741) OR (`MenuId`=23994 AND `TextId`=37600) OR (`MenuId`=19897 AND `TextId`=29569) OR (`MenuId`=21714 AND `TextId`=33080) OR (`MenuId`=22730 AND `TextId`=7778) OR (`MenuId`=22966 AND `TextId` IN (35533,36265)) OR (`MenuId`=24223 AND `TextId`=37932) OR (`MenuId`=22726 AND `TextId`=35145) OR (`MenuId`=23160 AND `TextId`=35832) OR (`MenuId`=22228 AND `TextId`=34049) OR (`MenuId`=21196 AND `TextId`=32155) OR (`MenuId`=21093 AND `TextId`=31977) OR (`MenuId`=21074 AND `TextId`=31922) OR (`MenuId`=23723 AND `TextId`=36983) OR (`MenuId`=22498 AND `TextId`=34550) OR (`MenuId`=21413 AND `TextId`=35643) OR (`MenuId`=23441 AND `TextId` IN (36239,36312)) OR (`MenuId`=16640 AND `TextId`=24169) OR (`MenuId`=16718 AND `TextId`=24295) OR (`MenuId`=17107 AND `TextId`=25151) OR (`MenuId`=16476 AND `TextId` IN (23905,23904)) OR (`MenuId`=16575 AND `TextId` IN (24076,24075)) OR (`MenuId`=10361 AND `TextId`=10653) OR (`MenuId`=22835 AND `TextId`=35381) OR (`MenuId`=22584 AND `TextId`=34742) OR (`MenuId`=22583 AND `TextId`=34741) OR (`MenuId`=21096 AND `TextId`=31981) OR (`MenuId`=23435 AND `TextId`=36306) OR (`MenuId`=22249 AND `TextId`=34089) OR (`MenuId`=9278 AND `TextId`=12582) OR (`MenuId`=9157 AND `TextId`=12390) OR (`MenuId`=9274 AND `TextId`=12524) OR (`MenuId`=23796 AND `TextId`=37252) OR (`MenuId`=9148 AND `TextId`=12376) OR (`MenuId`=9204 AND `TextId`=12506) OR (`MenuId`=11389 AND `TextId`=15864) OR (`MenuId`=23567 AND `TextId`=35269) OR (`MenuId`=22293 AND `TextId`=34164) OR (`MenuId`=22277 AND `TextId`=34145) OR (`MenuId`=22272 AND `TextId`=34144) OR (`MenuId`=22271 AND `TextId`=34143) OR (`MenuId`=22270 AND `TextId`=34140) OR (`MenuId`=22269 AND `TextId`=34139) OR (`MenuId`=22268 AND `TextId`=34135) OR (`MenuId`=22283 AND `TextId`=34152) OR (`MenuId`=22291 AND `TextId`=34161) OR (`MenuId`=21793 AND `TextId`=33295) OR (`MenuId`=21791 AND `TextId`=33293) OR (`MenuId`=21792 AND `TextId`=33294) OR (`MenuId`=21779 AND `TextId`=32243) OR (`MenuId`=22264 AND `TextId`=34126) OR (`MenuId`=21140 AND `TextId` IN (32243,33235,32046)) OR (`MenuId`=22258 AND `TextId`=34113) OR (`MenuId`=21229 AND `TextId`=32210) OR (`MenuId`=21230 AND `TextId`=32211) OR (`MenuId`=21228 AND `TextId`=32209) OR (`MenuId`=22844 AND `TextId`=35397) OR (`MenuId`=22710 AND `TextId` IN (35102,35396)) OR (`MenuId`=21389 AND `TextId`=32766) OR (`MenuId`=22536 AND `TextId`=34672) OR (`MenuId`=22534 AND `TextId`=34539) OR (`MenuId`=22487 AND `TextId`=34671) OR (`MenuId`=22488 AND `TextId`=34538) OR (`MenuId`=21976 AND `TextId`=33651) OR (`MenuId`=22072 AND `TextId`=33800) OR (`MenuId`=21940 AND `TextId`=33552) OR (`MenuId`=22734 AND `TextId`=35164) OR (`MenuId`=21916 AND `TextId`=33510) OR (`MenuId`=21815 AND `TextId`=33346) OR (`MenuId`=21923 AND `TextId`=33522) OR (`MenuId`=21303 AND `TextId`=35089) OR (`MenuId`=22681 AND `TextId` IN (35019,35018)) OR (`MenuId`=22100 AND `TextId`=33840) OR (`MenuId`=21283 AND `TextId` IN (32298,35039,35017)) OR (`MenuId`=22687 AND `TextId`=35040) OR (`MenuId`=22692 AND `TextId`=35063) OR (`MenuId`=11384 AND `TextId`=15855);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33073 WHERE (`MenuId`=23415 AND `TextId`=36308) OR (`MenuId`=23943 AND `TextId`=37537) OR (`MenuId`=22329 AND `TextId`=34274) OR (`MenuId`=23988 AND `TextId`=37595) OR (`MenuId`=23436 AND `TextId`=36306) OR (`MenuId`=22290 AND `TextId`=34160) OR (`MenuId`=23352 AND `TextId`=28005) OR (`MenuId`=441 AND `TextId`=938) OR (`MenuId`=12152 AND `TextId`=17087) OR (`MenuId`=22583 AND `TextId`=34741) OR (`MenuId`=22584 AND `TextId`=34742) OR (`MenuId`=22554 AND `TextId`=35126) OR (`MenuId`=23395 AND `TextId`=27278) OR (`MenuId`=21933 AND `TextId`=33493) OR (`MenuId`=22557 AND `TextId`=34708) OR (`MenuId`=24125 AND `TextId`=37793) OR (`MenuId`=10182 AND `TextId`=14127) OR (`MenuId`=24124 AND `TextId`=37792) OR (`MenuId`=22209 AND `TextId`=33743) OR (`MenuId`=21547 AND `TextId`=32856) OR (`MenuId`=6944 AND `TextId`=7778);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33724 WHERE (`TextId`=7778 AND `MenuId` IN (22730,16593,6944)) OR (`TextId`=34711 AND `MenuId`=22559) OR (`TextId`=27278 AND `MenuId`=23395) OR (`TextId`=35126 AND `MenuId`=22554) OR (`TextId`=34708 AND `MenuId`=22557) OR (`TextId`=28005 AND `MenuId`=23352) OR (`TextId`=38087 AND `MenuId`=24140) OR (`TextId`=33525 AND `MenuId`=21925) OR (`TextId`=37351 AND `MenuId`=23828) OR (`TextId`=31680 AND `MenuId`=21001) OR (`TextId`=14783 AND `MenuId`=10667) OR (`TextId`=33381 AND `MenuId`=21844) OR (`TextId`=37277 AND `MenuId`=23799) OR (`TextId`=37995 AND `MenuId`=24257) OR (`TextId`=28096 AND `MenuId`=19168);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33084 WHERE (`TextId`=34160 AND `MenuId`=22290) OR (`TextId`=38248 AND `MenuId`=24386) OR (`TextId`=14127 AND `MenuId`=10182) OR (`TextId`=37537 AND `MenuId`=23943) OR (`TextId`=7778 AND `MenuId` IN (6944,22730)) OR (`TextId`=36699 AND `MenuId`=23646) OR (`TextId`=36306 AND `MenuId`=23435) OR (`TextId`=37595 AND `MenuId`=23988) OR (`TextId`=33493 AND `MenuId`=21933) OR (`TextId`=35126 AND `MenuId`=22554) OR (`TextId`=27278 AND `MenuId`=23395) OR (`TextId`=32793 AND `MenuId`=21514) OR (`TextId`=37793 AND `MenuId`=24125) OR (`TextId`=37792 AND `MenuId`=24124) OR (`TextId`=33080 AND `MenuId`=21714) OR (`TextId`=35143 AND `MenuId`=22724) OR (`TextId`=33273 AND `MenuId`=21784) OR (`TextId`=38153 AND `MenuId`=24321) OR (`TextId`=36307 AND `MenuId` IN (23426,23431)) OR (`TextId`=37620 AND `MenuId`=24017) OR (`TextId`=34711 AND `MenuId`=22559) OR (`TextId`=14126 AND `MenuId`=10181) OR (`TextId`=33525 AND `MenuId`=21925) OR (`TextId`=28005 AND `MenuId`=23352) OR (`TextId`=37277 AND `MenuId`=23799) OR (`TextId`=14783 AND `MenuId`=10667);
+UPDATE `gossip_menu` SET `VerifiedBuild`=33062 WHERE (`TextId`=37995 AND `MenuId`=24257) OR (`TextId`=14127 AND `MenuId`=10182) OR (`TextId`=7778 AND `MenuId`=6944) OR (`TextId`=37595 AND `MenuId`=23988) OR (`TextId`=34089 AND `MenuId`=22249) OR (`TextId`=36310 AND `MenuId`=23417) OR (`TextId`=36306 AND `MenuId` IN (23436,23432)) OR (`TextId`=37139 AND `MenuId`=23764) OR (`TextId`=35126 AND `MenuId`=22554) OR (`TextId`=27278 AND `MenuId`=23395) OR (`TextId`=37876 AND `MenuId`=24188) OR (`TextId`=38087 AND `MenuId`=24140) OR (`TextId`=37620 AND `MenuId`=24017) OR (`TextId`=34274 AND `MenuId`=22329) OR (`TextId`=34385 AND `MenuId`=22417) OR (`TextId`=32077 AND `MenuId`=21150) OR (`TextId`=34160 AND `MenuId`=22290) OR (`TextId`=36307 AND `MenuId`=23414) OR (`TextId`=28005 AND `MenuId`=23352) OR (`TextId`=35541 AND `MenuId`=22976) OR (`TextId`=35749 AND `MenuId`=23120) OR (`TextId`=31799 AND `MenuId`=21043) OR (`TextId`=34708 AND `MenuId`=22557) OR (`TextId`=33743 AND `MenuId`=22209) OR (`TextId`=38248 AND `MenuId`=24386) OR (`TextId`=36114 AND `MenuId`=23300) OR (`TextId`=2593 AND `MenuId`=1951) OR (`TextId`=34324 AND `MenuId`=22375) OR (`TextId`=2280 AND `MenuId`=1626) OR (`TextId`=17608 AND `MenuId`=12520) OR (`TextId`=23141 AND `MenuId`=16042) OR (`TextId`=6935 AND `MenuId`=5752) OR (`TextId`=33525 AND `MenuId`=21925) OR (`TextId`=36659 AND `MenuId`=23631) OR (`TextId`=34711 AND `MenuId`=22559) OR (`TextId`=37793 AND `MenuId`=24125) OR (`TextId`=20269 AND `MenuId`=14357) OR (`TextId`=11714 AND `MenuId`=9868);
+DELETE FROM `gossip_menu_option` WHERE (`OptionIndex`=2 AND `MenuId` IN (24406,20005,16472,20308,20443,24882,24883,24884,24870,24483,20104,16331,20614,24735,15539,15153,24971,24584,24601,24881,17333,21829,24314,14284,19110,23017,23746,16760,25036,23539,23541,23540,23494,23499,24305,24995,23653)) OR (`OptionIndex`=0 AND `MenuId` IN (24406,24116,12953,25247,24760,16246,16450,16503,16438,16995,20308,20443,14622,13757,10520,23533,20990,25400,22430,22428,22429,23795,19132,15875,24994,24883,24884,24870,24632,24483,24478,24479,24480,25151,24383,25293,24955,22546,22248,22166,24758,24753,25140,23707,10877,25372,25036,20006,20005,23131,21534,20331,20104,24882,24881,24450,24516,25133,25041,16331,18428,20614,24735,20616,23199,24969,15406,23677,24070,24972,24970,15555,15257,15224,15225,15218,15219,15228,15223,15216,15217,20375,19875,19874,22432,20342,24535,20369,19044,19854,19858,19856,23609,23641,23586,23594,23570,23569,21837,21836,21835,21833,14538,15719,20737,19555,24971,23748,24584,24998,24250,24468,24384,13322,24871,24601,21893,21652,21653,15515,15569,19894,19898,19897,19903,19900,16687,19135,19176,19116,20306,20487,17333,16462,21829,24449,16940,16276,21357,21356,21548,20835,20896,10861,10780,24518,20846,20775,20855,24527,24530,24529,15108,24540,24744,23017,20779,20652,19556,22408,21409,24537,23751,16840,24356,20754,24517,14955,23538,23558,24598,24594,24595,23539,23540,23541,23526,23521,23522,23492,23497,23498,23477,23476,23478,25013,24331,20881,20882,20883,1626,22826,22832,24120,14602,14603,24995,23507,25158,23560,23709,23706,23705,23697,23653)) OR (`OptionIndex`=4 AND `MenuId` IN (24443,20614,24735,15153,22946,23017,23484,23493,23494,23500,23497)) OR (`OptionIndex`=3 AND `MenuId` IN (24443,7260,20308,20443,16331,20614,24735,15153,17333,21829,23017,23746,23539,23541,23540,23493,23494,23497)) OR (`OptionIndex`=10 AND `MenuId` IN (24140,22559,15153,23017)) OR (`OptionIndex`=12 AND `MenuId` IN (24140,23017)) OR (`OptionIndex`=20 AND `MenuId`=25036) OR (`OptionIndex`=9 AND `MenuId` IN (25036,24140,24402,15153,23017)) OR (`OptionIndex`=1 AND `MenuId` IN (24883,24881,24884,24882,24870,20308,20443,25400,22430,22428,22429,19132,24994,24188,24483,24406,22248,10877,25189,23131,20104,19897,9162,20005,25041,16331,20614,24735,24070,24972,15251,15252,22432,14538,15153,24971,24584,13252,24601,18923,15547,25036,16246,23796,21829,21357,24327,24238,12040,10780,20855,21951,23017,21079,22408,23746,23538,23539,23541,23540,23495,24331,1626,24995,25158,23653)) OR (`OptionIndex`=8 AND `MenuId` IN (14096,25036,24140,20614,14056,14011,15153,23017)) OR (`OptionIndex`=7 AND `MenuId` IN (24140,20443,16593,20614,15153,25036,23017,23502)) OR (`OptionIndex`=6 AND `MenuId` IN (24140,16593,15153,21601,23017)) OR (`OptionIndex`=11 AND `MenuId` IN (24140,15153,23017)) OR (`OptionIndex`=13 AND `MenuId` IN (24402,23017)) OR (`OptionIndex`=5 AND `MenuId` IN (24735,15153,25036,21601,23017,23494,23496,23499,23500,23497)) OR (`OptionIndex`=15 AND `MenuId`=24735) OR (`OptionIndex`=19 AND `MenuId`=25036);
+INSERT INTO `gossip_menu_option` (`MenuId`, `OptionIndex`, `OptionIcon`, `OptionText`, `OptionBroadcastTextId`, `VerifiedBuild`) VALUES
+(24406, 2, 0, 'What lies next for you, Wrathion?', 188093, 33775),
+(24406, 0, 1, 'I would like to exchange my Coalescing Visions and Corrupted Mementos.', 186484, 33775),
+(24116, 0, 0, 'You have my aid. <Help Garona up>', 172810, 33775),
+(24443, 4, 38, 'Show me the map of the Vision.', 187386, 33775),
+(24443, 3, 0, 'I am ready to enter the vision.\n(Consumes |TINTERFACE\\ICONS\\TRADE_ALCHEMY_POTIOND2.BLP:12|t Vessel of Horrific Visions)', 0, 33775),
+(24140, 10, 37, 'I have a corrupted item to cleanse.', 187401, 33775),
+(24140, 12, 1, 'Let me view your synthesized essences, please.', 195400, 34963),
+(25036, 20, 0, 'I\'m still looking for more crystals.', 186642, 34963),
+(25036, 9, 0, 'I found ten crystals. It is unlikely any others remain.', 186652, 34963),
+(24883, 1, 0, 'Put on the Faceless Mask of the Pained.', 184668, 34963),
+(24881, 1, 0, 'Put on the Faceless Mask of the Burned Bridge.', 184658, 34963),
+(24884, 1, 0, 'Put on the Faceless Mask of the Long Night.', 184673, 34963),
+(24882, 1, 0, 'Put on the Faceless Mask of the Daredevil.', 184663, 34963),
+(24870, 1, 0, 'Put on the Faceless Mask of the Dark Imagination.', 184604, 34963),
+(12953, 0, 0, '<Pick up the orb and shake it vigorously.>', 52851, 34601),
+(25247, 0, 0, '<Stay awhile and listen.>', 137786, 34963), -- OptionBroadcastTextID: 137786 - 144263 - 160761 - 160763 - 160765 - 160768 - 167552 - 173473 - 176737 - 188459
+(24760, 0, 32, 'Show me MOTHER\'s research into unaccompanied exploration.\n[Open Solo Tech Tree]', 0, 34963),
+(7260, 3, 0, 'Enter the Proving Grounds', 74757, 34220),
+(14096, 8, 0, 'Enter the Proving Grounds', 74757, 34220),
+(20005, 2, 28, 'Do you require a squire?', 117227, 34220),
+(16246, 0, 0, 'Spirit of the Wolf', 79310, 34601),
+(16450, 0, 0, 'Enter the Proving Grounds', 74757, 34601),
+(16472, 2, 1, 'I want to browse your goods.', 3370, 34601),
+(16503, 0, 3, 'I\'m interested in fishing these savage lands.', 82737, 34601),
+(16438, 0, 0, 'You look like an able fisherman, do you think you can help us out?\n\nWe have established a small garrison nearby, but we are finding it difficult to feed our troops. Any fishing advice you could give us would really help.', 0, 34601),
+(16995, 0, 28, 'Can you grow these draenic seeds into herbs for me?', 86940, 34601),
+(20308, 3, 0, 'Procure supplies for the army.', 115130, 34220),
+(20308, 2, 0, 'Defend against the demon invasions.', 115128, 34220),
+(20308, 1, 0, 'Seek allies under the Light.', 115127, 34220),
+(20308, 0, 0, 'Hunt the dreadlord, Balnazzar.', 115126, 34220),
+(20443, 3, 0, 'Procure supplies for the army.', 115130, 34220),
+(20443, 2, 0, 'Defend against the demon invasions.', 115128, 34220),
+(20443, 1, 0, 'Seek allies under the Light.', 115127, 34220),
+(20443, 0, 0, 'Hunt the dreadlord, Balnazzar.', 115126, 34220),
+(14622, 0, 0, 'Go ahead and turn this thing on.', 65978, 34220),
+(13757, 0, 0, 'What are you waiting for? Let\'s go investigate!', 60726, 34220),
+(10520, 0, 0, 'Togrik, can you wake up the prisoner again?', 34709, 33775),
+(25036, 8, 0, 'I found nine crystals. Take them and be on your way.', 186651, 34220),
+(23533, 0, 0, 'Who is Torcali?', 164067, 34220),
+(20990, 0, 0, 'Sure, I\'ll give it a shot. What could possibly go wrong?', 129848, 34220),
+(25400, 1, 0, 'I am ready to leave.', 58399, 34963), -- OptionBroadcastTextID: 58399 - 59390
+(25400, 0, 0, 'Send me back.', 186077, 34963),
+(22430, 1, 0, 'I have a shiny trinket for you, Jani.', 146770, 34769),
+(22430, 0, 0, 'Release me.', 137226, 34769),
+(22428, 1, 0, 'I have a shiny trinket for you, Jani.', 146770, 34769),
+(22428, 0, 0, 'Release me.', 137226, 34769),
+(22429, 0, 0, 'Release me.', 137226, 34769),
+(22429, 1, 0, 'I have a shiny trinket for you, Jani.', 146770, 34769),
+(23795, 0, 0, 'The Kirin Tor requires my aid. Send me to Dalaran!', 168978, 34220),
+(19132, 1, 0, 'Hold a moment, Sevis. I\'m reconsidering.', 103336, 34220),
+(19132, 0, 0, 'I\'ve made up my mind. Sacrifice me, Sevis, and power the gateway.', 103332, 34220),
+(15875, 0, 1, 'What can I buy with timeless coins?', 75810, 34220),
+(24994, 1, 0, 'I am ready to leave.', 58399, 33941), -- OptionBroadcastTextID: 58399 - 59390
+(24994, 0, 0, 'Send me back.', 186077, 33941),
+(24882, 2, 0, 'Take off the Faceless Mask of the Daredevil.', 184666, 33237),
+(24883, 2, 0, 'Take off the Faceless Mask of the Pained.', 184671, 33237),
+(24884, 2, 0, 'Take off the Faceless Mask of the Long Night.', 184676, 33237),
+(24870, 2, 0, 'Take off the Faceless Mask of the Dark Imagination.', 184605, 33237),
+(24883, 0, 0, 'How do I find the Faceless Mask of the Pained?', 184669, 33775),
+(24884, 0, 0, 'How do I find the Faceless Mask of the Long Night?', 184674, 33775),
+(24870, 0, 0, 'How do I find the Faceless Mask of the Dark Imagination?', 184628, 33775),
+(24140, 8, 0, 'Bring the archives online.', 186668, 34963),
+(24140, 7, 0, 'Magni needs help tracking Ra-den.', 186062, 34963),
+(24140, 9, 0, 'Begin the conduit\'s activation sequence.', 186599, 34963),
+(24632, 0, 0, 'Let us begin the ritual.', 180319, 34963),
+(24140, 6, 0, 'Reroute auxiliary systems and power up the Forge of Origination.', 178884, 34963),
+(24188, 1, 0, 'Show me what you\'ve discovered.', 183914, 34963),
+(24483, 1, 0, 'Take us to the Chamber of Heart', 178201, 34963),
+(24483, 2, 0, 'I\'ve heard this tale before... <Skip the Engine of Nalak\'sha scenario.>', 189389, 34963),
+(24483, 0, 0, 'I need the Engine of Nalak\'sha to safeguard Azeroth from N\'Zoth\'s corruption.', 177714, 34963),
+(24478, 0, 0, '<Walk with Stormspeaker Qian.>', 177711, 34963),
+(24479, 0, 0, 'He was slain by the mantid and told me to seek you out.', 177710, 34963),
+(24480, 0, 0, '<Show Stormspeaker Qian the sigil>', 177709, 34963),
+(25151, 0, 0, 'Activate the Titanic Purification system.', 187532, 34963),
+(24140, 11, 0, 'Tell me about the Titanic Purification process.', 187530, 34963),
+(24406, 1, 0, 'Can you tell me anything about this corrupted item?', 187534, 34963),
+(24383, 0, 0, 'I will join you.', 177121, 34963),
+(25293, 0, 0, 'I\'ve heard this tale before... <Skip the Halls of Origination scenario.>', 189388, 34963),
+(24955, 0, 0, 'Tell me what you saw.', 185667, 34963),
+(22546, 0, 0, 'I am ready.', 35320, 33369), -- OptionBroadcastTextID: 35320 - 35539 - 39152 - 52091 - 52966 - 68157 - 72264 - 98694 - 101165 - 102817 - 104314 - 105294 - 105455 - 105611 - 106714 - 107434 - 108067 - 110410 - 114311 - 115011 - 120845 - 120867 - 120960 - 122483 - 129525 - 130105 - 130536 - 132934 - 134034 - 136601 - 144577 - 152299 - 152826 - 162165 - 163727 - 163987 - 165913 - 169003
+(22248, 0, 0, 'Release me.', 137226, 33369),
+(22248, 1, 0, 'I have a shiny trinket for you, Jani.', 146770, 33369),
+(22166, 0, 0, 'Release me.', 137226, 33369),
+(24758, 0, 0, 'This is troubling news.', 182577, 33369),
+(24753, 0, 0, 'What happened here?', 38328, 33369), -- OptionBroadcastTextID: 38328 - 90273 - 92991 - 105842 - 107100 - 169040 - 175718 - 182500
+(25140, 0, 0, 'I\'m ready.', 27602, 33084), -- OptionBroadcastTextID: 27602 - 28039 - 75831 - 96430 - 106086 - 109483 - 114517 - 118751 - 121757 - 122010 - 124171 - 125992 - 130808 - 130907 - 131544 - 133249 - 137286 - 137729 - 146811 - 148267 - 152150 - 168345 - 169176 - 169693 - 185994 - 186132 - 187457
+(23707, 0, 0, 'Give me the supplies. I\'ll defend the vulpera!', 167163, 33084),
+(10877, 1, 0, '<Make a series of complicated hand gestures.>', 36926, 34220),
+(10877, 0, 0, 'Dismissed!', 36925, 34220), -- OptionBroadcastTextID: 36925 - 155860
+(25372, 0, 1, 'I want to browse your goods.', 3370, 33941),
+(25036, 0, 0, 'I found one of the crystals. Take it and be on your way.', 186643, 33941),
+(20006, 0, 28, 'Recruit Silver Hand Knights', 122520, 34220),
+(20005, 0, 28, 'Do you require a squire?', 117227, 34220),
+(25189, 1, 1, 'Let me browse your goods.', 2823, 33528), -- OptionBroadcastTextID: 2823 - 7509 - 8097
+(23131, 1, 7, 'How do I form a guild?', 3413, 34769),
+(23131, 0, 8, 'I want to create a guild crest.', 3415, 34769),
+(21534, 0, 0, 'Help.', 147596, 34769),
+(20331, 0, 0, 'Speak the vows at the altar when you are ready.', 122193, 34220),
+(20104, 2, 0, 'I\'m sorry, I must think on it further.', 120468, 34220),
+(20104, 1, 0, 'Yes, I welcome all who wish to follow the path of the Light. Meet me in the Hall of Champions.', 120467, 34220),
+(20443, 7, 0, 'We will defend Netherlight Temple.', 121518, 34220),
+(20104, 0, 0, 'What is your message, Priestess?', 119740, 34220),
+(19897, 1, 0, 'We deciphered the Codex of Command.', 119260, 34220),
+(9162, 1, 0, 'Send me to Garrosh\'s Landing, Yanni.', 24685, 33775),
+(24402, 13, 0, 'Sapphronetta', 177599, 34963),
+(24402, 9, 0, 'HK-8', 177406, 34963),
+(24882, 0, 0, 'How do I find the Faceless Mask of the Daredevil?', 184664, 34769),
+(24881, 0, 0, 'How do I find the Faceless Mask of the Burned Bridge?', 184659, 34769),
+(24450, 0, 0, 'Let\'s go.', 15894, 34220), -- OptionBroadcastTextID: 15894 - 57655 - 60204 - 62002 - 75830 - 77209 - 78160 - 78305 - 108064 - 125346 - 128698 - 129792 - 129809 - 146440 - 148058 - 148106 - 160082 - 177822 - 178830
+(16593, 7, 0, 'I\'m responding to the Steamwheedle call for help. Take me to the Spires of Arak.', 88555, 34963),
+(24516, 0, 0, 'What happened to everyone?', 178400, 33084),
+(25133, 0, 0, 'I\'m ready.', 27602, 33084), -- OptionBroadcastTextID: 27602 - 28039 - 75831 - 96430 - 106086 - 109483 - 114517 - 118751 - 121757 - 122010 - 124171 - 125992 - 130808 - 130907 - 131544 - 133249 - 137286 - 137729 - 146811 - 148267 - 152150 - 168345 - 169176 - 169693 - 185994 - 186132 - 187457
+(20005, 1, 28, 'Do you require a squire?', 117227, 34220),
+(25041, 1, 0, 'Can you return me to the present time?', 138525, 33073), -- OptionBroadcastTextID: 138525 - 159711 - 159837 - 169028 - 187716
+(25041, 0, 0, 'Can you show me what Uldum was like during the time of the Cataclysm?', 186723, 33073),
+(16593, 6, 0, 'Take me to Ashran.', 87851, 34601),
+(16331, 3, 0, 'Khadgar, let\'s go over what happened when Garona attacked.', 76001, 34601), -- OptionBroadcastTextID: 76001 - 81168
+(16331, 2, 0, 'Remind me about the time we used the All-Seeing Ring to spy on Gul\'dan and the Shadow Council.', 77087, 34601),
+(16331, 1, 0, 'Remind me about the time we used the All-Seeing Ring to spy on Gul\'dan and the Shadow Council.', 77087, 34601),
+(16331, 0, 0, 'I am ready, Khadgar. Let\'s use the All-Seeing Ring.', 76966, 34601),
+(18428, 0, 0, 'I need you to come on patrol with me.', 81638, 34220),
+(20614, 8, 0, 'Return to main console.', 181682, 34963),
+(20614, 7, 0, 'Decipher the rules', 124726, 34963),
+(20614, 4, 0, '|cFF0000FF(Level 5)|r Begin the game.', 171806, 34963),
+(20614, 3, 0, '|cFF0000FF(Level 4)|r Begin the game.', 171805, 34963),
+(20614, 2, 0, '|cFF0000FF(Level 3)|r Begin the game.', 171804, 34963),
+(20614, 1, 0, '|cFF0000FF(Level 2)|r Begin the game.', 171803, 34963),
+(20614, 0, 0, '|cFF0000FF(Level 1)|r Begin the game.', 124723, 34963),
+(24735, 5, 0, 'Totemic Matrix', 181690, 34963),
+(24735, 4, 0, 'Remembery', 181675, 34963),
+(24735, 3, 0, 'Barrels o\' Fun', 181673, 34963),
+(24735, 2, 0, 'BULL-E', 181672, 34963),
+(24735, 1, 0, 'Rune Matching', 181671, 34963),
+(24735, 0, 0, 'HexSweeper', 181670, 34963),
+(20616, 0, 0, 'HexSweeper', 181670, 34963),
+(24735, 15, 0, 'Unlock arcade console for the day.\n|cFF0008E8(Darkmoon Game Token)|r', 0, 34963),
+(23199, 0, 0, 'Make for Princess Talanji and Warguard Rakera.', 160864, 34769),
+(24969, 0, 0, 'I\'m ready.', 27602, 34601), -- OptionBroadcastTextID: 27602 - 28039 - 75831 - 96430 - 106086 - 109483 - 114517 - 118751 - 121757 - 122010 - 124171 - 125992 - 130808 - 130907 - 131544 - 133249 - 137286 - 137729 - 146811 - 148267 - 152150 - 168345 - 169176 - 169693 - 185994 - 186132 - 187457
+(15539, 2, 0, 'I\'d like to heal and revive my battle pets.', 64115, 34220),
+(15406, 0, 0, 'I am ready! [Queue for solo instance.]', 71612, 34220), -- OptionBroadcastTextID: 71612 - 72779
+(23677, 0, 0, 'I see.', 17156, 33169), -- OptionBroadcastTextID: 17156 - 18744 - 54388 - 60156 - 95411 - 106720 - 119172 - 136544 - 144134 - 145850 - 163408 - 166909 - 168690 - 177575 - 188014
+(24070, 1, 1, 'Let me browse your goods.', 2823, 33369), -- OptionBroadcastTextID: 2823 - 7509 - 8097
+(24070, 0, 3, 'Train me in Tailoring.', 47118, 33369),
+(24972, 1, 0, 'I\'m ready to head back to the surface.', 174795, 33115),
+(24972, 0, 0, 'Take me to the junkyard.', 185914, 33115),
+(24970, 0, 0, 'Take me into the workshop.', 185912, 33115),
+(15555, 0, 0, 'Jubeka, I no longer wish to be tainted by this fel energy.', 72670, 34220),
+(15251, 1, 0, 'Akama, lead the way!', 69495, 34220),
+(15252, 1, 0, 'Warchief Garrosh seeks the Black Harvest members who trespassed here recently.', 69490, 34220),
+(15257, 0, 0, 'Enter the Temple.', 69781, 34220),
+(14056, 8, 0, 'Enter the Proving Grounds', 74757, 34220),
+(14011, 8, 0, 'Enter the Proving Grounds', 74757, 34220),
+(15224, 0, 0, 'Fascinating...', 69293, 34220),
+(15225, 0, 0, 'What can you tell me about this tome?', 69275, 34220),
+(15218, 0, 0, 'Fascinating...', 69293, 34220),
+(15219, 0, 0, 'What can you tell me about this tome?', 69275, 34220),
+(15228, 0, 0, 'What can you tell me about this tome?', 69275, 34220),
+(15223, 0, 0, 'What can you tell me about this tome?', 69275, 34220),
+(15216, 0, 0, 'Fascinating...', 69293, 34220),
+(15217, 0, 0, 'What can you tell me about this tome?', 69275, 34220),
+(20375, 0, 1, 'Let\'s see what you have.', 11820, 34220), -- OptionBroadcastTextID: 11820 - 17411 - 92547 - 122256 - 122264 - 122277 - 122283 - 122291 - 122296 - 122299 - 122301 - 122309
+(19875, 0, 0, 'Then I will go with you. No one should fight alone.', 114663, 34220),
+(19874, 0, 0, 'What must you do?', 114653, 34220),
+(22432, 0, 0, 'Release me.', 137226, 34769),
+(22432, 1, 0, 'I need a new disguise.', 156606, 34769),
+(20342, 0, 28, 'Place work order for Champion armaments.', 122137, 34769),
+(24535, 0, 0, 'I will protect you.', 178597, 33369),
+(20369, 0, 1, 'Let\'s see what you have.', 11820, 33941), -- OptionBroadcastTextID: 11820 - 17411 - 92547 - 122256 - 122264 - 122277 - 122283 - 122291 - 122296 - 122299 - 122301 - 122309
+(19044, 0, 0, 'I would like to review weapons we might pursue.', 101848, 33941), -- OptionBroadcastTextID: 101848 - 102658 - 103166 - 103645
+(19854, 0, 0, 'Tell me about your plan.', 108896, 33941), -- OptionBroadcastTextID: 108896 - 114344
+(19858, 0, 0, 'You\'re needed urgently at Krasus\' Landing first. Tyrosus sent me.', 114412, 33941),
+(19856, 0, 0, 'Come to Krasus\' Landing. We may be able to help your order.', 114390, 33941),
+(23609, 0, 0, 'What did you want to show me?', 165486, 33237),
+(23641, 0, 0, '<Stand ready to defend the ritual.>', 165417, 33237), -- OptionBroadcastTextID: 165417 - 165887
+(23586, 0, 0, '[Spare Sira] I won\'t do it.', 164905, 33237),
+(23594, 0, 0, '[Kill Sira] I\'ll take care of it.', 164906, 33237),
+(23570, 0, 0, '<Face Sira Moonwarden.>', 164544, 33237),
+(23569, 0, 0, 'Show me what happened.', 164541, 33237),
+(22559, 10, 0, '|cFF0000FF(Quest)|r Send me to Darkshore.', 166584, 33237),
+(21837, 0, 0, 'What is it?', 6796, 34220), -- OptionBroadcastTextID: 6796 - 27143 - 31717 - 72223 - 111502 - 112235 - 112251 - 113420 - 114211 - 120839 - 120886 - 120899 - 120934 - 121188 - 127472 - 127524 - 135536 - 141211 - 143748 - 148959 - 175270
+(21836, 0, 0, 'Is there anything I can do to help?', 141210, 34220),
+(21835, 0, 0, 'What happened?', 38334, 34220), -- OptionBroadcastTextID: 38334 - 43416 - 78944 - 141209 - 176470
+(21833, 0, 0, 'Why are you crying?', 141208, 34220),
+(14538, 1, 0, 'Why should I help the Lorewalkers?', 64756, 34220),
+(14538, 0, 0, 'How can I help the Lorewalkers?', 64757, 34220),
+(15153, 11, 0, 'Other', 66646, 34220),
+(15153, 10, 0, 'Vendor', 44612, 34220),
+(15153, 9, 0, 'Stable Master', 8508, 34220), -- OptionBroadcastTextID: 8508 - 8511 - 8518 - 8524 - 8525 - 8529 - 8534 - 8536 - 8539 - 8542 - 15228 - 19208 - 45383
+(15153, 8, 0, 'Transmogrification and Void Storage', 72967, 34220),
+(15153, 7, 0, 'Quartermasters', 66700, 34220),
+(15153, 6, 0, 'Profession Trainer', 2869, 34220), -- OptionBroadcastTextID: 2869 - 3430 - 4896 - 5112 - 5352 - 5916 - 6635 - 6912 - 7022 - 7095 - 15250 - 19210 - 45382
+(15153, 5, 0, 'Pet Battle Trainer', 66645, 34220),
+(15153, 4, 0, 'Inn', 5513, 34220), -- OptionBroadcastTextID: 5513 - 5911 - 6396 - 6633 - 6910 - 15224 - 19202 - 32166 - 44629
+(15153, 3, 0, 'Flying Trainer', 66644, 34220),
+(15153, 2, 0, 'Flight Master', 2863, 34220), -- OptionBroadcastTextID: 2863 - 4889 - 6632 - 19203 - 45379
+(15153, 1, 0, 'Bank', 3426, 34220), -- OptionBroadcastTextID: 3426 - 5908 - 6631 - 6907 - 6987 - 15214 - 19201 - 32167 - 44628 - 78584
+(15719, 0, 1, 'I would like to buy from you.', 2583, 34220), -- OptionBroadcastTextID: 2583 - 6399 - 7142 - 9992 - 14967
+(24971, 2, 0, 'I\'m ready to head back to the surface.', 174795, 33237),
+(25036, 5, 0, 'I found six crystals. Take them and be on your way.', 186648, 34220),
+(20737, 0, 0, 'We\'re ready to leave now.', 125869, 34220),
+(19555, 0, 0, 'I choose you to be the Sixth.', 108948, 33169),
+(24971, 1, 0, 'Take me to the junkyard.', 185914, 33528),
+(24971, 0, 0, 'Take me into the workshop.', 185912, 33528),
+(23748, 0, 0, 'Whatever happened to that wisp?', 167549, 33528),
+(24584, 2, 0, 'Bring elevator to third floor.', 49776, 33775),
+(24584, 0, 0, 'Bring elevator to first floor.', 49773, 33775),
+(24584, 1, 0, 'Bring elevator to second floor.', 49775, 33775),
+(24998, 0, 0, 'Something must be done.', 186181, 33775),
+(24250, 0, 0, 'I\'ve got your back, Mama Stormstout.', 175374, 33775),
+(24468, 0, 0, 'Lead the way.', 36692, 33775), -- OptionBroadcastTextID: 36692 - 54269 - 149755 - 153986 - 161749 - 177705
+(24384, 0, 0, 'Show me the current assault.', 177124, 33775),
+(13252, 1, 0, 'FOR THE HORDE!', 11642, 33775), -- OptionBroadcastTextID: 11642 - 13275 - 13276 - 13277 - 26142 - 41827 - 42135 - 55138 - 150792 - 158535
+(13322, 0, 0, 'You may begin your ritual, we will defend you.', 56078, 33775),
+(24871, 0, 0, 'I\'m ready for battle.', 184610, 33775),
+(24601, 2, 0, 'I would like to buy from you.', 2583, 33237), -- OptionBroadcastTextID: 2583 - 6399 - 7142 - 9992 - 14967
+(24601, 1, 0, 'I seek training in Pandaren cooking.', 65287, 33237),
+(24601, 0, 0, 'I\'ll hold off the mantid.', 179797, 33237),
+(18923, 1, 1, 'I would like to buy from you.', 2583, 34963), -- OptionBroadcastTextID: 2583 - 6399 - 7142 - 9992 - 14967
+(21893, 0, 0, 'Send me into Ulduar. (Timewalking Raid)', 141713, 34963),
+(21601, 6, 0, 'I slayed Deathwing. Surely you\'ve heard of me?', 137454, 34769),
+(21601, 5, 0, 'The tales of my triumph over the Lich King didn\'t reach your shores?', 137453, 34769),
+(21652, 0, 0, 'On second thought...', 147907, 34769), -- OptionBroadcastTextID: 147907 - 163798
+(21653, 0, 0, 'On second thought...', 147907, 34769), -- OptionBroadcastTextID: 147907 - 163798
+(15547, 1, 0, 'Use Displacement Pad.', 71984, 33724),
+(15515, 0, 0, 'Use Displacement Pad.', 71984, 33724),
+(15569, 0, 0, 'I\'m ready to go.', 72984, 33724), -- OptionBroadcastTextID: 72984 - 72985 - 126740 - 141707 - 159668
+(25036, 1, 0, 'I found two crystals. Take them and be on your way.', 186644, 33724),
+(19894, 0, 0, 'Your counsel is requested.', 114962, 34220), -- OptionBroadcastTextID: 114962 - 114976 - 114989 - 114991 - 115013
+(19898, 0, 0, 'Your counsel is requested.', 114962, 34220), -- OptionBroadcastTextID: 114962 - 114976 - 114989 - 114991 - 115013
+(19897, 0, 0, 'Your counsel is requested.', 114962, 34220), -- OptionBroadcastTextID: 114962 - 114976 - 114989 - 114991 - 115013
+(19903, 0, 0, 'Your counsel is requested.', 114962, 34220), -- OptionBroadcastTextID: 114962 - 114976 - 114989 - 114991 - 115013
+(19900, 0, 0, 'Your counsel is requested.', 114962, 34220), -- OptionBroadcastTextID: 114962 - 114976 - 114989 - 114991 - 115013
+(22946, 4, 0, 'Can you return me to the present time?', 138525, 34963), -- OptionBroadcastTextID: 138525 - 159711 - 159837 - 169028 - 187716
+(24881, 2, 0, 'Take off the Faceless Mask of the Burned Bridge.', 184661, 34769),
+(16246, 1, 0, 'Blessing of the Wolf', 79309, 34601),
+(16687, 0, 1, 'Let\'s take a look', 84329, 34769),
+(19135, 0, 0, 'Show me the proof.', 103146, 34220), -- OptionBroadcastTextID: 103146 - 103351
+(19176, 0, 0, 'For blood and honor, Warchief!', 103962, 34220),
+(19116, 0, 0, 'Take me inside Grommash Hold.', 103164, 34220),
+(20306, 0, 0, 'I am ready to face the Legion.', 114581, 34220),
+(20487, 0, 0, 'I\'ve heard this tale before... <Skip the Legion introductory quests and begin your journey in Dalaran.>', 123132, 34220),
+(23796, 1, 0, 'I must help Khadgar. Send me to the Blasted Lands!', 168994, 34220),
+(25036, 7, 0, 'I found eight crystals. Take them and be on your way.', 186650, 34220),
+(17333, 3, 0, 'Heard any pet battle news out of Tanaan Jungle?', 96385, 33941), -- OptionBroadcastTextID: 96385 - 96547
+(17333, 2, 1, 'Any pet stuff for sale?', 87415, 33941),
+(17333, 0, 0, 'I\'d like to heal and revive my battle pets.', 64115, 33941),
+(16462, 0, 1, 'Let me browse your goods.', 2823, 33941), -- OptionBroadcastTextID: 2823 - 7509 - 8097
+(21829, 3, 0, 'Dalaran above the Broken Isles', 129157, 33941), -- OptionBroadcastTextID: 129157 - 141128
+(21829, 2, 0, 'The Burning Throne', 134920, 33941),
+(21829, 1, 0, 'The Exhaust', 134913, 33941);
+
+INSERT INTO `gossip_menu_option` (`MenuId`, `OptionIndex`, `OptionIcon`, `OptionText`, `OptionBroadcastTextId`, `VerifiedBuild`) VALUES
+(21829, 0, 0, 'Broken Cliffs', 134919, 33941),
+(24449, 0, 0, 'Return us to the shadows.', 177775, 33115),
+(16940, 0, 0, 'What are you doing here?', 35775, 33941), -- OptionBroadcastTextID: 35775 - 38471 - 57803 - 57891 - 66486 - 81341 - 86824 - 123345 - 136428 - 149757 - 156063
+(16276, 0, 2, 'Show me where I can fly.', 12271, 33941), -- OptionBroadcastTextID: 12271 - 140511 - 158191
+(21357, 1, 0, 'When did you last talk to Zul?', 134588, 34769),
+(21357, 0, 0, '<Show her the Word of Zul.>', 134637, 34769),
+(21356, 0, 0, '<Show him the Word of Zul.>', 134581, 34769),
+(21548, 0, 0, 'We have a bargain.', 137235, 34769),
+(20835, 0, 0, 'I\'m prepared! Send me to the Gates of Valor. [Queue for Scenario]', 127189, 33237),
+(20896, 0, 0, 'I am ready to begin.', 4084, 33237), -- OptionBroadcastTextID: 4084 - 109366 - 116029 - 128423 - 160474 - 167001
+(24327, 1, 0, 'I want to ask something else.', 61781, 33369), -- OptionBroadcastTextID: 61781 - 121489 - 152386 - 157767 - 171009
+(24314, 2, 0, 'Tell me about the Charging Station.', 171068, 33369), -- OptionBroadcastTextID: 171068 - 175947
+(24238, 1, 0, 'What improvements could mechanization offer me?', 174929, 33369),
+(14284, 2, 2, 'Show me where I can fly.', 12271, 34220), -- OptionBroadcastTextID: 12271 - 140511 - 158191
+(25036, 19, 0, 'I\'ll see what I can find for you.', 186641, 33528),
+(12040, 1, 1, 'Let me browse your goods.', 2823, 33775), -- OptionBroadcastTextID: 2823 - 7509 - 8097
+(10861, 0, 0, 'Just give me the \'copter, Friz.', 36890, 33775),
+(10780, 1, 0, 'Tell me again about Azsharite?', 36365, 33775),
+(10780, 0, 0, 'I brought you something to eat.', 36351, 33775),
+(24518, 0, 0, 'It\'s not too late! You don\'t have to do this!', 178429, 33369),
+(19110, 2, 0, 'Why can\'t I research Artifact Knowledge?', 130505, 34220),
+(20846, 0, 0, 'I am ready to begin the final assault. [Queue for Scenario]', 127310, 34220),
+(20775, 0, 0, 'I\'m ready to bring down the power source.', 126282, 34220),
+(20855, 1, 0, 'How did you beat me through the portal?', 127673, 34220),
+(20855, 0, 0, 'Transform?', 127672, 34220),
+(24527, 0, 0, 'Are you feeling alright?', 183139, 33073),
+(24530, 0, 0, 'Show me what the future holds.', 178540, 33073),
+(24529, 0, 0, 'Stop! What are you doing?', 178528, 33073),
+(15108, 0, 0, 'How do I become a battle pet trainer?', 68459, 33073),
+(24540, 0, 0, 'I\'m ready to ride.', 31366, 33369), -- OptionBroadcastTextID: 31366 - 50996 - 178749
+(24744, 0, 0, '<Nudge.>', 182258, 33941),
+(21951, 1, 3, 'Please teach me.', 8442, 34963),
+(23017, 13, 0, 'Tailoring', 2951, 34963), -- OptionBroadcastTextID: 2951 - 3469 - 4871 - 5144 - 5380 - 5900 - 6629 - 6717 - 6787 - 6956 - 7035 - 7121 - 15275 - 32148 - 45760 - 52077
+(23017, 12, 0, 'Skinning', 2948, 34963), -- OptionBroadcastTextID: 2948 - 3471 - 4869 - 5140 - 5376 - 5899 - 6628 - 6716 - 6786 - 6955 - 7034 - 7118 - 15273 - 19237 - 45770 - 52076 - 106243
+(23017, 11, 0, 'Mining', 2944, 34963), -- OptionBroadcastTextID: 2944 - 3468 - 4868 - 5138 - 5898 - 6627 - 6714 - 6785 - 6954 - 7033 - 15271 - 32147 - 45769 - 51348 - 78976 - 167854
+(23017, 10, 0, 'Leatherworking', 2947, 34963), -- OptionBroadcastTextID: 2947 - 3467 - 4866 - 5133 - 5371 - 5897 - 6626 - 6713 - 6784 - 6953 - 7032 - 7115 - 15269 - 19236 - 45759 - 52071
+(23017, 9, 0, 'Jewelcrafting', 15267, 34963), -- OptionBroadcastTextID: 15267 - 18338 - 19235 - 44647 - 45758
+(23017, 8, 0, 'Inscription', 31542, 34963), -- OptionBroadcastTextID: 31542 - 32146 - 45757 - 48811
+(23017, 7, 0, 'Herbalism', 2950, 34963), -- OptionBroadcastTextID: 2950 - 3466 - 4865 - 5129 - 5130 - 5370 - 5896 - 6625 - 6712 - 6783 - 6952 - 7031 - 7112 - 15265 - 32145 - 45434 - 45768
+(23017, 6, 0, 'Fishing', 3005, 34963), -- OptionBroadcastTextID: 3005 - 3465 - 4864 - 5127 - 5368 - 5895 - 6624 - 6711 - 6782 - 6951 - 7030 - 7109 - 15263 - 32144 - 45436 - 45767 - 99684 - 173226
+(23017, 5, 0, 'Engineering', 2943, 34963), -- OptionBroadcastTextID: 2943 - 4976 - 5123 - 5893 - 6622 - 6780 - 6949 - 7028 - 15259 - 32143 - 45756 - 51347
+(23017, 4, 0, 'Enchanting', 3006, 34963), -- OptionBroadcastTextID: 3006 - 3463 - 4862 - 5121 - 5363 - 5892 - 6621 - 6709 - 6779 - 6948 - 7027 - 7103 - 15257 - 19234 - 45755 - 52063
+(23017, 3, 0, 'Cooking', 2945, 34963), -- OptionBroadcastTextID: 2945 - 3462 - 4861 - 5119 - 5356 - 5891 - 6620 - 6708 - 6778 - 6947 - 7026 - 7100 - 16029 - 19233 - 45432 - 45763
+(23017, 2, 0, 'Blacksmithing', 2942, 34963), -- OptionBroadcastTextID: 2942 - 3461 - 4860 - 5117 - 5890 - 6619 - 6707 - 6777 - 6946 - 7025 - 15255 - 19249 - 45754 - 51346
+(23017, 1, 0, 'Archaeology', 44649, 34963), -- OptionBroadcastTextID: 44649 - 159429
+(23017, 0, 0, 'Alchemy', 2952, 34963), -- OptionBroadcastTextID: 2952 - 3460 - 4859 - 5114 - 5354 - 5362 - 5889 - 6618 - 6706 - 6776 - 6945 - 7024 - 7097 - 15252 - 19232 - 45753 - 52058
+(20779, 0, 0, 'I am ready to be summoned.', 126356, 33237),
+(20652, 0, 0, 'Who is Kanrethad?', 124867, 33237),
+(19556, 0, 0, 'I choose you to be the Sixth.', 108948, 33237),
+(21079, 1, 0, 'I no longer wish to use the Lunarwing Owl form.', 131062, 33775),
+(22408, 1, 1, 'Let me browse your goods.', 2823, 34601), -- OptionBroadcastTextID: 2823 - 7509 - 8097
+(22408, 0, 5, 'Make this inn your home.', 2822, 34601), -- OptionBroadcastTextID: 2822 - 162070
+(21409, 0, 0, '<Show him the Word of Zul.>', 134581, 34769),
+(24537, 0, 0, 'Prepare the defenses.', 178704, 33073),
+(23751, 0, 0, 'We are ready to begin, Dark Warden.', 165059, 33237),
+(23746, 3, 0, 'Send me to Cinderfall Grove.', 163312, 33237),
+(23746, 2, 0, 'Send me to Gloomtide Strand.', 163311, 33237),
+(23746, 1, 0, 'Send me to Bashal\'Aran.', 163310, 33237),
+(16840, 0, 5, 'Make this inn your home.', 2822, 34769), -- OptionBroadcastTextID: 2822 - 162070
+(16760, 2, 2, 'Show me where I can fly.', 12271, 34769), -- OptionBroadcastTextID: 12271 - 140511 - 158191
+(24356, 0, 0, '<Make some strange gestures.>', 176899, 34601),
+(20754, 0, 0, 'I\'d like the help to the Blind Marshlands.', 126088, 33237),
+(24517, 0, 0, 'Everything is NOT fine! And you... Why are you slurring your words?', 178402, 33084),
+(14955, 0, 0, 'I\'m ready to leave.', 60252, 33169), -- OptionBroadcastTextID: 60252 - 158432 - 160645 - 160654 - 171450
+(25036, 2, 0, 'I found three crystals. Take them and be on your way.', 186645, 34220),
+(23538, 0, 0, '<Give Vintner Iltheux the sample of Nomi\'s Wine.>', 163992, 33169),
+(23558, 0, 1, 'I wish to browse your wares.', 4424, 33169), -- OptionBroadcastTextID: 4424 - 9818 - 12631 - 13966 - 14925 - 15955 - 16125 - 16127 - 17085 - 18217 - 19466 - 38807
+(23538, 1, 0, 'We\'ve made some adjustments to your production pipeline.', 179808, 33169),
+(23539, 3, 0, 'You\'re doing a great job.', 163752, 33169),
+(23539, 2, 0, 'You should be stomping fruit.', 163749, 33169),
+(23539, 1, 0, 'You should be creating the recipe.', 163751, 33169),
+(24598, 0, 0, 'On second thought...', 147907, 33169), -- OptionBroadcastTextID: 147907 - 163798
+(23541, 3, 0, 'You\'re doing a great job.', 163752, 33169),
+(23541, 2, 0, 'You should be creating the recipe.', 163751, 33169),
+(23541, 1, 0, 'You should be obtaining ingredients.', 163750, 33169),
+(24594, 0, 0, 'On second thought...', 147907, 33169), -- OptionBroadcastTextID: 147907 - 163798
+(23540, 3, 0, 'You\'re doing a great job.', 163752, 33169),
+(23540, 2, 0, 'You should be stomping fruit.', 163749, 33169),
+(23540, 1, 0, 'You should be obtaining ingredients.', 163750, 33169),
+(24595, 0, 0, 'On second thought...', 147907, 33169), -- OptionBroadcastTextID: 147907 - 163798
+(23539, 0, 0, 'What are you tasked with?', 163739, 33169),
+(23540, 0, 0, 'What are you tasked with?', 163739, 33169),
+(23541, 0, 0, 'What are you tasked with?', 163739, 33169),
+(23526, 0, 0, 'Where is everyone?', 962, 33169), -- OptionBroadcastTextID: 962 - 163288
+(23521, 0, 0, 'I challenge you to battle!', 163206, 33169),
+(23522, 0, 0, 'The Horde are throwing a party in your honor.', 163214, 33169),
+(23484, 4, 0, 'Good work. You\'ve been promoted to Senior Peon!', 163180, 33169),
+(23493, 4, 0, 'Good work. You\'ve been promoted to Senior Peon!', 163180, 33169),
+(23493, 3, 0, 'Job well done. You\'ve been promoted to Peon, Rank 2.', 163176, 33169),
+(23494, 5, 0, 'Congratulations! You\'ve been promoted to Lead Peon.', 163181, 33169),
+(23494, 4, 0, 'Good work. You\'ve been promoted to Senior Peon!', 163180, 33169),
+(23494, 3, 0, 'Job well done. You\'ve been promoted to Peon, Rank 2.', 163176, 33169),
+(23496, 5, 0, 'Congratulations! You\'ve been promoted to Lead Peon.', 163181, 33169),
+(23499, 5, 0, 'Congratulations! You\'ve been promoted to Lead Peon.', 163181, 33169),
+(23500, 5, 0, 'Congratulations! You\'ve been promoted to Lead Peon.', 163181, 33169),
+(23500, 4, 0, 'Good work. You\'ve been promoted to Senior Peon!', 163180, 33169),
+(23497, 5, 0, 'Congratulations! You\'ve been promoted to Lead Peon.', 163181, 33169),
+(23497, 4, 0, 'Good work. You\'ve been promoted to Senior Peon!', 163180, 33169),
+(23497, 3, 0, 'Job well done. You\'ve been promoted to Peon, Rank 2.', 163176, 33169),
+(23494, 2, 0, 'Why aren\'t you working?', 162930, 33169),
+(23499, 2, 0, 'Why aren\'t you working?', 162930, 33169),
+(23495, 1, 0, 'Why aren\'t you working?', 162930, 33169),
+(23492, 0, 0, 'Why aren\'t you working?', 162930, 33169),
+(23497, 0, 0, 'Why aren\'t you working?', 162930, 33169),
+(23498, 0, 0, 'Why aren\'t you working?', 162930, 33169),
+(23477, 0, 0, 'Why have you come here?', 67457, 33169), -- OptionBroadcastTextID: 67457 - 149811 - 162864
+(23476, 0, 0, 'Why have you come here?', 67457, 33169), -- OptionBroadcastTextID: 67457 - 149811 - 162864
+(23478, 0, 0, 'Why have you come here?', 67457, 33169), -- OptionBroadcastTextID: 67457 - 149811 - 162864
+(25013, 0, 0, 'I am ready to meet with the other champions of the Horde.', 186757, 33169),
+(24331, 1, 0, '<Take the lift to the third floor>', 176670, 33062),
+(24331, 0, 0, '<Take the lift to the first floor>', 176669, 33062),
+(20881, 0, 0, 'The Wrathsteed will be mine!', 127633, 33237),
+(20882, 0, 0, 'Go on...', 111872, 33237), -- OptionBroadcastTextID: 111872 - 127631
+(20883, 0, 0, 'Why have you called me here?', 127629, 33237),
+(1626, 1, 7, 'How do I form a guild?', 3413, 33062),
+(1626, 0, 8, 'I want to create a guild crest.', 3415, 33062),
+(22826, 0, 0, 'Begin pet battle.', 74459, 33169),
+(22832, 0, 0, 'Begin pet battle.', 74459, 33169),
+(24120, 0, 0, 'Begin the ritual, Heru.', 172709, 33169),
+(14602, 0, 0, 'Yes, please disable the devices.', 65402, 33941),
+(14603, 0, 0, 'It may be best not to dabble in mysteries not yet fully understood. Perhaps you should disable the dampening devices. My companions and I can handle ourselves. I\'m sure we will be fine.', 65401, 33941),
+(24305, 2, 3, 'Train me in Tailoring.', 47118, 33369),
+(24995, 2, 0, 'I\'m ready.', 27602, 33062), -- OptionBroadcastTextID: 27602 - 28039 - 75831 - 96430 - 106086 - 109483 - 114517 - 118751 - 121757 - 122010 - 124171 - 125992 - 130808 - 130907 - 131544 - 133249 - 137286 - 137729 - 146811 - 148267 - 152150 - 168345 - 169176 - 169693 - 185994 - 186132 - 187457
+(24995, 1, 0, 'I\'m ready.', 27602, 33062), -- OptionBroadcastTextID: 27602 - 28039 - 75831 - 96430 - 106086 - 109483 - 114517 - 118751 - 121757 - 122010 - 124171 - 125992 - 130808 - 130907 - 131544 - 133249 - 137286 - 137729 - 146811 - 148267 - 152150 - 168345 - 169176 - 169693 - 185994 - 186132 - 187457
+(24995, 0, 0, 'I\'m ready.', 27602, 33062), -- OptionBroadcastTextID: 27602 - 28039 - 75831 - 96430 - 106086 - 109483 - 114517 - 118751 - 121757 - 122010 - 124171 - 125992 - 130808 - 130907 - 131544 - 133249 - 137286 - 137729 - 146811 - 148267 - 152150 - 168345 - 169176 - 169693 - 185994 - 186132 - 187457
+(23507, 0, 2, 'Show me where I can fly.', 12271, 33775), -- OptionBroadcastTextID: 12271 - 140511 - 158191
+(25158, 1, 0, 'Can you return me to the present time?', 138525, 34963), -- OptionBroadcastTextID: 138525 - 159711 - 159837 - 169028 - 187716
+(25158, 0, 0, 'Can you show me what the Vale was like before the Black Empire assault?', 187718, 34963),
+(23560, 0, 0, 'Queen Talanji asked to speak with you.', 164002, 33169),
+(23502, 7, 0, 'Yes.', 33525, 33169), -- OptionBroadcastTextID: 33525 - 35395 - 39547 - 61999 - 62000 - 69412 - 99468 - 100038 - 107476 - 111985 - 138323 - 140008 - 140087 - 140089 - 158301 - 163990 - 167176
+(23709, 0, 0, 'Yes.', 33525, 33169), -- OptionBroadcastTextID: 33525 - 35395 - 39547 - 61999 - 62000 - 69412 - 99468 - 100038 - 107476 - 111985 - 138323 - 140008 - 140087 - 140089 - 158301 - 163990 - 167176
+(23706, 0, 0, 'I am ready.', 35320, 33169), -- OptionBroadcastTextID: 35320 - 35539 - 39152 - 52091 - 52966 - 68157 - 72264 - 98694 - 101165 - 102817 - 104314 - 105294 - 105455 - 105611 - 106714 - 107434 - 108067 - 110410 - 114311 - 115011 - 120845 - 120867 - 120960 - 122483 - 129525 - 130105 - 130536 - 132934 - 134034 - 136601 - 144577 - 152299 - 152826 - 162165 - 163727 - 163987 - 165913 - 169003
+(23705, 0, 0, 'As you wish.', 13110, 33169), -- OptionBroadcastTextID: 13110 - 13295 - 19353 - 52083 - 84123 - 89280 - 120871 - 153315 - 160550 - 164585 - 169570
+(23697, 0, 0, 'I am ready.', 35320, 33169), -- OptionBroadcastTextID: 35320 - 35539 - 39152 - 52091 - 52966 - 68157 - 72264 - 98694 - 101165 - 102817 - 104314 - 105294 - 105455 - 105611 - 106714 - 107434 - 108067 - 110410 - 114311 - 115011 - 120845 - 120867 - 120960 - 122483 - 129525 - 130105 - 130536 - 132934 - 134034 - 136601 - 144577 - 152299 - 152826 - 162165 - 163727 - 163987 - 165913 - 169003
+(23653, 2, 0, '<Attack.>', 166509, 33169),
+(23653, 1, 0, 'Stand down, or face the consequences.', 166507, 33169),
+(23653, 0, 0, 'I am not your enemy. Let me help you.', 166508, 33169);
+
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=34963 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=34963 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34817, `VerifiedBuild`=33775 WHERE (`MenuId`=10528 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34817, `VerifiedBuild`=33775 WHERE (`MenuId`=10528 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34817, `VerifiedBuild`=33775 WHERE (`MenuId`=10528 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34720, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=4);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34719, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34718, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34717, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34716, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34720, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=4);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34719, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34718, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34717, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34716, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34720, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=4);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34719, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34718, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34717, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34716, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34720, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=4);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34719, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34718, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34717, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34716, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34720, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=4);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34719, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34718, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34717, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34716, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34720, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=4);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34719, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34718, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34717, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34716, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34720, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=4);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34719, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34718, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34717, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34716, `VerifiedBuild`=33775 WHERE (`MenuId`=10521 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34693, `VerifiedBuild`=33775 WHERE (`MenuId`=10519 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34629, `VerifiedBuild`=33775 WHERE (`MenuId`=10514 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=34629, `VerifiedBuild`=33775 WHERE (`MenuId`=10514 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=46530, `VerifiedBuild`=33775 WHERE (`MenuId`=12125 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=34220 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=34220 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35383, `VerifiedBuild`=34601 WHERE (`MenuId`=10624 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35354, `VerifiedBuild`=34601 WHERE (`MenuId`=10620 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35354, `VerifiedBuild`=34601 WHERE (`MenuId`=10620 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35363, `VerifiedBuild`=34601 WHERE (`MenuId`=10622 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35363, `VerifiedBuild`=34601 WHERE (`MenuId`=10622 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=34963 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=34963 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33528 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33528 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35020, `VerifiedBuild`=33775 WHERE (`MenuId`=10560 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35012, `VerifiedBuild`=33775 WHERE (`MenuId`=10556 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33528 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=53057, `VerifiedBuild`=34963 WHERE (`MenuId`=13018 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=53320, `VerifiedBuild`=34963 WHERE (`MenuId`=13018 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=34769 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=51295, `VerifiedBuild`=34220 WHERE (`MenuId`=12761 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=51295, `VerifiedBuild`=34220 WHERE (`MenuId`=12761 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=33775 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=33775 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=55772, `VerifiedBuild`=33775 WHERE (`MenuId`=13295 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=55772, `VerifiedBuild`=33775 WHERE (`MenuId`=13295 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=55767, `VerifiedBuild`=33775 WHERE (`MenuId`=13294 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=56711, `VerifiedBuild`=33775 WHERE (`MenuId`=13373 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=56586, `VerifiedBuild`=33775 WHERE (`MenuId`=13357 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=56582, `VerifiedBuild`=33775 WHERE (`MenuId`=13411 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33775 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=22086, `VerifiedBuild`=34963 WHERE (`MenuId`=3841 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=22086, `VerifiedBuild`=34963 WHERE (`MenuId`=3841 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=33941 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=33941 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=33941 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=33237 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=33237 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=34601 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionText`='I am ready, Ysera. We must find Malfurion!', `OptionBroadcastTextId`=0, `VerifiedBuild`=34220 WHERE (`MenuId`=18402 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=56711, `VerifiedBuild`=34220 WHERE (`MenuId`=13373 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=56711, `VerifiedBuild`=34220 WHERE (`MenuId`=13373 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionIcon`=5, `OptionText`='Make this inn your home.', `VerifiedBuild`=33775 WHERE (`MenuId`=12040 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionIcon`=5, `OptionText`='Make this inn your home.', `VerifiedBuild`=33775 WHERE (`MenuId`=12040 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=36406, `VerifiedBuild`=33775 WHERE (`MenuId`=10797 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=36410, `VerifiedBuild`=33775 WHERE (`MenuId`=10780 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=36406, `VerifiedBuild`=33775 WHERE (`MenuId`=10797 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=36399, `VerifiedBuild`=33775 WHERE (`MenuId`=10780 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=36357, `VerifiedBuild`=33775 WHERE (`MenuId`=10783 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=36355, `VerifiedBuild`=33775 WHERE (`MenuId`=10782 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=36353, `VerifiedBuild`=33775 WHERE (`MenuId`=10781 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=36427, `VerifiedBuild`=33775 WHERE (`MenuId`=10801 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=36427, `VerifiedBuild`=33775 WHERE (`MenuId`=10801 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=43252, `VerifiedBuild`=33775 WHERE (`MenuId`=11705 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=43251, `VerifiedBuild`=33775 WHERE (`MenuId`=11705 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=43250, `VerifiedBuild`=33775 WHERE (`MenuId`=11705 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=43249, `VerifiedBuild`=33775 WHERE (`MenuId`=11705 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Great loa, this offering is from the Tortaka tribe.', `VerifiedBuild`=33237 WHERE (`MenuId`=21279 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Great loa, this offering is from the Tortaka tribe.', `VerifiedBuild`=33237 WHERE (`MenuId`=21279 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=53317, `VerifiedBuild`=34963 WHERE (`MenuId`=13012 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33369 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33369 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33369 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33369 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41693, `VerifiedBuild`=33941 WHERE (`MenuId`=11546 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41696, `VerifiedBuild`=33941 WHERE (`MenuId`=11319 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40004, `VerifiedBuild`=33941 WHERE (`MenuId`=11319 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40017, `VerifiedBuild`=33941 WHERE (`MenuId`=11322 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40015, `VerifiedBuild`=33941 WHERE (`MenuId`=11322 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40013, `VerifiedBuild`=33941 WHERE (`MenuId`=11322 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40010, `VerifiedBuild`=33941 WHERE (`MenuId`=11316 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41696, `VerifiedBuild`=33941 WHERE (`MenuId`=11319 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40004, `VerifiedBuild`=33941 WHERE (`MenuId`=11319 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41696, `VerifiedBuild`=33941 WHERE (`MenuId`=11319 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40004, `VerifiedBuild`=33941 WHERE (`MenuId`=11319 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41324, `VerifiedBuild`=33941 WHERE (`MenuId`=12167 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41323, `VerifiedBuild`=33941 WHERE (`MenuId`=12167 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41322, `VerifiedBuild`=33941 WHERE (`MenuId`=12167 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41324, `VerifiedBuild`=33941 WHERE (`MenuId`=12167 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41323, `VerifiedBuild`=33941 WHERE (`MenuId`=12167 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41322, `VerifiedBuild`=33941 WHERE (`MenuId`=12167 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41690, `VerifiedBuild`=33941 WHERE (`MenuId`=11541 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41690, `VerifiedBuild`=33941 WHERE (`MenuId`=11541 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41690, `VerifiedBuild`=33941 WHERE (`MenuId`=11541 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41690, `VerifiedBuild`=33941 WHERE (`MenuId`=11541 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41690, `VerifiedBuild`=33941 WHERE (`MenuId`=11541 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=39729, `VerifiedBuild`=33941 WHERE (`MenuId`=11281 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=39729, `VerifiedBuild`=33941 WHERE (`MenuId`=11281 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=39729, `VerifiedBuild`=33941 WHERE (`MenuId`=11281 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=39808, `VerifiedBuild`=33941 WHERE (`MenuId`=11289 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=39810, `VerifiedBuild`=33941 WHERE (`MenuId`=11289 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=39810, `VerifiedBuild`=33941 WHERE (`MenuId`=11289 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=39810, `VerifiedBuild`=33941 WHERE (`MenuId`=11289 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=39810, `VerifiedBuild`=33941 WHERE (`MenuId`=11289 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=39810, `VerifiedBuild`=33941 WHERE (`MenuId`=11289 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41690, `VerifiedBuild`=33941 WHERE (`MenuId`=11541 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41690, `VerifiedBuild`=33941 WHERE (`MenuId`=11541 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41690, `VerifiedBuild`=33941 WHERE (`MenuId`=11541 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41324, `VerifiedBuild`=33941 WHERE (`MenuId`=11451 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41323, `VerifiedBuild`=33941 WHERE (`MenuId`=11451 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41322, `VerifiedBuild`=33941 WHERE (`MenuId`=11451 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41321, `VerifiedBuild`=33941 WHERE (`MenuId`=11451 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41324, `VerifiedBuild`=33941 WHERE (`MenuId`=11451 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41323, `VerifiedBuild`=33941 WHERE (`MenuId`=11451 AND `OptionIndex`=2);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41322, `VerifiedBuild`=33941 WHERE (`MenuId`=11451 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41321, `VerifiedBuild`=33941 WHERE (`MenuId`=11451 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41693, `VerifiedBuild`=33941 WHERE (`MenuId`=11546 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41693, `VerifiedBuild`=33941 WHERE (`MenuId`=11546 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=41693, `VerifiedBuild`=33941 WHERE (`MenuId`=11546 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35679, `VerifiedBuild`=33775 WHERE (`MenuId`=10641 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35898, `VerifiedBuild`=33775 WHERE (`MenuId`=10658 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35903, `VerifiedBuild`=33775 WHERE (`MenuId`=10659 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35679, `VerifiedBuild`=33775 WHERE (`MenuId`=10641 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35679, `VerifiedBuild`=33775 WHERE (`MenuId`=10641 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=35679, `VerifiedBuild`=33775 WHERE (`MenuId`=10641 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=2662, `VerifiedBuild`=33775 WHERE (`MenuId`=202 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=2662, `VerifiedBuild`=33775 WHERE (`MenuId`=202 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33369 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=34963 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=34963 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=34963 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=33941 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=33062 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=33062 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='The Mugambala', `VerifiedBuild`=33528 WHERE (`MenuId`=22205 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=12082, `VerifiedBuild`=33775 WHERE (`MenuId`=7147 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionIcon`=1, `OptionText`='Let me browse your goods.', `VerifiedBuild`=33775 WHERE (`MenuId`=7324 AND `OptionIndex`=1);
+UPDATE `gossip_menu_option` SET `OptionIcon`=5, `OptionText`='Make this inn your home.', `VerifiedBuild`=33775 WHERE (`MenuId`=7324 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=11733, `VerifiedBuild`=33775 WHERE (`MenuId`=6952 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=11731, `VerifiedBuild`=33775 WHERE (`MenuId`=6953 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=33369 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=33369 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=33369 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=33369 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40425, `VerifiedBuild`=34769 WHERE (`MenuId`=9157 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='Lay your hand on the stone.', `VerifiedBuild`=34769 WHERE (`MenuId`=9274 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40425, `VerifiedBuild`=34769 WHERE (`MenuId`=9157 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionBroadcastTextId`=40425, `VerifiedBuild`=34769 WHERE (`MenuId`=9157 AND `OptionIndex`=3);
+UPDATE `gossip_menu_option` SET `OptionText`='Great loa, this offering is from the Tortaka tribe.', `VerifiedBuild`=34769 WHERE (`MenuId`=21279 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Great loa, this offering is from the Tortaka tribe.', `VerifiedBuild`=34769 WHERE (`MenuId`=21279 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Great loa, this offering is from the Tortaka tribe.', `VerifiedBuild`=34769 WHERE (`MenuId`=21279 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Show me our recruitment and research options.', `OptionBroadcastTextId`=162130, `VerifiedBuild`=34220 WHERE (`MenuId`=23356 AND `OptionIndex`=0);
+UPDATE `gossip_menu_option` SET `OptionText`='Return me to the Halls of Origination.', `OptionBroadcastTextId`=186272, `VerifiedBuild`=33369 WHERE (`MenuId`=24140 AND `OptionIndex`=3);
+
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=34963 WHERE (`OptionIndex`=1 AND `MenuId` IN (21933,24257,22730,12949,24140,9904,24402,349,24138,23922,22155,13012,23828,20506,16962,18380)) OR (`OptionIndex`=0 AND `MenuId` IN (10182,23723,24221,23799,24124,24190,22554,23395,10667,24223,24075,24053,24040,24019,24018,24359,22290,1951,9904,24402,18860,21150,22338,23411,22084,21043,23352,24386,21844,24125,10043,21720,23730,23729,11389,24138,23715,23828,20726,20506,22724,22284)) OR (`OptionIndex`=10 AND `MenuId` IN (21925,24402)) OR (`OptionIndex`=7 AND `MenuId` IN (21925,22559,24402,21672)) OR (`OptionIndex`=2 AND `MenuId` IN (21925,24015,24140,1951,9904,24402,22946,23922,21933,21672)) OR (`OptionIndex`=12 AND `MenuId` IN (24015,1951,24402,21672)) OR (`OptionIndex`=11 AND `MenuId` IN (24015,19168,24402,21672)) OR (`OptionIndex`=9 AND `MenuId`=24015) OR (`OptionIndex`=8 AND `MenuId` IN (24015,19168,22559,10043,21672)) OR (`OptionIndex`=5 AND `MenuId` IN (24015,24009,24140)) OR (`OptionIndex`=4 AND `MenuId`=24015) OR (`OptionIndex`=3 AND `MenuId` IN (22557,1951,24402,22946,21933)) OR (`OptionIndex`=6 AND `MenuId` IN (22559,24402)) OR (`OptionIndex`=16 AND `MenuId`=1951);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33775 WHERE (`OptionIndex`=1 AND `MenuId` IN (20506,9199,12549,941,349,24257,22020,21933,22155,22835,22730,12949,7256,7845,6620,14991)) OR (`OptionIndex`=0 AND `MenuId` IN (20506,24125,10182,24124,23395,23352,7984,10012,9669,9162,1882,12549,16141,16139,16140,10667,22084,22554,21043,22976,22205,22020,23625,22290,23411,5711,5710,83,1951,18346,5715,5708,5729,4342,13814,7153,7149,10181,7256,7845,14991,22754)) OR (`OptionIndex`=3 AND `MenuId` IN (5349,1951)) OR (`OptionIndex`=11 AND `MenuId` IN (19168,21672)) OR (`OptionIndex`=8 AND `MenuId` IN (19168,22559,21672)) OR (`OptionIndex`=10 AND `MenuId`=21925) OR (`OptionIndex`=7 AND `MenuId` IN (21925,22559,21672)) OR (`OptionIndex`=2 AND `MenuId` IN (21925,22020,1951,21672,7633)) OR (`OptionIndex`=6 AND `MenuId`=22559) OR (`OptionIndex`=16 AND `MenuId`=1951) OR (`OptionIndex`=12 AND `MenuId` IN (1951,21672)) OR (`OptionIndex`=9 AND `MenuId`=7633);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33237 WHERE (`OptionIndex`=0 AND `MenuId` IN (24125,23879,10182,24224,23950,24349,24124,23395,21001,21844,23799,22554,24038,24392,24046,24021,24020,24299,11386,10667,21043,22726,22290,21764,22020,24221,23352,24386,21939,23411,21919,21920,22452,21918,21528,21527,21529,22800,22775,22774,22263,24238,24263,24262,24138,21289,22256,22255,22254,21667,21661,21657,21656,21781,21787,21786,21785,21766,21530,21762,21487,21185,21814,21433,23141,22620,22787,23828,18723,20374,19812,19918,21492,21547,21797,21799,22433,22272,22271,22270,22269,22268,22283,22678,21228,21230,22677,21384,21601,21645,21437,21097,21189,21096,22561,22724,22084,22329,21150,22976)) OR (`OptionIndex`=10 AND `MenuId` IN (24041,21925)) OR (`OptionIndex`=6 AND `MenuId` IN (24041,23950,22559)) OR (`OptionIndex`=1 AND `MenuId` IN (24224,23950,22730,24257,24021,22020,22806,21940,24138,21986,21657,21661,21762,22290,21433,22537,22787,23828,21933,19920,21799,21279,22272,22271,22270,22269,22268,22402,21229,21228,21230,21797,21601,21437,12949,20181)) OR (`OptionIndex`=5 AND `MenuId` IN (23950,22272,22271,22270,22269,22268)) OR (`OptionIndex`=4 AND `MenuId` IN (23950,19326,22272,22271,22270,22269,22268)) OR (`OptionIndex`=2 AND `MenuId` IN (23950,21925,24046,22020,24238,21986,22272,22271,22270,22268,22402,21229,21228,21230,21437,21601)) OR (`OptionIndex`=8 AND `MenuId` IN (22559,19168)) OR (`OptionIndex`=7 AND `MenuId` IN (22559,21925)) OR (`OptionIndex`=3 AND `MenuId` IN (24021,24020,22272,22271,22270,22269,22268,22402,21601)) OR (`OptionIndex`=11 AND `MenuId`=19168);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=34601 WHERE (`OptionIndex`=0 AND `MenuId` IN (22554,23395,22976,22561,11244,10722,12002,11146,11082,11009,10808,10677,22724,10667,24124,24125,10182,22290,18757,17090,16475,24223,16042,1951,18723,18276,21097,21189,21096,22800,22775,22774,22263,21289,21335,22205,22084,21844,21487,21185,21814,21001,23352,21043,24386,22256,22255,22254,21667,21661,21301,21295,21657,21939,22452,21918,21919,21920,21528,21527,21529,21656,21781,21786,21787,21785,21766,21530,21762,21150,23799)) OR (`OptionIndex`=1 AND `MenuId` IN (24257,16962,12002,10677,9821,21933,22806,21940,21986,22290,21657,21661,21762)) OR (`OptionIndex`=2 AND `MenuId` IN (12002,21925,9821,16042,1951,21986)) OR (`OptionIndex`=8 AND `MenuId` IN (22559,19168)) OR (`OptionIndex`=7 AND `MenuId` IN (22559,21925)) OR (`OptionIndex`=6 AND `MenuId`=22559) OR (`OptionIndex`=10 AND `MenuId` IN (21925,22632)) OR (`OptionIndex`=16 AND `MenuId` IN (16042,1951)) OR (`OptionIndex`=12 AND `MenuId` IN (16042,1951)) OR (`OptionIndex`=3 AND `MenuId` IN (16042,1951)) OR (`OptionIndex`=9 AND `MenuId`=22632) OR (`OptionIndex`=11 AND `MenuId`=19168);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33528 WHERE (`OptionIndex`=0 AND `MenuId` IN (10667,22554,23395,21765,22205,22290,24386,23352,24124,23799,21844,10182,23567,22020,23993,24372,24223,21043,22784,24125)) OR (`OptionIndex`=1 AND `MenuId` IN (24257,22730,22020,21933,12949)) OR (`OptionIndex`=2 AND `MenuId` IN (9821,21925,21672,22020)) OR (`OptionIndex`=10 AND `MenuId` IN (21925,22632)) OR (`OptionIndex`=7 AND `MenuId` IN (21925,21672,22559)) OR (`OptionIndex`=12 AND `MenuId`=21672) OR (`OptionIndex`=11 AND `MenuId` IN (21672,19168)) OR (`OptionIndex`=8 AND `MenuId` IN (21672,19168,22559)) OR (`OptionIndex`=9 AND `MenuId`=22632) OR (`OptionIndex`=6 AND `MenuId`=22559);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33115 WHERE (`OptionIndex`=0 AND `MenuId` IN (22554,23395,21043,21844,22290,22976,23828,24125,10182,24124,23715,24203,23799,22561,24386,21150,21001,23352,22975,22807,22724,10667)) OR (`OptionIndex`=10 AND `MenuId`=21925) OR (`OptionIndex`=7 AND `MenuId` IN (21925,22559)) OR (`OptionIndex`=2 AND `MenuId`=21925) OR (`OptionIndex`=8 AND `MenuId` IN (22559,19168)) OR (`OptionIndex`=6 AND `MenuId`=22559) OR (`OptionIndex`=1 AND `MenuId` IN (23828,12949,24257)) OR (`OptionIndex`=11 AND `MenuId`=19168);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33369 WHERE (`OptionIndex`=0 AND `MenuId` IN (22290,22554,23395,10182,24125,23352,22724,22975,23646,22338,22261,10188,24215,23799,23950,24224,24459,24124,24186,24051,24130,22726,18860,24386,22976,10667,22754,23567,24017,21043,21844,24221,24099,24222,24179,24176,24173,24172,24136,24137,24184,23828,24185,24119,24086,24230,24075,24053,24169,24040,24019,24018,22561,24359,21150,23895,22737,21764,22205,24182,24111,24138,24100,24263,24262,18848,18723,22020,22505,16680,21797,24372,23715,22646,22636,22637,22694,23332,22661,22604,22622,22540,22559,23411)) OR (`OptionIndex`=1 AND `MenuId` IN (24257,23922,24288,23950,24224,21933,22730,12949,24138,24099,24124,24176,24173,24172,24136,24137,23828,24140,22561,23895,24111,24403,24100,22020,16680,22559,22604,22540,23356)) OR (`OptionIndex`=2 AND `MenuId` IN (23922,21925,21672,9821,24099,24238,24176,23828,24086,24140,24111,22020,16680)) OR (`OptionIndex`=10 AND `MenuId`=21925) OR (`OptionIndex`=7 AND `MenuId` IN (21925,22559,21672,24176,24086)) OR (`OptionIndex`=8 AND `MenuId` IN (22559,21672,19168,23263)) OR (`OptionIndex`=6 AND `MenuId` IN (22559,23950,24176,24099,24086)) OR (`OptionIndex`=4 AND `MenuId` IN (24306,24307,23950,22559,24099,24176,24086,24305)) OR (`OptionIndex`=5 AND `MenuId` IN (23950,24176,24086,24140)) OR (`OptionIndex`=3 AND `MenuId` IN (23950,24099,24176,23828,24086,22557,22665,22559)) OR (`OptionIndex`=12 AND `MenuId`=21672) OR (`OptionIndex`=11 AND `MenuId` IN (21672,19168,22559));
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33095 WHERE (`OptionIndex`=1 AND `MenuId`=21933) OR (`OptionIndex`=0 AND `MenuId` IN (10181,10182,22554,23395,10667,22290));
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33941 WHERE (`OptionIndex`=0 AND `MenuId` IN (21335,22554,10182,21001,23174,10667,23799,23395,23352,24124,23828,18276,21844,22561,22290,22726,24075,24053,24040,24019,24018,22724,22604,22622,22540,22559,22646,22637,22636,19861,17357,18757,22976,23567,22256,22255,22254,21667,21661,21657,21656,21781,21785,21787,21786,21766,21530,21762,23411,21487,21185,21814,24372,24386,21433,23141,24125,21043,11324,11339,12646,12613,17090,16475,16518,16641,22620,22650,21895,22787,18273,18723)) OR (`OptionIndex`=10 AND `MenuId`=21925) OR (`OptionIndex`=7 AND `MenuId` IN (21925,22559,21672)) OR (`OptionIndex`=2 AND `MenuId` IN (21925,9821,24140,21672)) OR (`OptionIndex`=11 AND `MenuId` IN (19168,21672)) OR (`OptionIndex`=8 AND `MenuId` IN (19168,22559,21672)) OR (`OptionIndex`=1 AND `MenuId` IN (22730,22835,23828,9821,24140,22604,22540,23356,20457,12949,21657,21661,21762,22290,21933,21433,24257,11324,22537,22650,22787,18723,22155)) OR (`OptionIndex`=6 AND `MenuId`=22559) OR (`OptionIndex`=3 AND `MenuId` IN (22557,22665,22559)) OR (`OptionIndex`=5 AND `MenuId`=24140) OR (`OptionIndex`=12 AND `MenuId`=21672);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=34220 WHERE (`OptionIndex`=12 AND `MenuId` IN (21672,1951)) OR (`OptionIndex`=11 AND `MenuId` IN (21672,22559,19168)) OR (`OptionIndex`=8 AND `MenuId` IN (21672,22559,19168)) OR (`OptionIndex`=7 AND `MenuId` IN (21672,24176,21925,22559)) OR (`OptionIndex`=2 AND `MenuId` IN (21672,23922,24099,24238,24176,23828,21925,9821,18435,22020,1951)) OR (`OptionIndex`=0 AND `MenuId` IN (24125,24099,24138,24100,24238,24222,24179,24176,24173,24172,24136,24137,24184,23828,24119,10188,24372,24186,24051,24130,22724,22290,10182,22554,23395,23352,20974,18723,21043,22205,10667,23799,9619,20506,10139,14991,18424,19012,18426,18776,18435,19175,17260,18434,18447,19016,18438,19015,18864,19601,24386,23715,23723,19646,22561,21332,23567,24221,24124,22020,21001,22835,1951,19337,19287,21844,22338,21173,20834,19861,4342,22084,22726,18250,18679,21377,18555,22120,10183,19230,20122,19939,23411)) OR (`OptionIndex`=1 AND `MenuId` IN (23922,24099,24138,24100,24124,24176,24173,24172,24136,24137,23828,24257,21933,20974,9619,20506,20457,14991,19176,19116,18823,18935,18937,18936,19016,18438,19929,22020,22835,22561,19405,21377,22730,9821,22155,21067)) OR (`OptionIndex`=4 AND `MenuId` IN (24099,24176)) OR (`OptionIndex`=3 AND `MenuId` IN (24099,24176,23828,1951)) OR (`OptionIndex`=6 AND `MenuId` IN (24176,22559)) OR (`OptionIndex`=5 AND `MenuId` IN (24176,18723)) OR (`OptionIndex`=10 AND `MenuId`=21925) OR (`OptionIndex`=16 AND `MenuId`=1951);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33169 WHERE (`OptionIndex`=0 AND `MenuId` IN (22554,22724,23395,10182,23828,24386,23352,18723,19812,19918,10181,23799,24124,10667,22290,22020,21001,19601)) OR (`OptionIndex`=1 AND `MenuId` IN (22730,21933,23828,22835,24257,22020,21067)) OR (`OptionIndex`=8 AND `MenuId` IN (22559,23263)) OR (`OptionIndex`=7 AND `MenuId` IN (22559,21925)) OR (`OptionIndex`=6 AND `MenuId`=22559) OR (`OptionIndex`=10 AND `MenuId`=21925) OR (`OptionIndex`=2 AND `MenuId` IN (21925,22020));
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=34769 WHERE (`OptionIndex`=0 AND `MenuId` IN (22554,23395,22290,10182,21797,22561,23411,22976,21043,24386,22205,23195,23202,23200,22455,14324,22654,22712,23352,22253,22433,22677,21384,22678,24125,24124,21844,10667,23799,21601,21645,21437,10188,21547,13048,22099,22098,21906,22097,22096,21905,21493,21492,24223,22726,21093,23723,22498,21413,16640,10361,22835,11389,23567,22272,22271,22270,22269,22268,22283,21230,21228,22072,22734,22100,22687,21283,22681,11384)) OR (`OptionIndex`=1 AND `MenuId` IN (21933,22626,21279,22402,21797,24257,21601,21437,9821,21547,22730,22272,22271,22270,22269,22268,21229,21230,21228,22687,21283)) OR (`OptionIndex`=10 AND `MenuId` IN (21925,22632)) OR (`OptionIndex`=7 AND `MenuId` IN (21925,22559)) OR (`OptionIndex`=2 AND `MenuId` IN (21925,22471,22402,21437,21601,9821,22272,22271,22270,22268,21229,21230,21228,21933,21283,22687)) OR (`OptionIndex`=8 AND `MenuId`=22559) OR (`OptionIndex`=6 AND `MenuId`=22559) OR (`OptionIndex`=3 AND `MenuId` IN (22402,21601,22272,22271,22270,22269,22268,22687)) OR (`OptionIndex`=4 AND `MenuId` IN (21601,22272,22271,22270,22269,22268)) OR (`OptionIndex`=9 AND `MenuId`=22632) OR (`OptionIndex`=5 AND `MenuId` IN (22272,22271,22270,22269,22268));
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33073 WHERE (`OptionIndex`=0 AND `MenuId` IN (22329,22290,23352,22554,23395,24125,10182,24124,21547)) OR (`OptionIndex`=1 AND `MenuId`=21933);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33724 WHERE (`OptionIndex`=1 AND `MenuId` IN (22730,23828,24257)) OR (`OptionIndex`=8 AND `MenuId` IN (22559,19168)) OR (`OptionIndex`=7 AND `MenuId` IN (22559,21925)) OR (`OptionIndex`=6 AND `MenuId`=22559) OR (`OptionIndex`=0 AND `MenuId` IN (23395,22554,23352,23828,21001,10667,21844,23799)) OR (`OptionIndex`=10 AND `MenuId`=21925) OR (`OptionIndex`=2 AND `MenuId`=21925) OR (`OptionIndex`=11 AND `MenuId`=19168);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33084 WHERE (`OptionIndex`=0 AND `MenuId` IN (22290,24386,10182,23646,22554,23395,24125,24124,22724,24017,10181,23352,23799,10667)) OR (`OptionIndex`=1 AND `MenuId` IN (21933,22730)) OR (`OptionIndex`=8 AND `MenuId`=22559) OR (`OptionIndex`=7 AND `MenuId` IN (22559,21925)) OR (`OptionIndex`=6 AND `MenuId`=22559) OR (`OptionIndex`=10 AND `MenuId`=21925) OR (`OptionIndex`=2 AND `MenuId`=21925);
+UPDATE `gossip_menu_option` SET `VerifiedBuild`=33062 WHERE (`OptionIndex`=1 AND `MenuId`=24257) OR (`OptionIndex`=0 AND `MenuId` IN (10182,22554,23395,24017,22329,21150,22290,23352,22976,21043,24386,1951,16042,24125)) OR (`OptionIndex`=16 AND `MenuId` IN (1951,16042)) OR (`OptionIndex`=12 AND `MenuId` IN (1951,16042)) OR (`OptionIndex`=3 AND `MenuId` IN (1951,16042)) OR (`OptionIndex`=2 AND `MenuId` IN (1951,16042,21925)) OR (`OptionIndex`=10 AND `MenuId`=21925) OR (`OptionIndex`=7 AND `MenuId` IN (21925,22559)) OR (`OptionIndex`=8 AND `MenuId`=22559) OR (`OptionIndex`=6 AND `MenuId`=22559);
+

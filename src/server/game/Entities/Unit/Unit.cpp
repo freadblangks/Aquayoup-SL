@@ -720,6 +720,10 @@ bool Unit::HasBreakableByDamageCrowdControlAura(Unit* excludeCasterChannel) cons
     // Hook for OnDamage Event
     sScriptMgr->OnDamage(attacker, victim, damage);
 
+    // sparring
+    if (Creature* victimCreature = victim->ToCreature())
+        damage = victimCreature->CalculateDamageForSparring(attacker, damage);
+
     if (victim->GetTypeId() == TYPEID_PLAYER)
     {
         // Signal to pets that their owner was attacked - except when DOT.
@@ -1919,6 +1923,13 @@ void Unit::HandleEmoteCommand(uint32 emoteId, Player* target /*=nullptr*/, Trini
             uint32 split_absorb = 0;
             Unit::DealDamageMods(damageInfo.GetAttacker(), caster, splitDamage, &split_absorb);
 
+            // sparring
+            if (Creature* victimCreature = damageInfo.GetVictim()->ToCreature())
+                if (Unit* attacker = damageInfo.GetAttacker())
+                    if (attacker->IsCreature() && !attacker->IsCharmedOwnedByPlayerOrPlayer())
+                        if (victimCreature->GetHealthPct() != 0 && victimCreature->GetHealthPct() <= victimCreature->GetSparringHealthPct())
+                            damageInfo.ModifyDamage(damageInfo.GetDamage() * -1);
+
             SpellNonMeleeDamage log(damageInfo.GetAttacker(), caster, (*itr)->GetSpellInfo(), (*itr)->GetBase()->GetSpellVisual(), damageInfo.GetSchoolMask(), (*itr)->GetBase()->GetCastId());
             CleanDamage cleanDamage = CleanDamage(splitDamage, 0, BASE_ATTACK, MELEE_HIT_NORMAL);
             Unit::DealDamage(damageInfo.GetAttacker(), caster, splitDamage, &cleanDamage, DIRECT_DAMAGE, damageInfo.GetSchoolMask(), (*itr)->GetSpellInfo(), false);
@@ -2050,6 +2061,14 @@ void Unit::AttackerStateUpdate(Unit* victim, WeaponAttackType attType, bool extr
             CalculateMeleeDamage(victim, &damageInfo, attType);
             // Send log damage message to client
             Unit::DealDamageMods(damageInfo.Attacker, victim, damageInfo.Damage, &damageInfo.Absorb);
+			
+            // sparring
+            if (Creature* victimCreature = victim->ToCreature())
+                if (IsCreature() && !IsCharmedOwnedByPlayerOrPlayer())
+                    if (victimCreature->GetSparringHealthPct() != 0.0f)
+                        if (victimCreature->GetHealthPct() <= victimCreature->GetSparringHealthPct())
+                            damageInfo.HitInfo |= HITINFO_FAKE_DAMAGE;
+
             SendAttackStateUpdate(&damageInfo);
 
             DealMeleeDamage(&damageInfo, true);

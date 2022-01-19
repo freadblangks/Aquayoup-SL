@@ -674,6 +674,9 @@ void Battleground::RewardReputationToTeam(uint32 faction_id, uint32 Reputation, 
         if (!player)
             continue;
 
+        if (player->GetNativeTeam() != TeamID)
+            continue;
+
         uint32 repGain = Reputation;
         AddPct(repGain, player->GetTotalAuraModifier(SPELL_AURA_MOD_REPUTATION_GAIN));
         AddPct(repGain, player->GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_FACTION_REPUTATION_GAIN, faction_id));
@@ -776,8 +779,8 @@ void Battleground::EndBattleground(uint32 winner)
         player->RemoveAura(SPELL_HONORABLE_DEFENDER_25Y);
         player->RemoveAura(SPELL_HONORABLE_DEFENDER_60Y);
 
-        uint32 winnerKills = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_FIRST);
-        uint32 loserKills = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_FIRST);
+        uint32 winnerHonor = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_FIRST);
+        uint32 loserHonor = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_FIRST);
 
         if (isBattleground() && sWorld->getBoolConfig(CONFIG_BATTLEGROUND_STORE_STATISTICS_ENABLE))
         {
@@ -807,7 +810,7 @@ void Battleground::EndBattleground(uint32 winner)
         {
             if (IsRandom() || BattlegroundMgr::IsBGWeekend(GetTypeID()))
             {
-                UpdatePlayerScore(player, SCORE_BONUS_HONOR, GetBonusHonorFromKill(winnerKills));
+                UpdatePlayerScore(player, SCORE_BONUS_HONOR, winnerHonor);
                 if (!player->GetRandomWinner())
                 {
                     player->SetRandomWinner(true);
@@ -833,7 +836,7 @@ void Battleground::EndBattleground(uint32 winner)
         else
         {
             if (IsRandom() || BattlegroundMgr::IsBGWeekend(GetTypeID()))
-                UpdatePlayerScore(player, SCORE_BONUS_HONOR, GetBonusHonorFromKill(loserKills));
+                UpdatePlayerScore(player, SCORE_BONUS_HONOR, loserHonor);
         }
 
         player->ResetAllPowers();
@@ -855,7 +858,7 @@ uint32 Battleground::GetScriptId() const
 uint32 Battleground::GetBonusHonorFromKill(uint32 kills) const
 {
     //variable kills means how many honorable kills you scored (so we need kills * honor_for_one_kill)
-    uint32 maxLevel = std::min<uint32>(GetMaxLevel(), 80U);
+    uint32 maxLevel = std::min<uint32>(GetMaxLevel(), 60U);
     return Trinity::Honor::hk_honor_at_level(maxLevel, float(kills));
 }
 
@@ -897,6 +900,8 @@ void Battleground::RemovePlayerAtLeave(ObjectGuid guid, bool Transport, bool Sen
             player->RemoveAurasByType(SPELL_AURA_MOD_SHAPESHIFT);
 
         player->RemoveAurasByType(SPELL_AURA_MOUNTED);
+        player->RemoveAurasByType(SPELL_AURA_SWITCH_TEAM);
+        player->RemoveAurasByType(SPELL_AURA_MOD_FACTION);
 
         if (!player->IsAlive())                              // resurrect on exit
         {
@@ -1114,6 +1119,17 @@ void Battleground::AddPlayer(Player* player)
             startTimer.TimeLeft     = std::chrono::duration_cast<Seconds>(countdownMaxForBGType - Milliseconds(GetElapsedTime()));
             startTimer.TotalTime    = countdownMaxForBGType;
             player->SendDirectMessage(startTimer.Write());
+        }
+
+        if (player->HasAura(SPELL_MERCENARY_CONTRACT_HORDE))
+        {
+            player->CastSpell(player, SPELL_MERCENARY_HORDE_1, true);
+            player->CastSpell(player, SPELL_MERCENARY_HORDE_2, true);
+        }
+        else if (player->HasAura(SPELL_MERCENARY_CONTRACT_ALLIANCE))
+        {
+            player->CastSpell(player, SPELL_MERCENARY_ALLIANCE_1, true);
+            player->CastSpell(player, SPELL_MERCENARY_ALLIANCE_2, true);
         }
     }
 

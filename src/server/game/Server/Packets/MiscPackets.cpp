@@ -741,3 +741,8 @@ WorldPacket const* WorldPackets::Misc::SplashScreenShowLatest::Write()
 
     return &_worldPacket;
 }
+
+void WorldPackets::Misc::FactionSelect::Read()
+{
+    _worldPacket >> FactionChoice;
+}

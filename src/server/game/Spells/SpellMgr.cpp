@@ -4602,7 +4602,116 @@ void SpellMgr::LoadSpellInfoCorrections()
             spellEffectInfo->ApplyAuraName = SPELL_AURA_MOD_DECREASE_SPEED;
         });
     });
+	
+//
+    // DEADMINES SPELLS
+    //
+    // Glubtok
+    // Fists of Flame
+    ApplySpellFix({ 87874, 91268, 87896, 91269 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(2); // Combat Range
+    });
 
+    // Fists of Frost
+    ApplySpellFix({ 87899, 91272, 87901, 91273,}, [](SpellInfo* spellInfo)
+    {
+        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(2); // Combat Range
+    });
+
+    // Helix Gearbreaker
+    // Charge
+    ApplySpellFix({ 88295 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+           spellEffectInfo->RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_100_YARDS);
+        });
+    });
+
+    // "Captain" Cookie
+    // Rotten Aura
+    ApplySpellFix({
+        89735,
+        92065,
+        }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->AttributesCu |= SPELL_ATTR0_CU_NO_INITIAL_THREAT;
+        });
+
+    // Vanessa VanCleef
+    // Spark
+    ApplySpellFix({ 95520 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+            spellEffectInfo->RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_1_YARD);
+        });
+    });
+
+    // Summon Defias
+    ApplySpellFix({ 92616, 92617,  92618  }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+            spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_DEST_DEST);
+        });
+
+        spellInfo->AttributesEx2 |= SPELL_ATTR2_CAN_TARGET_NOT_IN_LOS;
+    });
+
+    // Fiery Blaze
+    ApplySpellFix({ 93485 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->AttributesCu |= SPELL_ATTR0_CU_NO_INITIAL_THREAT;
+        });
+
+    // END OF DEADMINES SPELLS
+
+// GILNEAS SPELLS
+    //
+    // Curse of the Worgen
+    ApplySpellFix({ 69123 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(135); // 100yd
+    });
+
+    // Forcecast summon personal Godfrey
+    ApplySpellFix({ 68635, 68636 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+            spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_UNIT_SUMMONER);
+        });
+    });
+	
+    // Pull-to
+    ApplySpellFix({ 67357 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+        {
+            spellEffectInfo->MiscValue = 150;
+        });
+    });
+
+    // ENDOF GILNEAS SPELLS
+
+    // Horde / Alliance switch (BG mercenary system)
+    ApplySpellFix({ 195838, 195843 }, [](SpellInfo* spellInfo)
+    {
+         ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+         {
+             spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA;
+         });
+         ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
+         {
+                 spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA; 
+         });
+         ApplySpellEffectFix(spellInfo, EFFECT_2, [](SpellEffectInfo* spellEffectInfo)
+         {
+                 spellEffectInfo->Effect = SPELL_EFFECT_APPLY_AURA; 
+         });
+    });
     //
     // FIRELANDS SPELLS
     //
@@ -4644,15 +4753,144 @@ void SpellMgr::LoadSpellInfoCorrections()
     });
 
     // ENDOF ANTORUS THE BURNING THRONE SPELLS
+     //start zul
+    // Shadow Spike
+    ApplySpellFix({ 97158 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
 
-    // Summon Master Li Fei
-    ApplySpellFix({ 102445 }, [](SpellInfo* spellInfo)
+    // Call Spirit
+    ApplySpellFix({ 97152 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
+
+    // Spirit Warrior's Gaze
+    ApplySpellFix({ 97597 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
+
+    // Sunder Rift
+    ApplySpellFix({ 96964 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(18); // 20seconds
+    });
+
+    // Rolling Boulders Search Effect
+    ApplySpellFix({ 96839 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
+    // ENDOF ZUL'GURUB SPELLS
+	
+    // THE WANDERING ISLE SPELLS
+    // Summon Pet
+    ApplySpellFix({ 107924 }, [](SpellInfo* spellInfo)
+    {
+       ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
+       {
+            spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER);
+       });
+    });
+
+    ApplySpellFix({
+        102445, // Summon Master Li Fei
+        102499, // Fire Crash
+        118499, // Summon Aysa
+        118500, // Summon Ji
+        116190, // Summon Child 1
+        116191, // Summon Child 2
+        108786, // Summon Stack of Reeds
+        108827, // Summon Stack of Planks
+        108847, // Summon Stack of Blocks
+        108858, // Summon Tiger Stand
+        104450, // Summon Ji Yuan
+        104571, // Summon Aysa
+        126040, // Summon Master Shang Xi
+        115334, // Summon Aysa
+        115336, // Summon Ji
+        115338, // Summon Jojo
+        115493, // Summon Aysa
+        115494, // Summon Ji
+        115495, // Summon Jojo
+        117597  // Summon Ji
+    }, [](SpellInfo* spellInfo)
     {
         ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
         {
             spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_DEST_DB);
         });
     });
+
+ ApplySpellFix({
+        114710, // Forcecast Summon Amberleaf Troublemaker
+        118032  // Water Spout
+    }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 1;
+    });
+
+    // Summon Lightning
+    ApplySpellFix({ 109062 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->CastTimeEntry = sSpellCastTimesStore.LookupEntry(1);
+    });
+
+    // Flame Spout
+    ApplySpellFix({ 114685 }, [](SpellInfo* spellInfo)
+        {
+            ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+                {
+                    spellEffectInfo->MaxRadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_1_YARD);
+                });
+        });
+
+
+    // Ride Vehicle
+    ApplySpellFix({ 102717 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->RecoveryTime = 0;
+    });
+
+    // Summon Jojo Ironbrow
+    ApplySpellFix({ 108845 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(4); // 120 seconds
+    });
+
+    // Eject Passenger 1
+    ApplySpellFix({ 60603 }, [](SpellInfo* spellInfo)
+        {
+            ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+                {
+                    spellEffectInfo->BasePoints = 1;
+                });
+        });
+
+
+    ApplySpellFix({
+        104012, // Break Gong Credit
+        105002, // Summon Hot Air Balloon
+        120344, // Summon Aysa
+        120345, // Summon Jojo
+        120749, // Summon Ji
+        120753  // Summon Garrosh
+    }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(7); // 10yd
+    });
+    // ENDOF THE WANDERING ISLE SPELLS
+
+    // Zero Power
+    ApplySpellFix({ 87239 }, [](SpellInfo* spellInfo)
+        {
+            ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
+                {
+                    spellEffectInfo->MiscValue = 3; 
+                });
+        });
 
     for (SpellInfo const& s : mSpellInfoMap)
     {
