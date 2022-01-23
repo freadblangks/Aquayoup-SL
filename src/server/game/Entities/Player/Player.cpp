@@ -17155,7 +17155,7 @@ void Player::UpdateQuestObjectiveProgress(QuestObjectiveType objectiveType, int3
                         objectiveIsNowComplete = IsQuestObjectiveProgressBarComplete(logSlot, quest);
                         break;
                     default:
-                        ASSERT(false, "Unhandled quest objective type %u", uint32(objectiveType));
+                        ABORT_MSG("Unhandled quest objective type %u", uint32(objectiveType));
                         break;
                 }
             }
@@ -26468,7 +26468,7 @@ void Player::SetRuneCooldown(uint8 index, uint32 cooldown)
 {
     m_runes->Cooldown[index] = cooldown;
     m_runes->SetRuneState(index, (cooldown == 0) ? true : false);
-    int32 activeRunes = std::count(std::begin(m_runes->Cooldown), &m_runes->Cooldown[std::min(GetMaxPower(POWER_RUNES), MAX_RUNES)], 0);
+    int32 activeRunes = std::count(std::begin(m_runes->Cooldown), &m_runes->Cooldown[std::min(GetMaxPower(POWER_RUNES), MAX_RUNES)], 0u);
     if (activeRunes != GetPower(POWER_RUNES))
         SetPower(POWER_RUNES, activeRunes);
 }
