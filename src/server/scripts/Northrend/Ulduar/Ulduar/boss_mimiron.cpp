@@ -371,9 +371,9 @@ static bool IsEncounterFinished(Unit* who)
         Unit::Kill(who, mkii);
         Unit::Kill(who, vx001);
         Unit::Kill(who, aerial);
-        mkii->DespawnOrUnsummon(120000);
-        vx001->DespawnOrUnsummon(120000);
-        aerial->DespawnOrUnsummon(120000);
+        mkii->DespawnOrUnsummon(120s);
+        vx001->DespawnOrUnsummon(120s);
+        aerial->DespawnOrUnsummon(120s);
         if (Creature* mimiron = instance->GetCreature(BOSS_MIMIRON))
             mimiron->AI()->JustDied(who);
         return true;
@@ -546,7 +546,7 @@ class boss_mimiron : public CreatureScript
                         case EVENT_VX001_ACTIVATION_5:
                             if (GameObject* elevator = instance->GetGameObject(DATA_MIMIRON_ELEVATOR))
                                 elevator->SetGoState(GO_STATE_DESTROYED);
-                            if (Creature* vx001 = me->SummonCreature(NPC_VX_001, VX001SummonPos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 120000))
+                            if (Creature* vx001 = me->SummonCreature(NPC_VX_001, VX001SummonPos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 120s))
                                 vx001->CastSpell(vx001, SPELL_FREEZE_ANIM);
                             events.ScheduleEvent(EVENT_VX001_ACTIVATION_6, 19s);
                             break;
@@ -653,16 +653,16 @@ class boss_mimiron : public CreatureScript
                             {
                                 if (Creature* computer = instance->GetCreature(DATA_COMPUTER))
                                     computer->AI()->DoAction(DO_DEACTIVATE_COMPUTER);
-                                me->SummonGameObject(RAID_MODE(GO_CACHE_OF_INNOVATION_FIREFIGHTER, GO_CACHE_OF_INNOVATION_FIREFIGHTER_HERO), 2744.040f, 2569.352f, 364.3135f, 3.124123f, QuaternionData(0.f, 0.f, 0.9999619f, 0.008734641f), 604800);
+                                me->SummonGameObject(RAID_MODE(GO_CACHE_OF_INNOVATION_FIREFIGHTER, GO_CACHE_OF_INNOVATION_FIREFIGHTER_HERO), 2744.040f, 2569.352f, 364.3135f, 3.124123f, QuaternionData(0.f, 0.f, 0.9999619f, 0.008734641f), 420_days);
                             }
                             else
-                                me->SummonGameObject(RAID_MODE(GO_CACHE_OF_INNOVATION, GO_CACHE_OF_INNOVATION_HERO), 2744.040f, 2569.352f, 364.3135f, 3.124123f, QuaternionData(0.f, 0.f, 0.9999619f, 0.008734641f), 604800);
+                                me->SummonGameObject(RAID_MODE(GO_CACHE_OF_INNOVATION, GO_CACHE_OF_INNOVATION_HERO), 2744.040f, 2569.352f, 364.3135f, 3.124123f, QuaternionData(0.f, 0.f, 0.9999619f, 0.008734641f), 420_days);
                             events.ScheduleEvent(EVENT_OUTTRO_3, 11s);
                             break;
                         case EVENT_OUTTRO_3:
                             DoCast(me, SPELL_TELEPORT_VISUAL);
                             me->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                            me->DespawnOrUnsummon(1000); // sniffs say 6 sec after, but it doesnt matter.
+                            me->DespawnOrUnsummon(1s); // sniffs say 6 sec after, but it doesnt matter.
                             break;
                         default:
                             break;
@@ -742,7 +742,7 @@ class boss_leviathan_mk_ii : public CreatureScript
                         DoCast(me, SPELL_EMERGENCY_MODE);
                         DoCastAOE(SPELL_EMERGENCY_MODE_TURRET);
                         events.ScheduleEvent(EVENT_FLAME_SUPPRESSANT_MK, 1min, 0, PHASE_LEVIATHAN_MK_II);
-                        /* fallthrough */
+                        [[fallthrough]];
                     case DO_START_MKII:
                         me->SetReactState(REACT_AGGRESSIVE);
                         events.SetPhase(PHASE_LEVIATHAN_MK_II);
@@ -879,7 +879,7 @@ class boss_leviathan_mk_ii : public CreatureScript
                             DoCastVictim(SPELL_SCRIPT_EFFECT_PLASMA_BLAST);
                             events.RescheduleEvent(EVENT_PLASMA_BLAST, 30s, 45s, 0, PHASE_LEVIATHAN_MK_II);
 
-                            if (events.GetTimeUntilEvent(EVENT_NAPALM_SHELL) < 9000)
+                            if (events.GetTimeUntilEvent(EVENT_NAPALM_SHELL) < 9s)
                                 events.RescheduleEvent(EVENT_NAPALM_SHELL, 9s, 0, PHASE_LEVIATHAN_MK_II); // The actual spell is cast by the turret, we should not let it interrupt itself.
                             break;
                         case EVENT_SHOCK_BLAST:
@@ -894,7 +894,7 @@ class boss_leviathan_mk_ii : public CreatureScript
                             DoCastAOE(SPELL_FORCE_CAST_NAPALM_SHELL);
                             events.RescheduleEvent(EVENT_NAPALM_SHELL, 6s, 15s, 0, PHASE_LEVIATHAN_MK_II);
 
-                            if (events.GetTimeUntilEvent(EVENT_PLASMA_BLAST) < 2000)
+                            if (events.GetTimeUntilEvent(EVENT_PLASMA_BLAST) < 2s)
                                 events.RescheduleEvent(EVENT_PLASMA_BLAST, 2s, 0, PHASE_LEVIATHAN_MK_II);  // The actual spell is cast by the turret, we should not let it interrupt itself.
                             break;
                         case EVENT_MOVE_POINT_2:
@@ -987,7 +987,7 @@ class boss_vx_001 : public CreatureScript
                         DoCast(me, SPELL_EMERGENCY_MODE);
                         events.ScheduleEvent(EVENT_FROST_BOMB, 1s);
                         events.ScheduleEvent(EVENT_FLAME_SUPPRESSANT_VX, 6s);
-                        /* fallthrough */
+                        [[fallthrough]];
                     case DO_START_VX001:
                         me->RemoveUnitFlag(UnitFlags(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE));
                         me->SetImmuneToPC(false);
@@ -1169,7 +1169,7 @@ class boss_aerial_command_unit : public CreatureScript
                         fireFigther = true;
                         DoCast(me, SPELL_EMERGENCY_MODE);
                         events.ScheduleEvent(EVENT_SUMMON_FIRE_BOTS, 1s, 0, PHASE_AERIAL_COMMAND_UNIT);
-                        /* fallthrough */
+                        [[fallthrough]];
                     case DO_START_AERIAL:
                         me->SetAnimTier(UNIT_BYTE1_FLAG_HOVER, true);
                         me->SetDisableGravity(false);
@@ -1597,7 +1597,7 @@ class npc_mimiron_frost_bomb : public CreatureScript
                             break;
                         case EVENT_FROST_BOMB_CLEAR_FIRES:
                             DoCastAOE(SPELL_CLEAR_FIRES);
-                            me->DespawnOrUnsummon(3000);
+                            me->DespawnOrUnsummon(3s);
                             break;
                         default:
                             break;
@@ -1646,7 +1646,7 @@ class npc_mimiron_proximity_mine : public CreatureScript
                         case EVENT_PROXIMITY_MINE_DETONATION:
                             if (me->HasAura(SPELL_PROXIMITY_MINE_PERIODIC_TRIGGER))
                                 DoCastAOE(SPELL_PROXIMITY_MINE_EXPLOSION);
-                            me->DespawnOrUnsummon(1000);
+                            me->DespawnOrUnsummon(1s);
                             break;
                         default:
                             break;
@@ -1729,7 +1729,7 @@ class spell_mimiron_bomb_bot : public SpellScriptLoader
                 if (Creature* target = GetHitCreature())
                 {
                     target->AddUnitFlag(UnitFlags(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_PACIFIED));
-                    target->DespawnOrUnsummon(1000);
+                    target->DespawnOrUnsummon(1s);
                 }
             }
 

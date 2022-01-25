@@ -596,7 +596,7 @@ public:
                     summons.DespawnAll();
             }
 
-            me->DespawnOrUnsummon(0, 30s);
+            me->DespawnOrUnsummon(0s, 30s);
         }
 
         void KilledUnit(Unit* victim) override
@@ -981,13 +981,13 @@ public:
             if (Creature* alexstraszaGiftBoxBunny = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_GIFT_BOX_BUNNY_GUID)))
             {
                 if (GetDifficulty() == DIFFICULTY_10_N)
-                    alexstraszaGiftBoxBunny->SummonGameObject(GO_HEART_OF_MAGIC_10, HeartOfMagicSpawnPos, QuaternionData::fromEulerAnglesZYX(HeartOfMagicSpawnPos.GetOrientation(), 0.0f, 0.0f), 0);
+                    alexstraszaGiftBoxBunny->SummonGameObject(GO_HEART_OF_MAGIC_10, HeartOfMagicSpawnPos, QuaternionData::fromEulerAnglesZYX(HeartOfMagicSpawnPos.GetOrientation(), 0.0f, 0.0f), 0s);
                 else if (GetDifficulty() == DIFFICULTY_25_N)
-                    alexstraszaGiftBoxBunny->SummonGameObject(GO_HEART_OF_MAGIC_25, HeartOfMagicSpawnPos, QuaternionData::fromEulerAnglesZYX(HeartOfMagicSpawnPos.GetOrientation(), 0.0f, 0.0f), 0);
+                    alexstraszaGiftBoxBunny->SummonGameObject(GO_HEART_OF_MAGIC_25, HeartOfMagicSpawnPos, QuaternionData::fromEulerAnglesZYX(HeartOfMagicSpawnPos.GetOrientation(), 0.0f, 0.0f), 0s);
             }
 
             me->SummonCreature(NPC_ALEXSTRASZA, AlexstraszaSpawnPos, TEMPSUMMON_MANUAL_DESPAWN);
-            me->DespawnOrUnsummon(5*IN_MILLISECONDS);
+            me->DespawnOrUnsummon(5s);
         }
 
     private:
@@ -1207,7 +1207,7 @@ public:
                 }
             }
 
-            me->DespawnOrUnsummon(3*IN_MILLISECONDS);
+            me->DespawnOrUnsummon(3s);
         }
 
         void MovementInform(uint32 type, uint32 id) override
@@ -1287,7 +1287,7 @@ public:
             }
             else
             {
-                me->DespawnOrUnsummon(3*IN_MILLISECONDS);
+                me->DespawnOrUnsummon(3s);
             }
         }
 
@@ -1472,7 +1472,7 @@ public:
             if (Creature* malygos = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_MALYGOS)))
             {
                 if (malygos->AI()->GetData(DATA_PHASE) == PHASE_TWO)
-                    me->DespawnOrUnsummon(6*IN_MILLISECONDS);
+                    me->DespawnOrUnsummon(6s);
                 // If evade is hit during phase II shields should disappear with no delay
                 else if (malygos->AI()->GetData(DATA_PHASE) == 0)
                     me->DespawnOrUnsummon();
@@ -1541,7 +1541,7 @@ public:
         {
             if (!apply)
             {
-                me->DespawnOrUnsummon(2050);
+                me->DespawnOrUnsummon(2050ms);
                 me->SetOrientation(2.5f);
                 me->SetSpeedRate(MOVE_FLIGHT, 1.0f);
                 Position pos = me->GetPosition();
@@ -1579,7 +1579,7 @@ class npc_static_field : public CreatureScript
             void IsSummonedBy(WorldObject* /*summoner*/) override
             {
                 // For some great reason the spell doesn't time it...
-                me->DespawnOrUnsummon(30*IN_MILLISECONDS);
+                me->DespawnOrUnsummon(30s);
             }
         };
 
@@ -2388,9 +2388,9 @@ class spell_alexstrasza_gift_beam_visual : public SpellScriptLoader
                 if (Creature* target = GetTarget()->ToCreature())
                 {
                     if (target->GetMap()->GetDifficultyID() == DIFFICULTY_10_N)
-                        _alexstraszaGift = target->SummonGameObject(GO_ALEXSTRASZA_S_GIFT_10, *target, QuaternionData::fromEulerAnglesZYX(target->GetOrientation(), 0.0f, 0.0f), 0);
+                        _alexstraszaGift = target->SummonGameObject(GO_ALEXSTRASZA_S_GIFT_10, *target, QuaternionData::fromEulerAnglesZYX(target->GetOrientation(), 0.0f, 0.0f), 0s);
                     else if (target->GetMap()->GetDifficultyID() == DIFFICULTY_25_N)
-                        _alexstraszaGift = target->SummonGameObject(GO_ALEXSTRASZA_S_GIFT_25, *target, QuaternionData::fromEulerAnglesZYX(target->GetOrientation(), 0.0f, 0.0f), 0);
+                        _alexstraszaGift = target->SummonGameObject(GO_ALEXSTRASZA_S_GIFT_25, *target, QuaternionData::fromEulerAnglesZYX(target->GetOrientation(), 0.0f, 0.0f), 0s);
                 }
             }
 

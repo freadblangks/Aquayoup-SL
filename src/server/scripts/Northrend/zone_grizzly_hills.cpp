@@ -90,7 +90,7 @@ public:
                     if (ObjectAccessor::GetCreature(*me, _mrfloppyGUID))
                     {
                         Talk(SAY_WORGHAGGRO1);
-                        me->SummonCreature(NPC_HUNGRY_WORG, me->GetPositionX()+5, me->GetPositionY()+2, me->GetPositionZ()+1, 3.229f, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 120000);
+                        me->SummonCreature(NPC_HUNGRY_WORG, me->GetPositionX()+5, me->GetPositionY()+2, me->GetPositionZ()+1, 3.229f, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 2min);
                     }
                     break;
                 case 11:
@@ -101,7 +101,7 @@ public:
                     if (Creature* Mrfloppy = ObjectAccessor::GetCreature(*me, _mrfloppyGUID))
                         Mrfloppy->GetMotionMaster()->MovePoint(0, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ());
                     Talk(SAY_WORGRAGGRO3);
-                    if (Creature* RWORG = me->SummonCreature(NPC_RAVENOUS_WORG, me->GetPositionX()+10, me->GetPositionY()+8, me->GetPositionZ()+2, 3.229f, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 120000))
+                    if (Creature* RWORG = me->SummonCreature(NPC_RAVENOUS_WORG, me->GetPositionX()+10, me->GetPositionY()+8, me->GetPositionZ()+2, 3.229f, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 2min))
                     {
                         RWORG->SetFaction(FACTION_FRIENDLY);
                         _RavenousworgGUID = RWORG->GetGUID();
@@ -485,7 +485,7 @@ public:
 
         void Initialize()
         {
-            _despawnTimer = 5000;
+            _despawnTimer = 5s;
         }
 
         void Reset() override
@@ -527,7 +527,7 @@ public:
             DoMeleeAttackIfReady();
         }
         private:
-            uint32 _despawnTimer;
+            Milliseconds _despawnTimer;
     };
 
     CreatureAI* GetAI(Creature* creature) const override
@@ -709,7 +709,7 @@ public:
             {
                 if (_following)
                     if (!me->HasAura(SPELL_FROG_LOVE))
-                        me->DespawnOrUnsummon(1000);
+                        me->DespawnOrUnsummon(1s);
 
                 _events.Update(diff);
 
@@ -736,7 +736,7 @@ public:
                             break;
                         case EVENT_LAKEFROG_5:
                             Talk(SAY_MAIDEN_1);
-                            me->DespawnOrUnsummon(4000);
+                            me->DespawnOrUnsummon(4s);
                             break;
                         default:
                             break;
