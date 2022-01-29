@@ -68,6 +68,7 @@ void AddSC_TemplateNPC();
 void AddSC_NPC_Profession();
 void AddSC_Dynamic_Resurrections();
 void AddSolocraftScripts();
+void AddSC_NPC_Enchant();
 
 void AddCustomScripts()
 {
@@ -119,4 +120,5 @@ void AddCustomScripts()
 	AddSC_NPC_Profession();
     AddSC_Dynamic_Resurrections();
 	AddSolocraftScripts();
+	AddSC_NPC_Enchant();
 }

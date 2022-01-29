@@ -5356,8 +5356,8 @@ Custom.AttackSpeedForMobs = 1.0
 ############PLAYTIMEREWARD########################################################################
 # PlayedTimeReward.Money is copper so 10000 copper is 1 gold.
 PlayedTimeReward.Interval = 60000
-PlayedTimeReward.Money    = 1
-PlayedTimeReward.Honor    = 1
-PlayedTimeReward.Arena    = 1
+PlayedTimeReward.Money    = 0
+PlayedTimeReward.Honor    = 0
+PlayedTimeReward.Arena    = 0
 #
 ##################################################################################################
