@@ -475,7 +475,7 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
     _recvQueue.readd(requeuePackets.begin(), requeuePackets.end());
 
     if (m_Socket[CONNECTION_TYPE_REALM] && m_Socket[CONNECTION_TYPE_REALM]->IsOpen() && _warden)
-        _warden->Update();
+        _warden->Update(diff);
 
     if (!updater.ProcessUnsafe()) // <=> updater is of type MapSessionFilter
     {
@@ -499,13 +499,13 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
         if (ShouldLogOut(currentTime) && m_playerLoading.IsEmpty())
             LogoutPlayer(true);
 
-        if (m_Socket[CONNECTION_TYPE_REALM] && GetPlayer() && _warden)
-            _warden->Update();
-
         ///- Cleanup socket pointer if need
         if ((m_Socket[CONNECTION_TYPE_REALM] && !m_Socket[CONNECTION_TYPE_REALM]->IsOpen()) ||
             (m_Socket[CONNECTION_TYPE_INSTANCE] && !m_Socket[CONNECTION_TYPE_INSTANCE]->IsOpen()))
         {
+            if (GetPlayer() && _warden)
+                _warden->Update(diff);
+
             expireTime -= expireTime > diff ? diff : expireTime;
             if (expireTime < diff || forceExit || !GetPlayer())
             {
@@ -648,6 +648,7 @@ void WorldSession::LogoutPlayer(bool save)
         // the player may not be in the world when logging out
         // e.g if he got disconnected during a transfer to another map
         // calls to GetMap in this case may cause crashes
+        _player->SetDestroyedObject(true);
         _player->CleanupsBeforeDelete();
         TC_LOG_INFO("entities.player.character", "Account: %u (IP: %s) Logout Character:[%s] %s Level: %d, XP: %u/%u (%u left)",
             GetAccountId(), GetRemoteAddress().c_str(), _player->GetName().c_str(), _player->GetGUID().ToString().c_str(), _player->GetLevel(),

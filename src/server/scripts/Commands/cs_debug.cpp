@@ -133,7 +133,8 @@ public:
             { "asan",          rbac::RBAC_PERM_COMMAND_DEBUG_ASAN,          true,  nullptr,                             "", debugAsanCommandTable },
             { "guidlimits",    rbac::RBAC_PERM_COMMAND_DEBUG,               true,  &HandleDebugGuidLimitsCommand,       "" },
             { "objectcount",   rbac::RBAC_PERM_COMMAND_DEBUG,               true,  &HandleDebugObjectCountCommand,      "" },
-            { "questreset",    rbac::RBAC_PERM_COMMAND_DEBUG_QUESTRESET,    true,  &HandleDebugQuestResetCommand,       "" }
+            { "questreset",    rbac::RBAC_PERM_COMMAND_DEBUG_QUESTRESET,    true,  &HandleDebugQuestResetCommand,       "" },
+            { "personalclone", rbac::RBAC_PERM_COMMAND_DEBUG,               false, &HandleDebugBecomePersonalClone,     "" }
         };
         static std::vector<ChatCommand> commandTable =
         {
@@ -1255,15 +1256,20 @@ public:
         return true;
     }
 
-    //show animation
-    static bool HandleDebugAnimCommand(ChatHandler* handler, char const* args)
+    // Play emote animation
+    static bool HandleDebugAnimCommand(ChatHandler* handler, Emote emote)
     {
-        if (!*args)
-            return false;
-
-        uint32 animId = atoi((char*)args);
         if (Unit* unit = handler->getSelectedUnit())
-            unit->HandleEmoteCommand(animId);
+            unit->HandleEmoteCommand(emote);
+
+        try
+        {
+            handler->PSendSysMessage("Playing emote %s", EnumUtils::ToConstant(emote));
+        }
+        catch (...)
+        {
+            handler->PSendSysMessage("Playing unknown emote");
+        }
         return true;
     }
 
@@ -1867,12 +1873,68 @@ public:
         return true;
     }
 
+    class CreatureCountWorker
+    {
+    public:
+        CreatureCountWorker() { }
+
+        void Visit(std::unordered_map<ObjectGuid, Creature*>& creatureMap)
+        {
+            for (auto const& p : creatureMap)
+            {
+                uint32& count = creatureIds[p.second->GetEntry()];
+                ++count;
+            }
+        }
+
+        template<class T>
+        void Visit(std::unordered_map<ObjectGuid, T*>&) { }
+
+        std::vector<std::pair<uint32, uint32>> GetTopCreatureCount(uint32 count)
+        {
+            auto comp = [](std::pair<uint32, uint32> const& a, std::pair<uint32, uint32> const& b)
+            {
+                return a.second > b.second;
+            };
+            std::set<std::pair<uint32, uint32>, decltype(comp)> set(creatureIds.begin(), creatureIds.end(), comp);
+
+            count = std::min(count, uint32(set.size()));
+            std::vector<std::pair<uint32, uint32>> result(count);
+            std::copy_n(set.begin(), count, result.begin());
+
+            return result;
+        }
+
+    private:
+        std::unordered_map<uint32, uint32> creatureIds;
+    };
+
     static void HandleDebugObjectCountMap(ChatHandler* handler, Map* map)
     {
         handler->PSendSysMessage("Map Id: %u Name: '%s' Instance Id: %u Creatures: " UI64FMTD " GameObjects: " UI64FMTD,
             map->GetId(), map->GetMapName(), map->GetInstanceId(),
             uint64(map->GetObjectsStore().Size<Creature>()),
             uint64(map->GetObjectsStore().Size<GameObject>()));
+
+        CreatureCountWorker worker;
+        TypeContainerVisitor<CreatureCountWorker, MapStoredObjectTypesContainer> visitor(worker);
+        visitor.Visit(map->GetObjectsStore());
+
+        handler->PSendSysMessage("Top Creatures count:");
+
+        for (auto&& p : worker.GetTopCreatureCount(5))
+            handler->PSendSysMessage("Entry: %u Count: %u", p.first, p.second);
+    }
+
+    static bool HandleDebugBecomePersonalClone(ChatHandler* handler)
+    {
+        Creature* selection = handler->getSelectedCreature();
+        if (!selection)
+            return false;
+
+        Player* player = handler->GetSession()->GetPlayer();
+        selection->SummonPersonalClone(player->GetPosition(), TEMPSUMMON_MANUAL_DESPAWN, 0s, 0, 0, player->GetGUID());
+        return true;
     }
 
     static bool HandleDebugDummyCommand(ChatHandler* handler, CommandArgs* /*args*/)
