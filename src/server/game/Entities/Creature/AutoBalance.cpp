@@ -35,6 +35,7 @@
 #include "MapManager.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "World.h"
 
 #if MOD_PRESENT_NPCBOTS == 1
 # include "botmgr.h"
@@ -60,7 +61,7 @@
 // The map values correspond with the .AutoBalance.XX.Name entries in the configuration file.
 static std::map<uint32, int32> forcedCreatureIds;
 static int8 PlayerCountDifficultyOffset, higherOffset, lowerOffset;
-static bool Is_AB_enabled, AnnounceAB, LevelScaling, LevelEndGameBoost, DungeonsOnly, RaidsOnly, PlayerChangeNotify,
+static bool Is_AB_enabled, AnnounceAB, LevelScaling, LevelEndGameBoost, DungeonsOnly, PlayerChangeNotify,
 LevelUseDb, DungeonScaleDownXP, CountNpcBots;
 static float GlobalRate, HealthMultiplier, ManaMultiplier, ArmorMultiplier, DamageMultiplier, MinHPModifier,
     MinManaModifier, MinDamageModifier, InflectionPoint, InflectionPointRaid, InflectionPointRaid10M,
@@ -129,6 +130,25 @@ void GetAreaLevel(Map const* map, uint8 areaid, uint8 &minlevel, uint8 &maxlevel
     }
 }
 
+float GetCreatureHealthMod(int32 rank)
+{
+    switch (rank)
+    {
+        case CREATURE_ELITE_NORMAL:
+            return sWorld->getRate(RATE_CREATURE_NORMAL_HP);
+        case CREATURE_ELITE_ELITE:
+            return sWorld->getRate(RATE_CREATURE_ELITE_ELITE_HP);
+        case CREATURE_ELITE_RAREELITE:
+            return sWorld->getRate(RATE_CREATURE_ELITE_RAREELITE_HP);
+        case CREATURE_ELITE_WORLDBOSS:
+            return sWorld->getRate(RATE_CREATURE_ELITE_WORLDBOSS_HP);
+        case CREATURE_ELITE_RARE:
+            return sWorld->getRate(RATE_CREATURE_ELITE_RARE_HP);
+        default:
+            return sWorld->getRate(RATE_CREATURE_ELITE_ELITE_HP);
+    }
+}
+
 class AutoBalance_WorldScript : public WorldScript
 {
 public:
@@ -171,7 +191,6 @@ private:
         LevelScaling = sConfigMgr->GetBoolDefault("AutoBalance.levelScaling", true);
         LevelEndGameBoost = sConfigMgr->GetBoolDefault("AutoBalance.LevelEndGameBoost", true);
         DungeonsOnly = sConfigMgr->GetBoolDefault("AutoBalance.DungeonsOnly", true);
-		RaidsOnly = sConfigMgr->GetBoolDefault("AutoBalance.RaidsOnly", false);
         PlayerChangeNotify = sConfigMgr->GetBoolDefault("AutoBalance.PlayerChangeNotify", true);
         LevelUseDb = sConfigMgr->GetBoolDefault("AutoBalance.levelUseDbValuesWhenExists", true);
         DungeonScaleDownXP = sConfigMgr->GetBoolDefault("AutoBalance.DungeonScaleDownXP", false);
@@ -291,20 +310,17 @@ private:
         if (!Is_AB_enabled)
             return;
 
-        if (!source || source->GetTypeId() != TYPEID_UNIT || !source->IsInWorld() || source->IsControlledByPlayer())
+        if (!source || !value || source->GetTypeId() != TYPEID_UNIT || !source->IsInWorld() || source->IsControlledByPlayer())
             return;
 
         if (DungeonsOnly && !source->GetMap()->Instanceable())
-            return;
-		
-		if (RaidsOnly && !source->GetMap()->IsRaid())
             return;
 
         float damageMultiplier = source->ToCreature()->CustomData.damageMultiplier;
         if (damageMultiplier == 1.0f)
             return;
 
-        value *= damageMultiplier;
+        value = std::max<uint32>(value * damageMultiplier, 1);
     }
 };
 
@@ -465,7 +481,7 @@ public:
 
     void OnPlayerEnterAll(Map* map, Player* player) override
     {
-        recalcTimers[map->GetId()] = PLAYERS_COUNT_RECALC_TIMER;
+        recalcTimers[map->GetId()] = 0;
 
         if (player->IsGameMaster())
             return;
@@ -495,7 +511,7 @@ public:
 
     void OnPlayerLeaveAll(Map* map, Player* player) override
     {
-        recalcTimers[map->GetId()] = PLAYERS_COUNT_RECALC_TIMER;
+        recalcTimers[map->GetId()] = 0;
 
         if (player->IsGameMaster())
             return;
@@ -667,9 +683,6 @@ private:
         if (DungeonsOnly && !creature->GetMap()->Instanceable())
             return;
 
-		 if (RaidsOnly && !creature->GetMap()->IsRaid())
-            return;
-		
         MapCustomData* mapABInfo = &creature->GetMap()->CustomData;
         bool isWorldMap = creature->GetMap()->GetEntry()->IsWorldMap();
         if (!isWorldMap)
@@ -728,7 +741,7 @@ private:
         // avoid level changing for critters and special creatures (spell summons etc.) in instances
         bool skipLevel = (creatureTemplate->maxlevel <= 1 && areaMinLvl >= 5);
 
-        if (LevelScaling && (!DungeonsOnly || !RaidsOnly || creature->GetMap()->Instanceable()) && !skipLevel && !_checkLevelOffset(level, originalLevel))
+        if (LevelScaling && (!DungeonsOnly || creature->GetMap()->Instanceable()) && !skipLevel && !_checkLevelOffset(level, originalLevel))
         {
             // change level only whithin the offsets and when in dungeon/raid
             if (level != creatureABInfo->selectedLevel || creatureABInfo->selectedLevel != creature->GetLevel())
@@ -817,10 +830,10 @@ private:
             TC_LOG_ERROR("scripts", "AB: hpmult: %.3f origlvl %u areaminlvl %u areamaxlvl %u",
             creatureABInfo->healthMultiplier, originalLevel, areaMinLvl, areaMaxLvl);
 
-        if (creatureABInfo->healthMultiplier <= MinHPModifier)
+        if (creatureABInfo->healthMultiplier < MinHPModifier)
             creatureABInfo->healthMultiplier = MinHPModifier;
 
-        float hpStatsRate = 1.0f;
+        float hpStatsRate = GetCreatureHealthMod(creatureTemplate->rank);
         if (!useDefStats && LevelScaling && !skipLevel)
         {
             float newBaseHealth = 0.f;
@@ -849,7 +862,7 @@ private:
                 if (reduction > 0 && reduction < newHealth)
                     newHealth -= reduction;
             }
-            hpStatsRate = newHealth / float(baseHealth);
+            hpStatsRate *= newHealth / float(baseHealth);
         }
 
         if (creature->GetGUIDLow() == DEBUG_CREATURE)
@@ -867,60 +880,21 @@ private:
         // GetPlayerClassList(creature, playerClassList);
 
         float manaStatsRate = 1.0f;
-        if (!useDefStats && LevelScaling && !skipLevel)
+        if (!useDefStats && baseMana > 0 && LevelScaling && !skipLevel)
         {
             float newMana = creatureStats->GenerateMana(creatureTemplate);
             manaStatsRate = newMana / float(baseMana);
         }
 
         creatureABInfo->manaMultiplier = manaStatsRate * ManaMultiplier * defaultMultiplier * GlobalRate;
-        if (creatureABInfo->manaMultiplier <= MinManaModifier)
+        if (creatureABInfo->manaMultiplier < MinManaModifier)
             creatureABInfo->manaMultiplier = MinManaModifier;
 
         scaledMana = baseMana * creatureABInfo->manaMultiplier + 0.5f;
         float damageMul = defaultMultiplier * GlobalRate * DamageMultiplier;
         // Can not be less then Min_D_Mod
-        if (damageMul <= MinDamageModifier)
+        if (damageMul < MinDamageModifier)
             damageMul = MinDamageModifier;
-
-        if (!useDefStats && LevelScaling && !skipLevel)
-        {
-#ifdef SCRIPT_VERSION_LAST
-            float origDmgBase = origCreatureStats->GenerateBaseDamage(creatureTemplate);
-            float newDmgBase = 0;
-            if (level <= 60)
-                newDmgBase = creatureStats->BaseDamage[0];
-            else if (level <= 70)
-                newDmgBase = creatureStats->BaseDamage[1];
-            else
-            {
-                newDmgBase = creatureStats->BaseDamage[2];
-                // special increasing for end-game contents
-                if (LevelEndGameBoost && !creature->GetMap()->IsRaid())
-                    newDmgBase *= creatureABInfo->selectedLevel >= 75 && originalLevel < 75 ? float(creatureABInfo->selectedLevel - 70) * 0.3f : 1.f;
-            }
-#else
-            float origDmgBase = (creatureTemplate->mindmg + creatureTemplate->maxdmg) / 2.f;
-            float newDmgBase = origDmgBase;
-            uint32 expa = creatureTemplate->expansion;
-            if (level <= 60)
-                newDmgBase *= expa == 2 ? 0.35f : expa == 1 ? 0.45f : 1.f;
-            else if (level <= 70)
-                newDmgBase *= expa == 2 ? 0.45f : expa == 1 ? 1.f : 0.777f;
-            else
-            {
-                newDmgBase *= expa == 2 ? 1.f : expa == 1 ? 1 / 0.45f : 1 / 0.35f;
-                // special increasing for end-game contents
-                if (LevelEndGameBoost && !creature->GetMap()->IsRaid())
-                    newDmgBase *= creatureABInfo->selectedLevel >= 75 && originalLevel < 75 ? float(creatureABInfo->selectedLevel - 70) * 0.3f : 1.f;
-            }
-#endif
-            damageMul *= newDmgBase / origDmgBase;
-
-            if (creature->GetGUIDLow() == DEBUG_CREATURE)
-                TC_LOG_ERROR("scripts", "AB: origDmgBase: %.3f, newDmgBase %.3f, damageMul %.3f",
-                    origDmgBase, newDmgBase, damageMul);
-        }
 
         creatureABInfo->armorMultiplier = defaultMultiplier * GlobalRate * ArmorMultiplier;
         uint32 newBaseArmor = 0.5f + (creatureABInfo->armorMultiplier *
@@ -931,6 +905,22 @@ private:
         uint32 prevHealth = creature->GetHealth();
         uint32 prevPower = creature->GetPower(POWER_MANA);
         Powers pType = creature->GetPowerType();
+
+        float basedamage = creatureStats->GenerateBaseDamage(creatureTemplate);
+        if (LevelEndGameBoost && level > 70 && creatureABInfo->selectedLevel >= 75 && originalLevel < 75 && !creature->GetMap()->IsRaid())
+            basedamage *= float(creatureABInfo->selectedLevel - 70) * 0.3f;
+
+        float weaponBaseMinDamage = basedamage;
+        float weaponBaseMaxDamage = basedamage * 1.5f;
+
+        creature->SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, weaponBaseMinDamage);
+        creature->SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, weaponBaseMaxDamage);
+        creature->SetBaseWeaponDamage(OFF_ATTACK, MINDAMAGE, weaponBaseMinDamage);
+        creature->SetBaseWeaponDamage(OFF_ATTACK, MAXDAMAGE, weaponBaseMaxDamage);
+        creature->SetBaseWeaponDamage(RANGED_ATTACK, MINDAMAGE, weaponBaseMinDamage);
+        creature->SetBaseWeaponDamage(RANGED_ATTACK, MAXDAMAGE, weaponBaseMaxDamage);
+        creature->SetStatFlatModifier(UNIT_MOD_ATTACK_POWER, BASE_VALUE, creatureStats->AttackPower);
+        creature->SetStatFlatModifier(UNIT_MOD_ATTACK_POWER_RANGED, BASE_VALUE, creatureStats->RangedAttackPower);
 
         creature->SetArmor(newBaseArmor);
         creature->SetStatFlatModifier(UNIT_MOD_ARMOR, BASE_VALUE, float(newBaseArmor));

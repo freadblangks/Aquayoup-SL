@@ -91,8 +91,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
     else
     {
         Creature* creature = GetPlayer()->GetMap()->GetCreature(lguid);
-        //if (!player->GetGroup() && creature && sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
-		if (creature && player->isAllowedToLoot(creature) && sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
+        if (!player->GetGroup() && sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
         {
             int i = 0;
             float range = 30.0f;
@@ -439,6 +438,8 @@ void WorldSession::HandleLootOpcode(WorldPacket& recvData)
     // interrupt cast
     if (GetPlayer()->IsNonMeleeSpellCast(false))
         GetPlayer()->InterruptNonMeleeSpells(false);
+
+    GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_LOOTING);
 
     GetPlayer()->SendLoot(guid, LOOT_CORPSE);
 }
