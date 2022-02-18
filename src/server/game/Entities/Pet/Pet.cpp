@@ -35,6 +35,7 @@
 #include "SpellPackets.h"
 #include "Unit.h"
 #include "Util.h"
+#include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "ZoneScript.h"
@@ -711,6 +712,26 @@ void Pet::Update(uint32 diff)
         default:
             break;
     }
+	if (sConfigMgr->GetBoolDefault("DungeonStatsReward.Pets", true))
+	{
+		QueryResult Dungeonstatsresult = CharacterDatabase.PQuery("SELECT `Agility`, `Intellect`, `Spirit`, `Strength`, `Stamina`, `HealingBonus`, `SpellDBonus`,`AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetOwner()->GetGUID());
+		//skulystats
+		/*
+		if (Dungeonstatsresult)
+		{
+
+		SetStatFlatModifier(UnitMods(STAT_AGILITY), TOTAL_VALUE, (*Dungeonstatsresult)[0].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_INTELLECT), TOTAL_VALUE, (*Dungeonstatsresult)[1].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_SPIRIT), TOTAL_VALUE, (*Dungeonstatsresult)[2].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_STRENGTH), TOTAL_VALUE, (*Dungeonstatsresult)[3].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_STAMINA), TOTAL_VALUE, (*Dungeonstatsresult)[4].GetUInt32());
+		//SetBonusDamage((*Dungeonstatsresult)[5].GetUInt32());
+		SetStatFlatModifier(UnitMods(UNIT_MOD_ATTACK_POWER), TOTAL_VALUE, (*Dungeonstatsresult)[6].GetUInt32());
+		SetStatFlatModifier(UnitMods(UNIT_MOD_ATTACK_POWER_RANGED), TOTAL_VALUE, (*Dungeonstatsresult)[7].GetUInt32());
+		}
+		*/
+	}
+
     Creature::Update(diff);
 }
 
@@ -1008,7 +1029,7 @@ if (sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
 
             //SetModifierValue(UNIT_MOD_ATTACK_POWER, BASE_VALUE, float(cinfo->attackpower));
             break;
-        }
+        } 
         case HUNTER_PET:
         {
             SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, uint32(sObjectMgr->GetXPForLevel(petlevel)*PET_XP_FACTOR));
@@ -1018,6 +1039,7 @@ if (sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
             //damage range is then petlevel / 2
             SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(petlevel + (petlevel / 4)));
             //damage is increased afterwards as strength and pet scaling modify attack power
+	
             break;
         }
         default:
@@ -1156,6 +1178,8 @@ if (sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
 
     SetFullHealth();
     SetPower(POWER_MANA, GetMaxPower(POWER_MANA));
+	
+	
     return true;
 }
 
@@ -1810,7 +1834,7 @@ void Pet::resetTalentsForAllPetsOf(Player* owner, Pet* onlinePet /*= nullptr*/)
 void Pet::InitTalentForLevel()
 {
     uint8 level = GetLevel();
-    uint32 talentPointsForLevel = GetMaxTalentPointsForLevel(level);
+    uint32 talentPointsForLevel = (GetMaxTalentPointsForLevel(level) * sWorld->getRate(RATE_TALENT_PET));
     // Reset talents in case low level (on level down) or wrong points for level (hunter can unlearn TP increase talent)
     if (talentPointsForLevel == 0 || m_usedTalentCount > talentPointsForLevel)
         resetTalents(); // Remove all talent points
