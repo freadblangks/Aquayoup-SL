@@ -714,22 +714,22 @@ void Pet::Update(uint32 diff)
     }
 	if (sConfigMgr->GetBoolDefault("DungeonStatsReward.Pets", true))
 	{
-		QueryResult Dungeonstatsresult = CharacterDatabase.PQuery("SELECT `Agility`, `Intellect`, `Spirit`, `Strength`, `Stamina`, `HealingBonus`, `SpellDBonus`,`AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetOwner()->GetGUID());
+		QueryResult Dungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `Spellbonus`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetOwner()->GetGUID());
 		//skulystats
-		/*
+		
 		if (Dungeonstatsresult)
 		{
 
-		SetStatFlatModifier(UnitMods(STAT_AGILITY), TOTAL_VALUE, (*Dungeonstatsresult)[0].GetUInt32());
-		SetStatFlatModifier(UnitMods(STAT_INTELLECT), TOTAL_VALUE, (*Dungeonstatsresult)[1].GetUInt32());
-		SetStatFlatModifier(UnitMods(STAT_SPIRIT), TOTAL_VALUE, (*Dungeonstatsresult)[2].GetUInt32());
-		SetStatFlatModifier(UnitMods(STAT_STRENGTH), TOTAL_VALUE, (*Dungeonstatsresult)[3].GetUInt32());
-		SetStatFlatModifier(UnitMods(STAT_STAMINA), TOTAL_VALUE, (*Dungeonstatsresult)[4].GetUInt32());
-		//SetBonusDamage((*Dungeonstatsresult)[5].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_STRENGTH), TOTAL_VALUE, (*Dungeonstatsresult)[0].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_AGILITY), TOTAL_VALUE, (*Dungeonstatsresult)[1].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_STAMINA), TOTAL_VALUE, (*Dungeonstatsresult)[2].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_INTELLECT), TOTAL_VALUE, (*Dungeonstatsresult)[3].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_SPIRIT), TOTAL_VALUE, (*Dungeonstatsresult)[4].GetUInt32());
+		SetBonusDamage((*Dungeonstatsresult)[5].GetUInt32());
 		SetStatFlatModifier(UnitMods(UNIT_MOD_ATTACK_POWER), TOTAL_VALUE, (*Dungeonstatsresult)[6].GetUInt32());
 		SetStatFlatModifier(UnitMods(UNIT_MOD_ATTACK_POWER_RANGED), TOTAL_VALUE, (*Dungeonstatsresult)[7].GetUInt32());
 		}
-		*/
+		
 	}
 
     Creature::Update(diff);

@@ -54,6 +54,8 @@
 #	 CUSTOMSPEEDGAME
 #	 CUSTOMATTACKSPEED
 #	 PLAYTIMEREWARD
+#	 DUNGEON STATS
+#	 ICC GUNSHIP HEALTH
 #
 ###################################################################################################
 
@@ -5387,5 +5389,9 @@ DungeonStatsReward.AmountNormal = 1
 #
 #Pets will also get the points player gained
 DungeonStatsReward.Pets  = true
+########################ICC GUNSHIP HEALTH##########################################################
+# Gunship HP 0.2 = 20% 0.5 = 50% 0.75 = 75%
+# Default: 1 (100%)
+GunshipHP = 1
 #
-#################################################################################################
+###################
