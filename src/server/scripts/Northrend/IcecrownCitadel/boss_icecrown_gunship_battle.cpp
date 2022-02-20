@@ -17,6 +17,7 @@
 
 #include "ScriptMgr.h"
 #include "CellImpl.h"
+#include "Config.h"
 #include "CreatureTextMgr.h"
 #include "GossipDef.h"
 #include "GridNotifiersImpl.h"
@@ -672,9 +673,16 @@ class npc_gunship : public CreatureScript
             npc_gunshipAI(Creature* creature) : NullCreatureAI(creature),
                 _teamInInstance(creature->GetInstanceScript()->GetData(DATA_TEAM_IN_INSTANCE)),
                 _summonedFirstMage(false), _died(false)
+				
+				
             {
+				float shiphp = (me->GetHealth());
+				float GunshipHP = sConfigMgr->GetFloatDefault("GunshipHP", 1.0f);
+				me->SetMaxHealth(shiphp * GunshipHP);
+				me->SetHealth(shiphp * GunshipHP);
                 me->SetRegenerateHealth(false);
             }
+			
 
             void DamageTaken(Unit* /*source*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
             {

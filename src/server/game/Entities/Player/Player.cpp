@@ -3016,7 +3016,7 @@ void Player::InitStatsForLevel(bool reapplyMods)
 
 if (sConfigMgr->GetBoolDefault("DungeonStatsReward.Enable", true))
 		{
-QueryResult Dungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `SpellPower`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetGUID());
+QueryResult Dungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `Spellbonus`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetGUID());
 	//skulystats
 	if (!Dungeonstatsresult)
 			{
@@ -16926,7 +16926,7 @@ void Player::KilledMonsterCredit(uint32 entry, ObjectGuid guid /*= ObjectGuid::E
 											
 										if ((victim->isElite() && sConfigMgr->GetBoolDefault("DungeonStatsReward.Elite.NPCs", true)) || (!victim->isElite() && sConfigMgr->GetBoolDefault("DungeonStatsReward.Normal.NPCs", true)) || victim->IsDungeonBoss())
 										{
-										QueryResult GDungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `SpellPower`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetGUID());
+										QueryResult GDungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `Spellbonus`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetGUID());
 										
 										if (victim->isElite())
 										{
@@ -17001,7 +17001,7 @@ void Player::KilledMonsterCredit(uint32 entry, ObjectGuid guid /*= ObjectGuid::E
 											}
 											if (Rollstat == 6)
 											{
-											statchosen = "SpellPower";
+											statchosen = "Spellbonus";
 											DBUintValue = GQSpellDB;
 											ss << "You gained|cffFF8000 %i |rSpell Power.";
 											}
@@ -17023,7 +17023,7 @@ void Player::KilledMonsterCredit(uint32 entry, ObjectGuid guid /*= ObjectGuid::E
 											{CharacterDatabase.DirectPExecute("UPDATE `stats_from_dungeons` SET %s = %u WHERE GUID = %u", statchosen, DBUintValue + uint32(Rollpoints), memberguid);}
 											ChatHandler(GetSession()).PSendSysMessage(ss.str().c_str(), chatpoints);
 										
-											QueryResult Dungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `SpellPower`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetGUID());
+											QueryResult Dungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `Spellbonus`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetGUID());
 											if (Rollstat == 1)
 											{
 											HandleStatFlatModifier(UnitMods(STAT_STRENGTH), TOTAL_VALUE, Rollpoints, true);
