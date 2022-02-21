@@ -13,7 +13,7 @@ INSERT INTO `smart_scripts` (`entryorguid`, `source_type`, `id`, `link`, `event_
 (11486, 0, 8, 0, 0, 0, 100, 0, 1000, 3000, 6000, 9000, 11, 12787, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 'Prince Tortheldrin - IC - Cast Thrash'),
 (11486, 0, 9, 0, 13, 0, 100, 0, 30000, 40000, 0, 0, 11, 20537, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 'Prince Tortheldrin - On Target Casting - Cast Counterspell'),
 (11486, 0, 10, 0, 0, 0, 100, 0, 12000, 15000, 15000, 20000, 11, 22995, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 'Prince Tortheldrin - IC - Cast Summon (Random Target not highest threat)'),
-(11486, 0, 11, 0, 61, 0, 100, 0, 0, 0, 0, 0, 104, 0, 0, 0, 0, 0, 0, 20, 179545, 1000, 0, 0, 0, 0, 0, 'Prince Tortheldrin - On Death - Remove non selectable flags from princes chest');
+(11486, 0, 11, 0, 61, 0, 100, 0, 0, 0, 0, 0, 147, 17, 0, 0, 0, 0, 0, 20, 179545, 1000, 0, 0, 0, 0, 0, 'Prince Tortheldrin - On Death - Remove non selectable flags from princes chest');
 
 
 DELETE FROM `creature_text` WHERE `CreatureID`=11486 AND `GroupID`=0 AND `ID`=0;
