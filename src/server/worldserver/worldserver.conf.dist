@@ -4488,10 +4488,18 @@ Racial.Traits.Swap.Gold = 10
 #
 #    AOE.LOOT.enable
 #         Description: Enables Module
-#         Default:    0 - (Disabled)
-#                     1 - (Enabled)
+#         Default:    false - (Disabled)
+#                     true - (Enabled)
 
-AOE.LOOT.enable = 1
+AOE.LOOT.enable = false
+
+#    AOE.LOOT.enable.group
+#         Description: Enables AOE Loot work while in group. 
+#		  (This will cause problems if you are grouped with real players but playing solo with bots should work fine.)
+#         Default:    false - (Disabled)
+#					  true - (Enabled)
+
+AOE.LOOT.enable.group = false
 
 #    AOE.MAIL.filter
 #         Description: Filter out items that cannot be stored and do not mail them
