@@ -1796,7 +1796,7 @@ void Pet::resetTalentsForAllPetsOf(Player* owner, Pet* onlinePet /*= nullptr*/)
         petIds.erase(onlinePet->GetCharmInfo()->GetPetNumber());
 
     // no offline pets
-    if (!petIds.empty())
+    if (petIds.empty())
         return;
 
     bool need_comma = false;
