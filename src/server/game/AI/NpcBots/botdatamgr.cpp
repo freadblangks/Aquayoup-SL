@@ -183,6 +183,20 @@ void BotDataMgr::LoadNpcBots(bool spawn)
         GridCoord g = Trinity::ComputeGridCoord(pos_x, pos_y);
         ASSERT(c.IsCoordValid() && "Invalid Cell coord!");
         ASSERT(g.IsCoordValid() && "Invalid Grid coord!");
+		
+		if (mapId == 0 || mapId == 1 || mapId == 530 || mapId == 571)
+			{
+				mapId = mapId;
+			}
+			else
+			{
+				WorldDatabase.DirectPExecute("UPDATE `creature` SET map=1, zoneId=0, areaId=0, position_x=-3505.44, position_y=-51.494, position_z=323.159, orientation=4.823 WHERE id = %u", entry);
+				mapId = uint32(field[1].GetUInt16());
+				return;
+			}
+		
+		
+		
         Map* map = sMapMgr->CreateBaseMap(mapId);
         map->LoadGrid(pos_x, pos_y);
 

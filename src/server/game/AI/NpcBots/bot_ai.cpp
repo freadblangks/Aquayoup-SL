@@ -15187,7 +15187,12 @@ void bot_ai::TeleportHome()
     uint16 mapid;
     Position pos;
     GetHomePosition(mapid, &pos);
-
+	
+	if (mapid != 0 || mapid != 1 || mapid != 530 || mapid != 571)
+	{
+		mapid = 1;
+	}
+	
     Map* map = sMapMgr->CreateBaseMap(mapid);
     ASSERT(map && !map->Instanceable());
     BotMgr::TeleportBot(me, map, &pos);
