@@ -552,7 +552,7 @@ void Unit::UpdateSplineMovement(uint32 t_diff)
         DisableSpline();
 
         if (movespline->HasAnimation())
-            SetAnimationTier(movespline->GetAnimationTier());
+            SetAnimTier(movespline->GetAnimTier());
     }
 
     UpdateSplinePosition();
@@ -10667,7 +10667,7 @@ bool Unit::IsPolymorphed() const
     return spellInfo->GetSpellSpecific() == SPELL_SPECIFIC_MAGE_POLYMORPH;
 }
 
-void Unit::SetAnimationTier(AnimationTier tier)
+void Unit::SetAnimTier(AnimTier tier)
 {
     if (!IsCreature())
         return;
@@ -13905,7 +13905,7 @@ bool Unit::SetWalk(bool enable)
     return true;
 }
 
-bool Unit::SetDisableGravity(bool disable, bool /*packetOnly = false*/, bool /*updateAnimationTier = true*/)
+bool Unit::SetDisableGravity(bool disable, bool /*packetOnly = false*/, bool /*updateAnimTier = true*/)
 {
     if (disable == IsGravityDisabled())
         return false;
@@ -13972,7 +13972,7 @@ bool Unit::SetFeatherFall(bool enable, bool /*packetOnly = false */)
     return true;
 }
 
-bool Unit::SetHover(bool enable, bool /*packetOnly = false*/, bool /*updateAnimationTier = true*/)
+bool Unit::SetHover(bool enable, bool /*packetOnly = false*/, bool /*updateAnimTier = true*/)
 {
     if (enable == HasUnitMovementFlag(MOVEMENTFLAG_HOVER))
         return false;
