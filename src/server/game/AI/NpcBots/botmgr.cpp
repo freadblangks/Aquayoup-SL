@@ -551,10 +551,12 @@ bool BotMgr::RestrictBots(Creature const* bot, bool add) const
 
     if (LimitBots(currMap))
     {
+		/*
         //if bot is not in instance group - deny (only if trying to teleport to instance)
         if (add)
             if (!_owner->GetGroup() || !_owner->GetGroup()->IsMember(bot->GetGUID()))
                 return true;
+			*/
 
         InstanceMap const* map = currMap->ToInstanceMap();
         if (map->GetPlayersCountExceptGMs() + uint32(add) > map->GetMaxPlayers())

@@ -20,6 +20,7 @@
 #include "Battleground.h"
 #include "CellImpl.h"
 #include "Common.h"
+#include "Config.h"
 #include "Creature.h"
 #include "CreatureAI.h"
 #include "DatabaseEnv.h"
@@ -2955,6 +2956,14 @@ void Spell::EffectTameCreature()
         return;
 
     Unit* unitCaster = GetUnitCasterForEffectHandlers();
+	
+	//skuly Tame All
+	if (unitCaster->GetClass() != CLASS_HUNTER && !sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
+	{
+		unitCaster->ToPlayer()->GetSession()->SendAreaTriggerMessage("Only Hunters can Tame Beast!");
+		return;
+	}
+	
     if (!unitCaster || unitCaster->GetPetGUID())
         return;
 
@@ -2967,9 +2976,6 @@ void Spell::EffectTameCreature()
     Creature* creatureTarget = unitTarget->ToCreature();
 
     if (creatureTarget->IsPet())
-        return;
-
-    if (unitCaster->GetClass() != CLASS_HUNTER)
         return;
 
     // cast finish successfully
@@ -3001,6 +3007,11 @@ void Spell::EffectTameCreature()
 
     if (unitCaster->GetTypeId() == TYPEID_PLAYER)
     {
+		//skuly Tame All
+		if (sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
+		{
+		pet->SetPowerType(POWER_FOCUS);
+		}
         pet->SavePetToDB(PET_SAVE_AS_CURRENT);
         unitCaster->ToPlayer()->PetSpellInitialize();
     }

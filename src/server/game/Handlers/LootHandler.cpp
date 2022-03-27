@@ -91,8 +91,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
     else
     {
         Creature* creature = GetPlayer()->GetMap()->GetCreature(lguid);
-        //if (!player->GetGroup() && creature && sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
-		if (creature && player->isAllowedToLoot(creature) && sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true))
+        if (sConfigMgr->GetBoolDefault("AOE.LOOT.enable", true) && creature && (!player->GetGroup() || (player->GetGroup() && sConfigMgr->GetBoolDefault("AOE.LOOT.enable.group", true))))
         {
             int i = 0;
             float range = 30.0f;

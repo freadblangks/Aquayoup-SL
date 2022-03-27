@@ -17,6 +17,7 @@
 
 #include "Pet.h"
 #include "Common.h"
+#include "Config.h"
 #include "DatabaseEnv.h"
 #include "Formulas.h"
 #include "Group.h"
@@ -34,6 +35,7 @@
 #include "SpellPackets.h"
 #include "Unit.h"
 #include "Util.h"
+#include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "ZoneScript.h"
@@ -710,6 +712,26 @@ void Pet::Update(uint32 diff)
         default:
             break;
     }
+	if (sConfigMgr->GetBoolDefault("DungeonStatsReward.Pets", true))
+	{
+		QueryResult Dungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `Spellbonus`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetOwner()->GetGUID());
+		//skulystats
+		
+		if (Dungeonstatsresult)
+		{
+
+		SetStatFlatModifier(UnitMods(STAT_STRENGTH), TOTAL_VALUE, (*Dungeonstatsresult)[0].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_AGILITY), TOTAL_VALUE, (*Dungeonstatsresult)[1].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_STAMINA), TOTAL_VALUE, (*Dungeonstatsresult)[2].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_INTELLECT), TOTAL_VALUE, (*Dungeonstatsresult)[3].GetUInt32());
+		SetStatFlatModifier(UnitMods(STAT_SPIRIT), TOTAL_VALUE, (*Dungeonstatsresult)[4].GetUInt32());
+		SetBonusDamage((*Dungeonstatsresult)[5].GetUInt32());
+		SetStatFlatModifier(UnitMods(UNIT_MOD_ATTACK_POWER), TOTAL_VALUE, (*Dungeonstatsresult)[6].GetUInt32());
+		SetStatFlatModifier(UnitMods(UNIT_MOD_ATTACK_POWER_RANGED), TOTAL_VALUE, (*Dungeonstatsresult)[7].GetUInt32());
+		}
+		
+	}
+
     Creature::Update(diff);
 }
 
@@ -874,25 +896,47 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
 
     //Determine pet type
     PetType petType = MAX_PET_TYPE;
-    if (IsPet() && GetOwner()->GetTypeId() == TYPEID_PLAYER)
-    {
-        if (GetOwner()->GetClass() == CLASS_WARLOCK
-            || GetOwner()->GetClass() == CLASS_SHAMAN        // Fire Elemental
-            || GetOwner()->GetClass() == CLASS_DEATH_KNIGHT) // Risen Ghoul
-        {
-            petType = SUMMON_PET;
-        }
-        else if (GetOwner()->GetClass() == CLASS_HUNTER)
-        {
-            petType = HUNTER_PET;
-            m_unitTypeMask |= UNIT_MASK_HUNTER_PET;
-        }
+	//skuly Tame All
+if (sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
+{
+	
+	  if (IsPet() && GetOwner()->GetTypeId() == TYPEID_PLAYER)
+		{
+			if (cinfo->type == CREATURE_TYPE_BEAST) 
+			{
+				petType = HUNTER_PET;
+				m_unitTypeMask |= UNIT_MASK_HUNTER_PET; 
+			}
         else
-        {
-            TC_LOG_ERROR("entities.pet", "Unknown type pet %u is summoned by player class %u",
-                           GetEntry(), GetOwner()->GetClass());
-        }
-    }
+			{
+				petType = SUMMON_PET;
+			}
+
+		}
+	
+}
+	else
+	{
+		if (IsPet() && GetOwner()->GetTypeId() == TYPEID_PLAYER)
+		{
+			if (GetOwner()->GetClass() == CLASS_WARLOCK
+				|| GetOwner()->GetClass() == CLASS_SHAMAN        // Fire Elemental
+				|| GetOwner()->GetClass() == CLASS_DEATH_KNIGHT) // Risen Ghoul
+			{
+				petType = SUMMON_PET;
+			}
+			else if (GetOwner()->GetClass() == CLASS_HUNTER)
+			{
+				petType = HUNTER_PET;
+				m_unitTypeMask |= UNIT_MASK_HUNTER_PET;
+			}
+			else
+			{
+				TC_LOG_ERROR("entities.pet", "Unknown type pet %u is summoned by player class %u",
+							GetEntry(), GetOwner()->GetClass());
+			}
+		}
+	}
 
     uint32 creature_ID = (petType == HUNTER_PET) ? 1 : cinfo->Entry;
 
@@ -985,7 +1029,7 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
 
             //SetModifierValue(UNIT_MOD_ATTACK_POWER, BASE_VALUE, float(cinfo->attackpower));
             break;
-        }
+        } 
         case HUNTER_PET:
         {
             SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, uint32(sObjectMgr->GetXPForLevel(petlevel)*PET_XP_FACTOR));
@@ -995,6 +1039,7 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
             //damage range is then petlevel / 2
             SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(petlevel + (petlevel / 4)));
             //damage is increased afterwards as strength and pet scaling modify attack power
+	
             break;
         }
         default:
@@ -1133,6 +1178,8 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
 
     SetFullHealth();
     SetPower(POWER_MANA, GetMaxPower(POWER_MANA));
+	
+	
     return true;
 }
 
@@ -1787,7 +1834,7 @@ void Pet::resetTalentsForAllPetsOf(Player* owner, Pet* onlinePet /*= nullptr*/)
 void Pet::InitTalentForLevel()
 {
     uint8 level = GetLevel();
-    uint32 talentPointsForLevel = GetMaxTalentPointsForLevel(level);
+    uint32 talentPointsForLevel = (GetMaxTalentPointsForLevel(level) * sWorld->getRate(RATE_TALENT_PET));
     // Reset talents in case low level (on level down) or wrong points for level (hunter can unlearn TP increase talent)
     if (talentPointsForLevel == 0 || m_usedTalentCount > talentPointsForLevel)
         resetTalents(); // Remove all talent points

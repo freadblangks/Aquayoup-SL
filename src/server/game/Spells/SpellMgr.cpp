@@ -19,6 +19,7 @@
 #include "BattlefieldMgr.h"
 #include "BattlegroundMgr.h"
 #include "Chat.h"
+#include "Config.h"
 #include "Containers.h"
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
@@ -3049,7 +3050,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         // Brood Affliction: Bronze
         ApplySpellFix({ 23170 }, [](SpellInfo* spellInfo)
         {
-            spellInfo->_GetEffect(EFFECT_0).TriggerSpell = 23171;
+            spellInfo->Speed = 0.0f;
         });
 
         // Feed Captured Animal
@@ -4959,7 +4960,16 @@ void SpellMgr::LoadSpellInfoCorrections()
     {
         spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(5); // 40yd
     });
-
+	
+	 // Tame Beast
+    ApplySpellFix({ 1515 }, [](SpellInfo* spellInfo)
+    {
+		if (sConfigMgr->GetBoolDefault("Tame.Instant", true))
+		{
+		spellInfo->AttributesEx5 |= SPELL_ATTR5_START_PERIODIC_AT_APPLY;
+		}
+    });
+	
     for (uint32 i = 0; i < GetSpellInfoStoreSize(); ++i)
     {
         SpellInfo* spellInfo = mSpellInfoMap[i];
