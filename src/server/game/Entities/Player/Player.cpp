@@ -7052,7 +7052,7 @@ bool Player::RewardHonor(Unit* victim, uint32 groupsize, int32 honor, bool pvpto
 				ModifyMoney(gold * guardgold);
 			}
         }
-        else if (sWorld->getBoolConfig(CONFIG_GAIN_HONOR_ELITE) && victim->ToCreature()->isElite() && !victim->ToCreature()->isWorldBoss() && !victim->ToCreature()->IsGuard())
+        else if (sWorld->getBoolConfig(CONFIG_GAIN_HONOR_ELITE) && victim->ToCreature()->isElite() && !victim->ToCreature()->IsDungeonBoss() && !victim->ToCreature()->IsGuard())
         {
             uint8 k_level = GetLevel();
             uint8 k_grey = Trinity::XP::GetGrayLevel(k_level);
@@ -7102,7 +7102,7 @@ bool Player::RewardHonor(Unit* victim, uint32 groupsize, int32 honor, bool pvpto
 				ModifyMoney(gold * elitegold);
 			}
         }
-		else if (sWorld->getBoolConfig(CONFIG_GAIN_HONOR_BOSS) && victim->ToCreature()->isWorldBoss())
+		else if (sWorld->getBoolConfig(CONFIG_GAIN_HONOR_BOSS) && victim->ToCreature()->isElite() && victim->ToCreature()->IsDungeonBoss())
         {
             uint8 k_level = GetLevel();
             uint8 k_grey = Trinity::XP::GetGrayLevel(k_level);
