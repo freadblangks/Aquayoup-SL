@@ -645,7 +645,7 @@ public:
 
                 if (Creature* stormwindPortal = me->SummonCreature(NPC_PORTAL_STORMWIND, PortalSpawnPosition))
                 {
-                    stormwindPortal->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    stormwindPortal->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
                     stormwindPortalGUID = stormwindPortal->GetGUID();
                 }
 
@@ -654,7 +654,7 @@ public:
                     if (Creature* guards = ObjectAccessor::GetCreature(*me, guardsGUIDs[i]))
                     {
                         guards->SetWalk(false);
-                        guards->SetEmoteState(EMOTE_STATE_READY2H);
+                        guards->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_READY2H);
                         guards->GetMotionMaster()->MovePoint(1, GuardsMovePosition[i]);
                     }
                 }
@@ -688,7 +688,7 @@ public:
                             if (Creature* guard = ObjectAccessor::GetCreature(*me, guardsGUIDs[i]))
                             {
                                 guard->GetMotionMaster()->MoveTargetedHome();
-                                guard->SetEmoteState(EMOTE_STATE_NONE);
+                                guard->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_NONE);
                             }
                         }
                         events.ScheduleEvent(EVENT_HERALD_SCENE2, 3s);

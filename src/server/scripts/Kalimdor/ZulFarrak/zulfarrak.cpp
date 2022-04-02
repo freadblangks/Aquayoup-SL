@@ -51,14 +51,10 @@ enum blySays
 enum blySpells
 {
     SPELL_SHIELD_BASH          = 11972,
-    SPELL_REVENGE              = 12170,
+    SPELL_REVENGE              = 12170
 };
 
-enum blygossip
-{
-    GOSSIP_BLY_MID             = 941, //That's it!  I'm tired of helping you out.  It's time we settled things on the battlefield!
-    GOSSIP_BLY_OID             = 1
-};
+#define GOSSIP_BLY                  "That's it!  I'm tired of helping you out.  It's time we settled things on the battlefield!"
 
 class npc_sergeant_bly : public CreatureScript
 {
@@ -181,7 +177,7 @@ public:
         {
             if (instance->GetData(EVENT_PYRAMID) == PYRAMID_KILLED_ALL_TROLLS)
             {
-                AddGossipItemFor(player, GOSSIP_BLY_MID, GOSSIP_BLY_OID, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_BLY, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
                 SendGossipMenuFor(player, 1517, me->GetGUID());
             }
             else
@@ -264,11 +260,7 @@ enum weegliSays
     SAY_WEEGLI_OK_I_GO          = 1
 };
 
-enum weegligossip
-{
-    GOSSIP_WEEGLI_MID             = 940, // Will you blow up that door now?
-    GOSSIP_WEEGLI_OID             = 0
-};
+#define GOSSIP_WEEGLI               "Will you blow up that door now?"
 
 class npc_weegli_blastfuse : public CreatureScript
 {
@@ -377,7 +369,7 @@ public:
             switch (instance->GetData(EVENT_PYRAMID))
             {
                 case PYRAMID_KILLED_ALL_TROLLS:
-                    AddGossipItemFor(player, GOSSIP_WEEGLI_MID, GOSSIP_WEEGLI_OID, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_WEEGLI, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
                     SendGossipMenuFor(player, 1514, me->GetGUID());  //if event can proceed to end
                     break;
                 case PYRAMID_NOT_STARTED:

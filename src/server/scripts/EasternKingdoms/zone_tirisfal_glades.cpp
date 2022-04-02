@@ -105,7 +105,7 @@ public:
                         _events.ScheduleEvent(EVENT_SET_QUESTGIVER_FLAG, 12s);
                         break;
                     case EVENT_SET_QUESTGIVER_FLAG:
-                        me->SetNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
+                        me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
                         _events.ScheduleEvent(EVENT_STAND, 3s);
                         break;
                     case EVENT_STAND:
@@ -128,7 +128,7 @@ public:
                 me->SetFaction(FACTION_ENEMY);
                 me->SetImmuneToPC(false);
                 AttackStart(player);
-                me->RemoveNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
+                me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
             }
         }
 

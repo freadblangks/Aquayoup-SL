@@ -230,7 +230,7 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
 
     setPetType(petInfo->Type);
     SetFaction(owner->GetFaction());
-    SetCreatedBySpell(petInfo->CreatedBySpellId);
+    SetUInt32Value(UNIT_CREATED_BY_SPELL, petInfo->CreatedBySpellId);
 
     if (IsCritter())
     {
@@ -254,22 +254,26 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
     SetDisplayId(petInfo->DisplayId);
     SetNativeDisplayId(petInfo->DisplayId);
     uint8 petlevel = petInfo->Level;
-    ReplaceAllNpcFlags(UNIT_NPC_FLAG_NONE);
+    SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
     SetName(petInfo->Name);
 
     switch (getPetType())
     {
         case SUMMON_PET:
             petlevel = owner->GetLevel();
+
             SetClass(CLASS_MAGE);
-            ReplaceAllUnitFlags(UNIT_FLAG_PLAYER_CONTROLLED); // this enables popup window (pet dismiss, cancel)
+            SetUInt32Value(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+                                                            // this enables popup window (pet dismiss, cancel)
             break;
         case HUNTER_PET:
             SetClass(CLASS_WARRIOR);
             SetGender(GENDER_NONE);
             SetSheath(SHEATH_STATE_MELEE);
-            ReplaceAllPetFlags(petInfo->WasRenamed ? UNIT_PET_FLAG_CAN_BE_ABANDONED : (UNIT_PET_FLAG_CAN_BE_RENAMED | UNIT_PET_FLAG_CAN_BE_ABANDONED));
-            ReplaceAllUnitFlags(UNIT_FLAG_PLAYER_CONTROLLED); // this enables popup window (pet abandon, cancel)
+            SetByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PET_FLAGS, petInfo->WasRenamed ? UNIT_CAN_BE_ABANDONED : UNIT_CAN_BE_RENAMED | UNIT_CAN_BE_ABANDONED);
+
+            SetUInt32Value(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+                                                            // this enables popup window (pet abandon, cancel)
             SetMaxPower(POWER_HAPPINESS, GetCreatePowerValue(POWER_HAPPINESS));
             SetPower(POWER_HAPPINESS, petInfo->Happiness);
             break;
@@ -279,11 +283,11 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
             break;
     }
 
-    SetPetNameTimestamp(uint32(GameTime::GetGameTime())); // cast can't be helped here
+    SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, uint32(GameTime::GetGameTime())); // cast can't be helped here
     SetCreatorGUID(owner->GetGUID());
 
     InitStatsForLevel(petlevel);
-    SetPetExperience(petInfo->Experience);
+    SetUInt32Value(UNIT_FIELD_PETEXPERIENCE, petInfo->Experience);
 
     SynchronizeLevelWithOwner();
 
@@ -516,7 +520,7 @@ void Pet::SavePetToDB(PetSaveMode mode)
         stmt->setUInt8(6, GetReactState());
         stmt->setUInt8(7, mode);
         stmt->setString(8, m_name);
-        stmt->setUInt8(9, HasPetFlag(UNIT_PET_FLAG_CAN_BE_RENAMED) ? 0 : 1);
+        stmt->setUInt8(9, HasByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PET_FLAGS, UNIT_CAN_BE_RENAMED) ? 0 : 1);
         stmt->setUInt32(10, curhealth);
         stmt->setUInt32(11, curmana);
         stmt->setUInt32(12, GetPower(POWER_HAPPINESS));
@@ -545,7 +549,7 @@ void Pet::FillPetInfo(PetStable::PetInfo* petInfo) const
     petInfo->Experience = GetUInt32Value(UNIT_FIELD_PETEXPERIENCE);
     petInfo->ReactState = GetReactState();
     petInfo->Name = GetName();
-    petInfo->WasRenamed = !HasPetFlag(UNIT_PET_FLAG_CAN_BE_RENAMED);
+    petInfo->WasRenamed = !HasByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PET_FLAGS, UNIT_CAN_BE_RENAMED);
     petInfo->Health = GetHealth();
     petInfo->Mana = GetPower(POWER_MANA);
     petInfo->Happiness = GetPower(POWER_HAPPINESS);
@@ -590,19 +594,19 @@ void Pet::setDeathState(DeathState s)                       // overwrite virtual
         if (getPetType() == HUNTER_PET)
         {
             // pet corpse non lootable and non skinnable
-            ReplaceAllDynamicFlags(UNIT_DYNFLAG_NONE);
-            RemoveUnitFlag(UNIT_FLAG_SKINNABLE);
+            SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_NONE);
+            RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
 
             // lose happiness when died and not in BG/Arena
             if (!GetMap()->IsBattlegroundOrArena())
                 ModifyPower(POWER_HAPPINESS, -HAPPINESS_LEVEL_SIZE);
 
-            //SetUnitFlag(UNIT_FLAG_STUNNED);
+            //SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);
         }
     }
     else if (getDeathState() == ALIVE)
     {
-        //RemoveUnitFlag(UNIT_FLAG_STUNNED);
+        //RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);
         CastPetAuras(true);
     }
 }
@@ -791,7 +795,7 @@ void Pet::GivePetXP(uint32 xp)
         nextLvlXP = GetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP);
     }
     // Not affected by special conditions - give it new XP
-    SetPetExperience(petlevel < maxlevel ? newXP : 0);
+    SetUInt32Value(UNIT_FIELD_PETEXPERIENCE, petlevel < maxlevel ? newXP : 0);
 }
 
 void Pet::GivePetLevel(uint8 level)
@@ -801,8 +805,8 @@ void Pet::GivePetLevel(uint8 level)
 
     if (getPetType() == HUNTER_PET)
     {
-        SetPetExperience(0);
-        SetPetNextLevelExperience(uint32(sObjectMgr->GetXPForLevel(level)*PET_XP_FACTOR));
+        SetUInt32Value(UNIT_FIELD_PETEXPERIENCE, 0);
+        SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, uint32(sObjectMgr->GetXPForLevel(level)*PET_XP_FACTOR));
     }
 
     InitStatsForLevel(level);
@@ -866,17 +870,17 @@ bool Pet::CreateBaseAtTamed(CreatureTemplate const* cinfo, Map* map, uint32 phas
 
     SetMaxPower(POWER_HAPPINESS, GetCreatePowerValue(POWER_HAPPINESS));
     SetPower(POWER_HAPPINESS, 166500);
-    SetPetNameTimestamp(0);
-    SetPetExperience(0);
-    SetPetNextLevelExperience(uint32(sObjectMgr->GetXPForLevel(GetLevel()+1)*PET_XP_FACTOR));
-    ReplaceAllNpcFlags(UNIT_NPC_FLAG_NONE);
+    SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, 0);
+    SetUInt32Value(UNIT_FIELD_PETEXPERIENCE, 0);
+    SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, uint32(sObjectMgr->GetXPForLevel(GetLevel()+1)*PET_XP_FACTOR));
+    SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
 
     if (cinfo->type == CREATURE_TYPE_BEAST)
     {
         SetClass(CLASS_WARRIOR);
         SetGender(GENDER_NONE);
         SetSheath(SHEATH_STATE_MELEE);
-        ReplaceAllPetFlags(UNIT_PET_FLAG_CAN_BE_RENAMED | UNIT_PET_FLAG_CAN_BE_ABANDONED);
+        SetByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PET_FLAGS, UNIT_CAN_BE_RENAMED | UNIT_CAN_BE_ABANDONED);
     }
 
     return true;
@@ -944,7 +948,7 @@ if (sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
     SetAttackTime(OFF_ATTACK, BASE_ATTACK_TIME);
     SetAttackTime(RANGED_ATTACK, BASE_ATTACK_TIME);
 
-    SetModCastingSpeed(1.0f);
+    SetFloatValue(UNIT_MOD_CAST_SPEED, 1.0f);
 
     //scale
     SetObjectScale(GetNativeObjectScale());
@@ -1928,7 +1932,7 @@ bool Pet::Create(ObjectGuid::LowType guidlow, Map* map, uint32 phaseMask, uint32
         return false;
 
     // Force regen flag for player pets, just like we do for players themselves
-    SetUnitFlag2(UNIT_FLAG2_REGENERATE_POWER);
+    SetFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_REGENERATE_POWER);
     SetSheath(SHEATH_STATE_MELEE);
 
     GetThreatManager().Initialize();

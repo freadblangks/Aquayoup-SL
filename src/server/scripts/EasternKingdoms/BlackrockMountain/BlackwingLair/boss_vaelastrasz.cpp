@@ -69,9 +69,9 @@ struct boss_vaelastrasz : public BossAI
     boss_vaelastrasz(Creature* creature) : BossAI(creature, DATA_VAELASTRAZ_THE_CORRUPT)
     {
         Initialize();
-        creature->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+        creature->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
         creature->SetFaction(FACTION_FRIENDLY);
-        creature->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
+        creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE);
     }
 
     void Initialize()
@@ -108,7 +108,7 @@ struct boss_vaelastrasz : public BossAI
     void BeginSpeech(Unit* target)
     {
         PlayerGUID = target->GetGUID();
-        me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+        me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
         events.ScheduleEvent(EVENT_SPEECH_1, 1s);
     }
 

@@ -373,7 +373,7 @@ public:
                 {
                     me->SetStandState(UNIT_STAND_STATE_DEAD);
                     me->SetImmuneToPC(true);
-                    me->SetDynamicFlag(UNIT_DYNFLAG_DEAD);
+                    me->SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
                 }
                 _phase = 0;
             }
@@ -418,7 +418,7 @@ public:
         {
             if (me->FindNearestCreature(NPC_TALLHORN_STAG, 0.2f))
             {
-                me->SetEmoteState(EMOTE_STATE_USE_STANDING);
+                me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_USE_STANDING);
             }
             else
                 _events.ScheduleEvent(EVENT_WOODSMAN_1, 0s);
@@ -433,11 +433,11 @@ public:
                 switch (eventId)
                 {
                     case EVENT_WOODSMAN_1:
-                        me->SetEmoteState(EMOTE_STATE_LOOT);
+                        me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_LOOT);
                         _events.ScheduleEvent(EVENT_WOODSMAN_2, 3s);
                         break;
                     case EVENT_WOODSMAN_2:
-                        me->SetEmoteState(EMOTE_ONESHOT_ATTACK1H);
+                        me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_ATTACK1H);
                         _events.ScheduleEvent(EVENT_WOODSMAN_1, 4s);
                         break;
                     default:
@@ -577,7 +577,7 @@ public:
         {
             _playerGUID.Clear();
 
-            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
             me->SetImmuneToPC(false);
             me->SetReactState(REACT_AGGRESSIVE);
         }
@@ -627,7 +627,7 @@ public:
         {
             if (spellInfo->Id == SPELL_SMOKE_BOMB && caster->GetTypeId() == TYPEID_PLAYER)
             {
-                me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
                 me->SetImmuneToPC(true);
                 me->SetReactState(REACT_PASSIVE);
                 me->CombatStop(false);
@@ -702,7 +702,7 @@ public:
             {
                 Initialize();
                 if (me->GetEntry() == NPC_LAKE_FROG_QUEST)
-                    me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+                    me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
             }
 
             void UpdateAI(uint32 diff) override
@@ -727,11 +727,11 @@ public:
                             _events.ScheduleEvent(EVENT_LAKEFROG_3, 3s);
                             break;
                         case EVENT_LAKEFROG_3:
-                            me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+                            me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
                             _events.ScheduleEvent(EVENT_LAKEFROG_4, 25s);
                             break;
                         case EVENT_LAKEFROG_4:
-                            me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+                            me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
                             _events.ScheduleEvent(EVENT_LAKEFROG_5, 2s);
                             break;
                         case EVENT_LAKEFROG_5:

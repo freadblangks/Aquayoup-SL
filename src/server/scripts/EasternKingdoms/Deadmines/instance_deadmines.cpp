@@ -185,7 +185,7 @@ class instance_deadmines : public InstanceMapScript
             void LeverStucked()
             {
                 if (GameObject* pDoorLever = instance->GetGameObject(DoorLeverGUID))
-                    pDoorLever->SetFlag(GO_FLAG_INTERACT_COND);
+                    pDoorLever->SetUInt32Value(GAMEOBJECT_FLAGS, 4);
             }
 
             void OnCreatureCreate(Creature* creature) override

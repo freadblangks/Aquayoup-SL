@@ -466,7 +466,7 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
     player->SetLootGUID(ObjectGuid::Empty);
     player->SendLootRelease(lguid);
 
-    player->RemoveUnitFlag(UNIT_FLAG_LOOTING);
+    player->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_LOOTING);
 
     if (!player->IsInWorld())
         return;
@@ -566,7 +566,7 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
         loot = &creature->loot;
         if (loot->isLooted())
         {
-            creature->RemoveDynamicFlag(UNIT_DYNFLAG_LOOTABLE);
+            creature->RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
 
             // skip pickpocketing loot for speed, skinning timer reduction is no-op in fact
             if (!creature->IsAlive())

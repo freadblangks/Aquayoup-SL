@@ -73,9 +73,9 @@ class instance_zulgurub : public InstanceMapScript
                 {
                     case GO_GONG_OF_BETHEKK:
                         if (GetBossState(DATA_ARLOKK) == DONE)
-                            go->SetFlag(GO_FLAG_NOT_SELECTABLE);
+                            go->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
                         else
-                            go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
+                            go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
                         break;
                     default:
                         break;

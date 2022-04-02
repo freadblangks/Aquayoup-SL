@@ -155,7 +155,7 @@ public:
             Intro = false;
             JustCreated = true;
             CanAttack = false;
-            creature->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE); // set it only once on Creature create (no need do intro if wiped)
+            creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE); // set it only once on Creature create (no need do intro if wiped)
         }
 
         void Initialize()
@@ -325,7 +325,7 @@ public:
                 if (AggroTimer <= diff)
                 {
                     CanAttack = true;
-                    me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
                     AggroTimer=19000;
                 }
                 else

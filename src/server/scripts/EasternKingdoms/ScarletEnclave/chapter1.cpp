@@ -569,7 +569,7 @@ public:
 
             me->RestoreFaction();
             CombatAI::Reset();
-            me->SetUnitFlag(UNIT_FLAG_CAN_SWIM);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_CAN_SWIM);
         }
 
         void SpellHit(WorldObject* caster, SpellInfo const* spellInfo) override
@@ -661,7 +661,7 @@ public:
                     return true;
 
                 me->SetImmuneToPC(false);
-                me->RemoveUnitFlag(UNIT_FLAG_CAN_SWIM);
+                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_CAN_SWIM);
 
                 player->CastSpell(me, SPELL_DUEL, false);
                 player->CastSpell(player, SPELL_DUEL_FLAG, true);
@@ -771,8 +771,11 @@ private:
 
 enum SalanarTheHorseman
 {
+    GOSSIP_SALANAR_MENU               = 9739,
+    GOSSIP_SALANAR_OPTION             = 0,
     SALANAR_SAY                       = 0,
     QUEST_INTO_REALM_OF_SHADOWS       = 12687,
+    NPC_SALANAR_IN_REALM_OF_SHADOWS   = 28788,
     SPELL_EFFECT_STOLEN_HORSE         = 52263,
     SPELL_DELIVER_STOLEN_HORSE        = 52264,
     SPELL_CALL_DARK_RIDER             = 52266,
@@ -789,6 +792,16 @@ public:
     {
         npc_salanar_the_horsemanAI(Creature* creature) : ScriptedAI(creature) { }
 
+        bool OnGossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
+        {
+            if (menuId == GOSSIP_SALANAR_MENU && gossipListId == GOSSIP_SALANAR_OPTION)
+            {
+                player->CastSpell(player, SPELL_REALM_OF_SHADOWS, true);
+                player->PlayerTalkClass->SendCloseGossip();
+            }
+            return false;
+        }
+
         void MoveInLineOfSight(Unit* who) override
         {
             ScriptedAI::MoveInLineOfSight(who);
@@ -799,7 +812,8 @@ public:
                 {
                     if (Player* player = charmer->ToPlayer())
                     {
-                        if (player->GetQuestStatus(QUEST_INTO_REALM_OF_SHADOWS) == QUEST_STATUS_INCOMPLETE)
+                        // for quest Into the Realm of Shadows(QUEST_INTO_REALM_OF_SHADOWS)
+                        if (me->GetEntry() == NPC_SALANAR_IN_REALM_OF_SHADOWS && player->GetQuestStatus(QUEST_INTO_REALM_OF_SHADOWS) == QUEST_STATUS_INCOMPLETE)
                         {
                             player->GroupEventHappens(QUEST_INTO_REALM_OF_SHADOWS, me);
                             Talk(SALANAR_SAY);
@@ -870,7 +884,7 @@ class spell_deliver_stolen_horse : public SpellScript
 
         Unit* caster = GetCaster();
         caster->RemoveAurasDueToSpell(SPELL_EFFECT_STOLEN_HORSE);
-        caster->RemoveNpcFlag(UNIT_NPC_FLAG_SPELLCLICK);
+        caster->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
         caster->SetFaction(FACTION_FRIENDLY);
 
         caster->CastSpell(caster, SPELL_CALL_DARK_RIDER, true);
@@ -912,8 +926,8 @@ public:
                 return;
 
             deathcharger->RestoreFaction();
-            deathcharger->RemoveNpcFlag(UNIT_NPC_FLAG_SPELLCLICK);
-            deathcharger->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
+            deathcharger->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
+            deathcharger->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE);
             if (!me->GetVehicle() && deathcharger->IsVehicle() && deathcharger->GetVehicleKit()->HasEmptySeat(0))
                 me->EnterVehicle(deathcharger);
         }
@@ -926,8 +940,8 @@ public:
 
             if (killer->GetTypeId() == TYPEID_PLAYER && deathcharger->GetTypeId() == TYPEID_UNIT && deathcharger->IsVehicle())
             {
-                deathcharger->SetNpcFlag(UNIT_NPC_FLAG_SPELLCLICK);
-                deathcharger->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
+                deathcharger->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
+                deathcharger->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNINTERACTIBLE);
                 deathcharger->SetFaction(FACTION_SCARLET_CRUSADE_2);
             }
         }

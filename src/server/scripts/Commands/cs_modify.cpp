@@ -225,35 +225,35 @@ public:
         if (!pfactionid)
         {
             uint32 factionid = target->GetFaction();
-            uint32 flag      = target->GetUnitFlags();
-            uint32 npcflag   = target->GetNpcFlags();
-            uint32 dyflag    = target->GetDynamicFlags();
+            uint32 flag      = target->GetUInt32Value(UNIT_FIELD_FLAGS);
+            uint32 npcflag   = target->GetUInt32Value(UNIT_NPC_FLAGS);
+            uint32 dyflag    = target->GetUInt32Value(UNIT_DYNAMIC_FLAGS);
             handler->PSendSysMessage(LANG_CURRENT_FACTION, target->GetGUID().GetCounter(), factionid, flag, npcflag, dyflag);
             return true;
         }
 
         uint32 factionid = atoi(pfactionid);
-        UnitFlags flag;
+        uint32 flag;
 
         char *pflag = strtok(nullptr, " ");
         if (!pflag)
-            flag = target->GetUnitFlags();
+            flag = target->GetUInt32Value(UNIT_FIELD_FLAGS);
         else
-            flag = UnitFlags(atoi(pflag));
+            flag = atoi(pflag);
 
         char* pnpcflag = strtok(nullptr, " ");
 
-        NPCFlags npcflag;
+        uint32 npcflag;
         if (!pnpcflag)
-            npcflag = target->GetNpcFlags();
+            npcflag = target->GetUInt32Value(UNIT_NPC_FLAGS);
         else
-            npcflag = NPCFlags(atoi(pnpcflag));
+            npcflag = atoi(pnpcflag);
 
         char* pdyflag = strtok(nullptr, " ");
 
         uint32  dyflag;
         if (!pdyflag)
-            dyflag = target->GetDynamicFlags();
+            dyflag = target->GetUInt32Value(UNIT_DYNAMIC_FLAGS);
         else
             dyflag = atoi(pdyflag);
 
@@ -267,9 +267,9 @@ public:
         handler->PSendSysMessage(LANG_YOU_CHANGE_FACTION, target->GetGUID().GetCounter(), factionid, flag, npcflag, dyflag);
 
         target->SetFaction(factionid);
-        target->ReplaceAllUnitFlags(flag);
-        target->ReplaceAllNpcFlags(npcflag);
-        target->ReplaceAllDynamicFlags(dyflag);
+        target->SetUInt32Value(UNIT_FIELD_FLAGS, flag);
+        target->SetUInt32Value(UNIT_NPC_FLAGS, npcflag);
+        target->SetUInt32Value(UNIT_DYNAMIC_FLAGS, dyflag);
 
         return true;
     }
@@ -857,7 +857,7 @@ public:
             return false;
 
         uint32 anim_id = atoi((char*)args);
-        handler->GetSession()->GetPlayer()->SetEmoteState(Emote(anim_id));
+        handler->GetSession()->GetPlayer()->SetUInt32Value(UNIT_NPC_EMOTESTATE, anim_id);
 
         return true;
     }

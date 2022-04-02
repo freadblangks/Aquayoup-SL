@@ -610,31 +610,14 @@ public:
         if (!objectState)
             return false;
 
-        switch (objectType)
+        if (objectType < 4)
+            object->SetByteValue(GAMEOBJECT_BYTES_1, objectType, *objectState);
+        else if (objectType == 4)
         {
-            case 0:
-                object->SetGoState(GOState(*objectState));
-                break;
-            case 1:
-                object->SetGoType(GameobjectTypes(*objectState));
-                break;
-            case 2:
-                object->SetGoArtKit(*objectState);
-                break;
-            case 3:
-                object->SetGoAnimProgress(*objectState);
-                break;
-            case 4:
-                object->SendCustomAnim(*objectState);
-                break;
-            case 5:
-                if (*objectState > GO_DESTRUCTIBLE_REBUILDING)
-                    return false;
-
-                object->SetDestructibleState(GameObjectDestructibleState(*objectState));
-                break;
-            default:
-                break;
+            WorldPacket data(SMSG_GAMEOBJECT_CUSTOM_ANIM, 8+4);
+            data << object->GetGUID();
+            data << static_cast<uint32>(*objectState);
+            object->SendMessageToSet(&data, true);
         }
         handler->PSendSysMessage("Set gobject type %d state %u", objectType, *objectState);
         return true;

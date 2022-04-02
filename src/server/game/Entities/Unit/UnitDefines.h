@@ -19,7 +19,6 @@
 #define UnitDefines_h__
 
 #include "Define.h"
-#include "EnumFlag.h"
 #include <string>
 
 #define BASE_MINDAMAGE 1.0f
@@ -44,14 +43,14 @@ enum UnitStandStateType : uint8
 };
 
 // byte flag value (UNIT_FIELD_BYTES_1, 2)
-enum UnitVisFlags : uint8
+enum UnitStandFlags : uint8
 {
-    UNIT_VIS_FLAGS_UNK1         = 0x01,
-    UNIT_VIS_FLAGS_CREEP        = 0x02,
-    UNIT_VIS_FLAGS_UNTRACKABLE  = 0x04,
-    UNIT_VIS_FLAGS_UNK4         = 0x08,
-    UNIT_VIS_FLAGS_UNK5         = 0x10,
-    UNIT_VIS_FLAGS_ALL          = 0xFF
+    UNIT_STAND_FLAGS_UNK1         = 0x01,
+    UNIT_STAND_FLAGS_CREEP        = 0x02,
+    UNIT_STAND_FLAGS_UNTRACKABLE  = 0x04,
+    UNIT_STAND_FLAGS_UNK4         = 0x08,
+    UNIT_STAND_FLAGS_UNK5         = 0x10,
+    UNIT_STAND_FLAGS_ALL          = 0xFF
 };
 
 enum UnitBytes0Offsets : uint8
@@ -101,7 +100,6 @@ enum SheathState : uint8
 // byte (1 from 0..3) of UNIT_FIELD_BYTES_2
 enum UnitPVPStateFlags : uint8
 {
-    UNIT_BYTE2_FLAG_NONE        = 0x00,
     UNIT_BYTE2_FLAG_PVP         = 0x01,
     UNIT_BYTE2_FLAG_UNK1        = 0x02,
     UNIT_BYTE2_FLAG_FFA_PVP     = 0x04,
@@ -112,17 +110,12 @@ enum UnitPVPStateFlags : uint8
     UNIT_BYTE2_FLAG_UNK7        = 0x80
 };
 
-DEFINE_ENUM_FLAG(UnitPVPStateFlags);
-
 // byte (2 from 0..3) of UNIT_FIELD_BYTES_2
-enum UnitPetFlag : uint8
+enum UnitRename : uint8
 {
-    UNIT_PET_FLAG_NONE              = 0x0,
-    UNIT_PET_FLAG_CAN_BE_RENAMED    = 0x01,
-    UNIT_PET_FLAG_CAN_BE_ABANDONED  = 0x02
+    UNIT_CAN_BE_RENAMED     = 0x01,
+    UNIT_CAN_BE_ABANDONED   = 0x02
 };
-
-DEFINE_ENUM_FLAG(UnitPetFlag);
 
 // Value masks for UNIT_FIELD_FLAGS
 // EnumUtils: DESCRIBE THIS
@@ -171,8 +164,6 @@ enum UnitFlags : uint32
 
     UNIT_FLAG_ALLOWED               = (0xFFFFFFFF & ~UNIT_FLAG_DISALLOWED)
 };
-
-DEFINE_ENUM_FLAG(UnitFlags);
 
 // Value masks for UNIT_FIELD_FLAGS_2
 enum UnitFlags2 : uint32
@@ -223,8 +214,6 @@ enum UnitFlags2 : uint32
     UNIT_FLAG2_ALLOWED                      = (0xFFFFFFFF & ~UNIT_FLAG2_DISALLOWED)
 };
 
-DEFINE_ENUM_FLAG(UnitFlags2);
-
 /// Non Player Character flags
 // EnumUtils: DESCRIBE THIS
 enum NPCFlags : uint32
@@ -258,8 +247,6 @@ enum NPCFlags : uint32
     UNIT_NPC_FLAG_PLAYER_VEHICLE        = 0x02000000,       // TITLE is player vehicle DESCRIPTION players with mounts that have vehicle data should have it set
     UNIT_NPC_FLAG_MAILBOX               = 0x04000000        // TITLE is mailbox
 };
-
-DEFINE_ENUM_FLAG(NPCFlags);
 
 enum MovementFlags : uint32
 {
