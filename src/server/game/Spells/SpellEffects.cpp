@@ -2960,14 +2960,7 @@ void Spell::EffectTameCreature()
 	//skuly Tame All
 	if (unitCaster->GetClass() != CLASS_HUNTER && !sConfigMgr->GetBoolDefault("Tame.All.Enabled", true))
 	{
-		unitCaster->ToPlayer()->GetSession()->SendAreaTriggerMessage("All Classes tame is not enabled so only Hunters can use Tame Beast!");
-		
-		
-		if (unitCaster->ToPlayer()->GetSession()->HasPermission(rbac::RBAC_PERM_LOG_GM_TRADE))
-		{
-			unitCaster->ToPlayer()->GetSession()->SendAreaTriggerMessage("Set Tame.All.Enabled = true in Worldserver.conf");
-		}
-		
+		unitCaster->ToPlayer()->GetSession()->SendAreaTriggerMessage("Only Hunters can Tame Beast!");
 		return;
 	}
 	
