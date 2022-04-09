@@ -4191,6 +4191,14 @@ Metric.OverallStatusInterval = 1
 NpcBot.Enable = 1
 
 #
+#   NpcBot.Not.Grouped.Dungeon.Enable
+#        Description: NpcBots that are not in a group can enter dungeons with the player.
+#        Default:     1 - enable
+#                     0 - disable
+
+NpcBot.Not.Grouped.Dungeon.Enable = 1
+
+#
 #    NpcBot.MaxBots
 #        Description: Maximum number of bots allowed for players.
 #        Default:     1
@@ -5275,7 +5283,7 @@ Custom.GainHonorOnGuardKill = 0
 Custom.GainHonorOnEliteKill = 0
 #
 # Custom.GainHonorOnBossKill
-# Set it to 1 to gain honor when you kill a boss.
+# Set it to 1 to gain honor when you kill a Dungeon boss.
 # Default : 0 (No honor when you kill a boss)
 #
 Custom.GainHonorOnBossKill = 0
@@ -5318,7 +5326,7 @@ Custom.GainHonorOnGuardKill.AreanPoints = 0
 Custom.GainHonorOnEliteKill.AreanPoints = 0
 #
 # Custom.GainHonorOnBossKill.AreanPoints
-# Also give Arena Points on Boss kills.
+# Also give Arena Points on Dungeon Boss kills.
 # Set it to 1 to also receive AP.
 # Default : 0 (No AP will be given )
 #
@@ -5338,7 +5346,7 @@ Custom.GainHonorOnGuardKill.Gold = 0
 Custom.GainHonorOnEliteKill.Gold = 0
 #
 # Custom.GainHonorOnBossKill.Gold
-# Also give gold on Boss kills.
+# Also give gold on Dungeon Boss kills.
 # Default : 0 (No gold will be given )
 #
 Custom.GainHonorOnBossKill.Gold = 0
