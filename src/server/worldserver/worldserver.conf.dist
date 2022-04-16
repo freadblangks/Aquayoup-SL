@@ -5385,7 +5385,14 @@ Stats.Cap = true
 #Gain a random stat for killing Dungeon Bosses and eLites.
 #(Agility,Intellect,Strength,Stamina,Spirit,Spell Power,AttackPower, and Ranged Attack Power)
 #
-DungeonStatsReward.Enable = true
+DungeonStatsReward.Enable = false
+#
+# OutsideDungeons means all npc kills, not just inside Dungeons.
+# and level means kills of npc's this level or higher.
+#
+DungeonStatsReward.OutsideDungeons = false
+#
+DungeonStatsReward.OutsideDungeons.level = 1
 #
 DungeonStatsReward.Elite.NPCs = true
 DungeonStatsReward.Normal.NPCs = true
