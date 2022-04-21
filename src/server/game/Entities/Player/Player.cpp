@@ -15539,6 +15539,148 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
     //this THING should be here to protect code from quest, which cast on player far teleport as a reward
     //should work fine, cause far teleport will be executed in Player::Update()
     SetCanDelayTeleport(true);
+	
+	//skulydailyqueststats
+	if (quest->IsDaily() && sConfigMgr->GetBoolDefault("DungeonStatsReward.Dailies", true))
+	{
+										std::ostringstream ss;
+										std::ostringstream ss2;
+										float amount;
+										int nonbossroll = irand(1, 100);
+										int percentage = sConfigMgr->GetIntDefault("DungeonStatsReward.Daily.Chance", 0);
+										
+										if (percentage > 100)
+										{
+											percentage = 100;
+										}
+										
+										if (percentage < 1)
+										{
+											percentage = 1;
+										}
+										amount = sConfigMgr->GetFloatDefault("DungeonStatsReward.AmountDaily", 1.0f);
+										
+										if (nonbossroll <= percentage)
+										{
+											QueryResult GDungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `Spellbonus`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetGUID());
+										if (amount < 1.0f)
+										{
+											amount = 1.0f;
+										}
+										int memberguid = GetGUID();
+										float Rollpoints = irand(1.0f, amount );
+										
+										int chatpoints = int(Rollpoints);
+
+										int Rollstat = irand(1, 8);
+											
+											
+											
+											float GQStrengthDB = (*GDungeonstatsresult)[0].GetFloat();
+											float GQAgilityDB = (*GDungeonstatsresult)[1].GetFloat();
+											float GQStaminaDB = (*GDungeonstatsresult)[2].GetFloat();
+											float GQIntellectDB = (*GDungeonstatsresult)[3].GetFloat();
+											float GQSpiritDB = (*GDungeonstatsresult)[4].GetFloat();
+											
+
+											uint32 GQSpellDB = (*GDungeonstatsresult)[5].GetUInt32();
+											float GQAPDB = (*GDungeonstatsresult)[6].GetFloat();
+											float GQRAPDB = (*GDungeonstatsresult)[7].GetFloat();
+											float DBValue;
+											uint32 DBUintValue;
+
+											std::ostringstream ss;
+											std::string statchosen;
+											if (Rollstat == 1)
+											{
+											statchosen = "Strength";
+											DBValue = GQStrengthDB;
+											ss << "You gained|cffFF8000 %i |rStrength.";
+											}
+											if (Rollstat == 2)
+											{
+											statchosen = "Agility";
+											DBValue = GQAgilityDB;
+											ss << "You gained|cffFF8000 %i |rAgility.";
+											}
+											if (Rollstat == 3)
+											{
+											statchosen = "Stamina";
+											DBValue = GQStaminaDB;
+											ss << "You gained|cffFF8000 %i |rStamina.";
+											}
+											if (Rollstat == 4)
+											{
+											statchosen = "Intellect";
+											DBValue = GQIntellectDB;
+											ss << "You gained|cffFF8000 %i |rIntellect.";
+											}
+											if (Rollstat == 5)
+											{
+											statchosen = "Spirit";
+											DBValue = GQSpiritDB;
+											ss << "You gained|cffFF8000 %i |rSpirit.";
+											}
+											if (Rollstat == 6)
+											{
+											statchosen = "Spellbonus";
+											DBUintValue = GQSpellDB;
+											ss << "You gained|cffFF8000 %i |rSpell Power.";
+											}
+											if (Rollstat == 7)
+											{
+											statchosen = "AttackPower";
+											DBValue = GQAPDB;
+											ss << "You gained|cffFF8000 %i |rAttack Power.";
+											}
+											if (Rollstat == 8)
+											{
+											statchosen = "RAttackPower";
+											DBValue = GQRAPDB;
+											ss << "You gained|cffFF8000 %i |rRanged Attack Power.";
+											}
+											if (Rollstat < 6 || Rollstat > 6)
+											{CharacterDatabase.DirectPExecute("UPDATE `stats_from_dungeons` SET %s = %f WHERE GUID = %u", statchosen, DBValue + Rollpoints, memberguid);}
+											else
+											{CharacterDatabase.DirectPExecute("UPDATE `stats_from_dungeons` SET %s = %u WHERE GUID = %u", statchosen, DBUintValue + uint32(Rollpoints), memberguid);}
+											ChatHandler(GetSession()).PSendSysMessage(ss.str().c_str(), chatpoints);
+										
+											QueryResult Dungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `Spellbonus`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetGUID());
+											if (Rollstat == 1)
+											{
+											HandleStatFlatModifier(UnitMods(STAT_STRENGTH), TOTAL_VALUE, Rollpoints, true);
+											}
+											if (Rollstat == 2)
+											{
+											HandleStatFlatModifier(UnitMods(STAT_AGILITY), TOTAL_VALUE, Rollpoints, true);
+											}
+											if (Rollstat == 3)
+											{
+											HandleStatFlatModifier(UnitMods(STAT_STAMINA), TOTAL_VALUE, Rollpoints, true);
+											}
+											if (Rollstat == 4)
+											{
+											HandleStatFlatModifier(UnitMods(STAT_INTELLECT), TOTAL_VALUE, Rollpoints, true);
+											}
+											if (Rollstat == 5)
+											{
+											HandleStatFlatModifier(UnitMods(STAT_SPIRIT), TOTAL_VALUE, Rollpoints, true);
+											}
+											if (Rollstat == 6)
+											{
+											ApplySpellPowerBonus(Rollpoints, true);
+											}
+											if (Rollstat == 7)
+											{
+											HandleStatFlatModifier(UNIT_MOD_ATTACK_POWER, TOTAL_VALUE, Rollpoints, true);
+											}
+											if (Rollstat == 8)
+											{
+											HandleStatFlatModifier(UNIT_MOD_ATTACK_POWER_RANGED, TOTAL_VALUE, Rollpoints, true);
+											}
+										}
+	}
+	//skulydailyqueststats
 
     uint32 quest_id = quest->GetQuestId();
 
@@ -15655,6 +15797,7 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
     if (quest->IsDaily() || quest->IsDFQuest())
     {
         SetDailyQuestStatus(quest_id);
+	
         if (quest->IsDaily())
         {
             UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_DAILY_QUEST, quest_id);
@@ -15714,7 +15857,7 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
         pvpInfo.IsHostile = pvpInfo.IsInHostileArea || HasPvPForcingQuest();
         UpdatePvPState();
     }
-
+	
     SendQuestUpdate(quest_id);
 
     SendQuestGiverStatusMultiple();
@@ -16921,10 +17064,10 @@ void Player::KilledMonsterCredit(uint32 entry, ObjectGuid guid /*= ObjectGuid::E
 											percentage = 1;
 										}
 										
-										if (((nonbossroll <= percentage && !victim->IsDungeonBoss()) || victim->IsDungeonBoss()) && isDungeon)
+										if (nonbossroll <= percentage)
 										{
 											
-										if ((victim->isElite() && sConfigMgr->GetBoolDefault("DungeonStatsReward.Elite.NPCs", true)) || (!victim->isElite() && sConfigMgr->GetBoolDefault("DungeonStatsReward.Normal.NPCs", true)) || victim->IsDungeonBoss())
+										if ( (isDungeon && ((victim->isElite() && sConfigMgr->GetBoolDefault("DungeonStatsReward.Elite.NPCs", true)) || (!victim->isElite() && sConfigMgr->GetBoolDefault("DungeonStatsReward.Normal.NPCs", true)) || victim->IsDungeonBoss())) || sConfigMgr->GetBoolDefault("DungeonStatsReward.OutsideDungeons", true) && (victim->GetLevel() >= sConfigMgr->GetIntDefault("DungeonStatsReward.OutsideDungeons.level", 0)))
 										{
 										QueryResult GDungeonstatsresult = CharacterDatabase.PQuery("SELECT `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`, `Spellbonus`, `AttackPower`, `RAttackPower` FROM `stats_from_dungeons` WHERE `GUID` = %u", GetGUID());
 										
@@ -17384,6 +17527,7 @@ void Player::SendQuestComplete(uint32 quest_id) const
 
 void Player::SendQuestReward(Quest const* quest, uint32 XP) const
 {
+	
     uint32 questid = quest->GetQuestId();
     sGameEventMgr->HandleQuestComplete(questid);
     WorldPacket data(SMSG_QUESTGIVER_QUEST_COMPLETE, (4+4+4+4+4));
