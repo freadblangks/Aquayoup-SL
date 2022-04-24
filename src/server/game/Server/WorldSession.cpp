@@ -46,6 +46,9 @@
 #include "Player.h"
 #include "Realm.h"
 #include "ScriptMgr.h"
+#ifdef ELUNA
+#include "LuaEngine.h"
+#endif
 #include "SocialMgr.h"
 #include "QueryHolder.h"
 #include "Vehicle.h"
@@ -250,6 +253,11 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 
     sScriptMgr->OnPacketSend(this, *packet);
 
+#ifdef ELUNA
+    if (!sEluna->OnPacketSend(this, *packet))
+        return;
+#endif
+
     TC_LOG_TRACE("network.opcode", "S->C: %s %s", GetPlayerInfo().c_str(), GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())).c_str());
     m_Socket->SendPacket(*packet);
 }
@@ -296,8 +304,6 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
     uint32 processedPackets = 0;
     time_t currentTime = GameTime::GetGameTime();
 
-    constexpr uint32 MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE = 100;
-
     while (m_Socket && _recvQueue.next(packet, updater))
     {
         OpcodeClient opcode = static_cast<OpcodeClient>(packet->GetOpcode());
@@ -322,16 +328,15 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                                 "Player is currently not in world yet.", GetOpcodeNameForLogging(static_cast<OpcodeClient>(packet->GetOpcode())).c_str());
                         }
                     }
-                    else if (_player->IsInWorld())
+                    else if (_player->IsInWorld() && AntiDOS.EvaluateOpcode(*packet, currentTime))
                     {
-                        if(AntiDOS.EvaluateOpcode(*packet, currentTime))
-                        {
-                            sScriptMgr->OnPacketReceive(this, *packet);
-                            opHandle->Call(this, *packet);
-                            LogUnprocessedTail(packet);
-                        }
-                        else
-                            processedPackets = MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE;   // break out of packet processing loop
+                        sScriptMgr->OnPacketReceive(this, *packet);
+#ifdef ELUNA
+                        if (!sEluna->OnPacketReceive(this, *packet))
+                            break;
+#endif
+                        opHandle->Call(this, *packet);
+                        LogUnprocessedTail(packet);
                     }
                     // lag can cause STATUS_LOGGEDIN opcodes to arrive after the player started a transfer
                     break;
@@ -343,11 +348,13 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                     {
                         // not expected _player or must checked in packet hanlder
                         sScriptMgr->OnPacketReceive(this, *packet);
+#ifdef ELUNA
+                        if (!sEluna->OnPacketReceive(this, *packet))
+                            break;
+#endif
                         opHandle->Call(this, *packet);
                         LogUnprocessedTail(packet);
                     }
-                    else
-                        processedPackets = MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE;   // break out of packet processing loop
                     break;
                 case STATUS_TRANSFER:
                     if (!_player)
@@ -357,11 +364,13 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                     else if (AntiDOS.EvaluateOpcode(*packet, currentTime))
                     {
                         sScriptMgr->OnPacketReceive(this, *packet);
+#ifdef ELUNA
+                        if (!sEluna->OnPacketReceive(this, *packet))
+                            break;
+#endif
                         opHandle->Call(this, *packet);
                         LogUnprocessedTail(packet);
                     }
-                    else
-                        processedPackets = MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE;   // break out of packet processing loop
                     break;
                 case STATUS_AUTHED:
                     // prevent cheating with skip queue wait
@@ -379,11 +388,13 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                     if (AntiDOS.EvaluateOpcode(*packet, currentTime))
                     {
                         sScriptMgr->OnPacketReceive(this, *packet);
+#ifdef ELUNA
+                        if (!sEluna->OnPacketReceive(this, *packet))
+                            break;
+#endif
                         opHandle->Call(this, *packet);
                         LogUnprocessedTail(packet);
                     }
-                    else
-                        processedPackets = MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE;   // break out of packet processing loop
                     break;
                 case STATUS_NEVER:
                     TC_LOG_ERROR("network.opcode", "Received not allowed opcode %s from %s", GetOpcodeNameForLogging(static_cast<OpcodeClient>(packet->GetOpcode())).c_str()
@@ -428,6 +439,7 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
 
         deletePacket = true;
 
+#define MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE 100
         processedPackets++;
 
         //process only a max amout of packets in 1 Update() call.

@@ -29,7 +29,6 @@
 
 #define TIMER_TOMBOFTHESEVEN    15000
 #define MAX_ENCOUNTER           6
-constexpr uint8 TOMB_OF_SEVEN_BOSS_NUM = 7;
 
 enum Creatures
 {
@@ -135,7 +134,7 @@ public:
 
         uint32 BarAleCount;
         uint32 GhostKillCount;
-        ObjectGuid TombBossGUIDs[TOMB_OF_SEVEN_BOSS_NUM];
+        ObjectGuid TombBossGUIDs[7];
         ObjectGuid TombEventStarterGUID;
         uint32 TombTimer;
         uint32 TombEventCounter;
@@ -194,7 +193,7 @@ public:
                 case GO_TOMB_ENTER: GoTombEnterGUID = go->GetGUID(); break;
                 case GO_TOMB_EXIT:
                     GoTombExitGUID = go->GetGUID();
-                    if (GhostKillCount >= TOMB_OF_SEVEN_BOSS_NUM)
+                    if (GhostKillCount >= 7)
                         HandleGameObject(ObjectGuid::Empty, true, go);
                     else
                         HandleGameObject(ObjectGuid::Empty, false, go);
@@ -258,7 +257,7 @@ public:
                     break;
             }
 
-            if (data == DONE || GhostKillCount >= TOMB_OF_SEVEN_BOSS_NUM)
+            if (data == DONE || GhostKillCount >= 7)
             {
                 OUT_SAVE_INST_DATA;
 
@@ -364,17 +363,17 @@ public:
             for (uint8 i = 0; i < MAX_ENCOUNTER; ++i)
                 if (encounter[i] == IN_PROGRESS)
                     encounter[i] = NOT_STARTED;
-            if (GhostKillCount > 0 && GhostKillCount < TOMB_OF_SEVEN_BOSS_NUM)
+            if (GhostKillCount > 0 && GhostKillCount < 7)
                 GhostKillCount = 0;//reset tomb of seven event
-            if (GhostKillCount >= TOMB_OF_SEVEN_BOSS_NUM)
-                GhostKillCount = TOMB_OF_SEVEN_BOSS_NUM;
+            if (GhostKillCount >= 7)
+                GhostKillCount = 7;
 
             OUT_LOAD_INST_DATA_COMPLETE;
         }
 
         void TombOfSevenEvent()
         {
-            if (GhostKillCount < TOMB_OF_SEVEN_BOSS_NUM && TombBossGUIDs[TombEventCounter])
+            if (GhostKillCount < 7 && TombBossGUIDs[TombEventCounter])
             {
                 if (Creature* boss = instance->GetCreature(TombBossGUIDs[TombEventCounter]))
                 {
@@ -390,7 +389,7 @@ public:
         {
             HandleGameObject(GoTombExitGUID, false);//event reseted, close exit door
             HandleGameObject(GoTombEnterGUID, true);//event reseted, open entrance door
-            for (uint8 i = 0; i < TOMB_OF_SEVEN_BOSS_NUM; ++i)
+            for (uint8 i = 0; i < 7; ++i)
             {
                 if (Creature* boss = instance->GetCreature(TombBossGUIDs[i]))
                 {
@@ -425,19 +424,15 @@ public:
 
         void Update(uint32 diff) override
         {
-            if (TombEventStarterGUID && GhostKillCount < TOMB_OF_SEVEN_BOSS_NUM)
+            if (TombEventStarterGUID && GhostKillCount < 7)
             {
                 if (TombTimer <= diff)
                 {
                     TombTimer = TIMER_TOMBOFTHESEVEN;
-                    if (TombEventCounter < TOMB_OF_SEVEN_BOSS_NUM)
-                    {
-                        TombOfSevenEvent();
-                        ++TombEventCounter;
-                    }
-
+                    ++TombEventCounter;
+                    TombOfSevenEvent();
                     // Check Killed bosses
-                    for (uint8 i = 0; i < TOMB_OF_SEVEN_BOSS_NUM; ++i)
+                    for (uint8 i = 0; i < 7; ++i)
                     {
                         if (Creature* boss = instance->GetCreature(TombBossGUIDs[i]))
                         {
@@ -449,7 +444,7 @@ public:
                     }
                 } else TombTimer -= diff;
             }
-            if (GhostKillCount >= TOMB_OF_SEVEN_BOSS_NUM && TombEventStarterGUID)
+            if (GhostKillCount >= 7 && TombEventStarterGUID)
                 TombOfSevenEnd();
         }
     };

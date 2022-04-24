@@ -196,6 +196,9 @@ uint32 const MAX_MONEY_AMOUNT = static_cast<uint32>(std::numeric_limits<int32>::
 
 Player::Player(WorldSession* session): Unit(true)
 {
+    m_speakTime = 0;
+    m_speakCount = 0;
+
     m_objectType |= TYPEMASK_PLAYER;
     m_objectTypeId = TYPEID_PLAYER;
 
@@ -14712,14 +14715,14 @@ void Player::PrepareGossipMenu(WorldObject* source, uint32 menuId /*= 0*/, bool 
                 if (!optionBroadcastText)
                 {
                     /// Find localizations from database.
-                    if (GossipMenuItemsLocale const* gossipMenuLocale = sObjectMgr->GetGossipMenuItemsLocale(menuId, itr->second.OptionID))
+                    if (GossipMenuItemsLocale const* gossipMenuLocale = sObjectMgr->GetGossipMenuItemsLocale(MAKE_PAIR32(menuId, itr->second.OptionID)))
                         ObjectMgr::GetLocaleString(gossipMenuLocale->OptionText, locale, strOptionText);
                 }
 
                 if (!boxBroadcastText)
                 {
                     /// Find localizations from database.
-                    if (GossipMenuItemsLocale const* gossipMenuLocale = sObjectMgr->GetGossipMenuItemsLocale(menuId, itr->second.OptionID))
+                    if (GossipMenuItemsLocale const* gossipMenuLocale = sObjectMgr->GetGossipMenuItemsLocale(MAKE_PAIR32(menuId, itr->second.OptionID)))
                         ObjectMgr::GetLocaleString(gossipMenuLocale->BoxText, locale, strBoxText);
                 }
             }
@@ -21064,49 +21067,34 @@ void Player::outDebugValues() const
 /***               FLOOD FILTER SYSTEM                 ***/
 /*********************************************************/
 
-void Player::UpdateSpeakTime(ChatFloodThrottle::Index index)
+void Player::UpdateSpeakTime()
 {
     // ignore chat spam protection for GMs in any mode
     if (GetSession()->HasPermission(rbac::RBAC_PERM_SKIP_CHECK_CHAT_SPAM))
         return;
 
-    uint32 limit;
-    uint32 delay;
-    switch (index)
-    {
-        case ChatFloodThrottle::REGULAR:
-            limit = sWorld->getIntConfig(CONFIG_CHATFLOOD_MESSAGE_COUNT);
-            delay = sWorld->getIntConfig(CONFIG_CHATFLOOD_MESSAGE_DELAY);
-            break;
-        case ChatFloodThrottle::ADDON:
-            limit = sWorld->getIntConfig(CONFIG_CHATFLOOD_ADDON_MESSAGE_COUNT);
-            delay = sWorld->getIntConfig(CONFIG_CHATFLOOD_ADDON_MESSAGE_DELAY);
-            break;
-        default:
-            return;
-    }
-
     time_t current = GameTime::GetGameTime();
-    if (m_chatFloodData[index].Time > current)
+    if (m_speakTime > current)
     {
-        if (!limit)
+        uint32 max_count = sWorld->getIntConfig(CONFIG_CHATFLOOD_MESSAGE_COUNT);
+        if (!max_count)
             return;
 
-        ++m_chatFloodData[index].Count;
-        if (m_chatFloodData[index].Count >= limit)
+        ++m_speakCount;
+        if (m_speakCount >= max_count)
         {
             // prevent overwrite mute time, if message send just before mutes set, for example.
             time_t new_mute = current + sWorld->getIntConfig(CONFIG_CHATFLOOD_MUTE_TIME);
             if (GetSession()->m_muteTime < new_mute)
                 GetSession()->m_muteTime = new_mute;
 
-            m_chatFloodData[index].Count = 0;
+            m_speakCount = 0;
         }
     }
     else
-        m_chatFloodData[index].Count = 1;
+        m_speakCount = 1;
 
-    m_chatFloodData[index].Time = current + delay;
+    m_speakTime = current + sWorld->getIntConfig(CONFIG_CHATFLOOD_MESSAGE_DELAY);
 }
 
 /*********************************************************/

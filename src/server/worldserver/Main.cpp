@@ -70,6 +70,8 @@ namespace fs = boost::filesystem;
     #define _TRINITY_CORE_CONFIG  "worldserver.conf"
 #endif
 
+#define WORLD_SLEEP_CONST 1
+
 #ifdef _WIN32
 #include "ServiceWin32.h"
 char serviceName[] = "worldserver";
@@ -476,7 +478,6 @@ void ShutdownCLIThread(std::thread* cliThread)
 
 void WorldUpdateLoop()
 {
-    uint32 minUpdateDiff = uint32(sConfigMgr->GetIntDefault("MinWorldUpdateTime", 1));
     uint32 realCurrTime = 0;
     uint32 realPrevTime = getMSTime();
 
@@ -491,10 +492,10 @@ void WorldUpdateLoop()
         realCurrTime = getMSTime();
 
         uint32 diff = getMSTimeDiff(realPrevTime, realCurrTime);
-        if (diff < minUpdateDiff)
+        if (!diff)
         {
             // sleep until enough time passes that we can update all timers
-            std::this_thread::sleep_for(Milliseconds(minUpdateDiff - diff));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
 

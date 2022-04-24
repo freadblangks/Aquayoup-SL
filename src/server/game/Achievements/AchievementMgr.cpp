@@ -666,11 +666,13 @@ void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement) 
     if (GetPlayer()->GetSession()->PlayerLoading())
         return;
 
-    // Don't send for achievements with ACHIEVEMENT_FLAG_HIDDEN
+    // Don't send for achievements with ACHIEVEMENT_FLAG_TRACKING
     if (achievement->Flags & ACHIEVEMENT_FLAG_HIDDEN)
         return;
 
-    TC_LOG_DEBUG("achievement", "AchievementMgr::SendAchievementEarned(%u)", achievement->ID);
+    #ifdef TRINITY_DEBUG
+        TC_LOG_DEBUG("achievement", "AchievementMgr::SendAchievementEarned(%u)", achievement->ID);
+    #endif
 
     if (Guild* guild = sGuildMgr->GetGuildById(GetPlayer()->GetGuildId()))
     {
@@ -715,7 +717,7 @@ void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement) 
 
 void AchievementMgr::SendCriteriaUpdate(AchievementCriteriaEntry const* entry, CriteriaProgress const* progress, uint32 timeElapsed, bool timedCompleted) const
 {
-    WorldPacket data(SMSG_CRITERIA_UPDATE, 8 + 4 + 8);
+    WorldPacket data(SMSG_CRITERIA_UPDATE, 8+4+8);
     data << uint32(entry->ID);
 
     // the counter is packed like a packed Guid
@@ -770,6 +772,9 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
     for (AchievementCriteriaEntry const* achievementCriteria : achievementCriteriaList)
     {
         AchievementEntry const* achievement = sAchievementMgr->GetAchievement(achievementCriteria->AchievementID);
+        if (!achievement)
+            continue;
+
         if (!CanUpdateCriteria(achievementCriteria, achievement, miscValue1, miscValue2, ref))
             continue;
 
@@ -870,7 +875,6 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
             case ACHIEVEMENT_CRITERIA_TYPE_VISIT_BARBER_SHOP:
             case ACHIEVEMENT_CRITERIA_TYPE_EQUIP_EPIC_ITEM:
             case ACHIEVEMENT_CRITERIA_TYPE_EQUIP_ITEM:
-            case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT:
                 SetCriteriaProgress(achievementCriteria, 1, PROGRESS_SET);
                 break;
 
@@ -885,6 +889,10 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
             case ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LEVEL:
                 if (uint32 maxSkillvalue = GetPlayer()->GetPureMaxSkillValue(achievementCriteria->Asset.SkillID))
                     SetCriteriaProgress(achievementCriteria, maxSkillvalue);
+                break;
+            case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT:
+                if ((miscValue1 && achievementCriteria->Asset.AchievementID == miscValue1) || (!miscValue1 && m_completedAchievements.find(achievementCriteria->Asset.AchievementID) != m_completedAchievements.end()))
+                    SetCriteriaProgress(achievementCriteria, 1);
                 break;
             case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST_COUNT:
                 SetCriteriaProgress(achievementCriteria, GetPlayer()->GetRewardedQuestCount());
@@ -907,7 +915,7 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
                     // 1st time. Start count.
                     progressType = PROGRESS_SET;
                 else if (progress->date < (nextDailyResetTime - 2 * DAY))
-                    // last progress is older than 2 days. Player missed 1 day => Restart count.
+                    // last progress is older than 2 days. Player missed 1 day => Retart count.
                     progressType = PROGRESS_SET;
                 else if (progress->date < (nextDailyResetTime - DAY))
                     // last progress is between 1 and 2 days. => 1st time of the day.
@@ -1283,16 +1291,16 @@ bool AchievementMgr::IsCompletedAchievement(AchievementEntry const* entry)
         return false;
 
     // for achievement with referenced achievement criterias get from referenced and counter from self
-    uint32 achievementForTestId = entry->SharesCriteria ? entry->SharesCriteria : entry->ID;
-    uint32 achievementForTestCount = entry->MinimumCriteria;
+    uint32 achievmentForTestId = entry->SharesCriteria ? entry->SharesCriteria : entry->ID;
+    uint32 achievmentForTestCount = entry->MinimumCriteria;
 
-    AchievementCriteriaEntryList const* cList = sAchievementMgr->GetAchievementCriteriaByAchievement(achievementForTestId);
+    AchievementCriteriaEntryList const* cList = sAchievementMgr->GetAchievementCriteriaByAchievement(achievmentForTestId);
     if (!cList)
         return false;
     uint32 count = 0;
 
     // For SUMM achievements, we have to count the progress of each criteria of the achievement.
-    // Oddly, the target count is NOT contained in the achievement, but in each individual criteria
+    // Oddly, the target count is NOT countained in the achievement, but in each individual criteria
     if (entry->Flags & ACHIEVEMENT_FLAG_SUMM)
     {
         for (AchievementCriteriaEntry const* criteria : *cList)
@@ -1323,12 +1331,12 @@ bool AchievementMgr::IsCompletedAchievement(AchievementEntry const* entry)
             completed_all = false;
 
         // completed as have req. count of completed criterias
-        if (achievementForTestCount > 0 && achievementForTestCount <= count)
+        if (achievmentForTestCount > 0 && achievmentForTestCount <= count)
            return true;
     }
 
     // all criterias completed requirement
-    if (completed_all && achievementForTestCount == 0)
+    if (completed_all && achievmentForTestCount == 0)
         return true;
 
     return false;
@@ -1574,14 +1582,14 @@ void AchievementMgr::CompletedAchievement(AchievementEntry const* achievement)
 
 void AchievementMgr::SendAllAchievementData() const
 {
-    WorldPacket data(SMSG_ALL_ACHIEVEMENT_DATA, m_completedAchievements.size() * 8 + 4 + m_criteriaProgress.size() * 38 + 4);
+    WorldPacket data(SMSG_ALL_ACHIEVEMENT_DATA, m_completedAchievements.size()*8+4+m_criteriaProgress.size()*38+4);
     BuildAllDataPacket(&data);
     GetPlayer()->SendDirectMessage(&data);
 }
 
 void AchievementMgr::SendRespondInspectAchievements(Player* player) const
 {
-    WorldPacket data(SMSG_RESPOND_INSPECT_ACHIEVEMENTS, 9 + m_completedAchievements.size() * 8 + 4 + m_criteriaProgress.size() * 38 + 4);
+    WorldPacket data(SMSG_RESPOND_INSPECT_ACHIEVEMENTS, 9+m_completedAchievements.size()*8+4+m_criteriaProgress.size()*38+4);
     data << GetPlayer()->GetPackGUID();
     BuildAllDataPacket(&data);
     player->SendDirectMessage(&data);
@@ -1742,6 +1750,7 @@ bool AchievementMgr::RequirementsSatisfied(AchievementCriteriaEntry const* achie
                 return false;
             break;
         case ACHIEVEMENT_CRITERIA_TYPE_REACH_LEVEL:
+        case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT:
         case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST_COUNT:
         case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_DAILY_QUEST_DAILY:
         case ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_TEAM_RATING:
@@ -1757,19 +1766,19 @@ bool AchievementMgr::RequirementsSatisfied(AchievementCriteriaEntry const* achie
             break;
 
         // specialized cases
-        case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT:
-            if ((miscValue1 && achievementCriteria->Asset.AchievementID != miscValue1) || (!miscValue1 && m_completedAchievements.find(achievementCriteria->Asset.AchievementID) == m_completedAchievements.end()))
-                return false;
-            break;
         case ACHIEVEMENT_CRITERIA_TYPE_WIN_BG:
         case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_BATTLEGROUND:
         case ACHIEVEMENT_CRITERIA_TYPE_DEATH_AT_MAP:
-            if (!miscValue1 || achievementCriteria->Asset.MapID != GetPlayer()->GetMapId())
+            if (!miscValue1)
+                return false;
+            if (achievementCriteria->Asset.MapID != GetPlayer()->GetMapId())
                 return false;
             break;
         case ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE:
         case ACHIEVEMENT_CRITERIA_TYPE_KILLED_BY_CREATURE:
-            if (!miscValue1 || achievementCriteria->Asset.CreatureID != miscValue1)
+            if (!miscValue1)
+                return false;
+            if (achievementCriteria->Asset.CreatureID != miscValue1)
                 return false;
             break;
         case ACHIEVEMENT_CRITERIA_TYPE_REACH_SKILL_LEVEL:
@@ -1817,7 +1826,9 @@ bool AchievementMgr::RequirementsSatisfied(AchievementCriteriaEntry const* achie
                 return false;
             break;
         case ACHIEVEMENT_CRITERIA_TYPE_DEATHS_FROM:
-            if (!miscValue1 || miscValue2 != achievementCriteria->Asset.DamageType)
+            if (!miscValue1)
+                return false;
+            if (miscValue2 != achievementCriteria->Asset.DamageType)
                 return false;
             break;
         case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST:
@@ -2203,8 +2214,6 @@ char const* AchievementGlobalMgr::GetCriteriaTypeString(AchievementCriteriaTypes
     return "MISSING_TYPE";
 }
 
-AchievementCriteriaEntryList const AchievementGlobalMgr::EmptyCriteriaList;
-
 AchievementGlobalMgr* AchievementGlobalMgr::instance()
 {
     static AchievementGlobalMgr instance;
@@ -2260,8 +2269,6 @@ AchievementCriteriaEntryList const& AchievementGlobalMgr::GetAchievementCriteria
         auto itr = m_AchievementCriteriasByMiscValue[type].find(miscValue);
         if (itr != m_AchievementCriteriasByMiscValue[type].end())
             return itr->second;
-
-        return EmptyCriteriaList;
     }
 
     return m_AchievementCriteriasByType[type];
@@ -2313,12 +2320,6 @@ void AchievementGlobalMgr::LoadAchievementCriteriaList()
         AchievementCriteriaEntry const* criteria = sAchievementMgr->GetAchievementCriteria(entryId);
         if (!criteria)
             continue;
-
-        if (!GetAchievement(criteria->AchievementID))
-        {
-            TC_LOG_DEBUG("server.loading", "Achievement %u referenced by criteria %u doesn't exist, criteria not loaded.", criteria->AchievementID, criteria->ID);
-            continue;
-        }
 
         ASSERT(criteria->Type < ACHIEVEMENT_CRITERIA_TYPE_TOTAL, "ACHIEVEMENT_CRITERIA_TYPE_TOTAL must be greater than or equal to %u but is currently equal to %u",
             criteria->Type + 1, ACHIEVEMENT_CRITERIA_TYPE_TOTAL);
@@ -2580,8 +2581,7 @@ void AchievementGlobalMgr::LoadCompletedAchievements()
         }
         else if (achievement->Flags & (ACHIEVEMENT_FLAG_REALM_FIRST_REACH | ACHIEVEMENT_FLAG_REALM_FIRST_KILL))
             _allCompletedAchievements[achievementId] = SystemTimePoint::max();
-    }
-    while (result->NextRow());
+    } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %lu realm first completed achievements in %u ms.", (unsigned long)_allCompletedAchievements.size(), GetMSTimeDiffToNow(oldMSTime));
 }

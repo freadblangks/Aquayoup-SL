@@ -589,32 +589,15 @@ void WorldSession::HandlePushQuestToParty(WorldPacket& recvPacket)
         if (!receiver || receiver == sender)
             continue;
 
-        if (!receiver->GetPlayerSharingQuest().IsEmpty())
+        if (!receiver->SatisfyQuestStatus(quest, false))
         {
-            sender->SendPushToPartyResponse(receiver, QUEST_PARTY_MSG_BUSY);
+            sender->SendPushToPartyResponse(receiver, QUEST_PARTY_MSG_HAVE_QUEST);
             continue;
         }
 
-        switch (receiver->GetQuestStatus(questId))
+        if (receiver->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
         {
-            case QUEST_STATUS_REWARDED:
-            {
-                sender->SendPushToPartyResponse(receiver, QUEST_PARTY_MSG_FINISH_QUEST);
-                continue;
-            }
-            case QUEST_STATUS_INCOMPLETE:
-            case QUEST_STATUS_COMPLETE:
-            {
-                sender->SendPushToPartyResponse(receiver, QUEST_PARTY_MSG_HAVE_QUEST);
-                continue;
-            }
-            default:
-                break;
-        }
-
-        if (!receiver->SatisfyQuestLog(false))
-        {
-            sender->SendPushToPartyResponse(receiver, QUEST_PARTY_MSG_LOG_FULL);
+            sender->SendPushToPartyResponse(receiver, QUEST_PARTY_MSG_FINISH_QUEST);
             continue;
         }
 
@@ -627,6 +610,18 @@ void WorldSession::HandlePushQuestToParty(WorldPacket& recvPacket)
         if (!receiver->CanTakeQuest(quest, false))
         {
             sender->SendPushToPartyResponse(receiver, QUEST_PARTY_MSG_CANT_TAKE_QUEST);
+            continue;
+        }
+
+        if (!receiver->SatisfyQuestLog(false))
+        {
+            sender->SendPushToPartyResponse(receiver, QUEST_PARTY_MSG_LOG_FULL);
+            continue;
+        }
+
+        if (receiver->GetPlayerSharingQuest())
+        {
+            sender->SendPushToPartyResponse(receiver, QUEST_PARTY_MSG_BUSY);
             continue;
         }
 
