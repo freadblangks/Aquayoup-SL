@@ -56,6 +56,7 @@
 #	 PLAYTIMEREWARD
 #	 DUNGEON STATS
 #	 ICC GUNSHIP HEALTH
+#	 GIVE TALENTS
 #
 ###################################################################################################
 
@@ -5417,4 +5418,15 @@ DungeonStatsReward.Pets  = true
 # Default: 1 (100%)
 GunshipHP = 1
 #
-###################
+###############################Give Talents#######################################################
+#
+#Give Talents for daily quests reward.
+GiveTalents.Dailies = false
+#Give Talents for weekly quests reward.
+GiveTalents.Weeklies = false
+#
+#
+GiveTalents.Dailies.amount = 1
+GiveTalents.Weeklies.amount = 1
+#
+##################################################################################################

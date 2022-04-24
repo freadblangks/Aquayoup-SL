@@ -2834,7 +2834,7 @@ void Player::InitTalentForLevel()
         uint32 talentPointsForLevel = CalculateTalentsPoints();
 
         // if used more that have then reset
-        if (m_usedTalentCount > talentPointsForLevel)
+        if ((m_usedTalentCount > talentPointsForLevel) && (!sConfigMgr->GetBoolDefault("TalentLimit.Remove", true)))
         {
             if (!GetSession()->HasPermission(rbac::RBAC_PERM_SKIP_CHECK_MORE_TALENTS_THAN_ALLOWED))
                 ResetTalents(true);
@@ -2843,6 +2843,7 @@ void Player::InitTalentForLevel()
         }
         // else update amount of free points
         else
+			//if (!sConfigMgr->GetBoolDefault("TalentLimit.Remove", true))
             SetFreeTalentPoints(talentPointsForLevel - m_usedTalentCount);
     }
 
@@ -15540,8 +15541,47 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
     //should work fine, cause far teleport will be executed in Player::Update()
     SetCanDelayTeleport(true);
 	
-	//skulydailyqueststats
-	if (quest->IsDaily() && sConfigMgr->GetBoolDefault("DungeonStatsReward.Dailies", true))
+	//skulydailyquestTalents
+	if (quest->IsDaily() && sConfigMgr->GetBoolDefault("GiveTalents.Dailies", true))
+	{
+		std::ostringstream ss;
+		//uint32 talentPointsForLevel = CalculateTalentsPoints();
+		uint32 CurTalentPoints = GetFreeTalentPoints();
+		uint32 amount = sConfigMgr->GetIntDefault("GiveTalents.Dailies.amount", 1);
+		uint32 newamount = CurTalentPoints + amount;
+		
+		if (m_usedTalentCount >= 71 || sWorld->getRate(RATE_TALENT) == 0)
+			{	
+		SetFreeTalentPoints(newamount);
+		ss << "You Gained|cffFF8000 %i |rTalent point from DailyQuest";
+		ChatHandler(GetSession()).PSendSysMessage(ss.str().c_str(), amount);
+			if (!GetSession()->PlayerLoading())
+			SendTalentsInfoData(false);
+			}
+	}
+	
+	//skulyweeklyquestTalents
+	if (quest->IsWeekly() && sConfigMgr->GetBoolDefault("GiveTalents.Weeklies", true))
+	{
+		std::ostringstream ss;
+		//uint32 talentPointsForLevel = CalculateTalentsPoints();
+		uint32 CurTalentPoints = GetFreeTalentPoints();
+		uint32 amount = sConfigMgr->GetIntDefault("GiveTalents.Weeklies.amount", 1);
+		uint32 newamount = CurTalentPoints + amount;
+		
+		if (m_usedTalentCount >= 71 || sWorld->getRate(RATE_TALENT) == 0)
+			{	
+		SetFreeTalentPoints(newamount);
+		ss << "You Gained|cffFF8000 %i |rTalent point from Weekly Quest";
+		ChatHandler(GetSession()).PSendSysMessage(ss.str().c_str(), amount);
+			if (!GetSession()->PlayerLoading())
+			SendTalentsInfoData(false);
+			}
+	}
+	
+	
+	
+if (quest->IsDaily() && sConfigMgr->GetBoolDefault("DungeonStatsReward.Dailies", true))	
 	{
 										std::ostringstream ss;
 										std::ostringstream ss2;
@@ -15680,7 +15720,9 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
 											}
 										}
 	}
+
 	//skulydailyqueststats
+	
 
     uint32 quest_id = quest->GetQuestId();
 
