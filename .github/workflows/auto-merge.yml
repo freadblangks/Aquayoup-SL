@@ -16,6 +16,7 @@ jobs:
       run: |
         git status
         git config user.email "rochet2+ci@post.com" && git config user.name "Rochet2"
+        git remote add Trinity https://github.com/TrinityCore/TrinityCore.git
         git fetch Trinity 3.3.5
         git status
     - name: Dependencies
