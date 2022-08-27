@@ -1237,7 +1237,7 @@ enum TrinityStrings
     LANG_YOUR_POWER_CHANGED                       = 11020,
     LANG_INVALID_POWER_NAME                       = 11021,
 
-    / Custom FreedomCore Trinity Strings
+    // Custom FreedomCore Trinity Strings
     FREEDOM_CMDE_NOT_YET_IMPLEMENTED                = 100000,
     FREEDOM_CMDI_MONEY_RESET                        = 100001,
     FREEDOM_CMDE_NOT_ENOUGH_PARAMS                  = 100002,

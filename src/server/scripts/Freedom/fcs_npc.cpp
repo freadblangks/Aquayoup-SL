@@ -365,7 +365,7 @@ public:
             handler->PSendSysMessage(FREEDOM_CMDE_CREATURE_NOT_FOUND);
             return true;
         }
-        
+
         sFreedomMgr->CreatureSetGravity(target, toggleToken == "on");
         sFreedomMgr->CreatureSetModifyHistory(target, source);
         sFreedomMgr->SaveCreature(target);
@@ -766,7 +766,7 @@ public:
         }
 
         bool toggle = (toggleToken == "on");
-        
+
         sFreedomMgr->CreatureSetBytes1(target, 0);
         sFreedomMgr->CreatureSetAuraToggle(target, uint32(SPELL_PERMANENT_HOVER), toggle);
         sFreedomMgr->CreatureSetModifyHistory(target, source);
@@ -1005,7 +1005,7 @@ public:
 
         if (entryId)
         {
-            PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_CREATURE_BY_EID);
+            WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_CREATURE_BY_EID);
             stmt->setFloat(index++, x);
             stmt->setFloat(index++, y);
             stmt->setFloat(index++, z);
@@ -1016,7 +1016,7 @@ public:
         }
         else
         {
-            PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_CREATURE);
+            WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_CREATURE);
             stmt->setFloat(index++, x);
             stmt->setFloat(index++, y);
             stmt->setFloat(index++, z);
@@ -1085,7 +1085,7 @@ public:
             handler->PSendSysMessage(FREEDOM_CMDE_CREATURE_NOT_FOUND);
             return true;
         }
-        
+
         auto creature = sFreedomMgr->CreatureCreate(source, creatureTemplate);
 
         if (!creature)
@@ -1161,7 +1161,7 @@ public:
 
         ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemId);
 
-        handler->PSendSysMessage(FREEDOM_CMDI_NPC_ADD_ITEM, 
+        handler->PSendSysMessage(FREEDOM_CMDI_NPC_ADD_ITEM,
             sFreedomMgr->ToChatLink("Hitem", itemId, itemTemplate->GetDefaultLocaleName()),
             sFreedomMgr->ToChatLink("Hcreature", vendor->GetSpawnId(), vendor->GetName()),
             maxCount,
@@ -1185,7 +1185,7 @@ public:
 
         ArgumentTokenizer tokenizer(args);
         scale = tokenizer.TryGetParam<float>(0);
-        
+
         if (tokenizer.size() > 1)
         {
             guidLow = tokenizer.TryGetParam<uint64>(1, "Hcreature");
@@ -1269,7 +1269,7 @@ public:
         if (tokenizer.size() > 1)
         {
             guidLow = tokenizer.TryGetParam<uint64>(1, "Hcreature");
-        }       
+        }
 
         target = sFreedomMgr->GetAnyCreature(guidLow);
 
@@ -1353,14 +1353,14 @@ public:
         Player* source = handler->GetSession()->GetPlayer();
         Creature* target = handler->getSelectedCreature();
         uint64 guidLow = target ? target->GetSpawnId() : sFreedomMgr->GetSelectedCreatureGuidFromPlayer(source->GetGUID().GetCounter());
-       
+
         if (*args)
         {
             ArgumentTokenizer tokenizer(args);
             guidLow = tokenizer.TryGetParam<uint64>(0, "Hcreature");
             target = nullptr; // remove selected target
         }
-        
+
         if (!target && guidLow)
             target = sFreedomMgr->GetAnyCreature(guidLow);
 
@@ -1375,7 +1375,7 @@ public:
             handler->SendSysMessage(FREEDOM_CMDE_CREATURE_CANNOT_BE_PET_OR_TOTEM);
             return true;
         }
-        
+
         sFreedomMgr->CreatureDelete(target);
 
         handler->SendSysMessage(FREEDOM_CMDI_NPC_DELETE);
@@ -1417,7 +1417,7 @@ public:
 
         ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemId);
 
-        handler->PSendSysMessage(FREEDOM_CMDI_NPC_DELETE_ITEM, 
+        handler->PSendSysMessage(FREEDOM_CMDI_NPC_DELETE_ITEM,
             sFreedomMgr->ToChatLink("Hitem", itemId, itemTemplate->GetDefaultLocaleName()),
             itemId);
         return true;
@@ -1471,7 +1471,7 @@ public:
             const_cast<CreatureTemplate*>(cinfo)->faction = factionId;
 
         // ..and DB
-        PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_FACTION);
+        WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_FACTION);
 
         stmt->setUInt16(0, uint16(factionId));
         stmt->setUInt32(1, target->GetEntry());
@@ -1514,7 +1514,7 @@ public:
 
         target->SetUInt64Value(UNIT_NPC_FLAGS, npcFlags);
 
-        PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_NPCFLAG);
+        WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_NPCFLAG);
 
         stmt->setUInt64(0, npcFlags);
         stmt->setUInt32(1, target->GetEntry());
@@ -1565,12 +1565,12 @@ public:
         }
 
         target->AI()->SetData(field, data);
-        std::string AIorScript = !target->GetAIName().empty() ? "AI type: " + target->GetAIName() : 
+        std::string AIorScript = !target->GetAIName().empty() ? "AI type: " + target->GetAIName() :
             (!target->GetScriptName().empty() ? "Script Name: " + target->GetScriptName() : "No AI or Script Name Set");
-        handler->PSendSysMessage(FREEDOM_CMDI_NPC_SET_DATA, 
+        handler->PSendSysMessage(FREEDOM_CMDI_NPC_SET_DATA,
             sFreedomMgr->ToChatLink("Hcreature", guidLow, target->GetName()),
             field,
-            data, 
+            data,
             AIorScript.c_str());
         return true;
     }
@@ -1690,10 +1690,10 @@ public:
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_FACTION_ID, faction);
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_NAME, name);
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_AI_INFO, target->GetAIName());
-            handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_SCRIPT_INFO, target->GetScriptName());            
+            handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_SCRIPT_INFO, target->GetScriptName());
 
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_FLAGSE_LIST, cInfo->flags_extra);
-            for (uint8 i = 0; i < FLAGS_EXTRA_COUNT; ++i) 
+            for (uint8 i = 0; i < FLAGS_EXTRA_COUNT; ++i)
             {
                 if (cInfo->flags_extra & flagsExtra[i].Value)
                     handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_FLAGSE_LI, flagsExtra[i].Name, flagsExtra[i].Value);
@@ -1710,7 +1710,7 @@ public:
                         npcFlagTextsName = "  " + npcFlagTextsName;
                         handler->PSendSysMessage(npcFlagTextsName.c_str(), npcFlagTexts[i].Value);
                     }
-                }                    
+                }
             }
 
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_MECHANICIMM_LIST, mechanicImmuneMask);
@@ -1719,7 +1719,7 @@ public:
                 if (mechanicImmuneMask & (1 << (mechanicImmunes[i].Value - 1)))
                     handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_MECHANICIMM_LI, mechanicImmunes[i].Name, mechanicImmunes[i].Value);
             }
-                    
+
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_LEVEL, target->getLevel());
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_EQUIPMENT, target->GetCurrentEquipmentId(), target->GetOriginalEquipmentId());
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_HEALTH, target->GetHealth(), target->GetMaxHealth(), target->GetCreateHealth());
@@ -1731,10 +1731,10 @@ public:
                 if (target->GetUInt32Value(UNIT_FIELD_FLAGS) & unitFlags[i].Value)
                     handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_UNITFLAGS_LI, unitFlags[i].Name, unitFlags[i].Value);
             }
-                
+
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_UNITFLAGS2, target->GetUInt32Value(UNIT_FIELD_FLAGS_2));
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_DYNFLAGS, target->GetUInt32Value(OBJECT_DYNAMIC_FLAGS));
-            handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_FACTION_TEMPLATE, target->getFaction());            
+            handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_FACTION_TEMPLATE, target->getFaction());
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_RESPAWN_TIMES, defRespawnDelayStr.c_str(), curRespawnDelayStr.c_str());
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_LOOT, cInfo->lootid, cInfo->pickpocketLootId, cInfo->SkinLootId);
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_DUNGEON_ID, target->GetInstanceId());
@@ -1796,7 +1796,7 @@ public:
                 handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_CREATED, createdTimestamp);
                 handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_MODIFIED, modifiedTimestamp);
             }
-        }     
+        }
 
         return true;
     }
@@ -1809,7 +1809,7 @@ public:
         Player* player = handler->GetSession()->GetPlayer();
         uint32 maxResults = sWorld->getIntConfig(CONFIG_MAX_RESULTS_LOOKUP_COMMANDS);
 
-        PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_CREATURES);
+        WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_CREATURES);
         stmt->setFloat(0, player->GetPositionX());
         stmt->setFloat(1, player->GetPositionY());
         stmt->setFloat(2, player->GetPositionZ());
@@ -1964,14 +1964,14 @@ public:
         {
             std::string setDeg = tokenizer.GetModifierValue("-sdeg", 0);
             o = ((float)atof(setDeg.c_str())) * M_PI / 180.0f;
-        }       
+        }
 
         float x, y, z;
-        target->GetPosition(x, y, z);      
+        target->GetPosition(x, y, z);
 
         sFreedomMgr->CreatureTurn(target, o);
         sFreedomMgr->CreatureSetModifyHistory(target, source);
-        sFreedomMgr->SaveCreature(target);        
+        sFreedomMgr->SaveCreature(target);
 
         handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_TURNED,
             sFreedomMgr->ToChatLink("Hcreature", guidLow, target->GetName()),
@@ -2319,7 +2319,7 @@ public:
         if (/*creature->GetMotionMaster()->empty() ||*/
             target->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
         {
-            handler->PSendSysMessage(FREEDOM_CMDE_NPC_UNFOLLOW_NOT_A_FOLLOWER, 
+            handler->PSendSysMessage(FREEDOM_CMDE_NPC_UNFOLLOW_NOT_A_FOLLOWER,
                 sFreedomMgr->ToChatLink("Hcreature", target->GetSpawnId(), target->GetName()));
             return true;
         }
@@ -2486,7 +2486,7 @@ public:
 
         if (creature->GetFormation())
         {
-            handler->PSendSysMessage(FREEDOM_CMDE_NPC_ADD_FORMATION_ALREADY_IN, 
+            handler->PSendSysMessage(FREEDOM_CMDE_NPC_ADD_FORMATION_ALREADY_IN,
                 sFreedomMgr->ToChatLink("Hcreature", guidLow, creature->GetName()),
                 creature->GetFormation()->GetId());
             return false;
@@ -2503,7 +2503,7 @@ public:
         sFormationMgr->CreatureGroupMap[guidLow] = group_member;
         creature->SearchFormation();
 
-        PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_INS_CREATURE_FORMATION);
+        WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_INS_CREATURE_FORMATION);
 
         stmt->setUInt64(0, leaderGUID);
         stmt->setUInt64(1, guidLow);
@@ -2513,8 +2513,8 @@ public:
 
         WorldDatabase.Execute(stmt);
 
-        handler->PSendSysMessage(FREEDOM_CMDI_NPC_ADD_FORMATION, 
-            sFreedomMgr->ToChatLink("Hcreature", guidLow, creature->GetName()), 
+        handler->PSendSysMessage(FREEDOM_CMDI_NPC_ADD_FORMATION,
+            sFreedomMgr->ToChatLink("Hcreature", guidLow, creature->GetName()),
             leaderGUID);
 
         return true;
@@ -2603,7 +2603,7 @@ public:
             creature->Respawn();
         }
 
-        PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_SPAWN_DISTANCE);
+        WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_SPAWN_DISTANCE);
 
         stmt->setFloat(0, option);
         stmt->setUInt8(1, uint8(mtype));
@@ -2643,7 +2643,7 @@ public:
         else
             return false;
 
-        PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_SPAWN_TIME_SECS);
+        WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_SPAWN_TIME_SECS);
 
         stmt->setUInt32(0, uint32(spawnTime));
         stmt->setUInt64(1, guidLow);

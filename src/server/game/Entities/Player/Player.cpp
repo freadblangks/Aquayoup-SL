@@ -4206,7 +4206,7 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
             // Delete character-related entries in Freedom tables
             FreedomDatabaseTransaction transF = FreedomDatabase.BeginTransaction();
 
-            FreedomDatabasePreparedStatement fstmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_CHAR_EXTRA);
+            FreedomDatabasePreparedStatement * fstmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_CHAR_EXTRA);
             fstmt->setUInt64(0, guid);
             transF->Append(fstmt);
 

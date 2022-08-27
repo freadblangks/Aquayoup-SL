@@ -76,7 +76,7 @@ public:
             sFreedomMgr->SetItemTemplateExtraHiddenFlag(itemId, false);
             handler->PSendSysMessage(FREEDOM_CMDI_BLACKLIST_ITEM, "removed from the blacklist");
         }
-        
+
         return true;
     }
 
@@ -256,7 +256,7 @@ public:
     static bool HandleGMListFullCommand(ChatHandler* handler, char const* /*args*/)
     {
         ///- Get the accounts with GM Level >0
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_GM_ACCOUNTS);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_GM_ACCOUNTS);
         stmt->setUInt8(0, uint8(SEC_MODERATOR));
         stmt->setInt32(1, int32(realm.Id.Realm));
         PreparedQueryResult result = LoginDatabase.Query(stmt);
@@ -420,9 +420,9 @@ public:
         uint32 target_account_id = 0;
         std::string target_account_username = "";
 
-        // get target account through 3 possible means: 
-        // # username (if param is a word); 
-        // # account id (if param is a number); 
+        // get target account through 3 possible means:
+        // # username (if param is a word);
+        // # account id (if param is a number);
         // # target player (if no param)
         if (*args)
         {
@@ -434,7 +434,7 @@ public:
             {
                 sAccountMgr->GetName(atol(param.c_str()), target_account_username);
                 target_account_id = sAccountMgr->GetId(target_account_username);
-            } 
+            }
             else
             {
                 sAccountMgr->GetName(target_account_id, target_account_username);
@@ -443,10 +443,10 @@ public:
         else
         {
             target = handler->getSelectedPlayer();
-            
+
             if (target)
             {
-                PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_ACCOUNT_BY_GUID);
+                CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_ACCOUNT_BY_GUID);
                 stmt->setUInt32(0, GUID_LOPART(target->GetGUIDLow()));
                 PreparedQueryResult result = CharacterDatabase.Query(stmt);
 
@@ -465,7 +465,7 @@ public:
         }
 
         uint32 target_sec_level = sAccountMgr->GetSecurity(target_account_id);
-        
+
         if (target_sec_level > SEC_MODERATOR)
         {
             handler->PSendSysMessage("Target account is a GM or higher. Demotion not allowed.");
@@ -495,9 +495,9 @@ public:
         uint32 target_account_id = 0;
         std::string target_account_username = "";
 
-        // get target account through 3 possible means: 
-        // # username (if param is a word); 
-        // # account id (if param is a number); 
+        // get target account through 3 possible means:
+        // # username (if param is a word);
+        // # account id (if param is a number);
         // # target player (if no param)
         if (*args)
         {
@@ -521,7 +521,7 @@ public:
 
             if (target)
             {
-                PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_ACCOUNT_BY_GUID);
+                CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_ACCOUNT_BY_GUID);
                 stmt->setUInt32(0, GUID_LOPART(target->GetGUIDLow()));
                 PreparedQueryResult result = CharacterDatabase.Query(stmt);
 
@@ -669,7 +669,7 @@ public:
     static bool HandleGMListFullCommand(ChatHandler* handler, char const* /*args*/)
     {
         ///- Get the accounts with GM Level >0
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_GM_ACCOUNTS);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_GM_ACCOUNTS);
         stmt->setUInt8(0, uint8(SEC_MODERATOR));
         stmt->setInt32(1, int32(realmID));
         PreparedQueryResult result = LoginDatabase.Query(stmt);

@@ -22,7 +22,7 @@
 #pragma region FREEDOM_MANAGER
 FreedomMgr::FreedomMgr()
 {
-    _phaseListStore = 
+    _phaseListStore =
     {
         {1, 169},
         {2, 170},
@@ -138,7 +138,7 @@ void FreedomMgr::CreaturePhase(Creature* creature, uint32 phaseMask)
 
 //    creature->SetPhaseMask(phaseMask, true);
 
-    _creatureExtraStore[creature->GetSpawnId()].phaseMask = phaseMask;    
+    _creatureExtraStore[creature->GetSpawnId()].phaseMask = phaseMask;
 }
 
 void FreedomMgr::GameObjectPhase(GameObject* go, uint32 phaseMask)
@@ -151,7 +151,7 @@ void FreedomMgr::GameObjectPhase(GameObject* go, uint32 phaseMask)
     for (int i = 1; i < 512; i = i << 1)
     {
         uint32 phase = phaseMask & i;
-        
+
         if (phase)
             //go->SetInPhase(GetPhaseId(phase), false, true);
             PhasingHandler::AddPhase(go, phase, true);
@@ -196,10 +196,10 @@ void FreedomMgr::LoadCreatureExtras()
     // clear current storage
     _creatureExtraStore.clear();
 
-    // guid, scale, id_creator_bnet, id_creator_player, id_modifier_bnet, id_modifier_player, 
-    // UNIX_TIMESTAMP(created), UNIX_TIMESTAMP(modified), phaseMask, displayLock, displayId, 
+    // guid, scale, id_creator_bnet, id_creator_player, id_modifier_bnet, id_modifier_player,
+    // UNIX_TIMESTAMP(created), UNIX_TIMESTAMP(modified), phaseMask, displayLock, displayId,
     // nativeDisplayId, genderLock, gender, swim, gravity, fly
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_CREATUREEXTRA);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_CREATUREEXTRA);
     PreparedQueryResult result = FreedomDatabase.Query(stmt);
 
     if (!result)
@@ -237,7 +237,7 @@ void FreedomMgr::LoadCreatureTemplateExtras()
     _creatureTemplateExtraStore.clear();
 
     // id_entry, disabled
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_CREATUREEXTRA_TEMPLATE);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_CREATUREEXTRA_TEMPLATE);
     PreparedQueryResult result = FreedomDatabase.Query(stmt);
 
     if (!result)
@@ -259,7 +259,7 @@ void FreedomMgr::CreatureSetEmote(Creature* creature, uint32 emoteId)
     uint32 spawnId = creature->GetSpawnId();
     auto addonData = &(sObjectMgr->_creatureAddonStore[spawnId]);
     addonData->emote = emoteId;
-    creature->SetUInt32Value(UNIT_NPC_EMOTESTATE, emoteId);
+    creature->SetEmoteState(Emote(emoteId));
 }
 
 void FreedomMgr::CreatureSetMount(Creature* creature, uint32 mountId)
@@ -309,37 +309,33 @@ void FreedomMgr::CreatureSetBytes1(Creature* creature, uint32 bytes1)
     uint32 spawnId = creature->GetSpawnId();
     auto addonData = &(sObjectMgr->_creatureAddonStore[spawnId]);
     addonData->bytes1 = bytes1;
-    
+
+
+    // TODO: Check this.
+    // Copied from Creature::LoadCreaturesAddon like it seemed the original function had been
     if (bytes1)
     {
         // 0 StandState
         // 1 FreeTalentPoints   Pet only, so always 0 for default creature
         // 2 StandFlags
         // 3 StandMiscFlags
-
-        creature->SetByteValue(UNIT_FIELD_BYTES_1, 0, uint8(bytes1 & 0xFF));
-        //SetByteValue(UNIT_FIELD_BYTES_1, 1, uint8((cainfo->bytes1 >> 8) & 0xFF));
-        creature->SetByteValue(UNIT_FIELD_BYTES_1, 1, 0);
-        creature->SetByteValue(UNIT_FIELD_BYTES_1, 2, uint8((bytes1 >> 16) & 0xFF));
-        creature->SetByteValue(UNIT_FIELD_BYTES_1, 3, uint8((bytes1 >> 24) & 0xFF));
-
-        if (uint8(bytes1 & 0xFF) == UNIT_STAND_STATE_DEAD)
-            creature->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
+        creature->SetStandState(UnitStandStateType(bytes1 & 0xFF));
+        creature->ReplaceAllVisFlags(UnitVisFlags((bytes1 >> 16) & 0xFF));
+        creature->SetAnimTier(AnimTier((bytes1 >> 24) & 0xFF), false);
 
         //! Suspected correlation between UNIT_FIELD_BYTES_1, offset 3, value 0x2:
         //! If no inhabittype_fly (if no MovementFlag_DisableGravity or MovementFlag_CanFly flag found in sniffs)
         //! Check using InhabitType as movement flags are assigned dynamically
         //! basing on whether the creature is in air or not
         //! Set MovementFlag_Hover. Otherwise do nothing.
-        if (creature->GetByteValue(UNIT_FIELD_BYTES_1, 3) & UNIT_BYTE1_FLAG_HOVER && !(creature->GetCreatureTemplate()->InhabitType & INHABIT_AIR))
+        if (creature->CanHover())
             creature->AddUnitMovementFlag(MOVEMENTFLAG_HOVER);
     }
     else
     {
-        creature->SetByteValue(UNIT_FIELD_BYTES_1, 0, 0);
-        creature->SetByteValue(UNIT_FIELD_BYTES_1, 1, 0);
-        creature->SetByteValue(UNIT_FIELD_BYTES_1, 2, 0);
-        creature->SetByteValue(UNIT_FIELD_BYTES_1, 3, 0);
+        creature->SetStandState(UnitStandStateType(0));
+        creature->ReplaceAllVisFlags(UnitVisFlags(0));
+        creature->SetAnimTier(AnimTier(0), false);
     }
 }
 
@@ -349,31 +345,32 @@ void FreedomMgr::CreatureSetBytes2(Creature* creature, uint32 bytes2)
     auto addonData = &(sObjectMgr->_creatureAddonStore[spawnId]);
     addonData->bytes2 = bytes2;
 
+    // TODO: Check this.
+    // Copied from Creature::LoadCreaturesAddon like it seemed the original function had been
     if (bytes2)
     {
         // 0 SheathState
-        // 1 Bytes2Flags
-        // 2 UnitRename         Pet only, so always 0 for default creature
+        // 1 PvpFlags
+        // 2 PetFlags           Pet only, so always 0 for default creature
         // 3 ShapeshiftForm     Must be determined/set by shapeshift spell/aura
 
-        creature->SetByteValue(UNIT_FIELD_BYTES_2, 0, uint8(bytes2 & 0xFF));
-        //SetByteValue(UNIT_FIELD_BYTES_2, 1, uint8((cainfo->bytes2 >> 8) & 0xFF));
-        //SetByteValue(UNIT_FIELD_BYTES_2, 2, uint8((cainfo->bytes2 >> 16) & 0xFF));
-        creature->SetByteValue(UNIT_FIELD_BYTES_2, 2, 0);
-        //SetByteValue(UNIT_FIELD_BYTES_2, 3, uint8((cainfo->bytes2 >> 24) & 0xFF));
-        creature->SetByteValue(UNIT_FIELD_BYTES_2, 3, 0);
+        creature->SetSheath(SheathState(bytes2 & 0xFF));
+        creature->ReplaceAllPvpFlags(UnitPVPStateFlags((bytes2 >> 8) & 0xFF));
+        creature->ReplaceAllPetFlags(UNIT_PET_FLAG_NONE);
+        creature->SetShapeshiftForm(FORM_NONE);
     }
     else
     {
-        creature->SetByteValue(UNIT_FIELD_BYTES_2, 0, 0);
-        creature->SetByteValue(UNIT_FIELD_BYTES_2, 2, 0);
-        creature->SetByteValue(UNIT_FIELD_BYTES_2, 3, 0);
+        creature->SetSheath(SheathState(0));
+        creature->ReplaceAllPvpFlags(UnitPVPStateFlags((0)));
+        creature->ReplaceAllPetFlags(UNIT_PET_FLAG_NONE);
+        creature->SetShapeshiftForm(FORM_NONE);
     }
 }
 
 void FreedomMgr::CreatureSetGravity(Creature* creature, bool toggle)
 {
-    _creatureExtraStore[creature->GetSpawnId()].gravity = toggle;   
+    _creatureExtraStore[creature->GetSpawnId()].gravity = toggle;
     creature->SetDisableGravity(!toggle);
 
     if (toggle)
@@ -390,15 +387,15 @@ void FreedomMgr::CreatureSetSwim(Creature* creature, bool toggle)
 
     if (toggle)
     {
-        if (!creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15))
-            creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15);
+        if (!creature->HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING))
+            creature->SetUnitMovementFlags(MOVEMENTFLAG_SWIMMING);
 
         creature->SetSwim(creature->IsInWater() || CreatureCanFly(creature));
     }
     else
     {
-        if (creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15))
-            creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15);
+        if (creature->HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING))
+            creature->RemoveUnitMovementFlag(MOVEMENTFLAG_SWIMMING);
 
         if (!CreatureCanFly(creature))
         {
@@ -432,7 +429,9 @@ bool FreedomMgr::CreatureCanSwim(Creature const* creature)
 
 bool FreedomMgr::CreatureCanWalk(Creature const* creature)
 {
-    return (creature->GetCreatureTemplate()->InhabitType & INHABIT_GROUND) != 0;
+    // Todo: Check this. Based off Creature::UpdateMovementFlags since InhabitType seems to no longer exist.
+    return creature->GetMovementTemplate().IsGroundAllowed();
+    // return (creature->GetCreatureTemplate()->InhabitType & INHABIT_GROUND) != 0;
 }
 
 bool FreedomMgr::CreatureCanFly(Creature const* creature)
@@ -440,7 +439,8 @@ bool FreedomMgr::CreatureCanFly(Creature const* creature)
     auto it = _creatureExtraStore.find(creature->GetSpawnId());
     if (it == _creatureExtraStore.end())
     {
-        _creatureExtraStore[creature->GetSpawnId()].fly = ((creature->GetCreatureTemplate()->InhabitType & INHABIT_AIR) != 0);
+        // Todo: Check this. Based off Creature::UpdateMovementFlags since InhabitType seems to no longer exist.
+        _creatureExtraStore[creature->GetSpawnId()].fly =  creature->GetMovementTemplate().IsFlightAllowed();
     }
 
     return _creatureExtraStore[creature->GetSpawnId()].fly;
@@ -455,7 +455,7 @@ void FreedomMgr::SetCreatureTemplateExtraDisabledFlag(uint32 entryId, bool disab
     _creatureTemplateExtraStore[entryId].disabled = disabled;
 
     // DB update
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_UPD_CREATUREEXTRA_TEMPLATE);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_UPD_CREATUREEXTRA_TEMPLATE);
     stmt->setBool(0, disabled);
     stmt->setUInt32(1, entryId);
     FreedomDatabase.Execute(stmt);
@@ -472,7 +472,7 @@ void FreedomMgr::SaveCreature(Creature* creature)
     {
         int index = 0;
         CreatureExtraData data = it->second;
-        PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_REP_CREATUREEXTRA);
+        FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_REP_CREATUREEXTRA);
         stmt->setUInt64(index++, creature->GetSpawnId());
         stmt->setFloat(index++, data.scale);
         stmt->setUInt32(index++, data.creatorBnetAccId);
@@ -512,19 +512,21 @@ void FreedomMgr::CreatureMove(Creature* creature, float x, float y, float z, flo
     if (!creature)
         return;
 
-    if (CreatureData const* data = sObjectMgr->GetCreatureData(creature->GetSpawnId()))
-    {
-        const_cast<CreatureData*>(data)->posX = x;
-        const_cast<CreatureData*>(data)->posY = y;
-        const_cast<CreatureData*>(data)->posZ = z;
-        const_cast<CreatureData*>(data)->orientation = o;
-    }
+    // if (CreatureData const* data = sObjectMgr->GetCreatureData(creature->GetSpawnId()))
+    // {
+    //     const_cast<CreatureData*>(data)->posX = x;
+    //     const_cast<CreatureData*>(data)->posY = y;
+    //     const_cast<CreatureData*>(data)->posZ = z;
+    //     const_cast<CreatureData*>(data)->orientation = o;
+    // }
+    // TODO: Check if this works
+    creature->Relocate(x,y,z,o);
 
     //! If hovering, always increase our server-side Z position
     //! Client automatically projects correct position based on Z coord sent in monster move
     //! and UNIT_FIELD_HOVERHEIGHT sent in object updates
     if (creature->HasUnitMovementFlag(MOVEMENTFLAG_HOVER))
-        z += creature->GetFloatValue(UNIT_FIELD_HOVERHEIGHT);
+        z += creature->GetHoverOffset();
     creature->Relocate(x, y, z, o);
     //creature->GetMotionMaster()->Initialize();
 
@@ -534,7 +536,7 @@ void FreedomMgr::CreatureMove(Creature* creature, float x, float y, float z, flo
     //    creature->Respawn();
     //}
 
-    PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_POSITION);
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_POSITION);
 
     stmt->setFloat(0, x);
     stmt->setFloat(1, y);
@@ -564,15 +566,15 @@ void FreedomMgr::CreatureScale(Creature* creature, float scale)
         scale = minScale;
     if (scale > maxScale)
         scale = maxScale;
-    
+
     creature->SetObjectScale(scale);
     _creatureExtraStore[creature->GetSpawnId()].scale = scale;
 }
 
 void FreedomMgr::CreatureDelete(Creature* creature)
-{    
+{
     creature->CombatStop();
-    creature->DeleteFromDB();
+    creature->DeleteFromDB(creature->GetSpawnId());
     creature->AddObjectToRemoveList();
 }
 
@@ -581,44 +583,42 @@ Creature* FreedomMgr::CreatureCreate(Player* creator, CreatureTemplate const* cr
     uint32 entryId = creatureTemplate->Entry;
     Map* map = creator->GetMap();
 
-    if (Transport* trans = creator->GetTransport())
+    if (Transport* trans = dynamic_cast<Transport*>(creator->GetTransport()))
     {
-        ObjectGuid::LowType guid = map->GenerateLowGuid<HighGuid::Creature>();
+        ObjectGuid::LowType guid = sObjectMgr->GenerateCreatureSpawnId();
         CreatureData& data = sObjectMgr->NewOrExistCreatureData(guid);
+        data.spawnId = guid;
+        data.spawnGroupData = sObjectMgr->GetDefaultSpawnGroup();
         data.id = entryId;
-        data.posX = creator->GetTransOffsetX();
-        data.posY = creator->GetTransOffsetY();
-        data.posZ = creator->GetTransOffsetZ();
-        data.orientation = creator->GetTransOffsetO();
-
-        Creature* creature = trans->CreateNPCPassenger(guid, &data);
-
-        creature->SaveToDB(trans->GetGOInfo()->moTransport.SpawnMap, { map->GetDifficultyID() });
-
-        sObjectMgr->AddCreatureToGrid(guid, &data);
-        return creature;
+        data.spawnPoint.Relocate(creator->GetTransOffsetX(), creator->GetTransOffsetY(), creator->GetTransOffsetZ(), creator->GetTransOffsetO());
+        if (Creature* creature = trans->CreateNPCPassenger(guid, &data))
+        {
+            creature->SaveToDB(trans->GetGOInfo()->moTransport.SpawnMap, { map->GetDifficultyID() });
+            sObjectMgr->AddCreatureToGrid(&data);
+            return creature;
+        }
     }
 
     Creature* creature = Creature::CreateCreature(entryId, map, creator->GetPosition());
     if (!creature)
-        return nullptr;
+        return creature;
 
     PhasingHandler::InheritPhaseShift(creature, creator);
     creature->SaveToDB(map->GetId(), { map->GetDifficultyID() });
-    
+
     ObjectGuid::LowType db_guid = creature->GetSpawnId();
 
     sFreedomMgr->CreatureScale(creature, creature->GetObjectScale());
-    sFreedomMgr->CreatureSetFly(creature, ((creature->GetCreatureTemplate()->InhabitType & INHABIT_AIR) != 0));
+    sFreedomMgr->CreatureSetFly(creature, creature->GetMovementTemplate().IsFlightAllowed());
 
     // To call _LoadGoods(); _LoadQuests(); CreateTrainerSpells()
     // current "creature" variable is deleted and created fresh new, otherwise old values might trigger asserts or cause undefined behavior
     creature->CleanupsBeforeDelete();
     delete creature;
 
-    creature = Creature::CreateCreatureFromDB(db_guid, map);
+    creature = Creature::CreateCreatureFromDB(db_guid, map, true, true);
     if (!creature)
-        return nullptr;
+        return creature;
 
     // Creation history and straight update
     CreatureExtraData data;
@@ -632,7 +632,7 @@ Creature* FreedomMgr::CreatureCreate(Player* creator, CreatureTemplate const* cr
     _creatureExtraStore[creature->GetSpawnId()] = data;
 
     int index = 0;
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_REP_CREATUREEXTRA);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_REP_CREATUREEXTRA);
     stmt->setUInt64(index++, creature->GetSpawnId());
     stmt->setFloat(index++, data.scale);
     stmt->setUInt32(index++, data.creatorBnetAccId);
@@ -653,7 +653,7 @@ Creature* FreedomMgr::CreatureCreate(Player* creator, CreatureTemplate const* cr
 
     FreedomDatabase.Execute(stmt);
 
-    sObjectMgr->AddCreatureToGrid(db_guid, sObjectMgr->GetCreatureData(db_guid));    
+    sObjectMgr->AddCreatureToGrid(sObjectMgr->GetCreatureData(db_guid));
     return creature;
 }
 
@@ -670,7 +670,10 @@ void FreedomMgr::CreatureRefresh(Creature* creature)
     auto newGuidLow = map->GenerateLowGuid<HighGuid::Creature>();
     auto newObjectGuid = ObjectGuid::Create<HighGuid::Creature>(map->GetId(), creature->GetEntry(), newGuidLow);
 
-    creature->SetGuidValue(OBJECT_FIELD_GUID, newObjectGuid);
+    // TODO: Test this
+    creature->SetGuid(newObjectGuid);
+    // No longer works
+    //creature->SetGuidValue(OBJECT_FIELD_GUID, newObjectGuid);
     //creature->SetPackGUID(newObjectGuid);
     map->GetObjectsStore().Insert(newObjectGuid, creature);
 }
@@ -767,7 +770,7 @@ void FreedomMgr::LoadGameObjectExtras()
     _gameObjectExtraStore.clear();
 
     // guid, scale, id_creator_bnet, id_creator_player, id_modifier_bnet, id_modifier_player, UNIX_TIMESTAMP(created), UNIX_TIMESTAMP(modified), phaseMask
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_GAMEOBJECTEXTRA);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_GAMEOBJECTEXTRA);
     PreparedQueryResult result = FreedomDatabase.Query(stmt);
 
     if (!result)
@@ -801,7 +804,7 @@ void FreedomMgr::LoadGameObjectTemplateExtras()
     _gameObjectTemplateExtraStore.clear();
 
     // id_entry, disabled, model_name, model_type, is_default
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_GAMEOBJECTEXTRA_TEMPLATE);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_GAMEOBJECTEXTRA_TEMPLATE);
     PreparedQueryResult result = FreedomDatabase.Query(stmt);
 
     if (!result)
@@ -842,7 +845,7 @@ void FreedomMgr::SetGameobjectTemplateExtraDisabledFlag(uint32 entryId, bool dis
     _gameObjectTemplateExtraStore[entryId].disabled = disabled;
 
     // DB update
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_UPD_GAMEOBJECTEXTRA_TEMPLATE);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_UPD_GAMEOBJECTEXTRA_TEMPLATE);
     stmt->setBool(0, disabled);
     stmt->setUInt32(1, entryId);
     FreedomDatabase.Execute(stmt);
@@ -859,7 +862,7 @@ void FreedomMgr::SaveGameObject(GameObject* go)
     {
         int index = 0;
         GameObjectExtraData data = it->second;
-        PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_REP_GAMEOBJECTEXTRA);
+        FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_REP_GAMEOBJECTEXTRA);
         stmt->setUInt64(index++, go->GetSpawnId());
         stmt->setFloat(index++, data.scale);
         stmt->setUInt32(index++, data.creatorBnetAccId);
@@ -1098,9 +1101,9 @@ void FreedomMgr::GameObjectSetModifyHistory(GameObject* go, Player* modifier)
     if (!go || !modifier)
         return;
 
-    GameObjectExtraData data = _gameObjectExtraStore[go->GetSpawnId()];    
+    GameObjectExtraData data = _gameObjectExtraStore[go->GetSpawnId()];
     data.modifierBnetAccId = modifier->GetSession()->GetBattlenetAccountId();
-    data.modifierPlayerId = modifier->GetGUID().GetCounter();    
+    data.modifierPlayerId = modifier->GetGUID().GetCounter();
     data.modified = time(NULL);
     _gameObjectExtraStore[go->GetSpawnId()] = data;
 }
@@ -1170,7 +1173,7 @@ GameObject* FreedomMgr::GameObjectCreate(Player* creator, GameObjectTemplate con
     _gameObjectExtraStore[spawnId] = data;
 
     int index = 0;
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_REP_GAMEOBJECTEXTRA);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_REP_GAMEOBJECTEXTRA);
     stmt->setUInt64(index++, spawnId);
     stmt->setFloat(index++, data.scale);
     stmt->setUInt32(index++, data.creatorBnetAccId);
@@ -1212,7 +1215,7 @@ void FreedomMgr::LoadItemTemplateExtras()
     _itemTemplateExtraStore.clear();
 
     // entry_id, hidden
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_ITEMTEMPLATEEXTRA);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_ITEMTEMPLATEEXTRA);
     PreparedQueryResult result = FreedomDatabase.Query(stmt);
 
     if (!result)
@@ -1247,7 +1250,7 @@ void FreedomMgr::SetItemTemplateExtraHiddenFlag(uint32 itemId, bool hidden)
     _itemTemplateExtraStore[itemId].hidden = hidden;
 
     // DB update
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_UPD_ITEMTEMPLATEEXTRA);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_UPD_ITEMTEMPLATEEXTRA);
     stmt->setBool(0, hidden);
     stmt->setUInt32(1, itemId);
     FreedomDatabase.Execute(stmt);
@@ -1337,8 +1340,8 @@ std::string FreedomMgr::GetChatLinkKey(std::string const &src, std::string type)
     {
         auto it = src.begin();
         std::advance(it, pos + typePart.length());
-        
-        // if key part iteration ends without encountering ':' or '|', 
+
+        // if key part iteration ends without encountering ':' or '|',
         // then link was malformed and we return empty string later on
         for (; it != src.end(); it++)
         {
@@ -1424,7 +1427,7 @@ void FreedomMgr::AddPublicTeleport(PublicTeleData const& data)
 
     // name, position_x, position_y, position_z, orientation, map, id_bnet_gm
     int index = 0;
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_PUBLIC_TELE);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_PUBLIC_TELE);
     stmt->setString(index++, data.name);
     stmt->setFloat(index++, data.x);
     stmt->setFloat(index++, data.y);
@@ -1440,9 +1443,9 @@ void FreedomMgr::DeletePublicTeleport(std::string const& name)
     auto it = std::find_if(_publicTeleStore.begin(), _publicTeleStore.end(), [name](PublicTeleData t)->bool { return boost::iequals(name, t.name); });
 
     if (it != _publicTeleStore.end())
-    {             
+    {
         // WHERE name = ?
-        PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_PUBLIC_TELE_NAME);
+        FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_PUBLIC_TELE_NAME);
         stmt->setString(0, name);
         FreedomDatabase.Execute(stmt);
 
@@ -1456,7 +1459,7 @@ void FreedomMgr::LoadPublicTeleports()
     _publicTeleStore.clear();
 
     // name, position_x, position_y, position_z, orientation, map, id_bnet_gm
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_PUBLIC_TELE);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_PUBLIC_TELE);
     PreparedQueryResult result = FreedomDatabase.Query(stmt);
 
     if (!result)
@@ -1471,7 +1474,7 @@ void FreedomMgr::LoadPublicTeleports()
         data.y = fields[2].GetFloat();
         data.z = fields[3].GetFloat();
         data.o = fields[4].GetFloat();
-        data.map = fields[5].GetUInt32();        
+        data.map = fields[5].GetUInt32();
         data.gmBnetAccId = fields[6].GetUInt32();
 
         _publicTeleStore.push_back(data);
@@ -1518,7 +1521,7 @@ void FreedomMgr::AddPrivateTeleport(uint32 bnetAccountId, PrivateTeleData const&
 
     // position_x, position_y, position_z, orientation, map, name, id_bnet_gm
     int index = 0;
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_PRIVATE_TELE);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_PRIVATE_TELE);
     stmt->setString(index++, data.name);
     stmt->setFloat(index++, data.x);
     stmt->setFloat(index++, data.y);
@@ -1536,7 +1539,7 @@ void FreedomMgr::DeletePrivateTeleport(uint32 bnetAccountId, std::string const& 
     if (it != _privateTeleStore[bnetAccountId].end())
     {
         // WHERE name = ? AND id_bnet_account = ?
-        PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_PRIVATE_TELE_NAME);
+        FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_PRIVATE_TELE_NAME);
         stmt->setString(0, name);
         stmt->setUInt32(1, bnetAccountId);
         FreedomDatabase.Execute(stmt);
@@ -1551,7 +1554,7 @@ void FreedomMgr::LoadPrivateTeleports()
     _privateTeleStore.clear();
 
     // name, position_x, position_y, position_z, orientation, map, id_bnet_account
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_PRIVATE_TELE);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_PRIVATE_TELE);
     PreparedQueryResult result = FreedomDatabase.Query(stmt);
 
     if (!result)
@@ -1592,7 +1595,7 @@ void FreedomMgr::AddPublicSpell(uint32 spellId, PublicSpellData const& data)
 
     // spell_id, allow_targeting, name, id_bnet_gm
     int index = 0;
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_PUBLIC_SPELL);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_PUBLIC_SPELL);
     stmt->setUInt32(index++, spellId);
     stmt->setUInt8(index++, data.targetOthers);
     stmt->setString(index++, data.name);
@@ -1605,7 +1608,7 @@ void FreedomMgr::DeletePublicSpell(uint32 spellId)
     if (_publicSpellStore.find(spellId) != _publicSpellStore.end())
     {
         // WHERE spell_id = ?
-        PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_PUBLIC_SPELL_ID);
+        FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_PUBLIC_SPELL_ID);
         stmt->setUInt32(0, spellId);
         FreedomDatabase.Execute(stmt);
 
@@ -1619,7 +1622,7 @@ void FreedomMgr::LoadPublicSpells()
     _publicSpellStore.clear();
 
     // spell_id, allow_targeting, name, id_bnet_gm
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_PUBLIC_SPELL);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_PUBLIC_SPELL);
     PreparedQueryResult result = FreedomDatabase.Query(stmt);
 
     if (!result)
@@ -1668,7 +1671,7 @@ void FreedomMgr::AddMorph(ObjectGuid::LowType playerId, MorphData const& data)
 
     // guid, name, id_display, id_bnet_gm
     int index = 0;
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_MORPHS);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_MORPHS);
     stmt->setUInt64(index++, playerId);
     stmt->setString(index++, data.name);
     stmt->setUInt32(index++, data.displayId);
@@ -1682,7 +1685,7 @@ void FreedomMgr::DeleteMorphByName(ObjectGuid::LowType playerId, std::string con
 
     if (it != _playerExtraDataStore[playerId].morphDataStore.end())
     {
-        PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_MORPHS_NAME);
+        FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_MORPHS_NAME);
         stmt->setString(0, name);
         stmt->setUInt64(1, playerId);
         FreedomDatabase.Execute(stmt);
@@ -1700,7 +1703,7 @@ void FreedomMgr::LoadMorphs()
     }
 
     // guid, name, id_display, id_bnet_gm
-    PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_MORPHS);
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_MORPHS);
     PreparedQueryResult result = FreedomDatabase.Query(stmt);
 
     if (!result)
@@ -1713,7 +1716,7 @@ void FreedomMgr::LoadMorphs()
         ObjectGuid::LowType charGuid = fields[0].GetUInt64();
         data.name = fields[1].GetString();
         data.displayId = fields[2].GetUInt32();
-        data.gmBnetAccId = fields[3].GetUInt32();        
+        data.gmBnetAccId = fields[3].GetUInt32();
 
         _playerExtraDataStore[charGuid].morphDataStore.push_back(data);
     } while (result->NextRow());

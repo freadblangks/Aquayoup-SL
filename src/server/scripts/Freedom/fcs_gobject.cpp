@@ -33,7 +33,7 @@ public:
             { "",     rbac::RBAC_PERM_COMMAND_GOBJECT_ADD,      false, &HandleGameObjectAddCommand,         "" },
         };
         static std::vector<ChatCommand> gobjectSetCommandTable =
-        {            
+        {
             { "state", rbac::RBAC_PERM_COMMAND_GOBJECT_SET_STATE, false, &HandleGameObjectSetStateCommand,      "" },
         };
         static std::vector<ChatCommand> gobjectCommandTable =
@@ -289,7 +289,7 @@ public:
         sFreedomMgr->GameObjectSetModifyHistory(object, source);
         sFreedomMgr->SaveGameObject(object);
         object = sFreedomMgr->GameObjectRefresh(object);
-        
+
         float deg_roll, deg_pitch, deg_yaw;
         sFreedomMgr->GetGameObjectEulerAnglesDeg(object, deg_roll, deg_pitch, deg_yaw);
         handler->PSendSysMessage(FREEDOM_CMDI_GOBJECT_AXIAL, deg_roll, deg_pitch, deg_yaw);
@@ -299,7 +299,7 @@ public:
     static bool HandleGameObjectInfoCommand(ChatHandler* handler, char const* args)
     {
         Player* source = handler->GetSession()->GetPlayer();
-        ObjectGuid::LowType guidLow = sFreedomMgr->GetSelectedGameobjectGuidFromPlayer(source->GetGUID().GetCounter());        
+        ObjectGuid::LowType guidLow = sFreedomMgr->GetSelectedGameobjectGuidFromPlayer(source->GetGUID().GetCounter());
         bool historyInfo = false;
         bool positionInfo = false;
         bool advancedInfo = false;
@@ -427,7 +427,7 @@ public:
 
             float rad_roll, rad_pitch, rad_yaw;
             float deg_roll, deg_pitch, deg_yaw;
-            sFreedomMgr->GetGameObjectEulerAnglesRad(object, rad_roll, rad_pitch, rad_yaw);                        
+            sFreedomMgr->GetGameObjectEulerAnglesRad(object, rad_roll, rad_pitch, rad_yaw);
             sFreedomMgr->GetGameObjectEulerAnglesDeg(object, deg_roll, deg_pitch, deg_yaw);
 
             handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_INFO_LI_ROLL, rad_roll, deg_roll);
@@ -458,7 +458,7 @@ public:
             {
                 // Gather history data
                 uint64 creatorPlayerId = extraData->creatorPlayerId;
-                std::string creatorPlayerName = "(UNKNOWN)";       
+                std::string creatorPlayerName = "(UNKNOWN)";
                 uint32 creatorBnetId = extraData->creatorBnetAccId;
                 std::string creatorAccountName = "(UNKNOWN)";
                 uint64 modifierPlayerId = extraData->modifierPlayerId;
@@ -496,7 +496,7 @@ public:
                 handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_INFO_LI_MODIFIED, modifiedTimestamp);
             }
         }
-        
+
         return true;
     }
 
@@ -668,7 +668,7 @@ public:
 
         if (entryId)
         {
-            PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_GAMEOBJECT_BY_EID);
+            WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_GAMEOBJECT_BY_EID);
             stmt->setFloat(index++, x);
             stmt->setFloat(index++, y);
             stmt->setFloat(index++, z);
@@ -679,7 +679,7 @@ public:
         }
         else
         {
-            PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_GAMEOBJECT);
+            WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_GAMEOBJECT);
             stmt->setFloat(index++, x);
             stmt->setFloat(index++, y);
             stmt->setFloat(index++, z);
@@ -688,7 +688,7 @@ public:
             result = WorldDatabase.Query(stmt);
         }
 
-        if (result) 
+        if (result)
         {
             Field * fields = result->Fetch();
 
@@ -725,7 +725,7 @@ public:
         {
             handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_NOT_FOUND);
             return true;
-        }        
+        }
     }
 
     static bool HandleGameObjectActivateCommand(ChatHandler* handler, char const* args)
@@ -834,7 +834,7 @@ public:
             return true;
         }
 
-        handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_SPAWN, 
+        handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_SPAWN,
             sFreedomMgr->ToChatLink("Hgameobject", object->GetSpawnId(), objectInfo->name),
             object->GetSpawnId(),
             objectInfo->entry, x, y, z);
@@ -944,7 +944,7 @@ public:
         Player* source = handler->GetSession()->GetPlayer();
         ObjectGuid::LowType guidLow = sFreedomMgr->GetSelectedGameobjectGuidFromPlayer(source->GetGUID().GetCounter());
         float o = source->GetOrientation();
-        
+
         // Prepare tokenizer with command modifiers
         ArgumentTokenizer tokenizer(*args ? args : "");
         tokenizer.LoadModifier("-guid", 1);
@@ -1085,7 +1085,7 @@ public:
         sFreedomMgr->SaveGameObject(object);
         object = sFreedomMgr->GameObjectRefresh(object);
 
-        handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_MOVE, 
+        handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_MOVE,
             sFreedomMgr->ToChatLink("Hgameobject", guidLow, object->GetGOInfo()->name),
             guidLow);
 
@@ -1100,7 +1100,7 @@ public:
         Player* player = handler->GetSession()->GetPlayer();
         uint32 maxResults = sWorld->getIntConfig(CONFIG_MAX_RESULTS_LOOKUP_COMMANDS);
 
-        PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_GAMEOBJECTS);
+        WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_NEAREST_GAMEOBJECTS);
         stmt->setFloat(0, player->GetPositionX());
         stmt->setFloat(1, player->GetPositionY());
         stmt->setFloat(2, player->GetPositionZ());
@@ -1126,8 +1126,8 @@ public:
                 if (!gameObjectInfo)
                     continue;
 
-                handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_NEAR_LIST_ITEM, 
-                    objDist, 
+                handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_NEAR_LIST_ITEM,
+                    objDist,
                     entry,
                     sFreedomMgr->ToChatLink("Hgameobject", guid, gameObjectInfo->name));
 
@@ -1177,7 +1177,7 @@ public:
         {
             handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_GUID_NOT_EXISTS, guidLow);
             return true;
-        }       
+        }
 
         int32 objectType = atoi(type.c_str());
         if (objectType < 0)
@@ -1188,7 +1188,7 @@ public:
                 handler->PSendSysMessage(FREEDOM_CMDH_GAMEOBJECT_SET_STATE);
             return true;
         }
-        
+
         if (state.empty())
         {
             handler->PSendSysMessage(FREEDOM_CMDH_GAMEOBJECT_SET_STATE);

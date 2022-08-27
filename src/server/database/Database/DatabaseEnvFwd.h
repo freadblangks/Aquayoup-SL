@@ -33,6 +33,7 @@ class CharacterDatabaseConnection;
 class HotfixDatabaseConnection;
 class LoginDatabaseConnection;
 class WorldDatabaseConnection;
+class FreedomDatabaseConnection;
 
 class PreparedStatementBase;
 

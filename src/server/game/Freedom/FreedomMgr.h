@@ -5,6 +5,7 @@
 #include "GameObject.h"
 #include "Creature.h"
 #include "Log.h"
+#include <G3d/Quat.h>
 
 struct GameObjectTemplateExtraData
 {
@@ -191,7 +192,7 @@ class TC_GAME_API FreedomMgr
         GameObject* GameObjectCreate(Player* creator, GameObjectTemplate const* gobTemplate, uint32 spawnTimeSecs = 0);
         bool GameObjectUsesQuatRotation(GameObject* go);
 
-        // Creature        
+        // Creature
         void LoadCreatureExtras();
         void LoadCreatureTemplateExtras();
         void SetCreatureTemplateExtraDisabledFlag(uint32 entryId, bool disabled);

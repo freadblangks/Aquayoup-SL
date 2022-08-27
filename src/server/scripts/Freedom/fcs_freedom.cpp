@@ -38,7 +38,7 @@ public:
 
     std::vector<ChatCommand> GetCommands() const override
     {
-        static std::vector<ChatCommand> freedomMorphCommandTable = 
+        static std::vector<ChatCommand> freedomMorphCommandTable =
         {
             { "list",           rbac::RBAC_FPERM_COMMAND_FREEDOM_MORPH,             false, &HandleFreedomMorphListCommand,          "" },
             { "add",            rbac::RBAC_FPERM_COMMAND_FREEDOM_MORPH_MODIFY,      false, &HandleFreedomMorphAddCommand,           "" },
@@ -46,7 +46,7 @@ public:
             { "",               rbac::RBAC_FPERM_COMMAND_FREEDOM_MORPH,             false, &HandleFreedomMorphCommand,              "" },
         };
 
-        static std::vector<ChatCommand> freedomTeleportCommandTable = 
+        static std::vector<ChatCommand> freedomTeleportCommandTable =
         {
             { "list",           rbac::RBAC_FPERM_COMMAND_FREEDOM_TELE,              false, &HandleFreedomTeleListCommand,           "" },
             { "add",            rbac::RBAC_FPERM_COMMAND_FREEDOM_TELE_MODIFY,       false, &HandleFreedomTeleAddCommand,            "" },
@@ -54,7 +54,7 @@ public:
             { "",               rbac::RBAC_FPERM_COMMAND_FREEDOM_TELE,              false, &HandleFreedomTeleCommand,               "" },
         };
 
-        static std::vector<ChatCommand> freedomPrivateTeleportCommandTable = 
+        static std::vector<ChatCommand> freedomPrivateTeleportCommandTable =
         {
             { "list",           rbac::RBAC_FPERM_COMMAND_FREEDOM_PTELE,             false, &HandleFreedomPrivateTeleListCommand,    "" },
             { "add",            rbac::RBAC_FPERM_COMMAND_FREEDOM_PTELE,             false, &HandleFreedomPrivateTeleAddCommand,     "" },
@@ -62,7 +62,7 @@ public:
             { "",               rbac::RBAC_FPERM_COMMAND_FREEDOM_PTELE,             false, &HandleFreedomPrivateTeleCommand,        "" },
         };
 
-        static std::vector<ChatCommand> freedomSpellCommandTable = 
+        static std::vector<ChatCommand> freedomSpellCommandTable =
         {
             { "list",           rbac::RBAC_FPERM_COMMAND_FREEDOM_SPELL,             false, &HandleFreedomSpellListCommand,          "" },
             { "add",            rbac::RBAC_FPERM_COMMAND_FREEDOM_SPELL_MODIFY,      false, &HandleFreedomSpellAddCommand,           "" },
@@ -84,7 +84,7 @@ public:
             { "base",           rbac::RBAC_FPERM_ADMINISTRATION,                    false, &HandleFreedomReloadGameobjectBaseCommand,   "" },
         };
 
-        static std::vector<ChatCommand> freedomReloadCommandTable = 
+        static std::vector<ChatCommand> freedomReloadCommandTable =
         {
             { "creature",       rbac::RBAC_FPERM_ADMINISTRATION,                    false, NULL,   "", freedomReloadCreatureCommandTable },
             { "gameobject",     rbac::RBAC_FPERM_ADMINISTRATION,                    false, NULL,   "", freedomReloadGameobjectCommandTable },
@@ -142,7 +142,7 @@ public:
             { "speed",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomSpeedCommand,              "" },
             { "reload",         rbac::RBAC_FPERM_ADMINISTRATION,                    false, NULL,                                    "", freedomReloadCommandTable },
             //{ "tabard",         rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomTabardCommand,               "" },
-            { "panda",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "",  freedomPandaCommandTable },            
+            { "panda",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "",  freedomPandaCommandTable },
             { "tame",           rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomTameCommand,               "" },
             { "title",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "", freedomTitleCommandTable },
             { "recall",         rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomRecallCommand,             "" },
@@ -395,7 +395,7 @@ public:
 
 #pragma region COMMAND TABLE : .freedom -> teleport -> *
     static bool HandleFreedomTeleListCommand(ChatHandler* handler, char const* args)
-    {    
+    {
         const PublicTeleContainer teleList = sFreedomMgr->GetPublicTeleportContainer();
         uint64 count = 0;
 
@@ -418,7 +418,7 @@ public:
                 {
                     handler->PSendSysMessage(FREEDOM_CMDI_PUBLIC_TELE_LIST_ITEM, teleData.name, sFreedomMgr->GetMapName(teleData.map));
                     count++;
-                }                    
+                }
             }
         }
 
@@ -459,7 +459,7 @@ public:
         newTeleData.gmBnetAccId = source->GetSession()->GetBattlenetAccountId();
 
         sFreedomMgr->AddPublicTeleport(newTeleData);
-        
+
         handler->PSendSysMessage(FREEDOM_CMDI_X_ADDED_WITH_NAME, "Public teleport", name);
         return true;
     }
@@ -528,8 +528,8 @@ public:
         else
         {
             source->SaveRecallPosition();
-        }            
-        
+        }
+
         source->TeleportTo(teleData->map, teleData->x, teleData->y, teleData->z, teleData->o);
         return true;
     }
@@ -906,7 +906,7 @@ public:
     }
 
     static bool HandleFreedomReloadGameobjectBaseCommand(ChatHandler* handler, char const* args)
-    {        
+    {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "gameobject base", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
         sObjectMgr->LoadGameObjectTemplate();
@@ -921,7 +921,7 @@ public:
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "public_tele", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
-        sFreedomMgr->LoadPublicTeleports();        
+        sFreedomMgr->LoadPublicTeleports();
         handler->SendGlobalGMSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD, "public_tele").c_str());
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_FINISH, GetMSTimeDiffToNow(oldMSTime)).c_str());
         return true;
@@ -1126,7 +1126,7 @@ public:
             return true;
         }
 
-        // remove previous one        
+        // remove previous one
         WorldPackets::Character::TitleEarned packetRemovePrevious(SMSG_TITLE_LOST);
         packetRemovePrevious.Index = prevMaskId;
         source->GetSession()->SendPacket(packetRemovePrevious.Write());
@@ -1143,9 +1143,9 @@ public:
         int32 locale = handler->GetSessionDbcLocale();
         std::string titleName = (gender == GENDER_MALE ? titleEntry->Name : titleEntry->Name1)->Str[locale];
 
-        handler->PSendSysMessage(FREEDOM_CMDI_FREEDOM_TITLE_SET, 
-            titleEntry->ID, 
-            titleEntry->MaskID, 
+        handler->PSendSysMessage(FREEDOM_CMDI_FREEDOM_TITLE_SET,
+            titleEntry->ID,
+            titleEntry->MaskID,
             sFreedomMgr->ToChatLink("Htitle", titleEntry->ID, titleName));
         return true;
     }
@@ -1284,7 +1284,7 @@ public:
             handler->PSendSysMessage(FREEDOM_CMDE_SUMMON_GM_ON, target->GetName().c_str());
             return true;
         }
-       
+
         if (target->HasSummonPending())
         {
             handler->PSendSysMessage(FREEDOM_CMDE_SUMMON_PENDING, target->GetName().c_str());
@@ -1355,7 +1355,7 @@ public:
             handler->PSendSysMessage(FREEDOM_CMDE_REVIVE);
             return true;
         }
-        
+
         source->ResurrectPlayer(1.0);
         source->SaveToDB();
         handler->PSendSysMessage(FREEDOM_CMDI_REVIVE);
@@ -1364,9 +1364,9 @@ public:
 
     static bool HandleFreedomUnAuraCommand(ChatHandler* handler, char const* args)
     {
-        Player* source = handler->GetSession()->GetPlayer();   
+        Player* source = handler->GetSession()->GetPlayer();
         sFreedomMgr->RemoveHoverFromPlayer(source); // unaura removes hover animation, so proceed to remove entire hover mechanic
-        source->RemoveAllAuras();        
+        source->RemoveAllAuras();
         handler->PSendSysMessage(FREEDOM_CMDI_UNAURA);
         return true;
     }
@@ -1574,7 +1574,7 @@ public:
     {
         Player* source = handler->GetSession()->GetPlayer();
 
-        PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
         stmt->setUInt16(0, uint16(AT_LOGIN_CUSTOMIZE));
         stmt->setUInt32(1, source->GetGUID().GetCounter());
         CharacterDatabase.Execute(stmt);
@@ -1595,7 +1595,7 @@ public:
             return true;
         }
 
-        PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
         stmt->setUInt16(0, uint16(AT_LOGIN_CHANGE_RACE));
         stmt->setUInt32(1, source->GetGUID().GetCounter());
         CharacterDatabase.Execute(stmt);
@@ -1615,7 +1615,7 @@ public:
             return true;
         }
 
-        PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
         stmt->setUInt16(0, uint16(AT_LOGIN_CHANGE_FACTION));
         stmt->setUInt32(1, source->GetGUID().GetCounter());
         CharacterDatabase.Execute(stmt);
@@ -1642,7 +1642,7 @@ public:
             pet = handler->getSelectedPlayer()->GetPet();
         else
             pet = handler->GetSession()->GetPlayer()->GetPet();
-        
+
         if (AccountMgr::IsModeratorAccount(handler->GetSession()->GetSecurity()) && !pet)
         {
             handler->PSendSysMessage("You/your target has no pet.");
@@ -1714,7 +1714,7 @@ public:
             return false;
         }
 
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_BNET_ACCOUNT_EMAIL_BY_ID);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_BNET_ACCOUNT_EMAIL_BY_ID);
         stmt->setUInt32(0, accountId);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
         if (!result)
@@ -1845,7 +1845,7 @@ public:
             return false;
         }
 
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_ID_BY_NAME);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_ID_BY_NAME);
         stmt->setString(0, accountName);
         if (PreparedQueryResult result = LoginDatabase.Query(stmt))
             newAccountId = (*result)[0].GetUInt32();

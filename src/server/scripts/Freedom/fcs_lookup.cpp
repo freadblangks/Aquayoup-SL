@@ -404,7 +404,7 @@ public:
         if (maxResults == 0)
             maxResults = 1000; //Hard-code a max if not set so that results are actually displayed
 
-        PreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_ITEMTEMPLATEEXTRA_LOOKUP);
+        FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_ITEMTEMPLATEEXTRA_LOOKUP);
         stmt->setString(0, namePart);
         stmt->setBool(1, customItemFilter);
         stmt->setBool(2, armorFilter);
@@ -434,7 +434,7 @@ public:
             } while (result->NextRow());
 
             handler->PSendSysMessage(FREEDOM_CMDI_LOOKUP_ITEM, count, maxResults);
-        }  
+        }
 
         return true;
     }
@@ -1211,7 +1211,7 @@ public:
             limit = limitStr ? atoi(limitStr) : -1;
         }
 
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_BY_IP);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_BY_IP);
         stmt->setString(0, ip);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
 
@@ -1230,7 +1230,7 @@ public:
         if (!Utf8ToUpperOnlyLatin(account))
             return false;
 
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_LIST_BY_NAME);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_LIST_BY_NAME);
         stmt->setString(0, account);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
 
@@ -1246,7 +1246,7 @@ public:
         char* limitStr = strtok(NULL, " ");
         int32 limit = limitStr ? atoi(limitStr) : -1;
 
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_LIST_BY_EMAIL);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_LIST_BY_EMAIL);
         stmt->setString(0, email);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
 
@@ -1278,7 +1278,7 @@ public:
             uint32 accountId = fields[0].GetUInt32();
             std::string accountName = fields[1].GetString();
 
-            PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_GUID_NAME_BY_ACC);
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_GUID_NAME_BY_ACC);
             stmt->setUInt32(0, accountId);
             PreparedQueryResult result2 = CharacterDatabase.Query(stmt);
 
@@ -1657,7 +1657,7 @@ public:
 
         // list item: %d - | cffffffff | Hitem:%d : 0 : 0 : 0 : 0 : 0 : 0 : 0 : 0 | h[%s] | h | r
         bool show_hidden = handler->HasPermission(rbac::RBAC_PERM_COMMAND_ADDHIDDENITEM) ? true : false;
-        PreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_ITEMS_BY_STRING);
+        WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_ITEMS_BY_STRING);
         stmt->setString(0, item_search_string_refined);
         PreparedQueryResult result = WorldDatabase.Query(stmt);
 
@@ -1679,7 +1679,7 @@ public:
                 handler->PSendSysMessage(
                     "%u - %s|Hitem:%u:0:0:0:0:0:0:0:0|h[%s]|h|r",
                     entry_id, MSG_COLOR_WHITE, entry_id, entry_name.c_str());
-            } 
+            }
             else if (show_hidden)
             {
                 handler->PSendSysMessage(
@@ -2465,7 +2465,7 @@ public:
             limit = limitStr ? atoi(limitStr) : -1;
         }
 
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_BY_IP);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_BY_IP);
         stmt->setString(0, ip);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
 
@@ -2485,7 +2485,7 @@ public:
             (account))
             return false;
 
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_LIST_BY_NAME);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_LIST_BY_NAME);
         stmt->setString(0, account);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
 
@@ -2501,7 +2501,7 @@ public:
         char* limitStr = strtok(NULL, " ");
         int32 limit = limitStr ? atoi(limitStr) : -1;
 
-        PreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_LIST_BY_EMAIL);
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_LIST_BY_EMAIL);
         stmt->setString(0, email);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
 
@@ -2533,7 +2533,7 @@ public:
             uint32 accountId = fields[0].GetUInt32();
             std::string accountName = fields[1].GetString();
 
-            PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_GUID_NAME_BY_ACC);
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_GUID_NAME_BY_ACC);
             stmt->setUInt32(0, accountId);
             PreparedQueryResult result2 = CharacterDatabase.Query(stmt);
 

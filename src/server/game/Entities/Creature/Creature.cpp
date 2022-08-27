@@ -1152,7 +1152,9 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
 
     if (extraData && extraData->genderLock)
     {
-        SetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER, extraData->gender);
+        // TODO Determine if this is neccesary because ObjectMgr GetCreatureModelRandomGender just seems to set a new display id.
+        // Might already be covered by setting the displayId.
+        // SetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER, extraData->gender);
     }
 
     if (IsSpiritHealer() || IsSpiritGuide() || (GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_GHOST_VISIBILITY))
@@ -2835,14 +2837,10 @@ void Creature::UpdateMovementFlags()
 
         if (extraData->swim)
         {
-            if (!HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15))
-                SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15);
-        }
-        else
-        {
-            if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15))
-                RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15);
-        }
+            if (!HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING))
+                AddUnitMovementFlag(MOVEMENTFLAG_SWIMMING);
+            else
+                RemoveUnitMovementFlag(MOVEMENTFLAG_SWIMMING);
 
         if (extraData->gravity)
             SetSwim(IsInWater() && extraData->swim);
@@ -3557,4 +3555,8 @@ void Creature::ExitVehicle(Position const* /*exitPosition*/)
     // if the creature exits a vehicle, set it's home position to the
     // exited position so it won't run away (home) and evade if it's hostile
     SetHomePosition(GetPosition());
+}
+
+void Creature::SetGuid(ObjectGuid const& guid) {
+    Object::_Create(guid);
 }
