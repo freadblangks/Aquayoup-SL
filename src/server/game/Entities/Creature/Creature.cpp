@@ -1070,6 +1070,8 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
     ASSERT(map);
     SetMap(map);
 
+    auto extraData = sFreedomMgr->GetCreatureExtraData(GetSpawnId());
+
     if (data)
     {
         PhasingHandler::InitDbPhaseShift(GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
@@ -1142,6 +1144,17 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
 
     LastUsedScriptID = GetScriptId();
 
+    if (extraData && extraData->displayLock)
+    {
+        SetDisplayId(extraData->displayId);
+        SetNativeDisplayId(extraData->nativeDisplayId);
+    }
+
+    if (extraData && extraData->genderLock)
+    {
+        SetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER, extraData->gender);
+    }
+
     if (IsSpiritHealer() || IsSpiritGuide() || (GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_GHOST_VISIBILITY))
     {
         m_serverSideVisibility.SetValue(SERVERSIDE_VISIBILITY_GHOST, GHOST_VISIBILITY_GHOST);
@@ -1159,6 +1172,10 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
 
     GetThreatManager().Initialize();
 
+    if (extraData && extraData->scale >= 0)
+    {
+        SetObjectScale(extraData->scale);
+    }
     return true;
 }
 
@@ -1967,6 +1984,10 @@ bool Creature::hasInvolvedQuest(uint32 quest_id) const
 
     WorldDatabase.CommitTransaction(trans);
 
+    FreedomDatabasePreparedStatement* fstmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_CREATUREEXTRA);
+    fstmt->setUInt64(0, spawnId);
+
+    FreedomDatabase.Execute(fstmt);
     return true;
 }
 
@@ -2806,7 +2827,32 @@ void Creature::UpdateMovementFlags()
     if (!isInAir)
         RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING);
 
-    SetSwim(CanSwim() && IsInWater());
+    // override
+    auto extraData = sFreedomMgr->GetCreatureExtraData(this->GetSpawnId());
+    if (extraData)
+    {
+        SetDisableGravity(!extraData->gravity);
+
+        if (extraData->swim)
+        {
+            if (!HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15))
+                SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15);
+        }
+        else
+        {
+            if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15))
+                RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15);
+        }
+
+        if (extraData->gravity)
+            SetSwim(IsInWater() && extraData->swim);
+        else if (extraData->fly)
+            SetSwim(true);
+    }
+    else
+    {
+        SetSwim(CanSwim() && IsInWater());
+    }
 }
 
 CreatureMovementData const& Creature::GetMovementTemplate() const

@@ -43,6 +43,7 @@ using CharacterDatabasePreparedStatement = PreparedStatement<CharacterDatabaseCo
 using HotfixDatabasePreparedStatement = PreparedStatement<HotfixDatabaseConnection>;
 using LoginDatabasePreparedStatement = PreparedStatement<LoginDatabaseConnection>;
 using WorldDatabasePreparedStatement = PreparedStatement<WorldDatabaseConnection>;
+using FreedomDatabasePreparedStatement = PreparedStatement<FreedomDatabaseConnection>;
 
 class PreparedResultSet;
 using PreparedQueryResult = std::shared_ptr<PreparedResultSet>;
@@ -73,6 +74,7 @@ using CharacterDatabaseTransaction = SQLTransaction<CharacterDatabaseConnection>
 using HotfixDatabaseTransaction = SQLTransaction<HotfixDatabaseConnection>;
 using LoginDatabaseTransaction = SQLTransaction<LoginDatabaseConnection>;
 using WorldDatabaseTransaction = SQLTransaction<WorldDatabaseConnection>;
+using FreedomDatabaseTransaction = SQLTransaction<FreedomDatabaseConnection>;
 
 class SQLQueryHolderBase;
 using QueryResultHolderFuture = std::future<void>;
@@ -85,6 +87,7 @@ using CharacterDatabaseQueryHolder = SQLQueryHolder<CharacterDatabaseConnection>
 using HotfixDatabaseQueryHolder = SQLQueryHolder<HotfixDatabaseConnection>;
 using LoginDatabaseQueryHolder = SQLQueryHolder<LoginDatabaseConnection>;
 using WorldDatabaseQueryHolder = SQLQueryHolder<WorldDatabaseConnection>;
+using FreedomDatabaseQueryHolder  = SQLQueryHolder<FreedomDatabaseConnection>;
 
 class SQLQueryHolderCallback;
 
