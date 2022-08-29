@@ -18,6 +18,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/tokenizer.hpp>
+#include <G3D/Quat.h>
 
 #pragma region FREEDOM_MANAGER
 FreedomMgr::FreedomMgr()
