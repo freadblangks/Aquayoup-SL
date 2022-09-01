@@ -5,6 +5,6 @@ void AddSC_freedom_commandscript();
 // void Add${NameOfDirectory}Scripts()
 void AddFreedomScripts()
 {
-    AddSC_freedom_commandscript();
+    AddSC_administration_commandscript();
     AddSC_freedom_commandscript();
 }

@@ -129,6 +129,7 @@ public:
             { "playlocal",        HandlePlayLocalCommand,        rbac::RBAC_FPERM_COMMAND_PLAYLOCAL,       Console::No },
             { "additemall",       HandleAddItemAllCommand,       rbac::RBAC_FPERM_COMMAND_ADDITEMALL,      Console::No },
             { "unauraall",        HandleUnAuraAllCommand,        rbac::RBAC_FPERM_COMMAND_UNAURAALL,       Console::No },
+            { "jumptome",         HandleJumpToMeCommand,         rbac::RBAC_FPERM_MODERATOR,               Console::No },
         };
         return commandTable;
     }

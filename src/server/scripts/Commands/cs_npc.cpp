@@ -116,7 +116,6 @@ public:
             { "gravity",        HandleNpcSetGravityCommand,        rbac::RBAC_FPERM_COMMAND_NPC_SET_GRAVITY,                   Console::No },
             { "swim",           HandleNpcSetSwimCommand,           rbac::RBAC_FPERM_COMMAND_NPC_SET_SWIM,                      Console::No },
             { "flystate",       HandleNpcSetFlyStateCommand,       rbac::RBAC_FPERM_COMMAND_NPC_SET_FLYSTATE,                  Console::No },
-            { "data",           HandleNpcSetDataCommand,           rbac::RBAC_PERM_COMMAND_NPC_SET_DATA,                       Console::No },
 
         };
         static ChatCommandTable npcCommandTable =
