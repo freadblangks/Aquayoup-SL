@@ -130,6 +130,8 @@
 #include <G3D/g3dmath.h>
 #include <sstream>
 
+#include "FreedomMgr.h"
+
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 
 // corpse reclaim times
@@ -290,6 +292,7 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this)
     // Player summoning
     m_summon_expire = 0;
     m_summon_instanceId = 0;
+    m_summon_phase = 0;
 
     m_recall_instanceId = 0;
 
@@ -7244,7 +7247,12 @@ void Player::UpdateArea(uint32 newArea)
     if (oldFFAPvPArea && !pvpInfo.IsInFFAPvPArea)
         ValidateAttackersAndOwnTarget();
 
-    PhasingHandler::OnAreaChange(this);
+    if(!sFreedomMgr->IsPhaseLocked(this)) {
+        TC_LOG_INFO("entities.player", "Player was not phase locked, handling phase trigger.");
+        PhasingHandler::OnAreaChange(this);
+    } else {
+        TC_LOG_INFO("entities.player", "Player was phase locked, skipping phase trigger.");
+    }
     UpdateAreaDependentAuras(newArea);
 
     if (IsAreaThatActivatesPvpTalents(newArea))
@@ -24977,6 +24985,15 @@ void Player::SendSummonRequestFrom(Unit* summoner)
     m_summon_expire = GameTime::GetGameTime() + MAX_PLAYER_SUMMON_DELAY;
     m_summon_location.WorldRelocate(*summoner);
     m_summon_instanceId = summoner->GetInstanceId();
+    Player* playerSummoner = dynamic_cast<Player*>(summoner);
+    if (playerSummoner) {
+        TC_LOG_INFO("entities.player", "Was able to cast to player.");
+        m_summon_phase = sFreedomMgr->GetPlayerPhase(playerSummoner);
+        TC_LOG_INFO("entities.player", "Summon phase set to %i.", m_summon_phase);
+    } else {
+        TC_LOG_INFO("entities.player", "Was unable to cast to player.");
+        m_summon_phase = 0;
+    }
 
     WorldPackets::Movement::SummonRequest summonRequest;
     summonRequest.SummonerGUID = summoner->GetGUID();
@@ -25033,6 +25050,11 @@ void Player::SummonIfPossible(bool agree)
     RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Summon);
 
     TeleportTo(m_summon_location, 0, m_summon_instanceId);
+    if (m_summon_phase > 0) {
+        sFreedomMgr->PlayerPhase(this, m_summon_phase);
+    } else {
+        sFreedomMgr->ClearPlayerPhase(this);
+    }
 
     broadcastSummonResponse(true);
 }

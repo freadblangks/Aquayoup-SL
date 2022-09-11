@@ -803,6 +803,9 @@ enum RBACPermissions
     RBAC_FPERM_COMMAND_NPC_TURN                              = 1325,
     RBAC_FPERM_COMMAND_NPC_SELECT                            = 1326,
     RBAC_FPERM_COMMAND_NPC_RETURN                            = 1327,
+    RBAC_FPERM_COMMAND_PHASE                                 = 1328,
+    RBAC_FPERM_COMMAND_PHASE_LOCK                            = 1329,
+    RBAC_FPERM_COMMAND_PHASE_CLEAR                           = 1330,
 
     // custom .reload permissions 9000-9099
     RBAC_FPERM_COMMAND_RELOAD_PLAYERCREATEINFO_SPELL_CUSTOM  = 9000,

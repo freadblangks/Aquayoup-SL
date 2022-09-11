@@ -1,8 +1,5 @@
 -- --------------------------------------------------------
--- Host:                         127.0.0.1
--- Server version:               8.0.30 - MySQL Community Server - GPL
--- Server OS:                    Win64
--- HeidiSQL Version:             12.1.0.6537
+-- Script to fill gameobject list with values from GameObjectDisplayInfo.db2 and listfile
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;

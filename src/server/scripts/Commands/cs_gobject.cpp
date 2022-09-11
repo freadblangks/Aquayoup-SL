@@ -200,7 +200,6 @@ public:
         }
 
         GameObject* object = sFreedomMgr->GameObjectCreate(source, objectInfo, spawnTimeSecs);
-
         if (!object)
         {
             handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_SPAWN_FAIL, objectId);

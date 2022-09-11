@@ -97,6 +97,7 @@ struct PlayerExtraData
     ObjectGuid::LowType selectedCreatureGuid;
     MorphDataContainer morphDataStore;
     uint32 phaseMask;
+    bool phaseLock;
 };
 
 typedef std::unordered_map<ObjectGuid::LowType, PlayerExtraData> PlayerExtraDataContainer;
@@ -166,6 +167,9 @@ class TC_GAME_API FreedomMgr
         void GameObjectPhase(GameObject* go, uint32 phaseMask);
         void PlayerPhase(Player* player, uint32 phaseMask);
         uint32 GetPlayerPhase(Player* player);
+        void ClearPlayerPhase(Player* player);
+        bool IsPhaseLocked(Player* player);
+        void SetPhaseLock(Player* player, bool val);
 
         // Gameobject
         void LoadGameObjectExtras();

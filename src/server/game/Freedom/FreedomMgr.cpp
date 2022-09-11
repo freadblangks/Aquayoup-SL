@@ -65,17 +65,6 @@ void FreedomMgr::LoadAllTables()
 }
 
 #pragma region PHASING
-// | PhaseMask | PhaseID |
-// | 1         | 169     |
-// | 2         | 170     |
-// | 4         | 171     |
-// | 8         | 172     |
-// | 16        | 173     |
-// | 32        | 174     |
-// | 64        | 175     |
-// | 128       | 176     |
-// | 256       | 177     |
-
 
 int FreedomMgr::GetPhaseMask(uint32 phaseId)
 {
@@ -163,30 +152,30 @@ void FreedomMgr::GameObjectPhase(GameObject* go, uint32 phaseMask)
     _gameObjectExtraStore[go->GetSpawnId()].phaseMask = phaseMask;
 }
 
-void FreedomMgr::PlayerPhase(Player* player, uint32 phaseMask)
+void FreedomMgr::PlayerPhase(Player* player, uint32 phase)
 {
-    if (!phaseMask)
-        phaseMask = 1;
-
     PhasingHandler::ResetPhaseShift(player);
+    PhasingHandler::AddPhase(player, phase, true);
+    _playerExtraDataStore[player->GetGUID().GetCounter()].phaseMask = phase;
+}
 
-    for (int i = 1; i < 512; i = i << 1)
-    {
-        uint32 phase = phaseMask & i;
-
-        if (phase)
-            //player->SetInPhase(GetPhaseId(phase), false, true);
-            PhasingHandler::AddPhase(player, phase, true);
-    }
-
-//    player->SetPhaseMask(phaseMask, true);
-
-    _playerExtraDataStore[player->GetGUID().GetCounter()].phaseMask = phaseMask;
+void FreedomMgr::ClearPlayerPhase(Player* player)
+{
+    PhasingHandler::ResetPhaseShift(player);
+    _playerExtraDataStore[player->GetGUID().GetCounter()].phaseMask = 0;
 }
 
 uint32 FreedomMgr::GetPlayerPhase(Player* player)
 {
     return _playerExtraDataStore[player->GetGUID().GetCounter()].phaseMask;
+}
+
+bool FreedomMgr::IsPhaseLocked(Player* player) {
+    return _playerExtraDataStore[player->GetGUID().GetCounter()].phaseLock;
+}
+
+void FreedomMgr::SetPhaseLock(Player* player, bool val) {
+    _playerExtraDataStore[player->GetGUID().GetCounter()].phaseLock = val;
 }
 
 #pragma endregion
@@ -1137,6 +1126,7 @@ GameObject* FreedomMgr::GameObjectCreate(Player* creator, GameObjectTemplate con
     }
 
     PhasingHandler::InheritPhaseShift(object, player);
+    object->SetDBPhase(sFreedomMgr->GetPlayerPhase(player));
 
     if (spawnTimeSecs)
     {

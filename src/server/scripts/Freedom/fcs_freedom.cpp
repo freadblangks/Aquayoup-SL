@@ -41,6 +41,13 @@ public:
 
     std::vector<ChatCommand> GetCommands() const override
     {
+        static std::vector<ChatCommand> freedomPhaseCommandTable =
+        {
+            { "lock",           rbac::RBAC_FPERM_COMMAND_PHASE_LOCK,                false, &HandleFreedomPhaseLockCommand,         "" },
+            { "clear",          rbac::RBAC_FPERM_COMMAND_PHASE_CLEAR,               false, &HandleFreedomPhaseClearCommand,        "" },
+            { "",               rbac::RBAC_FPERM_COMMAND_PHASE,                     false, &HandleFreedomPhaseCommand,             "" },
+        };
+
         static std::vector<ChatCommand> freedomMorphCommandTable =
         {
             { "list",           rbac::RBAC_FPERM_COMMAND_FREEDOM_MORPH,             false, &HandleFreedomMorphListCommand,          "" },
@@ -154,6 +161,7 @@ public:
             { "gameaccount",    rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomGameAccountCreateCommand,  "" },
             { "accountaccess",  rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomAccountAccessCommand,      "" },
             { "changeaccount",  rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomChangeAccountCommand,      "" },
+            { "phase",          rbac::RBAC_FPERM_COMMAND_PHASE,                     false, NULL,                                    "", freedomPhaseCommandTable }
         };
 
         static std::vector<ChatCommand> commandTable =
@@ -1906,6 +1914,51 @@ public:
         return true;
     }
 
+
+    static bool HandleFreedomPhaseCommand(ChatHandler* handler, char const* args) {
+        if (!*args) {
+            // TODO: Trinity string this
+            handler->SendSysMessage("Please specify a phase number");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+        uint32 phaseNumber = (uint32) atoul((char*)args);
+        Player* source = handler->GetSession()->GetPlayer();
+        sFreedomMgr->PlayerPhase(source, phaseNumber);
+        char msg[80];
+        sprintf(msg, "Your have been set to phase %u", phaseNumber);
+        handler->SendSysMessage(msg);
+        return true;
+    }
+
+    static bool HandleFreedomPhaseLockCommand(ChatHandler* handler, char const* args) {
+        if (!*args) {
+            // TODO: Trinity string this
+            handler->SendSysMessage("Please specify on/off for the phase lock");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+        Player* source = handler->GetSession()->GetPlayer();
+        sFreedomMgr->ClearPlayerPhase(source);
+        std::string arg = strtok((char*)args, " ");
+        if (boost::iequals(arg, "on")) {
+            sFreedomMgr->SetPhaseLock(source, true);
+            handler->SendSysMessage("Phase lock is now: |cffFF0000ON|r");
+            return true;
+        }
+        if (boost::iequals(arg, "off")) {
+            sFreedomMgr->SetPhaseLock(source, false);
+            handler->SendSysMessage("Phase lock is now: |cff00FF00OFF|r");
+        }
+        return true;
+    }
+
+    static bool HandleFreedomPhaseClearCommand(ChatHandler* handler, char const* args) {
+        Player* source = handler->GetSession()->GetPlayer();
+        sFreedomMgr->ClearPlayerPhase(source);
+        handler->SendSysMessage("Your phases have been reset to default.");
+        return true;
+    }
 #pragma endregion
 };
 

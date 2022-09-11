@@ -181,6 +181,7 @@ public:
             return false;
 
         PhasingHandler::InheritPhaseShift(creature, chr);
+        creature->SetDBPhase(sFreedomMgr->GetPlayerPhase(chr));
         creature->SaveToDB(map->GetId(), { map->GetDifficultyID() });
 
         ObjectGuid::LowType db_guid = creature->GetSpawnId();
@@ -195,6 +196,7 @@ public:
             return false;
 
         sObjectMgr->AddCreatureToGrid(sObjectMgr->GetCreatureData(db_guid));
+        // PhasingHandler::InheritPhaseShift(creature, chr);
         return true;
     }
 
