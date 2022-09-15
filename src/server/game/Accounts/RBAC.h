@@ -753,6 +753,65 @@ enum RBACPermissions
     // IF YOU ADD NEW PERMISSIONS, ADD THEM IN 3.3.5 BRANCH AS WELL!
     //
     // custom permissions 1000+
+        // .freedom permissions 1000-1099
+    RBAC_FPERM_COMMAND_FREEDOM                               = 1000,
+    RBAC_FPERM_COMMAND_FREEDOM_MORPH                         = 1001,
+    RBAC_FPERM_COMMAND_FREEDOM_MORPH_MODIFY                  = 1002,
+    RBAC_FPERM_COMMAND_FREEDOM_TELE                          = 1003,
+    RBAC_FPERM_COMMAND_FREEDOM_TELE_MODIFY                   = 1004,
+    RBAC_FPERM_COMMAND_FREEDOM_PTELE                         = 1005,
+    RBAC_FPERM_COMMAND_FREEDOM_SPELL                         = 1006,
+    RBAC_FPERM_COMMAND_FREEDOM_SPELL_MODIFY                  = 1007,
+    RBAC_FPERM_COMMAND_FREEDOM_UTILITIES                     = 1008,
+    RBAC_FPERM_ADMINISTRATION                                = 1009,
+    RBAC_FPERM_MODERATOR                                     = 1010,
+
+    // .goto permissions 1100-1199
+    RBAC_FPERM_COMMAND_GOTO                                  = 1100,
+
+    // Kret port permissions 1200-1299
+    RBAC_FPERM_COMMAND_CAST_PLAYER                           = 1200,
+    RBAC_FPERM_COMMAND_CAST_ALL                              = 1201,
+    RBAC_FPERM_COMMAND_PLAYLOCAL                             = 1202,
+    RBAC_FPERM_COMMAND_ADDITEMALL                            = 1203,
+    RBAC_FPERM_COMMAND_UNAURAALL                             = 1204,
+    // freedom7 -> freedom9 port permissions 1300-1399
+    RBAC_FPERM_COMMAND_GOBJECT_PHASE                         = 1300,
+    RBAC_FPERM_COMMAND_GOBJECT_SELECT                        = 1301,
+    RBAC_FPERM_COMMAND_GOBJECT_SCALE                         = 1302,
+    RBAC_FPERM_COMMAND_GOBJECT_AXIAL                         = 1303,
+    RBAC_FPERM_COMMAND_GOBJECT_ROLL                          = 1304,
+    RBAC_FPERM_COMMAND_GOBJECT_PITCH                         = 1305,
+    RBAC_FPERM_COMMAND_GOBJECT_YAW                           = 1306,
+    RBAC_FPERM_COMMAND_NPC_SET_EMOTE                         = 1307,
+    RBAC_FPERM_COMMAND_NPC_SET_MOUNT                         = 1308,
+    RBAC_FPERM_COMMAND_NPC_SET_AURA                          = 1309,
+    RBAC_FPERM_COMMAND_NPC_SET_DEATHSTATE                    = 1310,
+    RBAC_FPERM_COMMAND_NPC_SET_SLEEPSTATE                    = 1311,
+    RBAC_FPERM_COMMAND_NPC_SET_HOVERSTATE                    = 1312,
+    RBAC_FPERM_COMMAND_NPC_SET_SCALE                         = 1313,
+    RBAC_FPERM_COMMAND_NPC_SET_BYTES1                        = 1314,
+    RBAC_FPERM_COMMAND_NPC_SET_BYTES2                        = 1315,
+    RBAC_FPERM_COMMAND_NPC_SET_SITGROUNDSTATE                = 1316,
+    RBAC_FPERM_COMMAND_NPC_SET_SITLOWSTATE                   = 1317,
+    RBAC_FPERM_COMMAND_NPC_SET_SITMEDSTATE                   = 1318,
+    RBAC_FPERM_COMMAND_NPC_SET_SITHIGHSTATE                  = 1319,
+    RBAC_FPERM_COMMAND_NPC_SET_KNEELSTATE                    = 1320,
+    RBAC_FPERM_COMMAND_NPC_SET_SHEATHSTATE                   = 1321,
+    RBAC_FPERM_COMMAND_NPC_SET_GRAVITY                       = 1322,
+    RBAC_FPERM_COMMAND_NPC_SET_SWIM                          = 1323,
+    RBAC_FPERM_COMMAND_NPC_SET_FLYSTATE                      = 1324,
+    RBAC_FPERM_COMMAND_NPC_TURN                              = 1325,
+    RBAC_FPERM_COMMAND_NPC_SELECT                            = 1326,
+    RBAC_FPERM_COMMAND_NPC_RETURN                            = 1327,
+    RBAC_FPERM_COMMAND_PHASE                                 = 1328,
+    RBAC_FPERM_COMMAND_PHASE_LOCK                            = 1329,
+    RBAC_FPERM_COMMAND_PHASE_CLEAR                           = 1330,
+
+    // custom .reload permissions 9000-9099
+    RBAC_FPERM_COMMAND_RELOAD_PLAYERCREATEINFO_SPELL_CUSTOM  = 9000,
+    RBAC_FPERM_COMMAND_RELOAD_PLAYERCREATEINFO_SKILL_CUSTOM  = 9001,
+
     RBAC_PERM_MAX
 };
 
