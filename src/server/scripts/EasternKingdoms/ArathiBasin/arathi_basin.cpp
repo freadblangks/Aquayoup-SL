@@ -24,7 +24,7 @@ struct npc_bg_ab_arathor_gryphon_rider_leader : public ScriptedAI
 
     void Reset() override
     {
-        me->GetMotionMaster()->MoveSmoothPath(1, _path, PathSize::value, false, true);
+        me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), false, true);
     }
 
     void MovementInform(uint32 /*type*/, uint32 id) override
@@ -57,8 +57,6 @@ private:
         { 962.75000f, 423.92014f, 219.66528f },
         { 993.89930f, 76.503470f, 219.66528f }
     };
-
-    using PathSize = std::extent<decltype(_path)>;
 };
 
 struct npc_bg_ab_defiler_bat_rider_leader : public ScriptedAI
@@ -67,7 +65,7 @@ struct npc_bg_ab_defiler_bat_rider_leader : public ScriptedAI
 
     void JustAppeared() override
     {
-        me->GetMotionMaster()->MoveSmoothPath(1, _path, PathSize::value, false, true);
+        me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), false, true);
     }
 
     void MovementInform(uint32 /*type*/, uint32 id) override
@@ -102,8 +100,6 @@ private:
         { 1198.5817f, 1537.4548f, 221.42233f },
         { 1349.2379f, 1750.9497f, 328.39390f }
     };
-
-    using PathSize = std::extent<decltype(_path)>;
 };
 
 struct npc_bg_ab_the_black_bride: public ScriptedAI
@@ -114,7 +110,7 @@ struct npc_bg_ab_the_black_bride: public ScriptedAI
     {
         // TODO
         // not sure if this is smooth path
-        me->GetMotionMaster()->MoveSmoothPath(1, _path, PathSize::value, true);
+        me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), true);
         me->DespawnOrUnsummon(2min);
     }
 
@@ -128,8 +124,6 @@ private:
         { 657.25180f, 638.83510f, -10.535215f },
         { 657.92017f, 640.82640f, -10.932798f }
     };
-
-    using PathSize = std::extent<decltype(_path)>;
 };
 
 struct npc_bg_ab_radulf_leder : public ScriptedAI
@@ -140,7 +134,7 @@ struct npc_bg_ab_radulf_leder : public ScriptedAI
     {
         // TODO
         // not sure if this is smooth path
-        me->GetMotionMaster()->MoveSmoothPath(1, _path, PathSize::value, true);
+        me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), true);
         me->DespawnOrUnsummon(2min);
     }
 
@@ -156,8 +150,6 @@ private:
         { 1381.5840f, 1341.5732f, -1.68071130f },
         { 1381.3038f, 1341.4166f, -1.76017900f }
     };
-
-    using PathSize = std::extent<decltype(_path)>;
 };
 
 struct npc_bg_ab_dominic_masonwrite : ScriptedAI
@@ -189,7 +181,7 @@ struct npc_bg_ab_dominic_masonwrite : ScriptedAI
                 _scheduler.Schedule(20s, [this](TaskContext)
                 {
                     me->RemoveAurasDueToSpell(SPELL_READ_SCROLL);
-                    me->GetMotionMaster()->MoveSmoothPath(2, _path2, Path2Size::value, true);
+                    me->GetMotionMaster()->MoveSmoothPath(2, _path2, std::size(_path2), true);
                 });
                 break;
             case 2:
@@ -210,7 +202,7 @@ struct npc_bg_ab_dominic_masonwrite : ScriptedAI
             me->SetFacingTo(1.431169986724853515f);
             context.Schedule(1s, [this](TaskContext)
             {
-                me->GetMotionMaster()->MoveSmoothPath(1, _path1, Path1Size::value, true);
+                me->GetMotionMaster()->MoveSmoothPath(1, _path1, std::size(_path1), true);
             });
         });
     }
@@ -246,9 +238,6 @@ private:
         { 678.19100f, 679.64580f, -15.018129f },
         { 684.04517f, 676.04100f, -14.635073f }
     };
-
-    using Path1Size = std::extent<decltype(_path1)>;
-    using Path2Size = std::extent<decltype(_path2)>;
 };
 
 // Lumber Mill
@@ -348,10 +337,10 @@ struct npc_bg_ab_lumberjack_wood_carrier_1 : npc_bg_ab_lumberjack_wood_carrier
 {
     npc_bg_ab_lumberjack_wood_carrier_1(Creature* creature) : npc_bg_ab_lumberjack_wood_carrier(creature) { }
 
-    size_t GetPath1Size() const override { return PathSize::value; }
+    size_t GetPath1Size() const override { return std::size(_path); }
     Position const* GetPath1() const override { return _path; }
     float GetOrientation1() const override { return 6.161012172698974609f; }
-    size_t GetPath2Size() const override { return PathSizeBack::value; }
+    size_t GetPath2Size() const override { return std::size(_pathBack); }
     Position const* GetPath2() const override { return _pathBack; }
 
 private:
@@ -409,19 +398,16 @@ private:
         { 770.10450f, 1161.4316f, 17.842760f },
         { 757.39760f, 1162.5000f, 20.350830f }
     };
-
-    using PathSize = std::extent<decltype(_path)>;
-    using PathSizeBack = std::extent<decltype(_pathBack)>;
 };
 
 struct npc_bg_ab_lumberjack_wood_carrier_2 : npc_bg_ab_lumberjack_wood_carrier
 {
     npc_bg_ab_lumberjack_wood_carrier_2(Creature* creature) : npc_bg_ab_lumberjack_wood_carrier(creature) { }
 
-    size_t GetPath1Size() const override { return PathSize::value; }
+    size_t GetPath1Size() const override { return std::size(_path); }
     Position const* GetPath1() const override { return _path; }
     float GetOrientation1() const override { return 2.914699792861938476f; }
-    size_t GetPath2Size() const override { return PathSizeBack::value; }
+    size_t GetPath2Size() const override { return std::size(_pathBack); }
     Position const* GetPath2() const override { return _pathBack; }
 
 private:
@@ -480,19 +466,16 @@ private:
         { 890.51390f, 1182.8698f, 8.10024600f },
         { 904.16700f, 1182.9531f, 3.92786800f }
     };
-
-    using PathSize = std::extent<decltype(_path)>;
-    using PathSizeBack = std::extent<decltype(_pathBack)>;
 };
 
 struct npc_bg_ab_lumberjack_wood_carrier_3 : npc_bg_ab_lumberjack_wood_carrier
 {
     npc_bg_ab_lumberjack_wood_carrier_3(Creature* creature) : npc_bg_ab_lumberjack_wood_carrier(creature) { }
 
-    size_t GetPath1Size() const override { return PathSize::value; }
+    size_t GetPath1Size() const override { return std::size(_path); }
     Position const* GetPath1() const override { return _path; }
     float GetOrientation1() const override { return 1.326450228691101074f; }
-    size_t GetPath2Size() const override { return PathSizeBack::value; }
+    size_t GetPath2Size() const override { return std::size(_pathBack); }
     Position const* GetPath2() const override { return _pathBack; }
 
 private:
@@ -552,19 +535,16 @@ private:
         { 817.30383f, 1107.4410f, 12.8464190f },
         { 814.28820f, 1096.7656f, 10.5019870f }
     };
-
-    using PathSize = std::extent<decltype(_path)>;
-    using PathSizeBack = std::extent<decltype(_pathBack)>;
 };
 
 struct npc_bg_ab_lumberjack_wood_carrier_4 : npc_bg_ab_lumberjack_wood_carrier
 {
     npc_bg_ab_lumberjack_wood_carrier_4(Creature* creature) : npc_bg_ab_lumberjack_wood_carrier(creature) { }
 
-    size_t GetPath1Size() const override { return PathSize::value; }
+    size_t GetPath1Size() const override { return std::size(_path); }
     Position const* GetPath1() const override { return _path; }
     float GetOrientation1() const override { return 2.914699792861938476f; }
-    size_t GetPath2Size() const override { return PathSizeBack::value; }
+    size_t GetPath2Size() const override { return std::size(_pathBack); }
     Position const* GetPath2() const override { return _pathBack; }
 
 private:
@@ -619,9 +599,6 @@ private:
         { 820.62850f, 1251.7291f, 22.377863f },
         { 825.77954f, 1255.8837f, 22.169000f }
     };
-
-    using PathSize = std::extent<decltype(_path)>;
-    using PathSizeBack = std::extent<decltype(_pathBack)>;
 };
 
 struct npc_bg_ab_lumberjack_wanderer : ScriptedAI
@@ -647,7 +624,7 @@ struct npc_bg_ab_lumberjack_wanderer : ScriptedAI
             {
                 // this is a hack
                 // Flags: 2432696320 (Unknown5, Steering, Unknown10)
-                me->GetMotionMaster()->MoveSmoothPath(1, _path, PathSize::value, true);
+                me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), true);
             });
         });
     }
@@ -665,7 +642,7 @@ struct npc_bg_ab_lumberjack_wanderer : ScriptedAI
                     // Flags: 2432696320 (Unknown5, Steering, Unknown10)
                     // Although, in this path suddenly smooth path is being used
                     // Flags: 2436890624 (UncompressedPath, Unknown5, Steering, Unknown10)
-                    me->GetMotionMaster()->MoveSmoothPath(2, _pathBack, PathSizeBack::value, true);
+                    me->GetMotionMaster()->MoveSmoothPath(2, _pathBack, std::size(_pathBack), true);
                 });
                 break;
             case 2:
@@ -709,9 +686,6 @@ private:
         { 860.36804f, 1229.3802f, 13.751737f },
         { 854.49480f, 1233.6702f, 15.472480f }
     };
-
-    using PathSize = std::extent<decltype(_path)>;
-    using PathSizeBack = std::extent<decltype(_pathBack)>;
 };
 
 struct npc_bg_ab_lumberjack_passive : ScriptedAI
