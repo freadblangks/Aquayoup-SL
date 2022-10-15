@@ -728,9 +728,9 @@ struct npc_bg_ab_lumberjack : ScriptedAI
 };
 
 // Blacksmith
-struct npc_bg_ab_arathi_blacksmith_sitting : ScriptedAI
+struct npc_bg_ab_blacksmith_sitting : ScriptedAI
 {
-    npc_bg_ab_arathi_blacksmith_sitting(Creature* creature) : ScriptedAI(creature) { }
+    npc_bg_ab_blacksmith_sitting(Creature* creature) : ScriptedAI(creature) { }
 
     void JustAppeared() override
     {
@@ -738,6 +738,28 @@ struct npc_bg_ab_arathi_blacksmith_sitting : ScriptedAI
         _scheduler.Schedule(5s, 10s, [this](TaskContext context)
         {
             me->PlayOneShotAnimKitId(5182);
+            context.Repeat();
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+struct npc_bg_ab_blacksmith_talking : ScriptedAI
+{
+    npc_bg_ab_blacksmith_talking(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        _scheduler.Schedule(10s, 15s, [this](TaskContext context)
+        {
+            me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
             context.Repeat();
         });
     }
@@ -783,6 +805,7 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_lumberjack_wanderer);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_4);
     RegisterCreatureAI(npc_bg_ab_lumberjack_passive);
-    RegisterCreatureAI(npc_bg_ab_arathi_blacksmith_sitting);
+    RegisterCreatureAI(npc_bg_ab_blacksmith_sitting);
+    RegisterCreatureAI(npc_bg_ab_blacksmith_talking);
     RegisterCreatureAI(npc_bg_ab_farmer_talking);
 }
