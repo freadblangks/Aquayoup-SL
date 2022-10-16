@@ -1047,7 +1047,6 @@ private:
     TaskScheduler _scheduler;
 };
 
-
 // Spells
 // 261985 - Blacksmith Working
 class spell_bg_ab_blacksmith_working : public AuraScript
