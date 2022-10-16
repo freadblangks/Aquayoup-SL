@@ -18,6 +18,7 @@
 #include "MotionMaster.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "SpellScript.h"
 
 struct npc_bg_ab_arathor_gryphon_rider_leader : public ScriptedAI
 {
