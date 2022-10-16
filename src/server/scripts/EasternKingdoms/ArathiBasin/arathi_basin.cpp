@@ -768,6 +768,262 @@ private:
     TaskScheduler _scheduler;
 };
 
+struct npc_bg_ab_blacksmith_working_base : ScriptedAI
+{
+    static constexpr int32 ACTION_RESTORE_WEAPON = 1;
+    static constexpr uint32 SPELL_BLACKSMITH_WORKING = 261985;
+
+    npc_bg_ab_blacksmith_working_base(Creature* creature, uint32 createdItem, bool removeItem) : ScriptedAI(creature), _originalOrientation(0.0f), _createdItem(createdItem), _removeItem(removeItem) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        _originalOrientation = me->GetOrientation();
+        StartScript();
+    }
+
+    void MovementInform(uint32 /*type*/, uint32 id) override
+    {
+        switch (id)
+        {
+            case 1:
+                if (_removeItem)
+                    me->LoadEquipment(0, true);
+
+                me->SetEmoteState(EMOTE_STATE_USE_STANDING);
+                _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+                {
+                    me->SetEmoteState(EMOTE_ONESHOT_NONE);
+                    me->GetMotionMaster()->MoveSmoothPath(2, GetPath2(), GetPath2Size(), true);
+                });
+                break;
+            case 2:
+                me->SetFacingTo(_originalOrientation);
+                StartScript();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void DoAction(int32 actionId) override
+    {
+        switch (actionId)
+        {
+            case ACTION_RESTORE_WEAPON:
+                me->SetVirtualItem(0, _createdItem);
+                break;
+            default:
+                break;
+        }
+    }
+
+    void StartScript()
+    {
+        DoCastSelf(SPELL_BLACKSMITH_WORKING);
+        _scheduler.Schedule(10s, 20s, [this](TaskContext context)
+        {
+            me->SetFacingTo(5.829399585723876953f); // what's up with this facing? Its being used multiple times
+
+            context.Schedule(1s, [this](TaskContext /*context*/)
+            {
+                me->GetMotionMaster()->MoveSmoothPath(1, GetPath1(), GetPath1Size(), true);
+            });
+        });
+    }
+
+    virtual size_t GetPath1Size() const = 0;
+    virtual Position const* GetPath1() const = 0;
+    virtual size_t GetPath2Size() const = 0;
+    virtual Position const* GetPath2() const = 0;
+
+private:
+    TaskScheduler _scheduler;
+    float _originalOrientation;
+    uint32 _createdItem;
+    bool _removeItem;
+};
+
+struct npc_bg_ab_blacksmith_working_1 : npc_bg_ab_blacksmith_working_base
+{
+    static constexpr uint32 ITEM_SWORD_SCIMATAR_BADASS = 2179;
+    npc_bg_ab_blacksmith_working_1(Creature* creature) : npc_bg_ab_blacksmith_working_base(creature, ITEM_SWORD_SCIMATAR_BADASS, true) { }
+
+    size_t GetPath1Size() const override { return std::size(_path); }
+    Position const* GetPath1() const override { return _path; }
+    size_t GetPath2Size() const override { return std::size(_path2); }
+    Position const* GetPath2() const override { return _path2; }
+private:
+    Position const _path[5] =
+    {
+        { 972.2552f, 995.43750f, -44.371353f },
+        { 974.3698f, 998.61804f, -44.399430f },
+        { 974.4549f, 1000.1684f, -44.628548f },
+        { 974.7083f, 1003.1945f, -44.339120f },
+        { 976.2066f, 1005.1927f, -44.089120f }
+    };
+
+    Position const _path2[3] =
+    {
+        { 974.00000f, 1000.8090f, -44.497078f },
+        { 970.75867f, 997.15280f, -44.493546f },
+        { 967.70800f, 996.73785f, -44.027725f }
+    };
+};
+
+struct npc_bg_ab_blacksmith_working_2 : npc_bg_ab_blacksmith_working_base
+{
+    static constexpr uint32 ITEM_SWORD = 155799; // no name found
+    npc_bg_ab_blacksmith_working_2(Creature* creature) : npc_bg_ab_blacksmith_working_base(creature, ITEM_SWORD, false) { }
+
+    size_t GetPath1Size() const override { return std::size(_path); }
+    Position const* GetPath1() const override { return _path; }
+    size_t GetPath2Size() const override { return std::size(_path2); }
+    Position const* GetPath2() const override { return _path2; }
+
+private:
+    Position const _path[3] =
+    {
+        { 993.61285f, 1004.66140f, -42.179028f },
+        { 995.52344f, 1002.85455f, -42.179028f },
+        { 995.81250f, 1000.52780f, -42.426790f }
+    };
+
+    Position const _path2[3] =
+    {
+        { 995.12680f, 1005.9514f, -42.179028f },
+        { 992.38196f, 1005.8177f, -42.179028f },
+        { 988.95490f, 1005.0070f, -42.179030f }
+    };
+};
+
+struct npc_bg_ab_blacksmith_stone_carrier : ScriptedAI
+{
+    static constexpr uint32 SPELL_CARRY_STONE = 282906;
+
+    npc_bg_ab_blacksmith_stone_carrier(Creature* creature) : ScriptedAI(creature), _originalOrientation(0.0f) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        _originalOrientation = me->GetOrientation();
+        StartScript();
+    }
+
+    void MovementInform(uint32 /*type*/, uint32 id) override
+    {
+        switch (id)
+        {
+            case 1:
+                me->RemoveAurasDueToSpell(SPELL_CARRY_STONE);
+                me->SetEmoteState(EMOTE_STATE_USE_STANDING);
+                _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+                {
+                    me->SetEmoteState(EMOTE_ONESHOT_NONE);
+                    me->GetMotionMaster()->MoveSmoothPath(2, _path2, std::size(_path2), true);
+                });
+                break;
+            case 2:
+                me->SetFacingTo(_originalOrientation);
+                StartScript();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void StartScript()
+    {
+        me->SetEmoteState(EMOTE_STATE_USE_STANDING);
+        _scheduler.Schedule(5s, [this](TaskContext context)
+        {
+            me->SetEmoteState(EMOTE_ONESHOT_NONE);
+            me->SetFacingTo(5.340707302093505859f);
+            DoCastSelf(SPELL_CARRY_STONE);
+            context.Schedule(1s, [this](TaskContext /*context*/)
+            {
+                me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), true);
+            });
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+    float _originalOrientation;
+
+    Position const _path[28] =
+    {
+        { 975.20830f, 970.99830f, -44.298965f },
+        { 977.93054f, 968.85940f, -44.310684f },
+        { 980.48090f, 967.64580f, -44.676650f },
+        { 983.70830f, 966.57294f, -45.271420f },
+        { 983.70800f, 966.57324f, -44.986263f },
+        { 985.69434f, 966.33300f, -44.736263f },
+        { 986.68750f, 966.21290f, -44.486263f },
+        { 987.31250f, 966.13544f, -44.531185f },
+        { 991.44965f, 966.54865f, -43.586850f },
+        { 996.54340f, 967.62680f, -43.219130f },
+        { 999.69270f, 969.21010f, -43.496720f },
+        { 1002.9462f, 970.83160f, -43.768970f },
+        { 1006.0521f, 973.06600f, -43.890675f },
+        { 1008.3768f, 975.68230f, -43.877980f },
+        { 1010.1250f, 979.04690f, -43.887135f },
+        { 1011.0000f, 987.86115f, -43.916065f },
+        { 1010.8698f, 992.03300f, -44.185230f },
+        { 1009.9462f, 994.50696f, -44.191334f },
+        { 1008.6162f, 997.19630f, -44.435230f },
+        { 1008.2379f, 997.95830f, -44.361378f },
+        { 1006.3750f, 1000.4583f, -43.751490f },
+        { 1003.4427f, 1002.5417f, -42.423004f },
+        { 999.16670f, 1005.2535f, -42.599384f },
+        { 994.89060f, 1007.7465f, -42.179028f },
+        { 991.21010f, 1009.6059f, -42.179028f },
+        { 987.20490f, 1011.2656f, -42.658790f },
+        { 985.44100f, 1011.3264f, -42.672867f },
+        { 982.34204f, 1009.6250f, -42.658398f }
+    };
+
+    Position const _path2[28] =
+    {
+        { 984.96356f, 1012.9236f, -42.639954f },
+        { 982.86285f, 1014.7570f, -42.382156f },
+        { 978.98615f, 1017.9688f, -44.173225f },
+        { 974.40970f, 1020.5521f, -44.693733f },
+        { 970.86456f, 1019.9774f, -45.456795f },
+        { 968.49830f, 1019.3299f, -45.332040f },
+        { 966.33856f, 1018.0625f, -45.338310f },
+        { 964.56600f, 1015.5052f, -45.591484f },
+        { 963.10940f, 1011.6476f, -45.570244f },
+        { 961.63196f, 1006.4132f, -45.967705f },
+        { 958.08680f, 999.61804f, -47.041462f },
+        { 956.02780f, 996.21010f, -47.037556f },
+        { 954.94794f, 992.51390f, -47.363970f },
+        { 954.96180f, 990.39240f, -46.776447f },
+        { 957.01044f, 987.75350f, -45.411457f },
+        { 957.01074f, 987.75390f, -45.590656f },
+        { 957.99510f, 987.57910f, -45.215656f },
+        { 958.97950f, 987.40430f, -44.715656f },
+        { 959.79340f, 987.25867f, -44.386555f },
+        { 960.79297f, 987.27440f, -44.215656f },
+        { 962.79297f, 987.30566f, -43.965656f },
+        { 963.19100f, 987.31250f, -44.110188f },
+        { 966.20490f, 987.55383f, -43.965656f },
+        { 971.07640f, 986.16320f, -44.103043f },
+        { 972.71180f, 984.27080f, -44.174330f },
+        { 973.83160f, 981.18400f, -44.183730f },
+        { 974.39930f, 978.69965f, -44.251846f },
+        { 971.12850f, 976.04200f, -43.859390f }
+    };
+};
+
 // Farm
 struct npc_bg_ab_farmer_talking : ScriptedAI
 {
@@ -791,6 +1047,34 @@ private:
     TaskScheduler _scheduler;
 };
 
+
+// Spells
+// 261985 - Blacksmith Working
+class spell_bg_ab_blacksmith_working : public AuraScript
+{
+    PrepareAuraScript(spell_bg_ab_blacksmith_working);
+
+    static constexpr uint32 ITEM_BLACKSMITH_HAMMER = 5956;
+
+    void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetUnitOwner()->SetVirtualItem(0, ITEM_BLACKSMITH_HAMMER);
+    }
+
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (Unit* owner = GetUnitOwner())
+            if (UnitAI* ai = owner->GetAI())
+                ai->DoAction(npc_bg_ab_blacksmith_working_base::ACTION_RESTORE_WEAPON);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectRemoveFn(spell_bg_ab_blacksmith_working::OnApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_bg_ab_blacksmith_working::OnRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
 void AddSC_arathi_basin()
 {
     RegisterCreatureAI(npc_bg_ab_arathor_gryphon_rider_leader);
@@ -807,5 +1091,9 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_lumberjack_passive);
     RegisterCreatureAI(npc_bg_ab_blacksmith_sitting);
     RegisterCreatureAI(npc_bg_ab_blacksmith_talking);
+    RegisterCreatureAI(npc_bg_ab_blacksmith_working_1);
+    RegisterCreatureAI(npc_bg_ab_blacksmith_working_2);
+    RegisterCreatureAI(npc_bg_ab_blacksmith_stone_carrier);
     RegisterCreatureAI(npc_bg_ab_farmer_talking);
+    RegisterSpellScript(spell_bg_ab_blacksmith_working);
 }
