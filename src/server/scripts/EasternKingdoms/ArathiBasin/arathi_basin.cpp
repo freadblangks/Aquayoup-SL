@@ -20,6 +20,9 @@
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
 
+constexpr uint32 SPELL_BLACKSMITH_WORKING = 261985;
+
+// Horde & Alliance Base
 struct npc_bg_ab_arathor_gryphon_rider_leader : public ScriptedAI
 {
     npc_bg_ab_arathor_gryphon_rider_leader(Creature* creature) : ScriptedAI(creature) { }
@@ -242,6 +245,67 @@ private:
     };
 };
 
+struct npc_bg_ab_kevin_young : ScriptedAI
+{
+    static constexpr uint32 SPELL_BLACKSMITH_WORKING = 261985;
+    static constexpr uint32 PATH_1 = 100000000;
+    static constexpr uint32 PATH_2 = 100000001;
+
+    npc_bg_ab_kevin_young(Creature* creature) : ScriptedAI(creature), _originalOrientiation(creature->GetOrientation()) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        StartScript();
+    }
+
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
+    {
+        switch (pathId)
+        {
+            case PATH_1:
+                me->SetEmoteState(EMOTE_STATE_USE_STANDING);
+                _scheduler.Schedule(2s, [this](TaskContext context)
+                {
+                    me->SetEmoteState(EMOTE_STAND_STATE_NONE);
+                    me->SetFacingTo(3.141592741012573242f);
+                    context.Schedule(1s, [this](TaskContext /*context*/)
+                    {
+                        me->GetMotionMaster()->MovePath(PATH_2, false);
+                    });
+                });
+                break;
+            case PATH_2:
+                me->SetFacingTo(_originalOrientiation);
+                StartScript();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void StartScript()
+    {
+        DoCastSelf(SPELL_BLACKSMITH_WORKING);
+        _scheduler.Schedule(10s, 20s, [this](TaskContext context)
+        {
+            me->SetFacingTo(3.141592741012573242f);
+            context.Schedule(1s, [this](TaskContext /*context*/)
+            {
+                me->GetMotionMaster()->MovePath(PATH_1, false);
+            });
+        });
+    }
+
+private:
+    float _originalOrientiation;
+    TaskScheduler _scheduler;
+};
+
 // Lumber Mill
 struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
 {
@@ -258,7 +322,7 @@ struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
 
     static constexpr float orientation_path_back = 5.585053443908691406f;
 
-    npc_bg_ab_lumberjack_wood_carrier(Creature* creature) : ScriptedAI(creature), _startOrientation(0.0f)  { }
+    npc_bg_ab_lumberjack_wood_carrier(Creature* creature) : ScriptedAI(creature), _startOrientation(creature->GetOrientation())  { }
 
     virtual size_t GetPath1Size() const = 0;
     virtual Position const* GetPath1() const = 0;
@@ -273,7 +337,6 @@ struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
 
     void JustAppeared() override
     {
-        _startOrientation = me->GetOrientation();
         StartScript();
     }
 
@@ -771,10 +834,7 @@ private:
 
 struct npc_bg_ab_blacksmith_working_base : ScriptedAI
 {
-    static constexpr int32 ACTION_RESTORE_WEAPON = 1;
-    static constexpr uint32 SPELL_BLACKSMITH_WORKING = 261985;
-
-    npc_bg_ab_blacksmith_working_base(Creature* creature, uint32 createdItem, bool removeItem) : ScriptedAI(creature), _originalOrientation(0.0f), _createdItem(createdItem), _removeItem(removeItem) { }
+    npc_bg_ab_blacksmith_working_base(Creature* creature, bool removeItem) : ScriptedAI(creature), _originalOrientation(creature->GetOrientation()), _removeItem(removeItem) { }
 
     void UpdateAI(uint32 diff) override
     {
@@ -783,7 +843,6 @@ struct npc_bg_ab_blacksmith_working_base : ScriptedAI
 
     void JustAppeared() override
     {
-        _originalOrientation = me->GetOrientation();
         StartScript();
     }
 
@@ -811,24 +870,12 @@ struct npc_bg_ab_blacksmith_working_base : ScriptedAI
         }
     }
 
-    void DoAction(int32 actionId) override
-    {
-        switch (actionId)
-        {
-            case ACTION_RESTORE_WEAPON:
-                me->SetVirtualItem(0, _createdItem);
-                break;
-            default:
-                break;
-        }
-    }
-
     void StartScript()
     {
         DoCastSelf(SPELL_BLACKSMITH_WORKING);
         _scheduler.Schedule(10s, 20s, [this](TaskContext context)
         {
-            me->SetFacingTo(5.829399585723876953f); // what's up with this facing? Its being used multiple times
+            me->SetFacingTo(5.829399585723876953f);
 
             context.Schedule(1s, [this](TaskContext /*context*/)
             {
@@ -845,14 +892,12 @@ struct npc_bg_ab_blacksmith_working_base : ScriptedAI
 private:
     TaskScheduler _scheduler;
     float _originalOrientation;
-    uint32 _createdItem;
     bool _removeItem;
 };
 
 struct npc_bg_ab_blacksmith_working_1 : npc_bg_ab_blacksmith_working_base
 {
-    static constexpr uint32 ITEM_SWORD_SCIMATAR_BADASS = 2179;
-    npc_bg_ab_blacksmith_working_1(Creature* creature) : npc_bg_ab_blacksmith_working_base(creature, ITEM_SWORD_SCIMATAR_BADASS, true) { }
+    npc_bg_ab_blacksmith_working_1(Creature* creature) : npc_bg_ab_blacksmith_working_base(creature, true) { }
 
     size_t GetPath1Size() const override { return std::size(_path); }
     Position const* GetPath1() const override { return _path; }
@@ -878,8 +923,7 @@ private:
 
 struct npc_bg_ab_blacksmith_working_2 : npc_bg_ab_blacksmith_working_base
 {
-    static constexpr uint32 ITEM_SWORD = 155799; // no name found
-    npc_bg_ab_blacksmith_working_2(Creature* creature) : npc_bg_ab_blacksmith_working_base(creature, ITEM_SWORD, false) { }
+    npc_bg_ab_blacksmith_working_2(Creature* creature) : npc_bg_ab_blacksmith_working_base(creature, false) { }
 
     size_t GetPath1Size() const override { return std::size(_path); }
     Position const* GetPath1() const override { return _path; }
@@ -1064,8 +1108,8 @@ class spell_bg_ab_blacksmith_working : public AuraScript
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         if (Unit* owner = GetUnitOwner())
-            if (UnitAI* ai = owner->GetAI())
-                ai->DoAction(npc_bg_ab_blacksmith_working_base::ACTION_RESTORE_WEAPON);
+            if (Creature* creatureOwner = owner->ToCreature())
+                creatureOwner->LoadEquipment(creatureOwner->GetOriginalEquipmentId());
     }
 
     void Register() override
@@ -1082,6 +1126,7 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_the_black_bride);
     RegisterCreatureAI(npc_bg_ab_radulf_leder);
     RegisterCreatureAI(npc_bg_ab_dominic_masonwrite);
+    RegisterCreatureAI(npc_bg_ab_kevin_young);
     RegisterCreatureAI(npc_bg_ab_lumberjack);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_1);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_2);

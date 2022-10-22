@@ -2,6 +2,7 @@
 
 SET @CGUID := 10000000;
 SET @OGUID := 10000000;
+SET @WAYPOINT := 100000000;
 
 SET @SPAWNGROUP_HORDE_FARM := 1000;
 SET @SPAWNGROUP_HORDE_LUMBERMILL := 1001;
@@ -77,7 +78,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+24, 150501, 2107, 10053, 10521, '0', '0', 0, 0, 1, 656.09375, 636.46265, -9.3995950, 1.105017066001892089, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_the_black_bride', 44325), -- The Black Bride (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+25, 150647, 2107, 10053, 10521, '0', '0', 0, 0, 0, 675.07989501953125, 669.2899169921875, -12.5684747695922851, 1.537112712860107421, 7200, 0, 0, 27, 0, 0, 0, 0, 0, '', 44325), -- Basin Rat (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+26, 149786, 2107, 10053, 10521, '0', '0', 0, 0, 0, 602.65960693359375, 826.01800537109375, 68.0590057373046875, 3.483433485031127929, 7200, 10, 0, 4294, 0, 1, 0, 0, 0, '', 44325), -- Plains Creeper (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+27, 149755, 2107, 10053, 10521, '0', '0', 0, 0, 6, 1364.2379150390625, 1299.77783203125, -8.4645395278930664, 0.07065419852733612, 7200, 10, 0, 11791, 0, 1, 0, 0, 0, '', 44325), -- Kevin Young (Area: Defiler's Den - Difficulty: 0) (Auras: 261985 - Blacksmith Working) (possible waypoints or random movement)
+(@CGUID+27, 149755, 2107, 10053, 10521, '0', '0', 0, 0, 6, 1364.2379150390625, 1299.77783203125, -8.4645395278930664, 0.07065419852733612, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_kevin_young', 44325), -- Kevin Young (Area: Defiler's Den - Difficulty: 0) (Auras: 261985 - Blacksmith Working) (possible waypoints or random movement)
 (@CGUID+28, 150647, 2107, 10053, 10521, '0', '0', 0, 0, 0, 717.7391357421875, 660.68255615234375, -13.0123090744018554, 1.231605291366577148, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Basin Rat (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+29, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1107.2972412109375, 1280.739501953125, -45.0814323425292968, 5.295517921447753906, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+30, 150449, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1384.93408203125, 861.232666015625, 39.87235260009765625, 2.954025030136108398, 7200, 0, 0, 916, 0, 0, 0, 0, 0, '', 44325), -- Highland Bristleback (Area: Defiler's Den - Difficulty: 0)
@@ -296,15 +297,15 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+230, 15064, 2107, 10053, 10516, '0', '0', 0, 0, 2, 979.4617919921875, 1003.3992919921875, -42.8633880615234375, 3.48093271255493164, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_sitting', 44325), -- Forsaken Blacksmith (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+231, 15072, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1008.79681396484375, 1005.8079833984375, -44.0266914367675781, 6.248278617858886718, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Spike (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+232, 15064, 2107, 10053, 10516, '0', '0', 0, 0, 0, 971.12847900390625, 976.25518798828125, -43.8743324279785156, 2.090637445449829101, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_stone_carrier', 44325), -- Forsaken Blacksmith (Area: Lumber Mill - Difficulty: 0) (Auras: 282906 - Carry Stone)
-(@CGUID+233, 15064, 2107, 10053, 10516, '0', '0', 0, 0, 0, 967.42364501953125, 996.73785400390625, -43.9448280334472656, 2.711585760116577148, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_working_1', 44325); -- Forsaken Blacksmith (Area: Lumber Mill - Difficulty: 0) (Auras: 261985 - Blacksmith Working)
+(@CGUID+233, 15064, 2107, 10053, 10516, '0', '0', 0, 0, 4, 967.42364501953125, 996.73785400390625, -43.9448280334472656, 2.711585760116577148, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_working_1', 44325); -- Forsaken Blacksmith (Area: Lumber Mill - Difficulty: 0) (Auras: 261985 - Blacksmith Working)
 
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `PhaseId`, `PhaseGroup`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `ScriptName`, `VerifiedBuild`) VALUES
 
 -- BLACKSMITH (ALLIANCE)
 (@CGUID+234, 15065, 2107, 10053, 10514, '0', '0', 0, 0, 0, 1008.76611328125, 1005.79931640625, -44.0248184204101562, 6.213372230529785156, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Lady (Area: Blacksmith - Difficulty: 0)
 (@CGUID+235, 15066, 2107, 10053, 10514, '0', '0', 0, 0, 0, 1017.9132080078125, 1008.7742919921875, -44.3178443908691406, 4.465655803680419921, 7200, 0, 0, 118, 0, 0, 0, 0, 0, '', 44325), -- Cleo (Area: Blacksmith - Difficulty: 0)
-(@CGUID+236, 15063, 2107, 10053, 10514, '0', '0', 0, 0, 4, 967.42364501953125, 996.73785400390625, -43.9448280334472656, 2.711585760116577148, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_working_1', 44325), -- Arathi Blacksmith (Area: Blacksmith - Difficulty: 0) (Auras: 261985 - Blacksmith Working)
-(@CGUID+237, 15063, 2107, 10053, 10514, '0', '0', 0, 0, 4, 988.95489501953125, 1005.00701904296875, -42.1504898071289062, 3.150818347930908203, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_working_2', 44325), -- Arathi Blacksmith (Area: Blacksmith - Difficulty: 0) (Auras: 261985 - Blacksmith Working)
+(@CGUID+236, 15063, 2107, 10053, 10514, '0', '0', 0, 0, 3, 967.42364501953125, 996.73785400390625, -43.9448280334472656, 2.711585760116577148, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_working_1', 44325), -- Arathi Blacksmith (Area: Blacksmith - Difficulty: 0) (Auras: 261985 - Blacksmith Working)
+(@CGUID+237, 15063, 2107, 10053, 10514, '0', '0', 0, 0, 1, 988.95489501953125, 1005.00701904296875, -42.1504898071289062, 3.150818347930908203, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_working_2', 44325), -- Arathi Blacksmith (Area: Blacksmith - Difficulty: 0) (Auras: 261985 - Blacksmith Working)
 (@CGUID+238, 15063, 2107, 10053, 10514, '0', '0', 0, 0, 0, 971.12847900390625, 976.25518798828125, -43.8743324279785156, 2.090637445449829101, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_stone_carrier', 44325), -- Arathi Blacksmith (Area: Blacksmith - Difficulty: 0) (Auras: 262247 - Carry Crate)
 (@CGUID+239, 15063, 2107, 10053, 10514, '0', '0', 0, 0, 0, 978, 994.0538330078125, -43.8363761901855468, 5.185836315155029296, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_talking', 44325), -- Arathi Blacksmith (Area: Blacksmith - Difficulty: 0)
 (@CGUID+240, 15063, 2107, 10053, 10514, '0', '0', 0, 0, 0, 978.7742919921875, 992.14239501953125, -43.9096717834472656, 2.039242506027221679, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_blacksmith_talking', 44325), -- Arathi Blacksmith (Area: Blacksmith - Difficulty: 0)
@@ -521,3 +522,16 @@ UPDATE `creature_template` SET `unit_flags` = `unit_flags` | 0x100 | 0x200 WHERE
 DELETE FROM `spell_script_names` WHERE `ScriptName` IN ('spell_bg_ab_blacksmith_working');
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (261985, 'spell_bg_ab_blacksmith_working');
+
+-- waypoints
+
+DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+1;
+-- Kevin Young
+INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`) VALUES
+-- -- Path 1
+(@WAYPOINT+0, 1, 1361.5504, 1302.3229, -8.83024),
+(@WAYPOINT+0, 2, 1362.7517, 1303.1233, -8.924723),
+-- -- Path 2
+(@WAYPOINT+1, 1, 1361.2170, 1300.3594, -8.796671),
+(@WAYPOINT+1, 2, 1362.4202, 1299.8959, -8.533002),
+(@WAYPOINT+1, 3, 1364.2379, 1299.7778, -8.600507);
