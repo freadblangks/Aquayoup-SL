@@ -225,15 +225,15 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 -- STABLES (ALLIANCE)
 (@CGUID+170, 15107, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1157.76220703125, 1172.59033203125, -56.2799491882324218, 2.808322429656982421, 7200, 0, 0, 27, 0, 0, 0, 0, 0, '', 44325), -- Arathi Horse (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+171, 15107, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1181.2100830078125, 1153.0242919921875, -56.2896270751953125, 0, 7200, 0, 0, 27, 0, 0, 0, 0, 0, '', 44325), -- Arathi Horse (Area: Lumber Mill - Difficulty: 0)
-(@CGUID+172, 15086, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1172.9278564453125, 1173.1795654296875, -56.3817291259765625, 2.805151224136352539, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathi Stablehand (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+173, 15086, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1196.4251708984375, 1174.828857421875, -56.5686225891113281, 1.300989747047424316, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathi Stablehand (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+172, 15086, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1172.9278564453125, 1173.1795654296875, -56.3817291259765625, 2.805151224136352539, 7200, 0, 0, 11791, 0, 2, 0, 0, 0, '', 44325), -- Arathi Stablehand (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+173, 15086, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1196.217, 1174.0764, -56.75803, 0.798887610435485839, 7200, 0, 0, 11791, 0, 2, 0, 0, 0, '', 44325), -- Arathi Stablehand (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+174, 15086, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1194.7708740234375, 1190.2396240234375, -55.9351806640625, 0.811477959156036376, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathi Stablehand (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+175, 15107, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1187.3367919921875, 1192.09033203125, -55.82574462890625, 3.86099553108215332, 7200, 0, 0, 27, 0, 0, 0, 0, 0, '', 44325), -- Arathi Horse (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+176, 15107, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1173.68408203125, 1168.3316650390625, -56.3639869689941406, 2.164245128631591796, 7200, 0, 0, 27, 0, 0, 0, 0, 0, '', 44325), -- Arathi Horse (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+177, 15107, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1191.7066650390625, 1174.986083984375, -56.392364501953125, 0.310988456010818481, 7200, 0, 0, 27, 0, 0, 0, 0, 0, '', 44325), -- Arathi Horse (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+178, 15107, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1167.48095703125, 1159.8177490234375, -56.3874015808105468, 6.067793846130371093, 7200, 0, 0, 27, 0, 0, 0, 0, 0, '', 44325), -- Arathi Horse (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+179, 15086, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1207.6632080078125, 1197.0069580078125, -56.174530029296875, 1.940982580184936523, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathi Stablehand (Area: Lumber Mill - Difficulty: 0)
-(@CGUID+180, 15086, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1207.4913330078125, 1198.98095703125, -56.1753044128417968, 5.04430246353149414, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathi Stablehand (Area: Lumber Mill - Difficulty: 0)
+(@CGUID+178, 15107, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1167.48095703125, 1159.8177490234375, -56.3874015808105468, 6.067793846130371093, 7200, 15, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Arathi Horse (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+179, 15086, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1207.6632080078125, 1197.0069580078125, -56.174530029296875, 1.940982580184936523, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_stablehand_talking', 44325), -- Arathi Stablehand (Area: Lumber Mill - Difficulty: 0)
+(@CGUID+180, 15086, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1207.4913330078125, 1198.98095703125, -56.1753044128417968, 5.04430246353149414, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_stablehand_talking', 44325), -- Arathi Stablehand (Area: Lumber Mill - Difficulty: 0)
 
 -- FARM (HORDE)
 (@CGUID+181, 150443, 2107, 10053, 10516, '0', '0', 0, 0, 0, 789.80035400390625, 829.967041015625, -55.4852371215820312, 0, 7200, 0, 0, 1, 0, 0, 0, 0, 0, '', 44325), -- Chicken (Area: Lumber Mill - Difficulty: 0)
@@ -314,15 +314,15 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 
 -- STABLES (HORDE)
 (@CGUID+243, 15108, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1157.76220703125, 1172.59033203125, -56.2799491882324218, 2.808322429656982421, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Horse (Area: Farm - Difficulty: 0)
-(@CGUID+244, 15108, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1167.48095703125, 1159.8177490234375, -56.3874015808105468, 0, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Horse (Area: Farm - Difficulty: 0)
+(@CGUID+244, 15108, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1167.48095703125, 1159.8177490234375, -56.3874015808105468, 0, 7200, 15, 0, 11791, 0, 1, 0, 0, 0, '', 44325), -- Forsaken Horse (Area: Farm - Difficulty: 0)
 (@CGUID+245, 15108, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1181.2100830078125, 1153.0242919921875, -56.2896270751953125, 0, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Horse (Area: Farm - Difficulty: 0)
-(@CGUID+246, 15087, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1173.6597900390625, 1172.923583984375, -56.3418312072753906, 2.805151224136352539, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Stablehand (Area: Farm - Difficulty: 0)
-(@CGUID+247, 15087, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1207.6632080078125, 1197.0069580078125, -56.174530029296875, 1.940982580184936523, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Stablehand (Area: Farm - Difficulty: 0)
+(@CGUID+246, 15087, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1173.6597900390625, 1172.923583984375, -56.3418312072753906, 2.805151224136352539, 7200, 0, 0, 11791, 0, 2, 0, 0, 0, '', 44325), -- Forsaken Stablehand (Area: Farm - Difficulty: 0)
+(@CGUID+247, 15087, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1207.6632080078125, 1197.0069580078125, -56.174530029296875, 1.940982580184936523, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_stablehand_talking', 44325), -- Forsaken Stablehand (Area: Farm - Difficulty: 0)
 (@CGUID+248, 15108, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1173.68408203125, 1168.3316650390625, -56.3639869689941406, 2.576671123504638671, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Horse (Area: Farm - Difficulty: 0)
 (@CGUID+249, 15108, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1187.3367919921875, 1192.09033203125, -55.82574462890625, 3.86099553108215332, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Horse (Area: Farm - Difficulty: 0)
 (@CGUID+250, 15108, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1191.7066650390625, 1174.986083984375, -56.392364501953125, 0.798887610435485839, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Horse (Area: Farm - Difficulty: 0)
-(@CGUID+251, 15087, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1207.4913330078125, 1198.98095703125, -56.1753044128417968, 5.04430246353149414, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Stablehand (Area: Farm - Difficulty: 0)
-(@CGUID+252, 15087, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1196.217041015625, 1174.076416015625, -56.6059036254882812, 1.300989747047424316, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Stablehand (Area: Farm - Difficulty: 0)
+(@CGUID+251, 15087, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1207.4913330078125, 1198.98095703125, -56.1753044128417968, 5.04430246353149414, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_stablehand_talking', 44325), -- Forsaken Stablehand (Area: Farm - Difficulty: 0)
+(@CGUID+252, 15087, 2107, 10053, 10517, '0', '0', 0, 0, 0, 1196.217, 1174.0764, -56.75803, 0.798887610435485839, 7200, 0, 0, 11791, 0, 2, 0, 0, 0, '', 44325), -- Forsaken Stablehand (Area: Farm - Difficulty: 0)
 
 -- HONORABLE DEFENDERS
 -- no create object found for those, positions are based on the capture points (like core did already)
@@ -432,11 +432,19 @@ INSERT INTO `spawn_group` (`groupId`, `spawnType`, `spawnId`) VALUES
 (@SPAWNGROUP_ALLIANCE_STABLES, 0, @CGUID+179),
 (@SPAWNGROUP_ALLIANCE_STABLES, 0, @CGUID+180);
 
--- they do not seem to follow leader when leader moves with c++ script
-DELETE FROM `creature_formations` WHERE `memberGUID` IN (@CGUID+153,  @CGUID+158) OR `leaderGUID` IN (@CGUID+65);
+DELETE FROM `creature_formations` WHERE `memberGUID` IN (@CGUID+153, @CGUID+158, @CGUID+176, @CGUID+177, @CGUID+247, @CGUID+248, @CGUID+250) OR `leaderGUID` IN (@CGUID+65, @CGUID+172, @CGUID+173, @CGUID+246, @CGUID+252);
 INSERT INTO `creature_formations` (`leaderGUID`, `memberGUID`, `dist`, `angle`, `groupAI`, `point_1`, `point_2`) VALUES
+(@CGUID+65, @CGUID+65, 0, 0, 515, 0, 0),
 (@CGUID+65, @CGUID+153, 10, 135, 515, 0, 0),
-(@CGUID+65, @CGUID+158, 10, 225, 515, 0, 0);
+(@CGUID+65, @CGUID+158, 10, 225, 515, 0, 0),
+(@CGUID+172, @CGUID+172, 0, 0, 515, 0, 0),
+(@CGUID+172, @CGUID+176, 4.5, 315, 515, 0, 0),
+(@CGUID+173, @CGUID+173, 0, 0, 515, 0, 0),
+(@CGUID+173, @CGUID+177, 4.5, 315, 515, 0, 0),
+(@CGUID+246, @CGUID+246, 0, 0, 515, 0, 0),
+(@CGUID+246, @CGUID+248, 4.5, 315, 515, 0, 0),
+(@CGUID+252, @CGUID+252, 0, 0, 515, 0, 0),
+(@CGUID+252, @CGUID+250, 4.5, 315, 515, 0, 0);
 
 -- movement templates
 DELETE FROM `creature_movement_override` WHERE `SpawnId` BETWEEN @CGUID+0 AND @CGUID+262;
@@ -452,8 +460,12 @@ DELETE FROM `creature_addon` WHERE `guid` BETWEEN @CGUID+0 AND @CGUID+262;
 INSERT INTO `creature_addon` (`guid`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES
 (@CGUID+102, 0, 0, 0, 1, 0, 0, 0, 0, 3, '285977'), -- Bound Arathi Rager - 285977 - Earth Channel Omni
 (@CGUID+126, 0, 0, 0, 1, 0, 0, 0, 0, 3, '285977'), -- Bound Arathi Rager - 285977 - Earth Channel Omni
+(@CGUID+172, @WAYPOINT+2, 0, 0, 1, 0, 0, 0, 0, 0, ''), -- Arathi Stablehand
+(@CGUID+173, @WAYPOINT+3, 0, 0, 1, 0, 0, 0, 0, 0, ''), -- Arathi Stablehand
 (@CGUID+227, 0, 0, 0, 1, 0, 0, 0, 0, 0, '261985'), -- Forsaken Blacksmith - 261985 - Blacksmith Working
 (@CGUID+241, 0, 0, 0, 1, 0, 0, 0, 0, 0, '261985'), -- Forsaken Blacksmith - 261985 - Blacksmith Working
+(@CGUID+246, @WAYPOINT+2, 0, 0, 1, 0, 0, 0, 0, 0, ''), -- Forsaken Stablehand
+(@CGUID+252, @WAYPOINT+3, 0, 0, 1, 0, 0, 0, 0, 0, ''), -- Forsaken Stablehand
 (@CGUID+253, 0, 0, 0, 1, 0, 0, 0, 0, 0, '66157'), -- World Trigger (Horde Friendly + Invis Man) - 66157 - Honorable Defender
 (@CGUID+254, 0, 0, 0, 1, 0, 0, 0, 0, 0, '66157'), -- World Trigger (Alliance Friendly + Invis Man) - 66157 - Honorable Defender
 (@CGUID+255, 0, 0, 0, 1, 0, 0, 0, 0, 0, '66157'), -- World Trigger (Horde Friendly + Invis Man) - 66157 - Honorable Defender
@@ -523,15 +535,72 @@ DELETE FROM `spell_script_names` WHERE `ScriptName` IN ('spell_bg_ab_blacksmith_
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (261985, 'spell_bg_ab_blacksmith_working');
 
--- waypoints
-
-DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+1;
+-- waypoint scripts
+DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+3;
 -- Kevin Young
-INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`) VALUES
+INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `orientation`) VALUES
 -- -- Path 1
-(@WAYPOINT+0, 1, 1361.5504, 1302.3229, -8.83024),
-(@WAYPOINT+0, 2, 1362.7517, 1303.1233, -8.924723),
+(@WAYPOINT+0, 1, 1361.5504, 1302.3229, -8.83024, NULL),
+(@WAYPOINT+0, 2, 1362.7517, 1303.1233, -8.924723, NULL),
 -- -- Path 2
-(@WAYPOINT+1, 1, 1361.2170, 1300.3594, -8.796671),
-(@WAYPOINT+1, 2, 1362.4202, 1299.8959, -8.533002),
-(@WAYPOINT+1, 3, 1364.2379, 1299.7778, -8.600507);
+(@WAYPOINT+1, 1, 1361.2170, 1300.3594, -8.796671, NULL),
+(@WAYPOINT+1, 2, 1362.4202, 1299.8959, -8.533002, NULL),
+(@WAYPOINT+1, 3, 1364.2379, 1299.7778, -8.600507, NULL),
+-- Forksane Stablehand (@CGUID+246) & Arathi Stablehand (@CGUID+172)
+(@WAYPOINT+2, 1, 1168.0868, 1175.5591, -56.53989, NULL),
+(@WAYPOINT+2, 2, 1164.5139, 1175.382, -56.555138, NULL),
+(@WAYPOINT+2, 3, 1162.6632, 1173.7223, -56.38717, NULL),
+(@WAYPOINT+2, 4, 1158.8767, 1168.1892, -56.305138, NULL),
+(@WAYPOINT+2, 5, 1157.8298, 1166.2639, -56.33967, NULL),
+(@WAYPOINT+2, 6, 1157.3524, 1163.5747, -56.33967, NULL),
+(@WAYPOINT+2, 7, 1157.3577, 1160.342, -56.356636, NULL),
+(@WAYPOINT+2, 8, 1157.7188, 1157.8021, -56.46467, NULL),
+(@WAYPOINT+2, 9, 1158.3021, 1155.125, -56.845894, NULL),
+(@WAYPOINT+2, 10, 1159.0192, 1152.8854, -56.74848, NULL),
+(@WAYPOINT+2, 11, 1159.9185, 1151.0591, -56.529243, NULL),
+(@WAYPOINT+2, 12, 1161.1007, 1148.7812, -56.4842, NULL),
+(@WAYPOINT+2, 13, 1162.9166, 1146.7743, -56.265083, NULL),
+(@WAYPOINT+2, 14, 1164.4115, 1145.8212, -56.33967, NULL),
+(@WAYPOINT+2, 15, 1166.5122, 1145.2969, -56.33967, NULL),
+(@WAYPOINT+2, 16, 1169.224, 1145.0295, -56.16866, NULL),
+(@WAYPOINT+2, 17, 1172.2743, 1145.6979, -56.04366, NULL),
+(@WAYPOINT+2, 18, 1175.724, 1147.474, -56.16866, NULL),
+(@WAYPOINT+2, 19, 1176.6823, 1148.6233, -56.190876, NULL),
+(@WAYPOINT+2, 20, 1177.4618, 1152.8091, -56.31075, NULL),
+(@WAYPOINT+2, 21, 1177.5017, 1155.7743, -56.41866, NULL),
+(@WAYPOINT+2, 22, 1177.5382, 1158.7535, -56.426594, NULL),
+(@WAYPOINT+2, 23, 1177.4288, 1161.132, -56.41866, NULL),
+(@WAYPOINT+2, 24, 1177.3247, 1162.9375, -56.41866, NULL),
+(@WAYPOINT+2, 25, 1175.9774, 1166.3004, -56.41866, NULL),
+(@WAYPOINT+2, 26, 1173.6598, 1172.9236, -56.388157, 2.576671123504638671),
+-- Forsaken Stablehand (@CGUID+252) & Arathi Stablehand (@CGUID+173)
+(@WAYPOINT+3, 1, 1197.5729, 1178.9827, -56.41489, NULL),
+(@WAYPOINT+3, 2, 1199.8976, 1181.3785, -56.46506, NULL),
+(@WAYPOINT+3, 3, 1201.481, 1185.2084, -56.59116, NULL),
+(@WAYPOINT+3, 4, 1201.9791, 1187.9149, -56.46616, NULL),
+(@WAYPOINT+3, 5, 1201.8854, 1190.375, -56.46616, NULL),
+(@WAYPOINT+3, 6, 1200.2274, 1193.618, -56.46616, NULL),
+(@WAYPOINT+3, 7, 1198.7048, 1195.9375, -56.41489, NULL),
+(@WAYPOINT+3, 8, 1196.9098, 1198.151, -56.28989, NULL),
+(@WAYPOINT+3, 9, 1194.1945, 1200.2118, -56.350773, NULL),
+(@WAYPOINT+3, 10, 1190.4757, 1201.0243, -56.37409, NULL),
+(@WAYPOINT+3, 11, 1188.1545, 1200.717, -56.212223, NULL),
+(@WAYPOINT+3, 12, 1185.6927, 1199.5087, -56.28989, NULL),
+(@WAYPOINT+3, 13, 1183.0938, 1197.4098, -56.232273, NULL),
+(@WAYPOINT+3, 14, 1178.3942, 1192.8091, -56.28989, NULL),
+(@WAYPOINT+3, 15, 1174.033, 1188.9236, -56.128025, NULL),
+(@WAYPOINT+3, 16, 1171.1615, 1187.4827, -56.28989, NULL),
+(@WAYPOINT+3, 17, 1169.3142, 1186.9479, -56.28989, NULL),
+(@WAYPOINT+3, 18, 1167.8142, 1185.4062, -56.28989, NULL),
+(@WAYPOINT+3, 19, 1167.1163, 1183.3055, -56.28989, NULL),
+(@WAYPOINT+3, 20, 1170.1875, 1179.632, -56.421604, NULL),
+(@WAYPOINT+3, 21, 1173.1459, 1177.6198, -56.28989, NULL),
+(@WAYPOINT+3, 22, 1176.9219, 1174.7274, -56.28989, NULL),
+(@WAYPOINT+3, 23, 1178.8976, 1172.125, -56.28989, NULL),
+(@WAYPOINT+3, 24, 1179.5712, 1169.3976, -56.135838, NULL),
+(@WAYPOINT+3, 25, 1180.3229, 1167.0851, -56.41489, NULL),
+(@WAYPOINT+3, 26, 1182.2952, 1164.8785, -56.41866, NULL),
+(@WAYPOINT+3, 27, 1185.9185, 1163.3177, -56.29598, NULL),
+(@WAYPOINT+3, 28, 1188.5365, 1163.7882, -56.29366, NULL),
+(@WAYPOINT+3, 29, 1190.0399, 1166.0885, -56.29366, NULL),
+(@WAYPOINT+3, 30, 1196.217, 1174.0764, -56.75803, 0.798887610435485839);

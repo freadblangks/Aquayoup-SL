@@ -1092,6 +1092,29 @@ private:
     TaskScheduler _scheduler;
 };
 
+// Stables
+struct npc_bg_ab_stablehand_talking : ScriptedAI
+{
+    npc_bg_ab_stablehand_talking(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+        {
+            me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
+            context.Repeat();
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
 // Spells
 // 261985 - Blacksmith Working
 class spell_bg_ab_blacksmith_working : public AuraScript
@@ -1140,5 +1163,6 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_blacksmith_working_2);
     RegisterCreatureAI(npc_bg_ab_blacksmith_stone_carrier);
     RegisterCreatureAI(npc_bg_ab_farmer_talking);
+    RegisterCreatureAI(npc_bg_ab_stablehand_talking);
     RegisterSpellScript(spell_bg_ab_blacksmith_working);
 }
