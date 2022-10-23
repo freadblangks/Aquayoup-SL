@@ -247,11 +247,10 @@ private:
 
 struct npc_bg_ab_kevin_young : ScriptedAI
 {
-    static constexpr uint32 SPELL_BLACKSMITH_WORKING = 261985;
     static constexpr uint32 PATH_1 = 100000000;
     static constexpr uint32 PATH_2 = 100000001;
 
-    npc_bg_ab_kevin_young(Creature* creature) : ScriptedAI(creature), _originalOrientiation(creature->GetOrientation()) { }
+    npc_bg_ab_kevin_young(Creature* creature) : ScriptedAI(creature) { }
 
     void UpdateAI(uint32 diff) override
     {
@@ -269,18 +268,13 @@ struct npc_bg_ab_kevin_young : ScriptedAI
         {
             case PATH_1:
                 me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-                _scheduler.Schedule(2s, [this](TaskContext context)
+                _scheduler.Schedule(2s, [this](TaskContext /*context*/)
                 {
                     me->SetEmoteState(EMOTE_STAND_STATE_NONE);
-                    me->SetFacingTo(3.141592741012573242f);
-                    context.Schedule(1s, [this](TaskContext /*context*/)
-                    {
-                        me->GetMotionMaster()->MovePath(PATH_2, false);
-                    });
+                    me->GetMotionMaster()->MovePath(PATH_2, false);
                 });
                 break;
             case PATH_2:
-                me->SetFacingTo(_originalOrientiation);
                 StartScript();
                 break;
             default:
@@ -302,7 +296,6 @@ struct npc_bg_ab_kevin_young : ScriptedAI
     }
 
 private:
-    float _originalOrientiation;
     TaskScheduler _scheduler;
 };
 
@@ -1142,10 +1135,7 @@ struct npc_bg_ab_farmer_working_base : ScriptedAI
         }
         else if (pathId == _pathId2)
         {
-            _scheduler.Schedule(1500ms, [this](TaskContext /*context*/)
-            {
-                StartScript();
-            });
+            StartScript();
         }
     }
 
@@ -1256,7 +1246,7 @@ struct npc_bg_ab_farmer_wanderer : ScriptedAI
         {
             case PATH_1:
                 me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-                _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+                _scheduler.Schedule(5s, 10s, [this](TaskContext /*context*/)
                 {
                     me->SetEmoteState(EMOTE_ONESHOT_NONE);
                     me->GetMotionMaster()->MovePath(PATH_2, false);
@@ -1305,6 +1295,117 @@ struct npc_bg_ab_stablehand_talking : ScriptedAI
 
 private:
     TaskScheduler _scheduler;
+};
+
+// Gold Mine
+struct npc_bg_ab_miner_talking : ScriptedAI
+{
+    npc_bg_ab_miner_talking(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        _scheduler.Schedule(5s, 15s, [this](TaskContext context)
+        {
+            me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
+            context.Repeat();
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+constexpr uint32 SPELL_CARRY_SACK = 175121;
+
+struct npc_bg_ab_miner_working_base : ScriptedAI
+{
+    static constexpr uint32 SPELL_CARRY_SACK = 175121;
+
+    npc_bg_ab_miner_working_base(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 pathId3) : ScriptedAI(creature), _pathId1(pathId1), _pathId2(pathId2), _pathId3(pathId3) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        StartScript();
+    }
+
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
+    {
+        if (pathId == _pathId1)
+        {
+            me->SetAIAnimKitId(1320);
+            _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+            {
+                me->SetAIAnimKitId(0);
+                DoCastSelf(SPELL_CARRY_SACK);
+                context.Schedule(1s, [this](TaskContext /*context*/)
+                {
+                    me->GetMotionMaster()->MovePath(_pathId2, false);
+                });
+            });
+        }
+        else if (pathId == _pathId2)
+        {
+            me->RemoveAurasDueToSpell(SPELL_CARRY_SACK);
+            me->SetEmoteState(EMOTE_STATE_USE_STANDING);
+            _scheduler.Schedule(10s, [this](TaskContext /*context*/)
+            {
+                me->SetEmoteState(EMOTE_ONESHOT_NONE);
+                me->GetMotionMaster()->MovePath(_pathId3, false);
+            });
+        }
+        else if (pathId == _pathId3)
+        {
+            StartScript();
+        }
+    }
+
+    void StartScript()
+    {
+        me->GetMotionMaster()->MovePath(_pathId1, false);
+    }
+
+private:
+    TaskScheduler _scheduler;
+    uint32 _pathId1;
+    uint32 _pathId2;
+    uint32 _pathId3;
+};
+
+struct npc_bg_ab_miner_working_1 : npc_bg_ab_miner_working_base
+{
+    static constexpr uint32 PATH_1 = 100000022;
+    static constexpr uint32 PATH_2 = 100000023;
+    static constexpr uint32 PATH_3 = 100000024;
+
+    npc_bg_ab_miner_working_1(Creature* creature) : npc_bg_ab_miner_working_base(creature, PATH_1, PATH_2, PATH_3) { }
+};
+
+struct npc_bg_ab_miner_working_2 : npc_bg_ab_miner_working_base
+{
+    static constexpr uint32 PATH_1 = 100000025;
+    static constexpr uint32 PATH_2 = 100000026;
+    static constexpr uint32 PATH_3 = 100000027;
+
+    npc_bg_ab_miner_working_2(Creature* creature) : npc_bg_ab_miner_working_base(creature, PATH_1, PATH_2, PATH_3) { }
+};
+
+struct npc_bg_ab_miner_working_3 : npc_bg_ab_miner_working_base
+{
+    static constexpr uint32 PATH_1 = 100000028;
+    static constexpr uint32 PATH_2 = 100000029;
+    static constexpr uint32 PATH_3 = 100000030;
+
+    npc_bg_ab_miner_working_3(Creature* creature) : npc_bg_ab_miner_working_base(creature, PATH_1, PATH_2, PATH_3) { }
 };
 
 // Spells
@@ -1366,5 +1467,9 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_farmer_working_8);
     RegisterCreatureAI(npc_bg_ab_farmer_wanderer);
     RegisterCreatureAI(npc_bg_ab_stablehand_talking);
+    RegisterCreatureAI(npc_bg_ab_miner_talking);
+    RegisterCreatureAI(npc_bg_ab_miner_working_1);
+    RegisterCreatureAI(npc_bg_ab_miner_working_2);
+    RegisterCreatureAI(npc_bg_ab_miner_working_3);
     RegisterSpellScript(spell_bg_ab_blacksmith_working);
 }
