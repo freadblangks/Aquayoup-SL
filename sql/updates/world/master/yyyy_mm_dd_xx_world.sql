@@ -49,7 +49,7 @@ INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`, `WorldEffe
 (322274, 1375, 33, 0, 0), -- Horde Door
 (322273, 1375, 33, 0, 0); -- Alliance Door
 
-DELETE FROM `creature` WHERE `guid` BETWEEN @CGUID+0 AND @CGUID+262;
+DELETE FROM `creature` WHERE `guid` BETWEEN @CGUID+0 AND @CGUID+287;
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `PhaseId`, `PhaseGroup`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `ScriptName`, `VerifiedBuild`) VALUES
 (@CGUID+0, 150647, 2107, 10053, 10521, '0', '0', 0, 0, 0, 719.01318359375, 631.47576904296875, -10.4975643157958984, 1.681953787803649902, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Basin Rat (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+1, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 700.219482421875, 755.3856201171875, -23.5969429016113281, 1.819434046745300292, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -250,7 +250,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+192, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 845.685791015625, 812.9617919921875, -50.7067489624023437, 1.819554686546325683, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_shouting', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+193, 4075, 2107, 10053, 10516, '0', '0', 0, 0, 0, 835.57061767578125, 807.02935791015625, -57.1240196228027343, 6.072569847106933593, 7200, 10, 0, 5, 0, 1, 0, 0, 0, '', 44325), -- Rat (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+194, 150443, 2107, 10053, 10516, '0', '0', 0, 0, 0, 815.5980224609375, 827.02947998046875, -56.5844612121582031, 5.315833568572998046, 7200, 10, 0, 1, 0, 1, 0, 0, 0, '', 44325), -- Chicken (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+195, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 789.4461669921875, 815.8992919921875, -56.2427864074707031, 3.338526010513305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+195, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 789.4461669921875, 815.8992919921875, -56.2427864074707031, 3.338526010513305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_wanderer', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+196, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 830.52777099609375, 823.3367919921875, -57.7775764465332031, 1.02881479263305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_3', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+197, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 811.34375, 783.17535400390625, -57.2960281372070312, 2.273226261138916015, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_talking', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+198, 4075, 2107, 10053, 10516, '0', '0', 0, 0, 0, 821.537353515625, 867.22613525390625, -57.7848434448242187, 4.078652381896972656, 7200, 10, 0, 5, 0, 1, 0, 0, 0, '', 44325), -- Rat (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
@@ -258,7 +258,6 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+200, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 831.953125, 870.5625, -58.0505104064941406, 4.234867572784423828, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_8', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+201, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 810.529541015625, 784.89581298828125, -57.4264144897460937, 5.515162467956542968, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_talking', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+202, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 837.6805419921875, 852.9288330078125, -57.4091415405273437, 3.991605520248413085, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_7', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-
 
 -- LUMBER MILL (HORDE)
 (@CGUID+203, 15089, 2107, 10053, 10516, '0', '0', 0, 0, 2, 852.6875, 1236.064208984375, 15.5935516357421875, 0.13475009799003601, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack_passive', 44325), -- Forsaken Lumberjack (Area: Lumber Mill - Difficulty: 0)
@@ -274,7 +273,6 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+213, 15089, 2107, 10053, 10516, '0', '0', 0, 0, 1, 867.34722900390625, 1280.8785400390625, 25.11534881591796875, 1.559418201446533203, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack', 44325), -- Forsaken Lumberjack (Area: Lumber Mill - Difficulty: 0) (Auras: 290604 - Lumberjackin')
 (@CGUID+214, 15089, 2107, 10053, 10516, '0', '0', 0, 0, 1, 753.4132080078125, 1059.0885009765625, 11.60284328460693359, 4.122416973114013671, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack', 44325), -- Forsaken Lumberjack (Area: Lumber Mill - Difficulty: 0) (Auras: 290604 - Lumberjackin')
 (@CGUID+215, 15089, 2107, 10053, 10516, '0', '0', 0, 0, 1, 911.7725830078125, 1252.185791015625, 13.25510692596435546, 5.554555892944335937, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack', 44325), -- Forsaken Lumberjack (Area: Lumber Mill - Difficulty: 0) (Auras: 290604 - Lumberjackin')
-
 
 -- GOLD MINE (ALLIANCE)
 (@CGUID+216, 15074, 2107, 10053, 10516, '0', '0', 0, 0, 0, 1201.4791259765625, 757.44793701171875, -78.8430328369140625, 1.773384571075439453, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathi Miner (Area: Lumber Mill - Difficulty: 0)
@@ -340,10 +338,40 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+260, 20213, 2107, 0, 0, '0', '0', 0, 0, 0, 1146.9288330078125, 848.2274169921875, -110.917579650878906, 2.417101383209228515, 7200, 0, 0, 0, 0, 0, 0, 0, 0, '', 44325), -- World Trigger (Alliance Friendly + Invis Man)
 -- STABLES
 (@CGUID+261, 20212, 2107, 0, 0, '0', '0', 0, 0, 0, 1166.85595703125, 1200.12158203125, -56.3867416381835937, 0.886092901229858398, 7200, 0, 0, 0, 0, 0, 0, 0, 0, '', 44325), -- World Trigger (Horde Friendly + Invis Man)
-(@CGUID+262, 20213, 2107, 0, 0, '0', '0', 0, 0, 0, 1166.85595703125, 1200.12158203125, -56.3867416381835937, 0.886092901229858398, 7200, 0, 0, 0, 0, 0, 0, 0, 0, '', 44325); -- World Trigger (Alliance Friendly + Invis Man)
+(@CGUID+262, 20213, 2107, 0, 0, '0', '0', 0, 0, 0, 1166.85595703125, 1200.12158203125, -56.3867416381835937, 0.886092901229858398, 7200, 0, 0, 0, 0, 0, 0, 0, 0, '', 44325), -- World Trigger (Alliance Friendly + Invis Man)
+
+-- LUMBER MILL (ALLIANCE)
+(@CGUID+263, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 2, 924.763916015625, 1302.88720703125, 22.37109375, 2.183487892150878906, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin')
+(@CGUID+264, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 0, 904.35418701171875, 1182.953125, 3.927566051483154296, 5.970508098602294921, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack_wood_carrier_2', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin') (possible waypoints or random movement)
+(@CGUID+265, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 2, 752.47918701171875, 1236.529541015625, 25.32699966430664062, 2.994447708129882812, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin')
+(@CGUID+266, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 0, 825.779541015625, 1255.8836669921875, 22.23864173889160156, 0.499742180109024047, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack_wood_carrier_4', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin') (possible waypoints or random movement)
+(@CGUID+267, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 0, 757.3975830078125, 1162.171875, 20.36017227172851562, 3.34941720962524414, 7200, 10, 0, 11791, 0, 1, 0, 0, 0, 'npc_bg_ab_lumberjack_wood_carrier_1', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin') (possible waypoints or random movement)
+(@CGUID+268, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 1, 854.97918701171875, 1236.6910400390625, 15.65137004852294921, 4.472290515899658203, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack_passive', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0)
+(@CGUID+269, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 2, 753.4132080078125, 1059.0885009765625, 11.60284328460693359, 4.122416973114013671, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin')
+(@CGUID+270, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 0, 814.2882080078125, 1096.765625, 10.53528881072998046, 4.617629528045654296, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack_wood_carrier_3', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin') (possible waypoints or random movement)
+(@CGUID+271, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 2, 867.34722900390625, 1280.8785400390625, 25.11534881591796875, 1.559418201446533203, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin')
+(@CGUID+272, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 2, 911.7725830078125, 1252.185791015625, 13.25510692596435546, 5.554555892944335937, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin')
+(@CGUID+273, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 0, 854.49481201171875, 1233.670166015625, 15.39551734924316406, 1.891628742218017578, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack_wanderer', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+274, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 1, 852.6875, 1236.064208984375, 15.5935516357421875, 0.13475009799003601, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack_passive', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0)
+(@CGUID+275, 15062, 2107, 10053, 10519, '0', '0', 0, 0, 2, 761.328125, 1127.359375, 19.03442955017089843, 6.225657939910888671, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_lumberjack', 45745), -- Arathi Lumberjack (Area: Gold Mine - Difficulty: 0) (Auras: 290604 - Lumberjackin')
+
+-- FARM (ALLIANCE)
+(@CGUID+276, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 0, 845.685791015625, 812.9617919921875, -50.7067489624023437, 1.819554686546325683, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_shouting', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+277, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 0, 810.529541015625, 784.89581298828125, -57.4264144897460937, 5.515162467956542968, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_talking', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+278, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 1, 860.5225830078125, 846.13714599609375, -58.0085182189941406, 4.185294151306152343, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_6', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+279, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 1, 857.28302001953125, 825.342041015625, -57.1301002502441406, 4.251018524169921875, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_5', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+280, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 1, 837.6805419921875, 852.9288330078125, -57.4091415405273437, 3.991605520248413085, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_7', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+281, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 0, 826.89239501953125, 814.22393798828125, -57.7080497741699218, 0.982451319694519042, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_2', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+282, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 0, 811.34375, 783.17535400390625, -57.2960281372070312, 2.273226261138916015, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_talking', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+283, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 0, 789.4461669921875, 815.8992919921875, -56.2427864074707031, 3.338526010513305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_wanderer', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+284, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 0, 825.98089599609375, 806.86456298828125, -57.625885009765625, 1.02881479263305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_1', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+285, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 0, 830.52777099609375, 823.3367919921875, -57.7775764465332031, 1.02881479263305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_3', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+286, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 1, 837.29864501953125, 831.94268798828125, -57.492767333984375, 4.234867572784423828, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_4', 45745), -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+(@CGUID+287, 15045, 2107, 10053, 10519, '0', '0', 0, 0, 1, 831.953125, 870.5625, -58.0505104064941406, 4.234867572784423828, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_8', 45745); -- Arathi Farmer (Area: Gold Mine - Difficulty: 0)
+
 
 -- Spawn Groups
-DELETE FROM `spawn_group` WHERE `spawnType` = 0 AND `spawnId` BETWEEN @CGUID+0 AND @CGUID+262;
+DELETE FROM `spawn_group` WHERE `spawnType` = 0 AND `spawnId` BETWEEN @CGUID+0 AND @CGUID+287;
 INSERT INTO `spawn_group` (`groupId`, `spawnType`, `spawnId`) VALUES
 (@SPAWNGROUP_HORDE_FARM, 0, @CGUID+253),
 (@SPAWNGROUP_HORDE_FARM, 0, @CGUID+184),
@@ -359,7 +387,18 @@ INSERT INTO `spawn_group` (`groupId`, `spawnType`, `spawnId`) VALUES
 (@SPAWNGROUP_HORDE_FARM, 0, @CGUID+201),
 (@SPAWNGROUP_HORDE_FARM, 0, @CGUID+202),
 (@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+254),
--- TODO MISSING DATA ALLIANCE FARM
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+276),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+277),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+278),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+279),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+280),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+281),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+282),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+283),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+284),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+285),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+286),
+(@SPAWNGROUP_ALLIANCE_FARM, 0, @CGUID+287),
 (@SPAWNGROUP_HORDE_LUMBERMILL, 0, @CGUID+255),
 (@SPAWNGROUP_HORDE_LUMBERMILL, 0, @CGUID+203),
 (@SPAWNGROUP_HORDE_LUMBERMILL, 0, @CGUID+204),
@@ -375,7 +414,19 @@ INSERT INTO `spawn_group` (`groupId`, `spawnType`, `spawnId`) VALUES
 (@SPAWNGROUP_HORDE_LUMBERMILL, 0, @CGUID+214),
 (@SPAWNGROUP_HORDE_LUMBERMILL, 0, @CGUID+215),
 (@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+256),
--- TODO MISSING DATA ALLIANCE LUMBERMILL
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+263),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+264),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+265),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+266),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+267),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+268),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+269),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+270),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+271),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+272),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+273),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+274),
+(@SPAWNGROUP_ALLIANCE_LUMBERMILL, 0, @CGUID+275),
 (@SPAWNGROUP_HORDE_BLACKSMITH, 0, @CGUID+257),
 (@SPAWNGROUP_HORDE_BLACKSMITH, 0, @CGUID+225),
 (@SPAWNGROUP_HORDE_BLACKSMITH, 0, @CGUID+226),
@@ -447,7 +498,7 @@ INSERT INTO `creature_formations` (`leaderGUID`, `memberGUID`, `dist`, `angle`, 
 (@CGUID+252, @CGUID+250, 4.5, 315, 515, 0, 0);
 
 -- movement templates
-DELETE FROM `creature_movement_override` WHERE `SpawnId` BETWEEN @CGUID+0 AND @CGUID+262;
+DELETE FROM `creature_movement_override` WHERE `SpawnId` BETWEEN @CGUID+0 AND @CGUID+275;
 INSERT INTO `creature_movement_override` (`SpawnId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`) VALUES
 (@CGUID+175, 1, 0, 0, 1, 0, 0, NULL), -- Arathi Horse
 (@CGUID+203, 1, 0, 0, 1, 0, 0, NULL), -- Forsaken Lumberjack
@@ -456,7 +507,7 @@ INSERT INTO `creature_movement_override` (`SpawnId`, `Ground`, `Swim`, `Flight`,
 (@CGUID+242, 1, 0, 0, 1, 0, 0, NULL), -- Arathi Blacksmith
 (@CGUID+249, 1, 0, 0, 1, 0, 0, NULL); -- Forsaken Horse
 
-DELETE FROM `creature_addon` WHERE `guid` BETWEEN @CGUID+0 AND @CGUID+262;
+DELETE FROM `creature_addon` WHERE `guid` BETWEEN @CGUID+0 AND @CGUID+275;
 INSERT INTO `creature_addon` (`guid`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES
 (@CGUID+102, 0, 0, 0, 1, 0, 0, 0, 0, 3, '285977'), -- Bound Arathi Rager - 285977 - Earth Channel Omni
 (@CGUID+126, 0, 0, 0, 1, 0, 0, 0, 0, 3, '285977'), -- Bound Arathi Rager - 285977 - Earth Channel Omni
@@ -526,7 +577,65 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 (150426, 0, 0, 0, 1, 0, 0, 0, 0, 3, ''); -- 150426 (Arathi Giant)
 
 -- add UNIT_FLAG_IMMUNE_TO_PC & UNIT_FLAG_IMMUNE_TO_NPC
-UPDATE `creature_template` SET `unit_flags` = `unit_flags` | 0x100 | 0x200 WHERE `entry` IN (15087 /*Forsake Stablehand*/, 15063 /*Arathi Blacksmith*/, 15064 /*Forsaken Blacksmith*/, 15074 /*Arathi Miner*/, 15089 /*Forsaken Lumberjack*/, 15046 /*Forsaken Farmer*/, 15086 /*Arathi Stablehand*/);
+UPDATE `creature_template` SET `unit_flags` = `unit_flags` | 0x100 | 0x200 WHERE `entry` IN (
+    15087, -- Forsaken Stablehand
+    15062, -- Arathi Lumberjack
+    15063, -- Arathi Blacksmith
+    15064, -- Forsaken Blacksmith
+    15074, -- Arathi Miner
+    15075, -- Forsaken Miner
+    15089, -- Forsaken Lumberjack
+    15045, -- Arathi Farmer
+    15046, -- Forsaken Farmer
+    15086 -- Arathi Stablehand
+);
+
+DELETE FROM `npc_vendor` WHERE (`entry`=149721 AND `item`=163054 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=161127 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=159900 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=163060 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=159868 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=159867 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=39505 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=20815 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=6532 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=6530 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4400 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4399 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4289 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=3371 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4340 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4342 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4341 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2325 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2604 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=3857 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=3466 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2880 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2678 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=38426 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=14341 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=8343 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4291 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2321 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2320 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=5956 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=6217 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=6256 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=85663 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=7005 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2901 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=160059 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=160298 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=159959 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=158205 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=158186 AND `ExtendedCost`=0 AND `type`=1);
+INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `ExtendedCost`, `type`, `PlayerConditionID`, `IgnoreFiltering`, `VerifiedBuild`) VALUES
+(149721, 6, 163054, 0, 0, 1, 0, 0, 45745), -- Stranglethorn Prickly Pear
+(149721, 5, 161127, 0, 0, 1, 0, 0, 45745), -- Unsalted Pine Nuts
+(149721, 4, 159900, 0, 0, 1, 0, 0, 45745), -- Caraway Rye Loaf
+(149721, 3, 163060, 0, 0, 1, 0, 0, 45745), -- Fried Sweetbread
+(149721, 2, 159868, 0, 0, 1, 0, 0, 45745), -- Free-Range Goat's Milk
+(149721, 1, 159867, 0, 0, 1, 0, 0, 45745), -- Rockskip Mineral Water
+(149718, 34, 39505, 0, 0, 1, 0, 0, 45745), -- Virtuoso Inking Set
+(149718, 33, 20815, 0, 0, 1, 0, 0, 45745), -- Jeweler's Kit
+(149718, 32, 6532, 0, 0, 1, 0, 0, 45745), -- Bright Baubles
+(149718, 31, 6530, 0, 0, 1, 0, 0, 45745), -- Nightcrawlers
+(149718, 30, 4400, 0, 0, 1, 0, 0, 45745), -- Heavy Stock
+(149718, 29, 4399, 0, 0, 1, 0, 0, 45745), -- Wooden Stock
+(149718, 28, 4289, 0, 0, 1, 0, 0, 45745), -- Salt
+(149718, 27, 3371, 0, 0, 1, 0, 0, 45745), -- Crystal Vial
+(149718, 26, 4340, 0, 0, 1, 0, 0, 45745), -- Gray Dye
+(149718, 25, 4342, 0, 0, 1, 0, 0, 45745), -- Purple Dye
+(149718, 24, 4341, 0, 0, 1, 0, 0, 45745), -- Yellow Dye
+(149718, 23, 2325, 0, 0, 1, 0, 0, 45745), -- Black Dye
+(149718, 22, 2604, 0, 0, 1, 0, 0, 45745), -- Red Dye
+(149718, 21, 3857, 0, 0, 1, 0, 0, 45745), -- Coal
+(149718, 20, 3466, 0, 0, 1, 0, 0, 45745), -- Strong Flux
+(149718, 19, 2880, 0, 0, 1, 0, 0, 45745), -- Weak Flux
+(149718, 18, 2678, 0, 0, 1, 0, 0, 45745), -- Mild Spices
+(149718, 17, 38426, 0, 0, 1, 0, 0, 45745), -- Eternium Thread
+(149718, 16, 14341, 0, 0, 1, 0, 0, 45745), -- Rune Thread
+(149718, 15, 8343, 0, 0, 1, 0, 0, 45745), -- Heavy Silken Thread
+(149718, 14, 4291, 0, 0, 1, 0, 0, 45745), -- Silken Thread
+(149718, 13, 2321, 0, 0, 1, 0, 0, 45745), -- Fine Thread
+(149718, 12, 2320, 0, 0, 1, 0, 0, 45745), -- Coarse Thread
+(149718, 11, 5956, 0, 0, 1, 0, 0, 45745), -- Blacksmith Hammer
+(149718, 10, 6217, 0, 0, 1, 0, 0, 45745), -- Copper Rod
+(149718, 9, 6256, 0, 0, 1, 0, 0, 45745), -- Fishing Pole
+(149718, 8, 85663, 0, 0, 1, 0, 0, 45745), -- Herbalist's Spade
+(149718, 7, 7005, 0, 0, 1, 0, 0, 45745), -- Skinning Knife
+(149718, 6, 2901, 0, 0, 1, 0, 0, 45745), -- Mining Pick
+(149718, 5, 160059, 0, 0, 1, 0, 0, 45745), -- Amber Tanning Oil
+(149718, 4, 160298, 0, 0, 1, 0, 0, 45745), -- Durable Flux
+(149718, 3, 159959, 0, 0, 1, 0, 0, 45745), -- Nylon Thread
+(149718, 2, 158205, 0, 0, 1, 0, 0, 45745), -- Acacia Powder
+(149718, 1, 158186, 0, 0, 1, 0, 0, 45745); -- Distilled Water
+
+DELETE FROM `gossip_menu` WHERE (`MenuID`=23883 AND `TextID`=37443);
+INSERT INTO `gossip_menu` (`MenuID`, `TextID`, `VerifiedBuild`) VALUES
+(23883, 37443, 45745); -- 150622 (Dominic Masonwrite)
 
 -- Spell Scripts
 DELETE FROM `spell_script_names` WHERE `ScriptName` IN ('spell_bg_ab_blacksmith_working');
@@ -534,7 +643,7 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (261985, 'spell_bg_ab_blacksmith_working');
 
 -- waypoint scripts
-DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+19;
+DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+21;
 -- Kevin Young
 INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `orientation`) VALUES
 -- -- Path 1
@@ -631,22 +740,42 @@ INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `positio
 (@WAYPOINT+12, 2, 842.88544, 839.25, -57.944798, 3.96189737319946289),
 -- -- Path 2
 (@WAYPOINT+13, 1, 857.283, 825.34204, -57.18735, 4.251018524169921875),
--- Forskane Farmer (@CGUID+189)
+-- Forsaken Farmer (@CGUID+189)
 -- -- Path 1
 (@WAYPOINT+14, 1, 853.86285, 853.3299, -58.031956, NULL),
 (@WAYPOINT+14, 2, 846.90454, 860.46875, -58.069798, NULL),
 (@WAYPOINT+14, 3, 832.0643, 875.191, -58.3522, 3.96189737319946289),
 -- -- Path 2
 (@WAYPOINT+15, 1, 860.5226, 846.13715, -58.069798, 4.185294151306152343),
--- Forskane Farmer (@CGUID+202)
+-- Forsaken Farmer (@CGUID+202)
 -- -- Path 1
 (@WAYPOINT+16, 1, 846.434, 844.30383, -57.694798, NULL),
 (@WAYPOINT+16, 2, 854.8785, 835.316, -57.444798, 3.96189737319946289),
 -- -- Path 2
 (@WAYPOINT+17, 1, 837.68054, 852.92883, -57.490086, 3.991605520248413085),
--- Forskane Farmer (@CGUID+200)
+-- Forsaken Farmer (@CGUID+200)
 -- -- Path 1
 (@WAYPOINT+18, 1, 838.99304, 863.658, -58.021336, NULL),
 (@WAYPOINT+18, 2, 844.9097, 858.0625, -58.021458, 3.96189737319946289),
 -- -- Path 2
-(@WAYPOINT+19, 1, 831.9531, 870.5625, -58.04678, 4.234867572784423828);
+(@WAYPOINT+19, 1, 831.9531, 870.5625, -58.04678, 4.234867572784423828),
+-- Forsaken Farmer (@CGUID+195)
+-- -- Path 1
+(@WAYPOINT+20, 1, 796.25867, 816.6042, -57.209515, NULL),
+(@WAYPOINT+20, 2, 800.2066, 817.04865, -57.253338, NULL),
+(@WAYPOINT+20, 3, 803.4375, 816.31946, -57.13664, NULL),
+(@WAYPOINT+20, 4, 807.3802, 813.7917, -57.28886, NULL),
+(@WAYPOINT+20, 5, 812.7465, 808.69446, -57.46574, NULL),
+(@WAYPOINT+20, 6, 818.84375, 802.658, -57.46574, NULL),
+(@WAYPOINT+20, 7, 823.4514, 798.7934, -57.478104, NULL),
+(@WAYPOINT+20, 8, 824.7552, 794.9184, -57.39766, NULL),
+(@WAYPOINT+20, 9, 825.1424, 790.25696, -57.121414, NULL),
+(@WAYPOINT+20, 10, 822.8733, 788.542, -57.103104, NULL),
+-- -- Path 2
+(@WAYPOINT+21, 1, 822.01044, 800.2743, -57.46574, NULL),
+(@WAYPOINT+21, 2, 817.59204, 805.8403, -57.46574, NULL),
+(@WAYPOINT+21, 3, 812.0156, 810.816, -57.470135, NULL),
+(@WAYPOINT+21, 4, 806.3906, 816.0139, -57.21574, NULL),
+(@WAYPOINT+21, 5, 800.7083, 818.2639, -57.19328, NULL),
+(@WAYPOINT+21, 6, 794.7197, 817.9238, -56.77946, NULL),
+(@WAYPOINT+21, 7, 790.19617, 816.32294, -56.43681, NULL);

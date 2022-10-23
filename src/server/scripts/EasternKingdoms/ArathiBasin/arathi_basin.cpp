@@ -1233,6 +1233,57 @@ struct npc_bg_ab_farmer_working_8 : npc_bg_ab_farmer_working_base
     npc_bg_ab_farmer_working_8(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
 };
 
+struct npc_bg_ab_farmer_wanderer : ScriptedAI
+{
+    static constexpr uint32 PATH_1 = 100000020;
+    static constexpr uint32 PATH_2 = 100000021;
+
+    npc_bg_ab_farmer_wanderer(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        StartScript();
+    }
+
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
+    {
+        switch (pathId)
+        {
+            case PATH_1:
+                me->SetEmoteState(EMOTE_STATE_USE_STANDING);
+                _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+                {
+                    me->SetEmoteState(EMOTE_ONESHOT_NONE);
+                    me->GetMotionMaster()->MovePath(PATH_2, false);
+                });
+                break;
+            case PATH_2:
+                StartScript();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void StartScript()
+    {
+        me->SetEmoteState(EMOTE_STATE_USE_STANDING);
+        _scheduler.Schedule(5s, 10s, [this](TaskContext /*context*/)
+        {
+            me->SetEmoteState(EMOTE_ONESHOT_NONE);
+            me->GetMotionMaster()->MovePath(PATH_1, false);
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
 // Stables
 struct npc_bg_ab_stablehand_talking : ScriptedAI
 {
@@ -1313,6 +1364,7 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_farmer_working_6);
     RegisterCreatureAI(npc_bg_ab_farmer_working_7);
     RegisterCreatureAI(npc_bg_ab_farmer_working_8);
+    RegisterCreatureAI(npc_bg_ab_farmer_wanderer);
     RegisterCreatureAI(npc_bg_ab_stablehand_talking);
     RegisterSpellScript(spell_bg_ab_blacksmith_working);
 }
