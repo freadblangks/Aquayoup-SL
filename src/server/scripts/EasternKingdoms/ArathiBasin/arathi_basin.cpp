@@ -1092,6 +1092,147 @@ private:
     TaskScheduler _scheduler;
 };
 
+struct npc_bg_ab_farmer_shouting : ScriptedAI
+{
+    npc_bg_ab_farmer_shouting(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+        {
+            me->HandleEmoteCommand(EMOTE_ONESHOT_SHOUT);
+            context.Repeat();
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+struct npc_bg_ab_farmer_working_base : ScriptedAI
+{
+    npc_bg_ab_farmer_working_base(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 aiAnimKitId) : ScriptedAI(creature), _pathId1(pathId1), _pathId2(pathId2), _aiAnimKitId(aiAnimKitId) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        StartScript();
+    }
+
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
+    {
+        if (pathId == _pathId1)
+        {
+            me->SetAIAnimKitId(_aiAnimKitId);
+
+            _scheduler.Schedule(5s, 15s, [this](TaskContext /*context*/)
+            {
+                me->SetAIAnimKitId(0);
+                me->GetMotionMaster()->MovePath(_pathId2, false);
+            });
+        }
+        else if (pathId == _pathId2)
+        {
+            _scheduler.Schedule(1500ms, [this](TaskContext /*context*/)
+            {
+                StartScript();
+            });
+        }
+    }
+
+    void StartScript()
+    {
+        me->SetAIAnimKitId(_aiAnimKitId);
+        _scheduler.Schedule(5s, 15s, [this](TaskContext context)
+        {
+            me->SetAIAnimKitId(0);
+            context.Schedule(2s, [this](TaskContext /*context*/)
+            {
+                me->GetMotionMaster()->MovePath(_pathId1, false);
+            });
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+    uint32 _pathId1;
+    uint32 _pathId2;
+    uint32 _aiAnimKitId;
+};
+
+struct npc_bg_ab_farmer_working_1 : npc_bg_ab_farmer_working_base
+{
+    static constexpr uint32 PATH_1 = 100000004;
+    static constexpr uint32 PATH_2 = 100000005;
+
+    npc_bg_ab_farmer_working_1(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 4760) { }
+};
+
+struct npc_bg_ab_farmer_working_2 : npc_bg_ab_farmer_working_base
+{
+    static constexpr uint32 PATH_1 = 100000006;
+    static constexpr uint32 PATH_2 = 100000007;
+
+    npc_bg_ab_farmer_working_2(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 4760) { }
+};
+
+struct npc_bg_ab_farmer_working_3 : npc_bg_ab_farmer_working_base
+{
+    static constexpr uint32 PATH_1 = 100000008;
+    static constexpr uint32 PATH_2 = 100000009;
+
+    npc_bg_ab_farmer_working_3(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 4760) { }
+};
+
+struct npc_bg_ab_farmer_working_4 : npc_bg_ab_farmer_working_base
+{
+    static constexpr uint32 PATH_1 = 100000010;
+    static constexpr uint32 PATH_2 = 100000011;
+
+    npc_bg_ab_farmer_working_4(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+};
+
+struct npc_bg_ab_farmer_working_5 : npc_bg_ab_farmer_working_base
+{
+    static constexpr uint32 PATH_1 = 100000012;
+    static constexpr uint32 PATH_2 = 100000013;
+
+    npc_bg_ab_farmer_working_5(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+};
+
+struct npc_bg_ab_farmer_working_6 : npc_bg_ab_farmer_working_base
+{
+    static constexpr uint32 PATH_1 = 100000014;
+    static constexpr uint32 PATH_2 = 100000015;
+
+    npc_bg_ab_farmer_working_6(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+};
+
+struct npc_bg_ab_farmer_working_7 : npc_bg_ab_farmer_working_base
+{
+    static constexpr uint32 PATH_1 = 100000016;
+    static constexpr uint32 PATH_2 = 100000017;
+
+    npc_bg_ab_farmer_working_7(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+};
+
+struct npc_bg_ab_farmer_working_8 : npc_bg_ab_farmer_working_base
+{
+    static constexpr uint32 PATH_1 = 100000018;
+    static constexpr uint32 PATH_2 = 100000019;
+
+    npc_bg_ab_farmer_working_8(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+};
+
 // Stables
 struct npc_bg_ab_stablehand_talking : ScriptedAI
 {
@@ -1163,6 +1304,15 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_blacksmith_working_2);
     RegisterCreatureAI(npc_bg_ab_blacksmith_stone_carrier);
     RegisterCreatureAI(npc_bg_ab_farmer_talking);
+    RegisterCreatureAI(npc_bg_ab_farmer_shouting);
+    RegisterCreatureAI(npc_bg_ab_farmer_working_1);
+    RegisterCreatureAI(npc_bg_ab_farmer_working_2);
+    RegisterCreatureAI(npc_bg_ab_farmer_working_3);
+    RegisterCreatureAI(npc_bg_ab_farmer_working_4);
+    RegisterCreatureAI(npc_bg_ab_farmer_working_5);
+    RegisterCreatureAI(npc_bg_ab_farmer_working_6);
+    RegisterCreatureAI(npc_bg_ab_farmer_working_7);
+    RegisterCreatureAI(npc_bg_ab_farmer_working_8);
     RegisterCreatureAI(npc_bg_ab_stablehand_talking);
     RegisterSpellScript(spell_bg_ab_blacksmith_working);
 }

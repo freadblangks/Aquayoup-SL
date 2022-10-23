@@ -239,25 +239,25 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+181, 150443, 2107, 10053, 10516, '0', '0', 0, 0, 0, 789.80035400390625, 829.967041015625, -55.4852371215820312, 0, 7200, 0, 0, 1, 0, 0, 0, 0, 0, '', 44325), -- Chicken (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+182, 150443, 2107, 10053, 10516, '0', '0', 0, 0, 0, 792.66143798828125, 822.859375, -56.582122802734375, 0, 7200, 10, 0, 1, 0, 1, 0, 0, 0, '', 44325), -- Chicken (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+183, 61366, 2107, 10053, 10516, '0', '0', 0, 0, 0, 860.58856201171875, 835.23614501953125, -57.2612037658691406, 5.8817596435546875, 7200, 10, 0, 5, 0, 1, 0, 0, 0, '', 44325), -- Rat (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+184, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 825.98089599609375, 806.86456298828125, -57.625885009765625, 1.02881479263305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+185, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 837.29864501953125, 831.94268798828125, -57.492767333984375, 4.234867572784423828, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+184, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 825.98089599609375, 806.86456298828125, -57.625885009765625, 1.02881479263305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_1', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+185, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 837.29864501953125, 831.94268798828125, -57.492767333984375, 4.234867572784423828, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_4', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+186, 4075, 2107, 10053, 10516, '0', '0', 0, 0, 0, 819.17364501953125, 792.9617919921875, -57.339813232421875, 4.403332233428955078, 7200, 10, 0, 5, 0, 1, 0, 0, 0, '', 44325), -- Rat (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+187, 4075, 2107, 10053, 10516, '0', '0', 0, 0, 0, 799.78472900390625, 842.3819580078125, -57.2786216735839843, 1.98999035358428955, 7200, 10, 0, 5, 0, 1, 0, 0, 0, '', 44325), -- Rat (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+188, 150443, 2107, 10053, 10516, '0', '0', 0, 0, 0, 797.20489501953125, 829.888916015625, -56.8450546264648437, 0, 7200, 10, 0, 1, 0, 1, 0, 0, 0, '', 44325), -- Chicken (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+189, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 860.5225830078125, 846.13714599609375, -58.0085182189941406, 4.185294151306152343, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+190, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 857.28302001953125, 825.342041015625, -57.1301002502441406, 4.251018524169921875, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+189, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 860.5225830078125, 846.13714599609375, -58.0085182189941406, 4.185294151306152343, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_6', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+190, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 857.28302001953125, 825.342041015625, -57.1301002502441406, 4.251018524169921875, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_5', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+191, 4075, 2107, 10053, 10516, '0', '0', 0, 0, 0, 835.21527099609375, 844.826416015625, -57.7741508483886718, 5.8817596435546875, 7200, 10, 0, 5, 0, 1, 0, 0, 0, '', 44325), -- Rat (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+192, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 845.685791015625, 812.9617919921875, -50.7067489624023437, 1.819554686546325683, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0)
+(@CGUID+192, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 845.685791015625, 812.9617919921875, -50.7067489624023437, 1.819554686546325683, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_shouting', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+193, 4075, 2107, 10053, 10516, '0', '0', 0, 0, 0, 835.57061767578125, 807.02935791015625, -57.1240196228027343, 6.072569847106933593, 7200, 10, 0, 5, 0, 1, 0, 0, 0, '', 44325), -- Rat (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+194, 150443, 2107, 10053, 10516, '0', '0', 0, 0, 0, 815.5980224609375, 827.02947998046875, -56.5844612121582031, 5.315833568572998046, 7200, 10, 0, 1, 0, 1, 0, 0, 0, '', 44325), -- Chicken (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+195, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 789.4461669921875, 815.8992919921875, -56.2427864074707031, 3.338526010513305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+196, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 830.52777099609375, 823.3367919921875, -57.7775764465332031, 1.02881479263305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+196, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 830.52777099609375, 823.3367919921875, -57.7775764465332031, 1.02881479263305664, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_3', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+197, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 811.34375, 783.17535400390625, -57.2960281372070312, 2.273226261138916015, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_talking', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0)
 (@CGUID+198, 4075, 2107, 10053, 10516, '0', '0', 0, 0, 0, 821.537353515625, 867.22613525390625, -57.7848434448242187, 4.078652381896972656, 7200, 10, 0, 5, 0, 1, 0, 0, 0, '', 44325), -- Rat (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+199, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 826.89239501953125, 814.22393798828125, -57.7080497741699218, 0.982451319694519042, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+200, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 831.953125, 870.5625, -58.0505104064941406, 4.234867572784423828, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+199, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 826.89239501953125, 814.22393798828125, -57.7080497741699218, 0.982451319694519042, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_2', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+200, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 831.953125, 870.5625, -58.0505104064941406, 4.234867572784423828, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_8', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+201, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 0, 810.529541015625, 784.89581298828125, -57.4264144897460937, 5.515162467956542968, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_talking', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0)
-(@CGUID+202, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 837.6805419921875, 852.9288330078125, -57.4091415405273437, 3.991605520248413085, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+202, 15046, 2107, 10053, 10516, '0', '0', 0, 0, 1, 837.6805419921875, 852.9288330078125, -57.4091415405273437, 3.991605520248413085, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_farmer_working_7', 44325), -- Forsaken Farmer (Area: Lumber Mill - Difficulty: 0) (possible waypoints or random movement)
 
 
 -- LUMBER MILL (HORDE)
@@ -514,7 +514,6 @@ INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Fligh
 (150513, 0, 0, 1, 0, 0, NULL),
 (150459, 0, 0, 1, 0, 0, NULL);
 
-
 DELETE FROM `creature_template_addon` WHERE `entry` IN (15071 /*15071 (Underfoot) - Grow*/, 73400 /*73400 (Healing Ran Invisible Stalker DND) - Healing Rain Visual*/, 15063 /*15063 (Arathi Blacksmith) - Blacksmith Working*/, 15065 /*15065 (Lady)*/, 15064 /*15064 (Forsaken Blacksmith) - Blacksmith Working*/, 15074 /*15074 (Arathi Miner) - Carry Sack*/, 15089 /*15089 (Forsaken Lumberjack) - Lumberjackin'*/, 15046 /*15046 (Forsaken Farmer)*/, 150622 /*150622 (Dominic Masonwrite) - Read Scroll*/, 150414 /*150414 (Lightning) - Sleeping Sleep*/, 150418 /*150418 (Arathor Siege Tank)*/, 150459 /*150459 (Defiler Bat Rider)*/, 150513 /*150513 (Arathor Gryphon Rider)*/, 150543 /*150543 (Belle)*/, 149755 /*149755 (Kevin Young) - Blacksmith Working*/, 150403 /*150403 (Arathor Watchman) - Hold Torch*/, 150429 /*150429 (Defiler Combatant) - Hold Torch*/, 150655 /*150655 (Groundskeeper Olivia)*/, 150426 /*150426 (Arathi Giant)*/);
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES
 (15071, 0, 0, 0, 1, 0, 0, 0, 0, 0, '24244'), -- 15071 (Underfoot) - Grow
@@ -526,7 +525,6 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 (150543, 0, 0, 1, 1, 0, 0, 0, 0, 0, ''), -- 150543 (Belle)
 (150426, 0, 0, 0, 1, 0, 0, 0, 0, 3, ''); -- 150426 (Arathi Giant)
 
-
 -- add UNIT_FLAG_IMMUNE_TO_PC & UNIT_FLAG_IMMUNE_TO_NPC
 UPDATE `creature_template` SET `unit_flags` = `unit_flags` | 0x100 | 0x200 WHERE `entry` IN (15087 /*Forsake Stablehand*/, 15063 /*Arathi Blacksmith*/, 15064 /*Forsaken Blacksmith*/, 15074 /*Arathi Miner*/, 15089 /*Forsaken Lumberjack*/, 15046 /*Forsaken Farmer*/, 15086 /*Arathi Stablehand*/);
 
@@ -536,7 +534,7 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (261985, 'spell_bg_ab_blacksmith_working');
 
 -- waypoint scripts
-DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+3;
+DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+19;
 -- Kevin Young
 INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `orientation`) VALUES
 -- -- Path 1
@@ -603,4 +601,52 @@ INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `positio
 (@WAYPOINT+3, 27, 1185.9185, 1163.3177, -56.29598, NULL),
 (@WAYPOINT+3, 28, 1188.5365, 1163.7882, -56.29366, NULL),
 (@WAYPOINT+3, 29, 1190.0399, 1166.0885, -56.29366, NULL),
-(@WAYPOINT+3, 30, 1196.217, 1174.0764, -56.75803, 0.798887610435485839);
+(@WAYPOINT+3, 30, 1196.217, 1174.0764, -56.75803, 0.798887610435485839),
+-- Forsaken Farmer (@CGUID+184)
+-- -- Path 1
+(@WAYPOINT+4, 1, 821.6684, 810.80554, -57.48747, NULL),
+(@WAYPOINT+4, 2, 818.63367, 813.94965, -57.375774, 0.837758064270019531),
+-- -- Path 2
+(@WAYPOINT+5, 1, 825.9809, 806.86456, -57.72697, 1.02881479263305664),
+-- Forsaken Farmer (@CGUID+199)
+-- -- Path 1
+(@WAYPOINT+6, 1, 821.04517, 819.8733, -57.59074, 0.837758064270019531),
+-- -- Path 2
+(@WAYPOINT+7, 1, 826.8924, 814.22394, -57.71574, 0.982451319694519042),
+-- Forsaken Farmer (@CGUID+196)
+-- -- Path 1
+(@WAYPOINT+8, 1, 834.49133, 818.9601, -57.790867, 0.837758064270019531),
+-- -- Path 2
+(@WAYPOINT+9, 1, 830.5278, 823.3368, -57.84074, 1.02881479263305664),
+-- Forsaken Farmer (@CGUID+185)
+-- -- Path 1
+(@WAYPOINT+10, 1, 845.2882, 824.1458, -57.665867, NULL),
+(@WAYPOINT+10, 2, 848.0174, 821.48956, -57.724216, 3.96189737319946289),
+-- -- Path 2
+(@WAYPOINT+11, 1, 837.29865, 831.9427, -57.502537, 4.234867572784423828),
+
+-- Forsaken Farmer (@CGUID+190)
+-- -- Path 1
+(@WAYPOINT+12, 1, 849.059, 833.38196, -57.263157, NULL),
+(@WAYPOINT+12, 2, 842.88544, 839.25, -57.944798, 3.96189737319946289),
+-- -- Path 2
+(@WAYPOINT+13, 1, 857.283, 825.34204, -57.18735, 4.251018524169921875),
+-- Forskane Farmer (@CGUID+189)
+-- -- Path 1
+(@WAYPOINT+14, 1, 853.86285, 853.3299, -58.031956, NULL),
+(@WAYPOINT+14, 2, 846.90454, 860.46875, -58.069798, NULL),
+(@WAYPOINT+14, 3, 832.0643, 875.191, -58.3522, 3.96189737319946289),
+-- -- Path 2
+(@WAYPOINT+15, 1, 860.5226, 846.13715, -58.069798, 4.185294151306152343),
+-- Forskane Farmer (@CGUID+202)
+-- -- Path 1
+(@WAYPOINT+16, 1, 846.434, 844.30383, -57.694798, NULL),
+(@WAYPOINT+16, 2, 854.8785, 835.316, -57.444798, 3.96189737319946289),
+-- -- Path 2
+(@WAYPOINT+17, 1, 837.68054, 852.92883, -57.490086, 3.991605520248413085),
+-- Forskane Farmer (@CGUID+200)
+-- -- Path 1
+(@WAYPOINT+18, 1, 838.99304, 863.658, -58.021336, NULL),
+(@WAYPOINT+18, 2, 844.9097, 858.0625, -58.021458, 3.96189737319946289),
+-- -- Path 2
+(@WAYPOINT+19, 1, 831.9531, 870.5625, -58.04678, 4.234867572784423828);
