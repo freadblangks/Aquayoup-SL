@@ -1408,6 +1408,30 @@ struct npc_bg_ab_miner_working_3 : npc_bg_ab_miner_working_base
     npc_bg_ab_miner_working_3(Creature* creature) : npc_bg_ab_miner_working_base(creature, PATH_1, PATH_2, PATH_3) { }
 };
 
+// Misc
+struct npc_bg_ab_elemental_skirmish : ScriptedAI
+{
+    npc_bg_ab_elemental_skirmish(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff)
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        me->SetEmoteState(EMOTE_STATE_READY_UNARMED);
+        _scheduler.Schedule(4s, 8s, [this](TaskContext context)
+        {
+            me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK_UNARMED);
+            context.Repeat();
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
 // Spells
 // 261985 - Blacksmith Working
 class spell_bg_ab_blacksmith_working : public AuraScript
@@ -1471,5 +1495,6 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_miner_working_1);
     RegisterCreatureAI(npc_bg_ab_miner_working_2);
     RegisterCreatureAI(npc_bg_ab_miner_working_3);
+    RegisterCreatureAI(npc_bg_ab_elemental_skirmish);
     RegisterSpellScript(spell_bg_ab_blacksmith_working);
 }
