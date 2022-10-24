@@ -1413,7 +1413,7 @@ struct npc_bg_ab_elemental_skirmish : ScriptedAI
 {
     npc_bg_ab_elemental_skirmish(Creature* creature) : ScriptedAI(creature) { }
 
-    void UpdateAI(uint32 diff)
+    void UpdateAI(uint32 diff) override
     {
         _scheduler.Update(diff);
     }
