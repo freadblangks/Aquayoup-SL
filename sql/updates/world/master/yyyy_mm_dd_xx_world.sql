@@ -65,7 +65,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+11, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1380.501953125, 1301.3232421875, -7.9797372817993164, 3.398830890655517578, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+12, 149760, 2107, 10053, 10521, '0', '0', 0, 0, 0, 711.51910400390625, 683.28643798828125, -15.1177291870117187, 3.388207435607910156, 7200, 0, 0, 4579, 0, 0, 0, 0, 0, '', 44325), -- Spell Bunny (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+13, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1387.0928955078125, 1312.1898193359375, -6.2264413833618164, 4.357081413269042968, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+14, 150429, 2107, 10053, 10521, '0', '0', 0, 0, 1, 658.76214599609375, 668.44964599609375, 7.71792459487915039, 1.834298372268676757, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Defiler Combatant (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch) (possible waypoints or random movement)
+(@CGUID+14, 150429, 2107, 10053, 10521, '0', '0', 0, 0, 1, 658.76214599609375, 668.44964599609375, 7.71792459487915039, 1.834298372268676757, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_defiler_combatant_1', 44325), -- Defiler Combatant (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch) (possible waypoints or random movement)
 (@CGUID+15, 149792, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1170.2982177734375, 632.3450927734375, 23.96047019958496093, 0.953545689582824707, 7200, 10, 0, 4579, 0, 1, 0, 0, 0, '', 44325), -- Arathi Rager (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+16, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1360.3677978515625, 1357.0140380859375, -6.39866065979003906, 2.381939411163330078, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch) (possible waypoints or random movement)
 (@CGUID+17, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1060.4078369140625, 1004.0341796875, -51.1669082641601562, 2.335479259490966796, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -150,7 +150,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+96, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1361.8961181640625, 1387.364990234375, 9.519557952880859375, 0.08193150907754898, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+97, 150418, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1451.37158203125, 1444.0052490234375, 57.979736328125, 3.972086191177368164, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Siege Tank (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+98, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1337.43359375, 1375.7352294921875, -9.27597427368164062, 3.31734013557434082, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+99, 150429, 2107, 10053, 10521, '0', '0', 0, 0, 1, 534.29864501953125, 499.359375, 73.03855133056640625, 4.788630008697509765, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Defiler Combatant (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch)
+(@CGUID+99, 150429, 2107, 10053, 10521, '0', '0', 0, 0, 1, 534.29864501953125, 499.359375, 73.03855133056640625, 4.788630008697509765, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_defiler_combatant_2', 44325), -- Defiler Combatant (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch)
 (@CGUID+100, 149792, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1206.9317626953125, 607.90557861328125, 23.35107612609863281, 3.82182478904724121, 7200, 10, 0, 4294, 0, 1, 0, 0, 0, '', 44325), -- Arathi Rager (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+101, 150449, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1079.7535400390625, 1402.453125, 72.65193939208984375, 5.6436004638671875, 7200, 0, 0, 916, 0, 0, 0, 0, 0, '', 44325), -- Highland Bristleback (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+102, 149793, 2107, 10053, 10521, '0', '0', 0, 0, 0, 513.170166015625, 390.836822509765625, 130.0107879638671875, 0.769220530986785888, 7200, 0, 0, 4294, 0, 0, 0, 0, 0, '', 44325), -- Bound Arathi Rager (Area: Defiler's Den - Difficulty: 0) (Auras: 285977 - Earth Channel Omni)
@@ -203,7 +203,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+149, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 678.849853515625, 793.946044921875, -19.0406970977783203, 5.245444297790527343, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+150, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1262, 1284.045166015625, -22.2945213317871093, 0, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+151, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1308.410400390625, 1364.8486328125, -9.66704940795898437, 5.814202308654785156, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+152, 150429, 2107, 10053, 10521, '0', '0', 0, 0, 1, 676.01043701171875, 674.05035400390625, -14.6389789581298828, 3.677953243255615234, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Defiler Combatant (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch) (possible waypoints or random movement)
+(@CGUID+152, 150429, 2107, 10053, 10521, '0', '0', 0, 0, 1, 676.01043701171875, 674.05035400390625, -14.6389789581298828, 3.677953243255615234, 7200, 0, 0, 11791, 0, 2, 0, 0, 0, '', 44325), -- Defiler Combatant (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch) (possible waypoints or random movement)
 (@CGUID+153, 150459, 2107, 10053, 10521, '0', '0', 0, 0, 0, 629.9687, 362.30926, 178.24315, 1.623220682144165039, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Defiler Bat Rider (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+154, 150647, 2107, 10053, 10521, '0', '0', 0, 0, 0, 620.75433349609375, 696.850341796875, -8.03371715545654296, 0.011967432685196399, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Basin Rat (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+155, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1331.0491943359375, 1296.4215087890625, -10.2797775268554687, 0.945124149322509765, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -526,6 +526,7 @@ DELETE FROM `creature_addon` WHERE `guid` BETWEEN @CGUID+0 AND @CGUID+295;
 INSERT INTO `creature_addon` (`guid`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES
 (@CGUID+102, 0, 0, 0, 1, 0, 0, 0, 0, 3, '285977'), -- Bound Arathi Rager - 285977 - Earth Channel Omni
 (@CGUID+126, 0, 0, 0, 1, 0, 0, 0, 0, 3, '285977'), -- Bound Arathi Rager - 285977 - Earth Channel Omni
+(@CGUID+152, @WAYPOINT+31, 0, 0, 0, 0, 0, 0, 0, 0, '282578'), -- Defiler Combatant - 282578 - Hold Torch
 (@CGUID+172, @WAYPOINT+2, 0, 0, 1, 0, 0, 0, 0, 0, ''), -- Arathi Stablehand
 (@CGUID+173, @WAYPOINT+3, 0, 0, 1, 0, 0, 0, 0, 0, ''), -- Arathi Stablehand
 (@CGUID+216, 0, 0, 0, 1, 766, 0, 0, 0, 0, ''), -- Arathi Miner
@@ -549,8 +550,6 @@ INSERT INTO `creature_addon` (`guid`, `path_id`, `mount`, `bytes1`, `bytes2`, `e
 (@CGUID+288, 0, 0, 0, 1, 766, 0, 0, 0, 0, ''), -- Forsaken Miner
 (@CGUID+289, 0, 0, 3, 1, 0, 0, 0, 0, 0, '217075'), -- Forsaken Miner - 217075 - Sleeping Sleep
 (@CGUID+295, 0, 0, 0, 1, 766, 0, 0, 0, 0, ''); -- Forsaken Miner
-
--- 217, 224, 219
 
 DELETE FROM `gameobject` WHERE `guid` BETWEEN @OGUID+0 AND @OGUID+20;
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficulties`, `PhaseId`, `PhaseGroup`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `VerifiedBuild`) VALUES
@@ -589,7 +588,7 @@ INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Fligh
 (150513, 0, 0, 1, 0, 0, NULL),
 (150459, 0, 0, 1, 0, 0, NULL);
 
-DELETE FROM `creature_template_addon` WHERE `entry` IN (15071 /*15071 (Underfoot) - Grow*/, 73400 /*73400 (Healing Ran Invisible Stalker DND) - Healing Rain Visual*/, 15063 /*15063 (Arathi Blacksmith) - Blacksmith Working*/, 15065 /*15065 (Lady)*/, 15064 /*15064 (Forsaken Blacksmith) - Blacksmith Working*/, 15074 /*15074 (Arathi Miner) - Carry Sack*/, 15089 /*15089 (Forsaken Lumberjack) - Lumberjackin'*/, 15046 /*15046 (Forsaken Farmer)*/, 150622 /*150622 (Dominic Masonwrite) - Read Scroll*/, 150414 /*150414 (Lightning) - Sleeping Sleep*/, 150418 /*150418 (Arathor Siege Tank)*/, 150459 /*150459 (Defiler Bat Rider)*/, 150513 /*150513 (Arathor Gryphon Rider)*/, 150543 /*150543 (Belle)*/, 149755 /*149755 (Kevin Young) - Blacksmith Working*/, 150403 /*150403 (Arathor Watchman) - Hold Torch*/, 150429 /*150429 (Defiler Combatant) - Hold Torch*/, 150655 /*150655 (Groundskeeper Olivia)*/, 150426 /*150426 (Arathi Giant)*/);
+DELETE FROM `creature_template_addon` WHERE `entry` IN (26350 /*Alliance Graveyard Teleporter*/, 15071 /*15071 (Underfoot) - Grow*/, 73400 /*73400 (Healing Ran Invisible Stalker DND) - Healing Rain Visual*/, 15063 /*15063 (Arathi Blacksmith) - Blacksmith Working*/, 15065 /*15065 (Lady)*/, 15064 /*15064 (Forsaken Blacksmith) - Blacksmith Working*/, 15074 /*15074 (Arathi Miner) - Carry Sack*/, 15089 /*15089 (Forsaken Lumberjack) - Lumberjackin'*/, 15046 /*15046 (Forsaken Farmer)*/, 150622 /*150622 (Dominic Masonwrite) - Read Scroll*/, 150414 /*150414 (Lightning) - Sleeping Sleep*/, 150418 /*150418 (Arathor Siege Tank)*/, 150459 /*150459 (Defiler Bat Rider)*/, 150513 /*150513 (Arathor Gryphon Rider)*/, 150543 /*150543 (Belle)*/, 149755 /*149755 (Kevin Young) - Blacksmith Working*/, 150403 /*150403 (Arathor Watchman) - Hold Torch*/, 150429 /*150429 (Defiler Combatant) - Hold Torch*/, 150655 /*150655 (Groundskeeper Olivia)*/, 150426 /*150426 (Arathi Giant)*/);
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES
 (15071, 0, 0, 0, 1, 0, 0, 0, 0, 0, '24244'), -- 15071 (Underfoot) - Grow
 (15065, 0, 0, 1, 1, 0, 0, 0, 0, 0, ''), -- 15065 (Lady)
@@ -598,7 +597,8 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 (150459, 0, 1566, 50331648, 1, 0, 0, 0, 0, 4, ''), -- 150459 (Defiler Bat Rider)
 (150513, 0, 47166, 50331648, 1, 0, 0, 0, 0, 4, ''), -- 150513 (Arathor Gryphon Rider)
 (150543, 0, 0, 1, 1, 0, 0, 0, 0, 0, ''), -- 150543 (Belle)
-(150426, 0, 0, 0, 1, 0, 0, 0, 0, 3, ''); -- 150426 (Arathi Giant)
+(150426, 0, 0, 0, 1, 0, 0, 0, 0, 3, ''), -- 150426 (Arathi Giant)
+(26350, 0, 0, 0, 1, 0, 0, 0, 0, 0, '8149'); -- 26350 (Alliance Graveyard Teleporter) - Super Invis
 
 -- add UNIT_FLAG_IMMUNE_TO_PC & UNIT_FLAG_IMMUNE_TO_NPC
 UPDATE `creature_template` SET `unit_flags` = `unit_flags` | 0x100 | 0x200 WHERE `entry` IN (
@@ -613,6 +613,8 @@ UPDATE `creature_template` SET `unit_flags` = `unit_flags` | 0x100 | 0x200 WHERE
     15046, -- Forsaken Farmer
     15086 -- Arathi Stablehand
 );
+
+UPDATE `creature_template` SET `speed_run`=1.142857193946838378, `unit_flags3`=524288 WHERE `entry`=26350; -- Alliance Graveyard Teleporter
 
 DELETE FROM `npc_vendor` WHERE (`entry`=149721 AND `item`=163054 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=161127 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=159900 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=163060 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=159868 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149721 AND `item`=159867 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=39505 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=20815 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=6532 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=6530 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4400 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4399 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4289 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=3371 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4340 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4342 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4341 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2325 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2604 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=3857 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=3466 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2880 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2678 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=38426 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=14341 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=8343 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=4291 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2321 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2320 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=5956 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=6217 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=6256 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=85663 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=7005 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=2901 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=160059 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=160298 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=159959 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=158205 AND `ExtendedCost`=0 AND `type`=1) OR (`entry`=149718 AND `item`=158186 AND `ExtendedCost`=0 AND `type`=1);
 INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `ExtendedCost`, `type`, `PlayerConditionID`, `IgnoreFiltering`, `VerifiedBuild`) VALUES
@@ -667,7 +669,7 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (261985, 'spell_bg_ab_blacksmith_working');
 
 -- waypoint scripts
-DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+30;
+DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+32;
 -- Kevin Young
 INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `orientation`, `delay`) VALUES
 -- -- Path 1
@@ -931,4 +933,32 @@ INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `positio
 (@WAYPOINT+29, 22, 1203.2988, 901.166, -102.75918, NULL, 0),
 -- -- Path 3
 (@WAYPOINT+30, 1, 1203.2988, 901.166, -102.75918, 0.506145477294921875, 3000),
-(@WAYPOINT+30, 2, 1197.3055, 864.316, -98.932175, 4.242938518524169921, 250);
+(@WAYPOINT+30, 2, 1197.3055, 864.316, -98.932175, 4.242938518524169921, 250),
+-- Defiler Combatant (@CGUID+152)
+(@WAYPOINT+31, 1, 679.4757, 676.5625, -14.697695, NULL, 0),
+(@WAYPOINT+31, 2, 673.566, 672.5955, -14.456118, NULL, 0),
+(@WAYPOINT+31, 3, 671.625, 670.6493, -14.3707905, NULL, 0),
+(@WAYPOINT+31, 4, 670.3976, 668.24304, -13.940615, NULL, 0),
+(@WAYPOINT+31, 5, 668.3993, 662.32465, -13.433236, NULL, 0),
+(@WAYPOINT+31, 6, 668.6493, 657.4601, -12.956796, NULL, 0),
+(@WAYPOINT+31, 7, 669.7083, 654.38196, -12.754769, NULL, 0),
+(@WAYPOINT+31, 8, 671.2778, 651.7639, -12.450936, NULL, 0),
+(@WAYPOINT+31, 9, 673.6441, 649.8924, -12.1316, NULL, 0),
+(@WAYPOINT+31, 10, 675.8524, 648.99304, -11.709237, NULL, 0),
+(@WAYPOINT+31, 11, 686.5573, 648.2518, -11.8818445, NULL, 0),
+(@WAYPOINT+31, 12, 692.8368, 649.0035, -12.828256, NULL, 0),
+(@WAYPOINT+31, 13, 686.5573, 648.2518, -11.8818445, NULL, 0),
+(@WAYPOINT+31, 14, 677.8542, 648.8524, -11.50184, NULL, 0),
+(@WAYPOINT+31, 15, 675.8524, 648.99304, -11.709237, NULL, 0),
+(@WAYPOINT+31, 16, 671.2778, 651.7639, -12.450936, NULL, 0),
+(@WAYPOINT+31, 17, 669.7083, 654.38196, -12.754769, NULL, 0),
+(@WAYPOINT+31, 18, 668.6493, 657.4601, -12.956796, NULL, 0),
+(@WAYPOINT+31, 19, 668.3993, 662.32465, -13.433236, NULL, 0),
+(@WAYPOINT+31, 20, 670.3976, 668.24304, -13.940615, NULL, 0),
+(@WAYPOINT+31, 21, 671.625, 670.6493, -14.3707905, NULL, 0),
+(@WAYPOINT+31, 22, 673.566, 672.5955, -14.456118, NULL, 0),
+(@WAYPOINT+31, 23, 676.01044, 674.05035, -14.638979, NULL, 0),
+-- Defiler Combatant (@CGUID+14)
+(@WAYPOINT+32, 1, 661.67365, 667.5417, 7.8209686, NULL, 0),
+(@WAYPOINT+32, 2, 663.79517, 666.92365, 7.8209686, NULL, 0),
+(@WAYPOINT+32, 3, 670.1597, 665.309, 7.820969, 4.520402908325195312, 2000);

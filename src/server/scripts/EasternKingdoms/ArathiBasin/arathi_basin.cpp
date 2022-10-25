@@ -299,6 +299,81 @@ private:
     TaskScheduler _scheduler;
 };
 
+struct npc_bg_ab_defiler_combatant_1 : ScriptedAI
+{
+    static constexpr uint32 SPELL_HOLD_TORCH = 282578;
+    static constexpr uint32 PATH = 100000032;
+
+    npc_bg_ab_defiler_combatant_1(Creature* creature) : ScriptedAI(creature) { }
+
+    void JustAppeared() override
+    {
+        DoCastSelf(SPELL_HOLD_TORCH);
+        _scheduler.Schedule(1min, [this](TaskContext /*context*/)
+        {
+            me->GetMotionMaster()->MovePath(PATH, false);
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
+    {
+        switch (pathId)
+        {
+            case PATH:
+                DoCastSelf(SPELL_HOLD_TORCH);
+                _scheduler.Schedule(10s, [this](TaskContext /*context*/)
+                {
+                    me->GetMotionMaster()->MovePath(PATH, false);
+                });
+                break;
+            default:
+                break;
+        }
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+struct npc_bg_ab_defiler_combatant_2 : ScriptedAI
+{
+    static constexpr uint32 SPELL_HOLD_TORCH = 282578;
+    static constexpr uint32 SPELL_THROW_TORCH = 291606;
+    static constexpr uint32 NPC_SPELL_BUNNY = 149760;
+
+    npc_bg_ab_defiler_combatant_2(Creature* creature) : ScriptedAI(creature) { }
+
+    void JustAppeared() override
+    {
+        DoCastSelf(SPELL_HOLD_TORCH);
+        _scheduler.Schedule(10s, [this](TaskContext context)
+        {
+            Creature* target = me->FindNearestCreature(NPC_SPELL_BUNNY, 20.0f);
+            me->RemoveAurasDueToSpell(SPELL_HOLD_TORCH);
+            DoCast(target, SPELL_THROW_TORCH);
+            context.Schedule(1s, [this](TaskContext /*context*/)
+            {
+                DoCastSelf(SPELL_HOLD_TORCH);
+            });
+
+            context.Repeat();
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
 // Lumber Mill
 struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
 {
@@ -1467,6 +1542,8 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_radulf_leder);
     RegisterCreatureAI(npc_bg_ab_dominic_masonwrite);
     RegisterCreatureAI(npc_bg_ab_kevin_young);
+    RegisterCreatureAI(npc_bg_ab_defiler_combatant_1);
+    RegisterCreatureAI(npc_bg_ab_defiler_combatant_2);
     RegisterCreatureAI(npc_bg_ab_lumberjack);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_1);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_2);
