@@ -1395,8 +1395,6 @@ private:
     TaskScheduler _scheduler;
 };
 
-constexpr uint32 SPELL_CARRY_SACK = 175121;
-
 struct npc_bg_ab_miner_working_base : ScriptedAI
 {
     static constexpr uint32 SPELL_CARRY_SACK = 175121;
