@@ -63,7 +63,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+9, 149785, 2107, 10053, 10521, '0', '0', 0, 0, 0, 640.20159912109375, 1064.5498046875, 92.400726318359375, 1.390209197998046875, 7200, 10, 0, 6441, 0, 1, 0, 0, 0, '', 44325), -- Highland Thrasher (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+10, 149786, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1097.817138671875, 651.25885009765625, 24.62078666687011718, 6.138581752777099609, 7200, 10, 0, 4294, 0, 1, 0, 0, 0, '', 44325), -- Plains Creeper (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+11, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1380.501953125, 1301.3232421875, -7.9797372817993164, 3.398830890655517578, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+12, 149760, 2107, 10053, 10521, '0', '0', 0, 0, 0, 711.51910400390625, 683.28643798828125, -15.1177291870117187, 3.388207435607910156, 7200, 0, 0, 4579, 0, 0, 0, 0, 0, '', 44325), -- Spell Bunny (Area: Defiler's Den - Difficulty: 0)
+(@CGUID+12, 149760, 2107, 10053, 10521, '0', '0', 0, 0, 0, 711.51910400390625, 683.28643798828125, -15.1177291870117187, 3.388207435607910156, 1, 0, 0, 4579, 0, 0, 0, 0, 0, '', 44325), -- Spell Bunny (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+13, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1387.0928955078125, 1312.1898193359375, -6.2264413833618164, 4.357081413269042968, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+14, 150429, 2107, 10053, 10521, '0', '0', 0, 0, 1, 658.76214599609375, 668.44964599609375, 7.71792459487915039, 1.834298372268676757, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_defiler_combatant_1', 44325), -- Defiler Combatant (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch) (possible waypoints or random movement)
 (@CGUID+15, 149792, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1170.2982177734375, 632.3450927734375, 23.96047019958496093, 0.953545689582824707, 7200, 10, 0, 4579, 0, 1, 0, 0, 0, '', 44325), -- Arathi Rager (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -135,7 +135,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+81, 149785, 2107, 10053, 10521, '0', '0', 0, 0, 0, 699.35205078125, 1219.0498046875, 68.07843780517578125, 5.263020992279052734, 7200, 10, 0, 6869, 0, 1, 0, 0, 0, '', 44325), -- Highland Thrasher (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+82, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1323.2760009765625, 1341.8004150390625, 12.26622295379638671, 1.421558141708374023, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+83, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1311.988037109375, 1331.2960205078125, -9.6644906997680664, 5.351158618927001953, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+84, 149718, 2107, 10053, 10521, '0', '0', 0, 0, 0, 706.732666015625, 679.89239501953125, -16.0542812347412109, 2.884756326675415039, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Derek Darkmetal (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
+(@CGUID+84, 149718, 2107, 10053, 10521, '0', '0', 0, 0, 0, 706.732666015625, 679.89239501953125, -16.0542812347412109, 2.884756326675415039, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_derek_darkmetal', 44325), -- Derek Darkmetal (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+85, 149719, 2107, 10053, 10521, '0', '0', 0, 0, 0, 671.85589599609375, 636.69268798828125, -9.23107337951660156, 2.02702641487121582, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Captain (Area: Defiler's Den - Difficulty: 0) (Auras: 32951 - Sleeping Sleep)
 (@CGUID+86, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1362.0052490234375, 1274.1754150390625, -10.5525951385498046, 2.933927774429321289, 7200, 0, 0, 27, 0, 0, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+87, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 905.44866943359375, 841.3917236328125, -64.7079849243164062, 5.579193115234375, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -669,7 +669,7 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (261985, 'spell_bg_ab_blacksmith_working');
 
 -- waypoint scripts
-DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+32;
+DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+35;
 -- Kevin Young
 INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `orientation`, `delay`) VALUES
 -- -- Path 1
@@ -961,4 +961,9 @@ INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `positio
 -- Defiler Combatant (@CGUID+14)
 (@WAYPOINT+32, 1, 661.67365, 667.5417, 7.8209686, NULL, 0),
 (@WAYPOINT+32, 2, 663.79517, 666.92365, 7.8209686, NULL, 0),
-(@WAYPOINT+32, 3, 670.1597, 665.309, 7.820969, 4.520402908325195312, 2000);
+(@WAYPOINT+32, 3, 670.1597, 665.309, 7.820969, 4.520402908325195312, 2000),
+-- Derek Darkmetal
+(@WAYPOINT+33, 1, 708.559, 676.041, -15.8257885, NULL, 0),
+(@WAYPOINT+34, 1, 708.7535, 680.67883, -15.962873, NULL, 0),
+(@WAYPOINT+34, 2, 709.375, 681.7708, -15.8882885, 0.401425719261169433, 1),
+(@WAYPOINT+35, 1, 706.73267, 679.8924, -16.100447, 2.884756326675415039, 1);

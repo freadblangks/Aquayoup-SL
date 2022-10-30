@@ -374,6 +374,90 @@ private:
     TaskScheduler _scheduler;
 };
 
+struct npc_bg_ab_derek_darkmetal : ScriptedAI
+{
+    static constexpr uint32 PATH_1 = 100000033;
+    static constexpr uint32 PATH_2 = 100000034;
+    static constexpr uint32 PATH_3 = 100000035;
+    static constexpr uint32 ITEM_SWORD = 10825;
+    static constexpr uint32 SPELL_STEAM = 290554;
+    static constexpr uint32 NPC_SPELL_BUNNY = 149760;
+
+    npc_bg_ab_derek_darkmetal(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff)
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        StartScript();
+    }
+
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
+    {
+        switch (pathId)
+        {
+            case PATH_1:
+                me->SetEmoteState(EMOTE_STATE_USE_STANDING);
+                _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+                {
+                    me->SetEmoteState(EMOTE_ONESHOT_NONE);
+                    me->SetVirtualItem(1, ITEM_SWORD);
+                    me->GetMotionMaster()->MovePath(PATH_2, false);
+                });
+                break;
+            case PATH_2:
+            {
+                ObjectGuid targetGuid;
+                if (Creature* target = me->FindNearestCreature(NPC_SPELL_BUNNY, 20.0f))
+                {
+                    targetGuid = target->GetGUID();
+                    target->CastSpell(target, SPELL_STEAM);
+                }
+                me->PlayOneShotAnimKitId(17343);
+                _scheduler.Schedule(6s, [this, targetGuid](TaskContext /*context*/)
+                {
+                    if (Creature* target = me->GetMap()->GetCreature(targetGuid))
+                        target->DespawnOrUnsummon();
+
+                    me->GetMotionMaster()->MovePath(PATH_3, false);
+                });
+                break;
+            }
+            case PATH_3:
+                _scheduler.Schedule(1s, [this](TaskContext context)
+                {
+                    me->SetVirtualItem(1, 0);
+                    context.Schedule(3s, [this](TaskContext /*context*/)
+                    {
+                        StartScript();
+                    });
+                });
+                break;
+            default:
+                break;
+        }
+    }
+
+    void StartScript()
+    {
+        me->SetEmoteState(EMOTE_STATE_WORK_SMITH);
+        _scheduler.Schedule(20s, [this](TaskContext context)
+        {
+            me->SetEmoteState(EMOTE_ONESHOT_NONE);
+            context.Schedule(1s, [this](TaskContext context)
+            {
+                me->GetMotionMaster()->MovePath(PATH_1, false);
+            });
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
 // Lumber Mill
 struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
 {
@@ -1542,6 +1626,7 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_kevin_young);
     RegisterCreatureAI(npc_bg_ab_defiler_combatant_1);
     RegisterCreatureAI(npc_bg_ab_defiler_combatant_2);
+    RegisterCreatureAI(npc_bg_ab_derek_darkmetal);
     RegisterCreatureAI(npc_bg_ab_lumberjack);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_1);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_2);
