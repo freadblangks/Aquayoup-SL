@@ -507,6 +507,80 @@ private:
     TaskScheduler _scheduler;
 };
 
+struct npc_bg_ab_arathor_watchman_talking : ScriptedAI
+{
+    npc_bg_ab_arathor_watchman_talking(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        _scheduler.Schedule(10s, 15s, [this](TaskContext context)
+        {
+            me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
+            context.Repeat();
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+struct npc_bg_ab_arathor_watchman_patrol_1 : ScriptedAI
+{
+    static constexpr uint32 PATH_1 = 100000036;
+    static constexpr uint32 PATH_2 = 100000037;
+    static constexpr uint32 SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS = 271087;
+
+    npc_bg_ab_arathor_watchman_patrol_1(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        StartScript();
+    }
+
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
+    {
+        switch (pathId)
+        {
+            case PATH_1:
+                DoCastSelf(SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS);
+                _scheduler.Schedule(10s, [this](TaskContext /*context*/)
+                {
+                    me->RemoveAurasDueToSpell(SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS);
+                    me->GetMotionMaster()->MovePath(PATH_2, false);
+                });
+                break;
+            case PATH_2:
+                StartScript();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void StartScript()
+    {
+        DoCastSelf(SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS);
+        _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+        {
+            me->RemoveAurasDueToSpell(SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS);
+            me->GetMotionMaster()->MovePath(PATH_1, false);
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
 // Lumber Mill
 struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
 {
@@ -1678,6 +1752,8 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_derek_darkmetal);
     RegisterCreatureAI(npc_bg_ab_arathor_watchman_drinking_1);
     RegisterCreatureAI(npc_bg_ab_arathor_watchman_drinking_2);
+    RegisterCreatureAI(npc_bg_ab_arathor_watchman_talking);
+    RegisterCreatureAI(npc_bg_ab_arathor_watchman_patrol_1);
     RegisterCreatureAI(npc_bg_ab_lumberjack);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_1);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_2);

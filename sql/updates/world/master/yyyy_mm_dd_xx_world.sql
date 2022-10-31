@@ -67,7 +67,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+13, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1387.0928955078125, 1312.1898193359375, -6.2264413833618164, 4.357081413269042968, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+14, 150429, 2107, 10053, 10521, '0', '0', 0, 0, 1, 658.76214599609375, 668.44964599609375, 7.71792459487915039, 1.834298372268676757, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_defiler_combatant_1', 44325), -- Defiler Combatant (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch) (possible waypoints or random movement)
 (@CGUID+15, 149792, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1170.2982177734375, 632.3450927734375, 23.96047019958496093, 0.953545689582824707, 7200, 10, 0, 4579, 0, 1, 0, 0, 0, '', 44325), -- Arathi Rager (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+16, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1360.3677978515625, 1357.0140380859375, -6.39866065979003906, 2.381939411163330078, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch) (possible waypoints or random movement)
+(@CGUID+16, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1363.8733, 1353.7639, -4.9591475, 2.381939411163330078, 7200, 0, 0, 11791, 0, 2, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0) (Auras: 282578 - Hold Torch) (possible waypoints or random movement)
 (@CGUID+17, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1060.4078369140625, 1004.0341796875, -51.1669082641601562, 2.335479259490966796, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+18, 149792, 2107, 10053, 10521, '0', '0', 0, 0, 0, 504.144073486328125, 406.05364990234375, 130.13250732421875, 5.262158393859863281, 7200, 10, 0, 4579, 0, 1, 0, 0, 0, '', 44325), -- Arathi Rager (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+19, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 936.64385986328125, 855.83038330078125, -64.4358444213867187, 2.88435983657836914, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -131,9 +131,9 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+77, 150647, 2107, 10053, 10521, '0', '0', 0, 0, 0, 659.10858154296875, 673.026123046875, -12.1359291076660156, 5.33001565933227539, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Basin Rat (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+78, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1374.5650634765625, 1321.392822265625, -5.3021249771118164, 4.243195056915283203, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+79, 149785, 2107, 10053, 10521, '0', '0', 0, 0, 0, 640.955322265625, 1059.954345703125, 91.897918701171875, 1.358333110809326171, 7200, 10, 0, 6869, 0, 1, 0, 0, 0, '', 44325), -- Highland Thrasher (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+80, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1323.49658203125, 1343.517333984375, 12.2651214599609375, 4.617429256439208984, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
+(@CGUID+80, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1323.49658203125, 1343.517333984375, 12.2651214599609375, 4.617429256439208984, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_arathor_watchman_talking', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+81, 149785, 2107, 10053, 10521, '0', '0', 0, 0, 0, 699.35205078125, 1219.0498046875, 68.07843780517578125, 5.263020992279052734, 7200, 10, 0, 6869, 0, 1, 0, 0, 0, '', 44325), -- Highland Thrasher (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+82, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1323.2760009765625, 1341.8004150390625, 12.26622295379638671, 1.421558141708374023, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
+(@CGUID+82, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1323.2760009765625, 1341.8004150390625, 12.26622295379638671, 1.421558141708374023, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_arathor_watchman_talking', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+83, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1311.988037109375, 1331.2960205078125, -9.6644906997680664, 5.351158618927001953, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+84, 149718, 2107, 10053, 10521, '0', '0', 0, 0, 0, 706.732666015625, 679.89239501953125, -16.0542812347412109, 2.884756326675415039, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_derek_darkmetal', 44325), -- Derek Darkmetal (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+85, 149719, 2107, 10053, 10521, '0', '0', 0, 0, 0, 671.85589599609375, 636.69268798828125, -9.23107337951660156, 2.02702641487121582, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Captain (Area: Defiler's Den - Difficulty: 0) (Auras: 32951 - Sleeping Sleep)
@@ -197,7 +197,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+143, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1052.803955078125, 1177.83251953125, -53.6215629577636718, 2.972865581512451171, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+144, 150449, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1221.4097900390625, 1418.125, -6.12056922912597656, 4.823981285095214843, 7200, 10, 0, 916, 0, 1, 0, 0, 0, '', 44325), -- Highland Bristleback (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+145, 150449, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1356.857666015625, 892.73089599609375, 15.06451225280761718, 2.954025030136108398, 7200, 0, 0, 916, 0, 0, 0, 0, 0, '', 44325), -- Highland Bristleback (Area: Defiler's Den - Difficulty: 0)
-(@CGUID+146, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1331.4132080078125, 1329.59375, 13.7649688720703125, 4.857148170471191406, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0) (Auras: 271087 - Cosmetic - Human Male Kul Tiran Spyglass) (possible waypoints or random movement)
+(@CGUID+146, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1331.4132080078125, 1329.59375, 13.7649688720703125, 4.857148170471191406, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_arathor_watchman_patrol_1', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0) (Auras: 271087 - Cosmetic - Human Male Kul Tiran Spyglass) (possible waypoints or random movement)
 (@CGUID+147, 150461, 2107, 10053, 10521, '0', '0', 0, 0, 0, 633.95489501953125, 389.423614501953125, 171.862152099609375, 1.21834874153137207, 7200, 0, 0, 4579, 0, 0, 0, 0, 0, '', 44325), -- Spell Bunny (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+148, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1299.8072509765625, 1338.8646240234375, -10.6652584075927734, 3.047743797302246093, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_arathor_watchman_drinking_1', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+149, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 678.849853515625, 793.946044921875, -19.0406970977783203, 5.245444297790527343, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -530,7 +530,9 @@ INSERT INTO `creature_movement_override` (`SpawnId`, `Ground`, `Swim`, `Flight`,
 
 DELETE FROM `creature_addon` WHERE `guid` BETWEEN @CGUID+0 AND @CGUID+295;
 INSERT INTO `creature_addon` (`guid`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES
+(@CGUID+16, @WAYPOINT+38, 0, 0, 1, 0, 0, 0, 0, 0, '282578'), -- Arathor Watchman - 282578 - Hold Torch
 (@CGUID+21, 0, 0, 0, 1, 0, 0, 0, 0, 0, '282578'), -- Arathor Watchman - 282578 - Hold Torch
+(@CGUID+59, 0, 0, 262144, 1, 0, 0, 0, 0, 0, '145363'), -- Arathor Watchman - 145363 - Permanent Feign Death (Stun, Untrackable, Immune)
 (@CGUID+62, 0, 0, 0, 1, 461, 0, 0, 0, 0, ''), -- Arathor Watchman
 (@CGUID+71, 0, 0, 0, 1, 461, 0, 0, 0, 0, ''), -- Arathor Watchman
 (@CGUID+102, 0, 0, 0, 1, 0, 0, 0, 0, 3, '285977'), -- Bound Arathi Rager - 285977 - Earth Channel Omni
@@ -682,7 +684,7 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (261985, 'spell_bg_ab_blacksmith_working');
 
 -- waypoint scripts
-DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+35;
+DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+37;
 -- Kevin Young
 INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `orientation`, `delay`) VALUES
 -- -- Path 1
@@ -979,4 +981,52 @@ INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `positio
 (@WAYPOINT+33, 1, 708.559, 676.041, -15.8257885, NULL, 0),
 (@WAYPOINT+34, 1, 708.7535, 680.67883, -15.962873, NULL, 0),
 (@WAYPOINT+34, 2, 709.375, 681.7708, -15.8882885, 0.401425719261169433, 1),
-(@WAYPOINT+35, 1, 706.73267, 679.8924, -16.100447, 2.884756326675415039, 1);
+(@WAYPOINT+35, 1, 706.73267, 679.8924, -16.100447, 2.884756326675415039, 1),
+-- Arathor Watchman (@CGUID+146)
+-- -- path 1
+(@WAYPOINT+36, 1, 1326.243, 1331.1216, 12.214721, NULL, 0),
+(@WAYPOINT+36, 2, 1323.5469, 1332.816, 12.214721, NULL, 0),
+(@WAYPOINT+36, 3, 1321.4392, 1335.481, 12.214722, NULL, 0),
+(@WAYPOINT+36, 4, 1319.5712, 1336.4341, 12.203757, NULL, 0),
+(@WAYPOINT+36, 5, 1318.0798, 1336.4791, 11.677477, NULL, 0),
+(@WAYPOINT+36, 6, 1314.6041, 1336.0469, 11.417847, NULL, 0),
+(@WAYPOINT+36, 7, 1307.0416, 1335.2726, 11.417846, 4.607669353485107421, 1),
+-- -- path 2
+(@WAYPOINT+37, 1, 1313.1163, 1336.0243, 11.417846, NULL, 0),
+(@WAYPOINT+37, 2, 1318.1788, 1336.6666, 11.723722, NULL, 0),
+(@WAYPOINT+37, 3, 1321.5712, 1337.1649, 12.214722, NULL, 0),
+(@WAYPOINT+37, 4, 1322.9445, 1334.3351, 12.214722, NULL, 0),
+(@WAYPOINT+37, 5, 1324.7274, 1332.3334, 12.214721, NULL, 0),
+(@WAYPOINT+37, 6, 1327.6632, 1330.2048, 12.214723, NULL, 0),
+(@WAYPOINT+37, 7, 1331.4132, 1329.5938, 12.214723, 4.857148170471191406, 1500),
+-- Arathor Watchman (@CGUID+16)
+(@WAYPOINT+38, 1, 1363.8733, 1353.7639, -4.9591475, NULL, 0),
+(@WAYPOINT+38, 2, 1360.3368, 1357.0435, -6.4125166, NULL, 0),
+(@WAYPOINT+38, 3, 1356.0192, 1360.7466, -7.969157, NULL, 0),
+(@WAYPOINT+38, 4, 1349.6632, 1365.3854, -9.153361, NULL, 0),
+(@WAYPOINT+38, 5, 1341.5017, 1370.026, -9.8801, NULL, 0),
+(@WAYPOINT+38, 6, 1335.5226, 1372.5365, -9.787571, NULL, 0),
+(@WAYPOINT+38, 7, 1331.4479, 1374.6788, -9.702032, NULL, 0),
+(@WAYPOINT+38, 8, 1328.191, 1376.4966, -9.702032, NULL, 0),
+(@WAYPOINT+38, 9, 1323.9635, 1378.0295, -9.702032, NULL, 0),
+(@WAYPOINT+38, 10, 1318.9567, 1379.0521, -9.952032, NULL, 0),
+(@WAYPOINT+38, 11, 1314.7413, 1377.6337, -10.077032, NULL, 0),
+(@WAYPOINT+38, 12, 1311.3264, 1376.0625, -9.998663, NULL, 0),
+(@WAYPOINT+38, 13, 1308.5052, 1374.2812, -9.952032, NULL, 0),
+(@WAYPOINT+38, 14, 1305.3993, 1371.8125, -9.882086, NULL, 0),
+(@WAYPOINT+38, 15, 1301.9254, 1369.0712, -9.783453, NULL, 0),
+(@WAYPOINT+38, 16, 1297.0591, 1366.2969, -9.691166, NULL, 0),
+(@WAYPOINT+38, 17, 1301.9254, 1369.0712, -9.783453, NULL, 0),
+(@WAYPOINT+38, 18, 1305.3993, 1371.8125, -9.882086, NULL, 0),
+(@WAYPOINT+38, 19, 1308.5052, 1374.2812, -9.952032, NULL, 0),
+(@WAYPOINT+38, 20, 1311.3264, 1376.0625, -9.998663, NULL, 0),
+(@WAYPOINT+38, 21, 1314.7413, 1377.6337, -10.077032, NULL, 0),
+(@WAYPOINT+38, 22, 1318.9567, 1379.0521, -9.952032, NULL, 0),
+(@WAYPOINT+38, 23, 1323.9635, 1378.0295, -9.702032, NULL, 0),
+(@WAYPOINT+38, 24, 1328.191, 1376.4966, -9.702032, NULL, 0),
+(@WAYPOINT+38, 25, 1331.4479, 1374.6788, -9.702032, NULL, 0),
+(@WAYPOINT+38, 26, 1335.5226, 1372.5365, -9.787571, NULL, 0),
+(@WAYPOINT+38, 27, 1341.5017, 1370.026, -9.8801, NULL, 0),
+(@WAYPOINT+38, 28, 1349.6632, 1365.3854, -9.153361, NULL, 0),
+(@WAYPOINT+38, 29, 1356.0192, 1360.7466, -7.969157, NULL, 0),
+(@WAYPOINT+38, 30, 1360.3368, 1357.0435, -6.4125166, NULL, 0);
