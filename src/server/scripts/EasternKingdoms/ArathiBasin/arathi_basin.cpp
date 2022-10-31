@@ -385,7 +385,7 @@ struct npc_bg_ab_derek_darkmetal : ScriptedAI
 
     npc_bg_ab_derek_darkmetal(Creature* creature) : ScriptedAI(creature) { }
 
-    void UpdateAI(uint32 diff)
+    void UpdateAI(uint32 diff) override
     {
         _scheduler.Update(diff);
     }

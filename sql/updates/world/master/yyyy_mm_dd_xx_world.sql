@@ -684,7 +684,7 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (261985, 'spell_bg_ab_blacksmith_working');
 
 -- waypoint scripts
-DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+37;
+DELETE FROM `waypoint_data` WHERE `id` BETWEEN @WAYPOINT AND @WAYPOINT+38;
 -- Kevin Young
 INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `orientation`, `delay`) VALUES
 -- -- Path 1
