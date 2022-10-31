@@ -458,6 +458,55 @@ private:
     TaskScheduler _scheduler;
 };
 
+struct npc_bg_ab_arathor_watchman_drinking_1 : ScriptedAI
+{
+    npc_bg_ab_arathor_watchman_drinking_1(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        _scheduler.Schedule(5s, 15s, [this](TaskContext context)
+        {
+            me->SetAIAnimKitId(2358);
+            context.Schedule(3s, [this](TaskContext /*context*/)
+            {
+                me->SetAIAnimKitId(0);
+            });
+
+            context.Repeat(5s, 15s);
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+struct npc_bg_ab_arathor_watchman_drinking_2 : ScriptedAI
+{
+    npc_bg_ab_arathor_watchman_drinking_2(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        _scheduler.Schedule(5s, 15s, [this](TaskContext context)
+        {
+            me->PlayOneShotAnimKitId(17347); // drink
+            context.Repeat();
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
 // Lumber Mill
 struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
 {
@@ -1627,6 +1676,8 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_defiler_combatant_1);
     RegisterCreatureAI(npc_bg_ab_defiler_combatant_2);
     RegisterCreatureAI(npc_bg_ab_derek_darkmetal);
+    RegisterCreatureAI(npc_bg_ab_arathor_watchman_drinking_1);
+    RegisterCreatureAI(npc_bg_ab_arathor_watchman_drinking_2);
     RegisterCreatureAI(npc_bg_ab_lumberjack);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_1);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_2);

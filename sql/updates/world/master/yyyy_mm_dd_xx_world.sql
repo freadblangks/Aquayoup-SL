@@ -113,7 +113,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+59, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 663.03643798828125, 724.86981201171875, -11.5520706176757812, 1.340009450912475585, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0) (Auras: 145363 - Permanent Feign Death (Stun, Untrackable, Immune))
 (@CGUID+60, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1378.6597900390625, 1356.232666015625, -0.23344957828521728, 0.447986364364624023, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+61, 149795, 2107, 10053, 10521, '0', '0', 0, 0, 0, 836.35247802734375, 1164.8739013671875, 11.99005699157714843, 1.119794964790344238, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Basin Beaver (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+62, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1294.390625, 1342.9600830078125, -10.5788164138793945, 6.201286792755126953, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
+(@CGUID+62, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1294.390625, 1342.9600830078125, -10.5788164138793945, 6.201286792755126953, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_arathor_watchman_drinking_1', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+63, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1222.544189453125, 759.67901611328125, -77.957000732421875, 5.781805038452148437, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+64, 150647, 2107, 10053, 10521, '0', '0', 0, 0, 0, 698.44140625, 632.8671875, -10.4185800552368164, 5.378872394561767578, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Basin Rat (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+65, 150459, 2107, 10053, 10521, '0', '0', 0, 0, 0, 629.9687, 376.4514, 178.24315, 1.61511242389678955, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_defiler_bat_rider_leader', 44325), -- Defiler Bat Rider (Area: Defiler's Den - Difficulty: 0)
@@ -122,7 +122,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+68, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 919.12396240234375, 920.71795654296875, -61.7486801147460937, 3.646725177764892578, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+69, 149785, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1387.1541748046875, 1199.1875, 19.23383331298828125, 2.778135299682617187, 7200, 10, 0, 6869, 0, 1, 0, 0, 0, '', 44325), -- Highland Thrasher (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+70, 149785, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1017.29522705078125, 666.74481201171875, 22.91433334350585937, 2.534416675567626953, 7200, 10, 0, 6869, 0, 1, 0, 0, 0, '', 44325), -- Highland Thrasher (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+71, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 1, 1337.5728759765625, 1368.63720703125, -7.77858304977416992, 0.937136530876159667, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
+(@CGUID+71, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 1, 1337.5728759765625, 1368.63720703125, -7.77858304977416992, 0.937136530876159667, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_arathor_watchman_drinking_2', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+72, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1308.5889892578125, 1374.7808837890625, -9.6841278076171875, 2.433773994445800781, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+73, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 983.51629638671875, 858.30718994140625, -63.717864990234375, 3.388092517852783203, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+74, 150647, 2107, 10053, 10521, '0', '0', 0, 0, 0, 623.11517333984375, 701.9610595703125, -8.1608896255493164, 3.716466903686523437, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Basin Rat (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -183,7 +183,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+129, 149792, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1098.4041748046875, 565.98858642578125, 51.28850555419921875, 4.761273860931396484, 7200, 10, 0, 4294, 0, 1, 0, 0, 0, '', 44325), -- Arathi Rager (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+130, 149795, 2107, 10053, 10521, '0', '0', 0, 0, 0, 850.741943359375, 1258.933837890625, 21.20541000366210937, 2.685371637344360351, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Basin Beaver (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+131, 149793, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1080.3509521484375, 576.28143310546875, 57.54082489013671875, 2.838066816329956054, 7200, 10, 0, 4579, 0, 1, 0, 0, 0, '', 44325), -- Bound Arathi Rager (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
-(@CGUID+132, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1305.1944580078125, 1349.1754150390625, -10.5335168838500976, 4.780579566955566406, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
+(@CGUID+132, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1305.1944580078125, 1349.1754150390625, -10.5335168838500976, 4.780579566955566406, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_arathor_watchman_drinking_1', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+133, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1358.060791015625, 1335.842041015625, 0.412317454814910888, 3.52324533462524414, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+134, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1076.629150390625, 1162.1763916015625, -61.3454360961914062, 4.583348274230957031, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+135, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1380.107666015625, 1362.15625, 0.848607659339904785, 0.126308128237724304, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -199,7 +199,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+145, 150449, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1356.857666015625, 892.73089599609375, 15.06451225280761718, 2.954025030136108398, 7200, 0, 0, 916, 0, 0, 0, 0, 0, '', 44325), -- Highland Bristleback (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+146, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1331.4132080078125, 1329.59375, 13.7649688720703125, 4.857148170471191406, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0) (Auras: 271087 - Cosmetic - Human Male Kul Tiran Spyglass) (possible waypoints or random movement)
 (@CGUID+147, 150461, 2107, 10053, 10521, '0', '0', 0, 0, 0, 633.95489501953125, 389.423614501953125, 171.862152099609375, 1.21834874153137207, 7200, 0, 0, 4579, 0, 0, 0, 0, 0, '', 44325), -- Spell Bunny (Area: Defiler's Den - Difficulty: 0)
-(@CGUID+148, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1299.8072509765625, 1338.8646240234375, -10.6652584075927734, 3.047743797302246093, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
+(@CGUID+148, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1299.8072509765625, 1338.8646240234375, -10.6652584075927734, 3.047743797302246093, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_arathor_watchman_drinking_1', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+149, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 678.849853515625, 793.946044921875, -19.0406970977783203, 5.245444297790527343, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+150, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1262, 1284.045166015625, -22.2945213317871093, 0, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+151, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1308.410400390625, 1364.8486328125, -9.66704940795898437, 5.814202308654785156, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -214,7 +214,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnDifficult
 (@CGUID+160, 14848, 2107, 10053, 10521, '0', '0', 0, 0, 2, 1304.2584228515625, 1322.562744140625, 43.8479156494140625, 0.645771801471710205, 7200, 0, 0, 176865, 0, 0, 0, 0, 0, '', 44325), -- Herald (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+161, 149785, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1087.740478515625, 610.6932373046875, 40.4268035888671875, 2.534158229827880859, 7200, 10, 0, 6869, 0, 1, 0, 0, 0, '', 44325), -- Highland Thrasher (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+162, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 643.58856201171875, 673.51739501953125, -9.29238128662109375, 0.675543844699859619, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0) (Auras: 145363 - Permanent Feign Death (Stun, Untrackable, Immune))
-(@CGUID+163, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1295.5347900390625, 1344.095458984375, -10.5542268753051757, 4.780579566955566406, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, '', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
+(@CGUID+163, 150403, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1295.5347900390625, 1344.095458984375, -10.5542268753051757, 4.780579566955566406, 7200, 0, 0, 11791, 0, 0, 0, 0, 0, 'npc_bg_ab_arathor_watchman_drinking_1', 44325), -- Arathor Watchman (Area: Defiler's Den - Difficulty: 0)
 (@CGUID+164, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1337.89794921875, 1272.5301513671875, -10.4476747512817382, 3.465642213821411132, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+165, 150647, 2107, 10053, 10521, '0', '0', 0, 0, 0, 662.10418701171875, 645.953125, -12.0993022918701171, 1.804074406623840332, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Basin Rat (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
 (@CGUID+166, 149794, 2107, 10053, 10521, '0', '0', 0, 0, 0, 1350, 1287.5, -10.2733583450317382, 5.15164947509765625, 7200, 10, 0, 27, 0, 1, 0, 0, 0, '', 44325), -- Highland Hare (Area: Defiler's Den - Difficulty: 0) (possible waypoints or random movement)
@@ -515,6 +515,12 @@ INSERT INTO `creature_formations` (`leaderGUID`, `memberGUID`, `dist`, `angle`, 
 -- movement templates
 DELETE FROM `creature_movement_override` WHERE `SpawnId` BETWEEN @CGUID+0 AND @CGUID+295;
 INSERT INTO `creature_movement_override` (`SpawnId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`) VALUES
+(@CGUID+21, 1, 0, 0, 1, 0, 0, NULL), -- Arathor Watchman
+(@CGUID+62, 1, 0, 0, 1, 0, 0, NULL), -- Arathor Watchman
+(@CGUID+71, 1, 0, 0, 1, 0, 0, NULL), -- Arathor Watchman
+(@CGUID+132, 1, 0, 0, 1, 0, 0, NULL), -- Arathor Watchman
+(@CGUID+148, 1, 0, 0, 1, 0, 0, NULL), -- Arathor Watchman
+(@CGUID+163, 1, 0, 0, 1, 0, 0, NULL), -- Arathor Watchman
 (@CGUID+175, 1, 0, 0, 1, 0, 0, NULL), -- Arathi Horse
 (@CGUID+203, 1, 0, 0, 1, 0, 0, NULL), -- Forsaken Lumberjack
 (@CGUID+206, 1, 0, 0, 1, 0, 0, NULL), -- Forsaken Lumberjack
@@ -524,9 +530,15 @@ INSERT INTO `creature_movement_override` (`SpawnId`, `Ground`, `Swim`, `Flight`,
 
 DELETE FROM `creature_addon` WHERE `guid` BETWEEN @CGUID+0 AND @CGUID+295;
 INSERT INTO `creature_addon` (`guid`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `aiAnimKit`, `movementAnimKit`, `meleeAnimKit`, `visibilityDistanceType`, `auras`) VALUES
+(@CGUID+21, 0, 0, 0, 1, 0, 0, 0, 0, 0, '282578'), -- Arathor Watchman - 282578 - Hold Torch
+(@CGUID+62, 0, 0, 0, 1, 461, 0, 0, 0, 0, ''), -- Arathor Watchman
+(@CGUID+71, 0, 0, 0, 1, 461, 0, 0, 0, 0, ''), -- Arathor Watchman
 (@CGUID+102, 0, 0, 0, 1, 0, 0, 0, 0, 3, '285977'), -- Bound Arathi Rager - 285977 - Earth Channel Omni
 (@CGUID+126, 0, 0, 0, 1, 0, 0, 0, 0, 3, '285977'), -- Bound Arathi Rager - 285977 - Earth Channel Omni
+(@CGUID+132, 0, 0, 0, 1, 461, 0, 0, 0, 0, ''), -- Arathor Watchman
+(@CGUID+148, 0, 0, 0, 1, 461, 0, 0, 0, 0, ''), -- Arathor Watchman
 (@CGUID+152, @WAYPOINT+31, 0, 0, 0, 0, 0, 0, 0, 0, '282578'), -- Defiler Combatant - 282578 - Hold Torch
+(@CGUID+163, 0, 0, 0, 1, 461, 0, 0, 0, 0, ''), -- Arathor Watchman
 (@CGUID+172, @WAYPOINT+2, 0, 0, 1, 0, 0, 0, 0, 0, ''), -- Arathi Stablehand
 (@CGUID+173, @WAYPOINT+3, 0, 0, 1, 0, 0, 0, 0, 0, ''), -- Arathi Stablehand
 (@CGUID+216, 0, 0, 0, 1, 766, 0, 0, 0, 0, ''), -- Arathi Miner
