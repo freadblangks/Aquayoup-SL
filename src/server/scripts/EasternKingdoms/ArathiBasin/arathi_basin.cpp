@@ -84,17 +84,6 @@ struct npc_bg_ab_the_black_bride: public ScriptedAI
         me->GetMotionMaster()->MovePath(PATH, false);
         me->DespawnOrUnsummon(2min);
     }
-
-private:
-    Position const _path[6] =
-    {
-        { 656.09375f, 636.46265f, -9.3995950f },
-        { 656.09375f, 636.46180f, -9.5859970f },
-        { 656.09375f, 636.46094f, -9.7723980f },
-        { 656.96875f, 638.25780f, -10.272398f },
-        { 657.25180f, 638.83510f, -10.535215f },
-        { 657.92017f, 640.82640f, -10.932798f }
-    };
 };
 
 struct npc_bg_ab_radulf_leder : public ScriptedAI
