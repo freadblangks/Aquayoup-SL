@@ -581,6 +581,75 @@ private:
     TaskScheduler _scheduler;
 };
 
+struct npc_bg_ab_groundskeeper_olivia : ScriptedAI
+{
+    static constexpr uint32 PATH_1 = 100000039;
+    static constexpr uint32 PATH_2 = 100000040;
+    static constexpr uint32 PATH_3 = 100000041;
+
+    npc_bg_ab_groundskeeper_olivia(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+    void JustAppeared() override
+    {
+        StartScript();
+    }
+
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
+    {
+        switch (pathId)
+        {
+            case PATH_1:
+                me->SetAIAnimKitId(4760);
+                _scheduler.Schedule(5s, [this](TaskContext context)
+                {
+                    me->SetAIAnimKitId(0);
+                    context.Schedule(1s, [this](TaskContext /*context*/)
+                    {
+                        me->GetMotionMaster()->MovePath(PATH_2, false);
+                    });
+                });
+                break;
+            case PATH_2:
+                me->SetAIAnimKitId(17436);
+                _scheduler.Schedule(5s, [this](TaskContext context)
+                {
+                    me->SetAIAnimKitId(0);
+                    context.Schedule(1s, [this](TaskContext /*context*/)
+                    {
+                        me->GetMotionMaster()->MovePath(PATH_3, false);
+                    });
+                });
+                break;
+            case PATH_3:
+                StartScript();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void StartScript()
+    {
+        me->SetAIAnimKitId(17436);
+        _scheduler.Schedule(10s, [this](TaskContext context)
+        {
+            me->SetAIAnimKitId(0);
+            context.Schedule(1s, [this](TaskContext /*context*/)
+            {
+                me->GetMotionMaster()->MovePath(PATH_1, false);
+            });
+        });
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
 // Lumber Mill
 struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
 {
@@ -1754,6 +1823,7 @@ void AddSC_arathi_basin()
     RegisterCreatureAI(npc_bg_ab_arathor_watchman_drinking_2);
     RegisterCreatureAI(npc_bg_ab_arathor_watchman_talking);
     RegisterCreatureAI(npc_bg_ab_arathor_watchman_patrol_1);
+    RegisterCreatureAI(npc_bg_ab_groundskeeper_olivia);
     RegisterCreatureAI(npc_bg_ab_lumberjack);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_1);
     RegisterCreatureAI(npc_bg_ab_lumberjack_wood_carrier_2);
