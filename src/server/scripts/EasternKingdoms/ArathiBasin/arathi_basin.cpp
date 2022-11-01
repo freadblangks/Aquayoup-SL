@@ -447,7 +447,7 @@ struct npc_bg_ab_derek_darkmetal : ScriptedAI
         _scheduler.Schedule(20s, [this](TaskContext context)
         {
             me->SetEmoteState(EMOTE_ONESHOT_NONE);
-            context.Schedule(1s, [this](TaskContext context)
+            context.Schedule(1s, [this](TaskContext /*context*/)
             {
                 me->GetMotionMaster()->MovePath(PATH_1, false);
             });
