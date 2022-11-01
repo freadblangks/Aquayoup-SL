@@ -76,13 +76,12 @@ struct npc_bg_ab_defiler_bat_rider_leader : public ScriptedAI
 
 struct npc_bg_ab_the_black_bride: public ScriptedAI
 {
+    static constexpr uint32 PATH = 100000061;
     npc_bg_ab_the_black_bride(Creature* creature) : ScriptedAI(creature) { }
 
-    void Reset() override
+    void JustAppeared() override
     {
-        // TODO
-        // not sure if this is smooth path
-        me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), true);
+        me->GetMotionMaster()->MovePath(PATH, false);
         me->DespawnOrUnsummon(2min);
     }
 
@@ -100,28 +99,14 @@ private:
 
 struct npc_bg_ab_radulf_leder : public ScriptedAI
 {
+    static constexpr uint32 PATH = 100000060;
     npc_bg_ab_radulf_leder(Creature* creature) : ScriptedAI(creature) { }
 
-    void Reset() override
+    void JustAppeared() override
     {
-        // TODO
-        // not sure if this is smooth path
-        me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), true);
+        me->GetMotionMaster()->MovePath(PATH, false);
         me->DespawnOrUnsummon(2min);
     }
-
-private:
-    Position const _path[8] =
-    {
-        { 1392.1213f, 1345.5967f, 0.215494220f },
-        { 1389.2448f, 1344.7500f, -0.23260853f },
-        { 1386.3682f, 1343.9033f, -0.68071127f },
-        { 1385.4092f, 1343.6211f, -0.93071127f },
-        { 1385.0764f, 1343.5226f, -0.87394860f },
-        { 1383.3301f, 1342.5479f, -1.30571130f },
-        { 1381.5840f, 1341.5732f, -1.68071130f },
-        { 1381.3038f, 1341.4166f, -1.76017900f }
-    };
 };
 
 struct npc_bg_ab_dominic_masonwrite : ScriptedAI
