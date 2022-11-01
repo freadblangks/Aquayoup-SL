@@ -651,28 +651,13 @@ private:
 };
 
 // Lumber Mill
-struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
+struct LumberjackWoodCarrierAI : ScriptedAI
 {
-    enum Spells
-    {
-        SPELL_LUMBERJACKIN = 290604,
-        SPELL_CARRY_WOOD = 244453
-    };
+    static constexpr uint32 SPELL_LUMBERJACKIN = 290604;
+    static constexpr uint32 SPELL_CARRY_WOOD = 244453;
+    static constexpr uint32 ITEM_AXE_1H = 109579;
 
-    enum Items
-    {
-        ITEM_AXE_1H = 109579
-    };
-
-    static constexpr float orientation_path_back = 5.585053443908691406f;
-
-    npc_bg_ab_lumberjack_wood_carrier(Creature* creature) : ScriptedAI(creature), _startOrientation(creature->GetOrientation())  { }
-
-    virtual size_t GetPath1Size() const = 0;
-    virtual Position const* GetPath1() const = 0;
-    virtual float GetOrientation1() const = 0;
-    virtual size_t GetPath2Size() const = 0;
-    virtual Position const* GetPath2() const = 0;
+    LumberjackWoodCarrierAI(Creature* creature, uint32 pathId1, uint32 pathId2) : ScriptedAI(creature), _pathId1(pathId1), _pathId2(pathId2) { }
 
     void UpdateAI(uint32 diff) override
     {
@@ -696,322 +681,75 @@ struct npc_bg_ab_lumberjack_wood_carrier : ScriptedAI
 
             DoCastSelf(SPELL_CARRY_WOOD, true);
 
-            context.Schedule(1s, [this](TaskContext context)
+            context.Schedule(1s, [this](TaskContext /*context*/)
             {
-                me->SetFacingTo(GetOrientation1());
-                context.Schedule(1s, [this](TaskContext)
-                {
-                    // this is a hack
-                    // Flags: 2432696320 (Unknown5, Steering, Unknown10)
-                    me->GetMotionMaster()->MoveSmoothPath(1, GetPath1(), GetPath1Size(), true);
-                });
+                me->GetMotionMaster()->MovePath(_pathId1, false);
             });
         });
     }
 
-    void MovementInform(uint32 /*type*/, uint32 pointId) override
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
     {
-        switch (pointId)
+        if (pathId == _pathId1)
         {
-            case 1:
-                me->RemoveAurasDueToSpell(SPELL_CARRY_WOOD);
-                me->SetStandState(UNIT_STAND_STATE_KNEEL);
-                _scheduler.Schedule(3500ms, [this](TaskContext)
-                {
-                    me->SetStandState(UNIT_STAND_STATE_STAND);
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_STAND);
-                    me->SetFacingTo(orientation_path_back);
-                    // this is a hack
-                    // Flags: 2432696320 (Unknown5, Steering, Unknown10)
-                    // In the path it can sometimes switch between smooth path like below
-                    // Flags: 2436890624 (UncompressedPath, Unknown5, Steering, Unknown10)
-                    me->GetMotionMaster()->MoveSmoothPath(2, GetPath2(), GetPath2Size(), true);
-                });
-                break;
-            case 2:
-                me->SetFacingTo(_startOrientation);
-                StartScript();
-                break;
-            default:
-                break;
+            me->RemoveAurasDueToSpell(SPELL_CARRY_WOOD);
+            me->SetStandState(UNIT_STAND_STATE_KNEEL);
+            _scheduler.Schedule(3500ms, [this](TaskContext)
+            {
+                me->SetStandState(UNIT_STAND_STATE_STAND);
+                me->HandleEmoteCommand(EMOTE_ONESHOT_STAND);
+                me->GetMotionMaster()->MovePath(_pathId2, false);
+            });
+        }
+        else if (pathId == _pathId2)
+        {
+            StartScript();
         }
     }
 
 private:
     TaskScheduler _scheduler;
-    float _startOrientation;
+    uint32 _pathId1;
+    uint32 _pathId2;
 };
 
-struct npc_bg_ab_lumberjack_wood_carrier_1 : npc_bg_ab_lumberjack_wood_carrier
+struct npc_bg_ab_lumberjack_wood_carrier_1 : LumberjackWoodCarrierAI
 {
-    npc_bg_ab_lumberjack_wood_carrier_1(Creature* creature) : npc_bg_ab_lumberjack_wood_carrier(creature) { }
+    static constexpr uint32 PATH_1 = 100000042;
+    static constexpr uint32 PATH_2 = 100000043;
 
-    size_t GetPath1Size() const override { return std::size(_path); }
-    Position const* GetPath1() const override { return _path; }
-    float GetOrientation1() const override { return 6.161012172698974609f; }
-    size_t GetPath2Size() const override { return std::size(_pathBack); }
-    Position const* GetPath2() const override { return _pathBack; }
-
-private:
-    Position const _path[21] =
-    {
-        { 763.60940f, 1162.6997f, 19.185547f },
-        { 768.91320f, 1163.0938f, 17.919909f },
-        { 773.53990f, 1162.6198f, 16.651964f },
-        { 780.72394f, 1160.9202f, 14.971056f },
-        { 786.81430f, 1158.3073f, 13.368517f },
-        { 792.07640f, 1156.3004f, 12.370470f },
-        { 796.70996f, 1154.4209f, 11.467760f },
-        { 801.67190f, 1154.1736f, 10.690050f },
-        { 806.19100f, 1155.5330f, 10.758654f },
-        { 810.42365f, 1157.9254f, 11.216784f },
-        { 813.33510f, 1160.5642f, 11.446154f },
-        { 815.10420f, 1162.7795f, 11.703234f },
-        { 815.94794f, 1165.0591f, 11.685045f },
-        { 815.08680f, 1167.5747f, 11.673909f },
-        { 812.89240f, 1170.6632f, 11.548909f },
-        { 810.76390f, 1173.1250f, 11.820969f },
-        { 809.62680f, 1175.0139f, 11.820969f },
-        { 808.92883f, 1177.5538f, 11.869650f },
-        { 808.85940f, 1179.9062f, 11.919118f },
-        { 808.67017f, 1183.1892f, 11.886209f },
-        { 808.11804f, 1189.6077f, 11.820969f }
-    };
-
-    Position const _pathBack[26] =
-    {
-        { 817.11804f, 1161.6423f, 11.936632f },
-        { 819.98090f, 1157.6528f, 12.288439f },
-        { 821.38196f, 1154.5312f, 12.427843f },
-        { 821.38196f, 1152.1841f, 11.845812f },
-        { 820.17480f, 1150.5879f, 11.578234f },
-        { 819.78820f, 1150.0764f, 11.346544f },
-        { 817.35940f, 1148.5834f, 11.095690f },
-        { 813.87500f, 1148.1649f, 10.398058f },
-        { 809.02430f, 1148.3959f, 10.198229f },
-        { 803.09375f, 1149.1736f, 10.717760f },
-        { 798.41600f, 1150.9414f, 11.717760f },
-        { 794.29865f, 1153.0452f, 12.283068f },
-        { 790.55554f, 1155.2795f, 12.967272f },
-        { 786.27606f, 1158.0330f, 13.725695f },
-        { 786.27637f, 1158.0332f, 13.967760f },
-        { 785.34375f, 1158.3945f, 14.217760f },
-        { 783.47850f, 1159.1172f, 14.717760f },
-        { 782.63020f, 1159.4462f, 14.820543f },
-        { 782.62990f, 1159.4463f, 14.592760f },
-        { 781.66895f, 1159.7236f, 14.967760f },
-        { 779.74710f, 1160.2783f, 15.342760f },
-        { 777.82520f, 1160.8330f, 15.592760f },
-        { 776.86426f, 1161.1104f, 15.967760f },
-        { 776.10420f, 1161.3317f, 16.085192f },
-        { 770.10450f, 1161.4316f, 17.842760f },
-        { 757.39760f, 1162.5000f, 20.350830f }
-    };
+    npc_bg_ab_lumberjack_wood_carrier_1(Creature* creature) : LumberjackWoodCarrierAI(creature, PATH_1, PATH_2) { }
 };
 
-struct npc_bg_ab_lumberjack_wood_carrier_2 : npc_bg_ab_lumberjack_wood_carrier
+struct npc_bg_ab_lumberjack_wood_carrier_2 : LumberjackWoodCarrierAI
 {
-    npc_bg_ab_lumberjack_wood_carrier_2(Creature* creature) : npc_bg_ab_lumberjack_wood_carrier(creature) { }
+    static constexpr uint32 PATH_1 = 100000044;
+    static constexpr uint32 PATH_2 = 100000045;
 
-    size_t GetPath1Size() const override { return std::size(_path); }
-    Position const* GetPath1() const override { return _path; }
-    float GetOrientation1() const override { return 2.914699792861938476f; }
-    size_t GetPath2Size() const override { return std::size(_pathBack); }
-    Position const* GetPath2() const override { return _pathBack; }
-
-private:
-    Position const _path[27] =
-    {
-        { 898.26910f, 1182.4705f, 6.0160184f },
-        { 894.47266f, 1181.2090f, 7.2055936f },
-        { 890.85767f, 1181.6632f, 8.2749290f },
-        { 887.24650f, 1182.3420f, 8.8231470f },
-        { 883.76740f, 1183.5087f, 9.3508570f },
-        { 880.16320f, 1184.9149f, 9.5843770f },
-        { 875.34375f, 1186.5903f, 9.7420920f },
-        { 870.68400f, 1188.0504f, 9.2020530f },
-        { 864.78125f, 1189.4827f, 8.8908010f },
-        { 860.43750f, 1190.4618f, 9.6863340f },
-        { 857.81080f, 1190.9844f, 10.066461f },
-        { 855.62150f, 1191.5798f, 10.027032f },
-        { 853.07294f, 1192.7466f, 9.8742000f },
-        { 850.10940f, 1193.5764f, 9.9905330f },
-        { 846.69965f, 1194.5851f, 10.115777f },
-        { 846.69920f, 1194.5850f, 10.316216f },
-        { 842.94100f, 1195.4080f, 10.293267f },
-        { 837.82810f, 1196.1442f, 10.341363f },
-        { 834.32465f, 1196.6146f, 10.759820f },
-        { 829.89410f, 1196.9358f, 11.304280f },
-        { 827.27080f, 1197.5798f, 11.441854f },
-        { 825.77780f, 1197.6406f, 11.613729f },
-        { 821.12500f, 1196.4305f, 11.951375f },
-        { 818.02606f, 1194.6024f, 11.995651f },
-        { 814.62150f, 1190.9723f, 11.954003f },
-        { 813.22570f, 1190.0868f, 11.948299f },
-        { 810.54517f, 1190.8403f, 11.924964f }
-    };
-
-    Position const _pathBack[21] =
-    {
-        { 817.30900f, 1192.8160f, 11.9687850f },
-        { 819.99304f, 1195.8330f, 11.8855790f },
-        { 823.78300f, 1199.3611f, 11.6324050f },
-        { 826.57810f, 1200.3785f, 11.3140460f },
-        { 831.10240f, 1200.7952f, 10.9239090f },
-        { 838.42535f, 1200.7344f, 10.5952425f },
-        { 842.16490f, 1200.3854f, 10.3479280f },
-        { 847.22220f, 1199.1945f, 9.81621600f },
-        { 853.81600f, 1197.1754f, 9.54570900f },
-        { 855.68555f, 1196.4648f, 9.31621600f },
-        { 858.21704f, 1195.5000f, 9.14629500f },
-        { 858.21680f, 1195.5000f, 9.31621600f },
-        { 862.91406f, 1193.7910f, 9.06621600f },
-        { 864.79297f, 1193.1074f, 8.81621600f },
-        { 865.60590f, 1192.8142f, 8.75603600f },
-        { 870.72570f, 1190.3055f, 8.93142300f },
-        { 874.51044f, 1188.2760f, 9.14053000f },
-        { 879.54170f, 1186.2344f, 9.25857200f },
-        { 885.18230f, 1184.0868f, 8.80288300f },
-        { 890.51390f, 1182.8698f, 8.10024600f },
-        { 904.16700f, 1182.9531f, 3.92786800f }
-    };
+    npc_bg_ab_lumberjack_wood_carrier_2(Creature* creature) : LumberjackWoodCarrierAI(creature, PATH_1, PATH_2) { }
 };
 
-struct npc_bg_ab_lumberjack_wood_carrier_3 : npc_bg_ab_lumberjack_wood_carrier
+struct npc_bg_ab_lumberjack_wood_carrier_3 : LumberjackWoodCarrierAI
 {
-    npc_bg_ab_lumberjack_wood_carrier_3(Creature* creature) : npc_bg_ab_lumberjack_wood_carrier(creature) { }
+    static constexpr uint32 PATH_1 = 100000046;
+    static constexpr uint32 PATH_2 = 100000047;
 
-    size_t GetPath1Size() const override { return std::size(_path); }
-    Position const* GetPath1() const override { return _path; }
-    float GetOrientation1() const override { return 1.326450228691101074f; }
-    size_t GetPath2Size() const override { return std::size(_pathBack); }
-    Position const* GetPath2() const override { return _pathBack; }
-
-private:
-    Position const _path[24] =
-    {
-        { 816.76390f, 1103.9497f, 11.596175f },
-        { 817.82810f, 1106.5435f, 12.693831f },
-        { 818.93230f, 1110.2517f, 13.963119f },
-        { 819.54785f, 1113.1875f, 14.296615f },
-        { 820.28990f, 1116.9098f, 14.549300f },
-        { 821.73090f, 1122.4913f, 14.443831f },
-        { 821.30554f, 1128.2240f, 12.163192f },
-        { 820.90970f, 1131.8403f, 11.538314f },
-        { 819.78820f, 1135.9271f, 10.516588f },
-        { 818.54865f, 1139.9688f, 10.094103f },
-        { 818.52080f, 1144.5399f, 10.668322f },
-        { 817.79517f, 1149.6111f, 11.359972f },
-        { 817.69446f, 1154.2396f, 11.824816f },
-        { 816.99133f, 1159.2448f, 11.906115f },
-        { 814.95140f, 1164.3854f, 11.646105f },
-        { 812.21180f, 1169.9531f, 11.548909f },
-        { 808.78644f, 1173.4896f, 11.820969f },
-        { 808.72490f, 1173.6804f, 11.820969f },
-        { 808.10240f, 1175.6111f, 11.820969f },
-        { 807.93750f, 1176.5817f, 11.860204f },
-        { 807.80554f, 1177.7709f, 11.958746f },
-        { 806.81600f, 1180.4392f, 11.944935f },
-        { 804.06946f, 1183.7361f, 11.951467f },
-        { 802.97394f, 1184.8455f, 11.956316f }
-    };
-
-    Position const _pathBack[25] =
-    {
-        { 807.85420f, 1175.5747f, 11.8209690f },
-        { 809.12500f, 1173.4010f, 11.8209690f },
-        { 810.95830f, 1171.2188f, 11.8209690f },
-        { 812.53644f, 1169.5399f, 11.5489090f },
-        { 813.74133f, 1165.9635f, 11.5396595f },
-        { 814.00520f, 1163.1823f, 11.5712760f },
-        { 813.55206f, 1154.9531f, 11.0806750f },
-        { 813.35767f, 1148.5382f, 10.3807240f },
-        { 812.93750f, 1141.3750f, 10.2206900f },
-        { 813.04170f, 1137.6805f, 9.91246200f },
-        { 813.62150f, 1133.6476f, 9.74705700f },
-        { 813.99900f, 1130.6709f, 10.2966150f },
-        { 814.68054f, 1127.7743f, 11.0800620f },
-        { 814.99023f, 1126.8232f, 11.6716150f },
-        { 815.57117f, 1125.0416f, 12.3871910f },
-        { 815.57130f, 1125.0420f, 12.0466150f },
-        { 815.91700f, 1124.1035f, 12.9216150f },
-        { 816.26270f, 1123.1650f, 13.1716150f },
-        { 816.60840f, 1122.2266f, 13.5466150f },
-        { 816.71180f, 1121.9497f, 13.8431230f },
-        { 817.82227f, 1119.1631f, 14.5466150f },
-        { 818.89580f, 1116.0087f, 14.7801350f },
-        { 818.67190f, 1112.9427f, 14.3497150f },
-        { 817.30383f, 1107.4410f, 12.8464190f },
-        { 814.28820f, 1096.7656f, 10.5019870f }
-    };
+    npc_bg_ab_lumberjack_wood_carrier_3(Creature* creature) : LumberjackWoodCarrierAI(creature, PATH_1, PATH_2) { }
 };
 
-struct npc_bg_ab_lumberjack_wood_carrier_4 : npc_bg_ab_lumberjack_wood_carrier
+struct npc_bg_ab_lumberjack_wood_carrier_4 : LumberjackWoodCarrierAI
 {
-    npc_bg_ab_lumberjack_wood_carrier_4(Creature* creature) : npc_bg_ab_lumberjack_wood_carrier(creature) { }
+    static constexpr uint32 PATH_1 = 100000048;
+    static constexpr uint32 PATH_2 = 100000049;
 
-    size_t GetPath1Size() const override { return std::size(_path); }
-    Position const* GetPath1() const override { return _path; }
-    float GetOrientation1() const override { return 2.914699792861938476f; }
-    size_t GetPath2Size() const override { return std::size(_pathBack); }
-    Position const* GetPath2() const override { return _pathBack; }
-
-private:
-    Position const _path[21] =
-    {
-        { 820.56250f, 1253.2118f, 22.741510f },
-        { 817.42190f, 1250.6771f, 22.510065f },
-        { 814.84030f, 1247.6459f, 22.467340f },
-        { 813.21010f, 1243.2986f, 21.401056f },
-        { 813.59720f, 1238.7344f, 19.852716f },
-        { 814.07640f, 1234.1945f, 18.955744f },
-        { 815.24304f, 1228.7240f, 17.935383f },
-        { 817.93400f, 1222.2882f, 14.859212f },
-        { 819.77606f, 1218.1060f, 13.147786f },
-        { 821.81430f, 1213.1094f, 11.934529f },
-        { 824.09894f, 1208.4010f, 11.673909f },
-        { 824.52780f, 1205.6423f, 11.407796f },
-        { 824.08510f, 1202.4670f, 11.471272f },
-        { 822.54517f, 1198.9531f, 11.780965f },
-        { 821.11633f, 1195.6910f, 11.798909f },
-        { 818.05900f, 1190.7067f, 11.952708f },
-        { 816.19100f, 1188.0104f, 11.904458f },
-        { 814.51044f, 1186.5642f, 11.880142f },
-        { 811.92883f, 1185.3577f, 11.820969f },
-        { 807.23440f, 1185.7310f, 11.880688f },
-        { 804.28300f, 1186.1771f, 11.921508f }
-    };
-
-    Position const _pathBack[23] =
-    {
-        { 819.90454f, 1193.0139f, 11.996414f },
-        { 822.26390f, 1195.8330f, 11.798909f },
-        { 825.00000f, 1197.9160f, 11.673909f },
-        { 825.22920f, 1198.7535f, 11.545857f },
-        { 825.96580f, 1200.6133f, 11.298909f },
-        { 826.05900f, 1200.8490f, 11.320027f },
-        { 826.64240f, 1204.1476f, 11.359090f },
-        { 826.43230f, 1206.6997f, 11.314534f },
-        { 825.08984f, 1211.5137f, 11.798909f },
-        { 824.85767f, 1212.3507f, 11.968465f },
-        { 824.85740f, 1212.3506f, 11.798909f },
-        { 824.50195f, 1214.3193f, 12.298909f },
-        { 823.96875f, 1217.2725f, 13.423909f },
-        { 823.90625f, 1217.6077f, 13.562703f },
-        { 822.64060f, 1222.0173f, 14.755696f },
-        { 821.30760f, 1226.8369f, 16.673908f },
-        { 819.63020f, 1232.4479f, 18.505207f },
-        { 818.15625f, 1237.7986f, 19.616755f },
-        { 817.15970f, 1242.3923f, 20.581354f },
-        { 817.34720f, 1246.1354f, 21.580378f },
-        { 818.43750f, 1249.5295f, 22.212702f },
-        { 820.62850f, 1251.7291f, 22.377863f },
-        { 825.77954f, 1255.8837f, 22.169000f }
-    };
+    npc_bg_ab_lumberjack_wood_carrier_4(Creature* creature) : LumberjackWoodCarrierAI(creature, PATH_1, PATH_2) { }
 };
 
 struct npc_bg_ab_lumberjack_wanderer : ScriptedAI
 {
+    static constexpr uint32 PATH_1 = 100000050;
+    static constexpr uint32 PATH_2 = 100000051;
+
     npc_bg_ab_lumberjack_wanderer(Creature* creature) : ScriptedAI(creature) { }
 
     void JustAppeared() override
@@ -1031,31 +769,24 @@ struct npc_bg_ab_lumberjack_wanderer : ScriptedAI
             me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
             context.Schedule(3500ms, [this](TaskContext)
             {
-                // this is a hack
-                // Flags: 2432696320 (Unknown5, Steering, Unknown10)
-                me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), true);
+                me->GetMotionMaster()->MovePath(PATH_1, false);
             });
         });
     }
 
-    void MovementInform(uint32 /*type*/, uint32 pointId) override
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
     {
-        switch (pointId)
+        switch (pathId)
         {
-            case 1:
+            case PATH_1:
                 me->SetEmoteState(EMOTE_STATE_USE_STANDING);
                 _scheduler.Schedule(6s, [this](TaskContext)
                 {
                     me->SetEmoteState(EMOTE_ONESHOT_NONE);
-                    // this is a hack
-                    // Flags: 2432696320 (Unknown5, Steering, Unknown10)
-                    // Although, in this path suddenly smooth path is being used
-                    // Flags: 2436890624 (UncompressedPath, Unknown5, Steering, Unknown10)
-                    me->GetMotionMaster()->MoveSmoothPath(2, _pathBack, std::size(_pathBack), true);
+                    me->GetMotionMaster()->MovePath(PATH_2, false);
                 });
                 break;
-            case 2:
-                me->SetFacingTo(1.8916287f);
+            case PATH_2:
                 StartScript();
                 break;
             default:
@@ -1065,36 +796,6 @@ struct npc_bg_ab_lumberjack_wanderer : ScriptedAI
 
 private:
     TaskScheduler _scheduler;
-
-    Position const _path[15] =
-    {
-        { 856.48090f, 1229.4810f, 14.3900420f },
-        { 857.34180f, 1227.6758f, 13.9702425f },
-        { 858.63380f, 1224.9688f, 13.5952425f },
-        { 858.67365f, 1224.8854f, 13.3668490f },
-        { 858.67380f, 1224.8857f, 13.5952425f },
-        { 859.46680f, 1223.0498f, 13.2202425f },
-        { 860.25977f, 1221.2139f, 12.9702425f },
-        { 860.60420f, 1220.4166f, 12.7002230f },
-        { 861.36456f, 1215.1354f, 11.9964880f },
-        { 859.28990f, 1211.0104f, 11.4966100f },
-        { 851.72740f, 1204.9861f, 9.79202000f },
-        { 847.78990f, 1202.3403f, 9.79787900f },
-        { 844.04865f, 1198.8004f, 10.1364070f },
-        { 838.91490f, 1195.3785f, 10.5601130f },
-        { 836.15625f, 1193.8334f, 11.0199520f }
-    };
-
-    Position const _pathBack[7] =
-    {
-        { 863.21530f, 1207.7517f, 10.196927f },
-        { 865.19100f, 1212.7709f, 10.503690f },
-        { 866.67535f, 1217.4166f, 11.192437f },
-        { 866.73785f, 1221.1337f, 12.000665f },
-        { 865.20490f, 1224.3438f, 12.579007f },
-        { 860.36804f, 1229.3802f, 13.751737f },
-        { 854.49480f, 1233.6702f, 15.472480f }
-    };
 };
 
 struct npc_bg_ab_lumberjack_passive : ScriptedAI
@@ -1124,14 +825,9 @@ struct npc_bg_ab_lumberjack : ScriptedAI
 {
     npc_bg_ab_lumberjack(Creature* creature) : ScriptedAI(creature) { }
 
-    enum Spells
-    {
-        SPELL_LUMBERJACKIN = 290604
-    };
-
     void JustAppeared() override
     {
-        DoCastSelf(SPELL_LUMBERJACKIN);
+        DoCastSelf(LumberjackWoodCarrierAI::SPELL_LUMBERJACKIN);
     }
 };
 
