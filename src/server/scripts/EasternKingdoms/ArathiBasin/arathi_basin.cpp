@@ -26,18 +26,20 @@ constexpr uint32 SPELL_BLACKSMITH_WORKING = 261985;
 // Horde & Alliance Base
 struct npc_bg_ab_arathor_gryphon_rider_leader : public ScriptedAI
 {
+    static constexpr uint32 PATH = 100000059;
     npc_bg_ab_arathor_gryphon_rider_leader(Creature* creature) : ScriptedAI(creature) { }
 
-    void Reset() override
+    void JustAppeared() override
     {
-        me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), false, true);
+        me->GetMotionMaster()->MovePath(PATH, false);
     }
 
-    void MovementInform(uint32 /*type*/, uint32 id) override
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
     {
-        if (id != 1)
+        if (pathId != PATH)
             return;
 
+        // despawn formation group
         std::list<Creature*> followers;
         me->GetCreatureListWithEntryInGrid(followers, me->GetEntry());
         for (Creature* follower : followers)
@@ -45,40 +47,24 @@ struct npc_bg_ab_arathor_gryphon_rider_leader : public ScriptedAI
 
         me->DespawnOrUnsummon(500ms);
     }
-
-private:
-    Position const _path[13] =
-    {
-        { 1394.0209f, 1388.9167f, 153.32262f },
-        { 1386.4341f, 1381.7153f, 154.89734f },
-        { 1378.8473f, 1374.5139f, 156.47206f },
-        { 1234.1875f, 1240.4185f, 156.47206f },
-        { 1094.5555f, 1138.9271f, 92.392740f },
-        { 1001.7864f, 1033.8993f, 92.392740f },
-        { 984.01215f, 991.08680f, 92.392740f },
-        { 975.03125f, 916.90625f, 92.392740f },
-        { 962.58510f, 842.50180f, 92.392740f },
-        { 954.42017f, 765.47570f, 92.392740f },
-        { 949.10240f, 676.44617f, 143.17484f },
-        { 962.75000f, 423.92014f, 219.66528f },
-        { 993.89930f, 76.503470f, 219.66528f }
-    };
 };
 
 struct npc_bg_ab_defiler_bat_rider_leader : public ScriptedAI
 {
+    static constexpr uint32 PATH = 100000058;
     npc_bg_ab_defiler_bat_rider_leader(Creature* creature) : ScriptedAI(creature) { }
 
     void JustAppeared() override
     {
-        me->GetMotionMaster()->MoveSmoothPath(1, _path, std::size(_path), false, true);
+        me->GetMotionMaster()->MovePath(PATH, false);
     }
 
-    void MovementInform(uint32 /*type*/, uint32 id) override
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
     {
-        if (id != 1)
+        if (pathId != PATH)
             return;
 
+        // despawn formation group
         std::list<Creature*> followers;
         me->GetCreatureListWithEntryInGrid(followers, me->GetEntry());
         for (Creature* follower : followers)
@@ -86,26 +72,6 @@ struct npc_bg_ab_defiler_bat_rider_leader : public ScriptedAI
 
         me->DespawnOrUnsummon(500ms);
     }
-
-private:
-    Position const _path[15] =
-    {
-        { 629.96870f, 376.45140f, 178.24315f },
-        { 635.94270f, 390.70140f, 183.16116f },
-        { 641.91670f, 404.95140f, 188.07918f },
-        { 637.18750f, 570.82640f, 188.07918f },
-        { 664.32294f, 666.79170f, 188.07918f },
-        { 747.86115f, 754.01910f, 188.07918f },
-        { 772.32810f, 794.37850f, 153.96823f },
-        { 821.42365f, 961.00520f, 86.460680f },
-        { 854.28820f, 1031.4028f, 86.460680f },
-        { 894.32640f, 1095.7466f, 86.460680f },
-        { 973.75000f, 1197.5052f, 86.460680f },
-        { 1048.9098f, 1304.7448f, 86.460680f },
-        { 1105.8663f, 1379.1945f, 134.64104f },
-        { 1198.5817f, 1537.4548f, 221.42233f },
-        { 1349.2379f, 1750.9497f, 328.39390f }
-    };
 };
 
 struct npc_bg_ab_the_black_bride: public ScriptedAI
@@ -910,7 +876,7 @@ struct BlacksmithWorkingAI : ScriptedAI
     void StartScript()
     {
         DoCastSelf(SPELL_BLACKSMITH_WORKING);
-        _scheduler.Schedule(10s, 20s, [this](TaskContext context)
+        _scheduler.Schedule(10s, 20s, [this](TaskContext /*context*/)
         {
             me->SetFacingTo(5.829399585723876953f);
             me->GetMotionMaster()->MovePath(_pathId1, false);
