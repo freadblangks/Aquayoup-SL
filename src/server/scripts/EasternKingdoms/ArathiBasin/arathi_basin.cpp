@@ -111,12 +111,11 @@ struct npc_bg_ab_radulf_leder : public ScriptedAI
 
 struct npc_bg_ab_dominic_masonwrite : ScriptedAI
 {
-    npc_bg_ab_dominic_masonwrite(Creature* creature) : ScriptedAI(creature) { }
+    static constexpr uint32 SPELL_READ_SCROLL = 122236;
+    static constexpr uint32 PATH_1 = 100000062;
+    static constexpr uint32 PATH_2 = 100000063;
 
-    enum Spells
-    {
-        SPELL_READ_SCROLL = 122236
-    };
+    npc_bg_ab_dominic_masonwrite(Creature* creature) : ScriptedAI(creature) { }
 
     void UpdateAI(uint32 diff) override
     {
@@ -128,21 +127,19 @@ struct npc_bg_ab_dominic_masonwrite : ScriptedAI
         StartScript();
     }
 
-    void MovementInform(uint32 /*type*/, uint32 pointId) override
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
     {
-        switch (pointId)
+        switch (pathId)
         {
-            case 1:
-                me->SetFacingTo(2.042035102844238281f);
+            case PATH_1:
                 DoCastSelf(SPELL_READ_SCROLL);
                 _scheduler.Schedule(20s, [this](TaskContext)
                 {
                     me->RemoveAurasDueToSpell(SPELL_READ_SCROLL);
-                    me->GetMotionMaster()->MoveSmoothPath(2, _path2, std::size(_path2), true);
+                    me->GetMotionMaster()->MovePath(PATH_2, false);
                 });
                 break;
-            case 2:
-                me->SetFacingTo(4.539567470550537109f);
+            case PATH_2:
                 StartScript();
                 break;
             default:
@@ -153,48 +150,15 @@ struct npc_bg_ab_dominic_masonwrite : ScriptedAI
     void StartScript()
     {
         DoCastSelf(SPELL_READ_SCROLL);
-        _scheduler.Schedule(20s, [this](TaskContext context)
+        _scheduler.Schedule(20s, [this](TaskContext /*context*/)
         {
             me->RemoveAurasDueToSpell(SPELL_READ_SCROLL);
-            me->SetFacingTo(1.431169986724853515f);
-            context.Schedule(1s, [this](TaskContext)
-            {
-                me->GetMotionMaster()->MoveSmoothPath(1, _path1, std::size(_path1), true);
-            });
+            me->GetMotionMaster()->MovePath(PATH_1, false);
         });
     }
 
 private:
     TaskScheduler _scheduler;
-
-    Position const _path1[12] =
-    {
-        { 683.56946f, 681.07990f, -15.072695f },
-        { 681.10070f, 682.70830f, -15.185122f },
-        { 677.38544f, 684.03644f, -15.193178f },
-        { 673.01390f, 684.93750f, -14.901796f },
-        { 668.88196f, 686.10070f, -14.651186f },
-        { 665.32294f, 687.55035f, -14.100773f },
-        { 662.53990f, 690.65454f, -14.015690f },
-        { 661.71180f, 694.51560f, -13.638004f },
-        { 661.72220f, 699.52260f, -13.538639f },
-        { 663.10070f, 703.08330f, -13.669305f },
-        { 665.31600f, 706.72570f, -13.534661f },
-        { 667.43750f, 709.48615f, -13.347998f }
-    };
-
-    Position const _path2[9] =
-    {
-        { 666.94617f, 704.70830f, -13.737280f },
-        { 665.11804f, 701.34720f, -13.938592f },
-        { 663.72920f, 696.17365f, -14.034611f },
-        { 663.91320f, 691.64240f, -14.134220f },
-        { 665.21530f, 686.40280f, -14.101261f },
-        { 668.96875f, 681.58680f, -14.139223f },
-        { 672.43580f, 679.47050f, -14.551455f },
-        { 678.19100f, 679.64580f, -15.018129f },
-        { 684.04517f, 676.04100f, -14.635073f }
-    };
 };
 
 struct npc_bg_ab_kevin_young : ScriptedAI
