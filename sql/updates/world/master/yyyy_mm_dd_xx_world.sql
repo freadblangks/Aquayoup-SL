@@ -504,13 +504,13 @@ INSERT INTO `creature_formations` (`leaderGUID`, `memberGUID`, `dist`, `angle`, 
 (@CGUID+65, @CGUID+153, 10, 135, 515, 0, 0),
 (@CGUID+65, @CGUID+158, 10, 225, 515, 0, 0),
 (@CGUID+172, @CGUID+172, 0, 0, 515, 0, 0),
-(@CGUID+172, @CGUID+176, 4.5, 315, 515, 0, 0),
+(@CGUID+172, @CGUID+176, 4, 315, 515, 0, 0),
 (@CGUID+173, @CGUID+173, 0, 0, 515, 0, 0),
-(@CGUID+173, @CGUID+177, 4.5, 315, 515, 0, 0),
+(@CGUID+173, @CGUID+177, 2, 315, 515, 0, 0),
 (@CGUID+246, @CGUID+246, 0, 0, 515, 0, 0),
-(@CGUID+246, @CGUID+248, 4.5, 315, 515, 0, 0),
+(@CGUID+246, @CGUID+248, 4, 315, 515, 0, 0),
 (@CGUID+252, @CGUID+252, 0, 0, 515, 0, 0),
-(@CGUID+252, @CGUID+250, 4.5, 315, 515, 0, 0);
+(@CGUID+252, @CGUID+250, 2, 315, 515, 0, 0);
 
 -- movement templates
 DELETE FROM `creature_movement_override` WHERE `SpawnId` BETWEEN @CGUID+0 AND @CGUID+295;
