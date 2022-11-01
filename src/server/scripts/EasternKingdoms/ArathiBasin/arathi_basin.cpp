@@ -819,9 +819,9 @@ struct npc_bg_ab_farmer_shouting : ScheduledAI
     }
 };
 
-struct npc_bg_ab_farmer_working_base : ScheduledAI
+struct FarmerWorkingAI : ScheduledAI
 {
-    npc_bg_ab_farmer_working_base(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 aiAnimKitId) : ScheduledAI(creature), _pathId1(pathId1), _pathId2(pathId2), _aiAnimKitId(aiAnimKitId) { }
+    FarmerWorkingAI(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 aiAnimKitId) : ScheduledAI(creature), _pathId1(pathId1), _pathId2(pathId2), _aiAnimKitId(aiAnimKitId) { }
 
     void JustAppeared() override
     {
@@ -865,68 +865,68 @@ private:
     uint32 _aiAnimKitId;
 };
 
-struct npc_bg_ab_farmer_working_1 : npc_bg_ab_farmer_working_base
+struct npc_bg_ab_farmer_working_1 : FarmerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000004;
     static constexpr uint32 PATH_2 = 100000005;
 
-    npc_bg_ab_farmer_working_1(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 4760) { }
+    npc_bg_ab_farmer_working_1(Creature* creature) : FarmerWorkingAI(creature, PATH_1, PATH_2, 4760) { }
 };
 
-struct npc_bg_ab_farmer_working_2 : npc_bg_ab_farmer_working_base
+struct npc_bg_ab_farmer_working_2 : FarmerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000006;
     static constexpr uint32 PATH_2 = 100000007;
 
-    npc_bg_ab_farmer_working_2(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 4760) { }
+    npc_bg_ab_farmer_working_2(Creature* creature) : FarmerWorkingAI(creature, PATH_1, PATH_2, 4760) { }
 };
 
-struct npc_bg_ab_farmer_working_3 : npc_bg_ab_farmer_working_base
+struct npc_bg_ab_farmer_working_3 : FarmerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000008;
     static constexpr uint32 PATH_2 = 100000009;
 
-    npc_bg_ab_farmer_working_3(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 4760) { }
+    npc_bg_ab_farmer_working_3(Creature* creature) : FarmerWorkingAI(creature, PATH_1, PATH_2, 4760) { }
 };
 
-struct npc_bg_ab_farmer_working_4 : npc_bg_ab_farmer_working_base
+struct npc_bg_ab_farmer_working_4 : FarmerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000010;
     static constexpr uint32 PATH_2 = 100000011;
 
-    npc_bg_ab_farmer_working_4(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+    npc_bg_ab_farmer_working_4(Creature* creature) : FarmerWorkingAI(creature, PATH_1, PATH_2, 7424) { }
 };
 
-struct npc_bg_ab_farmer_working_5 : npc_bg_ab_farmer_working_base
+struct npc_bg_ab_farmer_working_5 : FarmerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000012;
     static constexpr uint32 PATH_2 = 100000013;
 
-    npc_bg_ab_farmer_working_5(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+    npc_bg_ab_farmer_working_5(Creature* creature) : FarmerWorkingAI(creature, PATH_1, PATH_2, 7424) { }
 };
 
-struct npc_bg_ab_farmer_working_6 : npc_bg_ab_farmer_working_base
+struct npc_bg_ab_farmer_working_6 : FarmerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000014;
     static constexpr uint32 PATH_2 = 100000015;
 
-    npc_bg_ab_farmer_working_6(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+    npc_bg_ab_farmer_working_6(Creature* creature) : FarmerWorkingAI(creature, PATH_1, PATH_2, 7424) { }
 };
 
-struct npc_bg_ab_farmer_working_7 : npc_bg_ab_farmer_working_base
+struct npc_bg_ab_farmer_working_7 : FarmerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000016;
     static constexpr uint32 PATH_2 = 100000017;
 
-    npc_bg_ab_farmer_working_7(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+    npc_bg_ab_farmer_working_7(Creature* creature) : FarmerWorkingAI(creature, PATH_1, PATH_2, 7424) { }
 };
 
-struct npc_bg_ab_farmer_working_8 : npc_bg_ab_farmer_working_base
+struct npc_bg_ab_farmer_working_8 : FarmerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000018;
     static constexpr uint32 PATH_2 = 100000019;
 
-    npc_bg_ab_farmer_working_8(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
+    npc_bg_ab_farmer_working_8(Creature* creature) : FarmerWorkingAI(creature, PATH_1, PATH_2, 7424) { }
 };
 
 struct npc_bg_ab_farmer_wanderer : ScheduledAI
@@ -1002,11 +1002,11 @@ struct npc_bg_ab_miner_talking : ScheduledAI
     }
 };
 
-struct npc_bg_ab_miner_working_base : ScheduledAI
+struct MinerWorkingAI : ScheduledAI
 {
     static constexpr uint32 SPELL_CARRY_SACK = 175121;
 
-    npc_bg_ab_miner_working_base(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 pathId3) : ScheduledAI(creature), _pathId1(pathId1), _pathId2(pathId2), _pathId3(pathId3) { }
+    MinerWorkingAI(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 pathId3) : ScheduledAI(creature), _pathId1(pathId1), _pathId2(pathId2), _pathId3(pathId3) { }
 
     void JustAppeared() override
     {
@@ -1055,31 +1055,31 @@ private:
     uint32 _pathId3;
 };
 
-struct npc_bg_ab_miner_working_1 : npc_bg_ab_miner_working_base
+struct npc_bg_ab_miner_working_1 : MinerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000022;
     static constexpr uint32 PATH_2 = 100000023;
     static constexpr uint32 PATH_3 = 100000024;
 
-    npc_bg_ab_miner_working_1(Creature* creature) : npc_bg_ab_miner_working_base(creature, PATH_1, PATH_2, PATH_3) { }
+    npc_bg_ab_miner_working_1(Creature* creature) : MinerWorkingAI(creature, PATH_1, PATH_2, PATH_3) { }
 };
 
-struct npc_bg_ab_miner_working_2 : npc_bg_ab_miner_working_base
+struct npc_bg_ab_miner_working_2 : MinerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000025;
     static constexpr uint32 PATH_2 = 100000026;
     static constexpr uint32 PATH_3 = 100000027;
 
-    npc_bg_ab_miner_working_2(Creature* creature) : npc_bg_ab_miner_working_base(creature, PATH_1, PATH_2, PATH_3) { }
+    npc_bg_ab_miner_working_2(Creature* creature) : MinerWorkingAI(creature, PATH_1, PATH_2, PATH_3) { }
 };
 
-struct npc_bg_ab_miner_working_3 : npc_bg_ab_miner_working_base
+struct npc_bg_ab_miner_working_3 : MinerWorkingAI
 {
     static constexpr uint32 PATH_1 = 100000028;
     static constexpr uint32 PATH_2 = 100000029;
     static constexpr uint32 PATH_3 = 100000030;
 
-    npc_bg_ab_miner_working_3(Creature* creature) : npc_bg_ab_miner_working_base(creature, PATH_1, PATH_2, PATH_3) { }
+    npc_bg_ab_miner_working_3(Creature* creature) : MinerWorkingAI(creature, PATH_1, PATH_2, PATH_3) { }
 };
 
 // Misc
