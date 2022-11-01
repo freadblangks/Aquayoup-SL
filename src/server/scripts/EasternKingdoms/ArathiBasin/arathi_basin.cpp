@@ -31,13 +31,12 @@ struct ScheduledAI : public ScriptedAI
 
     void UpdateAI(uint32 diff) override
     {
-        _scheduler.Update(diff);
+        scheduler.Update(diff);
     }
 
 protected:
-    TaskScheduler _scheduler;
+    TaskScheduler scheduler;
 };
-
 
 // Horde & Alliance Base
 struct npc_bg_ab_arathor_gryphon_rider_leader : public ScriptedAI
@@ -133,7 +132,7 @@ struct npc_bg_ab_dominic_masonwrite : ScheduledAI
         {
             case PATH_1:
                 DoCastSelf(SPELL_READ_SCROLL);
-                _scheduler.Schedule(20s, [this](TaskContext)
+                scheduler.Schedule(20s, [this](TaskContext)
                 {
                     me->RemoveAurasDueToSpell(SPELL_READ_SCROLL);
                     me->GetMotionMaster()->MovePath(PATH_2, false);
@@ -150,7 +149,7 @@ struct npc_bg_ab_dominic_masonwrite : ScheduledAI
     void StartScript()
     {
         DoCastSelf(SPELL_READ_SCROLL);
-        _scheduler.Schedule(20s, [this](TaskContext /*context*/)
+        scheduler.Schedule(20s, [this](TaskContext /*context*/)
         {
             me->RemoveAurasDueToSpell(SPELL_READ_SCROLL);
             me->GetMotionMaster()->MovePath(PATH_1, false);
@@ -217,7 +216,7 @@ struct npc_bg_ab_defiler_combatant_1 : ScheduledAI
     void JustAppeared() override
     {
         DoCastSelf(SPELL_HOLD_TORCH);
-        _scheduler.Schedule(1min, [this](TaskContext /*context*/)
+        scheduler.Schedule(1min, [this](TaskContext /*context*/)
         {
             me->GetMotionMaster()->MovePath(PATH, false);
         });
@@ -229,7 +228,7 @@ struct npc_bg_ab_defiler_combatant_1 : ScheduledAI
         {
             case PATH:
                 DoCastSelf(SPELL_HOLD_TORCH);
-                _scheduler.Schedule(10s, [this](TaskContext /*context*/)
+                scheduler.Schedule(10s, [this](TaskContext /*context*/)
                 {
                     me->GetMotionMaster()->MovePath(PATH, false);
                 });
@@ -251,7 +250,7 @@ struct npc_bg_ab_defiler_combatant_2 : ScheduledAI
     void JustAppeared() override
     {
         DoCastSelf(SPELL_HOLD_TORCH);
-        _scheduler.Schedule(10s, [this](TaskContext context)
+        scheduler.Schedule(10s, [this](TaskContext context)
         {
             Creature* target = me->FindNearestCreature(NPC_SPELL_BUNNY, 20.0f);
             me->RemoveAurasDueToSpell(SPELL_HOLD_TORCH);
@@ -288,7 +287,7 @@ struct npc_bg_ab_derek_darkmetal : ScheduledAI
         {
             case PATH_1:
                 me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-                _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+                scheduler.Schedule(5s, [this](TaskContext /*context*/)
                 {
                     me->SetEmoteState(EMOTE_ONESHOT_NONE);
                     me->SetVirtualItem(1, ITEM_SWORD);
@@ -304,7 +303,7 @@ struct npc_bg_ab_derek_darkmetal : ScheduledAI
                     target->CastSpell(target, SPELL_STEAM);
                 }
                 me->PlayOneShotAnimKitId(17343);
-                _scheduler.Schedule(6s, [this, targetGuid](TaskContext /*context*/)
+                scheduler.Schedule(6s, [this, targetGuid](TaskContext /*context*/)
                 {
                     if (Creature* target = me->GetMap()->GetCreature(targetGuid))
                         target->DespawnOrUnsummon();
@@ -314,7 +313,7 @@ struct npc_bg_ab_derek_darkmetal : ScheduledAI
                 break;
             }
             case PATH_3:
-                _scheduler.Schedule(1s, [this](TaskContext context)
+                scheduler.Schedule(1s, [this](TaskContext context)
                 {
                     me->SetVirtualItem(1, 0);
                     context.Schedule(3s, [this](TaskContext /*context*/)
@@ -331,7 +330,7 @@ struct npc_bg_ab_derek_darkmetal : ScheduledAI
     void StartScript()
     {
         me->SetEmoteState(EMOTE_STATE_WORK_SMITH);
-        _scheduler.Schedule(20s, [this](TaskContext context)
+        scheduler.Schedule(20s, [this](TaskContext context)
         {
             me->SetEmoteState(EMOTE_ONESHOT_NONE);
             context.Schedule(1s, [this](TaskContext /*context*/)
@@ -348,7 +347,7 @@ struct npc_bg_ab_arathor_watchman_drinking_1 : ScheduledAI
 
     void JustAppeared() override
     {
-        _scheduler.Schedule(5s, 15s, [this](TaskContext context)
+        scheduler.Schedule(5s, 15s, [this](TaskContext context)
         {
             me->SetAIAnimKitId(2358);
             context.Schedule(3s, [this](TaskContext /*context*/)
@@ -367,7 +366,7 @@ struct npc_bg_ab_arathor_watchman_drinking_2 : ScheduledAI
 
     void JustAppeared() override
     {
-        _scheduler.Schedule(5s, 15s, [this](TaskContext context)
+        scheduler.Schedule(5s, 15s, [this](TaskContext context)
         {
             me->PlayOneShotAnimKitId(17347); // drink
             context.Repeat();
@@ -381,7 +380,7 @@ struct npc_bg_ab_arathor_watchman_talking : ScheduledAI
 
     void JustAppeared() override
     {
-        _scheduler.Schedule(10s, 15s, [this](TaskContext context)
+        scheduler.Schedule(10s, 15s, [this](TaskContext context)
         {
             me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
             context.Repeat();
@@ -408,7 +407,7 @@ struct npc_bg_ab_arathor_watchman_patrol_1 : ScheduledAI
         {
             case PATH_1:
                 DoCastSelf(SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS);
-                _scheduler.Schedule(10s, [this](TaskContext /*context*/)
+                scheduler.Schedule(10s, [this](TaskContext /*context*/)
                 {
                     me->RemoveAurasDueToSpell(SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS);
                     me->GetMotionMaster()->MovePath(PATH_2, false);
@@ -425,7 +424,7 @@ struct npc_bg_ab_arathor_watchman_patrol_1 : ScheduledAI
     void StartScript()
     {
         DoCastSelf(SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS);
-        _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+        scheduler.Schedule(5s, [this](TaskContext /*context*/)
         {
             me->RemoveAurasDueToSpell(SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS);
             me->GetMotionMaster()->MovePath(PATH_1, false);
@@ -452,7 +451,7 @@ struct npc_bg_ab_groundskeeper_olivia : ScheduledAI
         {
             case PATH_1:
                 me->SetAIAnimKitId(4760);
-                _scheduler.Schedule(5s, [this](TaskContext context)
+                scheduler.Schedule(5s, [this](TaskContext context)
                 {
                     me->SetAIAnimKitId(0);
                     context.Schedule(1s, [this](TaskContext /*context*/)
@@ -463,7 +462,7 @@ struct npc_bg_ab_groundskeeper_olivia : ScheduledAI
                 break;
             case PATH_2:
                 me->SetAIAnimKitId(17436);
-                _scheduler.Schedule(5s, [this](TaskContext context)
+                scheduler.Schedule(5s, [this](TaskContext context)
                 {
                     me->SetAIAnimKitId(0);
                     context.Schedule(1s, [this](TaskContext /*context*/)
@@ -483,7 +482,7 @@ struct npc_bg_ab_groundskeeper_olivia : ScheduledAI
     void StartScript()
     {
         me->SetAIAnimKitId(17436);
-        _scheduler.Schedule(10s, [this](TaskContext context)
+        scheduler.Schedule(10s, [this](TaskContext context)
         {
             me->SetAIAnimKitId(0);
             context.Schedule(1s, [this](TaskContext /*context*/)
@@ -513,7 +512,7 @@ struct LumberjackWoodCarrierAI : ScheduledAI
         me->SetVirtualItem(0, ITEM_AXE_1H);
         DoCastSelf(SPELL_LUMBERJACKIN);
 
-        _scheduler.Schedule(10s, [this](TaskContext context)
+        scheduler.Schedule(10s, [this](TaskContext context)
         {
             me->RemoveAurasDueToSpell(SPELL_LUMBERJACKIN);
             me->SetVirtualItem(0, 0);
@@ -533,7 +532,7 @@ struct LumberjackWoodCarrierAI : ScheduledAI
         {
             me->RemoveAurasDueToSpell(SPELL_CARRY_WOOD);
             me->SetStandState(UNIT_STAND_STATE_KNEEL);
-            _scheduler.Schedule(3500ms, [this](TaskContext)
+            scheduler.Schedule(3500ms, [this](TaskContext)
             {
                 me->SetStandState(UNIT_STAND_STATE_STAND);
                 me->HandleEmoteCommand(EMOTE_ONESHOT_STAND);
@@ -597,7 +596,7 @@ struct npc_bg_ab_lumberjack_wanderer : ScheduledAI
 
     void StartScript()
     {
-        _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+        scheduler.Schedule(5s, 10s, [this](TaskContext context)
         {
             me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
             context.Schedule(3500ms, [this](TaskContext)
@@ -613,7 +612,7 @@ struct npc_bg_ab_lumberjack_wanderer : ScheduledAI
         {
             case PATH_1:
                 me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-                _scheduler.Schedule(6s, [this](TaskContext)
+                scheduler.Schedule(6s, [this](TaskContext)
                 {
                     me->SetEmoteState(EMOTE_ONESHOT_NONE);
                     me->GetMotionMaster()->MovePath(PATH_2, false);
@@ -635,7 +634,7 @@ struct npc_bg_ab_lumberjack_passive : ScheduledAI
     void JustAppeared() override
     {
         me->SetEmoteState(EMOTE_STATE_SIT_CHAIR_MED);
-        _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+        scheduler.Schedule(5s, 10s, [this](TaskContext context)
         {
             me->PlayOneShotAnimKitId(17347); // drink
             context.Repeat();
@@ -661,7 +660,7 @@ struct npc_bg_ab_blacksmith_sitting : ScheduledAI
     void JustAppeared() override
     {
         me->SetEmoteState(EMOTE_STATE_SIT_CHAIR_MED);
-        _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+        scheduler.Schedule(5s, 10s, [this](TaskContext context)
         {
             me->PlayOneShotAnimKitId(5182);
             context.Repeat();
@@ -675,7 +674,7 @@ struct npc_bg_ab_blacksmith_talking : ScheduledAI
 
     void JustAppeared() override
     {
-        _scheduler.Schedule(10s, 15s, [this](TaskContext context)
+        scheduler.Schedule(10s, 15s, [this](TaskContext context)
         {
             me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
             context.Repeat();
@@ -700,7 +699,7 @@ struct BlacksmithWorkingAI : ScheduledAI
                 me->LoadEquipment(0, true);
 
             me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-            _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+            scheduler.Schedule(5s, [this](TaskContext /*context*/)
             {
                 me->SetEmoteState(EMOTE_ONESHOT_NONE);
                 me->GetMotionMaster()->MovePath(_pathId2, false);
@@ -715,7 +714,7 @@ struct BlacksmithWorkingAI : ScheduledAI
     void StartScript()
     {
         DoCastSelf(SPELL_BLACKSMITH_WORKING);
-        _scheduler.Schedule(10s, 20s, [this](TaskContext /*context*/)
+        scheduler.Schedule(10s, 20s, [this](TaskContext /*context*/)
         {
             me->SetFacingTo(5.829399585723876953f);
             me->GetMotionMaster()->MovePath(_pathId1, false);
@@ -764,7 +763,7 @@ struct npc_bg_ab_blacksmith_stone_carrier : ScheduledAI
             case PATH_1:
                 me->RemoveAurasDueToSpell(SPELL_CARRY_STONE);
                 me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-                _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+                scheduler.Schedule(5s, [this](TaskContext /*context*/)
                 {
                     me->SetEmoteState(EMOTE_ONESHOT_NONE);
                     me->GetMotionMaster()->MovePath(PATH_2, false);
@@ -781,7 +780,7 @@ struct npc_bg_ab_blacksmith_stone_carrier : ScheduledAI
     void StartScript()
     {
         me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-        _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+        scheduler.Schedule(5s, [this](TaskContext /*context*/)
         {
             me->SetEmoteState(EMOTE_ONESHOT_NONE);
             DoCastSelf(SPELL_CARRY_STONE);
@@ -797,7 +796,7 @@ struct npc_bg_ab_farmer_talking : ScheduledAI
 
     void JustAppeared() override
     {
-        _scheduler.Schedule(9s, 11s, [this](TaskContext context)
+        scheduler.Schedule(9s, 11s, [this](TaskContext context)
         {
             me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
             context.Repeat();
@@ -811,7 +810,7 @@ struct npc_bg_ab_farmer_shouting : ScheduledAI
 
     void JustAppeared() override
     {
-        _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+        scheduler.Schedule(5s, 10s, [this](TaskContext context)
         {
             me->HandleEmoteCommand(EMOTE_ONESHOT_SHOUT);
             context.Repeat();
@@ -834,7 +833,7 @@ struct FarmerWorkingAI : ScheduledAI
         {
             me->SetAIAnimKitId(_aiAnimKitId);
 
-            _scheduler.Schedule(5s, 15s, [this](TaskContext /*context*/)
+            scheduler.Schedule(5s, 15s, [this](TaskContext /*context*/)
             {
                 me->SetAIAnimKitId(0);
                 me->GetMotionMaster()->MovePath(_pathId2, false);
@@ -849,7 +848,7 @@ struct FarmerWorkingAI : ScheduledAI
     void StartScript()
     {
         me->SetAIAnimKitId(_aiAnimKitId);
-        _scheduler.Schedule(5s, 15s, [this](TaskContext context)
+        scheduler.Schedule(5s, 15s, [this](TaskContext context)
         {
             me->SetAIAnimKitId(0);
             context.Schedule(2s, [this](TaskContext /*context*/)
@@ -947,7 +946,7 @@ struct npc_bg_ab_farmer_wanderer : ScheduledAI
         {
             case PATH_1:
                 me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-                _scheduler.Schedule(5s, 10s, [this](TaskContext /*context*/)
+                scheduler.Schedule(5s, 10s, [this](TaskContext /*context*/)
                 {
                     me->SetEmoteState(EMOTE_ONESHOT_NONE);
                     me->GetMotionMaster()->MovePath(PATH_2, false);
@@ -964,7 +963,7 @@ struct npc_bg_ab_farmer_wanderer : ScheduledAI
     void StartScript()
     {
         me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-        _scheduler.Schedule(5s, 10s, [this](TaskContext /*context*/)
+        scheduler.Schedule(5s, 10s, [this](TaskContext /*context*/)
         {
             me->SetEmoteState(EMOTE_ONESHOT_NONE);
             me->GetMotionMaster()->MovePath(PATH_1, false);
@@ -979,7 +978,7 @@ struct npc_bg_ab_stablehand_talking : ScheduledAI
 
     void JustAppeared() override
     {
-        _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+        scheduler.Schedule(5s, 10s, [this](TaskContext context)
         {
             me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
             context.Repeat();
@@ -994,7 +993,7 @@ struct npc_bg_ab_miner_talking : ScheduledAI
 
     void JustAppeared() override
     {
-        _scheduler.Schedule(5s, 15s, [this](TaskContext context)
+        scheduler.Schedule(5s, 15s, [this](TaskContext context)
         {
             me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
             context.Repeat();
@@ -1018,7 +1017,7 @@ struct MinerWorkingAI : ScheduledAI
         if (pathId == _pathId1)
         {
             me->SetAIAnimKitId(1320);
-            _scheduler.Schedule(5s, 10s, [this](TaskContext context)
+            scheduler.Schedule(5s, 10s, [this](TaskContext context)
             {
                 me->SetAIAnimKitId(0);
                 DoCastSelf(SPELL_CARRY_SACK);
@@ -1032,7 +1031,7 @@ struct MinerWorkingAI : ScheduledAI
         {
             me->RemoveAurasDueToSpell(SPELL_CARRY_SACK);
             me->SetEmoteState(EMOTE_STATE_USE_STANDING);
-            _scheduler.Schedule(10s, [this](TaskContext /*context*/)
+            scheduler.Schedule(10s, [this](TaskContext /*context*/)
             {
                 me->SetEmoteState(EMOTE_ONESHOT_NONE);
                 me->GetMotionMaster()->MovePath(_pathId3, false);
@@ -1090,7 +1089,7 @@ struct npc_bg_ab_elemental_skirmish : ScheduledAI
     void JustAppeared() override
     {
         me->SetEmoteState(EMOTE_STATE_READY_UNARMED);
-        _scheduler.Schedule(4s, 8s, [this](TaskContext context)
+        scheduler.Schedule(4s, 8s, [this](TaskContext context)
         {
             me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK_UNARMED);
             context.Repeat();
