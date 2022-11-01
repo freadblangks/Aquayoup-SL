@@ -23,6 +23,22 @@
 
 constexpr uint32 SPELL_BLACKSMITH_WORKING = 261985;
 
+// Base AI class to reduce duplicate code
+// Might move this to other file
+struct ScheduledAI : public ScriptedAI
+{
+    ScheduledAI(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+protected:
+    TaskScheduler _scheduler;
+};
+
+
 // Horde & Alliance Base
 struct npc_bg_ab_arathor_gryphon_rider_leader : public ScriptedAI
 {
@@ -98,18 +114,13 @@ struct npc_bg_ab_radulf_leder : public ScriptedAI
     }
 };
 
-struct npc_bg_ab_dominic_masonwrite : ScriptedAI
+struct npc_bg_ab_dominic_masonwrite : ScheduledAI
 {
     static constexpr uint32 SPELL_READ_SCROLL = 122236;
     static constexpr uint32 PATH_1 = 100000062;
     static constexpr uint32 PATH_2 = 100000063;
 
-    npc_bg_ab_dominic_masonwrite(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_dominic_masonwrite(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -145,22 +156,14 @@ struct npc_bg_ab_dominic_masonwrite : ScriptedAI
             me->GetMotionMaster()->MovePath(PATH_1, false);
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_kevin_young : ScriptedAI
+struct npc_bg_ab_kevin_young : ScheduledAI
 {
     static constexpr uint32 PATH_1 = 100000000;
     static constexpr uint32 PATH_2 = 100000001;
 
-    npc_bg_ab_kevin_young(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_kevin_young(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -204,12 +207,12 @@ private:
     TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_defiler_combatant_1 : ScriptedAI
+struct npc_bg_ab_defiler_combatant_1 : ScheduledAI
 {
     static constexpr uint32 SPELL_HOLD_TORCH = 282578;
     static constexpr uint32 PATH = 100000032;
 
-    npc_bg_ab_defiler_combatant_1(Creature* creature) : ScriptedAI(creature) { }
+    npc_bg_ab_defiler_combatant_1(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -218,11 +221,6 @@ struct npc_bg_ab_defiler_combatant_1 : ScriptedAI
         {
             me->GetMotionMaster()->MovePath(PATH, false);
         });
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
     }
 
     void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
@@ -240,18 +238,15 @@ struct npc_bg_ab_defiler_combatant_1 : ScriptedAI
                 break;
         }
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_defiler_combatant_2 : ScriptedAI
+struct npc_bg_ab_defiler_combatant_2 : ScheduledAI
 {
     static constexpr uint32 SPELL_HOLD_TORCH = 282578;
     static constexpr uint32 SPELL_THROW_TORCH = 291606;
     static constexpr uint32 NPC_SPELL_BUNNY = 149760;
 
-    npc_bg_ab_defiler_combatant_2(Creature* creature) : ScriptedAI(creature) { }
+    npc_bg_ab_defiler_combatant_2(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -269,17 +264,9 @@ struct npc_bg_ab_defiler_combatant_2 : ScriptedAI
             context.Repeat();
         });
     }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_derek_darkmetal : ScriptedAI
+struct npc_bg_ab_derek_darkmetal : ScheduledAI
 {
     static constexpr uint32 PATH_1 = 100000033;
     static constexpr uint32 PATH_2 = 100000034;
@@ -288,12 +275,7 @@ struct npc_bg_ab_derek_darkmetal : ScriptedAI
     static constexpr uint32 SPELL_STEAM = 290554;
     static constexpr uint32 NPC_SPELL_BUNNY = 149760;
 
-    npc_bg_ab_derek_darkmetal(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_derek_darkmetal(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -358,19 +340,11 @@ struct npc_bg_ab_derek_darkmetal : ScriptedAI
             });
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_arathor_watchman_drinking_1 : ScriptedAI
+struct npc_bg_ab_arathor_watchman_drinking_1 : ScheduledAI
 {
-    npc_bg_ab_arathor_watchman_drinking_1(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_arathor_watchman_drinking_1(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -385,19 +359,11 @@ struct npc_bg_ab_arathor_watchman_drinking_1 : ScriptedAI
             context.Repeat(5s, 15s);
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_arathor_watchman_drinking_2 : ScriptedAI
+struct npc_bg_ab_arathor_watchman_drinking_2 : ScheduledAI
 {
-    npc_bg_ab_arathor_watchman_drinking_2(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_arathor_watchman_drinking_2(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -407,19 +373,11 @@ struct npc_bg_ab_arathor_watchman_drinking_2 : ScriptedAI
             context.Repeat();
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_arathor_watchman_talking : ScriptedAI
+struct npc_bg_ab_arathor_watchman_talking : ScheduledAI
 {
-    npc_bg_ab_arathor_watchman_talking(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_arathor_watchman_talking(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -429,23 +387,15 @@ struct npc_bg_ab_arathor_watchman_talking : ScriptedAI
             context.Repeat();
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_arathor_watchman_patrol_1 : ScriptedAI
+struct npc_bg_ab_arathor_watchman_patrol_1 : ScheduledAI
 {
     static constexpr uint32 PATH_1 = 100000036;
     static constexpr uint32 PATH_2 = 100000037;
     static constexpr uint32 SPELL_COSMETIC_HUMAN_MALE_KUL_TIRAN_SPYGLASS = 271087;
 
-    npc_bg_ab_arathor_watchman_patrol_1(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_arathor_watchman_patrol_1(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -481,23 +431,15 @@ struct npc_bg_ab_arathor_watchman_patrol_1 : ScriptedAI
             me->GetMotionMaster()->MovePath(PATH_1, false);
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_groundskeeper_olivia : ScriptedAI
+struct npc_bg_ab_groundskeeper_olivia : ScheduledAI
 {
     static constexpr uint32 PATH_1 = 100000039;
     static constexpr uint32 PATH_2 = 100000040;
     static constexpr uint32 PATH_3 = 100000041;
 
-    npc_bg_ab_groundskeeper_olivia(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_groundskeeper_olivia(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -550,24 +492,16 @@ struct npc_bg_ab_groundskeeper_olivia : ScriptedAI
             });
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
 // Lumber Mill
-struct LumberjackWoodCarrierAI : ScriptedAI
+struct LumberjackWoodCarrierAI : ScheduledAI
 {
     static constexpr uint32 SPELL_LUMBERJACKIN = 290604;
     static constexpr uint32 SPELL_CARRY_WOOD = 244453;
     static constexpr uint32 ITEM_AXE_1H = 109579;
 
-    LumberjackWoodCarrierAI(Creature* creature, uint32 pathId1, uint32 pathId2) : ScriptedAI(creature), _pathId1(pathId1), _pathId2(pathId2) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    LumberjackWoodCarrierAI(Creature* creature, uint32 pathId1, uint32 pathId2) : ScheduledAI(creature), _pathId1(pathId1), _pathId2(pathId2) { }
 
     void JustAppeared() override
     {
@@ -613,7 +547,6 @@ struct LumberjackWoodCarrierAI : ScriptedAI
     }
 
 private:
-    TaskScheduler _scheduler;
     uint32 _pathId1;
     uint32 _pathId2;
 };
@@ -650,21 +583,16 @@ struct npc_bg_ab_lumberjack_wood_carrier_4 : LumberjackWoodCarrierAI
     npc_bg_ab_lumberjack_wood_carrier_4(Creature* creature) : LumberjackWoodCarrierAI(creature, PATH_1, PATH_2) { }
 };
 
-struct npc_bg_ab_lumberjack_wanderer : ScriptedAI
+struct npc_bg_ab_lumberjack_wanderer : ScheduledAI
 {
     static constexpr uint32 PATH_1 = 100000050;
     static constexpr uint32 PATH_2 = 100000051;
 
-    npc_bg_ab_lumberjack_wanderer(Creature* creature) : ScriptedAI(creature) { }
+    npc_bg_ab_lumberjack_wanderer(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
         StartScript();
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
     }
 
     void StartScript()
@@ -698,19 +626,11 @@ struct npc_bg_ab_lumberjack_wanderer : ScriptedAI
                 break;
         }
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_lumberjack_passive : ScriptedAI
+struct npc_bg_ab_lumberjack_passive : ScheduledAI
 {
-    npc_bg_ab_lumberjack_passive(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_lumberjack_passive(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -721,9 +641,6 @@ struct npc_bg_ab_lumberjack_passive : ScriptedAI
             context.Repeat();
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
 struct npc_bg_ab_lumberjack : ScriptedAI
@@ -737,9 +654,9 @@ struct npc_bg_ab_lumberjack : ScriptedAI
 };
 
 // Blacksmith
-struct npc_bg_ab_blacksmith_sitting : ScriptedAI
+struct npc_bg_ab_blacksmith_sitting : ScheduledAI
 {
-    npc_bg_ab_blacksmith_sitting(Creature* creature) : ScriptedAI(creature) { }
+    npc_bg_ab_blacksmith_sitting(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -750,19 +667,11 @@ struct npc_bg_ab_blacksmith_sitting : ScriptedAI
             context.Repeat();
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_blacksmith_talking : ScriptedAI
+struct npc_bg_ab_blacksmith_talking : ScheduledAI
 {
-    npc_bg_ab_blacksmith_talking(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_blacksmith_talking(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -772,19 +681,11 @@ struct npc_bg_ab_blacksmith_talking : ScriptedAI
             context.Repeat();
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct BlacksmithWorkingAI : ScriptedAI
+struct BlacksmithWorkingAI : ScheduledAI
 {
-    BlacksmithWorkingAI(Creature* creature, bool removeItem, uint32 pathId1, uint32 pathId2) : ScriptedAI(creature), _removeItem(removeItem), _pathId1(pathId1), _pathId2(pathId2) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    BlacksmithWorkingAI(Creature* creature, bool removeItem, uint32 pathId1, uint32 pathId2) : ScheduledAI(creature), _removeItem(removeItem), _pathId1(pathId1), _pathId2(pathId2) { }
 
     void JustAppeared() override
     {
@@ -822,7 +723,6 @@ struct BlacksmithWorkingAI : ScriptedAI
     }
 
 private:
-    TaskScheduler _scheduler;
     bool _removeItem;
     uint32 _pathId1;
     uint32 _pathId2;
@@ -844,18 +744,13 @@ struct npc_bg_ab_blacksmith_working_2 : BlacksmithWorkingAI
     npc_bg_ab_blacksmith_working_2(Creature* creature) : BlacksmithWorkingAI(creature, false, PATH_1, PATH_2) { }
 };
 
-struct npc_bg_ab_blacksmith_stone_carrier : ScriptedAI
+struct npc_bg_ab_blacksmith_stone_carrier : ScheduledAI
 {
     static constexpr uint32 SPELL_CARRY_STONE = 282906;
     static constexpr uint32 PATH_1 = 100000056;
     static constexpr uint32 PATH_2 = 100000057;
 
-    npc_bg_ab_blacksmith_stone_carrier(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_blacksmith_stone_carrier(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -893,15 +788,12 @@ struct npc_bg_ab_blacksmith_stone_carrier : ScriptedAI
             me->GetMotionMaster()->MovePath(PATH_1, false);
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
 // Farm
-struct npc_bg_ab_farmer_talking : ScriptedAI
+struct npc_bg_ab_farmer_talking : ScheduledAI
 {
-    npc_bg_ab_farmer_talking(Creature* creature) : ScriptedAI(creature) { }
+    npc_bg_ab_farmer_talking(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -911,24 +803,11 @@ struct npc_bg_ab_farmer_talking : ScriptedAI
             context.Repeat();
         });
     }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_farmer_shouting : ScriptedAI
+struct npc_bg_ab_farmer_shouting : ScheduledAI
 {
-    npc_bg_ab_farmer_shouting(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_farmer_shouting(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -938,19 +817,11 @@ struct npc_bg_ab_farmer_shouting : ScriptedAI
             context.Repeat();
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_farmer_working_base : ScriptedAI
+struct npc_bg_ab_farmer_working_base : ScheduledAI
 {
-    npc_bg_ab_farmer_working_base(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 aiAnimKitId) : ScriptedAI(creature), _pathId1(pathId1), _pathId2(pathId2), _aiAnimKitId(aiAnimKitId) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_farmer_working_base(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 aiAnimKitId) : ScheduledAI(creature), _pathId1(pathId1), _pathId2(pathId2), _aiAnimKitId(aiAnimKitId) { }
 
     void JustAppeared() override
     {
@@ -989,7 +860,6 @@ struct npc_bg_ab_farmer_working_base : ScriptedAI
     }
 
 private:
-    TaskScheduler _scheduler;
     uint32 _pathId1;
     uint32 _pathId2;
     uint32 _aiAnimKitId;
@@ -1059,17 +929,12 @@ struct npc_bg_ab_farmer_working_8 : npc_bg_ab_farmer_working_base
     npc_bg_ab_farmer_working_8(Creature* creature) : npc_bg_ab_farmer_working_base(creature, PATH_1, PATH_2, 7424) { }
 };
 
-struct npc_bg_ab_farmer_wanderer : ScriptedAI
+struct npc_bg_ab_farmer_wanderer : ScheduledAI
 {
     static constexpr uint32 PATH_1 = 100000020;
     static constexpr uint32 PATH_2 = 100000021;
 
-    npc_bg_ab_farmer_wanderer(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_farmer_wanderer(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -1105,20 +970,12 @@ struct npc_bg_ab_farmer_wanderer : ScriptedAI
             me->GetMotionMaster()->MovePath(PATH_1, false);
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
 // Stables
-struct npc_bg_ab_stablehand_talking : ScriptedAI
+struct npc_bg_ab_stablehand_talking : ScheduledAI
 {
-    npc_bg_ab_stablehand_talking(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_stablehand_talking(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -1128,20 +985,12 @@ struct npc_bg_ab_stablehand_talking : ScriptedAI
             context.Repeat();
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
 // Gold Mine
-struct npc_bg_ab_miner_talking : ScriptedAI
+struct npc_bg_ab_miner_talking : ScheduledAI
 {
-    npc_bg_ab_miner_talking(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_miner_talking(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -1151,21 +1000,13 @@ struct npc_bg_ab_miner_talking : ScriptedAI
             context.Repeat();
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
-struct npc_bg_ab_miner_working_base : ScriptedAI
+struct npc_bg_ab_miner_working_base : ScheduledAI
 {
     static constexpr uint32 SPELL_CARRY_SACK = 175121;
 
-    npc_bg_ab_miner_working_base(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 pathId3) : ScriptedAI(creature), _pathId1(pathId1), _pathId2(pathId2), _pathId3(pathId3) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_miner_working_base(Creature* creature, uint32 pathId1, uint32 pathId2, uint32 pathId3) : ScheduledAI(creature), _pathId1(pathId1), _pathId2(pathId2), _pathId3(pathId3) { }
 
     void JustAppeared() override
     {
@@ -1209,7 +1050,6 @@ struct npc_bg_ab_miner_working_base : ScriptedAI
     }
 
 private:
-    TaskScheduler _scheduler;
     uint32 _pathId1;
     uint32 _pathId2;
     uint32 _pathId3;
@@ -1243,14 +1083,9 @@ struct npc_bg_ab_miner_working_3 : npc_bg_ab_miner_working_base
 };
 
 // Misc
-struct npc_bg_ab_elemental_skirmish : ScriptedAI
+struct npc_bg_ab_elemental_skirmish : ScheduledAI
 {
-    npc_bg_ab_elemental_skirmish(Creature* creature) : ScriptedAI(creature) { }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _scheduler.Update(diff);
-    }
+    npc_bg_ab_elemental_skirmish(Creature* creature) : ScheduledAI(creature) { }
 
     void JustAppeared() override
     {
@@ -1261,9 +1096,6 @@ struct npc_bg_ab_elemental_skirmish : ScriptedAI
             context.Repeat();
         });
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
 // Spells
