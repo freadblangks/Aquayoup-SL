@@ -26,14 +26,18 @@ EndScriptData */
 #include "AchievementMgr.h"
 #include "CharacterCache.h"
 #include "Chat.h"
+#include "ChatCommand.h"
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "Language.h"
-#include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "RBAC.h"
 #include <iomanip>
+
+#if TRINITY_COMPILER == TRINITY_COMPILER_GNU
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 using namespace Trinity::ChatCommands;
 class guild_commandscript : public CommandScript

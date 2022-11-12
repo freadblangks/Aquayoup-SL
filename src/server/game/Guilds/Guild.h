@@ -18,18 +18,20 @@
 #ifndef TRINITYCORE_GUILD_H
 #define TRINITYCORE_GUILD_H
 
-#include "AchievementMgr.h"
+#include "Common.h"
 #include "DatabaseEnvFwd.h"
+#include "DBCEnums.h"
 #include "ObjectGuid.h"
 #include "Optional.h"
 #include "RaceMask.h"
 #include "SharedDefines.h"
 #include <set>
 #include <unordered_map>
-#include <unordered_set>
 
+class GuildAchievementMgr;
 class Item;
 class Player;
+class WorldObject;
 class WorldPacket;
 class WorldSession;
 struct ItemPosCount;
@@ -310,7 +312,7 @@ class TC_GAME_API Guild
                 Member(ObjectGuid::LowType guildId, ObjectGuid guid, GuildRankId rankId);
 
                 void SetStats(Player* player);
-                void SetStats(std::string_view name, uint8 level, uint8 _class, uint8 gender, uint32 zoneId, uint32 accountId, uint32 reputation);
+                void SetStats(std::string_view name, uint8 level, uint8 race, uint8 _class, uint8 gender, uint32 zoneId, uint32 accountId, uint32 reputation);
                 bool CheckStats() const;
 
                 void SetPublicNote(std::string_view publicNote);
@@ -334,6 +336,7 @@ class TC_GAME_API Guild
                 float GetInactiveDays() const;
                 std::string GetPublicNote() const { return m_publicNote; }
                 std::string GetOfficerNote() const { return m_officerNote; }
+                uint8 GetRace() const { return m_race; }
                 uint8 GetClass() const { return m_class; }
                 uint8 GetGender() const { return m_gender; }
                 uint8 GetLevel() const { return m_level; }
@@ -373,6 +376,7 @@ class TC_GAME_API Guild
                 std::string m_name;
                 uint32 m_zoneId;
                 uint8 m_level;
+                uint8 m_race;
                 uint8 m_class;
                 uint8 m_gender;
                 uint8 m_flags;
@@ -735,7 +739,7 @@ class TC_GAME_API Guild
 
         // Handle client commands
         void HandleRoster(WorldSession* session);
-        void SendQueryResponse(WorldSession* session, ObjectGuid const& playerGuid);
+        void SendQueryResponse(WorldSession* session);
         void HandleSetAchievementTracking(WorldSession* session, uint32 const* achievementIdsBegin, uint32 const* achievementIdsEnd);
         void HandleGetAchievementMembers(WorldSession* session, uint32 achievementId) const;
         void HandleSetMOTD(WorldSession* session, std::string_view motd);
@@ -822,6 +826,7 @@ class TC_GAME_API Guild
         bool ChangeMemberRank(CharacterDatabaseTransaction trans, ObjectGuid guid, GuildRankId newRank);
         bool IsMember(ObjectGuid guid) const;
         uint32 GetMembersCount() const { return uint32(m_members.size()); }
+        uint64 GetMemberAvailableMoneyForRepairItems(ObjectGuid guid) const;
 
         // Bank
         void SwapItems(Player* player, uint8 tabId, uint8 slotId, uint8 destTabId, uint8 destSlotId, uint32 splitedAmount);
@@ -830,8 +835,8 @@ class TC_GAME_API Guild
         // Bank tabs
         void SetBankTabText(uint8 tabId, std::string_view text);
 
-        GuildAchievementMgr& GetAchievementMgr() { return m_achievementMgr; }
-        GuildAchievementMgr const& GetAchievementMgr() const { return m_achievementMgr; }
+        GuildAchievementMgr& GetAchievementMgr() { return *m_achievementMgr; }
+        GuildAchievementMgr const& GetAchievementMgr() const { return *m_achievementMgr; }
 
         // Pre-6.x guild leveling
         uint8 GetLevel() const { return GUILD_OLD_MAX_LEVEL; }
@@ -842,7 +847,7 @@ class TC_GAME_API Guild
         void ResetTimes(bool weekly);
 
         bool HasAchieved(uint32 achievementId) const;
-        void UpdateCriteria(CriteriaType type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, WorldObject* ref, Player* player);
+        void UpdateCriteria(CriteriaType type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, WorldObject const* ref, Player* player);
 
     protected:
         ObjectGuid::LowType m_id;
@@ -864,7 +869,7 @@ class TC_GAME_API Guild
         LogHolder<EventLogEntry> m_eventLog;
         std::array<LogHolder<BankEventLogEntry>, GUILD_BANK_MAX_TABS + 1> m_bankEventLog = {};
         LogHolder<NewsLogEntry> m_newsLog;
-        GuildAchievementMgr m_achievementMgr;
+        std::unique_ptr<GuildAchievementMgr> m_achievementMgr;
 
     private:
         inline uint8 _GetRanksSize() const { return uint8(m_ranks.size()); }

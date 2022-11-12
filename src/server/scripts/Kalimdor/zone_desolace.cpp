@@ -30,7 +30,7 @@ EndContentData */
 #include "GameObjectAI.h"
 #include "MotionMaster.h"
 #include "Player.h"
-#include "ScriptedEscortAI.h"
+#include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "SpellInfo.h"
 
@@ -101,7 +101,7 @@ public:
             }
             else if (spellInfo->Id == SPELL_KODO_KOMBO_GOSSIP)
             {
-                me->AddNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+                me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                 me->SetHomePosition(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetOrientation());
                 me->GetMotionMaster()->Clear();
                 me->GetMotionMaster()->MoveIdle();

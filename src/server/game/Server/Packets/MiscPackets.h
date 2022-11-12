@@ -262,7 +262,7 @@ namespace WorldPackets
             WorldPacket const* Write() override;
 
             uint32 DifficultyID     = 0;
-            uint8 IsTournamentRealm = 0;
+            bool IsTournamentRealm  = false;
             bool XRealmPvpAlert     = false;
             bool BlockExitingLoadingScreen = false;     // when set to true, sending SMSG_UPDATE_OBJECT with CreateObject Self bit = true will not hide loading screen
                                                         // instead it will be done after this packet is sent again with false in this bit and SMSG_UPDATE_OBJECT Values for player
@@ -833,6 +833,7 @@ namespace WorldPackets
             void Read() override;
 
             Array<int32, 2> SpellVisualKitIDs;
+            int32 SequenceVariation = 0;
         };
 
         class SpecialMountAnim final : public ServerPacket
@@ -844,6 +845,7 @@ namespace WorldPackets
 
             ObjectGuid UnitGUID;
             std::vector<int32> SpellVisualKitIDs;
+            int32 SequenceVariation = 0;
         };
 
         class CrossedInebriationThreshold final : public ServerPacket
@@ -929,13 +931,20 @@ namespace WorldPackets
         class StartTimer final : public ServerPacket
         {
         public:
+            enum TimerType : int32
+            {
+                Pvp             = 0,
+                ChallengeMode   = 1,
+                PlayerCountdown = 2
+            };
+
             StartTimer() : ServerPacket(SMSG_START_TIMER, 12) { }
 
             WorldPacket const* Write() override;
 
-            int32 Type = 0;
-            Duration<Seconds> TimeLeft;
             Duration<Seconds> TotalTime;
+            Duration<Seconds> TimeLeft;
+            TimerType Type = Pvp;
         };
 
         class ConversationLineStarted final : public ClientPacket

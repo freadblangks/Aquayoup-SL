@@ -33,6 +33,7 @@
 #include "SpellHistory.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
+#include "TemporarySummon.h"
 
 enum ShamanSpells
 {
@@ -416,6 +417,11 @@ class spell_sha_earthen_rage_passive : public AuraScript
         return ValidateSpellInfo({ SPELL_SHAMAN_EARTHEN_RAGE_PERIODIC, SPELL_SHAMAN_EARTHEN_RAGE_DAMAGE });
     }
 
+    bool CheckProc(ProcEventInfo& procInfo)
+    {
+        return procInfo.GetSpellInfo() && procInfo.GetSpellInfo()->Id != SPELL_SHAMAN_EARTHEN_RAGE_DAMAGE;
+    }
+
     void HandleEffectProc(AuraEffect* /*aurEff*/, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
@@ -425,6 +431,7 @@ class spell_sha_earthen_rage_passive : public AuraScript
 
     void Register() override
     {
+        DoCheckProc += AuraCheckProcFn(spell_sha_earthen_rage_passive::CheckProc);
         OnEffectProc += AuraEffectProcFn(spell_sha_earthen_rage_passive::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 
@@ -1241,8 +1248,10 @@ class spell_sha_mastery_elemental_overload : public AuraScript
         caster->m_Events.AddEventAtOffset([caster,
             targets = CastSpellTargetArg(procInfo.GetProcTarget()),
             overloadSpellId = GetTriggeredSpellId(procInfo.GetSpellInfo()->Id),
-            args = CastSpellExtraArgs(procInfo.GetProcSpell())]()
+            originalCastId = procInfo.GetProcSpell()->m_castId]()
         {
+            CastSpellExtraArgs args;
+            args.OriginalCastId = originalCastId;
             caster->CastSpell(targets, overloadSpellId, args);
         }, 400ms);
     }

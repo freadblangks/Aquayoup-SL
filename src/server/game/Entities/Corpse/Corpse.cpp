@@ -22,13 +22,12 @@
 #include "DB2Stores.h"
 #include "GameTime.h"
 #include "Log.h"
+#include "Loot.h"
 #include "Map.h"
-#include "ObjectAccessor.h"
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "StringConvert.h"
 #include "UpdateData.h"
-#include "World.h"
 #include <sstream>
 
 Corpse::Corpse(CorpseType type) : WorldObject(type != CORPSE_BONES), m_type(type)
@@ -92,6 +91,14 @@ bool Corpse::Create(ObjectGuid::LowType guidlow, Player* owner)
     PhasingHandler::InheritPhaseShift(this, owner);
 
     return true;
+}
+
+void Corpse::Update(uint32 diff)
+{
+    WorldObject::Update(diff);
+
+    if (m_loot)
+        m_loot->Update();
 }
 
 void Corpse::SaveToDB()
@@ -194,8 +201,8 @@ bool Corpse::LoadCorpseFromDB(ObjectGuid::LowType guid, Field* fields)
     SetRace(fields[7].GetUInt8());
     SetClass(fields[8].GetUInt8());
     SetSex(fields[9].GetUInt8());
-    SetFlags(fields[10].GetUInt8());
-    SetCorpseDynamicFlags(CorpseDynFlags(fields[11].GetUInt8()));
+    ReplaceAllFlags(fields[10].GetUInt8());
+    ReplaceAllCorpseDynamicFlags(CorpseDynFlags(fields[11].GetUInt8()));
     SetOwnerGUID(ObjectGuid::Create<HighGuid::Player>(fields[15].GetUInt64()));
     SetFactionTemplate(sChrRacesStore.AssertEntry(m_corpseData->RaceID)->FactionID);
 
@@ -268,7 +275,7 @@ void Corpse::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData
     if (requestedCorpseMask.IsAnySet())
         valuesMask.Set(TYPEID_CORPSE);
 
-    ByteBuffer buffer = PrepareValuesUpdateBuffer();
+    ByteBuffer& buffer = PrepareValuesUpdateBuffer(data);
     std::size_t sizePos = buffer.wpos();
     buffer << uint32(0);
     buffer << uint32(valuesMask.GetBlock(0));
@@ -281,7 +288,18 @@ void Corpse::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData
 
     buffer.put<uint32>(sizePos, buffer.wpos() - sizePos - 4);
 
-    data->AddUpdateBlock(buffer);
+    data->AddUpdateBlock();
+}
+
+void Corpse::ValuesUpdateForPlayerWithMaskSender::operator()(Player const* player) const
+{
+    UpdateData udata(Owner->GetMapId());
+    WorldPacket packet;
+
+    Owner->BuildValuesUpdateForPlayerWithMask(&udata, ObjectMask.GetChangesMask(), CorpseMask.GetChangesMask(), player);
+
+    udata.BuildPacket(&packet);
+    player->SendDirectMessage(&packet);
 }
 
 void Corpse::ClearUpdateMask(bool remove)

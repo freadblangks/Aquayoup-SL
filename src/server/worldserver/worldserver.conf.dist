@@ -362,6 +362,13 @@ SessionAddDelay = 10000
 GridCleanUpDelay = 300000
 
 #
+#    MinWorldUpdateTime
+#        Description: Minimum time (milliseconds) between world update ticks (for mostly idle servers).
+#        Default:     1 - (0.001 second)
+
+MinWorldUpdateTime = 1
+
+#
 #    MapUpdateInterval
 #        Description: Time (milliseconds) for map update interval.
 #        Default:     10 - (0.01 second)
@@ -992,14 +999,6 @@ Instance.IgnoreLevel = 0
 Instance.IgnoreRaid = 0
 
 #
-#    Instance.ResetTimeHour
-#        Description: Hour of the day when the global instance reset occurs.
-#        Range:       0-23
-#        Default:     4 - (04:00 AM)
-
-Instance.ResetTimeHour = 4
-
-#
 #    Instance.UnloadDelay
 #        Description: Time (in milliseconds) before instance maps are unloaded from memory if no
 #                     characters are inside.
@@ -1016,6 +1015,22 @@ Instance.UnloadDelay = 1800000
 #                     true  - (Enabled, show)
 
 InstancesResetAnnounce = false
+
+#
+#    ResetSchedule.WeekDay
+#        Description: Day of the week when the global weekly reset occurs.
+#        Range:       0-6
+#        Default:     2 - (Tuesday)
+
+ResetSchedule.WeekDay = 2
+
+#
+#    ResetSchedule.Hour
+#        Description: Hour of the day when the global daily reset occurs.
+#        Range:       0-23
+#        Default:     8 - (08:00 AM)
+
+ResetSchedule.Hour = 8
 
 #
 #    Quests.EnableQuestTracker
@@ -1131,6 +1146,13 @@ Guild.BankEventLogRecordsCount = 25
 #        Default:     250
 
 Guild.NewsLogRecordsCount = 250
+
+#
+#    Guild.SaveInterval
+#        Description: Time (in minutes) for guild save interval.
+#        Default:     15
+
+Guild.SaveInterval = 15
 
 #
 #    MaxPrimaryTradeSkill
@@ -1257,6 +1279,14 @@ Event.Announce = 0
 BeepAtStart = 1
 
 #
+#    FlashAtStart
+#        Description: Flashes in taskbar when the world server finished starting. (Works on Windows only)
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled)
+
+FlashAtStart = 1
+
+#
 #    Motd
 #        Description: Message of the Day, displayed at login. Use '@' for a newline.
 #        Example:     "Welcome to John's Server!@This server is proud to be powered by Trinity Core."
@@ -1355,6 +1385,15 @@ FeatureSystem.CharacterUndelete.Enabled = 0
 #        Default:     2592000 (30 days)
 
 FeatureSystem.CharacterUndelete.Cooldown = 2592000
+
+#
+#    AllowLoggingIPAddressesInDatabase
+#        Description: Specifies if IP addresses can be logged to the database
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled)
+#
+
+AllowLoggingIPAddressesInDatabase = 1
 
 #
 ###################################################################################################
@@ -2023,8 +2062,23 @@ ChatFlood.MessageCount = 10
 ChatFlood.MessageDelay = 1
 
 #
+#    ChatFlood.AddonMessageCount
+#        Description: Chat flood protection, number of addon messages before player gets muted.
+#        Default:     100 - (Enabled)
+#                     0  - (Disabled)
+
+ChatFlood.AddonMessageCount = 100
+
+#
+#    ChatFlood.AddonMessageDelay
+#        Description: Time (in seconds) between addon messages to be counted into ChatFlood.AddonMessageCount.
+#        Default:     1
+
+ChatFlood.AddonMessageDelay = 1
+
+#
 #    ChatFlood.MuteTime
-#        Description: Time (in seconds) characters get muted for violating ChatFlood.MessageCount.
+#        Description: Time (in seconds) characters get muted for violating ChatFlood.MessageCount / ChatFlood.AddonMessageCount.
 #        Default:     10
 
 ChatFlood.MuteTime = 10
@@ -2265,7 +2319,8 @@ Visibility.GroupMode = 1
 #
 #    Visibility.Distance.Continents
 #    Visibility.Distance.Instances
-#    Visibility.Distance.BGArenas
+#    Visibility.Distance.BG
+#    Visibility.Distance.Arenas
 #        Description: Visibility distance to see other players or gameobjects.
 #                     Visibility on continents on retail ~100 yards. In BG/Arenas ~533.
 #                     For instances default ~170.
@@ -2273,25 +2328,30 @@ Visibility.GroupMode = 1
 #                     Min limit is max aggro radius (45) * Rate.Creature.Aggro
 #        Default:     100 - (Visibility.Distance.Continents)
 #                     170 - (Visibility.Distance.Instances)
-#                     533 - (Visibility.Distance.BGArenas)
+#                     533 - (Visibility.Distance.BG)
+#                     533 - (Visibility.Distance.Arenas)
 
 Visibility.Distance.Continents = 100
-Visibility.Distance.Instances = 170
-Visibility.Distance.BGArenas = 533
+Visibility.Distance.Instances  = 170
+Visibility.Distance.BG         = 533
+Visibility.Distance.Arenas     = 533
 
 #
 #    Visibility.Notify.Period.OnContinents
 #    Visibility.Notify.Period.InInstances
-#    Visibility.Notify.Period.InBGArenas
+#    Visibility.Notify.Period.InBG
+#    Visibility.Notify.Period.InArenas
 #        Description: Time (in milliseconds) for visibility update period. Lower values may have
 #                     performance impact.
 #        Default:     1000 - (Visibility.Notify.Period.OnContinents)
 #                     1000 - (Visibility.Notify.Period.InInstances)
-#                     1000 - (Visibility.Notify.Period.InBGArenas)
+#                     1000 - (Visibility.Notify.Period.InBG)
+#                     1000 - (Visibility.Notify.Period.InArenas)
 
 Visibility.Notify.Period.OnContinents = 1000
 Visibility.Notify.Period.InInstances  = 1000
-Visibility.Notify.Period.InBGArenas   = 1000
+Visibility.Notify.Period.InBG         = 1000
+Visibility.Notify.Period.InArenas     = 1000
 
 #
 ###################################################################################################
@@ -2963,9 +3023,9 @@ Arena.QueueAnnouncer.Enable = 0
 #
 #    Arena.ArenaSeason.ID
 #        Description: Current arena season id shown in clients.
-#        Default:     15
+#        Default:     32
 
-Arena.ArenaSeason.ID = 15
+Arena.ArenaSeason.ID = 32
 
 #
 #    Arena.ArenaSeason.InProgress
@@ -4029,7 +4089,7 @@ BlackMarket.UpdatePeriod = 24
 
 Appender.Console=1,3,0
 Appender.Server=2,2,0,Server.log,w
-Appender.GM=2,2,15,gm/gm_%s.log
+Appender.GM=2,2,1,GM.log
 Appender.DBErrors=2,2,0,DBErrors.log
 
 #  Logger config values: Given a logger "name"
@@ -4089,6 +4149,7 @@ Logger.mmaps=3,Server
 #Logger.entities.vehicle=3,Console Server
 #Logger.gameevent=3,Console Server
 #Logger.guild=3,Console Server
+#Logger.instance.locks=3,Console Server
 #Logger.lfg=3,Console Server
 #Logger.loot=3,Console Server
 #Logger.maps.script=3,Console Server
@@ -4257,7 +4318,7 @@ Metric.Enable = 0
 #        Default:     10 seconds
 #
 
-Metric.Interval = 10
+Metric.Interval = 1
 
 #
 #    Metric.ConnectionInfo

@@ -17,15 +17,18 @@
 
 #include "ScriptMgr.h"
 #include "Chat.h"
+#include "ChatCommand.h"
 #include "Language.h"
-#include "Log.h"
 #include "Map.h"
 #include "Pet.h"
-#include "ObjectMgr.h"
 #include "Player.h"
 #include "RBAC.h"
 #include "SpellMgr.h"
 #include "WorldSession.h"
+
+#if TRINITY_COMPILER == TRINITY_COMPILER_GNU
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 inline Pet* GetSelectedPlayerPetOrOwn(ChatHandler* handler)
 {
@@ -95,8 +98,6 @@ public:
 
         // "kill" original creature
         creatureTarget->DespawnOrUnsummon();
-
-
 
         // prepare visual effect for levelup
         pet->SetLevel(player->GetLevel() - 1);

@@ -19,8 +19,8 @@
 #define TRINITYCORE_QUEST_H
 
 #include "Common.h"
-#include "DBCEnums.h"
 #include "DatabaseEnvFwd.h"
+#include "EnumFlag.h"
 #include "LootItemType.h"
 #include "Optional.h"
 #include "RaceMask.h"
@@ -30,6 +30,7 @@
 #include <vector>
 
 class Player;
+enum Difficulty : uint8;
 
 namespace WorldPackets
 {
@@ -629,7 +630,7 @@ class TC_GAME_API Quest
         QuestObjectives Objectives;
         std::array<uint32, QUEST_EMOTE_COUNT> DetailsEmote = { };
         std::array<uint32, QUEST_EMOTE_COUNT> DetailsEmoteDelay = { };
-        std::array<uint32, QUEST_EMOTE_COUNT> OfferRewardEmote = { };
+        std::array<int32, QUEST_EMOTE_COUNT> OfferRewardEmote = { };
         std::array<uint32, QUEST_EMOTE_COUNT> OfferRewardEmoteDelay = { };
 
         uint32 GetRewChoiceItemsCount() const { return _rewChoiceItemsCount; }
@@ -643,6 +644,9 @@ class TC_GAME_API Quest
         WorldPacket BuildQueryData(LocaleConstant loc, Player* player) const;
 
         void BuildQuestRewards(WorldPackets::Quest::QuestRewards& rewards, Player* player) const;
+
+        // Helpers
+        static uint32 RoundXPValue(uint32 xp);
 
         std::vector<uint32> DependentPreviousQuests;
         std::vector<uint32> DependentBreadcrumbQuests;
@@ -741,9 +745,6 @@ class TC_GAME_API Quest
         uint32 _specialFlags = 0; // custom flags, not sniffed/WDB
         std::bitset<MAX_QUEST_OBJECTIVE_TYPE> _usedQuestObjectiveTypes;
         uint32 _scriptId = 0;
-
-        // Helpers
-        static uint32 RoundXPValue(uint32 xp);
 };
 
 struct QuestStatusData

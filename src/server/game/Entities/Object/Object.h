@@ -20,9 +20,8 @@
 
 #include "Common.h"
 #include "Duration.h"
+#include "Errors.h"
 #include "EventProcessor.h"
-#include "GridReference.h"
-#include "GridRefManager.h"
 #include "ModelIgnoreFlags.h"
 #include "MovementInfo.h"
 #include "ObjectDefines.h"
@@ -55,13 +54,14 @@ class SpellCastTargets;
 class SpellEffectInfo;
 class SpellInfo;
 class TempSummon;
-class Transport;
+class TransportBase;
 class Unit;
 class UpdateData;
 class WorldObject;
 class WorldPacket;
 class ZoneScript;
 struct FactionTemplateEntry;
+struct Loot;
 struct PositionFullTerrainStatus;
 struct QuaternionData;
 enum ZLiquidStatus : uint32;
@@ -164,9 +164,9 @@ class TC_GAME_API Object
 
         uint32 GetDynamicFlags() const { return m_objectData->DynamicFlags; }
         bool HasDynamicFlag(uint32 flag) const { return (*m_objectData->DynamicFlags & flag) != 0; }
-        void AddDynamicFlag(uint32 flag) { SetUpdateFieldFlagValue(m_values.ModifyValue(&Object::m_objectData).ModifyValue(&UF::ObjectData::DynamicFlags), flag); }
+        void SetDynamicFlag(uint32 flag) { SetUpdateFieldFlagValue(m_values.ModifyValue(&Object::m_objectData).ModifyValue(&UF::ObjectData::DynamicFlags), flag); }
         void RemoveDynamicFlag(uint32 flag) { RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Object::m_objectData).ModifyValue(&UF::ObjectData::DynamicFlags), flag); }
-        void SetDynamicFlags(uint32 flag) { SetUpdateFieldValue(m_values.ModifyValue(&Object::m_objectData).ModifyValue(&UF::ObjectData::DynamicFlags), flag); }
+        void ReplaceAllDynamicFlags(uint32 flag) { SetUpdateFieldValue(m_values.ModifyValue(&Object::m_objectData).ModifyValue(&UF::ObjectData::DynamicFlags), flag); }
 
         TypeID GetTypeId() const { return m_objectTypeId; }
         bool isType(uint16 mask) const { return (mask & m_objectType) != 0; }
@@ -178,7 +178,7 @@ class TC_GAME_API Object
         void BuildValuesUpdateBlockForPlayerWithFlag(UpdateData* data, UF::UpdateFieldFlag flags, Player const* target) const;
         void BuildDestroyUpdateBlock(UpdateData* data) const;
         void BuildOutOfRangeUpdateBlock(UpdateData* data) const;
-        ByteBuffer PrepareValuesUpdateBuffer() const;
+        ByteBuffer& PrepareValuesUpdateBuffer(UpdateData* data) const;
 
         virtual void DestroyForPlayer(Player* target) const;
         void SendOutOfRangeForPlayer(Player* target) const;
@@ -259,6 +259,8 @@ class TC_GAME_API Object
         }
 
         virtual std::string GetDebugInfo() const;
+
+        virtual Loot* GetLootForPlayer([[maybe_unused]] Player const* player) const { return nullptr; }
 
     protected:
         Object();
@@ -398,37 +400,28 @@ class TC_GAME_API Object
         bool m_isDestroyedObject;
 
         Object(Object const& right) = delete;
+        Object(Object&& right) = delete;
         Object& operator=(Object const& right) = delete;
-};
-
-template<class T>
-class GridObject
-{
-    public:
-        virtual ~GridObject() { }
-
-        bool IsInGrid() const { return _gridRef.isValid(); }
-        void AddToGrid(GridRefManager<T>& m) { ASSERT(!IsInGrid()); _gridRef.link(&m, (T*)this); }
-        void RemoveFromGrid() { ASSERT(IsInGrid()); _gridRef.unlink(); }
-    private:
-        GridReference<T> _gridRef;
+        Object& operator=(Object&& right) = delete;
 };
 
 template <class T_VALUES, class T_FLAGS, class FLAG_TYPE, size_t ARRAY_SIZE>
 class FlaggedValuesArray32
 {
     public:
+        static_assert(sizeof(T_FLAGS) * 8 > ARRAY_SIZE, "Fix T_FLAGS");
+
         FlaggedValuesArray32()
         {
             for (uint32 i = 0; i < ARRAY_SIZE; ++i)
                 m_values[i] = T_VALUES(0);
-            m_flags = 0;
+            m_flags = T_FLAGS(0);
         }
 
         T_FLAGS GetFlags() const { return m_flags; }
-        bool HasFlag(FLAG_TYPE flag) const { return m_flags & (1 << flag); }
-        void AddFlag(FLAG_TYPE flag) { m_flags |= (1 << flag); }
-        void DelFlag(FLAG_TYPE flag) { m_flags &= ~(1 << flag); }
+        bool HasFlag(FLAG_TYPE flag) const { return m_flags & (T_FLAGS(1) << flag); }
+        void AddFlag(FLAG_TYPE flag) { m_flags |= (T_FLAGS(1) << flag); }
+        void DelFlag(FLAG_TYPE flag) { m_flags &= ~(T_FLAGS(1) << flag); }
 
         T_VALUES GetValue(FLAG_TYPE flag) const { return m_values[flag]; }
         void SetValue(FLAG_TYPE flag, T_VALUES value) { m_values[flag] = value; }
@@ -556,8 +549,8 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         FlaggedValuesArray32<int32, uint32, StealthType, TOTAL_STEALTH_TYPES> m_stealth;
         FlaggedValuesArray32<int32, uint32, StealthType, TOTAL_STEALTH_TYPES> m_stealthDetect;
 
-        FlaggedValuesArray32<int32, uint32, InvisibilityType, TOTAL_INVISIBILITY_TYPES> m_invisibility;
-        FlaggedValuesArray32<int32, uint32, InvisibilityType, TOTAL_INVISIBILITY_TYPES> m_invisibilityDetect;
+        FlaggedValuesArray32<int32, uint64, InvisibilityType, TOTAL_INVISIBILITY_TYPES> m_invisibility;
+        FlaggedValuesArray32<int32, uint64, InvisibilityType, TOTAL_INVISIBILITY_TYPES> m_invisibilityDetect;
 
         FlaggedValuesArray32<int32, uint32, ServerSideVisibilityType, TOTAL_SERVERSIDE_VISIBILITY_TYPES> m_serverSideVisibility;
         FlaggedValuesArray32<int32, uint32, ServerSideVisibilityType, TOTAL_SERVERSIDE_VISIBILITY_TYPES> m_serverSideVisibilityDetect;
@@ -569,19 +562,21 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         //used to check all object's GetMap() calls when object is not in world!
 
         void SetZoneScript();
+        ZoneScript* FindZoneScript() const;
         ZoneScript* GetZoneScript() const { return m_zoneScript; }
 
         Scenario* GetScenario() const;
 
         TempSummon* SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, uint32 vehId = 0, uint32 spellId = 0, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
         TempSummon* SummonCreature(uint32 entry, float x, float y, float z, float o = 0, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
-        TempSummon* SummonPersonalClone(Position const& pos, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, uint32 vehId = 0, uint32 spellId = 0, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
+        TempSummon* SummonPersonalClone(Position const& pos, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, uint32 vehId = 0, uint32 spellId = 0, Player* privateObjectOwner = nullptr);
         GameObject* SummonGameObject(uint32 entry, Position const& pos, QuaternionData const& rot, Seconds respawnTime, GOSummonType summonType = GO_SUMMON_TIMED_OR_CORPSE_DESPAWN);
         GameObject* SummonGameObject(uint32 entry, float x, float y, float z, float ang, QuaternionData const& rot, Seconds respawnTime, GOSummonType summonType = GO_SUMMON_TIMED_OR_CORPSE_DESPAWN);
         Creature*   SummonTrigger(float x, float y, float z, float ang, Milliseconds despawnTime, CreatureAI* (*GetAI)(Creature*) = nullptr);
         void SummonCreatureGroup(uint8 group, std::list<TempSummon*>* list = nullptr);
 
         Creature*   FindNearestCreature(uint32 entry, float range, bool alive = true) const;
+        Creature*   FindNearestCreatureWithAura(uint32 entry, uint32 spellId, float range, bool alive = true) const;
         GameObject* FindNearestGameObject(uint32 entry, float range, bool spawnedOnly = true) const;
         GameObject* FindNearestUnspawnedGameObject(uint32 entry, float range) const;
         GameObject* FindNearestGameObjectOfType(GameobjectTypes type, float range) const;
@@ -656,7 +651,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void GetCreatureListWithEntryInGrid(Container& creatureContainer, uint32 entry, float maxSearchRange = 250.0f) const;
 
         template <typename Container>
-        void GetPlayerListInGrid(Container& playerContainer, float maxSearchRange) const;
+        void GetPlayerListInGrid(Container& playerContainer, float maxSearchRange, bool alive = true) const;
 
         void DestroyForNearbyPlayers();
         virtual void UpdateObjectVisibility(bool forced = true);
@@ -687,7 +682,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         uint32  LastUsedScriptID;
 
         // Transports
-        Transport* GetTransport() const { return m_transport; }
+        TransportBase* GetTransport() const { return m_transport; }
         float GetTransOffsetX() const { return m_movementInfo.transport.pos.GetPositionX(); }
         float GetTransOffsetY() const { return m_movementInfo.transport.pos.GetPositionY(); }
         float GetTransOffsetZ() const { return m_movementInfo.transport.pos.GetPositionZ(); }
@@ -696,7 +691,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         uint32 GetTransTime()   const { return m_movementInfo.transport.time; }
         int8 GetTransSeat()     const { return m_movementInfo.transport.seat; }
         virtual ObjectGuid GetTransGUID() const;
-        void SetTransport(Transport* t) { m_transport = t; }
+        void SetTransport(TransportBase* t) { m_transport = t; }
 
         MovementInfo m_movementInfo;
 
@@ -739,8 +734,8 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         bool const m_isWorldObject;
         ZoneScript* m_zoneScript;
 
-        // transports
-        Transport* m_transport;
+        // transports (gameobjects only)
+        TransportBase* m_transport;
 
         virtual void ProcessPositionDataChanged(PositionFullTerrainStatus const& data);
         uint32 m_zoneId;
@@ -755,11 +750,13 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void SetLocationMapId(uint32 _mapId) { m_mapId = _mapId; }
         void SetLocationInstanceId(uint32 _instanceId) { m_InstanceId = _instanceId; }
 
-        virtual bool IsNeverVisibleFor(WorldObject const* /*seer*/) const { return !IsInWorld() || IsDestroyedObject(); }
-        virtual bool IsAlwaysVisibleFor(WorldObject const* /*seer*/) const { return false; }
-        virtual bool IsInvisibleDueToDespawn() const { return false; }
+        virtual bool CanNeverSee(WorldObject const* obj) const;
+        virtual bool CanAlwaysSee([[maybe_unused]] WorldObject const* /*obj*/) const { return false; }
+        virtual bool IsNeverVisibleFor([[maybe_unused]] WorldObject const* seer) const { return !IsInWorld() || IsDestroyedObject(); }
+        virtual bool IsAlwaysVisibleFor([[maybe_unused]] WorldObject const* seer) const { return false; }
+        virtual bool IsInvisibleDueToDespawn([[maybe_unused]] WorldObject const* seer) const { return false; }
         //difference from IsAlwaysVisibleFor: 1. after distance check; 2. use owner or charmer as seer
-        virtual bool IsAlwaysDetectableFor(WorldObject const* /*seer*/) const { return false; }
+        virtual bool IsAlwaysDetectableFor([[maybe_unused]] WorldObject const* seer) const { return false; }
     private:
         Map* m_currMap;                                   // current object's Map location
 
@@ -776,8 +773,6 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         virtual bool _IsWithinDist(WorldObject const* obj, float dist2compare, bool is3D, bool incOwnRadius = true, bool incTargetRadius = true) const;
 
-        bool CanNeverSee(WorldObject const* obj) const;
-        virtual bool CanAlwaysSee(WorldObject const* /*obj*/) const { return false; }
         bool CanDetect(WorldObject const* obj, bool ignoreStealth, bool checkAlert = false) const;
         bool CanDetectInvisibilityOf(WorldObject const* obj) const;
         bool CanDetectStealthOf(WorldObject const* obj, bool checkAlert = false) const;

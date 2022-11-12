@@ -21,7 +21,6 @@
 #include "Map.h"
 #include "MotionMaster.h"
 #include "ScriptedCreature.h"
-#include "Spell.h"
 #include "SpellScript.h"
 #include "stonecore.h"
 
@@ -147,7 +146,7 @@ class boss_slabhide : public CreatureScript
                 events.ScheduleEvent(EVENT_AIR_PHASE, 10s);
             }
 
-            void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+            void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
             {
                 if (_isFlying && damage >= me->GetHealth())
                     damage = me->GetHealth() - 1; // Let creature health fall to 1 hp but prevent it from dying during air phase.
@@ -198,7 +197,7 @@ class boss_slabhide : public CreatureScript
                         me->SetHover(false);
                         me->SetHomePosition(SlabhideIntroLandPos);
                         me->HandleEmoteCommand(EMOTE_ONESHOT_ROAR);
-                        me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                        me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                         me->SetReactState(REACT_AGGRESSIVE);
                         instance->SetData(DATA_SLABHIDE_INTRO, DONE);
                         break;
@@ -538,7 +537,7 @@ class BehindObjectCheck
         bool operator()(WorldObject* unit)
         {
             for (std::list<GameObject*>::const_iterator itr = objectList.begin(); itr != objectList.end(); ++itr)
-                if (!(*itr)->IsInvisibleDueToDespawn() && (*itr)->IsInBetween(caster, unit, 1.5f))
+                if (!(*itr)->IsInvisibleDueToDespawn(unit) && (*itr)->IsInBetween(caster, unit, 1.5f))
                     return true;
             return false;
         }

@@ -24,6 +24,7 @@
 #include "ScriptedEscortAI.h"
 #include "ScriptMgr.h"
 #include "SpellScript.h"
+#include "TemporarySummon.h"
 #include "VehicleDefines.h"
 
 enum ICCSisterSvalnaTexts
@@ -455,7 +456,7 @@ struct boss_sister_svalna : public BossAI
                     CastSpellExtraArgs args;
                     args.AddSpellBP0(1);
                     summon->CastSpell(target, VEHICLE_SPELL_RIDE_HARDCODED, args);
-                    summon->AddUnitFlag2(UnitFlags2(UNIT_FLAG2_HIDE_BODY | UNIT_FLAG2_INTERACT_WHILE_HOSTILE));
+                    summon->SetUnitFlag2(UNIT_FLAG2_INTERACT_WHILE_HOSTILE);
                 }
                 break;
             default:
@@ -676,7 +677,7 @@ struct npc_crok_scourgebane : public EscortAI
         }
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         // check wipe
         if (!_wipeCheckTimer)
@@ -1415,6 +1416,7 @@ public:
     }
 };
 
+// 70053 - Revive Champion
 class spell_svalna_revive_champion : public SpellScript
 {
     PrepareSpellScript(spell_svalna_revive_champion);
@@ -1445,6 +1447,7 @@ class spell_svalna_revive_champion : public SpellScript
     }
 };
 
+// 71462 - Remove Spear
 class spell_svalna_remove_spear : public SpellScript
 {
     PrepareSpellScript(spell_svalna_remove_spear);

@@ -74,16 +74,6 @@ namespace Trinity::Impl::ChatCommands
         }
     };
 
-    /*
-      for backwards compatibility, consumes the rest of the string
-      new code should use the Tail/WTail tags defined in ChatCommandTags
-    */
-    template <>
-    struct ArgInfo<char const*, void>
-    {
-        static ChatCommandResult TryConsume(char const*& arg, ChatHandler const*, std::string_view args) { arg = args.data(); return std::string_view(); }
-    };
-
     // string_view
     template <>
     struct ArgInfo<std::string_view, void>
@@ -327,6 +317,13 @@ namespace Trinity::Impl::ChatCommands
     struct TC_GAME_API ArgInfo<ItemTemplate const*>
     {
         static ChatCommandResult TryConsume(ItemTemplate const*&, ChatHandler const*, std::string_view);
+    };
+
+    // Quest* from numeric id or link
+    template <>
+    struct TC_GAME_API ArgInfo<Quest const*>
+    {
+        static ChatCommandResult TryConsume(Quest const*&, ChatHandler const*, std::string_view);
     };
 
     // SpellInfo const* from spell id or link

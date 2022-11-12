@@ -25,6 +25,7 @@
 #include "Log.h"
 #include "Map.h"
 #include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "Pet.h"
 #include "Player.h"
 #include "SmoothPhasing.h"
@@ -194,6 +195,19 @@ void TempSummon::InitStats(uint32 duration)
         if (owner->GetTypeId() == TYPEID_PLAYER)
             m_ControlledByPlayer = true;
 
+    if (owner && owner->IsPlayer())
+    {
+        if (CreatureSummonedData const* summonedData = sObjectMgr->GetCreatureSummonedData(GetEntry()))
+        {
+            m_creatureIdVisibleToSummoner = summonedData->CreatureIDVisibleToSummoner;
+            if (summonedData->CreatureIDVisibleToSummoner)
+            {
+                CreatureTemplate const* creatureTemplateVisibleToSummoner = ASSERT_NOTNULL(sObjectMgr->GetCreatureTemplate(*summonedData->CreatureIDVisibleToSummoner));
+                m_displayIdVisibleToSummoner = ObjectMgr::ChooseDisplayId(creatureTemplateVisibleToSummoner, nullptr)->CreatureDisplayID;
+            }
+        }
+    }
+
     if (!m_Properties)
         return;
 
@@ -251,10 +265,13 @@ void TempSummon::UpdateObjectVisibilityOnCreate()
     boost::container::small_vector<WorldObject*, 2> objectsToUpdate;
     objectsToUpdate.push_back(this);
 
-    SmoothPhasing const* smoothPhasing = GetSmoothPhasing();
-    if (WorldObject* original = GetSummoner())
-        if (smoothPhasing && smoothPhasing->IsReplacing(original->GetGUID()))
-            objectsToUpdate.push_back(original);
+    if (SmoothPhasing const* smoothPhasing = GetSmoothPhasing())
+    {
+        SmoothPhasingInfo const* infoForSeer = smoothPhasing->GetInfoForSeer(GetDemonCreatorGUID());
+        if (infoForSeer && infoForSeer->ReplaceObject && smoothPhasing->IsReplacing(*infoForSeer->ReplaceObject))
+            if (WorldObject* original = ObjectAccessor::GetWorldObject(*this, *infoForSeer->ReplaceObject))
+                objectsToUpdate.push_back(original);
+    }
 
     Trinity::VisibleChangesNotifier notifier({ objectsToUpdate.data(), objectsToUpdate.data() + objectsToUpdate.size() });
     Cell::VisitWorldObjects(this, notifier, GetVisibilityRange());
@@ -265,21 +282,27 @@ void TempSummon::UpdateObjectVisibilityOnDestroy()
     boost::container::small_vector<WorldObject*, 2> objectsToUpdate;
     objectsToUpdate.push_back(this);
 
-    WorldObject* original = GetSummoner();
-    SmoothPhasing const* smoothPhasing = GetSmoothPhasing();
-    if (original && smoothPhasing && smoothPhasing->IsReplacing(original->GetGUID()))
+    WorldObject* original = nullptr;
+    if (SmoothPhasing const* smoothPhasing = GetSmoothPhasing())
     {
-        objectsToUpdate.push_back(original);
+        SmoothPhasingInfo const* infoForSeer = smoothPhasing->GetInfoForSeer(GetDemonCreatorGUID());
+        if (infoForSeer && infoForSeer->ReplaceObject && smoothPhasing->IsReplacing(*infoForSeer->ReplaceObject))
+            original = ObjectAccessor::GetWorldObject(*this, *infoForSeer->ReplaceObject);
 
-        // disable replacement without removing - it is still needed for next step (visibility update)
-        if (SmoothPhasing* originalSmoothPhasing = original->GetSmoothPhasing())
-            originalSmoothPhasing->DisableReplacementForSeer(GetDemonCreatorGUID());
+        if (original)
+        {
+            objectsToUpdate.push_back(original);
+
+            // disable replacement without removing - it is still needed for next step (visibility update)
+            if (SmoothPhasing* originalSmoothPhasing = original->GetSmoothPhasing())
+                originalSmoothPhasing->DisableReplacementForSeer(GetDemonCreatorGUID());
+        }
     }
 
     Trinity::VisibleChangesNotifier notifier({ objectsToUpdate.data(), objectsToUpdate.data() + objectsToUpdate.size() });
     Cell::VisitWorldObjects(this, notifier, GetVisibilityRange());
 
-    if (original && smoothPhasing && smoothPhasing->IsReplacing(original->GetGUID()))
+    if (original) // original is only != nullptr when it was replaced
         if (SmoothPhasing* originalSmoothPhasing = original->GetSmoothPhasing())
             originalSmoothPhasing->ClearViewerDependentInfo(GetDemonCreatorGUID());
 }
@@ -349,7 +372,8 @@ std::string TempSummon::GetDebugInfo() const
     std::stringstream sstr;
     sstr << Creature::GetDebugInfo() << "\n"
         << std::boolalpha
-        << "TempSummonType : " << std::to_string(GetSummonType()) << " Summoner: " << GetSummonerGUID().ToString();
+        << "TempSummonType: " << std::to_string(GetSummonType()) << " Summoner: " << GetSummonerGUID().ToString()
+        << "Timer: " << GetTimer();
     return sstr.str();
 }
 

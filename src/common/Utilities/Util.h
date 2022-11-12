@@ -328,6 +328,13 @@ TC_COMMON_API void utf8printf(FILE* out, const char *str, ...);
 TC_COMMON_API void vutf8printf(FILE* out, const char *str, va_list* ap);
 TC_COMMON_API bool Utf8ToUpperOnlyLatin(std::string& utf8String);
 
+#if TRINITY_PLATFORM == TRINITY_PLATFORM_WINDOWS
+TC_COMMON_API bool ReadWinConsole(std::string& str, size_t size = 256);
+TC_COMMON_API bool WriteWinConsole(std::string_view str, bool error = false);
+#endif
+
+TC_COMMON_API Optional<std::size_t> RemoveCRLF(std::string& str);
+
 TC_COMMON_API bool IsIPAddress(char const* ipaddress);
 
 TC_COMMON_API uint32 CreatePIDFile(std::string const& filename);
@@ -428,134 +435,6 @@ class HookList final
         {
             return _container.end();
         }
-};
-
-class TC_COMMON_API flag128
-{
-private:
-    uint32 part[4];
-
-public:
-    flag128(uint32 p1 = 0, uint32 p2 = 0, uint32 p3 = 0, uint32 p4 = 0)
-    {
-        part[0] = p1;
-        part[1] = p2;
-        part[2] = p3;
-        part[3] = p4;
-    }
-
-    inline bool IsEqual(uint32 p1 = 0, uint32 p2 = 0, uint32 p3 = 0, uint32 p4 = 0) const
-    {
-        return (part[0] == p1 && part[1] == p2 && part[2] == p3 && part[3] == p4);
-    }
-
-    inline bool HasFlag(uint32 p1 = 0, uint32 p2 = 0, uint32 p3 = 0, uint32 p4 = 0) const
-    {
-        return (part[0] & p1 || part[1] & p2 || part[2] & p3 || part[3] & p4);
-    }
-
-    inline void Set(uint32 p1 = 0, uint32 p2 = 0, uint32 p3 = 0, uint32 p4 = 0)
-    {
-        part[0] = p1;
-        part[1] = p2;
-        part[2] = p3;
-        part[3] = p4;
-    }
-
-    inline bool operator<(flag128 const& right) const
-    {
-        for (uint8 i = 4; i > 0; --i)
-        {
-            if (part[i - 1] < right.part[i - 1])
-                return true;
-            else if (part[i - 1] > right.part[i - 1])
-                return false;
-        }
-        return false;
-    }
-
-    inline bool operator==(flag128 const& right) const
-    {
-        return
-            (
-            part[0] == right.part[0] &&
-            part[1] == right.part[1] &&
-            part[2] == right.part[2] &&
-            part[3] == right.part[3]
-            );
-    }
-
-    inline bool operator!=(flag128 const& right) const
-    {
-        return !(*this == right);
-    }
-
-    inline flag128 operator&(flag128 const& right) const
-    {
-        return flag128(part[0] & right.part[0], part[1] & right.part[1], part[2] & right.part[2], part[3] & right.part[3]);
-    }
-
-    inline flag128& operator&=(flag128 const& right)
-    {
-        part[0] &= right.part[0];
-        part[1] &= right.part[1];
-        part[2] &= right.part[2];
-        part[3] &= right.part[3];
-        return *this;
-    }
-
-    inline flag128 operator|(flag128 const& right) const
-    {
-        return flag128(part[0] | right.part[0], part[1] | right.part[1], part[2] | right.part[2], part[3] | right.part[3]);
-    }
-
-    inline flag128& operator |=(flag128 const& right)
-    {
-        part[0] |= right.part[0];
-        part[1] |= right.part[1];
-        part[2] |= right.part[2];
-        part[3] |= right.part[3];
-        return *this;
-    }
-
-    inline flag128 operator~() const
-    {
-        return flag128(~part[0], ~part[1], ~part[2], ~part[3]);
-    }
-
-    inline flag128 operator^(flag128 const& right) const
-    {
-        return flag128(part[0] ^ right.part[0], part[1] ^ right.part[1], part[2] ^ right.part[2], part[3] ^ right.part[3]);
-    }
-
-    inline flag128& operator^=(flag128 const& right)
-    {
-        part[0] ^= right.part[0];
-        part[1] ^= right.part[1];
-        part[2] ^= right.part[2];
-        part[3] ^= right.part[3];
-        return *this;
-    }
-
-    inline operator bool() const
-    {
-        return (part[0] != 0 || part[1] != 0 || part[2] != 0 || part[3] != 0);
-    }
-
-    inline bool operator !() const
-    {
-        return !(bool(*this));
-    }
-
-    inline uint32& operator[](uint8 el)
-    {
-        return part[el];
-    }
-
-    inline uint32 const& operator [](uint8 el) const
-    {
-        return part[el];
-    }
 };
 
 enum ComparisionType

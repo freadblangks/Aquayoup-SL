@@ -27,7 +27,6 @@
 #include "SpellMgr.h"
 #include "StringFormat.h"
 #include "World.h"
-#include "advstd.h"
 
 using namespace Trinity::Hyperlinks;
 
@@ -464,7 +463,7 @@ struct LinkValidator<LinkTags::quest>
             if (i == DEFAULT_LOCALE)
                 continue;
 
-            std::string_view name = ObjectMgr::GetLocaleString(locale->LogTitle, i);
+            std::string_view name = ObjectMgr::GetLocaleString(locale->LogTitle, LocaleConstant(i));
             if (!name.empty() && (text == name))
                 return true;
         }

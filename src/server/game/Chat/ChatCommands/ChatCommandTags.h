@@ -26,9 +26,7 @@
 #include "Util.h"
 #include <boost/preprocessor/repetition/repeat.hpp>
 #include <boost/preprocessor/punctuation/comma_if.hpp>
-#include <cmath>
-#include <cstring>
-#include <iostream>
+#include <fmt/ostream.h>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -38,6 +36,7 @@
 
 class ChatHandler;
 class Player;
+class WorldSession;
 
 namespace Trinity::Impl::ChatCommands
 {
@@ -108,7 +107,7 @@ namespace Trinity::ChatCommands
         private:
             static constexpr std::array<char, sizeof...(chars)> _storage = { chars... };
             static_assert(!_storage.empty() && (_storage.back() == '\0'), "ExactSequence parameters must be null terminated! Use the EXACT_SEQUENCE macro to make this easier!");
-            static constexpr std::string_view _string = { _storage.data() };
+            static constexpr std::string_view _string = { _storage.data(), std::string_view::traits_type::length(_storage.data()) };
     };
 
 #define EXACT_SEQUENCE(str) Trinity::ChatCommands::ExactSequence<CHATCOMMANDS_IMPL_SPLIT_LITERAL(str)>
@@ -152,18 +151,26 @@ namespace Trinity::ChatCommands
     {
         using value_type = uint32;
 
+        AccountIdentifier() : _id(), _name(), _session(nullptr) {}
+        AccountIdentifier(WorldSession& session);
+
         operator uint32() const { return _id; }
         operator std::string const& () const { return _name; }
-        operator std::string_view() const { return { _name }; }
+        operator std::string_view() const { return _name; }
 
         uint32 GetID() const { return _id; }
         std::string const& GetName() const { return _name; }
+        bool IsConnected() { return _session != nullptr; }
+        WorldSession* GetConnectedSession() { return _session; }
 
         ChatCommandResult TryConsume(ChatHandler const* handler, std::string_view args);
+
+        static Optional<AccountIdentifier> FromTarget(ChatHandler* handler);
 
         private:
             uint32 _id;
             std::string _name;
+            WorldSession* _session;
     };
 
     struct TC_GAME_API PlayerIdentifier : Trinity::Impl::ChatCommands::ContainerTag

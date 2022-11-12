@@ -35,7 +35,6 @@ EndContentData */
 #include "Player.h"
 #include "razorfen_downs.h"
 #include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
 #include "TemporarySummon.h"
 
 /*###
@@ -105,7 +104,7 @@ public:
                 channeling = false;
                 eventProgress = 0;
                 spawnerCount  = 0;
-                me->AddNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
+                me->SetNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
             }
         }
 

@@ -20,7 +20,6 @@
 #include "DB2Stores.h"
 #include "ObjectMgr.h"
 #include "SpellMgr.h"
-#include "Util.h"
 
 using namespace Trinity::ChatCommands;
 using ChatCommandResult = Trinity::Impl::ChatCommands::ChatCommandResult;
@@ -91,6 +90,23 @@ ChatCommandResult Trinity::Impl::ChatCommands::ArgInfo<ItemTemplate const*>::Try
         return result;
     if (uint32* id = std::get_if<uint32>(&val))
         return FormatTrinityString(handler, LANG_CMDPARSER_ITEM_NO_EXIST, *id);
+    return std::nullopt;
+}
+
+struct QuestVisitor
+{
+    using value_type = Quest const*;
+    value_type operator()(Hyperlink<quest> quest) const { return quest->Quest; }
+    value_type operator()(uint32 questId) const { return sObjectMgr->GetQuestTemplate(questId); }
+};
+ChatCommandResult Trinity::Impl::ChatCommands::ArgInfo<Quest const*, void>::TryConsume(Quest const*& data, ChatHandler const* handler, std::string_view args)
+{
+    Variant<Hyperlink<quest>, uint32> val;
+    ChatCommandResult result = ArgInfo<decltype(val)>::TryConsume(val, handler, args);
+    if (!result || (data = val.visit(QuestVisitor())))
+        return result;
+    if (uint32* id = std::get_if<uint32>(&val))
+        return FormatTrinityString(handler, LANG_CMDPARSER_QUEST_NO_EXIST, *id);
     return std::nullopt;
 }
 

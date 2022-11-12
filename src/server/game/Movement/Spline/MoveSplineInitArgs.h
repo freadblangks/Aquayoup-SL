@@ -19,6 +19,7 @@
 #define TRINITYSERVER_MOVESPLINEINIT_ARGS_H
 
 #include "MoveSplineFlag.h"
+#include "MovementTypedefs.h"
 #include "ObjectGuid.h"
 #include "Optional.h"
 
@@ -61,7 +62,7 @@ namespace Movement
     struct MoveSplineInitArgs
     {
         explicit MoveSplineInitArgs(size_t path_capacity = 16);
-        MoveSplineInitArgs(MoveSplineInitArgs&& args);
+        MoveSplineInitArgs(MoveSplineInitArgs&& args) noexcept;
         ~MoveSplineInitArgs();
 
         PointsArray path;

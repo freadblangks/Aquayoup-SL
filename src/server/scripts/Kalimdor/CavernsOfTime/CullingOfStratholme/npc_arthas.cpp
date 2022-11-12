@@ -576,7 +576,7 @@ public:
 
                 // Adjust gossip flag based on whether we have a gossip menu or not
                 if (target.HasGossip)
-                    me->AddNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+                    me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                 else
                     me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
 
@@ -1465,13 +1465,15 @@ public:
                     case RP5_EVENT_CHROMIE_SPAWN:
                         if (Creature* chromie = instance->instance->SummonCreature(NPC_CHROMIE_3, ArthasPositions[RP5_CHROMIE_SPAWN]))
                         {
-                            chromie->RemoveNpcFlag(NPCFlags(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER));
-                            Movement::PointsArray path(ChromieSplinePos, ChromieSplinePos + chromiePathSize);
-                            Movement::MoveSplineInit init(chromie);
-                            init.SetFly();
-                            init.SetWalk(true);
-                            init.MovebyPath(path, 0);
-                            me->GetMotionMaster()->LaunchMoveSpline(std::move(init), 0, MOTION_PRIORITY_NORMAL, POINT_MOTION_TYPE);
+                            chromie->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+                            std::function<void(Movement::MoveSplineInit&)> initializer = [](Movement::MoveSplineInit& init)
+                            {
+                                Movement::PointsArray path(ChromieSplinePos, ChromieSplinePos + chromiePathSize);
+                                init.SetFly();
+                                init.SetWalk(true);
+                                init.MovebyPath(path, 0);
+                            };
+                            chromie->GetMotionMaster()->LaunchMoveSpline(std::move(initializer), 0, MOTION_PRIORITY_NORMAL, POINT_MOTION_TYPE);
                         }
                         break;
                     case RP5_EVENT_CHROMIE_LAND:
@@ -1483,7 +1485,7 @@ public:
                         {
                             chromie->CastSpell(chromie, SPELL_CHROMIE_3_TRANSFORM);
                             chromie->AI()->Talk(RP5_LINE_CHROMIE0);
-                            chromie->AddNpcFlag(NPCFlags(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER));
+                            chromie->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                         }
                         break;
                     default:
@@ -1651,6 +1653,7 @@ struct npc_stratholme_rp_dummy : NullCreatureAI
     }
 };
 
+// 50773 - Crusader Strike
 class spell_stratholme_crusader_strike : public SpellScript
 {
     PrepareSpellScript(spell_stratholme_crusader_strike);

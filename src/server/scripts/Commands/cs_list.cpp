@@ -25,14 +25,14 @@ EndScriptData */
 #include "ScriptMgr.h"
 #include "CharacterCache.h"
 #include "Chat.h"
+#include "ChatCommand.h"
 #include "Creature.h"
 #include "DatabaseEnv.h"
 #include "DB2Stores.h"
 #include "GameObject.h"
 #include "GameTime.h"
 #include "Language.h"
-#include "MapManager.h"
-#include "ObjectAccessor.h"
+#include "Map.h"
 #include "ObjectMgr.h"
 #include "PhasingHandler.h"
 #include "Player.h"
@@ -48,22 +48,29 @@ class list_commandscript : public CommandScript
 public:
     list_commandscript() : CommandScript("list_commandscript") { }
 
-    std::vector<ChatCommand> GetCommands() const override
+    ChatCommandTable GetCommands() const override
     {
-        static std::vector<ChatCommand> listCommandTable =
+        static ChatCommandTable listAurasCommandTable =
         {
-            { "creature",    rbac::RBAC_PERM_COMMAND_LIST_CREATURE,    true,  &HandleListCreatureCommand,    "" },
-            { "item",        rbac::RBAC_PERM_COMMAND_LIST_ITEM,        true,  &HandleListItemCommand,        "" },
-            { "object",      rbac::RBAC_PERM_COMMAND_LIST_OBJECT,      true,  &HandleListObjectCommand,      "" },
-            { "auras",       rbac::RBAC_PERM_COMMAND_LIST_AURAS,       false, &HandleListAurasCommand,       "" },
-            { "mail",        rbac::RBAC_PERM_COMMAND_LIST_MAIL,        true,  &HandleListMailCommand,        "" },
-            { "spawnpoints", rbac::RBAC_PERM_COMMAND_LIST_SPAWNPOINTS, false, &HandleListSpawnPointsCommand, "" },
-            { "respawns",    rbac::RBAC_PERM_COMMAND_LIST_RESPAWNS,    false, &HandleListRespawnsCommand,    "" },
-            { "scenes",      rbac::RBAC_PERM_COMMAND_LIST_SCENES,      false, &HandleListScenesCommand,      "" },
+            { "",               HandleListAllAurasCommand,      rbac::RBAC_PERM_COMMAND_LIST_AURAS,         Console::No  },
+            { "id",             HandleListAurasByIdCommand,     rbac::RBAC_PERM_COMMAND_LIST_AURAS,         Console::No  },
+            { "name",           HandleListAurasByNameCommand,   rbac::RBAC_PERM_COMMAND_LIST_AURAS,         Console::No  },
         };
-        static std::vector<ChatCommand> commandTable =
+
+        static ChatCommandTable listCommandTable =
         {
-            { "list", rbac::RBAC_PERM_COMMAND_LIST,true, nullptr, "", listCommandTable },
+            { "creature",       HandleListCreatureCommand,      rbac::RBAC_PERM_COMMAND_LIST_CREATURE,      Console::Yes },
+            { "item",           HandleListItemCommand,          rbac::RBAC_PERM_COMMAND_LIST_ITEM,          Console::Yes },
+            { "object",         HandleListObjectCommand,        rbac::RBAC_PERM_COMMAND_LIST_OBJECT,        Console::Yes },
+            { "auras",          listAurasCommandTable                                                                    },
+            { "mail",           HandleListMailCommand,          rbac::RBAC_PERM_COMMAND_LIST_MAIL,          Console::Yes },
+            { "spawnpoints",    HandleListSpawnPointsCommand,   rbac::RBAC_PERM_COMMAND_LIST_SPAWNPOINTS,   Console::No  },
+            { "respawns",       HandleListRespawnsCommand,      rbac::RBAC_PERM_COMMAND_LIST_RESPAWNS,      Console::No  },
+            { "scenes",         HandleListScenesCommand,        rbac::RBAC_PERM_COMMAND_LIST_SCENES,        Console::No },
+        };
+        static ChatCommandTable commandTable =
+        {
+            { "list", listCommandTable },
         };
         return commandTable;
     }
@@ -113,28 +120,18 @@ public:
                 bool liveFound = false;
 
                 // Get map (only support base map from console)
-                Map* thisMap;
+                Map* thisMap = nullptr;
                 if (handler->GetSession())
                     thisMap = handler->GetSession()->GetPlayer()->GetMap();
-                else
-                    thisMap = sMapMgr->FindBaseNonInstanceMap(mapId);
 
                 // If map found, try to find active version of this creature
                 if (thisMap)
                 {
-                    auto const creBounds = thisMap->GetCreatureBySpawnIdStore().equal_range(guid);
-                    if (creBounds.first != creBounds.second)
-                    {
-                        for (std::unordered_multimap<ObjectGuid::LowType, Creature*>::const_iterator itr = creBounds.first; itr != creBounds.second;)
-                        {
-                            if (handler->GetSession())
-                                handler->PSendSysMessage(LANG_CREATURE_LIST_CHAT, std::to_string(guid).c_str(), std::to_string(guid).c_str(), cInfo->Name.c_str(), x, y, z, mapId, itr->second->GetGUID().ToString().c_str(), itr->second->IsAlive() ? "*" : " ");
-                            else
-                                handler->PSendSysMessage(LANG_CREATURE_LIST_CONSOLE, std::to_string(guid).c_str(), cInfo->Name.c_str(), x, y, z, mapId, itr->second->GetGUID().ToString().c_str(), itr->second->IsAlive() ? "*" : " ");
-                            ++itr;
-                        }
-                        liveFound = true;
-                    }
+                    auto const creBounds = Trinity::Containers::MapEqualRange(thisMap->GetCreatureBySpawnIdStore(), guid);
+                    for (auto& [spawnId, creature] : creBounds)
+                        handler->PSendSysMessage(LANG_CREATURE_LIST_CHAT, std::to_string(guid).c_str(), std::to_string(guid).c_str(), cInfo->Name.c_str(),
+                            x, y, z, mapId, creature->GetGUID().ToString().c_str(), creature->IsAlive() ? "*" : " ");
+                    liveFound = creBounds.begin() != creBounds.end();
                 }
 
                 if (!liveFound)
@@ -394,28 +391,18 @@ public:
                 bool liveFound = false;
 
                 // Get map (only support base map from console)
-                Map* thisMap;
+                Map* thisMap = nullptr;
                 if (handler->GetSession())
                     thisMap = handler->GetSession()->GetPlayer()->GetMap();
-                else
-                    thisMap = sMapMgr->FindBaseNonInstanceMap(mapId);
 
                 // If map found, try to find active version of this object
                 if (thisMap)
                 {
-                    auto const goBounds = thisMap->GetGameObjectBySpawnIdStore().equal_range(guid);
-                    if (goBounds.first != goBounds.second)
-                    {
-                        for (std::unordered_multimap<ObjectGuid::LowType, GameObject*>::const_iterator itr = goBounds.first; itr != goBounds.second;)
-                        {
-                            if (handler->GetSession())
-                                handler->PSendSysMessage(LANG_GO_LIST_CHAT, std::to_string(guid).c_str(), entry, std::to_string(guid).c_str(), gInfo->name.c_str(), x, y, z, mapId, itr->second->GetGUID().ToString().c_str(), itr->second->isSpawned() ? "*" : " ");
-                            else
-                                handler->PSendSysMessage(LANG_GO_LIST_CONSOLE, std::to_string(guid).c_str(), gInfo->name.c_str(), x, y, z, mapId, itr->second->GetGUID().ToString().c_str(), itr->second->isSpawned() ? "*" : " ");
-                            ++itr;
-                        }
-                        liveFound = true;
-                    }
+                    auto const goBounds = Trinity::Containers::MapEqualRange(thisMap->GetGameObjectBySpawnIdStore(), guid);
+                    for (auto& [spawnId, go] : goBounds)
+                        handler->PSendSysMessage(LANG_GO_LIST_CHAT, std::to_string(guid).c_str(), entry, std::to_string(guid).c_str(), gInfo->name.c_str(), x, y, z, mapId,
+                            go->GetGUID().ToString().c_str(), go->isSpawned() ? "*" : " ");
+                    liveFound = goBounds.begin() != goBounds.end();
                 }
 
                 if (!liveFound)
@@ -434,7 +421,22 @@ public:
         return true;
     }
 
-    static bool HandleListAurasCommand(ChatHandler* handler)
+    static bool HandleListAllAurasCommand(ChatHandler* handler)
+    {
+        return ListAurasCommand(handler, {}, {});
+    }
+
+    static bool HandleListAurasByIdCommand(ChatHandler* handler, uint32 spellId)
+    {
+        return ListAurasCommand(handler, spellId, {});
+    }
+
+    static bool HandleListAurasByNameCommand(ChatHandler* handler, WTail namePart)
+    {
+        return ListAurasCommand(handler, {}, namePart);
+    }
+
+    static bool ListAurasCommand(ChatHandler* handler, Optional<uint32> spellId, std::wstring namePart)
     {
         Unit* unit = handler->getSelectedUnit();
         if (!unit)
@@ -444,17 +446,22 @@ public:
             return false;
         }
 
+        wstrToLower(namePart);
+
         char const* talentStr = handler->GetTrinityString(LANG_TALENT);
         char const* passiveStr = handler->GetTrinityString(LANG_PASSIVE);
 
         Unit::AuraApplicationMap const& auras = unit->GetAppliedAuras();
         handler->PSendSysMessage(LANG_COMMAND_TARGET_LISTAURAS, std::to_string(auras.size()).c_str());
-        for (auto const& [spellId, aurApp] : auras)
+        for (auto const& [aurId, aurApp] : auras)
         {
 
             Aura const* aura = aurApp->GetBase();
             char const* name = aura->GetSpellInfo()->SpellName->Str[handler->GetSessionDbcLocale()];
             bool talent = aura->GetSpellInfo()->HasAttribute(SPELL_ATTR0_CU_IS_TALENT);
+
+            if (!ShouldListAura(aura->GetSpellInfo(), spellId, namePart, handler->GetSessionDbcLocale()))
+                continue;
 
             std::ostringstream ss_name;
             ss_name << "|cffffffff|Hspell:" << aura->GetId() << "|h[" << name << "]|h|r";
@@ -472,49 +479,62 @@ public:
             if (auraList.empty())
                 continue;
 
-            handler->PSendSysMessage(LANG_COMMAND_TARGET_LISTAURATYPE, std::to_string(auraList.size()).c_str(), i);
+            bool sizeLogged = false;
 
             for (AuraEffect const* effect : auraList)
+            {
+                if (!ShouldListAura(effect->GetSpellInfo(), spellId, namePart, handler->GetSessionDbcLocale()))
+                    continue;
+
+                if (!sizeLogged)
+                {
+                    sizeLogged = true;
+                    handler->PSendSysMessage(LANG_COMMAND_TARGET_LISTAURATYPE, std::to_string(auraList.size()).c_str(), i);
+                }
+
                 handler->PSendSysMessage(LANG_COMMAND_TARGET_AURASIMPLE, effect->GetId(), effect->GetEffIndex(), effect->GetAmount());
+            }
         }
 
         return true;
     }
-    // handle list mail command
-    static bool HandleListMailCommand(ChatHandler* handler, char const* args)
+
+    static bool ShouldListAura(SpellInfo const* spellInfo, Optional<uint32> spellId, std::wstring namePart, LocaleConstant locale)
     {
-        Player* target;
-        ObjectGuid targetGuid;
-        std::string targetName;
-        CharacterDatabasePreparedStatement* stmt = nullptr;
+        if (spellId)
+            return spellInfo->Id == spellId;
 
-        if (!*args)
-            return false;
-
-        ObjectGuid parseGUID = ObjectGuid::Create<HighGuid::Player>(strtoull(args, nullptr, 10));
-
-        if (sCharacterCache->GetCharacterNameByGuid(parseGUID, targetName))
+        if (!namePart.empty())
         {
-            target = ObjectAccessor::FindPlayer(parseGUID);
-            targetGuid = parseGUID;
+            std::string name = (*spellInfo->SpellName)[locale];
+            return Utf8FitTo(name, namePart);
         }
-        else if (!handler->extractPlayerTarget((char*)args, &target, &targetGuid, &targetName))
+
+        return true;
+    }
+
+    // handle list mail command
+    static bool HandleListMailCommand(ChatHandler* handler, Optional<PlayerIdentifier> player)
+    {
+        if (!player)
+            player = PlayerIdentifier::FromTargetOrSelf(handler);
+        if (!player)
             return false;
 
-        stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_MAIL_LIST_COUNT);
-        stmt->setUInt64(0, targetGuid.GetCounter());
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_MAIL_LIST_COUNT);
+        stmt->setUInt64(0, player->GetGUID().GetCounter());
         PreparedQueryResult queryResult = CharacterDatabase.Query(stmt);
         if (queryResult)
         {
             Field* fields       = queryResult->Fetch();
             uint32 countMail    = fields[0].GetUInt64();
 
-            std::string nameLink = handler->playerLink(targetName);
-            handler->PSendSysMessage(LANG_LIST_MAIL_HEADER, countMail, nameLink.c_str(), targetGuid.ToString().c_str());
+            std::string nameLink = handler->playerLink(player->GetName());
+            handler->PSendSysMessage(LANG_LIST_MAIL_HEADER, countMail, nameLink.c_str(), player->GetGUID().ToString().c_str());
             handler->PSendSysMessage(LANG_ACCOUNT_LIST_BAR);
 
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_MAIL_LIST_INFO);
-            stmt->setUInt64(0, targetGuid.GetCounter());
+            stmt->setUInt64(0, player->GetGUID().GetCounter());
             queryResult = CharacterDatabase.Query(stmt);
 
             if (queryResult)
@@ -650,7 +670,7 @@ public:
                 handler->PSendSysMessage(LANG_LIST_RESPAWNS_ZONE, EnumUtils::ToTitle(type), zoneName, zoneId);
 
             handler->PSendSysMessage(LANG_LIST_RESPAWNS_LISTHEADER);
-            std::vector<RespawnInfo*> respawns;
+            std::vector<RespawnInfo const*> respawns;
             map->GetRespawnInfo(respawns, SpawnObjectTypeMask(1 << type));
             for (RespawnInfo const* ri : respawns)
             {

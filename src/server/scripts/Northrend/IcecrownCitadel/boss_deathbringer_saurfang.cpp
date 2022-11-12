@@ -207,7 +207,9 @@ enum Misc
     DATA_MADE_A_MESS                    = 45374613, // 4537, 4613 are achievement IDs
 
     GOSSIP_MENU_MURADIN_BRONZEBEARD     = 10934,
-    GOSSIP_MENU_HIGH_OVERLORD_SAURFANG  = 10952
+    GOSSIP_MENU_HIGH_OVERLORD_SAURFANG  = 10952,
+
+    SPAWN_GROUP_ENTRANCE_THE_DAMNED_EVENT   = 275,
 };
 
 enum MovePoints
@@ -347,7 +349,7 @@ struct boss_deathbringer_saurfang : public BossAI
             Talk(SAY_KILL);
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (damage >= me->GetHealth())
             damage = me->GetHealth() - 1;
@@ -364,7 +366,7 @@ struct boss_deathbringer_saurfang : public BossAI
             _dead = true;
             _JustDied();
             _EnterEvadeMode();
-            me->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+            me->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
             me->SetImmuneToPC(true);
             me->RemoveAurasOnEvade();
             DoCastAOE(SPELL_REMOVE_MARKS_OF_THE_FALLEN_CHAMPION);
@@ -461,7 +463,7 @@ struct boss_deathbringer_saurfang : public BossAI
             switch (eventId)
             {
                 case EVENT_INTRO_ALLIANCE_2:
-                    me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                    me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                     me->SetFaction(FACTION_UNDEAD_SCOURGE);
                     Talk(SAY_INTRO_ALLIANCE_2);
                     break;
@@ -474,7 +476,7 @@ struct boss_deathbringer_saurfang : public BossAI
                     DoCastSelf(SPELL_GRIP_OF_AGONY);
                     break;
                 case EVENT_INTRO_HORDE_2:
-                    me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                    me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                     me->SetFaction(FACTION_UNDEAD_SCOURGE);
                     Talk(SAY_INTRO_HORDE_2);
                     break;
@@ -729,7 +731,8 @@ struct npc_high_overlord_saurfang_icc : public ScriptedAI
                     if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
                     {
                         deathbringer->CastSpell(me, SPELL_RIDE_VEHICLE, true);  // for the packet logs.
-                        deathbringer->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                        deathbringer->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
+                        deathbringer->SetUnitFlag2(UNIT_FLAG2_PLAY_DEATH_ANIM);
                         deathbringer->SetEmoteState(EMOTE_STATE_DROWNED);
                     }
                     _events.ScheduleEvent(EVENT_OUTRO_HORDE_5, 1s);    // move
@@ -746,11 +749,7 @@ struct npc_high_overlord_saurfang_icc : public ScriptedAI
         }
         else if (type == WAYPOINT_MOTION_TYPE && id == POINT_EXIT)
         {
-            std::list<Creature*> guards;
-            GetCreatureListWithEntryInGrid(guards, me, NPC_KOR_KRON_GENERAL, 50.0f);
-            for (std::list<Creature*>::iterator itr = guards.begin(); itr != guards.end(); ++itr)
-                (*itr)->DespawnOrUnsummon();
-            me->DespawnOrUnsummon();
+            me->GetMap()->SpawnGroupDespawn(SPAWN_GROUP_ENTRANCE_THE_DAMNED_EVENT);
         }
     }
 
@@ -917,11 +916,7 @@ struct npc_muradin_bronzebeard_icc : public ScriptedAI
         }
         else if (type == WAYPOINT_MOTION_TYPE && id == POINT_EXIT)
         {
-            std::list<Creature*> guards;
-            GetCreatureListWithEntryInGrid(guards, me, NPC_ALLIANCE_COMMANDER, 50.0f);
-            for (std::list<Creature*>::iterator itr = guards.begin(); itr != guards.end(); ++itr)
-                (*itr)->DespawnOrUnsummon();
-            me->DespawnOrUnsummon();
+            me->GetMap()->SpawnGroupDespawn(SPAWN_GROUP_ENTRANCE_THE_DAMNED_EVENT);
         }
     }
 
@@ -988,6 +983,7 @@ private:
     uint32 _index;
 };
 
+// 72202 - Blood Link
 class spell_deathbringer_blood_link : public SpellScript
 {
     PrepareSpellScript(spell_deathbringer_blood_link);
@@ -1011,6 +1007,7 @@ class spell_deathbringer_blood_link : public SpellScript
     }
 };
 
+// 72178 - Blood Link
 class spell_deathbringer_blood_link_aura : public AuraScript
 {
     PrepareAuraScript(spell_deathbringer_blood_link_aura);
@@ -1034,6 +1031,7 @@ class spell_deathbringer_blood_link_aura : public AuraScript
     }
 };
 
+// 72371 - Blood Power
 class spell_deathbringer_blood_power : public SpellScript
 {
     PrepareSpellScript(spell_deathbringer_blood_power);
@@ -1067,6 +1065,7 @@ class spell_deathbringer_blood_power_aura : public AuraScript
     }
 };
 
+// 72409, 72447, 72448, 72449 - Rune of Blood
 class spell_deathbringer_rune_of_blood : public SpellScript
 {
     PrepareSpellScript(spell_deathbringer_rune_of_blood);
@@ -1110,6 +1109,7 @@ class spell_deathbringer_blood_beast_blood_link : public AuraScript
     }
 };
 
+// 72380, 72438, 72439, 72440 - Blood Nova
 class spell_deathbringer_blood_nova : public SpellScript
 {
     PrepareSpellScript(spell_deathbringer_blood_nova);
@@ -1131,6 +1131,7 @@ class spell_deathbringer_blood_nova : public SpellScript
     }
 };
 
+// 72378, 73058 - Blood Nova
 class spell_deathbringer_blood_nova_targeting : public SpellScript
 {
     PrepareSpellScript(spell_deathbringer_blood_nova_targeting);
@@ -1193,6 +1194,7 @@ private:
     WorldObject* target;
 };
 
+// 72385, 72441, 72442, 72443 - Boiling Blood
 class spell_deathbringer_boiling_blood : public SpellScript
 {
     PrepareSpellScript(spell_deathbringer_boiling_blood);
@@ -1219,6 +1221,7 @@ class spell_deathbringer_boiling_blood : public SpellScript
     }
 };
 
+// 72257 - Remove Marks of the Fallen Champion
 class spell_deathbringer_remove_marks : public SpellScript
 {
     PrepareSpellScript(spell_deathbringer_remove_marks);

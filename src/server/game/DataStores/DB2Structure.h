@@ -20,8 +20,8 @@
 
 #include "Common.h"
 #include "DBCEnums.h"
+#include "FlagsArray.h"
 #include "RaceMask.h"
-#include "Util.h"
 
 #pragma pack(push, 1)
 
@@ -64,7 +64,7 @@ struct AdventureJournalEntry
     LocalizedString ContinueDescription;
     uint8 Type;
     uint32 PlayerConditionID;
-    uint8 Flags;
+    int32 Flags;
     uint8 ButtonActionType;
     int32 TextureFileDataID;
     uint16 LfgDungeonID;
@@ -152,8 +152,6 @@ struct AreaTableEntry
     // helpers
     bool IsSanctuary() const
     {
-        if (ContinentID == 609)
-            return true;
         return (Flags[0] & AREA_FLAG_SANCTUARY) != 0;
     }
 
@@ -527,6 +525,7 @@ struct BroadcastTextEntry
     uint16 EmotesID;
     uint8 Flags;
     uint32 ChatBubbleDurationMs;
+    int32 VoiceOverPriorityID;
     std::array<uint32, 2> SoundKitID;
     std::array<uint16, MAX_BROADCAST_TEXT_EMOTES> EmoteID;
     std::array<uint16, MAX_BROADCAST_TEXT_EMOTES> EmoteDelay;
@@ -612,7 +611,7 @@ struct ChrClassesEntry
     uint32 SelectScreenFileDataID;
     uint32 IconFileDataID;
     uint32 LowResScreenFileDataID;
-    uint32 Flags;
+    int32 Flags;
     uint32 SpellTextureBlobFileDataID;
     uint32 RolesMask;
     uint32 ArmorTypeMask;
@@ -722,7 +721,7 @@ struct ChrModelEntry
     std::array<float, 3> FaceCustomizationOffset;
     std::array<float, 3> CustomizeOffset;
     uint32 ID;
-    int32 Sex;
+    int8 Sex;
     int32 DisplayID;
     int32 CharComponentTextureLayoutID;
     int32 Flags;
@@ -1226,6 +1225,8 @@ struct CriteriaEntry
     uint8 Flags;
     int16 EligibilityWorldStateID;
     int8 EligibilityWorldStateValue;
+
+    EnumFlag<CriteriaFlags> GetFlags() const { return static_cast<CriteriaFlags>(Flags); }
 };
 
 struct CriteriaTreeEntry
@@ -1286,7 +1287,7 @@ struct CurvePointEntry
 {
     uint32 ID;
     DBCPosition2D Pos;
-    DBCPosition2D PosPreSquish;
+    DBCPosition2D PreSLSquishPos;
     uint16 CurveID;
     uint8 OrderIndex;
 };
@@ -1758,6 +1759,23 @@ struct GarrSiteLevelPlotInstEntry
     uint8 UiMarkerSize;
 };
 
+struct GarrTalentTreeEntry
+{
+    uint32 ID;
+    LocalizedString Name;
+    uint8 GarrTypeID;
+    int32 ClassID;
+    int8 MaxTiers;
+    int8 UiOrder;
+    int32 Flags;
+    uint16 UiTextureKitID;
+    int32 GarrTalentTreeType;
+    int32 PlayerConditionID;
+    int8 FeatureTypeIndex;
+    int8 FeatureSubtypeIndex;
+    int32 CurrencyID;
+};
+
 struct GemPropertiesEntry
 {
     uint32 ID;
@@ -1981,8 +1999,8 @@ struct ItemBonusTreeNodeEntry
     uint16 ChildItemBonusTreeID;
     uint16 ChildItemBonusListID;
     uint16 ChildItemLevelSelectorID;
-    int32 ItemBonusListGroupID;
-    int32 ParentItemBonusTreeNodeID;
+    int32 ChildItemBonusListGroupID;
+    int32 IblGroupPointsModSetID;
     uint32 ParentItemBonusTreeID;
 };
 
@@ -2215,6 +2233,8 @@ struct ItemSparseEntry
     uint32 DurationInInventory;
     float QualityModifier;
     uint32 BagFamily;
+    int32 StartQuestID;
+    int32 LanguageID;
     float ItemRange;
     std::array<float, MAX_ITEM_PROTO_STATS> StatPercentageOfSocket;
     std::array<int32, MAX_ITEM_PROTO_STATS> StatPercentEditor;
@@ -2241,7 +2261,6 @@ struct ItemSparseEntry
     std::array<uint16, MAX_ITEM_PROTO_ZONES> ZoneBound;
     uint16 ItemSet;
     uint16 LockID;
-    uint16 StartQuestID;
     uint16 PageID;
     uint16 ItemDelay;
     uint16 MinFactionID;
@@ -2256,7 +2275,6 @@ struct ItemSparseEntry
     uint8 SheatheType;
     uint8 Material;
     uint8 PageMaterialID;
-    uint8 LanguageID;
     uint8 Bonding;
     uint8 DamageDamageType;
     std::array<int8, MAX_ITEM_PROTO_STATS> StatModifierBonusStat;
@@ -2313,7 +2331,7 @@ struct JournalEncounterEntry
     uint16 FirstSectionID;
     uint16 UiMapID;
     uint32 MapDisplayConditionID;
-    uint8 Flags;
+    int32 Flags;
     int8 DifficultyMask;
 };
 
@@ -2332,8 +2350,8 @@ struct JournalEncounterSectionEntry
     int32 UiModelSceneID;
     int32 SpellID;
     int32 IconFileDataID;
-    uint16 Flags;
-    uint16 IconFlags;
+    int32 Flags;
+    int32 IconFlags;
     int8 DifficultyMask;
 };
 
@@ -2348,7 +2366,7 @@ struct JournalInstanceEntry
     int32 ButtonSmallFileDataID;
     int32 LoreFileDataID;
     uint8 OrderIndex;
-    uint8 Flags;
+    int32 Flags;
     uint16 AreaID;
 };
 
@@ -2386,6 +2404,9 @@ struct LanguagesEntry
 {
     uint32 ID;
     LocalizedString Name;
+    int32 Flags;
+    int32 UiTextureKitID;
+    int32 UiTextureKitElementCount;
 };
 
 struct LFGDungeonsEntry
@@ -2394,7 +2415,7 @@ struct LFGDungeonsEntry
     LocalizedString Name;
     LocalizedString Description;
     uint8 TypeID;
-    uint8 Subtype;
+    int8 Subtype;
     int8 Faction;
     int32 IconTextureFileID;
     int32 RewardsBgTextureFileID;
@@ -2504,7 +2525,7 @@ struct MapEntry
     int16 WindSettingsID;
     int32 ZmpFileDataID;
     int32 WdtFileDataID;
-    std::array<int32, 2> Flags;
+    std::array<int32, 3> Flags;
 
     // Helpers
     uint8 Expansion() const { return ExpansionID; }
@@ -2516,6 +2537,7 @@ struct MapEntry
     bool IsBattleground() const { return InstanceType == MAP_BATTLEGROUND; }
     bool IsBattleArena() const { return InstanceType == MAP_ARENA; }
     bool IsBattlegroundOrArena() const { return InstanceType == MAP_BATTLEGROUND || InstanceType == MAP_ARENA; }
+    bool IsScenario() const { return InstanceType == MAP_SCENARIO; }
     bool IsWorldMap() const { return InstanceType == MAP_COMMON; }
 
     bool GetEntrancePos(int32& mapid, float& x, float& y) const
@@ -2531,11 +2553,31 @@ struct MapEntry
 
     bool IsContinent() const
     {
-        return ID == 0 || ID == 1 || ID == 530 || ID == 571 || ID == 870 || ID == 1116 || ID == 1220;
+        switch (ID)
+        {
+            case 0:
+            case 1:
+            case 530:
+            case 571:
+            case 870:
+            case 1116:
+            case 1220:
+            case 1642:
+            case 1643:
+            case 2222:
+                return true;
+            default:
+                return false;
+        }
     }
 
-    bool IsDynamicDifficultyMap() const { return (Flags[0] & MAP_FLAG_CAN_TOGGLE_DIFFICULTY) != 0; }
-    bool IsGarrison() const { return (Flags[0] & MAP_FLAG_GARRISON) != 0; }
+    bool IsDynamicDifficultyMap() const { return GetFlags().HasFlag(MapFlags::DynamicDifficulty); }
+    bool IsFlexLocking() const { return GetFlags().HasFlag(MapFlags::FlexibleRaidLocking); }
+    bool IsGarrison() const { return GetFlags().HasFlag(MapFlags::Garrison); }
+    bool IsSplitByFaction() const { return ID == 609 || ID == 2175; }
+
+    EnumFlag<MapFlags> GetFlags() const { return static_cast<MapFlags>(Flags[0]); }
+    EnumFlag<MapFlags2> GetFlags2() const { return static_cast<MapFlags2>(Flags[1]); }
 };
 
 struct MapChallengeModeEntry
@@ -2563,14 +2605,21 @@ struct MapDifficultyEntry
     int32 ContentTuningID;
     uint32 MapID;
 
+    bool HasResetSchedule() const { return ResetInterval != MAP_DIFFICULTY_RESET_ANYTIME; }
+    bool IsUsingEncounterLocks() const { return GetFlags().HasFlag(MapDifficultyFlags::UseLootBasedLockInsteadOfInstanceLock); }
+    bool IsRestoringDungeonState() const { return GetFlags().HasFlag(MapDifficultyFlags::ResumeDungeonProgressBasedOnLockout); }
+    bool IsExtendable() const { return !GetFlags().HasFlag(MapDifficultyFlags::DisableLockExtension); }
+
     uint32 GetRaidDuration() const
     {
-        if (ResetInterval == 1)
+        if (ResetInterval == MAP_DIFFICULTY_RESET_DAILY)
             return 86400;
-        if (ResetInterval == 2)
+        if (ResetInterval == MAP_DIFFICULTY_RESET_WEEKLY)
             return 604800;
         return 0;
     }
+
+    EnumFlag<MapDifficultyFlags> GetFlags() const { return static_cast<MapDifficultyFlags>(Flags); }
 };
 
 struct MapDifficultyXConditionEntry
@@ -3087,6 +3136,8 @@ struct SkillLineEntry
     int32 ParentTierIndex;
     uint16 Flags;
     int32 SpellBookSpellID;
+
+    EnumFlag<SkillLineFlags> GetFlags() const { return static_cast<SkillLineFlags>(Flags); }
 };
 
 struct SkillLineAbilityEntry
@@ -3657,9 +3708,9 @@ struct SummonPropertiesEntry
     int32 Faction;
     int32 Title;
     int32 Slot;
-    int32 Flags;
+    std::array<int32, 2> Flags;
 
-    EnumFlag<SummonPropertiesFlags> GetFlags() const { return static_cast<SummonPropertiesFlags>(Flags); }
+    EnumFlag<SummonPropertiesFlags> GetFlags() const { return static_cast<SummonPropertiesFlags>(Flags[0]); }
 };
 
 #define TACTKEY_SIZE 16
@@ -3694,7 +3745,7 @@ struct TaxiNodesEntry
     uint16 ContinentID;
     int32 ConditionID;
     uint16 CharacterBitNumber;
-    uint8 Flags;
+    uint16 Flags;
     int32 UiTextureKitID;
     int32 MinimapAtlasMemberID;
     float Facing;
@@ -3754,6 +3805,8 @@ struct TransmogIllusionEntry
     int32 TransmogCost;
     int32 SpellItemEnchantmentID;
     int32 Flags;
+
+    EnumFlag<TransmogIllusionFlags> GetFlags() const { return static_cast<TransmogIllusionFlags>(Flags); }
 };
 
 struct TransmogSetEntry

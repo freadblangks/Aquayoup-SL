@@ -20,7 +20,6 @@
 
 #include "SharedDefines.h"
 #include "DB2Structure.h"
-#include "Util.h"
 #include "Object.h"
 #include "SpellAuraDefines.h"
 #include "SpellDefines.h"
@@ -130,7 +129,6 @@ enum SpellSpecificType
     SPELL_SPECIFIC_MAGE_ARMOR                    = 9,
     SPELL_SPECIFIC_ELEMENTAL_SHIELD              = 10,
     SPELL_SPECIFIC_MAGE_POLYMORPH                = 11,
-    SPELL_SPECIFIC_JUDGEMENT                     = 13,
     SPELL_SPECIFIC_WARLOCK_CORRUPTION            = 17,
     SPELL_SPECIFIC_FOOD                          = 19,
     SPELL_SPECIFIC_DRINK                         = 20,
@@ -214,6 +212,14 @@ private:
 
 struct TC_GAME_API ImmunityInfo
 {
+    ImmunityInfo();
+    ~ImmunityInfo();
+
+    ImmunityInfo(ImmunityInfo const&);
+    ImmunityInfo(ImmunityInfo&&) noexcept;
+    ImmunityInfo& operator=(ImmunityInfo const&);
+    ImmunityInfo& operator=(ImmunityInfo&&) noexcept;
+
     uint32 SchoolImmuneMask = 0;
     uint32 ApplyHarmfulAuraImmuneMask = 0;
     uint32 MechanicImmuneMask = 0;
@@ -263,13 +269,14 @@ public:
         float ResourceCoefficient;
     } Scaling;
 
-    SpellEffectInfo(SpellInfo const* spellInfo) : _spellInfo(spellInfo), EffectIndex(EFFECT_0), Effect(SPELL_EFFECT_NONE), ApplyAuraName(AuraType(0)), ApplyAuraPeriod(0),
-                        BasePoints(0), RealPointsPerLevel(0), PointsPerResource(0), Amplitude(0), ChainAmplitude(0),
-                        BonusCoefficient(0), MiscValue(0), MiscValueB(0), Mechanic(MECHANIC_NONE), PositionFacing(0),
-                        RadiusEntry(nullptr), MaxRadiusEntry(nullptr), ChainTargets(0), ItemType(0), TriggerSpell(0),
-                        BonusCoefficientFromAP(0.0f), ImplicitTargetConditions(nullptr),
-                        EffectAttributes(SpellEffectAttributes::None), Scaling() { }
-    SpellEffectInfo(SpellInfo const* spellInfo, SpellEffectEntry const& effect);
+    explicit SpellEffectInfo(SpellInfo const* spellInfo);
+    explicit SpellEffectInfo(SpellInfo const* spellInfo, SpellEffectEntry const& effect);
+    SpellEffectInfo(SpellEffectInfo const&);
+    SpellEffectInfo(SpellEffectInfo&&) noexcept;
+    ~SpellEffectInfo();
+
+    SpellEffectInfo& operator=(SpellEffectInfo const&);
+    SpellEffectInfo& operator=(SpellEffectInfo&&) noexcept;
 
     bool IsEffect() const;
     bool IsEffect(SpellEffectName effectName) const;
@@ -383,7 +390,7 @@ class TC_GAME_API SpellInfo
         EnumFlag<SpellAuraInterruptFlags2> AuraInterruptFlags2 = SpellAuraInterruptFlags2::None;
         EnumFlag<SpellAuraInterruptFlags> ChannelInterruptFlags = SpellAuraInterruptFlags::None;
         EnumFlag<SpellAuraInterruptFlags2> ChannelInterruptFlags2 = SpellAuraInterruptFlags2::None;
-        uint32 ProcFlags = 0;
+        ProcFlagsInit ProcFlags;
         uint32 ProcChance = 0;
         uint32 ProcCharges = 0;
         uint32 ProcCooldown = 0;
@@ -435,9 +442,14 @@ class TC_GAME_API SpellInfo
         uint32 ExplicitTargetMask = 0;
         SpellChainNode const* ChainEntry = nullptr;
 
-        SpellInfo(SpellNameEntry const* spellName, ::Difficulty difficulty, SpellInfoLoadHelper const& data);
-        SpellInfo(SpellNameEntry const* spellName, ::Difficulty difficulty, std::vector<SpellEffectEntry> const& effects);
+        explicit SpellInfo(SpellNameEntry const* spellName, ::Difficulty difficulty, SpellInfoLoadHelper const& data);
+        explicit SpellInfo(SpellNameEntry const* spellName, ::Difficulty difficulty, std::vector<SpellEffectEntry> const& effects);
+        SpellInfo(SpellInfo const&) = delete;
+        SpellInfo(SpellInfo&&) = delete;
         ~SpellInfo();
+
+        SpellInfo& operator=(SpellInfo const&) = delete;
+        SpellInfo& operator=(SpellInfo&&) noexcept = delete;
 
         uint32 GetCategory() const;
         bool HasEffect(SpellEffectName effect) const;
@@ -463,7 +475,7 @@ class TC_GAME_API SpellInfo
         bool HasAttribute(SpellAttr14 attribute) const { return !!(AttributesEx14 & attribute); }
         bool HasAttribute(SpellCustomAttributes customAttribute) const { return !!(AttributesCu & customAttribute); }
 
-        bool CanBeInterrupted(WorldObject const* interruptCaster, Unit const* interruptTarget) const;
+        bool CanBeInterrupted(WorldObject const* interruptCaster, Unit const* interruptTarget, bool ignoreImmunity = false) const;
 
         bool HasAnyAuraInterruptFlag() const;
         bool HasAuraInterruptFlag(SpellAuraInterruptFlags flag) const { return AuraInterruptFlags.HasFlag(flag); }
@@ -474,7 +486,6 @@ class TC_GAME_API SpellInfo
 
         bool IsExplicitDiscovery() const;
         bool IsLootCrafting() const;
-        bool IsQuestTame() const;
         bool IsProfession() const;
         bool IsPrimaryProfession() const;
         bool IsPrimaryProfessionFirstRank() const;
@@ -503,7 +514,6 @@ class TC_GAME_API SpellInfo
         bool IsMoveAllowedChannel() const;
         bool NeedsComboPoints() const;
         bool IsNextMeleeSwingSpell() const;
-        bool IsBreakingStealth() const;
         bool IsRangedWeaponSpell() const;
         bool IsAutoRepeatRangedSpell() const;
         bool HasInitialAggro() const;
@@ -591,6 +601,8 @@ class TC_GAME_API SpellInfo
         bool SpellCancelsAuraEffect(AuraEffect const* aurEff) const;
 
         uint32 GetAllowedMechanicMask() const;
+
+        uint32 GetMechanicImmunityMask(Unit const* caster) const;
 
         // Player Condition
         bool MeetsFutureSpellPlayerCondition(Player const* player) const;

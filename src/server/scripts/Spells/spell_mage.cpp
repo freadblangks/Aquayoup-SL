@@ -21,16 +21,18 @@
  * Scriptnames of files in this file should be prefixed with "spell_mage_".
  */
 
-#include "ScriptMgr.h"
+#include "AreaTrigger.h"
+#include "AreaTriggerAI.h"
 #include "DB2Stores.h"
 #include "GridNotifiers.h"
 #include "ObjectAccessor.h"
-#include "Pet.h"
 #include "Player.h"
+#include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
 #include "SpellHistory.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
+#include "TemporarySummon.h"
 
 enum MageSpells
 {
@@ -43,8 +45,11 @@ enum MageSpells
     SPELL_MAGE_ARCANE_MAGE                       = 137021,
     SPELL_MAGE_BLAZING_BARRIER_TRIGGER           = 235314,
     SPELL_MAGE_BLINK                             = 1953,
+    SPELL_MAGE_BLIZZARD_DAMAGE                   = 190357,
+    SPELL_MAGE_BLIZZARD_SLOW                     = 12486,
     SPELL_MAGE_CAUTERIZE_DOT                     = 87023,
     SPELL_MAGE_CAUTERIZED                        = 87024,
+    SPELL_MAGE_CHILLED                           = 205708,
     SPELL_MAGE_COMET_STORM_DAMAGE                = 153596,
     SPELL_MAGE_COMET_STORM_VISUAL                = 228601,
     SPELL_MAGE_CONE_OF_COLD                      = 120,
@@ -66,6 +71,8 @@ enum MageSpells
     SPELL_MAGE_LIVING_BOMB_PERIODIC              = 217694,
     SPELL_MAGE_MANA_SURGE                        = 37445,
     SPELL_MAGE_MASTER_OF_TIME                    = 342249,
+    SPELL_MAGE_RAY_OF_FROST_BONUS                = 208141,
+    SPELL_MAGE_RAY_OF_FROST_FINGERS_OF_FROST     = 269748,
     SPELL_MAGE_REVERBERATE                       = 281482,
     SPELL_MAGE_RING_OF_FROST_DUMMY               = 91264,
     SPELL_MAGE_RING_OF_FROST_FREEZE              = 82691,
@@ -88,8 +95,7 @@ enum MiscSpells
 {
     SPELL_HUNTER_INSANITY                        = 95809,
     SPELL_SHAMAN_EXHAUSTION                      = 57723,
-    SPELL_SHAMAN_SATED                           = 57724,
-    SPELL_MAGE_CHILLED                           = 205708
+    SPELL_SHAMAN_SATED                           = 57724
 };
 
 // 110909 - Alter Time Aura
@@ -317,6 +323,52 @@ class spell_mage_blazing_barrier : public AuraScript
     }
 };
 
+// 190356 - Blizzard
+// 4658 - AreaTrigger Create Properties
+struct areatrigger_mage_blizzard : AreaTriggerAI
+{
+    areatrigger_mage_blizzard(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger), _tickTimer(TICK_PERIOD) { }
+
+    static constexpr Milliseconds TICK_PERIOD = Milliseconds(1000);
+
+    void OnUpdate(uint32 diff) override
+    {
+        _tickTimer -= Milliseconds(diff);
+
+        while (_tickTimer <= 0s)
+        {
+            if (Unit* caster = at->GetCaster())
+                caster->CastSpell(at->GetPosition(), SPELL_MAGE_BLIZZARD_DAMAGE);
+
+            _tickTimer += TICK_PERIOD;
+        }
+    }
+
+private:
+    Milliseconds _tickTimer;
+};
+
+// 190357 - Blizzard (Damage)
+class spell_mage_blizzard_damage : public SpellScript
+{
+    PrepareSpellScript(spell_mage_blizzard_damage);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_MAGE_BLIZZARD_SLOW });
+    }
+
+    void HandleSlow(SpellEffIndex /*effIndex*/)
+    {
+        GetCaster()->CastSpell(GetHitUnit(), SPELL_MAGE_BLIZZARD_SLOW, TRIGGERED_IGNORE_CAST_IN_PROGRESS);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_mage_blizzard_damage::HandleSlow, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
 // 198063 - Burning Determination
 class spell_mage_burning_determination : public AuraScript
 {
@@ -397,33 +449,24 @@ class spell_mage_cold_snap : public SpellScript
 {
     PrepareSpellScript(spell_mage_cold_snap);
 
+    static uint32 constexpr SpellsToReset[] =
+    {
+        SPELL_MAGE_CONE_OF_COLD,
+        SPELL_MAGE_ICE_BARRIER,
+        SPELL_MAGE_ICE_BLOCK,
+    };
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo
-        ({
-            SPELL_MAGE_CONE_OF_COLD,
-            SPELL_MAGE_FROST_NOVA,
-            SPELL_MAGE_ICE_BARRIER,
-            SPELL_MAGE_ICE_BLOCK
-        });
+        return ValidateSpellInfo(SpellsToReset) && ValidateSpellInfo({ SPELL_MAGE_FROST_NOVA });
     }
 
     void HandleDummy(SpellEffIndex /*effIndex*/)
     {
-        GetCaster()->GetSpellHistory()->ResetCooldowns([](SpellHistory::CooldownStorageType::iterator itr)
-        {
-            switch (itr->first)
-            {
-                case SPELL_MAGE_CONE_OF_COLD:
-                case SPELL_MAGE_FROST_NOVA:
-                case SPELL_MAGE_ICE_BARRIER:
-                case SPELL_MAGE_ICE_BLOCK:
-                    return true;
-                default:
-                    break;
-            }
-            return false;
-        }, true);
+        for (uint32 spellId : SpellsToReset)
+            GetCaster()->GetSpellHistory()->ResetCooldown(spellId, true);
+
+        GetCaster()->GetSpellHistory()->RestoreCharge(sSpellMgr->AssertSpellInfo(SPELL_MAGE_FROST_NOVA, GetCastDifficulty())->ChargeCategoryId);
     }
 
     void Register() override
@@ -659,6 +702,28 @@ class spell_mage_flame_on : public AuraScript
    {
         DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_mage_flame_on::CalculateAmount, EFFECT_1, SPELL_AURA_CHARGE_RECOVERY_MULTIPLIER);
    }
+};
+
+// 116 - Frostbolt
+class spell_mage_frostbolt : public SpellScript
+{
+    PrepareSpellScript(spell_mage_frostbolt);
+
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo({ SPELL_MAGE_CHILLED });
+    }
+
+    void HandleChilled()
+    {
+        if (Unit* target = GetHitUnit())
+            GetCaster()->CastSpell(target, SPELL_MAGE_CHILLED, TRIGGERED_IGNORE_CAST_IN_PROGRESS);
+    }
+
+    void Register() override
+    {
+        OnHit += SpellHitFn(spell_mage_frostbolt::HandleChilled);
+    }
 };
 
 // 11426 - Ice Barrier
@@ -1047,6 +1112,59 @@ class spell_mage_prismatic_barrier : public AuraScript
     }
 };
 
+// 205021 - Ray of Frost
+class spell_mage_ray_of_frost : public SpellScript
+{
+    PrepareSpellScript(spell_mage_ray_of_frost);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo ({ SPELL_MAGE_RAY_OF_FROST_FINGERS_OF_FROST });
+    }
+
+    void HandleOnHit()
+    {
+        if (Unit* caster = GetCaster())
+            caster->CastSpell(caster, SPELL_MAGE_RAY_OF_FROST_FINGERS_OF_FROST, TRIGGERED_IGNORE_CAST_IN_PROGRESS);
+    }
+
+    void Register() override
+    {
+        OnHit += SpellHitFn(spell_mage_ray_of_frost::HandleOnHit);
+    }
+};
+
+class spell_mage_ray_of_frost_aura : public AuraScript
+{
+    PrepareAuraScript(spell_mage_ray_of_frost_aura);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo ({ SPELL_MAGE_RAY_OF_FROST_BONUS, SPELL_MAGE_RAY_OF_FROST_FINGERS_OF_FROST });
+    }
+
+    void HandleEffectPeriodic(AuraEffect const* aurEff)
+    {
+        if (Unit* caster = GetCaster())
+        {
+            if (aurEff->GetTickNumber() > 1) // First tick should deal base damage
+               caster->CastSpell(caster, SPELL_MAGE_RAY_OF_FROST_BONUS, true);
+        }
+    }
+
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (Unit* caster = GetCaster())
+            caster->RemoveAurasDueToSpell(SPELL_MAGE_RAY_OF_FROST_FINGERS_OF_FROST);
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_mage_ray_of_frost_aura::HandleEffectPeriodic, EFFECT_1, SPELL_AURA_PERIODIC_DAMAGE);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_mage_ray_of_frost_aura::OnRemove, EFFECT_1, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
 // 136511 - Ring of Frost
 class spell_mage_ring_of_frost : public AuraScript
 {
@@ -1158,6 +1276,27 @@ class spell_mage_ring_of_frost_freeze_AuraScript : public AuraScript
     }
 };
 
+// 157980 - Supernova
+class spell_mage_supernova : public SpellScript
+{
+    PrepareSpellScript(spell_mage_supernova);
+
+    void HandleDamage(SpellEffIndex /*effIndex*/)
+    {
+        if (GetExplTargetUnit() == GetHitUnit())
+        {
+            uint32 damage = GetHitDamage();
+            AddPct(damage, GetEffectInfo(EFFECT_0).CalcValue());
+            SetHitDamage(damage);
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_mage_supernova::HandleDamage, EFFECT_1, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
 // 80353 - Time Warp
 class spell_mage_time_warp : public SpellScript
 {
@@ -1237,30 +1376,6 @@ class spell_mage_touch_of_the_magi_aura : public AuraScript
     }
 };
 
-/* 228597 - Frostbolt
-   84721  - Frozen Orb
-   190357 - Blizzard */
-class spell_mage_trigger_chilled : public SpellScript
-{
-    PrepareSpellScript(spell_mage_trigger_chilled);
-
-    bool Validate(SpellInfo const* /*spell*/) override
-    {
-        return ValidateSpellInfo({ SPELL_MAGE_CHILLED });
-    }
-
-    void HandleChilled()
-    {
-        if (Unit* target = GetHitUnit())
-            GetCaster()->CastSpell(target, SPELL_MAGE_CHILLED, true);
-    }
-
-    void Register() override
-    {
-        OnHit += SpellHitFn(spell_mage_trigger_chilled::HandleChilled);
-    }
-};
-
 // 33395 Water Elemental's Freeze
 class spell_mage_water_elemental_freeze : public SpellScript
 {
@@ -1294,6 +1409,8 @@ void AddSC_mage_spell_scripts()
     RegisterSpellScript(spell_mage_arcane_charge_clear);
     RegisterSpellScript(spell_mage_arcane_explosion);
     RegisterSpellScript(spell_mage_blazing_barrier);
+    RegisterAreaTriggerAI(areatrigger_mage_blizzard);
+    RegisterSpellScript(spell_mage_blizzard_damage);
     RegisterSpellScript(spell_mage_burning_determination);
     RegisterSpellAndAuraScriptPair(spell_mage_cauterize, spell_mage_cauterize_AuraScript);
     RegisterSpellScript(spell_mage_cold_snap);
@@ -1305,6 +1422,7 @@ void AddSC_mage_spell_scripts()
     RegisterSpellScript(spell_mage_firestarter);
     RegisterSpellScript(spell_mage_firestarter_dots);
     RegisterSpellScript(spell_mage_flame_on);
+    RegisterSpellScript(spell_mage_frostbolt);
     RegisterSpellScript(spell_mage_ice_barrier);
     RegisterSpellScript(spell_mage_ice_block);
     RegisterSpellScript(spell_mage_ice_lance);
@@ -1317,10 +1435,11 @@ void AddSC_mage_spell_scripts()
     RegisterSpellScript(spell_mage_living_bomb_periodic);
     RegisterSpellScript(spell_mage_polymorph_visual);
     RegisterSpellScript(spell_mage_prismatic_barrier);
+    RegisterSpellAndAuraScriptPair(spell_mage_ray_of_frost, spell_mage_ray_of_frost_aura);
     RegisterSpellScript(spell_mage_ring_of_frost);
     RegisterSpellAndAuraScriptPair(spell_mage_ring_of_frost_freeze, spell_mage_ring_of_frost_freeze_AuraScript);
+    RegisterSpellScript(spell_mage_supernova);
     RegisterSpellScript(spell_mage_time_warp);
     RegisterSpellScript(spell_mage_touch_of_the_magi_aura);
-    RegisterSpellScript(spell_mage_trigger_chilled);
     RegisterSpellScript(spell_mage_water_elemental_freeze);
 }
