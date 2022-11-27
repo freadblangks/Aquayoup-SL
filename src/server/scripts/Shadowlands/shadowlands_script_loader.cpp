@@ -19,6 +19,7 @@
 
 void AddSC_boss_sylvanas_windrunner();
 void AddSC_instance_sanctum_of_domination();
+void AddSC_zone_exiles_reach();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
@@ -26,4 +27,5 @@ void AddShadowlandsScripts()
 {
     AddSC_boss_sylvanas_windrunner();
     AddSC_instance_sanctum_of_domination();
+    AddSC_zone_exiles_reach();
 }
