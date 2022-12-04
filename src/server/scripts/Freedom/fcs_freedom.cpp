@@ -464,6 +464,7 @@ public:
         newTeleData.map = source->GetMapId();
         newTeleData.name = name;
         newTeleData.gmBnetAccId = source->GetSession()->GetBattlenetAccountId();
+        newTeleData.phaseId = sFreedomMgr->GetPlayerPhase(source);
 
         sFreedomMgr->AddPublicTeleport(newTeleData);
 
@@ -536,6 +537,7 @@ public:
         }
 
         source->TeleportTo(teleData->map, teleData->x, teleData->y, teleData->z, teleData->o);
+        sFreedomMgr->PlayerPhase(source, teleData->phaseId);
         return true;
     }
 #pragma endregion
@@ -604,6 +606,7 @@ public:
         source->GetPosition(newTeleData.x, newTeleData.y, newTeleData.z, newTeleData.o);
         newTeleData.map = source->GetMapId();
         newTeleData.name = name;
+        newTeleData.phaseId = sFreedomMgr->GetPlayerPhase(source);
 
         sFreedomMgr->AddPrivateTeleport(source->GetSession()->GetBattlenetAccountId(), newTeleData);
 
@@ -677,6 +680,7 @@ public:
         }
 
         source->TeleportTo(teleData->map, teleData->x, teleData->y, teleData->z, teleData->o);
+        sFreedomMgr->PlayerPhase(source, teleData->phaseId);
         return true;
     }
 #pragma endregion

@@ -1430,6 +1430,7 @@ void FreedomMgr::AddPublicTeleport(PublicTeleData const& data)
     stmt->setFloat(index++, data.o);
     stmt->setUInt32(index++, data.map);
     stmt->setUInt32(index++, data.gmBnetAccId);
+    stmt->setUInt32(index++, data.phaseId);
     FreedomDatabase.Execute(stmt);
 }
 
@@ -1471,6 +1472,7 @@ void FreedomMgr::LoadPublicTeleports()
         data.o = fields[4].GetFloat();
         data.map = fields[5].GetUInt32();
         data.gmBnetAccId = fields[6].GetUInt32();
+        data.phaseId = fields[7].GetUInt32();
 
         _publicTeleStore.push_back(data);
     } while (result->NextRow());
@@ -1524,6 +1526,7 @@ void FreedomMgr::AddPrivateTeleport(uint32 bnetAccountId, PrivateTeleData const&
     stmt->setFloat(index++, data.o);
     stmt->setUInt32(index++, data.map);
     stmt->setUInt32(index++, bnetAccountId);
+    stmt->setUInt32(index++, data.phaseId);
     FreedomDatabase.Execute(stmt);
 }
 
@@ -1566,6 +1569,7 @@ void FreedomMgr::LoadPrivateTeleports()
         data.o = fields[4].GetFloat();
         data.map = fields[5].GetUInt32();
         uint32 bnetAccId = fields[6].GetUInt32();
+        data.phaseId = fields[7].GetUInt32();
 
         _privateTeleStore[bnetAccId].push_back(data);
     } while (result->NextRow());

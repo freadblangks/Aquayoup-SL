@@ -56,6 +56,7 @@ struct PublicTeleData
     float o;
     uint32 map;
     uint32 gmBnetAccId;
+    uint32 phaseId;
 };
 
 typedef std::vector<PublicTeleData> PublicTeleContainer;
@@ -68,6 +69,7 @@ struct PrivateTeleData
     float z;
     float o;
     uint32 map;
+    uint32 phaseId;
 };
 
 typedef std::vector<PrivateTeleData> PrivateTeleVector;
