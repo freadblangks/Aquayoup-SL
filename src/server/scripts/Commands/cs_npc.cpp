@@ -1604,7 +1604,7 @@ public:
 
             for (auto it = pair.second->cbegin(); it != pair.second->cend(); ++it)
             {
-                LootItem const& item = items[it->index];
+                LootItem const& item = items[it->LootListId];
                 if (!(it->is_looted) && !item.is_looted)
                     _ShowLootEntry(handler, item.itemid, item.count, true);
             }
@@ -1621,7 +1621,7 @@ public:
         }
 
         Loot const* loot = creatureTarget->m_loot.get();
-        if (!creatureTarget->isDead() || !loot || loot->empty())
+        if (!creatureTarget->isDead() || !loot || loot->isLooted())
         {
             handler->PSendSysMessage(LANG_COMMAND_NOT_DEAD_OR_NO_LOOT, creatureTarget->GetName().c_str());
             handler->SetSentErrorMessage(true);
@@ -1637,11 +1637,6 @@ public:
             for (LootItem const& item : loot->items)
                 if (!item.is_looted)
                     _ShowLootEntry(handler, item.itemid, item.count);
-
-            handler->PSendSysMessage(LANG_COMMAND_NPC_SHOWLOOT_LABEL, "Quest items", loot->quest_items.size());
-            for (LootItem const& item : loot->quest_items)
-                if (!item.is_looted)
-                    _ShowLootEntry(handler, item.itemid, item.count);
         }
         else
         {
@@ -1650,22 +1645,10 @@ public:
                 if (!item.is_looted && !item.freeforall && item.conditions.empty())
                     _ShowLootEntry(handler, item.itemid, item.count);
 
-            if (!loot->GetPlayerQuestItems().empty())
-            {
-                handler->PSendSysMessage(LANG_COMMAND_NPC_SHOWLOOT_LABEL_2, "Per-player quest items");
-                _IterateNotNormalLootMap(handler, loot->GetPlayerQuestItems(), loot->quest_items);
-            }
-
             if (!loot->GetPlayerFFAItems().empty())
             {
                 handler->PSendSysMessage(LANG_COMMAND_NPC_SHOWLOOT_LABEL_2, "FFA items per allowed player");
                 _IterateNotNormalLootMap(handler, loot->GetPlayerFFAItems(), loot->items);
-            }
-
-            if (!loot->GetPlayerNonQuestNonFFAConditionalItems().empty())
-            {
-                handler->PSendSysMessage(LANG_COMMAND_NPC_SHOWLOOT_LABEL_2, "Per-player conditional items");
-                _IterateNotNormalLootMap(handler, loot->GetPlayerNonQuestNonFFAConditionalItems(), loot->items);
             }
         }
 
