@@ -551,7 +551,7 @@ enum SMART_ACTION
     SMART_ACTION_SET_DYNAMIC_FLAG                   = 94,     // UNUSED, DO NOT REUSE
     SMART_ACTION_ADD_DYNAMIC_FLAG                   = 95,     // UNUSED, DO NOT REUSE
     SMART_ACTION_REMOVE_DYNAMIC_FLAG                = 96,     // UNUSED, DO NOT REUSE
-    SMART_ACTION_JUMP_TO_POS                        = 97,     // speedXY, speedZ, targetX, targetY, targetZ
+    SMART_ACTION_JUMP_TO_POS                        = 97,     // SpeedXY, SpeedZ, Gravity, UseDefaultGravity, PointId, ContactDistance
     SMART_ACTION_SEND_GOSSIP_MENU                   = 98,     // menuId, optionId
     SMART_ACTION_GO_SET_LOOT_STATE                  = 99,     // state
     SMART_ACTION_SEND_TARGET_TO_TARGET              = 100,    // id
@@ -986,8 +986,12 @@ struct SmartAction
 
         struct
         {
-            uint32 speedxy;
-            uint32 speedz;
+            uint32 SpeedXY;
+            uint32 SpeedZ;
+            uint32 Gravity;
+            SAIBool UseDefaultGravity;
+            uint32 PointId;
+            uint32 ContactDistance;
         } jump;
 
         struct
@@ -1292,6 +1296,7 @@ enum SMARTAI_TARGETS
     SMART_TARGET_FARTHEST                       = 28,   // maxDist, playerOnly, isInLos
     SMART_TARGET_VEHICLE_PASSENGER              = 29,   // seatMask (0 - all seats)
     SMART_TARGET_CLOSEST_UNSPAWNED_GAMEOBJECT   = 30,   // entry(0any), maxDist
+    SMART_TARGET_OWNER_OR_SUMMONER_VICTIM       = 31,   // Victim of Owner or Summoner, Use Owner/Charmer of this unit
 
     SMART_TARGET_END                            = 31
 };

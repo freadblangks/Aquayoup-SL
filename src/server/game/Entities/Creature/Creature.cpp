@@ -2783,7 +2783,7 @@ void Creature::UpdateMovementFlags()
     bool canHover = CanHover();
     bool isInAir = (G3D::fuzzyGt(GetPositionZ(), ground + (canHover ? *m_unitData->HoverHeight : 0.0f) + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
 
-    if (GetMovementTemplate().IsFlightAllowed() && isInAir && !IsFalling())
+    if (GetMovementTemplate().IsFlightAllowed() && (isInAir || !GetMovementTemplate().IsGroundAllowed()) && !IsFalling())
     {
         if (GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly)
             SetCanFly(true);
@@ -3013,6 +3013,20 @@ uint32 Creature::GetScriptId() const
             return scriptId;
 
     return ASSERT_NOTNULL(sObjectMgr->GetCreatureTemplate(GetEntry()))->ScriptID;
+}
+
+std::string Creature::GetStringId() const
+{
+    return sObjectMgr->GetStringId(GetStringIdIndex());
+}
+
+uint32 Creature::GetStringIdIndex() const
+{
+    if (CreatureData const* creatureData = GetCreatureData())
+        if (uint32 stringIdIndex = creatureData->StringIdIndex)
+            return stringIdIndex;
+
+    return ASSERT_NOTNULL(sObjectMgr->GetCreatureTemplate(GetEntry()))->StringIdIndex;
 }
 
 VendorItemData const* Creature::GetVendorItems() const
@@ -3371,18 +3385,19 @@ void Creature::DoNotReacquireSpellFocusTarget()
 
 bool Creature::IsMovementPreventedByCasting() const
 {
+    // Can always move when not casting
+    if (!HasUnitState(UNIT_STATE_CASTING))
+        return false;
+
     // first check if currently a movement allowed channel is active and we're not casting
     if (Spell* spell = m_currentSpells[CURRENT_CHANNELED_SPELL])
     {
         if (spell->getState() != SPELL_STATE_FINISHED && spell->IsChannelActive())
             if (spell->CheckMovement() != SPELL_CAST_OK)
-                return false;
+                return true;
     }
 
     if (HasSpellFocus())
-        return true;
-
-    if (HasUnitState(UNIT_STATE_CASTING))
         return true;
 
     return false;
