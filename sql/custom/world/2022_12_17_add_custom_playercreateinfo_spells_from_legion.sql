@@ -1,4 +1,3 @@
-_
 REPLACE INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `Note`) VALUES
 	(0, 0, 750, 'Plate'),
 	(0, 0, 8737, 'Mail'),
