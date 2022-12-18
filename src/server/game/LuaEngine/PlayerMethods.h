@@ -3009,19 +3009,19 @@ namespace LuaPlayer
      * @param string popup = nil : if non empty string, a popup with given text shown on click
      * @param uint32 money = 0 : required money in copper
      */
-    int GossipMenuAddItem(lua_State* L, Player* player)
-    {
-        uint32 _optionNpc = Eluna::CHECKVAL<uint32>(L, 2);
-        const char* msg = Eluna::CHECKVAL<const char*>(L, 3);
-        uint32 _sender = Eluna::CHECKVAL<uint32>(L, 4);
-        uint32 _intid = Eluna::CHECKVAL<uint32>(L, 5);
-        bool _code = Eluna::CHECKVAL<bool>(L, 6, false);
-        const char* _promptMsg = Eluna::CHECKVAL<const char*>(L, 7, "");
-        uint32 _money = Eluna::CHECKVAL<uint32>(L, 8, 0);
+    //int GossipMenuAddItem(lua_State* L, Player* player)
+    //{
+    //    uint32 _optionNpc = Eluna::CHECKVAL<uint32>(L, 2);
+    //    const char* msg = Eluna::CHECKVAL<const char*>(L, 3);
+    //    uint32 _sender = Eluna::CHECKVAL<uint32>(L, 4);
+    //    uint32 _intid = Eluna::CHECKVAL<uint32>(L, 5);
+    //    bool _code = Eluna::CHECKVAL<bool>(L, 6, false);
+    //    const char* _promptMsg = Eluna::CHECKVAL<const char*>(L, 7, "");
+    //    uint32 _money = Eluna::CHECKVAL<uint32>(L, 8, 0);
 
-        player->PlayerTalkClass->GetGossipMenu().AddMenuItem(-1, GossipOptionNpc(_optionNpc), msg, _sender, _intid, _promptMsg, _money, _code);
-        return 0;
-    }
+    //    player->PlayerTalkClass->GetGossipMenu().AddMenuItem(-1, GossipOptionNpc(_optionNpc), msg, _sender, _intid, _promptMsg, _money, _code);
+    //    return 0;
+    //}
 
     /**
      * Closes the [Player]s currently open Gossip Menu.

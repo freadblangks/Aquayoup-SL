@@ -567,7 +567,7 @@ ElunaRegister<Player> PlayerMethods[] =
     { "IsFlying", &LuaPlayer::IsFlying },
 
     // Gossip
-    { "GossipMenuAddItem", &LuaPlayer::GossipMenuAddItem },
+    //{ "GossipMenuAddItem", &LuaPlayer::GossipMenuAddItem },
     { "GossipSendMenu", &LuaPlayer::GossipSendMenu },
     { "GossipComplete", &LuaPlayer::GossipComplete },
     { "GossipClearMenu", &LuaPlayer::GossipClearMenu },

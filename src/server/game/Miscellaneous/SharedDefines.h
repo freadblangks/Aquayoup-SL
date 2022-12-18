@@ -123,7 +123,7 @@ constexpr uint32 GetMaxLevelForExpansion(uint32 expansion)
         case EXPANSION_DRAGONFLIGHT:
             return 70;
 		case EXPANSION_CLASS_AND_RACE_BLOCKER:
-+            return 70;
+            return 70;
         default:
             break;
     }
