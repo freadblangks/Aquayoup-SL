@@ -604,6 +604,7 @@ NonDefaultConstructible<pAuraEffectHandler> AuraEffectHandler[TOTAL_AURAS]=
     &AuraEffect::HandleNULL,                                      //532
     &AuraEffect::HandleNULL,                                      //533 SPELL_AURA_DISABLE_NAVIGATION
     &AuraEffect::HandleNULL,                                      //534
+    &AuraEffect::HandleNULL,                                      //535
 };
 
 AuraEffect::AuraEffect(Aura* base, SpellEffectInfo const& spellEfffectInfo, int32 const* baseAmount, Unit* caster) :
@@ -1476,6 +1477,8 @@ void AuraEffect::HandleModInvisibility(AuraApplication const* aurApp, uint8 mode
 
         target->m_invisibility.AddFlag(type);
         target->m_invisibility.AddValue(type, GetAmount());
+
+        target->SetVisFlag(UNIT_VIS_FLAGS_INVISIBLE);
     }
     else
     {
@@ -1487,6 +1490,8 @@ void AuraEffect::HandleModInvisibility(AuraApplication const* aurApp, uint8 mode
                 playerTarget->RemoveAuraVision(PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
 
             target->m_invisibility.DelFlag(type);
+
+            target->RemoveVisFlag(UNIT_VIS_FLAGS_INVISIBLE);
         }
         else
         {
@@ -1564,7 +1569,7 @@ void AuraEffect::HandleModStealth(AuraApplication const* aurApp, uint8 mode, boo
         target->m_stealth.AddFlag(type);
         target->m_stealth.AddValue(type, GetAmount());
 
-        target->SetVisFlag(UNIT_VIS_FLAGS_CREEP);
+        target->SetVisFlag(UNIT_VIS_FLAGS_STEALTHED);
         if (Player * playerTarget = target->ToPlayer())
             playerTarget->AddAuraVision(PLAYER_FIELD_BYTE2_STEALTH);
     }
@@ -1576,7 +1581,7 @@ void AuraEffect::HandleModStealth(AuraApplication const* aurApp, uint8 mode, boo
         {
             target->m_stealth.DelFlag(type);
 
-            target->RemoveVisFlag(UNIT_VIS_FLAGS_CREEP);
+            target->RemoveVisFlag(UNIT_VIS_FLAGS_STEALTHED);
             if (Player * playerTarget = target->ToPlayer())
                 playerTarget->RemoveAuraVision(PLAYER_FIELD_BYTE2_STEALTH);
         }
