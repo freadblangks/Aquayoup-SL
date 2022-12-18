@@ -1,4 +1,0 @@
-ALTER TABLE `npc_sounds`
-	ADD COLUMN `VerifiedBuild` INT(11) NOT NULL DEFAULT '0' AFTER `ack`,
-	DROP PRIMARY KEY,
-	ADD PRIMARY KEY (`ID`, `VerifiedBuild`) USING BTREE;
