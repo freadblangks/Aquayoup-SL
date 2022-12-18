@@ -2703,6 +2703,7 @@ struct MapDifficultyEntry
 
 struct ModelFileDataEntry
 {
+    std::array<float, 6> Geobox;
     uint32 ID;
     uint8 Flags;
     uint8 LogCount;

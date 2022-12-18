@@ -1115,8 +1115,9 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_MAP_DIFFICULTY, "SELECT MAX(ID) + 1 FROM map_difficulty", CONNECTION_SYNCH);
     PREPARE_LOCALE_STMT(HOTFIX_SEL_MAP_DIFFICULTY, "SELECT ID, Message_lang FROM map_difficulty_locale WHERE (`VerifiedBuild` > 0) = ? AND locale = ?", CONNECTION_SYNCH);
 
-// ModelFileData.db2
-    PrepareStatement(HOTFIX_SEL_MODEL_FILE_DATA, "SELECT ID, Flags, LogCount, ModelID FROM model_file_data WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
+    // ModelFileData.db2
+    PrepareStatement(HOTFIX_SEL_MODEL_FILE_DATA, "SELECT Geobox1, Geobox2, Geobox3, Geobox4, Geobox5, Geobox6, ID, Flags, LogCount, ModelID"
+        " FROM model_file_data WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_MODEL_FILE_DATA, "SELECT MAX(ID) + 1 FROM model_file_data", CONNECTION_SYNCH);
 
     // MapDifficultyXCondition.db2

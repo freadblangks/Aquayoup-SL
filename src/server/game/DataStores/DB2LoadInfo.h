@@ -4192,6 +4192,12 @@ struct ModelFileDataLoadInfo
     {
         static DB2FieldMeta const fields[] =
         {
+            { false, FT_FLOAT, "Geobox0" },
+            { false, FT_FLOAT, "Geobox1" },
+            { false, FT_FLOAT, "Geobox2" },
+            { false, FT_FLOAT, "Geobox3" },
+            { false, FT_FLOAT, "Geobox4" },
+            { false, FT_FLOAT, "Geobox5" },
             { false, FT_INT, "ID" },
             { false, FT_BYTE, "Flags" },
             { false, FT_BYTE, "LogCount" },
