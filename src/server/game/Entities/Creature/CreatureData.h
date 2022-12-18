@@ -670,8 +670,6 @@ struct VendorItem
     uint32 PlayerConditionId;
     bool IgnoreFiltering;
 
-    //helpers
-    bool IsGoldRequired(ItemTemplate const* pProto) const;
 	int64 GetBuyPrice(ItemTemplate const* pProto) const;
 };
 
