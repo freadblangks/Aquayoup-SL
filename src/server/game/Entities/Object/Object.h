@@ -577,6 +577,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         Creature*   FindNearestCreature(uint32 entry, float range, bool alive = true) const;
         Creature*   FindNearestCreatureWithAura(uint32 entry, uint32 spellId, float range, bool alive = true) const;
+        Creature*   FindNearestCreatureWithOptions(uint32 entry, float range, FindCreatureExtraArgs const& args = { }) const;
         GameObject* FindNearestGameObject(uint32 entry, float range, bool spawnedOnly = true) const;
         GameObject* FindNearestUnspawnedGameObject(uint32 entry, float range) const;
         GameObject* FindNearestGameObjectOfType(GameobjectTypes type, float range) const;
@@ -599,7 +600,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         float GetSpellMaxRangeForTarget(Unit const* target, SpellInfo const* spellInfo) const;
         float GetSpellMinRangeForTarget(Unit const* target, SpellInfo const* spellInfo) const;
 
-        float ApplyEffectModifiers(SpellInfo const* spellInfo, uint8 effIndex, float value) const;
+        double ApplyEffectModifiers(SpellInfo const* spellInfo, uint8 effIndex, double value) const;
         int32 CalcSpellDuration(SpellInfo const* spellInfo) const;
         int32 ModSpellDuration(SpellInfo const* spellInfo, WorldObject const* target, int32 duration, bool positive, uint32 effectMask) const;
         void ModSpellCastTime(SpellInfo const* spellInfo, int32& castTime, Spell* spell = nullptr) const;

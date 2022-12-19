@@ -32,6 +32,7 @@
 #include "Log.h"
 #include "Map.h"
 #include "MotionMaster.h"
+#include <MovementTypedefs.h>
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "PhasingHandler.h"
@@ -1196,7 +1197,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                 x = pos.GetPositionX() + (std::cos(o - (M_PI / 2))*e.target.x) + (std::cos(o)*e.target.y);
                 y = pos.GetPositionY() + (std::sin(o - (M_PI / 2))*e.target.x) + (std::sin(o)*e.target.y);
                 z = pos.GetPositionZ() + e.target.z;
-                target->ToCreature()->GetMotionMaster()->MovePoint(SMART_RANDOM_POINT, x, y, z);
+                target->ToCreature()->GetMotionMaster()->MovePoint(e.action.moveOffset.PointId, x, y, z);
             }
             break;
         }
@@ -1850,9 +1851,29 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
         }
         case SMART_ACTION_JUMP_TO_POS:
         {
-            for (WorldObject* target : targets)
-                if (Creature* creature = target->ToCreature())
-                    creature->GetMotionMaster()->MoveJump(e.target.x, e.target.y, e.target.z, 0.0f, float(e.action.jump.speedxy), float(e.action.jump.speedz)); // @todo add optional jump orientation support?
+            WorldObject* target = nullptr;
+
+            if (!targets.empty())
+                target = Trinity::Containers::SelectRandomContainerElement(targets);
+
+            Position pos(e.target.x, e.target.y, e.target.z);
+            if (target)
+            {
+                float x, y, z;
+                target->GetPosition(x, y, z);
+                if (e.action.jump.ContactDistance > 0)
+                    target->GetContactPoint(me, x, y, z, e.action.jump.ContactDistance);
+                pos = Position(x + e.target.x, y + e.target.y, z + e.target.z);
+            }
+
+            if (e.action.jump.Gravity || e.action.jump.UseDefaultGravity)
+            {
+                float gravity = e.action.jump.UseDefaultGravity ? Movement::gravity : e.action.jump.Gravity;
+                me->GetMotionMaster()->MoveJumpWithGravity(pos, float(e.action.jump.SpeedXY), gravity, e.action.jump.PointId);
+            }
+            else
+                me->GetMotionMaster()->MoveJump(pos, float(e.action.jump.SpeedXY), float(e.action.jump.SpeedZ), e.action.jump.PointId);
+
             break;
         }
         case SMART_ACTION_GO_SET_LOOT_STATE:
@@ -2044,17 +2065,17 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                         for (uint32 pathId : waypoints)
                         {
                             WaypointPath const* path = sSmartWaypointMgr->GetPath(pathId);
-                            if (!path || path->nodes.empty())
+                            if (!path || path->Nodes.empty())
                                 continue;
 
-                            for (WaypointNode const& waypoint : path->nodes)
+                            for (WaypointNode const& waypoint : path->Nodes)
                             {
-                                float distamceToThisNode = creature->GetDistance(waypoint.x, waypoint.y, waypoint.z);
+                                float distamceToThisNode = creature->GetDistance(waypoint.X, waypoint.Y, waypoint.Z);
                                 if (distamceToThisNode < distanceToClosest)
                                 {
                                     distanceToClosest = distamceToThisNode;
                                     closest.first = pathId;
-                                    closest.second = waypoint.id;
+                                    closest.second = waypoint.Id;
                                 }
                             }
                         }
@@ -2969,6 +2990,26 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
         {
             if (GameObject* target = baseObject->FindNearestUnspawnedGameObject(e.target.goClosest.entry, float(e.target.goClosest.dist ? e.target.goClosest.dist : 100)))
                 targets.push_back(target);
+            break;
+        }
+        case SMART_TARGET_OWNER_OR_SUMMONER_VICTIM:
+        {
+            if (me)
+            {
+                ObjectGuid charmerOrOwnerGuid = me->GetCharmerOrOwnerGUID();
+
+                if (!charmerOrOwnerGuid)
+                    if (TempSummon* tempSummon = me->ToTempSummon())
+                        if (WorldObject* summoner = tempSummon->GetSummoner())
+                            charmerOrOwnerGuid = summoner->GetGUID();
+
+                if (!charmerOrOwnerGuid)
+                    charmerOrOwnerGuid = me->GetCreatorGUID();
+
+                if (Unit* owner = ObjectAccessor::GetUnit(*me, charmerOrOwnerGuid))
+                    if (Unit* victim = owner->GetVictim())
+                        targets.push_back(victim);
+            }
             break;
         }
         case SMART_TARGET_POSITION:

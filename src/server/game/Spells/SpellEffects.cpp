@@ -20,6 +20,7 @@
 #include "AreaTrigger.h"
 #include "AzeriteEmpoweredItem.h"
 #include "AzeriteItem.h"
+#include "BattlefieldMgr.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
 #include "BattlePetMgr.h"
@@ -75,6 +76,8 @@
 #include "TalentPackets.h"
 #include "TemporarySummon.h"
 #include "Totem.h"
+#include "TraitMgr.h"
+#include "TraitPacketsCommon.h"
 #include "Unit.h"
 #include "Util.h"
 #include "World.h"
@@ -203,7 +206,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectSpiritHeal,                               //117 SPELL_EFFECT_SPIRIT_HEAL              one spell: Spirit Heal
     &Spell::EffectSkill,                                    //118 SPELL_EFFECT_SKILL                    professions and more
     &Spell::EffectUnused,                                   //119 SPELL_EFFECT_APPLY_AREA_AURA_PET
-    &Spell::EffectNULL,                                     //120 SPELL_EFFECT_TELEPORT_GRAVEYARD
+    &Spell::EffectTeleportGraveyard,                        //120 SPELL_EFFECT_TELEPORT_GRAVEYARD
     &Spell::EffectWeaponDmg,                                //121 SPELL_EFFECT_NORMALIZED_WEAPON_DMG
     &Spell::EffectUnused,                                   //122 SPELL_EFFECT_122                      unused
     &Spell::EffectSendTaxi,                                 //123 SPELL_EFFECT_SEND_TAXI                taxi/flight related (misc value is taxi path id)
@@ -371,8 +374,23 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectNULL,                                     //285 SPELL_EFFECT_MODIFY_KEYSTONE_2
     &Spell::EffectGrantBattlePetExperience,                 //286 SPELL_EFFECT_GRANT_BATTLEPET_EXPERIENCE
     &Spell::EffectNULL,                                     //287 SPELL_EFFECT_SET_GARRISON_FOLLOWER_LEVEL
-    &Spell::EffectUnused,                                   //288 SPELL_EFFECT_288
-    &Spell::EffectNULL,                                     //289 SPELL_EFFECT_289
+    &Spell::EffectNULL,                                     //288 SPELL_EFFECT_CRAFT_ITEM
+    &Spell::EffectModifyAuraStacks,                         //289 SPELL_EFFECT_MODIFY_AURA_STACKS
+    &Spell::EffectModifyCooldown,                           //290 SPELL_EFFECT_MODIFY_COOLDOWN
+    &Spell::EffectModifyCooldowns,                          //291 SPELL_EFFECT_MODIFY_COOLDOWNS
+    &Spell::EffectModifyCooldownsByCategory,                //292 SPELL_EFFECT_MODIFY_COOLDOWNS_BY_CATEGORY
+    &Spell::EffectModifySpellCharges,                       //293 SPELL_EFFECT_MODIFY_CHARGES
+    &Spell::EffectNULL,                                     //294 SPELL_EFFECT_CRAFT_LOOT
+    &Spell::EffectNULL,                                     //295 SPELL_EFFECT_SALVAGE_ITEM
+    &Spell::EffectNULL,                                     //296 SPELL_EFFECT_CRAFT_SALVAGE_ITEM
+    &Spell::EffectNULL,                                     //297 SPELL_EFFECT_RECRAFT_ITEM
+    &Spell::EffectNULL,                                     //298 SPELL_EFFECT_CANCEL_ALL_PRIVATE_CONVERSATIONS
+    &Spell::EffectNULL,                                     //299 SPELL_EFFECT_299
+    &Spell::EffectUnused,                                   //300 SPELL_EFFECT_300
+    &Spell::EffectNULL,                                     //301 SPELL_EFFECT_CRAFT_ENCHANT
+    &Spell::EffectNULL,                                     //302 SPELL_EFFECT_GATHERING
+    &Spell::EffectCreateTraitTreeConfig,                    //303 SPELL_EFFECT_CREATE_TRAIT_TREE_CONFIG
+    &Spell::EffectChangeActiveCombatTraitConfig,            //304 SPELL_EFFECT_CHANGE_ACTIVE_COMBAT_TRAIT_CONFIG
 };
 
 void Spell::EffectNULL()
@@ -2439,30 +2457,7 @@ void Spell::EffectEnchantItemTmp()
     }
 
     // select enchantment duration
-    uint32 duration;
-
-    // rogue family enchantments exception by duration
-    if (m_spellInfo->Id == 38615)
-        duration = 1800;                                    // 30 mins
-    // other rogue family enchantments always 1 hour (some have spell damage=0, but some have wrong data in EffBasePoints)
-    else if (m_spellInfo->SpellFamilyName == SPELLFAMILY_ROGUE)
-        duration = 3600;                                    // 1 hour
-    // shaman family enchantments
-    else if (m_spellInfo->SpellFamilyName == SPELLFAMILY_SHAMAN)
-        duration = 3600;                                    // 30 mins
-    // other cases with this SpellVisual already selected
-    else if (m_spellInfo->GetSpellVisual() == 215)
-        duration = 1800;                                    // 30 mins
-    // some fishing pole bonuses except Glow Worm which lasts full hour
-    else if (m_spellInfo->GetSpellVisual() == 563 && m_spellInfo->Id != 64401)
-        duration = 600;                                     // 10 mins
-    else if (m_spellInfo->Id == 29702)
-        duration = 300;                                     // 5 mins
-    else if (m_spellInfo->Id == 37360)
-        duration = 300;                                     // 5 mins
-    // default case
-    else
-        duration = 3600;                                    // 1 hour
+    uint32 duration = pEnchant->Duration;
 
     // item can be in trade slot and have owner diff. from caster
     Player* item_owner = itemTarget->GetOwner();
@@ -4090,7 +4085,7 @@ void Spell::EffectDispelMechanic()
         if (!aura->GetApplicationOfTarget(unitTarget->GetGUID()))
             continue;
         if (roll_chance_i(aura->CalcDispelChance(unitTarget, !unitTarget->IsFriendlyTo(m_caster))))
-            if ((aura->GetSpellInfo()->GetAllEffectsMechanicMask() & (1 << mechanic)))
+            if ((aura->GetSpellInfo()->GetAllEffectsMechanicMask() & (UI64LIT(1) << mechanic)))
                 dispel_list.emplace_back(aura->GetId(), aura->GetCasterGUID());
     }
 
@@ -4477,26 +4472,31 @@ void Spell::EffectSkill()
     TC_LOG_DEBUG("spells", "WORLD: SkillEFFECT");
 }
 
-/* There is currently no need for this effect. We handle it in Battleground.cpp
-   If we would handle the resurrection here, the spiritguide would instantly disappear as the
-   player revives, and so we wouldn't see the spirit heal visual effect on the npc.
-   This is why we use a half sec delay between the visual effect and the resurrection itself */
 void Spell::EffectSpiritHeal()
 {
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
         return;
 
-    /*
-    if (unitTarget->GetTypeId() != TYPEID_PLAYER)
-        return;
-    if (!unitTarget->IsInWorld())
+    Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(unitTarget->GetMap(), unitTarget->GetZoneId());
+    if (bf) // battlefield is handling this
         return;
 
-    //m_spellInfo->Effects[i].BasePoints; == 99 (percent?)
-    //unitTarget->ToPlayer()->setResurrect(m_caster->GetGUID(), unitTarget->GetPositionX(), unitTarget->GetPositionY(), unitTarget->GetPositionZ(), unitTarget->GetMaxHealth(), unitTarget->GetMaxPower(POWER_MANA));
-    unitTarget->ToPlayer()->ResurrectPlayer(1.0f);
-    unitTarget->ToPlayer()->SpawnCorpseBones();
-    */
+    Creature* spiritGuide = GetCaster()->ToCreature();
+    if (Player* playerTarget = unitTarget->ToPlayer())
+    {
+        if (!playerTarget->IsInWorld())
+            return;
+
+        // skip if player does not want to live
+        if (spiritGuide && playerTarget->GetSpiritHealer() != spiritGuide->GetGUID())
+            return;
+
+        playerTarget->ResurrectPlayer(1.0f);
+        playerTarget->CastSpell(playerTarget, SPELL_PET_SUMMONED, true);
+        playerTarget->CastSpell(playerTarget, SPELL_SPIRIT_HEAL_MANA, true);
+        playerTarget->SpawnCorpseBones(false);
+        playerTarget->SetSpiritHealer(nullptr);
+    }
 }
 
 // remove insignia spell effect
@@ -5385,19 +5385,14 @@ void Spell::EffectChangeBattlePetQuality()
     if (!unitTarget || !unitTarget->IsCreature())
         return;
 
-    BattlePets::BattlePetBreedQuality quality = BattlePets::BattlePetBreedQuality::Poor;
-    switch (damage)
+    auto qualityItr = std::lower_bound(sBattlePetBreedQualityStore.begin(), sBattlePetBreedQualityStore.end(), damage, [](BattlePetBreedQualityEntry const* a1, int32 selector)
     {
-        case 85:
-            quality = BattlePets::BattlePetBreedQuality::Rare;
-            break;
-        case 75:
-            quality = BattlePets::BattlePetBreedQuality::Uncommon;
-            break;
-        default:
-            // Ignore Epic Battle-Stones
-            break;
-    }
+        return a1->MaxQualityRoll < selector;
+    });
+
+    BattlePets::BattlePetBreedQuality quality = BattlePets::BattlePetBreedQuality::Poor;
+    if (qualityItr != sBattlePetBreedQualityStore.end())
+        quality = BattlePets::BattlePetBreedQuality(qualityItr->QualityEnum);
 
     playerCaster->GetSession()->GetBattlePetMgr()->ChangeBattlePetQuality(unitTarget->GetBattlePetCompanionGUID(), quality);
 }
@@ -5814,4 +5809,129 @@ void Spell::EffectLearnTransmogIllusion()
         return;
 
     player->GetSession()->GetCollectionMgr()->AddTransmogIllusion(illusionId);
+}
+
+void Spell::EffectTeleportGraveyard()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = unitTarget->ToPlayer();
+    if (Battleground* bg = player->GetBattleground())
+    {
+        WorldSafeLocsEntry const* entry = bg->GetClosestGraveyard(player);
+        if (entry)
+        {
+            player->TeleportTo(entry->Loc);
+            return;
+        }
+    }
+
+    if (WorldSafeLocsEntry const* entry = sObjectMgr->GetClosestGraveyard(*player, player->GetTeam(), player))
+        player->TeleportTo(entry->Loc);
+}
+
+void Spell::EffectModifyAuraStacks()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Aura* targetAura = unitTarget->GetAura(effectInfo->TriggerSpell);
+    if (!targetAura)
+        return;
+
+    switch (effectInfo->MiscValue)
+    {
+        case 0:
+            targetAura->ModStackAmount(damage);
+            break;
+        case 1:
+            targetAura->SetStackAmount(damage);
+            break;
+        default:
+            break;
+    }
+}
+
+void Spell::EffectModifyCooldown()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    unitTarget->GetSpellHistory()->ModifyCooldown(effectInfo->TriggerSpell, Milliseconds(damage));
+}
+
+void Spell::EffectModifyCooldowns()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    unitTarget->GetSpellHistory()->ModifyCoooldowns([this](SpellHistory::CooldownStorageType::iterator itr)
+    {
+        SpellInfo const* spellOnCooldown = sSpellMgr->AssertSpellInfo(itr->first, DIFFICULTY_NONE);
+        if (spellOnCooldown->SpellFamilyName != uint32(effectInfo->MiscValue))
+            return false;
+
+        int32 bitIndex = effectInfo->MiscValueB - 1;
+        if (bitIndex < 0 || uint32(bitIndex) >= sizeof(flag128) * 8)
+            return false;
+
+        flag128 reqFlag;
+        reqFlag[bitIndex / 32] = 1u << (bitIndex % 32);
+        return bool(spellOnCooldown->SpellFamilyFlags & reqFlag);
+    }, Milliseconds(damage));
+}
+
+void Spell::EffectModifyCooldownsByCategory()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    unitTarget->GetSpellHistory()->ModifyCoooldowns([this](SpellHistory::CooldownStorageType::iterator itr)
+    {
+        return sSpellMgr->AssertSpellInfo(itr->first, DIFFICULTY_NONE)->CategoryId == uint32(effectInfo->MiscValue);
+    }, Milliseconds(damage));
+}
+
+void Spell::EffectModifySpellCharges()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    for (int32 i = 0; i < damage; ++i)
+        unitTarget->GetSpellHistory()->RestoreCharge(effectInfo->MiscValue);
+}
+
+void Spell::EffectCreateTraitTreeConfig()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* target = Object::ToPlayer(unitTarget);
+    if (!target)
+        return;
+
+    WorldPackets::Traits::TraitConfig newConfig;
+    newConfig.Type = TraitMgr::GetConfigTypeForTree(effectInfo->MiscValue);
+    if (newConfig.Type != TraitConfigType::Generic)
+        return;
+
+    newConfig.TraitSystemID = sTraitTreeStore.AssertEntry(effectInfo->MiscValue)->TraitSystemID;
+    target->CreateTraitConfig(newConfig);
+}
+
+void Spell::EffectChangeActiveCombatTraitConfig()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* target = Object::ToPlayer(unitTarget);
+    if (!target)
+        return;
+
+    WorldPackets::Traits::TraitConfig* traitConfig = std::any_cast<WorldPackets::Traits::TraitConfig>(&m_customArg);
+    if (!traitConfig)
+        return;
+
+    target->UpdateTraitConfig(std::move(*traitConfig), damage, false);
 }

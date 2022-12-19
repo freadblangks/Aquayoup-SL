@@ -3382,8 +3382,10 @@ class spell_gen_spirit_healer_res : public SpellScript
         Player* originalCaster = GetOriginalCaster()->ToPlayer();
         if (Unit* target = GetHitUnit())
         {
-            WorldPackets::NPC::SpiritHealerConfirm spiritHealerConfirm;
-            spiritHealerConfirm.Unit = target->GetGUID();
+            WorldPackets::NPC::NPCInteractionOpenResult spiritHealerConfirm;
+            spiritHealerConfirm.Npc = target->GetGUID();
+            spiritHealerConfirm.InteractionType = PlayerInteractionType::SpiritHealer;
+            spiritHealerConfirm.Success = true;
             originalCaster->SendDirectMessage(spiritHealerConfirm.Write());
         }
     }
@@ -5201,9 +5203,11 @@ class spell_gen_reverse_cast_target_to_caster_triggered: public SpellScript
 };
 
 // Note: this spell unsummons any creature owned by the caster. Set appropriate target conditions on the DB.
-// 84065 - Despawn All Summons
-// 83935 - Despawn All Summons
 // 160938 - Despawn All Summons (Garrison Intro Only)
+// 84173 - Despawn All Summons
+// 84065 - Despawn All Summons
+// 84011 - Despawn All Summons
+// 83935 - Despawn All Summons
 class spell_gen_despawn_all_summons_owned_by_caster : public SpellScript
 {
     PrepareSpellScript(spell_gen_despawn_all_summons_owned_by_caster);
@@ -5222,6 +5226,31 @@ class spell_gen_despawn_all_summons_owned_by_caster : public SpellScript
     void Register() override
     {
         OnEffectHitTarget += SpellEffectFn(spell_gen_despawn_all_summons_owned_by_caster::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
+// Personal resurrections in battlegrounds
+// 156758 - Spirit Heal
+class spell_gen_spirit_heal : public AuraScript
+{
+    static constexpr uint32 SPELL_SPIRIT_HEAL_EFFECT = 156763;
+
+    PrepareAuraScript(spell_gen_spirit_heal);
+
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE)
+            return;
+
+        if (Unit* owner = GetUnitOwner())
+            if (Player* playerOwner = owner->ToPlayer())
+                if (Unit* caster = GetCaster())
+                    caster->CastSpell(playerOwner, SPELL_SPIRIT_HEAL_EFFECT);
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(spell_gen_spirit_heal::OnRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
@@ -5386,4 +5415,5 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScript(spell_gen_eject_passengers_3_8);
     RegisterSpellScript(spell_gen_reverse_cast_target_to_caster_triggered);
     RegisterSpellScript(spell_gen_despawn_all_summons_owned_by_caster);
+    RegisterSpellScript(spell_gen_spirit_heal);
 }
