@@ -2104,6 +2104,8 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
 
         void RemovedInsignia(Player* looterPlr);
 
+        void SendRuneforgeLegendaryCraftingOpenNpc(ObjectGuid const& guid, bool isUpgrade) const;
+
         WorldSession* GetSession() const { return m_session; }
 
     protected:

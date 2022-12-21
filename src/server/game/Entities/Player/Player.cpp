@@ -3744,6 +3744,14 @@ void Player::ValuesUpdateForPlayerWithMaskSender::operator()(Player const* playe
     player->SendDirectMessage(&packet);
 }
 
+void Player::SendRuneforgeLegendaryCraftingOpenNpc(ObjectGuid const& guid, bool isUpgrade) const
+{
+    WorldPackets::Misc::RuneforgeLegendaryCraftingOpenNpc packet;
+    packet.ObjGUID = guid;
+    packet.IsUpgrade = isUpgrade;
+    SendDirectMessage(packet.Write());
+}
+
 void Player::DestroyForPlayer(Player* target) const
 {
     Unit::DestroyForPlayer(target);
@@ -14006,10 +14014,17 @@ void Player::OnGossipSelect(WorldObject* source, int32 gossipOptionId, uint32 me
         case GossipOptionNpc::GarrisonRecruitment: // NYI
             break;
         case GossipOptionNpc::ChromieTimeNpc: // NYI
+            handled = false;
             break;
         case GossipOptionNpc::RuneforgeLegendaryCrafting: // NYI
+            PlayerTalkClass->SendCloseGossip();
+            SendRuneforgeLegendaryCraftingOpenNpc(source->GetGUID(), false);
+            handled = false;
             break;
         case GossipOptionNpc::RuneforgeLegendaryUpgrade: // NYI
+            PlayerTalkClass->SendCloseGossip();
+            SendRuneforgeLegendaryCraftingOpenNpc(source->GetGUID(), true);
+            handled = false;
             break;
         case GossipOptionNpc::ProfessionsCraftingOrder: // NYI
             break;
