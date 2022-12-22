@@ -75,7 +75,7 @@ public:
             { "add",            HandleGameObjectAddCommand,       rbac::RBAC_PERM_COMMAND_GOBJECT_ADD,            Console::No },
             { "set phase",      HandleGameObjectSetPhaseCommand,  rbac::RBAC_PERM_COMMAND_GOBJECT_SET_PHASE,      Console::No },
             { "set state",      HandleGameObjectSetStateCommand,  rbac::RBAC_PERM_COMMAND_GOBJECT_SET_STATE,      Console::No },
-			{ "scale",          HandleGameObjectSetScaleCommand,  rbac::RBAC_PERM_COMMAND_GOBJECT_SET_SCALE,      Console::No },
+			{ "set scale",      HandleGameObjectSetScaleCommand,  rbac::RBAC_PERM_COMMAND_GOBJECT_SET_SCALE,      Console::No },
             { "visibility",     HandleGameVisibilityCommand,      rbac::RBAC_PERM_COMMAND_GOBJECT_DELETE,         Console::No },
         };
         static ChatCommandTable commandTable =
@@ -398,18 +398,13 @@ public:
 
         Map* map = object->GetMap();
 
-        //pos.SetOrientation(object->GetOrientation());
-        //object->Relocate(pos);
-
-        object->DestroyForNearbyPlayers();
-        object->RelocateStationaryPosition(object->GetPositionX(), object->GetPositionY(), object->GetPositionZ(), object->GetOrientation());
-        object->GetMap()->GameObjectRelocation(object, object->GetPositionX(), object->GetPositionY(), object->GetPositionZ(), object->GetOrientation());
-        object->SaveToDB();
+        pos.SetOrientation(object->GetOrientation());
+        object->Relocate(pos);
 
         // update which cell has this gameobject registered for loading
-        /* sObjectMgr->RemoveGameobjectFromGrid(object->GetGameObjectData());
+        sObjectMgr->RemoveGameobjectFromGrid(object->GetGameObjectData());
         object->SaveToDB();
-        sObjectMgr->AddGameobjectToGrid(object->GetGameObjectData()); */
+        sObjectMgr->AddGameobjectToGrid(object->GetGameObjectData());
 
         // Generate a completely new spawn with new guid
         // 3.3.5a client caches recently deleted objects and brings them back to life
@@ -708,14 +703,8 @@ public:
         handler->PSendSysMessage("Visibility set for object %s to %f\n", object->GetGUID().ToString().c_str(), distance);
     }
 
-    static bool HandleGameObjectSetScaleCommand(ChatHandler* handler, char const* args)
+    static bool HandleGameObjectSetScaleCommand(ChatHandler* handler, GameObjectSpawnId guidLow, float scale)
     {
-        // number or [name] Shift-click form |color|Hgameobject:go_id|h[name]|h|r
-        char* id = handler->extractKeyFromLink((char*)args, "Hgameobject");
-        if (!id)
-            return false;
-
-        ObjectGuid::LowType guidLow = atoull(id);
         if (!guidLow)
             return false;
 
@@ -727,16 +716,6 @@ public:
             return false;
         }
 
-        char* scale_temp = strtok(NULL, " ");
-        if (!scale_temp)
-        {
-            handler->SendSysMessage(LANG_BAD_VALUE);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        float scale = atof(scale_temp);
-
         if (scale <= 0.0f)
         {
             scale = object->GetGOInfo()->size;
@@ -747,14 +726,17 @@ public:
             const_cast<GameObjectData*>(object->GetGameObjectData())->size = scale;
         }
 
+        Map* map = object->GetMap();
         object->SetObjectScale(scale);
-        object->DestroyForNearbyPlayers();
-        object->UpdateObjectVisibility();
         object->SaveToDB();
 
-        Map* map = object->GetMap();
+        // Generate a completely new spawn with new guid
+        // 3.3.5a client caches recently deleted objects and brings them back to life
+        // when CreateObject block for this guid is received again
+        // however it entirely skips parsing that block and only uses already known location
+        object->Delete();
 
-        object->Delete(); object = GameObject::CreateGameObjectFromDB(guidLow, map);
+        object = GameObject::CreateGameObjectFromDB(guidLow, map);
         if (!object)
             return false;
 

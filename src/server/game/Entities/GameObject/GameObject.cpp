@@ -714,7 +714,10 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
 
     SetParentRotation(parentRotation);
 
-    SetObjectScale(goInfo->size);
+    if (size > 0.0f)
+        SetObjectScale(size);
+    else
+        SetObjectScale(goInfo->size);
 
     if (GameObjectOverride const* goOverride = GetGameObjectOverride())
     {
