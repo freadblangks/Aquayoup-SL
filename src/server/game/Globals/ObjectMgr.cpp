@@ -74,6 +74,7 @@
 #include <numeric>
 #include <sstream>
 #include <limits>
+#include <Config.h>
 
 ScriptMapMap sSpellScripts;
 ScriptMapMap sEventScripts;
@@ -2239,6 +2240,7 @@ void ObjectMgr::LoadCreatures()
             continue;
         }
 
+
         CreatureData& data = _creatureDataStore[guid];
         data.spawnId        = guid;
         data.id             = entry;
@@ -2450,6 +2452,14 @@ void ObjectMgr::LoadCreatures()
         // Add to grid if not managed by the game event
         if (gameEvent == 0)
             AddCreatureToGrid(&data);
+
+
+        // Add custom npc spawns to map for efficient reloading
+        if (entry >= sConfigMgr->GetInt64Default("Freedom.CustomNpc.CreatureTemplateIdStart", 400000))
+        {
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Identified creature with template '%u' and guid '%llu' as custom npc.", entry, guid);
+            sFreedomMgr->LoadCustomNpcSpawn(entry, guid);
+        }
     }
     while (result->NextRow());
 
@@ -9224,93 +9234,6 @@ void ObjectMgr::LoadCreatureOutfits()
         while ((customizations_iss >> customization.ChrCustomizationOptionID) && (customizations_iss >> customization.ChrCustomizationChoiceID))
         {
             co->Customizations.push_back(customization);
-        }
-
-        auto ValidateAppearance = [](Races race, Classes /*playerClass*/, Gender gender, Trinity::IteratorPair<UF::ChrCustomizationChoice const*> customizations) {
-            // Skip validation if there are no customizations to validate
-            if (customizations.begin() == customizations.end())
-                return true;
-
-            // WorldSession::ValidateAppearance copy paste
-            std::vector<ChrCustomizationOptionEntry const*> const* options = sDB2Manager.GetCustomiztionOptions(race, gender);
-            if (!options)
-                return false;
-
-            uint32 previousOption = 0;
-
-            for (UF::ChrCustomizationChoice playerChoice : customizations)
-            {
-                // check uniqueness of options
-                if (playerChoice.ChrCustomizationOptionID == previousOption)
-                    return false;
-
-                previousOption = playerChoice.ChrCustomizationOptionID;
-
-                // check if we can use this option
-                auto customizationOptionDataItr = std::find_if(options->begin(), options->end(), [&](ChrCustomizationOptionEntry const* option)
-                    {
-                        return option->ID == playerChoice.ChrCustomizationOptionID;
-                    });
-
-                // option not found for race/gender combination
-                if (customizationOptionDataItr == options->end())
-                    return false;
-
-                // Skip this as it just checks player requirements like achievements etc.
-                //if (ChrCustomizationReqEntry const* req = sChrCustomizationReqStore.LookupEntry((*customizationOptionDataItr)->ChrCustomizationReqID))
-                //    if (!MeetsChrCustomizationReq(req, playerClass, false, customizations))
-                //        return false;
-
-                std::vector<ChrCustomizationChoiceEntry const*> const* choicesForOption = sDB2Manager.GetCustomiztionChoices(playerChoice.ChrCustomizationOptionID);
-                if (!choicesForOption)
-                    return false;
-
-                auto customizationChoiceDataItr = std::find_if(choicesForOption->begin(), choicesForOption->end(), [&](ChrCustomizationChoiceEntry const* choice)
-                    {
-                        return choice->ID == playerChoice.ChrCustomizationChoiceID;
-                    });
-
-                // choice not found for option
-                if (customizationChoiceDataItr == choicesForOption->end())
-                    return false;
-
-                if (ChrCustomizationReqEntry const* req = sChrCustomizationReqStore.LookupEntry((*customizationChoiceDataItr)->ChrCustomizationReqID))
-                {
-                    // WorldSession::MeetsChrCustomizationReq copy paste
-                    // Just the part that checks choice requirements
-                    if (std::unordered_map<uint32, std::vector<uint32>> const* requiredChoices = sDB2Manager.GetRequiredCustomizationChoices(req->ID))
-                    {
-                        for (std::pair<uint32 const /*chrCustomizationOptionId*/, std::vector<uint32>> const& requiredChoicesForOption : *requiredChoices)
-                        {
-                            bool hasRequiredChoiceForOption = false;
-                            for (uint32 requiredChoice : requiredChoicesForOption.second)
-                            {
-                                auto choiceItr = std::find_if(customizations.begin(), customizations.end(), [requiredChoice](UF::ChrCustomizationChoice const& choice)
-                                    {
-                                        return choice.ChrCustomizationChoiceID == requiredChoice;
-                                    });
-
-                                if (choiceItr != customizations.end())
-                                {
-                                    hasRequiredChoiceForOption = true;
-                                    break;
-                                }
-                            }
-
-                            if (!hasRequiredChoiceForOption)
-                                return false;
-                        }
-                    }
-                }
-            }
-
-            return true;
-        };
-
-        if (!ValidateAppearance((Races)co->race, (Classes)co->Class, (Gender)co->gender, MakeChrCustomizationChoiceRange(co->Customizations)))
-        {
-            TC_LOG_ERROR("server.loading", ">> Outfit entry %u in `creature_template_outfits` has invalid customizations for (gender, race, class) combination", entry);
-            continue;
         }
 
         for (EquipmentSlots slot : CreatureOutfit::item_slots)

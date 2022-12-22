@@ -5,6 +5,9 @@
 #include "GameObject.h"
 #include "Creature.h"
 #include "Log.h"
+#include "CreatureOutfit.h"
+#include "Item.h"
+#include "UpdateField.h"
 
 struct GameObjectTemplateExtraData
 {
@@ -103,6 +106,16 @@ struct PlayerExtraData
 };
 
 typedef std::unordered_map<ObjectGuid::LowType, PlayerExtraData> PlayerExtraDataContainer;
+
+struct CustomNpcData
+{
+    std::string key;
+    uint32 outfitId;
+    uint32 templateId;
+    std::vector<ObjectGuid::LowType> spawns;
+};
+
+typedef std::unordered_map<std::string, CustomNpcData> CustomNpcDataContainer;
 
 struct CreatureExtraData
 {
@@ -275,6 +288,25 @@ class TC_GAME_API FreedomMgr
         void RemoveWaterwalkFromPlayer(Player* player);
         void RemoveFlyFromPlayer(Player* player);
 
+        // Custom NPCs
+        CustomNpcDataContainer GetCustomNpcContainer() { return _customNpcStore; }
+        bool CustomNpcNameExists(std::string const& key) { return _customNpcStore.count(key) > 0; }
+        uint32 GetOutfitIdForNpc(std::string const& key) { return _customNpcStore[key].outfitId; }
+        uint32 GetEntryIdForNpc(std::string const& key) { return _customNpcStore[key].templateId; }
+        void LoadCustomNpcs();
+        void CreateCustomNpcFromPlayer(Player* player, std::string const& key);
+        void SetCustomNpcOutfitEquipmentSlot(std::string const& key, EquipmentSlots slot, int32 displayId);
+        void SetCustomNpcOutfitRace(std::string const& key, Races race);
+        void SetCustomNpcOutfitGender(std::string const& key, Gender gender);
+        void SetCustomNpcLeftHand(std::string const& key, int32 itemId, int32 appearanceModId);
+        void SetCustomNpcRightHand(std::string const& key, int32 itemId, int32 appearanceModId);
+        void SetCustomNpcRanged(std::string const& key, int32 itemId, int32 appearanceModId);
+        void SetCustomNpcName(std::string const& key, std::string const& displayName);
+        void SetCustomNpcSubName(std::string const& key, std::string const& subName);
+        void SetCustomNpcCustomizations(std::string const& key, Player* player);
+        void LoadCustomNpcSpawn(uint32 templateId, ObjectGuid::LowType spawn);
+        void DeleteCustomNpc(std::string const& key);
+
     protected:
         PlayerExtraDataContainer _playerExtraDataStore;
         PublicTeleContainer _publicTeleStore;
@@ -286,6 +318,14 @@ class TC_GAME_API FreedomMgr
         PhaseListContainer _phaseListStore;
         CreatureExtraContainer _creatureExtraStore;
         CreatureTemplateExtraContainer _creatureTemplateExtraStore;
+        CustomNpcDataContainer _customNpcStore;
+
+    private:
+        void SaveNpcOutfitToDb(uint32 outfitId);
+        void SaveCustomNpcDataToDb(CustomNpcData outfitData);
+        void SaveNpcCreatureTemplateToDb(CreatureTemplate cTemplate);
+        void SaveNpcEquipmentInfoToDb(uint32 templateId, EquipmentInfo equipInfo);
+        void ReloadSpawnedCustomNpcs(std::string const& key);
 };
 
 #define sFreedomMgr FreedomMgr::instance()

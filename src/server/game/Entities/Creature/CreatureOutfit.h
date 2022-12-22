@@ -14,6 +14,7 @@ class TC_GAME_API CreatureOutfit
 {
 public:
     friend class ObjectMgr;
+    friend class FreedomMgr;
 
     static constexpr uint32 invisible_model = 11686;
     static constexpr uint32 max_real_modelid = 0x7FFFFFFF;
