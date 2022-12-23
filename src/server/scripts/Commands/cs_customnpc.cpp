@@ -187,6 +187,12 @@ public:
             return false;
         }
 
+        if (displayName.empty()) {
+            handler->PSendSysMessage("You must provide a name after the key i.e. `.cnpc set name mynpc 7th Legion Infantry`");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
         sRoleplay->SetCustomNpcName(name, displayName.data());
         handler->PSendSysMessage("Name for NPC %s set to %s!", name, displayName.data());
         return true;
@@ -196,6 +202,12 @@ public:
     {
         if (!sRoleplay->CustomNpcNameExists(name)) {
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (subName.empty()) {
+            handler->PSendSysMessage("You must provide a subname after the key i.e. `.cnpc set subname mynpc 7th Legion`");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -234,6 +246,7 @@ public:
         case INVTYPE_SHOULDERS: slot = EQUIPMENT_SLOT_SHOULDERS; break;
         case INVTYPE_BODY:      slot = EQUIPMENT_SLOT_BODY; break;
         case INVTYPE_CHEST:     slot = EQUIPMENT_SLOT_CHEST; break;
+        case INVTYPE_ROBE:      slot = EQUIPMENT_SLOT_CHEST; break;
         case INVTYPE_WAIST:     slot = EQUIPMENT_SLOT_WAIST; break;
         case INVTYPE_LEGS:      slot = EQUIPMENT_SLOT_LEGS; break;
         case INVTYPE_FEET:      slot = EQUIPMENT_SLOT_FEET; break;
@@ -244,6 +257,7 @@ public:
         default:
             handler->SendSysMessage("This item is not a visibly equipped item.");
             handler->SetSentErrorMessage(true);
+            TC_LOG_DEBUG("roleplay", "Could not recognize inventory slot '%u' as visible item.", item->GetInventoryType());
             return false;
         }
 
