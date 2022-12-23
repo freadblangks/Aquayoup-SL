@@ -23,35 +23,43 @@ public:
     {
         static ChatCommandTable customNpcSetCommandTable =
         {
-            { "name",        HandleCustomNpcSetDisplayNameCommand, rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_DISPLAYNAME, Console::No },
-            { "face",        HandleCustomNpcSetFaceCommand,        rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_FACE,        Console::No },
-            { "gender",      HandleCustomNpcSetGenderCommand,      rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_GENDER,      Console::No },
-            { "race",        HandleCustomNpcSetRaceCommand,        rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_RACE,        Console::No },
-            { "subname",     HandleCustomNpcSetSubNameCommand,     rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_SUBNAME,     Console::No },
+            { "name",      HandleCustomNpcSetDisplayNameCommand,   rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_DISPLAYNAME, Console::No },
+            { "face",      HandleCustomNpcSetFaceCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_FACE,        Console::No },
+            { "gender",    HandleCustomNpcSetGenderCommand,        rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_GENDER,      Console::No },
+            { "race",      HandleCustomNpcSetRaceCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_RACE,        Console::No },
+            { "subname",   HandleCustomNpcSetSubNameCommand,       rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_SUBNAME,     Console::No },
         };
         static ChatCommandTable customNpcEquipCommandTable =
         {
-            { "armor",       HandleCustomNpcEquipArmorCommand,     rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_EQUIP_ARMOR,     Console::No },
-            { "left",        HandleCustomNpcEquipLeftHandCommand,  rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_EQUIP_LEFT,      Console::No },
-            { "ranged",      HandleCustomNpcEquipRangedCommand,    rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_EQUIP_RANGED,    Console::No },
-            { "right",       HandleCustomNpcEquipRightHandCommand, rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_EQUIP_RIGHT,     Console::No },
+            { "armor",     HandleCustomNpcEquipArmorCommand,       rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_EQUIP_ARMOR,     Console::No },
+            { "left",      HandleCustomNpcEquipLeftHandCommand,    rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_EQUIP_LEFT,      Console::No },
+            { "ranged",    HandleCustomNpcEquipRangedCommand,      rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_EQUIP_RANGED,    Console::No },
+            { "right",     HandleCustomNpcEquipRightHandCommand,   rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_EQUIP_RIGHT,     Console::No },
+        };
+        static ChatCommandTable customNpcUnequipCommandTable =
+        {
+            { "armor",     HandleCustomNpcUnequipArmorCommand,     rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_UNEQUIP_ARMOR,   Console::No },
+            { "left",      HandleCustomNpcUnequipLeftHandCommand,  rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_UNEQUIP_LEFT,    Console::No },
+            { "ranged",    HandleCustomNpcUnequipRangedCommand,    rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_UNEQUIP_RANGED,  Console::No },
+            { "right",     HandleCustomNpcUnequipRightHandCommand, rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_UNEQUIP_RIGHT,   Console::No },
         };
         static ChatCommandTable CustomNpcSpawnCommandTable = {
-            { "temp",        HandleCustomNpcSpawnTempCommand,      rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SPAWN,           Console::No },
-            { "",            HandleCustomNpcSpawnCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SPAWN,           Console::No },
+            { "temp",      HandleCustomNpcSpawnTempCommand,        rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SPAWN,           Console::No },
+            { "",          HandleCustomNpcSpawnCommand,            rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SPAWN,           Console::No },
         };
         static ChatCommandTable customNpcCommandTable =
         {
-            { "add",         HandleCustomNpcCreateCommand,         rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_CREATE,          Console::No },
-            { "delete",      HandleCustomNpcDeleteCommand,         rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_DELETE,          Console::No },
-            { "equip",       customNpcEquipCommandTable },
-            { "set",         customNpcSetCommandTable },
-            { "spawn",       CustomNpcSpawnCommandTable }
+            { "add",       HandleCustomNpcCreateCommand,           rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_CREATE,          Console::No },
+            { "delete",    HandleCustomNpcDeleteCommand,           rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_DELETE,          Console::No },
+            { "equip",     customNpcEquipCommandTable },
+            { "set",       customNpcSetCommandTable },
+            { "spawn",     CustomNpcSpawnCommandTable },
+            { "unequip",   customNpcUnequipCommandTable }
         };
         static ChatCommandTable commandTable =
         {
             { "customnpc", customNpcCommandTable },
-            { "cnpc", customNpcCommandTable }
+            { "cnpc",      customNpcCommandTable }
         };
         return commandTable;
     }
@@ -134,7 +142,7 @@ public:
         return true;
     }
 
-    static bool HandleNpcAppearanceApplyCommand(ChatHandler* handler, std::string const& name)
+    static bool HandleCustomNpcSetRaceCommand(ChatHandler* handler, std::string const& name, Races race, Optional<uint8> variationId)
     {
         if (!sFreedomMgr->CustomNpcNameExists(name)) {
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
@@ -142,19 +150,20 @@ public:
             return false;
         }
 
-        Creature* creature = handler->getSelectedCreature();
-        if (!creature)
-        {
-            handler->SendSysMessage(FREEDOM_CMDE_MANUAL_SELECT_CREATURE);
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount+1);
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        creature->SetDisplayId(sFreedomMgr->GetOutfitIdForNpc(name));
+        sFreedomMgr->SetCustomNpcOutfitRace(name, variation, race);
+        handler->PSendSysMessage("Race for NPC %s, model variation '%u' set to %u!", name, variation, race);
         return true;
     }
 
-    static bool HandleCustomNpcSetRaceCommand(ChatHandler* handler, std::string const& name, Races race)
+    static bool HandleCustomNpcSetGenderCommand(ChatHandler* handler, std::string const& name, uint8 gender, Optional<uint8> variationId)
     {
         if (!sFreedomMgr->CustomNpcNameExists(name)) {
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
@@ -162,21 +171,16 @@ public:
             return false;
         }
 
-        sFreedomMgr->SetCustomNpcOutfitRace(name, race);
-        handler->PSendSysMessage("Race for NPC %s set to %u!", name, race);
-        return true;
-    }
-
-    static bool HandleCustomNpcSetGenderCommand(ChatHandler* handler, std::string const& name, uint8 gender)
-    {
-        if (!sFreedomMgr->CustomNpcNameExists(name)) {
-            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        sFreedomMgr->SetCustomNpcOutfitGender(name, gender == 0 ? GENDER_MALE : GENDER_FEMALE);
-        handler->PSendSysMessage("Gender for NPC %s set to %u!", name, gender);
+        sFreedomMgr->SetCustomNpcOutfitGender(name, variation, gender == 0 ? GENDER_MALE : GENDER_FEMALE);
+        handler->PSendSysMessage("Gender for NPC %s, model variation '%u' set to %u!", name, variation, gender);
         return true;
     }
 
@@ -218,7 +222,7 @@ public:
         return true;
     }
 
-    static bool HandleCustomNpcEquipArmorCommand(ChatHandler* handler, std::string const& name, ItemTemplate const* item, Optional<uint32> modAppearanceId)
+    static bool HandleCustomNpcEquipArmorCommand(ChatHandler* handler, std::string const& name, ItemTemplate const* item, Optional<uint8> variationId, Optional<uint32> modAppearanceId)
     {
         if (!sFreedomMgr->CustomNpcNameExists(name)) {
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
@@ -235,6 +239,14 @@ public:
 
         if (!item->IsArmor()) {
             handler->SendSysMessage("The item needs to be a piece of armor.");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -263,12 +275,12 @@ public:
         }
 
         uint32 displayId = sDB2Manager.GetItemDisplayId(item->GetId(), modAppearanceId.value_or(0));
-        sFreedomMgr->SetCustomNpcOutfitEquipmentSlot(name, slot, displayId);
-        handler->PSendSysMessage("Armor equipped to custom NPC %s!", name);
+        sFreedomMgr->SetCustomNpcOutfitEquipmentSlot(name, variation, slot, displayId);
+        handler->PSendSysMessage("Armor equipped to custom NPC %s, model variation '%u'!", name, variation);
         return true;
     }
 
-    static bool HandleCustomNpcEquipLeftHandCommand(ChatHandler* handler, std::string const& name, ItemTemplate const* item, Optional<uint32> modAppearanceId)
+    static bool HandleCustomNpcEquipLeftHandCommand(ChatHandler* handler, std::string const& name, ItemTemplate const* item, Optional<uint8> variationId, Optional<uint32> modAppearanceId)
     {
         if (!sFreedomMgr->CustomNpcNameExists(name)) {
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
@@ -289,12 +301,20 @@ public:
             return false;
         }
 
-        sFreedomMgr->SetCustomNpcLeftHand(name, item->GetId(), modAppearanceId.value_or(0));
-        handler->PSendSysMessage("Weapon equipped to custom NPC %s!", name);
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcLeftHand(name, variation, item->GetId(), modAppearanceId.value_or(0));
+        handler->PSendSysMessage("Weapon equipped to custom NPC %s, equipment variation '%u'!", name, variation);
         return true;
     }
 
-    static bool HandleCustomNpcEquipRightHandCommand(ChatHandler* handler, std::string const& name, ItemTemplate const* item, Optional<uint32> modAppearanceId)
+    static bool HandleCustomNpcEquipRightHandCommand(ChatHandler* handler, std::string const& name, ItemTemplate const* item, Optional<uint8> variationId, Optional<uint32> modAppearanceId)
     {
         if (!sFreedomMgr->CustomNpcNameExists(name)) {
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
@@ -315,12 +335,20 @@ public:
             return false;
         }
 
-        sFreedomMgr->SetCustomNpcRightHand(name, item->GetId(), modAppearanceId.value_or(0));
-        handler->PSendSysMessage("Weapon equipped to custom NPC %s!", name);
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcRightHand(name, variationId.value_or(1), item->GetId(), modAppearanceId.value_or(0));
+        handler->PSendSysMessage("Weapon equipped to custom NPC %s, equipment variation '%u'!", name, variation);
         return true;
     }
 
-    static bool HandleCustomNpcEquipRangedCommand(ChatHandler* handler, std::string const& name, ItemTemplate const* item, Optional<uint32> modAppearanceId)
+    static bool HandleCustomNpcEquipRangedCommand(ChatHandler* handler, std::string const& name, ItemTemplate const* item, Optional<uint8> variationId, Optional<uint32> modAppearanceId)
     {
         if (!sFreedomMgr->CustomNpcNameExists(name)) {
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
@@ -341,12 +369,20 @@ public:
             return false;
         }
 
-        sFreedomMgr->SetCustomNpcRanged(name, item->GetId(), modAppearanceId.value_or(0));
-        handler->PSendSysMessage("Ranged weapon equipped to custom NPC %s!", name);
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcRanged(name, variationId.value_or(1), item->GetId(), modAppearanceId.value_or(0));
+        handler->PSendSysMessage("Ranged weapon equipped to custom NPC %s, equipment variation '%u'!", name, variation);
         return true;
     }
 
-    static bool HandleCustomNpcSetFaceCommand(ChatHandler* handler, std::string const& name)
+    static bool HandleCustomNpcSetFaceCommand(ChatHandler* handler, std::string const& name, Optional<uint8> variationId)
     {
         if (!sFreedomMgr->CustomNpcNameExists(name)) {
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
@@ -354,8 +390,16 @@ public:
             return false;
         }
 
-        sFreedomMgr->SetCustomNpcCustomizations(name, handler->GetPlayer());
-        handler->PSendSysMessage("Custom NPC %s has copied your face!", name);
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcCustomizations(name, variation, handler->GetPlayer());
+        handler->PSendSysMessage("Custom NPC %s, model variation %u has copied your face!", name, variation);
         return true;
     }
 
@@ -369,6 +413,132 @@ public:
 
         sFreedomMgr->DeleteCustomNpc(name);
         handler->PSendSysMessage("Custom NPC %s has been deleted!", name);
+        return true;
+    }
+
+    static bool HandleCustomNpcUnequipArmorCommand(ChatHandler* handler, std::string const& name, std::string const& slotName, Optional<uint8> variationId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        EquipmentSlots slot = EQUIPMENT_SLOT_END;
+        // This is ugly but I can't currently find good string to enum conversions
+        if (slotName == "head") {
+            slot = EQUIPMENT_SLOT_HEAD;
+        }
+        else if (slotName == "shoulders") {
+            slot = EQUIPMENT_SLOT_SHOULDERS;
+        }
+        else if (slotName == "body") {
+            slot = EQUIPMENT_SLOT_BODY;
+        }
+        else if (slotName == "chest") {
+            slot = EQUIPMENT_SLOT_CHEST;
+        }
+        else if (slotName == "waist") {
+            slot = EQUIPMENT_SLOT_WAIST;
+        }
+        else if (slotName == "legs") {
+            slot = EQUIPMENT_SLOT_LEGS;
+        }
+        else if (slotName == "feet") {
+            slot = EQUIPMENT_SLOT_FEET;
+        }
+        else if (slotName == "wrists") {
+            slot = EQUIPMENT_SLOT_WRISTS;
+        }
+        else if (slotName == "hands") {
+            slot = EQUIPMENT_SLOT_HANDS;
+        }
+        else if (slotName == "tabard") {
+            slot = EQUIPMENT_SLOT_TABARD;
+        }
+        else if (slotName == "back") {
+            slot = EQUIPMENT_SLOT_BACK;
+        }
+
+        if (slot == EQUIPMENT_SLOT_END) {
+            handler->PSendSysMessage("Unrecognized slot '%s'. Slot must be one of head|shoulders|body|chest|waist|legs|feet|wrists|hands|tabard|back.", slotName);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcOutfitEquipmentSlot(name, variation, slot, 0);
+        handler->PSendSysMessage("Armorslot '%s' unequipped from custom NPC %s, model variation '%u'!", slotName, name, variation);
+        return true;
+    }
+
+    static bool HandleCustomNpcUnequipLeftHandCommand(ChatHandler* handler, std::string const& name, Optional<uint8> variationId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcLeftHand(name, variation, 0, 0);
+        handler->PSendSysMessage("Left hand unequipped from custom NPC %s, equipment variation '%u'!", name, variation);
+        return true;
+    }
+
+    static bool HandleCustomNpcUnequipRightHandCommand(ChatHandler* handler, std::string const& name, Optional<uint8> variationId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcRightHand(name, variation, 0, 0);
+        handler->PSendSysMessage("Right hand unequipped from custom NPC %s, equipment variation '%u'!", name, variation);
+        return true;
+    }
+
+    static bool HandleCustomNpcUnequipRangedCommand(ChatHandler* handler, std::string const& name, Optional<uint8> variationId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcRanged(name, variation, 0, 0);
+        handler->PSendSysMessage("Ranged weapon unequipped from custom NPC %s, equipment variation '%u'!", name, variation);
         return true;
     }
 };
