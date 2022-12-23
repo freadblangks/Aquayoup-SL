@@ -104,6 +104,16 @@ void WorldDatabaseConnection::DoPrepareStatements()
     PrepareStatement(WORLD_SEL_NEAREST_CREATURES, "SELECT guid, id, SQRT(POW(position_x - ?, 2) + POW(position_y - ?, 2) + POW(position_z - ?, 2)) AS distance FROM creature WHERE map = ? AND (POW(position_x - ?, 2) + POW(position_y - ?, 2) + POW(position_z - ?, 2)) <= ? ORDER BY distance DESC LIMIT ?", CONNECTION_SYNCH);
 
     PrepareStatement(WORLD_REP_CREATURE_ADDON_FULL, "REPLACE INTO creature_addon(guid, path_id, mount, bytes1, bytes2, emote, auras) VALUES (?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+
+    // Custom NPC Stuff
+    PrepareStatement(WORLD_REP_CREATURE_TEMPLATE, "REPLACE INTO creature_template (entry, name, subname, HealthScalingExpansion, RequiredExpansion, faction, unit_class, type, type_flags2, movementId, CreatureDifficultyID, minlevel, maxlevel) VALUES (?, ?, ?, 8, 0, 35, 1, 7, 2, 100, 204488, 60, 60)", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_REP_CREATURE_TEMPLATE_MODEL, "REPLACE INTO creature_template_model (CreatureId, CreatureDisplayId, DisplayScale, Probability) VALUES (?, ?, 1, 1)", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_REP_CREATURE_EQUIP_TEMPLATE, "REPLACE INTO creature_equip_template (CreatureId, ID, ItemID1, AppearanceModID1, ItemVisual1, ItemID2, AppearanceModID2, ItemVisual2, ItemID3, AppearanceModID3, ItemVisual3) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_REP_DRESSNPC_OUTFIT, "REPLACE INTO creature_template_outfits (entry, race, class, gender, customizations, head, shoulders, body, chest, waist, legs, feet, wrists, hands, tabard, back) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_DEL_CREATURE_TEMPLATE, "DELETE FROM creature_template WHERE entry = ?", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_DEL_CREATURE_TEMPLATE_MODEL, "DELETE FROM creature_template_model WHERE CreatureID = ?", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_DEL_CREATURE_EQUIP_TEMPLATE, "DELETE FROM creature_equip_template WHERE CreatureID = ?", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_DEL_DRESSNPC_OUTFIT, "DELETE FROM creature_template_outfits WHERE entry = ?", CONNECTION_ASYNC);
 }
 
 WorldDatabaseConnection::WorldDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)
