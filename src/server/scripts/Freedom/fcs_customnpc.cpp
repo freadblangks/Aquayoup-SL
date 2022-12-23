@@ -188,6 +188,12 @@ public:
             return false;
         }
 
+        if (displayName.empty()) {
+            handler->PSendSysMessage("You must provide a name after the key i.e. `.cnpc set name mynpc 7th Legion Infantry`");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
         sFreedomMgr->SetCustomNpcName(name, displayName.data());
         handler->PSendSysMessage("Name for NPC %s set to %s!", name, displayName.data());
         return true;
@@ -197,6 +203,12 @@ public:
     {
         if (!sFreedomMgr->CustomNpcNameExists(name)) {
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (subName.empty()) {
+            handler->PSendSysMessage("You must provide a subname after the key i.e. `.cnpc set subname mynpc 7th Legion`");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -231,21 +243,23 @@ public:
         EquipmentSlots slot;
         switch (item->GetInventoryType())
         {
-        case INVTYPE_HEAD:      slot = EQUIPMENT_SLOT_HEAD; break;
-        case INVTYPE_SHOULDERS: slot = EQUIPMENT_SLOT_SHOULDERS; break;
-        case INVTYPE_BODY:      slot = EQUIPMENT_SLOT_BODY; break;
-        case INVTYPE_CHEST:     slot = EQUIPMENT_SLOT_CHEST; break;
-        case INVTYPE_WAIST:     slot = EQUIPMENT_SLOT_WAIST; break;
-        case INVTYPE_LEGS:      slot = EQUIPMENT_SLOT_LEGS; break;
-        case INVTYPE_FEET:      slot = EQUIPMENT_SLOT_FEET; break;
-        case INVTYPE_WRISTS:    slot = EQUIPMENT_SLOT_WRISTS; break;
-        case INVTYPE_HANDS:     slot = EQUIPMENT_SLOT_HANDS; break;
-        case INVTYPE_TABARD:    slot = EQUIPMENT_SLOT_TABARD; break;
-        case INVTYPE_CLOAK:     slot = EQUIPMENT_SLOT_BACK; break;
-        default:
-            handler->SendSysMessage("This item is not a visibly equipped item.");
-            handler->SetSentErrorMessage(true);
-            return false;
+            case INVTYPE_HEAD:      slot = EQUIPMENT_SLOT_HEAD; break;
+            case INVTYPE_SHOULDERS: slot = EQUIPMENT_SLOT_SHOULDERS; break;
+            case INVTYPE_BODY:      slot = EQUIPMENT_SLOT_BODY; break;
+            case INVTYPE_CHEST:     slot = EQUIPMENT_SLOT_CHEST; break;
+            case INVTYPE_ROBE:      slot = EQUIPMENT_SLOT_CHEST; break;
+            case INVTYPE_WAIST:     slot = EQUIPMENT_SLOT_WAIST; break;
+            case INVTYPE_LEGS:      slot = EQUIPMENT_SLOT_LEGS; break;
+            case INVTYPE_FEET:      slot = EQUIPMENT_SLOT_FEET; break;
+            case INVTYPE_WRISTS:    slot = EQUIPMENT_SLOT_WRISTS; break;
+            case INVTYPE_HANDS:     slot = EQUIPMENT_SLOT_HANDS; break;
+            case INVTYPE_TABARD:    slot = EQUIPMENT_SLOT_TABARD; break;
+            case INVTYPE_CLOAK:     slot = EQUIPMENT_SLOT_BACK; break;
+            default:
+                handler->SendSysMessage("This item is not a visibly equipped item.");
+                handler->SetSentErrorMessage(true);
+                TC_LOG_DEBUG("freedom", "Could not recognize inventory slot '%u' as visible item.", item->GetInventoryType());
+                return false;
         }
 
         uint32 displayId = sDB2Manager.GetItemDisplayId(item->GetId(), modAppearanceId.value_or(0));
