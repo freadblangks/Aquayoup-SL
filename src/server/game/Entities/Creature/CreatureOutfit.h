@@ -4,8 +4,8 @@
 #include "Define.h"
 #include "Player.h" // EquipmentSlots
 #include "SharedDefines.h" // Gender
-#include <memory>
 #include "UpdateFields.h"
+#include <memory>
 
 class Creature;
 class WorldSession;
@@ -14,9 +14,7 @@ class TC_GAME_API CreatureOutfit
 {
 public:
     friend class ObjectMgr;
-
-    // Remember to change DB query too!
-    static constexpr uint32 max_custom_categories = 50;
+    friend class Roleplay;
 
     static constexpr uint32 invisible_model = 11686;
     static constexpr uint32 max_real_modelid = 0x30D40;
@@ -39,15 +37,19 @@ public:
 
     CreatureOutfit(uint8 race, Gender gender);
 
-    uint8 Class = 1;
     uint32 outfitdisplays[EQUIPMENT_SLOT_END] = { 0 };
     uint32 npcsoundsid = 0;
     uint64 guild = 0;
-    std::array<UF::ChrCustomizationChoice, max_custom_categories> Customizations;
+    int32 SpellVisualKitID = 0;
+    uint8 Class = 1;
+    std::vector<UF::ChrCustomizationChoice> Customizations;
+
     uint32 GetId() const { return id; }
     uint8 GetGender() const { return gender; }
     uint8 GetRace() const { return race; }
+    uint8 GetClass() const { return Class; }
     uint32 GetDisplayId() const { return displayId; }
+    const std::vector<UF::ChrCustomizationChoice>& GetCustomizations() const { return Customizations; }
 
     CreatureOutfit& SetItemEntry(EquipmentSlots slot, uint32 item_entry, uint32 appearancemodid = 0);
     CreatureOutfit& SetItemDisplay(EquipmentSlots slot, uint32 displayid)

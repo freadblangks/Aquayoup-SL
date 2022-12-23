@@ -108,6 +108,8 @@
 #include "WorldSocket.h"
 #include "WorldStateMgr.h"
 
+#include "Roleplay.h"
+
 #include <boost/algorithm/string.hpp>
 
 TC_GAME_API std::atomic<bool> World::m_stopEvent(false);
@@ -1853,6 +1855,9 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Initializing PlayerDump tables...");
     PlayerDump::InitializeTables();
+
+    TC_LOG_INFO("server.loading", "Loading Roleplay tables...");
+    sRoleplay->LoadAllTables();
 
     TC_LOG_INFO("server.loading", "Loading SpellInfo store...");
     sSpellMgr->LoadSpellInfoStore();

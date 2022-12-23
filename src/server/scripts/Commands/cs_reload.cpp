@@ -500,7 +500,7 @@ public:
         return true;
     }
 	
-	static bool HandleReloadCreatureTemplateOutfitsCommand(ChatHandler* handler, const char* /*args*/)
+    static bool HandleReloadCreatureTemplateOutfitsCommand(ChatHandler* handler, char const* /*args*/)
     {
         TC_LOG_INFO("misc", "Loading Creature Outfits... (`creature_template_outfits`)");
         sObjectMgr->LoadCreatureOutfits();

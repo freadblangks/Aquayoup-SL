@@ -1074,11 +1074,13 @@ enum QueryDataGroup
 };
 
 class PlayerDumpReader;
+class Roleplay;
 
 class TC_GAME_API ObjectMgr
 {
     friend class PlayerDumpReader;
     friend class UnitTestDataLoader;
+    friend class Roleplay;
 
     private:
         ObjectMgr();
@@ -1655,7 +1657,7 @@ class TC_GAME_API ObjectMgr
         bool AddGameTele(GameTele& data);
         bool DeleteGameTele(std::string_view name);
 
-		const CreatureOutfitContainer& GetCreatureOutfitMap() const { return _creatureOutfitStore; }
+        const CreatureOutfitContainer& GetCreatureOutfitMap() const { return _creatureOutfitStore; }
         std::shared_ptr<CreatureOutfit> const& GetOutfit(uint32 modelid) const;
         uint32 GetRealDisplayId(uint32 modelid) const;
         void LoadCreatureOutfits();

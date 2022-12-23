@@ -43,6 +43,7 @@
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "PoolMgr.h"
+#include "RolePlay.h"
 #include "QueryPackets.h"
 #include "ScriptedGossip.h"
 #include "Spell.h"
@@ -736,7 +737,7 @@ static uint32 GetUpdateFieldHolderIndex(UF::UpdateField<T, BlockBit, Bit>(Derive
 
 void Creature::Update(uint32 diff)
 {
-	if (m_outfit && !m_values.HasChanged(GetUpdateFieldHolderIndex(&UF::UnitData::DisplayID)) && Unit::GetDisplayId() == CreatureOutfit::invisible_model)
+    if (m_outfit && !m_values.HasChanged(GetUpdateFieldHolderIndex(&UF::UnitData::DisplayID)) && Unit::GetDisplayId() == CreatureOutfit::invisible_model)
     {
         // has outfit, displayid is invisible and displayid update already sent to clients
         // set outfit display
@@ -1103,6 +1104,8 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
     ASSERT(map);
     SetMap(map);
 
+    auto extraData = sRoleplay->GetCreatureExtraData(GetSpawnId());
+
     if (data)
     {
         PhasingHandler::InitDbPhaseShift(GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
@@ -1174,6 +1177,19 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
     m_positionZ += GetHoverOffset();
 
     LastUsedScriptID = GetScriptId();
+
+    if (extraData && extraData->displayLock)
+    {
+        SetDisplayId(extraData->displayId);
+        SetNativeDisplayId(extraData->nativeDisplayId);
+    }
+
+    if (extraData && extraData->genderLock)
+    {
+        // TODO Determine if this is neccesary because ObjectMgr GetCreatureModelRandomGender just seems to set a new display id.
+        // Might already be covered by setting the displayId.
+        // SetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER, extraData->gender);
+    }
 
     if (IsSpiritHealer() || IsSpiritGuide() || (GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_GHOST_VISIBILITY))
     {
@@ -2026,6 +2042,11 @@ bool Creature::hasInvolvedQuest(uint32 quest_id) const
 
     WorldDatabase.CommitTransaction(trans);
 
+    RoleplayDatabasePreparedStatement* fstmt = RoleplayDatabase.GetPreparedStatement(Roleplay_DEL_CREATUREEXTRA);
+    fstmt->setUInt64(0, spawnId);
+
+    RoleplayDatabase.Execute(fstmt);
+
     return true;
 }
 
@@ -2869,7 +2890,29 @@ void Creature::UpdateMovementFlags()
     if (!isInAir)
         RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING);
 
-    SetSwim(CanSwim() && IsInWater());
+    // override
+    auto extraData = sRoleplay->GetCreatureExtraData(this->GetSpawnId());
+    if (extraData)
+    {
+        SetDisableGravity(!extraData->gravity);
+
+        if (extraData->swim)
+        {
+            if (!HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING))
+                AddUnitMovementFlag(MOVEMENTFLAG_SWIMMING);
+            else
+                RemoveUnitMovementFlag(MOVEMENTFLAG_SWIMMING);
+
+            if (extraData->gravity)
+                SetSwim(IsInWater() && extraData->swim);
+            else if (extraData->fly)
+                SetSwim(true);
+        }
+        else
+        {
+            SetSwim(CanSwim() && IsInWater());
+        }
+    }
 }
 
 CreatureMovementData const& Creature::GetMovementTemplate() const
@@ -3620,4 +3663,8 @@ void Creature::ExitVehicle(Position const* /*exitPosition*/)
     // if the creature exits a vehicle, set it's home position to the
     // exited position so it won't run away (home) and evade if it's hostile
     SetHomePosition(GetPosition());
+}
+
+void Creature::SetGuid(ObjectGuid const& guid) {
+    Object::_Create(guid);
 }

@@ -2836,6 +2836,7 @@ struct CreatureDisplayInfoStore
 {
     bool HasRecord(uint32 id) const;
     const CreatureDisplayInfoEntry* LookupEntry(uint32 id) const;
+    const CreatureDisplayInfoEntry* AssertEntry(uint32 id) const;
 };
 
 struct NumTalentsAtLevelEntry

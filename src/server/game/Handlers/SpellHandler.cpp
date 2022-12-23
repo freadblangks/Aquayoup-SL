@@ -585,7 +585,7 @@ void WorldSession::HandleMirrorImageDataRequest(WorldPackets::Spells::GetMirrorI
     if (!unit)
         return;
 
-	if (Creature* creature = unit->ToCreature())
+    if (Creature* creature = unit->ToCreature())
     {
         if (std::shared_ptr<CreatureOutfit> const& outfit_ptr = creature->GetOutfit())
         {
@@ -595,10 +595,9 @@ void WorldSession::HandleMirrorImageDataRequest(WorldPackets::Spells::GetMirrorI
             mirrorImageComponentedData.DisplayID = outfit.GetDisplayId();
             mirrorImageComponentedData.RaceID = outfit.GetRace();
             mirrorImageComponentedData.Gender = outfit.GetGender();
-            mirrorImageComponentedData.ClassID = outfit.Class;
-
-            mirrorImageComponentedData.Customizations.resize(outfit.Customizations.size());
-            std::copy(outfit.Customizations.begin(), outfit.Customizations.end(), mirrorImageComponentedData.Customizations.begin());
+            mirrorImageComponentedData.ClassID = outfit.GetClass();
+            mirrorImageComponentedData.SpellVisualKitID = outfit.SpellVisualKitID;
+            mirrorImageComponentedData.Customizations = outfit.GetCustomizations();
 
             mirrorImageComponentedData.GuildGUID = ObjectGuid::Empty;
             if (outfit.guild)
