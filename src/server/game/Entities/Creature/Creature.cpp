@@ -338,6 +338,10 @@ void Creature::AddToWorld()
 
         if (GetZoneScript())
             GetZoneScript()->OnCreatureCreate(this);
+
+        if (BattlegroundMap* bgMap = GetMap()->ToBattlegroundMap())
+            if (Battleground* bg = bgMap->GetBG())
+                bg->OnCreatureCreate(this);
     }
 }
 
@@ -347,6 +351,10 @@ void Creature::RemoveFromWorld()
     {
         if (GetZoneScript())
             GetZoneScript()->OnCreatureRemove(this);
+
+        if (BattlegroundMap* bgMap = GetMap()->ToBattlegroundMap())
+            if (Battleground* bg = bgMap->GetBG())
+                bg->OnCreatureRemove(this);
 
         if (m_formation)
             sFormationMgr->RemoveCreatureFromGroup(m_formation, this);
