@@ -188,7 +188,6 @@ public:
         Player* source = handler->GetSession()->GetPlayer();
         float x, y, z, o;
         source->GetPosition(x, y, z, o);
-        Map* map = source->GetMap();
 
         if (auto extraData = sFreedomMgr->GetGameObjectTemplateExtraData(objectId))
         {
@@ -708,7 +707,6 @@ public:
         //auto phaseList = object->GetPhases();  TO UPDATE
         float ox, oy, oz, oo;
         object->GetPosition(ox, oy, oz, oo);
-        uint32 mapId = object->GetMapId();
         float distance = std::sqrt(std::pow(ox - px, 2) + std::pow(oy - py, 2) + std::pow(oz - pz, 2));
         float scale = object->GetObjectScale();
         GOState state = object->GetGoState();
