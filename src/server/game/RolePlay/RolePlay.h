@@ -19,7 +19,6 @@ typedef std::unordered_map<ObjectGuid::LowType, PlayerExtraData> PlayerExtraData
 struct CustomNpcData
 {
     std::string key;
-    uint32 outfitId;
     uint32 templateId;
     std::vector<ObjectGuid::LowType> spawns;
 };
@@ -88,7 +87,6 @@ public:
     void CreatureSetModifyHistory(Creature* creature, Player* modifier);
     void CreatureMove(Creature* creature, float x, float y, float z, float o);
     void CreatureTurn(Creature* creature, float o);
-    void CreatureScale(Creature* creature, float scale);
     void CreatureDelete(Creature* creature);
     void CreatureSetEmote(Creature* creature, uint32 emoteId);
     void CreatureSetMount(Creature* creature, uint32 mountId);
@@ -120,19 +118,20 @@ public:
     // Custom NPCs
     CustomNpcDataContainer GetCustomNpcContainer() { return _customNpcStore; }
     bool CustomNpcNameExists(std::string const& key) { return _customNpcStore.count(key) > 0; }
-    uint32 GetOutfitIdForNpc(std::string const& key) { return _customNpcStore[key].outfitId; }
     uint32 GetEntryIdForNpc(std::string const& key) { return _customNpcStore[key].templateId; }
+    uint8 GetModelVariationCountForNpc(std::string const& key);
+    uint8 GetEquipmentVariationCountForNpc(std::string const& key);
     void LoadCustomNpcs();
     void CreateCustomNpcFromPlayer(Player* player, std::string const& key);
-    void SetCustomNpcOutfitEquipmentSlot(std::string const& key, EquipmentSlots slot, int32 displayId);
-    void SetCustomNpcOutfitRace(std::string const& key, Races race);
-    void SetCustomNpcOutfitGender(std::string const& key, Gender gender);
-    void SetCustomNpcLeftHand(std::string const& key, int32 itemId, int32 appearanceModId);
-    void SetCustomNpcRightHand(std::string const& key, int32 itemId, int32 appearanceModId);
-    void SetCustomNpcRanged(std::string const& key, int32 itemId, int32 appearanceModId);
+    void SetCustomNpcOutfitEquipmentSlot(std::string const& key, uint8 variationId, EquipmentSlots slot, int32 displayId);
+    void SetCustomNpcOutfitRace(std::string const& key, uint8 variationId, Races race);
+    void SetCustomNpcOutfitGender(std::string const& key, uint8 variationId, Gender gender);
+    void SetCustomNpcLeftHand(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId);
+    void SetCustomNpcRightHand(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId);
+    void SetCustomNpcRanged(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId);
     void SetCustomNpcName(std::string const& key, std::string const& displayName);
     void SetCustomNpcSubName(std::string const& key, std::string const& subName);
-    void SetCustomNpcCustomizations(std::string const& key, Player* player);
+    void SetCustomNpcCustomizations(std::string const& key, uint8 variationId, Player* player);
     void LoadCustomNpcSpawn(uint32 templateId, ObjectGuid::LowType spawn);
     void DeleteCustomNpc(std::string const& key);
 
@@ -143,11 +142,13 @@ protected:
     CustomNpcDataContainer _customNpcStore;
 
 private:
-    void SaveNpcOutfitToDb(uint32 outfitId);
+    void SaveNpcOutfitToDb(uint32 templateId, uint8 variationId);
     void SaveCustomNpcDataToDb(CustomNpcData outfitData);
     void SaveNpcCreatureTemplateToDb(CreatureTemplate cTemplate);
-    void SaveNpcEquipmentInfoToDb(uint32 templateId, EquipmentInfo equipInfo);
+    void SaveNpcEquipmentInfoToDb(uint32 templateId, uint8 variationId);
     void ReloadSpawnedCustomNpcs(std::string const& key);
+    void EnsureNpcOutfitExists(uint32 templateId, uint8 variationId);
+    void EnsureEquipmentInfoExists(uint32 templateId, uint8 variationId);
 };
 
 #define sRoleplay Roleplay::instance()

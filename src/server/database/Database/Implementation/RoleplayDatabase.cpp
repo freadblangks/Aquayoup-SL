@@ -36,7 +36,7 @@ void RoleplayDatabaseConnection::DoPrepareStatements()
 
     // REPLACES
     PrepareStatement(Roleplay_REP_CREATUREEXTRA, "REPLACE INTO creature_extra (guid, scale, id_creator_bnet, id_creator_player, id_modifier_bnet, id_modifier_player, created, modified, phaseMask, displayLock, displayId, nativeDisplayId, genderLock, gender, swim, gravity, fly) VALUES (?, ?, ?, ?, ?, ?, from_unixtime(?), from_unixtime(?), ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
-    PrepareStatement(Roleplay_REP_CUSTOMNPCDATA, "REPLACE INTO custom_npcs (`Key`, Entry, OutfitId) VALUES (?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(Roleplay_REP_CUSTOMNPCDATA, "REPLACE INTO custom_npcs (`Key`, Entry) VALUES (?, ?)", CONNECTION_ASYNC);
 }
 
 RoleplayDatabaseConnection::RoleplayDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)
