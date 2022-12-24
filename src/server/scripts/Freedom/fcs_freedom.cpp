@@ -1028,7 +1028,7 @@ public:
     {
         Player* player = handler->GetSession()->GetPlayer();
 
-        if (player-> GetRace() != RACE_PANDAREN_NEUTRAL)
+        if (player->GetRace() != RACE_PANDAREN_NEUTRAL)
         {
             handler->PSendSysMessage(FREEDOM_CMDE_FREEDOM_PANDA_NOT_NEUTRAL);
             return true;
@@ -1047,7 +1047,7 @@ public:
     {
         Player* player = handler->GetSession()->GetPlayer();
 
-        if (player-> GetRace() != RACE_PANDAREN_NEUTRAL)
+        if (player->GetRace() != RACE_PANDAREN_NEUTRAL)
         {
             handler->PSendSysMessage(FREEDOM_CMDE_FREEDOM_PANDA_NOT_NEUTRAL);
             return true;
@@ -1075,7 +1075,7 @@ public:
 
         ArgumentTokenizer tokenizer(*args ? args : "");
         std::string namePart = tokenizer.GetUntokenizedString();
-        Gender gender = (Gender)source-> GetGender();
+        Gender gender = (Gender)source->GetGender();
         uint32 count = 0;
 
         for (auto titleEntry : sCharTitlesStore)
@@ -1209,7 +1209,7 @@ public:
         uint8 level = (target->GetLevel() < (source->GetLevel() - 5)) ? (source->GetLevel() - 5) : target->GetLevel();
 
         // prepare visual effect for levelup
-        pet->SetLevel(level -1);
+        pet->SetLevel(level - 1);
 
         // add to world
         pet->GetMap()->AddToMap(pet->ToCreature());
@@ -1369,12 +1369,20 @@ public:
         return true;
     }
 
-    static bool HandleFreedomUnAuraCommand(ChatHandler* handler)
+    static bool HandleFreedomUnAuraCommand(ChatHandler* handler, Optional<uint32> auraId)
     {
         Player* source = handler->GetSession()->GetPlayer();
-        sFreedomMgr->RemoveHoverFromPlayer(source); // unaura removes hover animation, so proceed to remove entire hover mechanic
-        source->RemoveAllAuras();
-        handler->PSendSysMessage(FREEDOM_CMDI_UNAURA);
+
+        if (!auraId.has_value()) {
+
+            sFreedomMgr->RemoveHoverFromPlayer(source); // unaura removes hover animation, so proceed to remove entire hover mechanic
+            source->RemoveAllAuras();
+            handler->PSendSysMessage(FREEDOM_CMDI_UNAURA);
+            return true;
+        }
+
+        source->RemoveAura(auraId.value());
+        handler->PSendSysMessage("Aura %u has been removed from you.", auraId.value());
         return true;
     }
 
@@ -1472,7 +1480,7 @@ public:
             //float currentScale = fields[0].GetFloat();
             //handler->PSendSysMessage(FREEDOM_CMDI_SCALE_CHANGE, currentScale, scale);
 
-            Player *chr = handler->GetSession()->GetPlayer();
+            Player* chr = handler->GetSession()->GetPlayer();
             handler->PSendSysMessage(FREEDOM_CMDI_SCALE, scale);
             chr->SetObjectScale(scale);
 
@@ -1482,7 +1490,7 @@ public:
 
         else
         {
-            Player *chr = handler->GetSession()->GetPlayer();
+            Player* chr = handler->GetSession()->GetPlayer();
 
             handler->PSendSysMessage(FREEDOM_CMDI_SCALE, scale);
             chr->SetObjectScale(scale);
@@ -1926,7 +1934,7 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        uint32 phaseNumber = (uint32) atoul((char*)args);
+        uint32 phaseNumber = (uint32)atoul((char*)args);
         Player* source = handler->GetSession()->GetPlayer();
         sFreedomMgr->PlayerPhase(source, phaseNumber);
         char msg[80];
