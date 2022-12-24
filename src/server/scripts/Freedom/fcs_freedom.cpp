@@ -161,7 +161,8 @@ public:
             { "gameaccount",    rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomGameAccountCreateCommand,  "" },
             { "accountaccess",  rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomAccountAccessCommand,      "" },
             { "changeaccount",  rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomChangeAccountCommand,      "" },
-            { "phase",          rbac::RBAC_FPERM_COMMAND_PHASE,                     false, NULL,                                    "", freedomPhaseCommandTable }
+            { "phase",          rbac::RBAC_FPERM_COMMAND_PHASE,                     false, NULL,                                    "", freedomPhaseCommandTable },
+            { "enchant",        rbac::RBAC_FPERM_COMMAND_FREEDOM_ENCHANT,           false, &HandleFreedomEnchantCommand,            "" },
         };
 
         static std::vector<ChatCommand> commandTable =
@@ -1969,6 +1970,24 @@ public:
         Player* source = handler->GetSession()->GetPlayer();
         sFreedomMgr->ClearPlayerPhase(source);
         handler->SendSysMessage("Your phases have been reset to default.");
+        return true;
+    }
+
+    static bool HandleFreedomEnchantCommand(ChatHandler* handler, uint32 enchantId) {
+        Player* source = handler->GetSession()->GetPlayer();
+
+        SpellItemEnchantmentEntry const* enchantEntry = sSpellItemEnchantmentStore.LookupEntry(enchantId);
+        if (!enchantEntry) {
+            handler->PSendSysMessage("Could not find an enchantment for id: %u", enchantId);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        Item* mainHandItem = source->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
+        mainHandItem->SetEnchantment(PERM_ENCHANTMENT_SLOT, enchantId, 0, 0);
+        source->ApplyEnchantment(mainHandItem, PERM_ENCHANTMENT_SLOT, true);
+
+        handler->PSendSysMessage("Applied enchant id '%u' to your main hand weapon.", enchantId);
         return true;
     }
 #pragma endregion
