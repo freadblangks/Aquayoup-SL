@@ -20,11 +20,8 @@
 
 #include "GridNotifiers.h"
 #include "Corpse.h"
-#include "CreatureAI.h"
 #include "Player.h"
-#include "SpellAuras.h"
 #include "UpdateData.h"
-#include "WorldPacket.h"
 #include "WorldSession.h"
 
 template<class T>
@@ -732,6 +729,16 @@ void Trinity::CreatureSearcher<Check>::Visit(CreatureMapType &m)
             i_object = itr->GetSource();
             return;
         }
+    }
+}
+
+template<class Check>
+void Trinity::CreatureWithoutPhaseLastSearcher<Check>::Visit(CreatureMapType &m)
+{
+    for (CreatureMapType::iterator itr = m.begin(); itr != m.end(); ++itr)
+    {
+        if (i_check(itr->GetSource()))
+            i_object = itr->GetSource();
     }
 }
 

@@ -19,6 +19,8 @@
 #define TRINITY_OBJECTDEFINES_H
 
 #include "Define.h"
+#include "ObjectGuid.h"
+#include "Optional.h"
 
 #define CONTACT_DISTANCE                0.5f
 #define INTERACTION_DISTANCE            5.0f
@@ -41,6 +43,8 @@
 #define MIN_MELEE_REACH                     2.0f
 #define NOMINAL_MELEE_RANGE                 5.0f
 #define MELEE_RANGE                         (NOMINAL_MELEE_RANGE - MIN_MELEE_REACH * 2) //center to center for players
+
+#define EXTRA_CELL_SEARCH_RADIUS            40.0f // We need in some cases increase search radius. Allow to find creatures with huge combat reach in a different nearby cell.
 
 enum class VisibilityDistanceType : uint8
 {
@@ -66,12 +70,6 @@ enum TempSummonType
     TEMPSUMMON_MANUAL_DESPAWN              = 8              // despawns when UnSummon() is called
 };
 
-enum PhaseMasks
-{
-    PHASEMASK_NORMAL   = 0x00000001,
-    PHASEMASK_ANYWHERE = 0xFFFFFFFF
-};
-
 enum NotifyFlags
 {
     NOTIFY_NONE                     = 0x00,
@@ -84,6 +82,46 @@ enum GOSummonType
 {
    GO_SUMMON_TIMED_OR_CORPSE_DESPAWN = 0,    // despawns after a specified time OR when the summoner dies
    GO_SUMMON_TIMED_DESPAWN = 1     // despawns after a specified time
+};
+
+struct TC_GAME_API FindCreatureExtraArgs
+{
+    FindCreatureExtraArgs() = default;
+
+    FindCreatureExtraArgs& SetIsAlive(bool isAlive) { IsAlive = isAlive; return *this; }
+    FindCreatureExtraArgs& SetIsInPhase(bool isInPhase) { IsInPhase = isInPhase; return *this; }
+    FindCreatureExtraArgs& SetIgnoreNotOwnedPrivateObjects(bool ignoreNotOwnedPrivateObjects) { IgnoreNotOwnedPrivateObjects = ignoreNotOwnedPrivateObjects; return *this; }
+    FindCreatureExtraArgs& SetIgnorePrivateObjects(bool ignorePrivateObjects) { IgnorePrivateObjects = ignorePrivateObjects; return *this; }
+    FindCreatureExtraArgs& SetIsInCombat(bool isInCombat) { IsInCombat = isInCombat; return *this; }
+    FindCreatureExtraArgs& SetHasAura(uint32 spellId) { AuraSpellId = spellId; return *this; }
+    FindCreatureExtraArgs& SetIsSummon(bool isSummon) { IsSummon = isSummon; return *this; }
+
+    FindCreatureExtraArgs& SetOwner(ObjectGuid ownerGuid) { OwnerGuid = ownerGuid; return *this; }
+    FindCreatureExtraArgs& SetCharmer(ObjectGuid charmerGuid) { CharmerGuid = charmerGuid; return *this; }
+    FindCreatureExtraArgs& SetCreator(ObjectGuid creatorGuid) { CreatorGuid = creatorGuid; return *this; }
+    FindCreatureExtraArgs& SetDemonCreator(ObjectGuid demonCreatorGuid) { DemonCreatorGuid = demonCreatorGuid; return *this; }
+    FindCreatureExtraArgs& SetPrivateObjectOwner(ObjectGuid privateObjectOwnerGuid) { PrivateObjectOwnerGuid = privateObjectOwnerGuid; return *this; }
+
+    Optional<bool> IsAlive;
+    Optional<bool> IsInPhase;
+    Optional<bool> IsInCombat;
+    Optional<bool> IsSummon;
+
+    Optional<bool> IgnoreNotOwnedPrivateObjects;
+    Optional<bool> IgnorePrivateObjects;
+
+    Optional<uint32> AuraSpellId;
+    Optional<ObjectGuid> OwnerGuid;
+    Optional<ObjectGuid> CharmerGuid;
+    Optional<ObjectGuid> CreatorGuid;
+    Optional<ObjectGuid> DemonCreatorGuid;
+    Optional<ObjectGuid> PrivateObjectOwnerGuid;
+
+    FindCreatureExtraArgs(FindCreatureExtraArgs const&) = delete;
+    FindCreatureExtraArgs(FindCreatureExtraArgs&&) = delete;
+
+    FindCreatureExtraArgs& operator=(FindCreatureExtraArgs const&) = delete;
+    FindCreatureExtraArgs& operator=(FindCreatureExtraArgs&&) = delete;
 };
 
 inline uint64 MAKE_PAIR64(uint32 l, uint32 h)

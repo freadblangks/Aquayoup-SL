@@ -24,6 +24,7 @@
 
 class Creature;
 class Unit;
+struct WaypointNode;
 struct WaypointPath;
 
 template<class T>
@@ -35,6 +36,7 @@ class WaypointMovementGenerator<Creature> : public MovementGeneratorMedium<Creat
     public:
         explicit WaypointMovementGenerator(uint32 pathId = 0, bool repeating = true);
         explicit WaypointMovementGenerator(WaypointPath& path, bool repeating = true);
+
         ~WaypointMovementGenerator() { _path = nullptr; }
 
         MovementGeneratorType GetMovementGeneratorType() const override;
@@ -50,27 +52,24 @@ class WaypointMovementGenerator<Creature> : public MovementGeneratorMedium<Creat
         void DoDeactivate(Creature*);
         void DoFinalize(Creature*, bool, bool);
 
-    private:
-        void MovementInform(Creature*);
-        void OnArrived(Creature*);
-        void StartMove(Creature*, bool relaunch = false);
-        bool ComputeNextNode();
-        bool UpdateTimer(uint32 diff)
-        {
-            _nextMoveTime.Update(diff);
-            if (_nextMoveTime.Passed())
-            {
-                _nextMoveTime.Reset(0);
-                return true;
-            }
-            return false;
-        }
-        static bool CanMove(Creature*);
+        std::string GetDebugInfo() const override;
 
-        TimeTrackerSmall _nextMoveTime;
+    private:
+        void ProcessWaypointArrival(Creature*, WaypointNode const&);
+        void StartMove(Creature*, bool relaunch = false);
+        bool IsAllowedToMove(Creature*);
+
+        uint32 _lastSplineId;
         uint32 _pathId;
+        int32 _waypointDelay;
+        int32 _pauseTime;
+        bool _waypointReached;
+        bool _recalculateSpeed;
         bool _repeating;
         bool _loadedFromDB;
+        bool _stalled;
+        bool _hasBeenStalled;
+        bool _done;
 };
 
 #endif
