@@ -933,16 +933,16 @@ GameObject* FreedomMgr::GameObjectRefresh(GameObject* go)
 
 void FreedomMgr::GameObjectMove(GameObject* go, float x, float y, float z, float o)
 {
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: GameObjectMove to x:'%f', y:'%f', z: '%f', o: '%f'", x, y, z, o);
     go->Relocate(x, y, z, o);
 
     if (GameObjectUsesQuatRotation(go))
     {
-        auto extraData = &_gameObjectExtraStore[go->GetSpawnId()];
-
+        auto extraData = _gameObjectExtraStore[go->GetSpawnId()];
         // Preserve roll and pitch, use new orientation (z angle) for yaw
-        extraData->yaw = o;
-        // TODO: check if localRotationAngles works same as worldRotationAngles previously
-        go->SetLocalRotationAngles(extraData->yaw, extraData->pitch, extraData->roll);
+        extraData.yaw = o;
+        go->SetLocalRotationAngles(extraData.yaw, extraData.pitch, extraData.roll);
+        _gameObjectExtraStore[go->GetSpawnId()] = extraData;
     }
     else
     {
@@ -991,6 +991,8 @@ void FreedomMgr::GameObjectRotate(GameObject* go, float deg_x, float deg_y, floa
         extraData->yaw = rad_z;
     }
 
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: GameObjectRotate to '%f'", extraData ->yaw);
+
     go->Relocate(go->GetPositionX(), go->GetPositionY(), go->GetPositionZ(), extraData->yaw);
     // TODO Check if localrotationangle works same as WorldRotationAngles previously
     go->SetLocalRotationAngles(extraData->yaw, extraData->pitch, extraData->roll);
@@ -1023,9 +1025,9 @@ void FreedomMgr::GameObjectRotateSingleAxis(GameObject* go, float deg, RotationA
         extraData->yaw = (addDeg ? (extraData->yaw + rad) : rad);
         break;
     }
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: GameObjectRotateSingleAxis to '%f'", extraData->yaw);
 
     go->Relocate(go->GetPositionX(), go->GetPositionY(), go->GetPositionZ(), extraData->yaw);
-    // TODO Check if localrotationangle works same as WorldRotationAngles previously
     go->SetLocalRotationAngles(extraData->yaw, extraData->pitch, extraData->roll);
 }
 

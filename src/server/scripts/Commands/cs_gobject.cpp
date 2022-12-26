@@ -15,12 +15,12 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* ScriptData
-Name: gobject_commandscript
-%Complete: 100
-Comment: All gobject related commands
-Category: commandscripts
-EndScriptData */
+ /* ScriptData
+ Name: gobject_commandscript
+ %Complete: 100
+ Comment: All gobject related commands
+ Category: commandscripts
+ EndScriptData */
 
 #include "ScriptMgr.h"
 #include "CharacterCache.h"
@@ -93,7 +93,8 @@ public:
             { "axial",          HandleGameObjectAxialCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_AXIAL,         Console::No},
             { "roll",           HandleGameObjectRollCommand,      rbac::RBAC_FPERM_COMMAND_GOBJECT_ROLL,          Console::No},
             { "pitch",          HandleGameObjectPitchCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_PITCH,         Console::No},
-            { "yaw",            HandleGameObjectYawCommand,       rbac::RBAC_FPERM_COMMAND_GOBJECT_YAW,           Console::No}
+            { "yaw",            HandleGameObjectYawCommand,       rbac::RBAC_FPERM_COMMAND_GOBJECT_YAW,           Console::No},
+            { "clone",          HandleGameObjectCloneCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_CLONE,         Console::No},
         };
         static ChatCommandTable commandTable =
         {
@@ -272,7 +273,7 @@ public:
             {
                 if (initString)
                 {
-                    eventFilter  <<  "OR eventEntry IN (" << *itr;
+                    eventFilter << "OR eventEntry IN (" << *itr;
                     initString = false;
                 }
                 else
@@ -307,16 +308,16 @@ public:
         do
         {
             Field* fields = result->Fetch();
-            guidLow =       fields[0].GetUInt64();
-            id =            fields[1].GetUInt32();
-            x =             fields[2].GetFloat();
-            y =             fields[3].GetFloat();
-            z =             fields[4].GetFloat();
-            o =             fields[5].GetFloat();
-            mapId =         fields[6].GetUInt16();
-            phaseId =       fields[7].GetUInt32();
-            phaseGroup =    fields[8].GetUInt32();
-            poolId =  sPoolMgr->IsPartOfAPool<GameObject>(guidLow);
+            guidLow = fields[0].GetUInt64();
+            id = fields[1].GetUInt32();
+            x = fields[2].GetFloat();
+            y = fields[3].GetFloat();
+            z = fields[4].GetFloat();
+            o = fields[5].GetFloat();
+            mapId = fields[6].GetUInt16();
+            phaseId = fields[7].GetUInt32();
+            phaseGroup = fields[8].GetUInt32();
+            poolId = sPoolMgr->IsPartOfAPool<GameObject>(guidLow);
             if (!poolId || sPoolMgr->IsSpawnedObject<GameObject>(player->GetMap()->GetPoolData(), guidLow))
                 found = true;
         } while (result->NextRow() && !found);
@@ -350,6 +351,7 @@ public:
 
             handler->PSendSysMessage(LANG_COMMAND_RAWPAWNTIMES, defRespawnDelayStr.c_str(), curRespawnDelayStr.c_str());
         }
+        sFreedomMgr->SetGameobjectSelectionForPlayer(player->GetGUID().GetCounter(), guidLow);
         return true;
     }
 
@@ -443,8 +445,9 @@ public:
         if (tokenizer.ModifierExists("-adeg"))
         {
             std::string addDeg = tokenizer.GetModifierValue("-adeg", 0);
-            o = ((float)atof(addDeg.c_str())) * M_PI / 180.0f + object->GetOrientation();
+            o = ((float)atof(addDeg.c_str())) * M_PI / 180.0f +object->GetOrientation();
         }
+
 
         if (tokenizer.ModifierExists("-sdeg"))
         {
@@ -522,19 +525,23 @@ public:
         }
 
         float x, y, z;
-        if (tokenizer.empty())
+        Player* player = handler->GetSession()->GetPlayer();
+        player->GetPosition(x, y, z);
+        if (!tokenizer.empty())
         {
-            Player* player = handler->GetSession()->GetPlayer();
-            player->GetPosition(x, y, z);
-        }
-        else
-        {
+            object->GetPosition(x, y, z);
             float add_x = tokenizer.TryGetParam<float>(0);
             float add_y = tokenizer.TryGetParam<float>(1);
             float add_z = tokenizer.TryGetParam<float>(2);
-            // rotation matrix
-            x = add_x*cos(o) - add_y*sin(o) + object->GetPositionX();
-            y = add_x*sin(o) + add_y*cos(o) + object->GetPositionY();
+
+            // Move by translation
+            //x += add_x;
+            //y += add_y;
+            //z += add_z;
+
+            // Move by rotation matrix
+            x = add_x * cos(o) - add_y * sin(o) + object->GetPositionX();
+            y = add_x * sin(o) + add_y * cos(o) + object->GetPositionY();
             z = add_z + object->GetPositionZ();
 
             if (!MapManager::IsValidMapCoord(object->GetMapId(), x, y, z))
@@ -602,7 +609,7 @@ public:
         stmt->setUInt32(8, maxResults);
         PreparedQueryResult result = WorldDatabase.Query(stmt);
 
-      if (result)
+        if (result)
         {
             do
             {
@@ -633,7 +640,7 @@ public:
     }
 
     //show info of gameobject
-    static bool HandleGameObjectInfoCommand(ChatHandler* handler,char const* args)
+    static bool HandleGameObjectInfoCommand(ChatHandler* handler, char const* args)
     {
         Player* source = handler->GetSession()->GetPlayer();
         ObjectGuid::LowType guidLow = sFreedomMgr->GetSelectedGameobjectGuidFromPlayer(source->GetGUID().GetCounter());
@@ -891,30 +898,30 @@ public:
 
         switch (objectType)
         {
-            case 0:
-                object->SetGoState(GOState(objectState));
-                break;
-            case 1:
-                object->SetGoType(GameobjectTypes(objectState));
-                break;
-            case 2:
-                object->SetGoArtKit(objectState);
-                break;
-            case 3:
-                object->SetGoAnimProgress(objectState);
-                break;
-            case 4:
-                object->SendCustomAnim(objectState);
-                break;
-            case 5:
-                // removed from original legion code
-                // if (objectState > GO_DESTRUCTIBLE_REBUILDING)
-                //     return false;
+        case 0:
+            object->SetGoState(GOState(objectState));
+            break;
+        case 1:
+            object->SetGoType(GameobjectTypes(objectState));
+            break;
+        case 2:
+            object->SetGoArtKit(objectState);
+            break;
+        case 3:
+            object->SetGoAnimProgress(objectState);
+            break;
+        case 4:
+            object->SendCustomAnim(objectState);
+            break;
+        case 5:
+            // removed from original legion code
+            // if (objectState > GO_DESTRUCTIBLE_REBUILDING)
+            //     return false;
 
-                // object->SetDestructibleState(GameObjectDestructibleState(objectState));
-                break;
-            default:
-                break;
+            // object->SetDestructibleState(GameObjectDestructibleState(objectState));
+            break;
+        default:
+            break;
         }
 
         handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_SET_STATE, objectType, objectState);
@@ -1055,7 +1062,7 @@ public:
 
         if (result)
         {
-            Field * fields = result->Fetch();
+            Field* fields = result->Fetch();
 
             uint64 guidLow = fields[0].GetUInt64();
             uint32 entryId = fields[1].GetUInt32();
@@ -1380,6 +1387,52 @@ public:
         float deg_roll, deg_pitch, deg_yaw;
         sFreedomMgr->GetGameObjectEulerAnglesDeg(object, deg_roll, deg_pitch, deg_yaw);
         handler->PSendSysMessage(FREEDOM_CMDI_GOBJECT_YAW, deg_yaw);
+        return true;
+    }
+
+    static bool HandleGameObjectCloneCommand(ChatHandler* handler) {
+
+        Player* source = handler->GetSession()->GetPlayer();
+        ObjectGuid::LowType guidLow = sFreedomMgr->GetSelectedGameobjectGuidFromPlayer(source->GetGUID().GetCounter());
+
+        if (!guidLow)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_NOT_FOUND);
+            return true;
+        }
+
+        GameObject* object = NULL;
+        GameObjectData const* goData = NULL;
+        // Get by DB guid
+        if (goData = sObjectMgr->GetGameObjectData(guidLow))
+            object = sFreedomMgr->GetAnyGameObject(source->GetMap(), guidLow, goData->id);
+
+        if (auto extraData = sFreedomMgr->GetGameObjectTemplateExtraData(object->GetEntry()))
+        {
+            if (extraData->disabled)
+            {
+                handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_IS_BLACKLISTED);
+                return true;
+            }
+        }
+
+        const GameObjectTemplate* objectInfo = sObjectMgr->GetGameObjectTemplate(object->GetEntry());
+
+        float x, y, z, o;
+        object->GetPosition(x, y, z, o);
+
+        GameObject* clone = sFreedomMgr->GameObjectCreate(source, objectInfo, 0);
+        if (!clone)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_SPAWN_FAIL, object->GetEntry());
+            return true;
+        }
+
+        handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_SPAWN,
+            sFreedomMgr->ToChatLink("Hgameobject", clone->GetSpawnId(), objectInfo->name),
+            clone->GetSpawnId(),
+            objectInfo->entry, x, y, z);
+        sFreedomMgr->SetGameobjectSelectionForPlayer(source->GetGUID().GetCounter(), clone->GetSpawnId());
         return true;
     }
 };

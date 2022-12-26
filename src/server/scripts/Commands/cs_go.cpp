@@ -53,6 +53,7 @@ public:
         {
             { "creature",           HandleGoCreatureSpawnIdCommand,         rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "creature id",        HandleGoCreatureCIdCommand,             rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "gobtarget",          HandleGoGobTargetCommand,               rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "gameobject",         HandleGoGameObjectSpawnIdCommand,       rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "gameobject id",      HandleGoGameObjectGOIdCommand,          rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "graveyard",          HandleGoGraveyardCommand,               rbac::RBAC_PERM_COMMAND_GO,             Console::No },
@@ -674,6 +675,21 @@ public:
 
         handler->PSendSysMessage(LANG_COMMAND_WENT_TO_BOSS, boss->Name.c_str(), boss->Entry, spawn->spawnId);
         return true;
+    }
+
+    static bool HandleGoGobTargetCommand(ChatHandler* handler) {
+        Player* source = handler->GetSession()->GetPlayer();
+        ObjectGuid::LowType guidLow = sFreedomMgr->GetSelectedGameobjectGuidFromPlayer(source->GetGUID().GetCounter());
+
+        GameObjectData const* spawnpoint = sObjectMgr->GetGameObjectData(guidLow);
+        if (!spawnpoint)
+        {
+            handler->SendSysMessage(LANG_COMMAND_GOOBJNOTFOUND);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        return DoTeleport(handler, spawnpoint->spawnPoint, spawnpoint->mapId);
     }
 };
 
