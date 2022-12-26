@@ -15,21 +15,12 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-void AddSC_shadowmoon_draenor();
-void AddSC_tanaan_draenor();
-void AddSC_frostfire_draenor();
-void AddSC_shadowmoon_draenor();
-void AddSC_draenor_shadowmoon_valley();
-void AddSC_frostfire_ridge();
-void AddSC_instance_garrison();
+// This is where scripts' loading functions should be declared:
 
-void AddDraenorScripts()
+
+// The name of this function should match:
+// void Add${NameOfDirectory}Scripts()
+void AddKulTirasScripts()
 {
-    AddSC_tanaan_draenor();
-    AddSC_shadowmoon_draenor();
-    AddSC_frostfire_draenor();
-    AddSC_shadowmoon_draenor();
-    AddSC_draenor_shadowmoon_valley();
-    AddSC_frostfire_ridge();
-    AddSC_instance_garrison();
+
 }
