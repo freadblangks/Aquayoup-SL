@@ -22,5 +22,5 @@ void AddSC_warrior_intro_scenario();
 // void Add${NameOfDirectory}Scripts()
 void AddScenarioScripts()
 {
-AddSC_warrior_intro_scenario()
+AddSC_warrior_intro_scenario();
 }
