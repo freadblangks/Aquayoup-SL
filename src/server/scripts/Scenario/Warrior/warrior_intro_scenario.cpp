@@ -15,14 +15,38 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-void AddSC_draenor_shadowmoon_valley();
-void AddSC_frostfire_ridge();
-void AddSC_instance_garrison();
-void AddSC_shadowmoon_draenor();
+/* Warrior Hall: Intro Scenario */
 
-void AddDraenorScripts()
+#include "ScriptMgr.h"
+#include "ScriptedCreature.h"
+#include "CreatureTextMgr.h"
+#include "GameObjectAI.h"
+#include "Object.h"
+
+
+enum npcs
 {
-    AddSC_draenor_shadowmoon_valley();
-    AddSC_frostfire_ridge();
-    AddSC_instance_garrison();
+    NPC_ASPIRING_VRYKUL_HERO = 102990,
+    NPC_FINNA_BJORNSDOTTIR = 97166,
+    NPC_RAGNVALD_DRAKEBORN = 97167,
+    NPC_EREDAR_ENSLAVER = 97176,
+    NPC_FEL_LORD_DAKUUR = 102970,
+    NPC_HAARDGRIM = 102964,
+    NPC_ALRIK_THE_SLAYER = 102965,
+    NPC_BEZZEREDES = 98257
+};
+
+enum spells
+{
+    SPELL_WHIRLWIND = 13736,
+    SPELL_MORTAL_STRIKE = 15708,
+    SPELL_THUNDERCLAP = 15588,
+    SPELL_CLEAVE = 16044
+};
+
+
+
+void AddSC_warrior_intro_scenario()
+{
+
 }
