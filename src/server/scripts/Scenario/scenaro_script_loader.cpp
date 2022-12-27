@@ -15,10 +15,12 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-void AddScenaroScripts();
+// This is where scripts loading function should be declared:
 void AddSC_warrior_intro_scenario();
 
+// The name of this function should match:
+// void Add${NameOfDirectory}Scripts()
+void AddScenarioScripts()
 {
 AddSC_warrior_intro_scenario()
 }
