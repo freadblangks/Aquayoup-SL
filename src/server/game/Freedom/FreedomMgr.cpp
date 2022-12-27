@@ -2282,7 +2282,7 @@ void FreedomMgr::EnsureNpcOutfitExists(uint32 templateId, uint8 variationId)
 
 void FreedomMgr::EnsureEquipmentInfoExists(uint32 templateId, uint8 variationId)
 {
-    if (!sObjectMgr->_equipmentInfoStore.count(variationId)) {
+    if (!sObjectMgr->_equipmentInfoStore[templateId].count(variationId)) {
         TC_LOG_DEBUG("freedom", "FREEDOMMGR: Adding equipment variation '%u' for template '%u'.", variationId, templateId);
         EquipmentInfo equipInfo;
         for (uint8 equipmentInfoSlot = 0; equipmentInfoSlot < MAX_EQUIPMENT_ITEMS; equipmentInfoSlot++) {
