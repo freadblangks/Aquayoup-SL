@@ -15,18 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-void AddSC_shadowmoon_draenor();
-void AddSC_tanaan_draenor();
-void AddSC_draenor_shadowmoon_valley();
-void AddSC_frostfire_ridge();
-void AddSC_instance_garrison();
-void AddSC_shadowmoon_draenor();
-
-void AddDraenorScripts()
+void AddSC_zone_tanaan_draenor()
 {
-    AddSC_tanaan_draenor();
-    AddSC_shadowmoon_draenor();
-    AddSC_draenor_shadowmoon_valley();
-    AddSC_frostfire_ridge();
-    AddSC_instance_garrison();
+
 }
