@@ -18,6 +18,7 @@
 
 void AddScenaroScripts();
 void AddSC_warrior_intro_scenario();
+
 {
 AddSC_warrior_intro_scenario()
 }
