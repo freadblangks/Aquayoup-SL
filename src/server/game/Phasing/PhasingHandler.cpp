@@ -367,7 +367,7 @@ void PhasingHandler::OnAreaChange(WorldObject* object)
     UpdateVisibilityIfNeeded(object, true, changed);
 }
 
-void PhasingHandler::OnConditionChange(WorldObject* object, bool updateVisibility /*= true*/)
+void PhasingHandler::OnConditionChange(WorldObject* object)
 {
     PhaseShift& phaseShift = object->GetPhaseShift();
     PhaseShift& suppressedPhaseShift = object->GetSuppressedPhaseShift();
@@ -479,7 +479,7 @@ void PhasingHandler::OnConditionChange(WorldObject* object, bool updateVisibilit
             unit->RemoveNotOwnSingleTargetAuras(true);
     }
 
-    UpdateVisibilityIfNeeded(object, updateVisibility, changed);
+    UpdateVisibilityIfNeeded(object, true, changed);
 }
 
 void PhasingHandler::SendToPlayer(Player const* player, PhaseShift const& phaseShift)
