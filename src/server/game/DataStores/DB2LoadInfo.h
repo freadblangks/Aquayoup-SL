@@ -4772,7 +4772,7 @@ struct SpecializationSpellsDisplayLoadInfo
         { false, FT_INT, "SpecllID6" },
     };
 
-    static constexpr DB2LoadInfo Instance{ Fields, 8, &SpecializationSpellsMeta::Instance, HOTFIX_SEL_SPECIALIZATION_SPELLS };
+    static constexpr DB2LoadInfo Instance{ Fields, 8, &SpecializationSpellsDisplayMeta::Instance, HOTFIX_SEL_SPECIALIZATION_SPELLS_DISPLAY };
 };
 
 struct SpecSetMemberLoadInfo
