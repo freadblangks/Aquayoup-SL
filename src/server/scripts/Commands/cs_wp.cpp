@@ -1116,7 +1116,6 @@ public:
 
 
         Creature* target = handler->getSelectedCreature();
-        Unit* targetu = handler->getSelectedUnit();
 
         if (!target)
         {
@@ -1186,7 +1185,6 @@ public:
         uint32 delay = uint32(atoi(pz));
 
         Creature* target = handler->getSelectedCreature();
-        Unit* targetu = handler->getSelectedUnit();
 
         if (!target)
         {
@@ -1222,7 +1220,7 @@ public:
         return true;
     }
 
-    static bool HandleWpLookupCommand(ChatHandler* handler, char const* args)
+    static bool HandleWpLookupCommand(ChatHandler* handler, char const* /*args*/)
     {
         Creature* target = handler->getSelectedCreature();
         if (!target)

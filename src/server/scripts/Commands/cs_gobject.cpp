@@ -682,8 +682,6 @@ public:
             //handler->PSendSysMessage("Visibles : %d \n", object->GetMap()->GetInfiniteGameObjects().size());
         }
 
-        float oldVisibility = const_cast<GameObjectData*>(object->GetGameObjectData())->visibility;
-
         const_cast<GameObjectData*>(object->GetGameObjectData())->visibility = distance;
 
         Map* map = object->GetMap();
