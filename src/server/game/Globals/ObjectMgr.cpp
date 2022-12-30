@@ -2457,7 +2457,7 @@ void ObjectMgr::LoadCreatures()
         // Add custom npc spawns to map for efficient reloading
         if (entry >= sConfigMgr->GetInt64Default("Freedom.CustomNpc.CreatureTemplateIdStart", 400000))
         {
-            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Identified creature with template '%u' and guid '%llu' as custom npc.", entry, guid);
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Identified creature with template '%u' and guid '%lu' as custom npc.", entry, guid);
             sFreedomMgr->LoadCustomNpcSpawn(entry, guid);
         }
     }

@@ -1746,7 +1746,7 @@ void FreedomMgr::LoadCustomNpcSpawn(uint32 templateId, ObjectGuid::LowType spawn
     for (auto it : _customNpcStore)
     {
         if (it.second.templateId == templateId) {
-            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Identified custom npc key '%s' for entry id '%u', adding spawn '%llu'", it.second.key, templateId, spawn);
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Identified custom npc key '%s' for entry id '%u', adding spawn '%lu'", it.second.key, templateId, spawn);
             it.second.spawns.push_back(spawn);
             _customNpcStore[it.first] = it.second;
             break;
@@ -2183,15 +2183,15 @@ void FreedomMgr::ReloadSpawnedCustomNpcs(std::string const& key)
     for (auto spawn : data.spawns) {
         Creature* creature = GetAnyCreature(spawn);
         if (!creature) {
-            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Unable to find creature id '%llu'", spawn);
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Unable to find creature id '%lu'", spawn);
         }
         else {
-            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloading creature id '%llu'", spawn);
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloading creature id '%lu'", spawn);
             uint8 modelId = urand(0u, sObjectMgr->_creatureTemplateStore[data.templateId].Models.size() - 1);
             creature->SetOutfit(sObjectMgr->_creatureOutfitStore[sObjectMgr->_creatureTemplateStore[data.templateId].Models[modelId].CreatureDisplayID]);
             creature->SetName(sObjectMgr->_creatureTemplateStore[data.templateId].Name);
             creature->LoadEquipment(urand(1u, sObjectMgr->_equipmentInfoStore[data.templateId].size()));
-            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloaded creature id '%llu'", spawn);
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloaded creature id '%lu'", spawn);
         }
     }
 }
@@ -2203,7 +2203,7 @@ void FreedomMgr::DeleteCustomNpc(std::string const& key)
     TC_LOG_DEBUG("freedom", "FREEDOMMGR: Deleting custom npc '%s' with entry '%u'", key, data.templateId);
     // Remove spawns
     for (auto spawn : data.spawns) {
-        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Deleting spawn %llu", key, spawn);
+        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Deleting spawn %lu", key, spawn);
         Creature* creature = GetAnyCreature(spawn);
         CreatureDelete(creature);
     }
