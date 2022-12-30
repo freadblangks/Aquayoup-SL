@@ -52,12 +52,12 @@ void MapManager::Initialize()
     int num_threads(sWorld->getIntConfig(CONFIG_NUMTHREADS));
 	
 #if ELUNA
-    if (num_threads > 1)
+    if (num_threads > 6)
     {
-        // Force 1 thread for Eluna as lua is single threaded. By default thread count is 1
+        // Force 1 thread for Eluna as lua is single threaded. By default thread count is 4
         // This should allow us not to use mutex locks
-        TC_LOG_ERROR("maps", "Map update threads set to %i, when Eluna only allows 1, changing to 1", num_threads);
-        num_threads = 1;
+        TC_LOG_ERROR("maps", "Map update threads set to %i, when Eluna only allows 4, changing to 4", num_threads);
+        num_threads = 3;
     }
 #endif
 	

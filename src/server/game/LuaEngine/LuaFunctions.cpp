@@ -567,7 +567,7 @@ ElunaRegister<Player> PlayerMethods[] =
     { "IsFlying", &LuaPlayer::IsFlying },
 
     // Gossip
-    //{ "GossipMenuAddItem", &LuaPlayer::GossipMenuAddItem },
+    { "GossipMenuAddItem", &LuaPlayer::GossipMenuAddItem },
     { "GossipSendMenu", &LuaPlayer::GossipSendMenu },
     { "GossipComplete", &LuaPlayer::GossipComplete },
     { "GossipClearMenu", &LuaPlayer::GossipClearMenu },
@@ -1077,7 +1077,7 @@ ElunaRegister<Map> MapMethods[] =
     { "IsRaid", &LuaMap::IsRaid },
 
     // Other
-    { "SaveInstanceData", &LuaMap::SaveInstanceData },
+    //{ "SaveInstanceData", &LuaMap::SaveInstanceData },
 
     { NULL, NULL }
 };

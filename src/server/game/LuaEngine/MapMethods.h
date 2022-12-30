@@ -107,7 +107,6 @@ namespace LuaMap
     {
         float x = Eluna::CHECKVAL<float>(L, 2);
         float y = Eluna::CHECKVAL<float>(L, 3);
-        uint32 phasemask = Eluna::CHECKVAL<uint32>(L, 4, 1);
 
         float z = map->GetHeight({}, x, y, MAX_HEIGHT);
         if (z != INVALID_HEIGHT)
@@ -271,17 +270,17 @@ namespace LuaMap
     /**
      * Saves the [Map]'s instance data to the database.
      */
-    int SaveInstanceData(lua_State* /*L*/, Map* map)
-    {
-        /*ElunaInstanceAI* iAI = NULL;
-        if (InstanceMap* inst = map->ToInstanceMap())
-            iAI = dynamic_cast<ElunaInstanceAI*>(inst->GetInstanceScript());
+    //int SaveInstanceData(lua_State* /*L*/, Map* map)
+    //{
+    //    ElunaInstanceAI* iAI = NULL;
+    //    if (InstanceMap* inst = map->ToInstanceMap())
+    //        iAI = dynamic_cast<ElunaInstanceAI*>(inst->GetInstanceScript());
 
-        if (iAI)
-            iAI->SaveToDB();*/
+    //    if (iAI)
+    //        iAI->SaveToDB();
 
-        return 0;
-    }
+    //    return 0;
+    //}
 
     /**
     * Returns a table with all the current [Player]s in the map

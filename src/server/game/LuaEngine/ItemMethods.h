@@ -435,7 +435,7 @@ namespace LuaItem
      *
      * @return uint32 allowableRace
      */
-    int GetAllowableRace(lua_State* L, Item* item)
+    int GetAllowableRace(lua_State* /*L*/, Item* item)
     {
         item->GetTemplate()->GetAllowableRace();
         return 1;

@@ -3001,27 +3001,29 @@ namespace LuaPlayer
      *
      * See also: [Player:GossipSendMenu], [Player:GossipAddQuests], [Player:GossipComplete], [Player:GossipClearMenu]
      *
-     * @param uint32 icon : number that specifies used icon
+     * @param uint32 optionNpc : number that specifies used icon
      * @param string msg : label on the gossip item
      * @param uint32 sender : number passed to gossip handlers
      * @param uint32 intid : number passed to gossip handlers
      * @param bool code = false : show text input on click if true
      * @param string popup = nil : if non empty string, a popup with given text shown on click
      * @param uint32 money = 0 : required money in copper
+     * @param uint8 lang = 0 : number of lang
      */
-    //int GossipMenuAddItem(lua_State* L, Player* player)
-    //{
-    //    uint32 _optionNpc = Eluna::CHECKVAL<uint32>(L, 2);
-    //    const char* msg = Eluna::CHECKVAL<const char*>(L, 3);
-    //    uint32 _sender = Eluna::CHECKVAL<uint32>(L, 4);
-    //    uint32 _intid = Eluna::CHECKVAL<uint32>(L, 5);
-    //    bool _code = Eluna::CHECKVAL<bool>(L, 6, false);
-    //    const char* _promptMsg = Eluna::CHECKVAL<const char*>(L, 7, "");
-    //    uint32 _money = Eluna::CHECKVAL<uint32>(L, 8, 0);
+    int GossipMenuAddItem(lua_State* L, Player* player)
+    {
+        uint32 _optionNpc = Eluna::CHECKVAL<uint32>(L, 2); //2
+        const char* msg = Eluna::CHECKVAL<const char*>(L, 3); //4
+        uint32 _sender = Eluna::CHECKVAL<uint32>(L, 4); //15
+        uint32 _intid = Eluna::CHECKVAL<uint32>(L, 5);//16
+        bool _code = Eluna::CHECKVAL<bool>(L, 6, false);//10
+        const char* _promptMsg = Eluna::CHECKVAL<const char*>(L, 7, "");//12
+        uint32 _money = Eluna::CHECKVAL<uint32>(L, 8, 0);//11
+        uint8 _lang = Eluna::CHECKVAL<uint8>(L, 9, 0);//16
 
-    //    player->PlayerTalkClass->GetGossipMenu().AddMenuItem(-1, GossipOptionNpc(_optionNpc), msg, _sender, _intid, _promptMsg, _money, _code);
-    //    return 0;
-    //}
+        player->PlayerTalkClass->GetGossipMenu().AddMenuItem(0, -1, GossipOptionNpc(_optionNpc), std::move(msg), _lang, GossipOptionFlags::None, {}, 0, 0, _code, _money, _promptMsg, {}, {}, _sender, _intid);
+        return 0;
+    }
 
     /**
      * Closes the [Player]s currently open Gossip Menu.
@@ -3107,13 +3109,15 @@ namespace LuaPlayer
         uint32 data = Eluna::CHECKVAL<uint32>(L, 6);
         std::string iconText = Eluna::CHECKVAL<std::string>(L, 7);
 
-        WorldPackets::NPC::GossipPOI gossipPoi;
-        gossipPoi.Flags = flags;
-        gossipPoi.Icon = icon;
-        gossipPoi.Name = iconText;
-        gossipPoi.Pos = TaggedPosition<Position::XY>(x, y);
+        WorldPacket packet(SMSG_GOSSIP_POI, 4 + 4 + 4 + 4 + 4 + 10);
+        packet << flags;
+        packet << x;
+        packet << y;
+        packet << icon;
+        packet << data;
+        packet << iconText;
 
-        player->GetSession()->SendPacket(gossipPoi.Write());
+        player->GetSession()->SendPacket(&packet);
         return 0;
     }
 
