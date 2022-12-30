@@ -2256,11 +2256,16 @@ namespace LuaUnit
         if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spell, target->GetMap()->GetDifficultyID()))
         {
             ObjectGuid castId = ObjectGuid::Create<HighGuid::Cast>(SPELL_CAST_SOURCE_NORMAL, target->GetMapId(), spell, target->GetMap()->GenerateLowGuid<HighGuid::Cast>());
-            AuraCreateInfo createinfo(castId, spellInfo, target->GetMap()->GetDifficultyID(), MAX_EFFECT_MASK, target);
-            aura = Aura::TryRefreshStackOrCreate(createinfo);
+
+            AuraCreateInfo createInfo(castId, spellInfo, target->GetMap()->GetDifficultyID(), MAX_EFFECT_MASK, target);
+            createInfo.SetCaster(target);
+
+            aura = Aura::TryRefreshStackOrCreate(createInfo, false);
         }
 
         Eluna::Push(L, aura);
+
+        //Eluna::Push(L, unit->AddAura(spell, target));
         return 1;
     }
 

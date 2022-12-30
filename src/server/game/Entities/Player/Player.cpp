@@ -1916,6 +1916,25 @@ void Player::Regenerate(Powers power)
     }
 }
 
+void Player::SendPowerUpdate(Powers power, int32 amount)
+{
+    if (!IsInWorld())
+        return;
+
+    uint32 powerIndex = GetPowerIndex(power);
+    if (powerIndex == MAX_POWERS || powerIndex >= MAX_POWERS_PER_CLASS)
+        return;
+
+    if (amount > GetMaxPower(power))
+        amount = GetMaxPower(power);
+
+    WorldPackets::Combat::PowerUpdatePower powUpd(amount, power);
+    WorldPackets::Combat::PowerUpdate upd;
+    upd.Guid = GetGUID();
+    upd.Powers.emplace_back(powUpd);
+    SendDirectMessage(upd.Write());
+}
+
 void Player::RegenerateHealth()
 {
     uint32 curValue = GetHealth();
