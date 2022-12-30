@@ -191,6 +191,7 @@ void WorldSession::HandleAutoEquipItemOpcode(WorldPackets::Item::AutoEquipItem& 
     InventoryResult msg = _player->CanEquipItem(NULL_SLOT, dest, srcItem, !srcItem->IsBag());
     if (msg != EQUIP_ERR_OK)
     {
+        TC_LOG_DEBUG("network", "HandleAutoEquipItemOpcode: Player can't equip item: %u", msg);
         _player->SendEquipError(msg, srcItem);
         return;
     }
