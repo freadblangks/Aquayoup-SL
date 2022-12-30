@@ -167,7 +167,7 @@ public:
             return true;
         }
 
-        char* spawnTimeSecsToken = strtok(nullptr, " ");
+        char* spawnTimeSecsToken = strtok((char*)args, " ");
         uint32 spawnTimeSecs = 0;
         if (spawnTimeSecsToken)
             spawnTimeSecs = atoul(spawnTimeSecsToken);
