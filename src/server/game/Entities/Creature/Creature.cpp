@@ -86,6 +86,11 @@ std::string CreatureMovementData::ToString() const
 VendorItemCount::VendorItemCount(uint32 _item, uint32 _count)
     : itemId(_item), count(_count), lastIncrementTime(GameTime::GetGameTime()) { }
 
+int32 VendorItem::GetBuyPrice(ItemTemplate const* pProto) const
+{
+    return OverrideGoldCost >= 0 ? OverrideGoldCost : pProto->GetBuyPrice();
+}
+
 bool VendorItemData::RemoveItem(uint32 item_id, uint8 type)
 {
     auto newEnd = std::remove_if(m_items.begin(), m_items.end(), [=](VendorItem const& vendorItem)
@@ -3540,18 +3545,19 @@ void Creature::DoNotReacquireSpellFocusTarget()
 
 bool Creature::IsMovementPreventedByCasting() const
 {
+    // Can always move when not casting
+    if (!HasUnitState(UNIT_STATE_CASTING))
+        return false;
+
     // first check if currently a movement allowed channel is active and we're not casting
     if (Spell* spell = m_currentSpells[CURRENT_CHANNELED_SPELL])
     {
         if (spell->getState() != SPELL_STATE_FINISHED && spell->IsChannelActive())
             if (spell->CheckMovement() != SPELL_CAST_OK)
-                return false;
+                return true;
     }
 
     if (HasSpellFocus())
-        return true;
-
-    if (HasUnitState(UNIT_STATE_CASTING))
         return true;
 
     return false;

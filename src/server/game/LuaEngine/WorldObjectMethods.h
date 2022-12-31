@@ -1090,7 +1090,7 @@ namespace LuaWorldObject
     * @return remove phase
     * 
     */
-    int RemoveAllPhase(lua_State* L, WorldObject* obj)
+    int RemoveAllPhase(lua_State* /*L*/, WorldObject* obj)
     {
         obj->GetPhaseShift().ClearPhases();
         return 1;

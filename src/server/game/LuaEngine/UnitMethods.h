@@ -1817,7 +1817,7 @@ namespace LuaUnit
      * @param string msg
      * @param [Player] target
      */
-    int SendChatMessageToPlayer(lua_State* L, Unit* unit)
+    int SendChatMessageToPlayer(lua_State* L, Unit* /*unit*/)
     {
         uint8 type = Eluna::CHECKVAL<uint8>(L, 2);
         uint32 lang = Eluna::CHECKVAL<uint32>(L, 3);
@@ -1856,7 +1856,7 @@ namespace LuaUnit
      *
      * @param bool reset = true : cleans movement
      */
-    int MoveExpire(lua_State* L, Unit* unit)
+    int MoveExpire(lua_State* /*L*/, Unit* unit)
     {
         unit->GetMotionMaster()->Clear();
         return 0;
@@ -1867,7 +1867,7 @@ namespace LuaUnit
      *
      * @param bool reset = true : clean movement
      */
-    int MoveClear(lua_State* L, Unit* unit)
+    int MoveClear(lua_State* /*L*/, Unit* unit)
     {
         unit->GetMotionMaster()->Clear();
         return 0;
@@ -2243,7 +2243,7 @@ namespace LuaUnit
      * @param [Unit] target : aura will be applied on the target
      * @return [Aura] aura
      */
-    int AddAura(lua_State* L, Unit* unit)
+    int AddAura(lua_State* L, Unit* /*unit*/)
     {
         uint32 spell = Eluna::CHECKVAL<uint32>(L, 2);
         Unit* target = Eluna::CHECKOBJ<Unit>(L, 3);
@@ -2494,13 +2494,13 @@ namespace LuaUnit
         return 0;
     }
 
-    int RestoreDisplayId(lua_State* L, Unit* unit)
+    int RestoreDisplayId(lua_State* /*L*/, Unit* unit)
     {
         unit->RestoreDisplayId();
         return 0;
     }
 
-    int RestoreFaction(lua_State* L, Unit* unit)
+    int RestoreFaction(lua_State* /*L*/, Unit* unit)
     {
         unit->RestoreFaction();
         return 0;

@@ -63,7 +63,6 @@ enum RogueSpells
     SPELL_ROGUE_SLICE_AND_DICE                      = 315496,
     SPELL_ROGUE_SPRINT                              = 2983,
     SPELL_ROGUE_STEALTH                             = 1784,
-    SPELL_ROGUE_STEALTH_2                           = 115191,
     SPELL_ROGUE_STEALTH_STEALTH_AURA                = 158185,
     SPELL_ROGUE_STEALTH_SHAPESHIFT_AURA             = 158188,
     SPELL_ROGUE_SYMBOLS_OF_DEATH_CRIT_AURA          = 227151,
@@ -90,8 +89,12 @@ enum RogueSpells
     SPELL_ROGUE_CRIPPLING_POISON_DEBUFF             = 3409,
     SPELL_ROGUE_LEECHING_POISON                     = 108211,
     SPELL_ROGUE_LEECHING_POISON_DEBUFF              = 112961,
-    SPELL_ROGUE_PARALYTIC_POISON                     = 108215,
+    SPELL_ROGUE_PARALYTIC_POISON                    = 108215,
     SPELL_ROGUE_PARALYTIC_POISON_DEBUFF             = 113952,
+    SPELL_ROGUE_SPELL_NIGHTSTALKER_AURA             = 14062,
+    SPELL_ROGUE_SPELL_NIGHTSTALKER_DAMAGE_DONE      = 130493,
+    SPELL_ROGUE_SPELL_SHADOW_FOCUS_AURA             = 108209,
+    SPELL_ROGUE_SPELL_SHADOW_FOCUS_COST_PCT         = 112942,
 };
 
 /* Returns true if the spell is a finishing move.
@@ -834,12 +837,12 @@ class spell_rog_vanish_aura : public AuraScript
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_ROGUE_STEALTH_2 });
+        return ValidateSpellInfo({ SPELL_ROGUE_STEALTH });
     }
 
     void HandleEffectRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        GetTarget()->CastSpell(GetTarget(), SPELL_ROGUE_STEALTH_2, TRIGGERED_FULL_MASK);
+        GetTarget()->CastSpell(GetTarget(), SPELL_ROGUE_STEALTH, TRIGGERED_FULL_MASK);
     }
 
     void Register() override
@@ -1173,6 +1176,100 @@ public:
     }
 };
 
+// Stealth (with subterfuge) - 115191
+class spell_rog_stealth_with_subterfuge : public SpellScriptLoader
+{
+public:
+    spell_rog_stealth_with_subterfuge() : SpellScriptLoader("spell_rog_stealth_with_subterfuge") { }
+
+    class spell_rog_stealth_with_subterfuge_AuraScript : public AuraScript
+    {
+        PrepareAuraScript(spell_rog_stealth_with_subterfuge_AuraScript);
+
+        void OnRemove(AuraEffect const* aurEff, AuraEffectHandleModes mode)
+        {
+            if (!GetCaster())
+                return;
+
+            GetCaster()->RemoveAura(115191);
+            GetCaster()->RemoveAura(115192);
+        }
+
+        void Register()
+        {
+            AfterEffectRemove += AuraEffectRemoveFn(spell_rog_stealth_with_subterfuge_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_MOD_SHAPESHIFT, AURA_EFFECT_HANDLE_REAL);
+        }
+    };
+
+    AuraScript* GetAuraScript() const
+    {
+        return new spell_rog_stealth_with_subterfuge_AuraScript();
+    }
+};
+
+// Called by Stealth - 1784
+// Nightstalker - 14062
+class spell_rog_nightstalker : public SpellScriptLoader
+{
+public:
+    spell_rog_nightstalker() : SpellScriptLoader("spell_rog_nightstalker") { }
+
+    class spell_rog_nightstalker_SpellScript : public SpellScript
+    {
+        PrepareSpellScript(spell_rog_nightstalker_SpellScript);
+
+        void HandleOnHit()
+        {
+            if (Player* _player = GetCaster()->ToPlayer())
+            {
+                if (_player->HasAura(SPELL_ROGUE_SPELL_NIGHTSTALKER_AURA))
+                    _player->CastSpell(_player, SPELL_ROGUE_SPELL_NIGHTSTALKER_DAMAGE_DONE, true);
+
+                if (_player->HasAura(SPELL_ROGUE_SPELL_SHADOW_FOCUS_AURA))
+                    _player->CastSpell(_player, SPELL_ROGUE_SPELL_SHADOW_FOCUS_COST_PCT, true);
+            }
+        }
+
+        void Register()
+        {
+            OnHit += SpellHitFn(spell_rog_nightstalker_SpellScript::HandleOnHit);
+        }
+    };
+
+    SpellScript* GetSpellScript() const
+    {
+        return new spell_rog_nightstalker_SpellScript();
+    }
+
+    class spell_rog_nightstalker_AuraScript : public AuraScript
+    {
+        PrepareAuraScript(spell_rog_nightstalker_AuraScript);
+
+        void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+        {
+            if (GetCaster())
+            {
+                // it's implemented in Unit::DealDamage
+                //if (GetCaster()->HasAura(ROGUE_SPELL_NIGHTSTALKER_DAMAGE_DONE))
+                //    GetCaster()->RemoveAura(ROGUE_SPELL_NIGHTSTALKER_DAMAGE_DONE);
+
+                if (GetCaster()->HasAura(SPELL_ROGUE_SPELL_SHADOW_FOCUS_COST_PCT))
+                    GetCaster()->RemoveAura(SPELL_ROGUE_SPELL_SHADOW_FOCUS_COST_PCT);
+            }
+        }
+
+        void Register()
+        {
+            AfterEffectRemove += AuraEffectRemoveFn(spell_rog_nightstalker_AuraScript::HandleRemove, EFFECT_0, SPELL_AURA_MOD_SHAPESHIFT, AURA_EFFECT_HANDLE_REAL);
+        }
+    };
+
+    AuraScript* GetAuraScript() const
+    {
+        return new spell_rog_nightstalker_AuraScript();
+    }
+};
+
 void AddSC_rogue_spell_scripts()
 {
     RegisterSpellScript(spell_rog_backstab);
@@ -1202,4 +1299,6 @@ void AddSC_rogue_spell_scripts()
 
     new spell_rog_grappling_hook();
     new spell_rog_poisons();
+    new spell_rog_stealth_with_subterfuge();
+    new spell_rog_nightstalker();
 }

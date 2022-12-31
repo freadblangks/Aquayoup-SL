@@ -9719,10 +9719,10 @@ uint32 ObjectMgr::LoadReferenceVendor(int32 vendor, int32 item, std::set<uint32>
             vItem.maxcount          = fields[1].GetUInt32();
             vItem.incrtime          = fields[2].GetUInt32();
             vItem.ExtendedCost      = fields[3].GetUInt32();
-            vItem.OverrideGoldCost  = fields[9].GetInt64();
-            vItem.Type              = fields[4].GetUInt8();
-            vItem.PlayerConditionId = fields[6].GetUInt32();
-            vItem.IgnoreFiltering   = fields[7].GetBool();
+            vItem.OverrideGoldCost  = fields[4].GetInt64();
+            vItem.Type              = fields[5].GetUInt8();
+            vItem.PlayerConditionId = fields[7].GetUInt32();
+            vItem.IgnoreFiltering   = fields[8].GetBool();
 
             for (std::string_view token : Trinity::Tokenize(fields[5].GetStringView(), ' ', false))
                 if (Optional<int32> bonusListID = Trinity::StringTo<int32>(token))
@@ -9777,9 +9777,10 @@ void ObjectMgr::LoadVendors()
             vItem.maxcount          = fields[2].GetUInt32();
             vItem.incrtime          = fields[3].GetUInt32();
             vItem.ExtendedCost      = fields[4].GetUInt32();
-            vItem.Type              = fields[5].GetUInt8();
-            vItem.PlayerConditionId = fields[7].GetUInt32();
-            vItem.IgnoreFiltering   = fields[8].GetBool();
+            vItem.OverrideGoldCost  = fields[5].GetInt32();
+            vItem.Type              = fields[6].GetUInt8();
+            vItem.PlayerConditionId = fields[8].GetUInt32();
+            vItem.IgnoreFiltering   = fields[9].GetBool();
 
             for (std::string_view token : Trinity::Tokenize(fields[6].GetStringView(), ' ', false))
                 if (Optional<int32> bonusListID = Trinity::StringTo<int32>(token))

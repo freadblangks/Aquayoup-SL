@@ -670,6 +670,9 @@ struct VendorItem
     std::vector<int32> BonusListIDs;
     uint32 PlayerConditionId;
     bool IgnoreFiltering;
+
+    //helpers
+    int32 GetBuyPrice(ItemTemplate const* pProto) const;
 };
 
 struct VendorItemData
