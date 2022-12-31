@@ -750,32 +750,6 @@ class spell_rog_stealth : public AuraScript
             }
         }
 
-        target->RemoveAurasDueToSpell(SPELL_ROGUE_SHADOW_FOCUS_EFFECT);
-        target->RemoveAurasDueToSpell(SPELL_ROGUE_STEALTH_STEALTH_AURA);
-        target->RemoveAurasDueToSpell(SPELL_ROGUE_STEALTH_SHAPESHIFT_AURA);
-        if (target->HasAura(SPELL_ROGUE_SUBTERFUGE))
-            target->CastSpell(target, SPELL_ROGUE_SUBTERFUGE_AURA, true);
-        if (Aura* aur = target->GetAura(SPELL_ROGUE_MASTER_OF_SUBTLETY_DAMAGE_PERCENT))
-        {
-            aur->SetMaxDuration(6000);
-            aur->SetDuration(6000);
-        }
-    }
-
-    void HandleEffectRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        Unit* target = GetTarget();
-
-        // Master of Subtlety
-        if (AuraEffect* masterOfSubtletyPassive = GetTarget()->GetAuraEffect(SPELL_ROGUE_MASTER_OF_SUBTLETY_PASSIVE, EFFECT_0))
-        {
-            if (Aura* masterOfSubtletyAura = GetTarget()->GetAura(SPELL_ROGUE_MASTER_OF_SUBTLETY_DAMAGE_PERCENT))
-            {
-                masterOfSubtletyAura->SetMaxDuration(masterOfSubtletyPassive->GetAmount());
-                masterOfSubtletyAura->RefreshDuration();
-            }
-        }
-
         // Premeditation
         target->RemoveAura(SPELL_ROGUE_PREMEDITATION_AURA);
 
