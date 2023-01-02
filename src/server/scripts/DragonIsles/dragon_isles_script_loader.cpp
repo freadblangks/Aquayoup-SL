@@ -16,6 +16,11 @@
  */
 
 // This is where scripts' loading functions should be declared:
+void AddSC_zone_the_forbidden_reach();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
+void AddDragonIslesScripts()
+{
+    AddSC_zone_the_forbidden_reach();
+}
