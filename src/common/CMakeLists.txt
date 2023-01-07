@@ -73,13 +73,8 @@ target_link_libraries(common
     valgrind
     threads
     jemalloc
-    openssl_ed25519)
-	
-if (ELUNA)
-	target_link_libraries(common
-	 PUBLIC
-	   lualib)
-endif()
+    openssl_ed25519
+    short_alloc)
 
 add_dependencies(common revision_data.h)
 

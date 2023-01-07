@@ -46,7 +46,7 @@
 #include "CombatPackets.h"
 #include "Common.h"
 #include "ConditionMgr.h"
-#include "Config.h"
+#include "Containers.h"
 #include "CreatureAI.h"
 #include "DB2Stores.h"
 #include "DatabaseEnv.h"
@@ -129,9 +129,6 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
-#ifdef ELUNA
-#include "LuaEngine.h"
-#endif
 #include "WorldStateMgr.h"
 #include "WorldStatePackets.h"
 #include <G3D/g3dmath.h>
@@ -714,11 +711,8 @@ int32 Player::getMaxTimer(MirrorTimerType timer) const
 {
     switch (timer)
     {
-		if (sConfigMgr->GetBoolDefault("fatigue.enabled", true)) // If "fatigue.enabled" is enabled
-        {
         case FATIGUE_TIMER:
             return MINUTE * IN_MILLISECONDS;
-		}
         case BREATH_TIMER:
         {
             if (!IsAlive() || HasAuraType(SPELL_AURA_WATER_BREATHING) || GetSession()->GetSecurity() >= AccountTypes(sWorld->getIntConfig(CONFIG_DISABLE_BREATHING)))
@@ -800,8 +794,6 @@ void Player::HandleDrowning(uint32 time_diff)
     }
 
     // In dark water
-	if (sConfigMgr->GetBoolDefault("fatigue.enabled", true)) // If "fatigue.enabled" is enabled
-    {
     if (m_MirrorTimerFlags & UNDERWATER_INDARKWATER)
     {
         // Fatigue timer not activated - activate it
@@ -838,8 +830,6 @@ void Player::HandleDrowning(uint32 time_diff)
         else if (m_MirrorTimerFlagsLast & UNDERWATER_INDARKWATER)
             SendMirrorTimer(FATIGUE_TIMER, DarkWaterTime, m_MirrorTimer[FATIGUE_TIMER], 10);
     }
-	
-	}
 
     if (m_MirrorTimerFlags & (UNDERWATER_INLAVA /*| UNDERWATER_INSLIME*/) && !(_lastLiquid && _lastLiquid->SpellID))
     {
@@ -1914,25 +1904,6 @@ void Player::Regenerate(Powers power)
             const_cast<UF::UnitData&>(*m_unitData).ClearChanged(&UF::UnitData::Power, powerIndex);
         });
     }
-}
-
-void Player::SendPowerUpdate(Powers power, int32 amount)
-{
-    if (!IsInWorld())
-        return;
-
-    uint32 powerIndex = GetPowerIndex(power);
-    if (powerIndex == MAX_POWERS || powerIndex >= MAX_POWERS_PER_CLASS)
-        return;
-
-    if (amount > GetMaxPower(power))
-        amount = GetMaxPower(power);
-
-    WorldPackets::Combat::PowerUpdatePower powUpd(amount, power);
-    WorldPackets::Combat::PowerUpdate upd;
-    upd.Guid = GetGUID();
-    upd.Powers.emplace_back(powUpd);
-    SendDirectMessage(upd.Write());
 }
 
 void Player::RegenerateHealth()
@@ -3763,14 +3734,6 @@ void Player::ValuesUpdateForPlayerWithMaskSender::operator()(Player const* playe
     player->SendDirectMessage(&packet);
 }
 
-void Player::SendRuneforgeLegendaryCraftingOpenNpc(ObjectGuid const& guid, bool isUpgrade) const
-{
-    WorldPackets::Misc::RuneforgeLegendaryCraftingOpenNpc packet;
-    packet.ObjGUID = guid;
-    packet.IsUpgrade = isUpgrade;
-    SendDirectMessage(packet.Write());
-}
-
 void Player::DestroyForPlayer(Player* target) const
 {
     Unit::DestroyForPlayer(target);
@@ -4474,10 +4437,6 @@ void Player::ResurrectPlayer(float restore_percent, bool applySickness)
 
     // recast lost by death auras of any items held in the inventory
     CastAllObtainSpells();
-
-#ifdef ELUNA
-    sEluna->OnResurrect(this);
-#endif
 
     if (!applySickness)
         return;
@@ -5624,7 +5583,6 @@ bool Player::UpdateGatherSkill(uint32 SkillId, uint32 SkillValue, uint32 RedLeve
         case SKILL_DRAENOR_HERBALISM:
         case SKILL_LEGION_HERBALISM:
         case SKILL_KUL_TIRAN_HERBALISM:
-		case SKILL_SHADOWLANDS_HERBALISM:
         case SKILL_JEWELCRAFTING:
         case SKILL_INSCRIPTION:
             return UpdateSkillPro(SkillId, SkillGainChance(SkillValue, grayLevel, greenLevel, yellowLevel) * Multiplicator, gathering_skill_gain);
@@ -5674,9 +5632,9 @@ bool Player::UpdateFishingSkill()
 {
     TC_LOG_DEBUG("entities.player.skills", "Player::UpdateFishingSkill: Player '%s' (%s)", GetName().c_str(), GetGUID().ToString().c_str());
 
-    uint32 SkillValue = GetPureSkillValue(SKILL_FISHING_2);
+    uint32 SkillValue = GetPureSkillValue(SKILL_FISHING);
 
-    if (SkillValue >= GetMaxSkillValue(SKILL_FISHING_2))
+    if (SkillValue >= GetMaxSkillValue(SKILL_FISHING))
         return false;
 
     uint8 stepsNeededToLevelUp = GetFishingStepsNeededToLevelUp(SkillValue);
@@ -5687,7 +5645,7 @@ bool Player::UpdateFishingSkill()
         m_fishingSteps = 0;
 
         uint32 gathering_skill_gain = sWorld->getIntConfig(CONFIG_SKILL_GAIN_GATHERING);
-        return UpdateSkillPro(SKILL_FISHING_2, 100*10, gathering_skill_gain);
+        return UpdateSkillPro(SKILL_FISHING, 100*10, gathering_skill_gain);
     }
 
     return false;
@@ -9318,12 +9276,6 @@ Item* Player::GetItemByPos(uint8 bag, uint8 slot) const
     return nullptr;
 }
 
-//Need for custom script
-Item* Player::GetEquippedItem(EquipmentSlots slot) const
-{
-    return GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
-}
-
 //Does additional check for disarmed weapons
 Item* Player::GetUseableItemByPos(uint8 bag, uint8 slot) const
 {
@@ -11204,12 +11156,6 @@ InventoryResult Player::CanUseItem(ItemTemplate const* proto, bool skipRequiredL
         if (artifact->ChrSpecializationID != GetPrimarySpecialization())
             return EQUIP_ERR_CANT_USE_ITEM;
 
-#ifdef ELUNA
-    InventoryResult eres = sEluna->OnCanUseItem(this, proto->GetId());
-    if (eres != EQUIP_ERR_OK)
-        return eres;
-#endif
-
     return EQUIP_ERR_OK;
 }
 
@@ -11567,10 +11513,6 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
 
         ApplyEquipCooldown(pItem2);
 
-#ifdef ELUNA
-        sEluna->OnEquip(this, pItem2, bag, slot);
-#endif
-
         return pItem2;
     }
 
@@ -11582,10 +11524,6 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
     UpdateCriteria(CriteriaType::EquipItemInSlot, slot, pItem->GetEntry());
 
     UpdateAverageItemLevelEquipped();
-
-#ifdef ELUNA
-    sEluna->OnEquip(this, pItem, bag, slot);
-#endif
 
     return pItem;
 }
@@ -11712,10 +11650,6 @@ void Player::QuickEquipItem(uint16 pos, Item* pItem)
 
         UpdateCriteria(CriteriaType::EquipItem, pItem->GetEntry());
         UpdateCriteria(CriteriaType::EquipItemInSlot, slot, pItem->GetEntry());
-		
-#ifdef ELUNA
-        sEluna->OnEquip(this, pItem, (pos >> 8), slot);
-#endif
     }
 }
 
@@ -14033,17 +13967,10 @@ void Player::OnGossipSelect(WorldObject* source, int32 gossipOptionId, uint32 me
         case GossipOptionNpc::GarrisonRecruitment: // NYI
             break;
         case GossipOptionNpc::ChromieTimeNpc: // NYI
-            handled = false;
             break;
         case GossipOptionNpc::RuneforgeLegendaryCrafting: // NYI
-            PlayerTalkClass->SendCloseGossip();
-            SendRuneforgeLegendaryCraftingOpenNpc(source->GetGUID(), false);
-            handled = false;
             break;
         case GossipOptionNpc::RuneforgeLegendaryUpgrade: // NYI
-            PlayerTalkClass->SendCloseGossip();
-            SendRuneforgeLegendaryCraftingOpenNpc(source->GetGUID(), true);
-            handled = false;
             break;
         case GossipOptionNpc::ProfessionsCraftingOrder: // NYI
             break;
@@ -14540,9 +14467,6 @@ void Player::AddQuestAndCheckCompletion(Quest const* quest, Object* questGiver)
     {
         case TYPEID_UNIT:
             PlayerTalkClass->ClearMenus();
-#ifdef ELUNA
-            sEluna->OnQuestAccept(this, questGiver->ToCreature(), quest);
-#endif
             questGiver->ToCreature()->AI()->OnQuestAccept(this, quest);
             break;
         case TYPEID_ITEM:
@@ -14577,9 +14501,6 @@ void Player::AddQuestAndCheckCompletion(Quest const* quest, Object* questGiver)
         }
         case TYPEID_GAMEOBJECT:
             PlayerTalkClass->ClearMenus();
-#ifdef ELUNA
-            sEluna->OnQuestAccept(this, questGiver->ToGameObject(), quest);
-#endif
             questGiver->ToGameObject()->AI()->OnQuestAccept(this, quest);
             break;
         default:
@@ -15889,9 +15810,6 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object* questgiver)
     {
         case TYPEID_GAMEOBJECT:
         {
-#ifdef ELUNA
-            sEluna->GetDialogStatus(this, questgiver->ToGameObject());
-#endif
             if (GameObjectAI* ai = questgiver->ToGameObject()->AI())
                 if (Optional<QuestGiverStatus> questStatus = ai->GetDialogStatus(this))
                     return *questStatus;
@@ -15901,9 +15819,6 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object* questgiver)
         }
         case TYPEID_UNIT:
         {
-#ifdef ELUNA
-            sEluna->GetDialogStatus(this, questgiver->ToCreature());
-#endif
             if (CreatureAI* ai = questgiver->ToCreature()->AI())
                 if (Optional<QuestGiverStatus> questStatus = ai->GetDialogStatus(this))
                     return *questStatus;
@@ -21184,7 +21099,7 @@ void Player::TextEmote(std::string_view text, WorldObject const* /*= nullptr*/, 
 
     WorldPackets::Chat::Chat packet;
     packet.Initialize(CHAT_MSG_EMOTE, LANG_UNIVERSAL, this, this, _text);
-    SendMessageToSetInRange(packet.Write(), sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_TEXTEMOTE), true);
+    SendMessageToSetInRange(packet.Write(), sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_TEXTEMOTE), true, !GetSession()->HasPermission(rbac::RBAC_PERM_TWO_SIDE_INTERACTION_CHAT));
 }
 
 void Player::WhisperAddon(std::string const& text, std::string const& prefix, bool isLogged, Player* receiver)
@@ -22612,7 +22527,7 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
     }
 
     uint64 price = 0;
-    if (crItem->GetBuyPrice(pProto) > 0) //Assume price cannot be negative (do not know why it is int32)
+    if (pProto->GetBuyPrice() > 0) //Assume price cannot be negative (do not know why it is int32)
     {
         double buyPricePerItem = double(pProto->GetBuyPrice()) / pProto->GetBuyCount();
         uint64 maxCount = MAX_MONEY_AMOUNT / buyPricePerItem;
@@ -25698,10 +25613,6 @@ void Player::StoreLootItem(ObjectGuid lootWorldObjectGuid, uint8 lootSlot, Loot*
         if (loot->loot_type == LOOT_ITEM)
             sLootItemStorage->RemoveStoredLootItemForContainer(lootWorldObjectGuid.GetCounter(), item->itemid, item->count, item->LootListId);
 
-#ifdef ELUNA
-        sEluna->OnLootItem(this, newitem, item->count, this->GetLootGUID());
-#endif
-
         ApplyItemLootedSpell(newitem, true);
     }
     else
@@ -26089,10 +26000,6 @@ TalentLearnResult Player::LearnTalent(uint32 talentId, int32* spellOnCooldown)
         return TALENT_FAILED_UNKNOWN;
 
     TC_LOG_DEBUG("misc", "Player::LearnTalent: TalentID: %u Spell: %u Group: %u\n", talentId, spellid, GetActiveTalentGroup());
-
-#ifdef ELUNA
-    sEluna->OnLearnTalents(this, talentId, spellid);
-#endif
 
     return TALENT_LEARN_OK;
 }
@@ -27767,29 +27674,6 @@ PetStable& Player::GetOrInitPetStable()
         m_petStable = std::make_unique<PetStable>();
 
     return *m_petStable;
-}
-
-// For custom spawn item with bonus id
-bool Player::AddItemBonus(uint32 itemId, uint32 count, uint32 bonusId)
-{
-    std::vector<int32> bonusListIDs;
-    uint32 noSpaceForCount = 0;
-    ItemPosCountVec dest;
-    InventoryResult msg = CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, count, &noSpaceForCount);
-    if (msg != EQUIP_ERR_OK)
-        count -= noSpaceForCount;
-
-    bonusListIDs.push_back(bonusId);
-
-    if (count == 0 || dest.empty())
-    {
-        /// @todo Send to mailbox if no space
-        ChatHandler(GetSession()).PSendSysMessage("You don't have any space in your bags.");
-        return false;
-    }
-
-    Item* item = StoreNewItem(dest, itemId, true, GenerateItemRandomBonusListId(itemId), GuidSet(), ItemContext::NONE, bonusListIDs);
-    return true;
 }
 
 void Player::SendItemRefundResult(Item* item, ItemExtendedCostEntry const* iece, uint8 error) const
