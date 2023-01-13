@@ -69,19 +69,19 @@ bool OpcodeTable::ValidateClientOpcode(OpcodeClient opcode, char const* name) co
 {
     if (uint32(opcode) == NULL_OPCODE)
     {
-        TC_LOG_ERROR("network", "Opcode %s does not have a value", name);
+        TC_LOG_ERROR("network", "Opcode {} does not have a value", name);
         return false;
     }
 
     if (uint32(opcode) >= NUM_OPCODE_HANDLERS)
     {
-        TC_LOG_ERROR("network", "Tried to set handler for an invalid opcode %d", opcode);
+        TC_LOG_ERROR("network", "Tried to set handler for an invalid opcode {}", opcode);
         return false;
     }
 
     if (_internalTableClient[opcode] != nullptr)
     {
-        TC_LOG_ERROR("network", "Tried to override client handler of %s with %s (opcode %u)", _internalTableClient[opcode]->Name, name, opcode);
+        TC_LOG_ERROR("network", "Tried to override client handler of {} with {} (opcode {})", _internalTableClient[opcode]->Name, name, opcode);
         return false;
     }
 
@@ -101,31 +101,31 @@ void OpcodeTable::ValidateAndSetServerOpcode(OpcodeServer opcode, char const* na
 {
     if (uint32(opcode) == NULL_OPCODE)
     {
-        TC_LOG_ERROR("network", "Opcode %s does not have a value", name);
+        TC_LOG_ERROR("network", "Opcode {} does not have a value", name);
         return;
     }
 
     if (uint32(opcode) >= NUM_OPCODE_HANDLERS)
     {
-        TC_LOG_ERROR("network", "Tried to set handler for an invalid opcode %d", opcode);
+        TC_LOG_ERROR("network", "Tried to set handler for an invalid opcode {}", opcode);
         return;
     }
 
     if (conIdx >= MAX_CONNECTION_TYPES)
     {
-        TC_LOG_ERROR("network", "Tried to set invalid connection type %u for opcode %s", conIdx, name);
+        TC_LOG_ERROR("network", "Tried to set invalid connection type {} for opcode {}", conIdx, name);
         return;
     }
 
     if (IsInstanceOnlyOpcode(opcode) && conIdx != CONNECTION_TYPE_INSTANCE)
     {
-        TC_LOG_ERROR("network", "Tried to set invalid connection type %u for instance only opcode %s", conIdx, name);
+        TC_LOG_ERROR("network", "Tried to set invalid connection type {} for instance only opcode {}", conIdx, name);
         return;
     }
 
     if (_internalTableServer[opcode] != nullptr)
     {
-        TC_LOG_ERROR("network", "Tried to override server handler of %s with %s (opcode %u)", opcodeTable[opcode]->Name, name, opcode);
+        TC_LOG_ERROR("network", "Tried to override server handler of {} with {} (opcode {})", opcodeTable[opcode]->Name, name, opcode);
         return;
     }
 
@@ -928,7 +928,7 @@ void OpcodeTable::Initialize()
     DEFINE_HANDLER(CMSG_TOGGLE_PVP,                                         STATUS_LOGGEDIN,  PROCESS_THREADUNSAFE, &WorldSession::HandleTogglePvP);
     DEFINE_HANDLER(CMSG_TOTEM_DESTROYED,                                    STATUS_LOGGEDIN,  PROCESS_INPLACE,      &WorldSession::HandleTotemDestroyed);
     DEFINE_HANDLER(CMSG_TOY_CLEAR_FANFARE,                                  STATUS_LOGGEDIN,  PROCESS_INPLACE,      &WorldSession::HandleToyClearFanfare);
-    DEFINE_HANDLER(CMSG_TRADE_SKILL_SET_FAVORITE,                           STATUS_UNHANDLED, PROCESS_THREADUNSAFE, &WorldSession::Handle_NULL);
+    DEFINE_HANDLER(CMSG_TRADE_SKILL_SET_FAVORITE,                           STATUS_LOGGEDIN,  PROCESS_INPLACE,      &WorldSession::HandleTradeSkillSetFavorite);
     DEFINE_HANDLER(CMSG_TRAINER_BUY_SPELL,                                  STATUS_LOGGEDIN,  PROCESS_INPLACE,      &WorldSession::HandleTrainerBuySpellOpcode);
     DEFINE_HANDLER(CMSG_TRAINER_LIST,                                       STATUS_LOGGEDIN,  PROCESS_INPLACE,      &WorldSession::HandleTrainerListOpcode);
     DEFINE_HANDLER(CMSG_TRAITS_COMMIT_CONFIG,                               STATUS_LOGGEDIN,  PROCESS_INPLACE,      &WorldSession::HandleTraitsCommitConfig);
