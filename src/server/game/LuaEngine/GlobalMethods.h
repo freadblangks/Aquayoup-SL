@@ -8,6 +8,7 @@
 #define GLOBALMETHODS_H
 
 #include "BindingMap.h"
+#include "Containers.h"
 #include "Object.h"
 #include <iostream>
 #include <ostream>

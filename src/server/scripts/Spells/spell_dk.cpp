@@ -859,8 +859,6 @@ public:
                 return;
 
             l_Caster->ModifyPower(POWER_RUNIC_POWER, -130);
-            if (l_Caster->ToPlayer())
-                l_Caster->ToPlayer()->SendPowerUpdate(POWER_RUNIC_POWER, l_Caster->GetPower(POWER_RUNIC_POWER));
 
             if (l_Caster->GetPower(POWER_RUNIC_POWER) <= 130)
                 l_Caster->RemoveAura(SPELL_DK_BREATH_OF_SINDRAGOSA);

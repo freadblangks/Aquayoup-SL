@@ -1740,7 +1740,6 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void SendRespecWipeConfirm(ObjectGuid const& guid, uint32 cost, SpecResetType respecType) const;
         void RegenerateAll();
         void Regenerate(Powers power);
-        void SendPowerUpdate(Powers power, int32 amount);
         void RegenerateHealth();
         void setRegenTimerCount(uint32 time) {m_regenTimerCount = time;}
         void setWeaponChangeTimer(uint32 time) {m_weaponChangeTimer = time;}
