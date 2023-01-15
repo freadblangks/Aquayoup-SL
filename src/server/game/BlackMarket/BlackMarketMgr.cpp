@@ -88,7 +88,7 @@ void BlackMarketMgr::LoadTemplates()
         AddTemplate(templ);
     } while (result->NextRow());
 
-    TC_LOG_INFO("server.loading", ">> Loaded %u black market templates in %u ms.", uint32(_templates.size()), GetMSTimeDiffToNow(oldMSTime));
+    TC_LOG_INFO("server.loading", ">> Loaded {} black market templates in {} ms.", uint32(_templates.size()), GetMSTimeDiffToNow(oldMSTime));
 }
 
 void BlackMarketMgr::LoadAuctions()
@@ -112,7 +112,7 @@ void BlackMarketMgr::LoadAuctions()
         return;
     }
 
-    _lastUpdate = time(nullptr); //Set update time before loading
+    _lastUpdate = GameTime::GetGameTime(); //Set update time before loading
 
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
     do
@@ -139,7 +139,7 @@ void BlackMarketMgr::LoadAuctions()
 
     CharacterDatabase.CommitTransaction(trans);
 
-    TC_LOG_INFO("server.loading", ">> Loaded %u black market auctions in %u ms.", uint32(_auctions.size()), GetMSTimeDiffToNow(oldMSTime));
+    TC_LOG_INFO("server.loading", ">> Loaded {} black market auctions in {} ms.", uint32(_auctions.size()), GetMSTimeDiffToNow(oldMSTime));
 }
 
 void BlackMarketMgr::Update(bool updateTime)
@@ -148,16 +148,13 @@ void BlackMarketMgr::Update(bool updateTime)
     time_t now = GameTime::GetGameTime();
     for (BlackMarketEntryMap::iterator itr = _auctions.begin(); itr != _auctions.end(); ++itr)
     {
-        BlackMarketEntry* auction = itr->second;
+        BlackMarketEntry* entry = itr->second;
 
-        if (auction->IsCompleted())
-        {
-            if (auction->GetBidder())
-            {
-                SendAuctionWonMail(auction, trans);
-                auction->DeleteFromDB(trans);
-            }
-        }
+        if (entry->IsCompleted() && entry->GetBidder())
+            SendAuctionWonMail(entry, trans);
+
+        if (updateTime)
+            entry->Update(now);
     }
 
     if (updateTime)
@@ -203,14 +200,10 @@ void BlackMarketMgr::RefreshAuctions()
     for (BlackMarketTemplate const* templat : templates)
     {
         BlackMarketEntry* entry = new BlackMarketEntry();
-        int32 timed = time(nullptr) + templat->Duration;
-        if (timed > 0)
-        {
-		entry->Initialize(templat->MarketID, timed);
+        entry->Initialize(templat->MarketID, templat->Duration);
         entry->SaveToDB(trans);
         AddAuction(entry);
-		}
-	}
+    }
 
     CharacterDatabase.CommitTransaction(trans);
 
@@ -314,8 +307,8 @@ void BlackMarketMgr::SendAuctionWonMail(BlackMarketEntry* entry, CharacterDataba
 
     // Log trade
     if (logGmTrade)
-        sLog->OutCommand(bidderAccId, "GM %s (Account: %u) won item in blackmarket auction: %s (Entry: %u Count: %u) and payed gold : %u.",
-            bidderName.c_str(), bidderAccId, item->GetTemplate()->GetDefaultLocaleName(), item->GetEntry(), item->GetCount(), entry->GetCurrentBid() / GOLD);
+        sLog->OutCommand(bidderAccId, "GM {} (Account: {}) won item in blackmarket auction: {} (Entry: {} Count: {}) and payed gold : {}.",
+            bidderName, bidderAccId, item->GetTemplate()->GetDefaultLocaleName(), item->GetEntry(), item->GetCount(), entry->GetCurrentBid() / GOLD);
 
     if (bidder)
         bidder->GetSession()->SendBlackMarketWonNotification(entry, item);
@@ -389,27 +382,32 @@ bool BlackMarketTemplate::LoadFromDB(Field* fields)
 
     if (!sObjectMgr->GetCreatureTemplate(SellerNPC))
     {
-        TC_LOG_ERROR("misc", "Black market template %i does not have a valid seller. (Entry: %u)", MarketID, SellerNPC);
+        TC_LOG_ERROR("misc", "Black market template {} does not have a valid seller. (Entry: {})", MarketID, SellerNPC);
         return false;
     }
 
     if (!sObjectMgr->GetItemTemplate(Item.ItemID))
     {
-        TC_LOG_ERROR("misc", "Black market template %i does not have a valid item. (Entry: %u)", MarketID, Item.ItemID);
+        TC_LOG_ERROR("misc", "Black market template {} does not have a valid item. (Entry: {})", MarketID, Item.ItemID);
         return false;
     }
 
     return true;
 }
 
+void BlackMarketEntry::Update(time_t newTimeOfUpdate)
+{
+    _secondsRemaining = _secondsRemaining - (newTimeOfUpdate - sBlackMarketMgr->GetLastUpdate());
+}
+
 BlackMarketTemplate const* BlackMarketEntry::GetTemplate() const
 {
-    return sBlackMarketMgr->GetTemplateByID(GetMarketId());
+    return sBlackMarketMgr->GetTemplateByID(_marketId);
 }
 
 uint32 BlackMarketEntry::GetSecondsRemaining() const
 {
-    return _startTime - time(nullptr);
+    return _secondsRemaining - (GameTime::GetGameTime() - sBlackMarketMgr->GetLastUpdate());
 }
 
 time_t BlackMarketEntry::GetExpirationTime() const
@@ -430,17 +428,21 @@ bool BlackMarketEntry::LoadFromDB(Field* fields)
     BlackMarketTemplate const* templ = sBlackMarketMgr->GetTemplateByID(_marketId);
     if (!templ)
     {
-        TC_LOG_ERROR("misc", "Black market auction %i does not have a valid id.", _marketId);
+        TC_LOG_ERROR("misc", "Black market auction {} does not have a valid id.", _marketId);
         return false;
     }
 
     _currentBid = fields[1].GetUInt64();
-    int32 secondsRemaining = fields[2].GetInt32();
-    if (secondsRemaining < 0) // bag
-        secondsRemaining = time(nullptr) + 7200;
-    _startTime = secondsRemaining;
+    _secondsRemaining =  static_cast<time_t>(fields[2].GetInt64()) - sBlackMarketMgr->GetLastUpdate();
     _numBids = fields[3].GetInt32();
     _bidder = fields[4].GetUInt64();
+
+    // Either no bidder or existing player
+    if (_bidder && !sCharacterCache->GetCharacterAccountIdByGuid(ObjectGuid::Create<HighGuid::Player>(_bidder))) // Probably a better way to check if player exists
+    {
+        TC_LOG_ERROR("misc", "Black market auction {} does not have a valid bidder (GUID: {} ).", _marketId, _bidder);
+        return false;
+    }
 
     return true;
 }
@@ -486,6 +488,9 @@ void BlackMarketEntry::PlaceBid(uint64 bid, Player* player, CharacterDatabaseTra
 
     _currentBid = bid;
     ++_numBids;
+
+    if (GetSecondsRemaining() < 30 * MINUTE)
+        _secondsRemaining += 30 * MINUTE;
 
     _bidder = player->GetGUID().GetCounter();
 
