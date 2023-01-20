@@ -14,11 +14,14 @@
 #include "Transport.h"
 #include "World.h"
 #include "Unit.h"
+#include "Log.h"
+
 #include "FreedomMgr.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/tokenizer.hpp>
 #include <G3D/Quat.h>
+#include <QueryPackets.h>
 
 #pragma region FREEDOM_MANAGER
 FreedomMgr::FreedomMgr()
@@ -60,6 +63,7 @@ void FreedomMgr::LoadAllTables()
     LoadGameObjectExtras();
     LoadCreatureExtras();
     LoadCreatureTemplateExtras();
+    LoadCustomNpcs();
 
     TC_LOG_INFO("server.loading", ">> Loaded FreedomMgr tables in %u ms", GetMSTimeDiffToNow(oldMSTime));
 }
@@ -126,7 +130,7 @@ void FreedomMgr::CreaturePhase(Creature* creature, uint32 phaseMask)
             PhasingHandler::AddPhase(creature, phase, true);
     }
 
-//    creature->SetPhaseMask(phaseMask, true);
+    //    creature->SetPhaseMask(phaseMask, true);
 
     _creatureExtraStore[creature->GetSpawnId()].phaseMask = phaseMask;
 }
@@ -147,7 +151,7 @@ void FreedomMgr::GameObjectPhase(GameObject* go, uint32 phaseMask)
             PhasingHandler::AddPhase(go, phase, true);
     }
 
-//    go->SetPhaseMask(phaseMask, true);
+    //    go->SetPhaseMask(phaseMask, true);
 
     _gameObjectExtraStore[go->GetSpawnId()].phaseMask = phaseMask;
 }
@@ -197,7 +201,7 @@ void FreedomMgr::LoadCreatureExtras()
 
     do
     {
-        Field * fields = result->Fetch();
+        Field* fields = result->Fetch();
         CreatureExtraData data;
         uint64 guid = fields[0].GetUInt64();
         data.scale = fields[1].GetFloat();
@@ -235,7 +239,7 @@ void FreedomMgr::LoadCreatureTemplateExtras()
 
     do
     {
-        Field * fields = result->Fetch();
+        Field* fields = result->Fetch();
         CreatureTemplateExtraData data;
         uint32 entry = fields[0].GetUInt32();
         data.disabled = fields[1].GetBool();
@@ -430,7 +434,7 @@ bool FreedomMgr::CreatureCanFly(Creature const* creature)
     if (it == _creatureExtraStore.end())
     {
         // Todo: Check this. Based off Creature::UpdateMovementFlags since InhabitType seems to no longer exist.
-        _creatureExtraStore[creature->GetSpawnId()].fly =  creature->GetMovementTemplate().IsFlightAllowed();
+        _creatureExtraStore[creature->GetSpawnId()].fly = creature->GetMovementTemplate().IsFlightAllowed();
     }
 
     return _creatureExtraStore[creature->GetSpawnId()].fly;
@@ -510,7 +514,7 @@ void FreedomMgr::CreatureMove(Creature* creature, float x, float y, float z, flo
     //     const_cast<CreatureData*>(data)->orientation = o;
     // }
     // TODO: Check if this works
-    creature->Relocate(x,y,z,o);
+    creature->Relocate(x, y, z, o);
 
     //! If hovering, always increase our server-side Z position
     //! Client automatically projects correct position based on Z coord sent in monster move
@@ -566,6 +570,17 @@ void FreedomMgr::CreatureDelete(Creature* creature)
     creature->CombatStop();
     creature->DeleteFromDB(creature->GetSpawnId());
     creature->AddObjectToRemoveList();
+    // Remove spawn from custom npc spawns
+    for (auto it : _customNpcStore)
+    {
+        if (it.second.templateId == creature->GetEntry()) {
+            std::vector<uint64> spawns = it.second.spawns;
+            spawns.erase(std::remove(spawns.begin(), spawns.end(), creature->GetSpawnId()), spawns.end());
+            it.second.spawns = spawns;
+            _customNpcStore[it.first] = it.second;
+            break;
+        }
+    }
 }
 
 Creature* FreedomMgr::CreatureCreate(Player* creator, CreatureTemplate const* creatureTemplate)
@@ -768,7 +783,7 @@ void FreedomMgr::LoadGameObjectExtras()
 
     do
     {
-        Field * fields = result->Fetch();
+        Field* fields = result->Fetch();
         GameObjectExtraData data;
         uint64 guid = fields[0].GetUInt64();
         data.scale = fields[1].GetFloat();
@@ -802,7 +817,7 @@ void FreedomMgr::LoadGameObjectTemplateExtras()
 
     do
     {
-        Field * fields = result->Fetch();
+        Field* fields = result->Fetch();
         GameObjectTemplateExtraData data;
         uint32 entry = fields[0].GetUInt32();
         data.disabled = fields[1].GetBool();
@@ -918,16 +933,16 @@ GameObject* FreedomMgr::GameObjectRefresh(GameObject* go)
 
 void FreedomMgr::GameObjectMove(GameObject* go, float x, float y, float z, float o)
 {
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: GameObjectMove to x:'%f', y:'%f', z: '%f', o: '%f'", x, y, z, o);
     go->Relocate(x, y, z, o);
 
     if (GameObjectUsesQuatRotation(go))
     {
-        auto extraData = &_gameObjectExtraStore[go->GetSpawnId()];
-
+        auto extraData = _gameObjectExtraStore[go->GetSpawnId()];
         // Preserve roll and pitch, use new orientation (z angle) for yaw
-        extraData->yaw = o;
-        // TODO: check if localRotationAngles works same as worldRotationAngles previously
-        go->SetLocalRotationAngles(extraData->yaw, extraData->pitch, extraData->roll);
+        extraData.yaw = o;
+        go->SetLocalRotationAngles(extraData.yaw, extraData.pitch, extraData.roll);
+        _gameObjectExtraStore[go->GetSpawnId()] = extraData;
     }
     else
     {
@@ -976,6 +991,8 @@ void FreedomMgr::GameObjectRotate(GameObject* go, float deg_x, float deg_y, floa
         extraData->yaw = rad_z;
     }
 
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: GameObjectRotate to '%f'", extraData ->yaw);
+
     go->Relocate(go->GetPositionX(), go->GetPositionY(), go->GetPositionZ(), extraData->yaw);
     // TODO Check if localrotationangle works same as WorldRotationAngles previously
     go->SetLocalRotationAngles(extraData->yaw, extraData->pitch, extraData->roll);
@@ -1008,13 +1025,13 @@ void FreedomMgr::GameObjectRotateSingleAxis(GameObject* go, float deg, RotationA
         extraData->yaw = (addDeg ? (extraData->yaw + rad) : rad);
         break;
     }
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: GameObjectRotateSingleAxis to '%f'", extraData->yaw);
 
     go->Relocate(go->GetPositionX(), go->GetPositionY(), go->GetPositionZ(), extraData->yaw);
-    // TODO Check if localrotationangle works same as WorldRotationAngles previously
     go->SetLocalRotationAngles(extraData->yaw, extraData->pitch, extraData->roll);
 }
 
-void FreedomMgr::GetGameObjectEulerAnglesDeg(GameObject* go, float &deg_x, float &deg_y, float &deg_z)
+void FreedomMgr::GetGameObjectEulerAnglesDeg(GameObject* go, float& deg_x, float& deg_y, float& deg_z)
 {
     if (GameObjectUsesQuatRotation(go))
     {
@@ -1033,7 +1050,7 @@ void FreedomMgr::GetGameObjectEulerAnglesDeg(GameObject* go, float &deg_x, float
     }
 }
 
-void FreedomMgr::GetGameObjectEulerAnglesRad(GameObject* go, float &rad_x, float &rad_y, float &rad_z)
+void FreedomMgr::GetGameObjectEulerAnglesRad(GameObject* go, float& rad_x, float& rad_y, float& rad_z)
 {
     if (GameObjectUsesQuatRotation(go))
     {
@@ -1217,7 +1234,7 @@ void FreedomMgr::LoadItemTemplateExtras()
 
     do
     {
-        Field * fields = result->Fetch();
+        Field* fields = result->Fetch();
         ItemTemplateExtraData data;
         uint32 itemId = fields[0].GetUInt32();
         data.hidden = fields[1].GetBool();
@@ -1314,7 +1331,7 @@ std::string FreedomMgr::GetMapName(uint32 mapId)
         return "Unknown";
 }
 
-std::string FreedomMgr::GetChatLinkKey(std::string const &src, std::string type)
+std::string FreedomMgr::GetChatLinkKey(std::string const& src, std::string type)
 {
     if (src.empty())
         return "";
@@ -1463,7 +1480,7 @@ void FreedomMgr::LoadPublicTeleports()
 
     do
     {
-        Field * fields = result->Fetch();
+        Field* fields = result->Fetch();
         PublicTeleData data;
         data.name = fields[0].GetString();
         data.x = fields[1].GetFloat();
@@ -1560,7 +1577,7 @@ void FreedomMgr::LoadPrivateTeleports()
 
     do
     {
-        Field * fields = result->Fetch();
+        Field* fields = result->Fetch();
         PrivateTeleData data;
         data.name = fields[0].GetString();
         data.x = fields[1].GetFloat();
@@ -1629,7 +1646,7 @@ void FreedomMgr::LoadPublicSpells()
 
     do
     {
-        Field * fields = result->Fetch();
+        Field* fields = result->Fetch();
         PublicSpellData data;
         uint32 spellId = fields[0].GetUInt32();
         data.targetOthers = fields[1].GetUInt8();
@@ -1710,7 +1727,7 @@ void FreedomMgr::LoadMorphs()
 
     do
     {
-        Field * fields = result->Fetch();
+        Field* fields = result->Fetch();
         MorphData data;
         ObjectGuid::LowType charGuid = fields[0].GetUInt64();
         data.name = fields[1].GetString();
@@ -1722,5 +1739,567 @@ void FreedomMgr::LoadMorphs()
 }
 
 #pragma endregion
+
+#pragma region npcappearance
+void FreedomMgr::LoadCustomNpcSpawn(uint32 templateId, ObjectGuid::LowType spawn)
+{
+    for (auto it : _customNpcStore)
+    {
+        if (it.second.templateId == templateId) {
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Identified custom npc key '%s' for entry id '%u', adding spawn '%lu'", it.second.key, templateId, spawn);
+            it.second.spawns.push_back(spawn);
+            _customNpcStore[it.first] = it.second;
+            break;
+        }
+    }
+}
+
+void FreedomMgr::LoadCustomNpcs()
+{
+    // clear current storage
+    _customNpcStore.clear();
+
+    uint32 oldMSTime = getMSTime();
+    QueryResult result = FreedomDatabase.Query("SELECT `Key`, Entry from custom_npcs");
+    if (!result)
+    {
+        TC_LOG_INFO("server.loading", ">> Loaded 0 custom ncps. DB table `custom_npcs` is empty!");
+        return;
+    }
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 entry = fields[1].GetUInt32();
+
+        CustomNpcData npcData;
+        npcData.templateId = entry;
+        npcData.key = fields[0].GetString();
+        _customNpcStore[npcData.key] = npcData;
+
+        ++count;
+    } while (result->NextRow());
+
+    TC_LOG_INFO("server.loading", ">> Loaded %u custom npcs in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+void FreedomMgr::CreateCustomNpcFromPlayer(Player* player, std::string const& key)
+{
+    std::shared_ptr<CreatureOutfit> co(new CreatureOutfit());
+
+    uint32 outfitId = sConfigMgr->GetInt64Default("Freedom.CustomNpc.OutfitIdStart", 3000000001) + sObjectMgr->_creatureOutfitStore.size();
+    co->id = outfitId;
+    co->npcsoundsid = 0;
+    co->race = player->GetRace();
+    co->Class = player->GetClass();
+
+    auto* maleModel = sDB2Manager.GetChrModel(co->race, GENDER_MALE);
+    auto* femaleModel = sDB2Manager.GetChrModel(co->race, GENDER_FEMALE);
+
+    co->gender = player->GetGender();
+    switch (co->gender)
+    {
+    case GENDER_FEMALE: co->displayId = femaleModel->DisplayID; break;
+    case GENDER_MALE:   co->displayId = maleModel->DisplayID; break;
+    }
+
+    co->SpellVisualKitID = 0;
+    for (auto&& customization : player->m_playerData->Customizations)
+    {
+        co->Customizations.push_back(customization);
+    }
+
+    for (EquipmentSlots slot : CreatureOutfit::item_slots)
+    {
+        if (Item* pItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+        {
+            int32 displayId = pItem->GetDisplayId(player);
+            co->outfitdisplays[slot] = displayId;
+        }
+        else {
+            co->outfitdisplays[slot] = 0;
+        }
+    }
+    co->guild = player->GetGuildId();
+
+
+    sObjectMgr->_creatureOutfitStore[outfitId] = std::move(co);
+
+    CreatureTemplate creatureTemplate;
+    uint32 npcCreatureTemplateId = sConfigMgr->GetInt64Default("Freedom.CustomNpc.CreatureTemplateIdStart", 400000) + _customNpcStore.size();
+    creatureTemplate.Entry = npcCreatureTemplateId;
+
+    for (uint32 i = 0; i < MAX_CREATURE_DIFFICULTIES; ++i)
+        creatureTemplate.DifficultyEntry[i] = 0;
+
+    for (uint8 i = 0; i < MAX_KILL_CREDIT; ++i)
+        creatureTemplate.KillCredit[i] = 0;
+
+    creatureTemplate.Name = key;
+    creatureTemplate.GossipMenuId = 0;
+    creatureTemplate.minlevel = 1;
+    creatureTemplate.maxlevel = 1;
+    creatureTemplate.HealthScalingExpansion = EXPANSION_SHADOWLANDS;
+    creatureTemplate.RequiredExpansion = EXPANSION_CLASSIC;
+    creatureTemplate.VignetteID = 0;
+    creatureTemplate.faction = 35;
+    creatureTemplate.npcflag = 0;
+    creatureTemplate.speed_walk = 1.0f;
+    creatureTemplate.speed_run = 1.14286f;
+    creatureTemplate.scale = 1.0f;
+    creatureTemplate.rank = 0;
+    creatureTemplate.dmgschool = 0;
+    creatureTemplate.BaseAttackTime = 0;
+    creatureTemplate.RangeAttackTime = 0;
+    creatureTemplate.BaseVariance = 1;
+    creatureTemplate.RangeVariance = 1;
+    creatureTemplate.unit_class = UnitClass::UNIT_CLASS_WARRIOR;
+    creatureTemplate.unit_flags = 0;
+    creatureTemplate.unit_flags2 = 0;
+    creatureTemplate.unit_flags3 = 0;
+    creatureTemplate.dynamicflags = 0;
+    creatureTemplate.family = CREATURE_FAMILY_NONE;
+    creatureTemplate.trainer_class = 0;
+    creatureTemplate.type = CreatureType::CREATURE_TYPE_HUMANOID;
+    creatureTemplate.type_flags = 0;
+    creatureTemplate.type_flags2 = 2;
+    creatureTemplate.lootid = 0;
+    creatureTemplate.pickpocketLootId = 0;
+    creatureTemplate.SkinLootId = 0;
+
+    for (uint8 i = SPELL_SCHOOL_HOLY; i < MAX_SPELL_SCHOOL; ++i)
+        creatureTemplate.resistance[i] = 0;
+
+    for (uint8 i = 0; i < MAX_CREATURE_SPELLS; ++i)
+        creatureTemplate.spells[i] = 0;
+
+    creatureTemplate.VehicleId = 0;
+    creatureTemplate.mingold = 0;
+    creatureTemplate.maxgold = 0;
+    creatureTemplate.AIName = "";
+    creatureTemplate.MovementType = 0;
+    creatureTemplate.HoverHeight = 1;
+    creatureTemplate.ModHealth = 1.0f;
+    creatureTemplate.ModHealthExtra = 1.0f;
+    creatureTemplate.ModMana = 1.0f;
+    creatureTemplate.ModManaExtra = 1.0f;
+    creatureTemplate.ModArmor = 1.0f;
+    creatureTemplate.ModDamage = 1.0f;
+    creatureTemplate.ModExperience = 1.0f;
+    creatureTemplate.RacialLeader = false;
+    creatureTemplate.movementId = 100;
+    creatureTemplate.CreatureDifficultyID = 204488;
+    creatureTemplate.WidgetSetID = 0;
+    creatureTemplate.WidgetSetUnitConditionID = 0;
+    creatureTemplate.RegenHealth = 1;
+    creatureTemplate.MechanicImmuneMask = 0;
+    creatureTemplate.SpellSchoolImmuneMask = 0;
+    creatureTemplate.flags_extra = 0;
+    creatureTemplate.ScriptID = sObjectMgr->GetScriptId("");
+
+    creatureTemplate.Models.push_back(CreatureModel(outfitId, 1.0f, 1.0f));
+
+    if (sWorld->getBoolConfig(CONFIG_CACHE_DATA_QUERIES)) {
+        for (uint8 loc = LOCALE_enUS; loc < TOTAL_LOCALES; ++loc)
+            creatureTemplate.QueryData[loc] = creatureTemplate.BuildQueryData(static_cast<LocaleConstant>(loc));
+    }
+
+    sObjectMgr->CheckCreatureTemplate(&creatureTemplate);
+
+    sObjectMgr->_creatureTemplateStore[creatureTemplate.Entry] = creatureTemplate;
+
+    EquipmentInfo _equipmentInfo;
+    for (uint8 equipmentInfoSlot = 0; equipmentInfoSlot < MAX_EQUIPMENT_ITEMS; equipmentInfoSlot++) {
+        _equipmentInfo.Items[equipmentInfoSlot].ItemId = 0;
+        _equipmentInfo.Items[equipmentInfoSlot].AppearanceModId = 0;
+        _equipmentInfo.Items[equipmentInfoSlot].ItemVisual = 0;
+    }
+    sObjectMgr->_equipmentInfoStore[creatureTemplate.Entry][1] = _equipmentInfo;
+
+    CustomNpcData npcData;
+    npcData.key = key;
+    npcData.templateId = npcCreatureTemplateId;
+
+    _customNpcStore[key] = npcData;
+    SaveNpcOutfitToDb(npcCreatureTemplateId, 1);
+    SaveCustomNpcDataToDb(npcData);
+    SaveNpcCreatureTemplateToDb(creatureTemplate);
+    SaveNpcEquipmentInfoToDb(creatureTemplate.Entry, 1);
+}
+
+
+void FreedomMgr::SetCustomNpcOutfitEquipmentSlot(std::string const& key, uint8 variationId, EquipmentSlots slot, int32 displayId)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureNpcOutfitExists(templateId, variationId);
+    uint32 outfitId = sObjectMgr->_creatureTemplateStore[templateId].Models[variationId-1].CreatureDisplayID;
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Setting equipmentslot '%u' for custom npc '%s' with outfitId '%u' to '%u'", slot, key, outfitId, displayId);
+    std::shared_ptr<CreatureOutfit> co = sObjectMgr->_creatureOutfitStore[outfitId];
+    co->outfitdisplays[slot] = displayId;
+    sObjectMgr->_creatureOutfitStore[outfitId] = std::move(co);
+    SaveNpcOutfitToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcOutfitRace(std::string const& key, uint8 variationId, Races race)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureNpcOutfitExists(templateId, variationId);
+    uint32 outfitId = sObjectMgr->_creatureTemplateStore[templateId].Models[variationId-1].CreatureDisplayID;
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Setting race for custom npc '%s' with outfitId '%u'", key, outfitId);
+    std::shared_ptr<CreatureOutfit> co = sObjectMgr->_creatureOutfitStore[outfitId];
+    co->race = race;
+
+    auto* maleModel = sDB2Manager.GetChrModel(co->race, GENDER_MALE);
+    auto* femaleModel = sDB2Manager.GetChrModel(co->race, GENDER_FEMALE);
+    switch (co->gender)
+    {
+        case GENDER_FEMALE: co->displayId = femaleModel->DisplayID; break;
+        case GENDER_MALE:   co->displayId = maleModel->DisplayID; break;
+    }
+    sObjectMgr->_creatureOutfitStore[outfitId] = std::move(co);
+    SaveNpcOutfitToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcOutfitGender(std::string const& key, uint8 variationId, Gender gender)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureNpcOutfitExists(templateId, variationId);
+    uint32 outfitId = sObjectMgr->_creatureTemplateStore[templateId].Models[variationId-1].CreatureDisplayID;
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Setting gender for custom npc '%s' with outfitId '%u'", key, outfitId);
+    std::shared_ptr<CreatureOutfit> co = sObjectMgr->_creatureOutfitStore[outfitId];
+
+    co->gender = gender;
+    auto* maleModel = sDB2Manager.GetChrModel(co->race, GENDER_MALE);
+    auto* femaleModel = sDB2Manager.GetChrModel(co->race, GENDER_FEMALE);
+    switch (co->gender)
+    {
+        case GENDER_FEMALE: co->displayId = femaleModel->DisplayID; break;
+        case GENDER_MALE:   co->displayId = maleModel->DisplayID; break;
+    }
+    sObjectMgr->_creatureOutfitStore[outfitId] = std::move(co);
+    SaveNpcOutfitToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+
+void FreedomMgr::SetCustomNpcLeftHand(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureEquipmentInfoExists(templateId, variationId);
+    EquipmentInfo _equipmentInfo = sObjectMgr->_equipmentInfoStore[templateId][variationId];
+    _equipmentInfo.Items[0].ItemId = itemId;
+    _equipmentInfo.Items[0].AppearanceModId = appearanceModId;
+    sObjectMgr->_equipmentInfoStore[templateId][variationId] = _equipmentInfo;
+    SaveNpcEquipmentInfoToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+void FreedomMgr::SetCustomNpcRightHand(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureEquipmentInfoExists(templateId, variationId);
+    EquipmentInfo _equipmentInfo = sObjectMgr->_equipmentInfoStore[templateId][variationId];
+    _equipmentInfo.Items[1].ItemId = itemId;
+    _equipmentInfo.Items[1].AppearanceModId = appearanceModId;
+    sObjectMgr->_equipmentInfoStore[templateId][variationId] = _equipmentInfo;
+    SaveNpcEquipmentInfoToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+void FreedomMgr::SetCustomNpcRanged(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureEquipmentInfoExists(templateId, variationId);
+    EquipmentInfo _equipmentInfo = sObjectMgr->_equipmentInfoStore[templateId][variationId];
+    _equipmentInfo.Items[2].ItemId = itemId;
+    _equipmentInfo.Items[2].AppearanceModId = appearanceModId;
+    sObjectMgr->_equipmentInfoStore[templateId][variationId] = _equipmentInfo;
+    SaveNpcEquipmentInfoToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+void FreedomMgr::SetCustomNpcName(std::string const& key, std::string const& displayName)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    cTemplate.Name = displayName;
+
+    // Redo cached creatureTemplates
+    cTemplate.InitializeQueryData();
+
+    // Resend creature template query packet for npc to all players. Best update we can do atm.
+    SessionMap const& smap = sWorld->GetAllSessions();
+    for (SessionMap::const_iterator iter = smap.begin(); iter != smap.end(); ++iter)
+    {
+        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Sending query packet for creatureTemplate '%s' to '%s'.", cTemplate.Name, iter->second->GetPlayer()->GetName());
+        if (sWorld->getBoolConfig(CONFIG_CACHE_DATA_QUERIES)) {
+            iter->second->SendPacket(&cTemplate.QueryData[static_cast<uint32>(iter->second->GetSessionDbLocaleIndex())]);
+        }
+        else
+        {
+            WorldPacket response = cTemplate.BuildQueryData(iter->second->GetSessionDbLocaleIndex());
+            iter->second->SendPacket(&response);
+        }
+    }
+    sObjectMgr->_creatureTemplateStore[cTemplate.Entry] = cTemplate;
+    SaveNpcCreatureTemplateToDb(cTemplate);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcSubName(std::string const& key, std::string const& subName)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    cTemplate.SubName = subName;
+
+    // Redo cached creatureTemplates
+    cTemplate.InitializeQueryData();
+
+    // Resend creature template query packet for npc to all players. Best update we can do atm.
+    SessionMap const& smap = sWorld->GetAllSessions();
+    for (SessionMap::const_iterator iter = smap.begin(); iter != smap.end(); ++iter)
+    {
+        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Sending query packet for creatureTemplate '%s' to '%s'.", cTemplate.Name, iter->second->GetPlayer()->GetName());
+        if (sWorld->getBoolConfig(CONFIG_CACHE_DATA_QUERIES)) {
+            iter->second->SendPacket(&cTemplate.QueryData[static_cast<uint32>(iter->second->GetSessionDbLocaleIndex())]);
+        }
+        else
+        {
+            WorldPacket response = cTemplate.BuildQueryData(iter->second->GetSessionDbLocaleIndex());
+            iter->second->SendPacket(&response);
+        }
+    }
+
+    sObjectMgr->_creatureTemplateStore[cTemplate.Entry] = cTemplate;
+    SaveNpcCreatureTemplateToDb(cTemplate);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcCustomizations(std::string const& key, uint8 variationId, Player* player)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureNpcOutfitExists(templateId, variationId);
+    uint32 outfitId = sObjectMgr->_creatureTemplateStore[templateId].Models[variationId-1].CreatureDisplayID;
+    std::shared_ptr<CreatureOutfit> co = sObjectMgr->_creatureOutfitStore[outfitId];
+
+    std::vector<UF::ChrCustomizationChoice> customizations;
+    for (auto&& customization : player->m_playerData->Customizations)
+    {
+        customizations.push_back(customization);
+    }
+    co->Customizations = customizations;
+    sObjectMgr->_creatureOutfitStore[outfitId] = std::move(co);
+    SaveNpcOutfitToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SaveNpcOutfitToDb(uint32 templateId, uint8 variationId)
+{
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Saving variation '%u' for templateid '%u' to DB...", variationId, templateId);
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    uint32 outfitId = cTemplate.Models[variationId-1].CreatureDisplayID;
+    std::shared_ptr<CreatureOutfit> co = sObjectMgr->_creatureOutfitStore[outfitId];
+    std::string customizations_iss;
+    for (auto&& customization : co->Customizations)
+    {
+        if (customizations_iss.size()) {
+            customizations_iss.append(" ");
+        }
+        customizations_iss.append(std::to_string(customization.ChrCustomizationOptionID) + " " + std::to_string(customization.ChrCustomizationChoiceID));
+    }
+
+    WorldDatabaseTransaction trans = WorldDatabase.BeginTransaction();
+    // "REPLACE INTO creature_template_outfits (entry, race, class, gender, customizations, head, shoulders, body, chest, waist, legs, feet, wrists, hands, back, tabard)
+    //  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_DRESSNPC_OUTFIT);
+    int index = 0;
+    stmt->setUInt32(index++, outfitId);
+    stmt->setUInt8(index++, co->race);
+    stmt->setUInt8(index++, co->Class);
+    stmt->setUInt8(index++, co->gender);
+    stmt->setString(index++, customizations_iss);
+    for (EquipmentSlots slot : CreatureOutfit::item_slots)
+    {
+        stmt->setInt32(index++, -((int)co->outfitdisplays[slot]));
+    }
+    trans->Append(stmt);
+
+    // "REPLACE INTO creature_template_model (CreatureId, Idx, CreatureDisplayId, DisplayScale, Probability) VALUES (?, ?, ?, 1, 1)"
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_TEMPLATE_MODEL);
+    index = 0;
+    stmt->setUInt32(index++, templateId);
+    stmt->setUInt8(index++, variationId-1);
+    stmt->setUInt32(index++, outfitId);
+    trans->Append(stmt);
+    WorldDatabase.CommitTransaction(trans);
+}
+
+void FreedomMgr::SaveCustomNpcDataToDb(CustomNpcData outfitData)
+{
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Saving custom npc data for key '%s' to DB...", outfitData.key);
+    // "REPLACE INTO custom_npcs (Key, Entry) VALUES (?, ?)"
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_REP_CUSTOMNPCDATA);
+    int index = 0;
+    stmt->setString(index++, outfitData.key);
+    stmt->setUInt32(index++, outfitData.templateId);
+    FreedomDatabase.Execute(stmt);
+}
+
+void FreedomMgr::SaveNpcCreatureTemplateToDb(CreatureTemplate cTemplate)
+{
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Saving creature template id '%u' to DB...", cTemplate.Entry);
+    // "REPLACE INTO creature_template (entry, name, subname, HealthScalingExpansion, RequiredExpansion, faction, unit_class, type, type_flags2, movementId, CreatureDifficultyID) VALUES (?, ?, ?, 8, 0, 35, 1, 7, 2, 100, 204488)"
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_TEMPLATE);
+    int index = 0;
+    stmt->setUInt32(index++, cTemplate.Entry);
+    stmt->setString(index++, cTemplate.Name);
+    stmt->setString(index++, cTemplate.SubName);
+    WorldDatabase.Execute(stmt);
+}
+
+void FreedomMgr::SaveNpcEquipmentInfoToDb(uint32 templateId, uint8 variationId)
+{
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Saving equipment info '%u' for creature template id '%u' to DB...", variationId, templateId);
+    // "REPLACE INTO creature_equip_template (CreatureId, ID, ItemID1, AppearanceModID1, ItemVisual1, ItemID2, AppearanceModID2, ItemVisual2, ItemID3, AppearanceModID3, ItemVisual3) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+
+    EquipmentInfo equipInfo = sObjectMgr->_equipmentInfoStore[templateId][variationId];
+
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_EQUIP_TEMPLATE);
+    int index = 0;
+    stmt->setUInt32(index++, templateId);
+    stmt->setUInt8(index++, variationId);
+    for (uint8 equipmentInfoSlot = 0; equipmentInfoSlot < MAX_EQUIPMENT_ITEMS; equipmentInfoSlot++) {
+        stmt->setUInt32(index++, equipInfo.Items[equipmentInfoSlot].ItemId);
+        stmt->setUInt16(index++, equipInfo.Items[equipmentInfoSlot].AppearanceModId);
+        stmt->setUInt16(index++, equipInfo.Items[equipmentInfoSlot].ItemVisual);
+    }
+    WorldDatabase.Execute(stmt);
+}
+
+void FreedomMgr::ReloadSpawnedCustomNpcs(std::string const& key)
+{
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloading custom npc '%s'", key);
+    CustomNpcData data = _customNpcStore[key];
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Iterated spawns has " SZFMTD " elements in it.", data.spawns.size());
+    for (auto spawn : data.spawns) {
+        Creature* creature = GetAnyCreature(spawn);
+        if (!creature) {
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Unable to find creature id '%lu'", spawn);
+        }
+        else {
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloading creature id '%lu'", spawn);
+            uint8 modelId = urand(0u, sObjectMgr->_creatureTemplateStore[data.templateId].Models.size() - 1);
+            creature->SetOutfit(sObjectMgr->_creatureOutfitStore[sObjectMgr->_creatureTemplateStore[data.templateId].Models[modelId].CreatureDisplayID]);
+            creature->SetName(sObjectMgr->_creatureTemplateStore[data.templateId].Name);
+            creature->LoadEquipment(urand(1u, sObjectMgr->_equipmentInfoStore[data.templateId].size()));
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloaded creature id '%lu'", spawn);
+        }
+    }
+}
+
+
+void FreedomMgr::DeleteCustomNpc(std::string const& key)
+{
+    CustomNpcData data = _customNpcStore[key];
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Deleting custom npc '%s' with entry '%u'", key, data.templateId);
+    // Remove spawns
+    for (auto spawn : data.spawns) {
+        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Deleting spawn %lu", key, spawn);
+        Creature* creature = GetAnyCreature(spawn);
+        CreatureDelete(creature);
+    }
+    // Cleanup database
+    WorldDatabaseTransaction trans = WorldDatabase.BeginTransaction();
+
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_TEMPLATE_MODEL);
+    stmt->setUInt32(0, data.templateId);
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_EQUIP_TEMPLATE);
+    stmt->setUInt32(0, data.templateId);
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_TEMPLATE);
+    stmt->setUInt32(0, data.templateId);
+    trans->Append(stmt);
+
+    for (uint8 modelId = 0; modelId < sObjectMgr->_creatureTemplateStore[data.templateId].Models.size(); modelId++)
+    {
+        uint32 outfitId = sObjectMgr->_creatureTemplateStore[data.templateId].Models[modelId].CreatureDisplayID;
+        stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_DRESSNPC_OUTFIT);
+        stmt->setUInt32(0, outfitId);
+        trans->Append(stmt);
+    }
+
+    WorldDatabase.CommitTransaction(trans);
+
+    FreedomDatabasePreparedStatement* fStmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_CUSTOMNPC);
+    fStmt->setString(0, key);
+    FreedomDatabase.Execute(fStmt);
+
+    _customNpcStore.erase(key);
+    for (uint8 modelId = 0; modelId < sObjectMgr->_creatureTemplateStore[data.templateId].Models.size(); modelId++)
+    {
+        uint32 outfitId = sObjectMgr->_creatureTemplateStore[data.templateId].Models[modelId].CreatureDisplayID;
+        sObjectMgr->_creatureOutfitStore.erase(outfitId);
+    }
+    sObjectMgr->_equipmentInfoStore.erase(data.templateId);
+    sObjectMgr->_creatureTemplateStore.erase(data.templateId);
+}
+
+void FreedomMgr::EnsureNpcOutfitExists(uint32 templateId, uint8 variationId)
+{
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    uint32 modelsSize = cTemplate.Models.size();
+    if (modelsSize < variationId) {
+        for (uint8 i = modelsSize; i < variationId; i++) {
+            uint32 outfitId = sConfigMgr->GetInt64Default("Freedom.CustomNpc.OutfitIdStart", 3000000001) + sObjectMgr->_creatureOutfitStore.size();
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Adding outfit '%u' to create variation '%u' for template '%u'.", outfitId, variationId, templateId);
+
+            std::shared_ptr<CreatureOutfit> outfit(new CreatureOutfit());
+            std::shared_ptr<CreatureOutfit> lastOutfit = sObjectMgr->_creatureOutfitStore[cTemplate.Models[modelsSize - 1].CreatureDisplayID];
+            outfit->id = outfitId;
+            outfit->npcsoundsid = 0;
+            outfit->race = lastOutfit->race;
+            outfit->Class = lastOutfit->Class;
+            outfit->gender = lastOutfit->gender;
+            outfit->displayId = lastOutfit->displayId;
+            outfit->SpellVisualKitID = 0;
+            outfit->Customizations = lastOutfit->Customizations;
+            for (EquipmentSlots slot : CreatureOutfit::item_slots)
+            {
+                outfit->outfitdisplays[slot] = lastOutfit->outfitdisplays[slot];
+            }
+            outfit->guild = lastOutfit->guild;
+            outfit->id = outfitId;
+
+            sObjectMgr->_creatureOutfitStore[outfitId] = std::move(outfit);
+            cTemplate.Models.push_back(CreatureModel(outfitId, 1, 1));
+            sObjectMgr->_creatureTemplateStore[templateId] = cTemplate;
+        }
+    }
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Model variation '%u' for template '%u' ensured.", variationId, templateId);
+}
+
+void FreedomMgr::EnsureEquipmentInfoExists(uint32 templateId, uint8 variationId)
+{
+    if (!sObjectMgr->_equipmentInfoStore[templateId].count(variationId)) {
+        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Adding equipment variation '%u' for template '%u'.", variationId, templateId);
+        EquipmentInfo equipInfo;
+        for (uint8 equipmentInfoSlot = 0; equipmentInfoSlot < MAX_EQUIPMENT_ITEMS; equipmentInfoSlot++) {
+            equipInfo.Items[equipmentInfoSlot].ItemId = 0;
+            equipInfo.Items[equipmentInfoSlot].AppearanceModId = 0;
+            equipInfo.Items[equipmentInfoSlot].ItemVisual = 0;
+        }
+        sObjectMgr->_equipmentInfoStore[templateId][variationId] = equipInfo;
+    }
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Equipment variation '%u' for template '%u' ensured.", variationId, templateId);
+}
+
+uint8 FreedomMgr::GetModelVariationCountForNpc(std::string const& key) {
+    return sObjectMgr->_creatureTemplateStore[_customNpcStore[key].templateId].Models.size();
+}
+uint8 FreedomMgr::GetEquipmentVariationCountForNpc(std::string const& key) {
+    return sObjectMgr->_equipmentInfoStore[_customNpcStore[key].templateId].size();
+}
 
 #pragma endregion

@@ -753,7 +753,6 @@ public:
         source->GetPosition(px, py, pz, po);
         float cx, cy, cz, co;
         target->GetPosition(cx, cy, cz, co);
-        float distance = std::sqrt(std::pow(cx - px, 2) + std::pow(cy - py, 2) + std::pow(cz - pz, 2));
 
         std::string name = target->GetName();
         uint32 faction = target->GetFaction();

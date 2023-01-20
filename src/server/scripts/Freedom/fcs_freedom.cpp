@@ -146,6 +146,7 @@ public:
             { "customize",      rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomCustomizeCommand,          "" },
             { "racechange",     rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomRaceChangeCommand,         "" },
             { "factionchange",  rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomFactionChangeCommand,      "" },
+            { "t",              rbac::RBAC_FPERM_COMMAND_FREEDOM_TELE,              false, NULL,                                    "", freedomTeleportCommandTable },
             { "teleport",       rbac::RBAC_FPERM_COMMAND_FREEDOM_TELE,              false, NULL,                                    "", freedomTeleportCommandTable },
             { "pteleport",      rbac::RBAC_FPERM_COMMAND_FREEDOM_PTELE,             false, NULL,                                    "", freedomPrivateTeleportCommandTable },
             { "spell",          rbac::RBAC_FPERM_COMMAND_FREEDOM_SPELL,             false, NULL,                                    "", freedomSpellCommandTable },
@@ -161,7 +162,8 @@ public:
             { "gameaccount",    rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomGameAccountCreateCommand,  "" },
             { "accountaccess",  rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomAccountAccessCommand,      "" },
             { "changeaccount",  rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomChangeAccountCommand,      "" },
-            { "phase",          rbac::RBAC_FPERM_COMMAND_PHASE,                     false, NULL,                                    "", freedomPhaseCommandTable }
+            { "phase",          rbac::RBAC_FPERM_COMMAND_PHASE,                     false, NULL,                                    "", freedomPhaseCommandTable },
+            { "enchant",        rbac::RBAC_FPERM_COMMAND_FREEDOM_ENCHANT,           false, &HandleFreedomEnchantCommand,            "" },
         };
 
         static std::vector<ChatCommand> commandTable =
@@ -841,7 +843,7 @@ public:
 #pragma endregion
 
 #pragma region COMMAND TABLE : .freedom -> reload -> *
-    static bool HandleFreedomReloadAllCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadAllCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "freedomtables", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -851,7 +853,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadCreatureExtraCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadCreatureExtraCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "creature extra", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -863,7 +865,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadCreatureAddonCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadCreatureAddonCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "creature addon", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -875,7 +877,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadCreatureBaseCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadCreatureBaseCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "creature base", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -891,7 +893,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadCreatureEquipCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadCreatureEquipCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "creature equip", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -901,7 +903,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadGameobjectExtraCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadGameobjectExtraCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "gameobject extra", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -913,7 +915,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadGameobjectBaseCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadGameobjectBaseCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "gameobject base", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -925,7 +927,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadPublicTeleCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadPublicTeleCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "public_tele", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -935,7 +937,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadPrivateTeleCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadPrivateTeleCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "private_tele", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -945,7 +947,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadPublicSpellCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadPublicSpellCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "public_spell", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -955,7 +957,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadMorphsCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadMorphsCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "morphs", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -965,7 +967,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReloadItemCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReloadItemCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "item", handler->GetNameLink()).c_str());
         uint32 oldMSTime = getMSTime();
@@ -1024,11 +1026,11 @@ public:
         return true;
     }
 
-    static bool HandleFreedomPandarenHordeCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomPandarenHordeCommand(ChatHandler* handler)
     {
         Player* player = handler->GetSession()->GetPlayer();
 
-        if (player-> GetRace() != RACE_PANDAREN_NEUTRAL)
+        if (player->GetRace() != RACE_PANDAREN_NEUTRAL)
         {
             handler->PSendSysMessage(FREEDOM_CMDE_FREEDOM_PANDA_NOT_NEUTRAL);
             return true;
@@ -1043,11 +1045,11 @@ public:
         return true;
     }
 
-    static bool HandleFreedomPandarenAllianceCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomPandarenAllianceCommand(ChatHandler* handler)
     {
         Player* player = handler->GetSession()->GetPlayer();
 
-        if (player-> GetRace() != RACE_PANDAREN_NEUTRAL)
+        if (player->GetRace() != RACE_PANDAREN_NEUTRAL)
         {
             handler->PSendSysMessage(FREEDOM_CMDE_FREEDOM_PANDA_NOT_NEUTRAL);
             return true;
@@ -1062,7 +1064,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomTabardCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomTabardCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
         handler->GetSession()->SendTabardVendorActivate(source->GetGUID());
@@ -1075,7 +1077,7 @@ public:
 
         ArgumentTokenizer tokenizer(*args ? args : "");
         std::string namePart = tokenizer.GetUntokenizedString();
-        Gender gender = (Gender)source-> GetGender();
+        Gender gender = (Gender)source->GetGender();
         uint32 count = 0;
 
         for (auto titleEntry : sCharTitlesStore)
@@ -1157,7 +1159,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomTameCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomTameCommand(ChatHandler* handler)
     {
         Creature* target = handler->getSelectedCreature();
 
@@ -1209,7 +1211,7 @@ public:
         uint8 level = (target->GetLevel() < (source->GetLevel() - 5)) ? (source->GetLevel() - 5) : target->GetLevel();
 
         // prepare visual effect for levelup
-        pet->SetLevel(level -1);
+        pet->SetLevel(level - 1);
 
         // add to world
         pet->GetMap()->AddToMap(pet->ToCreature());
@@ -1311,7 +1313,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomDemorphCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomDemorphCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
 
@@ -1354,7 +1356,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomReviveCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomReviveCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
 
@@ -1369,12 +1371,20 @@ public:
         return true;
     }
 
-    static bool HandleFreedomUnAuraCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomUnAuraCommand(ChatHandler* handler, Optional<uint32> auraId)
     {
         Player* source = handler->GetSession()->GetPlayer();
-        sFreedomMgr->RemoveHoverFromPlayer(source); // unaura removes hover animation, so proceed to remove entire hover mechanic
-        source->RemoveAllAuras();
-        handler->PSendSysMessage(FREEDOM_CMDI_UNAURA);
+
+        if (!auraId.has_value()) {
+
+            sFreedomMgr->RemoveHoverFromPlayer(source); // unaura removes hover animation, so proceed to remove entire hover mechanic
+            source->RemoveAllAuras();
+            handler->PSendSysMessage(FREEDOM_CMDI_UNAURA);
+            return true;
+        }
+
+        source->RemoveAura(auraId.value());
+        handler->PSendSysMessage("Aura %u has been removed from you.", auraId.value());
         return true;
     }
 
@@ -1472,7 +1482,7 @@ public:
             //float currentScale = fields[0].GetFloat();
             //handler->PSendSysMessage(FREEDOM_CMDI_SCALE_CHANGE, currentScale, scale);
 
-            Player *chr = handler->GetSession()->GetPlayer();
+            Player* chr = handler->GetSession()->GetPlayer();
             handler->PSendSysMessage(FREEDOM_CMDI_SCALE, scale);
             chr->SetObjectScale(scale);
 
@@ -1482,7 +1492,7 @@ public:
 
         else
         {
-            Player *chr = handler->GetSession()->GetPlayer();
+            Player* chr = handler->GetSession()->GetPlayer();
 
             handler->PSendSysMessage(FREEDOM_CMDI_SCALE, scale);
             chr->SetObjectScale(scale);
@@ -1546,7 +1556,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomFixCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomFixCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
         source->DurabilityRepairAll(false, 0, false);
@@ -1554,14 +1564,14 @@ public:
         return true;
     }
 
-    static bool HandleFreedomMailboxCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomMailboxCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
         handler->GetSession()->SendShowMailBox(source->GetGUID());
         return true;
     }
 
-    static bool HandleFreedomMoneyCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomMoneyCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
         source->SetMoney(uint64(100000000000Ui64));
@@ -1569,14 +1579,14 @@ public:
         return true;
     }
 
-    static bool HandleFreedomBankCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomBankCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
         handler->GetSession()->SendShowBank(source->GetGUID());
         return true;
     }
 
-    static bool HandleFreedomCustomizeCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomCustomizeCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
 
@@ -1591,7 +1601,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomRaceChangeCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomRaceChangeCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
 
@@ -1611,7 +1621,7 @@ public:
         return true;
     }
 
-    static bool HandleFreedomFactionChangeCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomFactionChangeCommand(ChatHandler* handler)
     {
         Player* source = handler->GetSession()->GetPlayer();
 
@@ -1926,7 +1936,7 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        uint32 phaseNumber = (uint32) atoul((char*)args);
+        uint32 phaseNumber = (uint32)atoul((char*)args);
         Player* source = handler->GetSession()->GetPlayer();
         sFreedomMgr->PlayerPhase(source, phaseNumber);
         char msg[80];
@@ -1957,10 +1967,28 @@ public:
         return true;
     }
 
-    static bool HandleFreedomPhaseClearCommand(ChatHandler* handler, char const* args) {
+    static bool HandleFreedomPhaseClearCommand(ChatHandler* handler) {
         Player* source = handler->GetSession()->GetPlayer();
         sFreedomMgr->ClearPlayerPhase(source);
         handler->SendSysMessage("Your phases have been reset to default.");
+        return true;
+    }
+
+    static bool HandleFreedomEnchantCommand(ChatHandler* handler, uint32 enchantId) {
+        Player* source = handler->GetSession()->GetPlayer();
+
+        SpellItemEnchantmentEntry const* enchantEntry = sSpellItemEnchantmentStore.LookupEntry(enchantId);
+        if (!enchantEntry) {
+            handler->PSendSysMessage("Could not find an enchantment for id: %u", enchantId);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        Item* mainHandItem = source->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
+        mainHandItem->SetEnchantment(PERM_ENCHANTMENT_SLOT, enchantId, 0, 0);
+        source->ApplyEnchantment(mainHandItem, PERM_ENCHANTMENT_SLOT, true);
+
+        handler->PSendSysMessage("Applied enchant id '%u' to your main hand weapon.", enchantId);
         return true;
     }
 #pragma endregion

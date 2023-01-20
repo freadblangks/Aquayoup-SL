@@ -53,6 +53,7 @@ void FreedomDatabaseConnection::DoPrepareStatements()
     PrepareStatement(FREEDOM_DEL_CHAR_MORPHS, "DELETE FROM morphs WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_DEL_CHAR_PET_BY_OWNER, "DELETE FROM pet_extra WHERE owner = ?", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_DEL_CHAR_PET_BY_ID, "DELETE FROM pet_extra WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(FREEDOM_DEL_CUSTOMNPC, "DELETE FROM custom_npcs WHERE `Key` = ?", CONNECTION_ASYNC);
 
 
     // UPDATES
@@ -64,6 +65,7 @@ void FreedomDatabaseConnection::DoPrepareStatements()
     // REPLACES
     PrepareStatement(FREEDOM_REP_GAMEOBJECTEXTRA, "REPLACE INTO gameobject_extra (guid, scale, id_creator_bnet, id_creator_player, id_modifier_bnet, id_modifier_player, created, modified, phaseMask, uses_quat, roll, pitch, yaw) VALUES (?, ?, ?, ?, ?, ?, from_unixtime(?), from_unixtime(?), ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_REP_CREATUREEXTRA, "REPLACE INTO creature_extra (guid, scale, id_creator_bnet, id_creator_player, id_modifier_bnet, id_modifier_player, created, modified, phaseMask, displayLock, displayId, nativeDisplayId, genderLock, gender, swim, gravity, fly) VALUES (?, ?, ?, ?, ?, ?, from_unixtime(?), from_unixtime(?), ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(FREEDOM_REP_CUSTOMNPCDATA, "REPLACE INTO custom_npcs (`Key`, Entry) VALUES (?, ?)", CONNECTION_ASYNC);
 }
 
 FreedomDatabaseConnection::FreedomDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)

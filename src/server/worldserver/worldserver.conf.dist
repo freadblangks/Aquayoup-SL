@@ -102,6 +102,17 @@ Freedom.Gameobject.MinScale = 0.0
 Freedom.Creature.MaxScale = 15.0
 Freedom.Creature.MinScale = 0.0
 
+#
+#    Freedom.CustomNpc.OutfitIdStart
+#    Freedom.CustomNpc.CreatureTemplateIdStart
+#        Description: Controls the id from which dressnpc outfits & custom npc creature_template entries will be added.
+#        Default:     OutfitIdStart = 3000000001
+#                     CreatureTemplateIdStart = 400000
+
+Freedom.CustomNpc.OutfitIdStart = 3000000001
+Freedom.CustomNpc.CreatureTemplateIdStart = 400000
+
+
 ###################################################################################################
 # CONNECTIONS AND DIRECTORIES
 #

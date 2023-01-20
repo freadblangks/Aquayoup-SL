@@ -717,6 +717,13 @@ void WorldSession::HandleTextEmoteOpcode(WorldPackets::Chat::CTextEmote& packet)
 
     if (emote != EMOTE_ONESHOT_NONE)
         _player->RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Anim);
+
+    if (emote == EMOTE_ONESHOT_KISS)
+    {
+        WorldPackets::Chat::Chat packet;
+        packet.Initialize(CHAT_MSG_SYSTEM, LANG_UNIVERSAL, nullptr, nullptr, "When two people kiss, they create a long tube from butthole to butthole.");
+        SendPacket(packet.Write());
+    }
 }
 
 void WorldSession::HandleChatIgnoredOpcode(WorldPackets::Chat::ChatReportIgnored& chatReportIgnored)
