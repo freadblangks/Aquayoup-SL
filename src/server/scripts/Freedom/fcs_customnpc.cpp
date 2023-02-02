@@ -274,6 +274,16 @@ public:
                 return false;
         }
 
+        if (!modAppearanceId.has_value()) {
+            for (ItemModifiedAppearanceEntry const* appearanceMod : sItemModifiedAppearanceStore)
+            {
+                if ((uint32) appearanceMod->ItemID == item->GetId() && appearanceMod->OrderIndex == 0) {
+                    modAppearanceId = appearanceMod->ItemAppearanceModifierID;
+                    break;
+                }
+            }
+        }
+
         uint32 displayId = sDB2Manager.GetItemDisplayId(item->GetId(), modAppearanceId.value_or(0));
         sFreedomMgr->SetCustomNpcOutfitEquipmentSlot(name, variation, slot, displayId);
         handler->PSendSysMessage("Armor equipped to custom NPC %s, model variation '%u'!", name, variation);

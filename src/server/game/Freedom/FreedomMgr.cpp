@@ -1780,6 +1780,16 @@ void FreedomMgr::CreateCustomNpcFromPlayer(Player* player, std::string const& ke
         if (Item* pItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
         {
             int32 displayId = pItem->GetDisplayId(player);
+            if (displayId == 0) {
+                // weird case with items that don't have appearancemod of 0, just pick first appearance in the list
+                for (ItemModifiedAppearanceEntry const* appearanceMod : sItemModifiedAppearanceStore)
+                {
+                    if ((uint32) appearanceMod->ItemID == pItem->GetEntry() && appearanceMod->OrderIndex == 0) {
+                        displayId = sDB2Manager.GetItemDisplayId(pItem->GetEntry(), appearanceMod->ItemAppearanceModifierID);
+                        break;
+                    }
+                }
+            }
             co->outfitdisplays[slot] = displayId;
         }
         else {
