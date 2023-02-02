@@ -23,7 +23,6 @@
 #include <G3D/Quat.h>
 #include <QueryPackets.h>
 
-#pragma region FREEDOM_MANAGER
 FreedomMgr::FreedomMgr()
 {
     _phaseListStore =
@@ -67,8 +66,6 @@ void FreedomMgr::LoadAllTables()
 
     TC_LOG_INFO("server.loading", ">> Loaded FreedomMgr tables in %u ms", GetMSTimeDiffToNow(oldMSTime));
 }
-
-#pragma region PHASING
 
 int FreedomMgr::GetPhaseMask(uint32 phaseId)
 {
@@ -182,9 +179,6 @@ void FreedomMgr::SetPhaseLock(Player* player, bool val) {
     _playerExtraDataStore[player->GetGUID().GetCounter()].phaseLock = val;
 }
 
-#pragma endregion
-
-#pragma region CREATURE
 void FreedomMgr::LoadCreatureExtras()
 {
     // clear current storage
@@ -766,9 +760,7 @@ ObjectGuid::LowType FreedomMgr::GetSelectedCreatureGuidFromPlayer(ObjectGuid::Lo
 {
     return _playerExtraDataStore[playerId].selectedCreatureGuid;
 }
-#pragma endregion
 
-#pragma region GAMEOBJECT
 void FreedomMgr::LoadGameObjectExtras()
 {
     // clear current storage
@@ -1217,9 +1209,7 @@ GameObjectExtraData const* FreedomMgr::GetGameObjectExtraData(uint64 guid)
         return nullptr;
     }
 }
-#pragma endregion
 
-#pragma region ITEMS
 void FreedomMgr::LoadItemTemplateExtras()
 {
     // clear current storage
@@ -1266,9 +1256,7 @@ void FreedomMgr::SetItemTemplateExtraHiddenFlag(uint32 itemId, bool hidden)
     stmt->setUInt32(1, itemId);
     FreedomDatabase.Execute(stmt);
 }
-#pragma endregion
 
-#pragma region PLAYERS
 void FreedomMgr::RemoveHoverFromPlayer(Player* player)
 {
     Unit* source_unit = player->ToUnit();
@@ -1317,9 +1305,6 @@ void FreedomMgr::RemoveFlyFromPlayer(Player* player)
     packet.MoverGUID = source_unit->GetGUID();
     source_unit->SendMessageToSet(packet.Write(), true);
 }
-#pragma endregion
-
-#pragma region MISC
 
 std::string FreedomMgr::GetMapName(uint32 mapId)
 {
@@ -1398,10 +1383,6 @@ std::string FreedomMgr::ToDateString(time_t t)
     snprintf(buf, 14, "%04d-%02d-%02d", aTm.tm_year + 1900, aTm.tm_mon + 1, aTm.tm_mday);
     return std::string(buf);
 }
-
-#pragma endregion
-
-#pragma region PUBLIC_TELEPORT
 
 PublicTeleData const* FreedomMgr::GetPublicTeleport(std::string const& name)
 {
@@ -1494,10 +1475,6 @@ void FreedomMgr::LoadPublicTeleports()
         _publicTeleStore.push_back(data);
     } while (result->NextRow());
 }
-
-#pragma endregion
-
-#pragma region PRIVATE_TELEPORT
 
 PrivateTeleData const* FreedomMgr::GetPrivateTeleport(uint32 bnetAccountId, std::string const& name)
 {
@@ -1592,10 +1569,6 @@ void FreedomMgr::LoadPrivateTeleports()
     } while (result->NextRow());
 }
 
-#pragma endregion
-
-#pragma region PUBLIC_SPELL
-
 PublicSpellData const* FreedomMgr::GetPublicSpell(uint32 spellId)
 {
     auto it = _publicSpellStore.find(spellId);
@@ -1656,10 +1629,6 @@ void FreedomMgr::LoadPublicSpells()
         _publicSpellStore[spellId] = data;
     } while (result->NextRow());
 }
-
-#pragma endregion
-
-#pragma region MORPHS
 
 MorphData const* FreedomMgr::GetMorphByName(ObjectGuid::LowType playerId, std::string const& name)
 {
@@ -1738,9 +1707,6 @@ void FreedomMgr::LoadMorphs()
     } while (result->NextRow());
 }
 
-#pragma endregion
-
-#pragma region npcappearance
 void FreedomMgr::LoadCustomNpcSpawn(uint32 templateId, ObjectGuid::LowType spawn)
 {
     for (auto it : _customNpcStore)
@@ -2301,5 +2267,3 @@ uint8 FreedomMgr::GetModelVariationCountForNpc(std::string const& key) {
 uint8 FreedomMgr::GetEquipmentVariationCountForNpc(std::string const& key) {
     return sObjectMgr->_equipmentInfoStore[_customNpcStore[key].templateId].size();
 }
-
-#pragma endregion
