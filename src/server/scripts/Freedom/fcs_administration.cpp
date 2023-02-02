@@ -26,7 +26,7 @@ public:
         };
         return commandTable;
     }
-#pragma region BLACKLIST
+
     static bool HandleBlacklistItemCommand(ChatHandler* handler, char const* args)
     {
         if (!*args)
@@ -131,7 +131,6 @@ public:
 
         return true;
     }
-#pragma endregion
 };
 void AddSC_administration_commandscript()
 {
