@@ -7,10 +7,10 @@
 
 using namespace Trinity::ChatCommands;
 
-class administration_commandscript : public CommandScript
+class F_administration_commandscript : public CommandScript
 {
 public:
-    administration_commandscript() : CommandScript("administration_commandscript") { }
+    F_administration_commandscript() : CommandScript("F_administration_commandscript") { }
 
     ChatCommandTable GetCommands() const override
     {
@@ -132,7 +132,7 @@ public:
         return true;
     }
 };
-void AddSC_administration_commandscript()
+void AddSC_F_administration_commandscript()
 {
-    new administration_commandscript();
+    new F_administration_commandscript();
 }

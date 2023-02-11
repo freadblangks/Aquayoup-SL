@@ -80,7 +80,7 @@ void FormationMgr::RemoveCreatureFromGroup(CreatureGroup* group, Creature* membe
 {
     TC_LOG_DEBUG("entities.unit", "Deleting member pointer to GUID: " UI64FMTD " from group " UI64FMTD, group->GetLeaderSpawnId(), member->GetSpawnId());
     group->RemoveMember(member);
-
+    _creatureGroupMap.erase(member->GetSpawnId());
     if (group->IsEmpty())
     {
         Map* map = member->GetMap();

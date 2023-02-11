@@ -101,6 +101,7 @@ struct PlayerExtraData
     ObjectGuid::LowType selectedGameobjectGuid;
     ObjectGuid::LowType selectedCreatureGuid;
     MorphDataContainer morphDataStore;
+    WorldLocation markerLocation;
     uint32 phaseMask;
     bool phaseLock;
 };
@@ -115,6 +116,14 @@ struct CustomNpcData
 };
 
 typedef std::unordered_map<std::string, CustomNpcData> CustomNpcDataContainer;
+
+struct FormationData
+{
+    std::string key;
+    ObjectGuid::LowType leader;
+};
+
+typedef std::unordered_map<std::string, FormationData> FormationDataContainer;
 
 struct CreatureExtraData
 {
@@ -307,6 +316,19 @@ class TC_GAME_API FreedomMgr
         void LoadCustomNpcSpawn(uint32 templateId, ObjectGuid::LowType spawn);
         void DeleteCustomNpc(std::string const& key);
 
+        // Formations
+        FormationDataContainer GetFormationContainer() { return _formationStore; }
+        bool FormationExists(std::string const& key) { return _formationStore.count(key) > 0; }
+        ObjectGuid::LowType GetFormationLeaderGuid(std::string const& key) { return _formationStore[key].leader; }
+        void AddFormation(std::string const& key, ObjectGuid::LowType leaderGuid);
+        void DeleteFormation(std::string const& key);
+        void LoadFormations();
+        void SaveFormationPosition(std::string const& key, Player* player);
+
+        // Marker
+        void StoreMarkerLocationForPlayer(Player* player, const WorldLocation* marker);
+        WorldLocation* GetMarketLocationForPlayer(Player* player) { return &_playerExtraDataStore[player->GetGUID().GetCounter()].markerLocation; }
+
     protected:
         PlayerExtraDataContainer _playerExtraDataStore;
         PublicTeleContainer _publicTeleStore;
@@ -319,6 +341,7 @@ class TC_GAME_API FreedomMgr
         CreatureExtraContainer _creatureExtraStore;
         CreatureTemplateExtraContainer _creatureTemplateExtraStore;
         CustomNpcDataContainer _customNpcStore;
+        FormationDataContainer _formationStore;
 
     private:
         void SaveNpcOutfitToDb(uint32 templateId, uint8 variationId);

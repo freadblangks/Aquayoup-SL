@@ -41,6 +41,7 @@ void FreedomDatabaseConnection::DoPrepareStatements()
     PrepareStatement(FREEDOM_INS_PRIVATE_TELE, "INSERT INTO private_tele (name, position_x, position_y, position_z, orientation, map, id_bnet_account, phaseId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_INS_PUBLIC_SPELL, "INSERT INTO public_spell (spell_id, allow_targeting, name, id_bnet_gm) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_INS_MORPHS, "INSERT INTO morphs (guid, name, id_display, id_bnet_gm) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(FREEDOM_INS_FORMATION, "INSERT INTO formations (`Key`, leaderGUID) VALUES (?, ?)", CONNECTION_ASYNC);
 
     // DELETIONS
     PrepareStatement(FREEDOM_DEL_PUBLIC_TELE_NAME, "DELETE FROM public_tele WHERE name = ?", CONNECTION_ASYNC);
@@ -54,7 +55,7 @@ void FreedomDatabaseConnection::DoPrepareStatements()
     PrepareStatement(FREEDOM_DEL_CHAR_PET_BY_OWNER, "DELETE FROM pet_extra WHERE owner = ?", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_DEL_CHAR_PET_BY_ID, "DELETE FROM pet_extra WHERE id = ?", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_DEL_CUSTOMNPC, "DELETE FROM custom_npcs WHERE `Key` = ?", CONNECTION_ASYNC);
-
+    PrepareStatement(FREEDOM_DEL_FORMATION, "DELETE FROM formations WHERE `Key` = ?", CONNECTION_ASYNC);
 
     // UPDATES
     PrepareStatement(FREEDOM_UPD_ITEMTEMPLATEEXTRA, "UPDATE item_template_extra SET hidden = ? WHERE entry_id = ?", CONNECTION_ASYNC);

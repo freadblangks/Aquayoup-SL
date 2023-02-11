@@ -34,10 +34,10 @@ enum FreedomCmdAuraSpells
     SPELL_PERMANENT_HOVER = 138092
 };
 
-class freedom_commandscript : public CommandScript
+class F_freedom_commandscript : public CommandScript
 {
 public:
-    freedom_commandscript() : CommandScript("freedom_commandscript") { }
+    F_freedom_commandscript() : CommandScript("F_freedom_commandscript") { }
 
     std::vector<ChatCommand> GetCommands() const override
     {
@@ -169,6 +169,7 @@ public:
         static std::vector<ChatCommand> commandTable =
         {
             { "freedom",            rbac::RBAC_FPERM_COMMAND_FREEDOM,               false, NULL,                                    "", freedomCommandTable },
+            { "f",                  rbac::RBAC_FPERM_COMMAND_FREEDOM,               false, NULL,                                    "", freedomCommandTable },
         };
         return commandTable;
     }
@@ -1982,7 +1983,7 @@ public:
     }
 };
 
-void AddSC_freedom_commandscript()
+void AddSC_F_freedom_commandscript()
 {
-    new freedom_commandscript();
+    new F_freedom_commandscript();
 }

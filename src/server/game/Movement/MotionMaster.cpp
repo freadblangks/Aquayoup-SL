@@ -1334,3 +1334,17 @@ void MotionMaster::ClearBaseUnitStates()
     _owner->ClearUnitState(unitState);
     _baseUnitStatesMap.clear();
 }
+
+void MotionMaster::MovePoint(uint32 id, float x, float y, float z, float speed, bool generatePath, Optional<float> finalOrient)
+{
+    if (_owner->GetTypeId() == TYPEID_PLAYER)
+    {
+        TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MovePoint: '%s', targeted point Id: %u (X: %f, Y: %f, Z: %f)", _owner->GetGUID().ToString().c_str(), id, x, y, z);
+        Add(new PointMovementGenerator<Player>(id, x, y, z, generatePath, speed, finalOrient));
+    }
+    else
+    {
+        TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MovePoint: '%s', targeted point Id: %u (X: %f, Y: %f, Z: %f)", _owner->GetGUID().ToString().c_str(), id, x, y, z);
+        Add(new PointMovementGenerator<Creature>(id, x, y, z, generatePath, speed, finalOrient));
+    }
+}

@@ -1686,8 +1686,8 @@ public:
         WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_INS_CREATURE_FORMATION);
         stmt->setUInt64(0, leaderGUID);
         stmt->setUInt64(1, lowguid);
-        stmt->setFloat (2, followAngle);
-        stmt->setFloat (3, followDist);
+        stmt->setFloat (2, followDist);
+        stmt->setFloat (3, followAngle);
         stmt->setUInt32(4, groupAI);
 
         WorldDatabase.Execute(stmt);

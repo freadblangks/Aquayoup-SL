@@ -14,10 +14,10 @@
 
 using namespace Trinity::ChatCommands;
 
-class customnpc_commandscript : public CommandScript
+class F_customnpc_commandscript : public CommandScript
 {
 public:
-    customnpc_commandscript() : CommandScript("customnpc_commandscript") { }
+    F_customnpc_commandscript() : CommandScript("F_customnpc_commandscript") { }
 
     ChatCommandTable GetCommands() const override
     {
@@ -553,7 +553,7 @@ public:
     }
 };
 
-void AddSC_customnpc_commandscript()
+void AddSC_F_customnpc_commandscript()
 {
-    new customnpc_commandscript();
+    new F_customnpc_commandscript();
 }
