@@ -313,7 +313,13 @@ class TC_GAME_API FreedomMgr
         void SetCustomNpcName(std::string const& key, std::string const& displayName);
         void SetCustomNpcSubName(std::string const& key, std::string const& subName);
         void SetCustomNpcCustomizations(std::string const& key, uint8 variationId, Player* player);
+        void SetCustomNpcDisplayId(std::string const& key, uint8 variationId, uint32 displayId);
+        void SetCustomNpcModelScale(std::string const& key, uint8 variationId, float displayScale);
+        void SetCustomNpcRank(std::string const& key, uint32 rank);
+        void SetCustomNpcGuild(std::string const& key, uint8 variationId, uint64 guildId);
+        void SetCustomNpcTameable(std::string const& key, bool tameable);
         void LoadCustomNpcSpawn(uint32 templateId, ObjectGuid::LowType spawn);
+        void RemoveCustomNpcVariation(std::string const& key, uint8 variationId);
         void DeleteCustomNpc(std::string const& key);
 
         // Formations
@@ -348,8 +354,10 @@ class TC_GAME_API FreedomMgr
         void SaveCustomNpcDataToDb(CustomNpcData outfitData);
         void SaveNpcCreatureTemplateToDb(CreatureTemplate cTemplate);
         void SaveNpcEquipmentInfoToDb(uint32 templateId, uint8 variationId);
+        void SaveNpcModelInfo(CreatureModel model, uint32 creatureTemplateId, uint8 variationId);
         void ReloadSpawnedCustomNpcs(std::string const& key);
-        void EnsureNpcOutfitExists(uint32 templateId, uint8 variationId);
+        void EnsureNpcModelExists(uint32 templateId, uint8 variationId);
+        void EnsureNpcOutfitExists(uint32 templateId, uint8 variationId, float displayScale = 1.0f);
         void EnsureEquipmentInfoExists(uint32 templateId, uint8 variationId);
 };
 

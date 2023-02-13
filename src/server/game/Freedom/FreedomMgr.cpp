@@ -1755,7 +1755,13 @@ void FreedomMgr::CreateCustomNpcFromPlayer(Player* player, std::string const& ke
 {
     std::shared_ptr<CreatureOutfit> co(new CreatureOutfit());
 
-    uint32 outfitId = sConfigMgr->GetInt64Default("Freedom.CustomNpc.OutfitIdStart", 3000000001) + sObjectMgr->_creatureOutfitStore.size();
+    uint32 outfitId = sConfigMgr->GetInt64Default("Freedom.CustomNpc.OutfitIdStart", 3000000001);
+    if (!sObjectMgr->_creatureOutfitStore.empty()) {
+        using pairtype = std::pair<uint32, std::shared_ptr<CreatureOutfit>>;
+        outfitId = std::max_element(sObjectMgr->_creatureOutfitStore.begin(), sObjectMgr->_creatureOutfitStore.end(),
+            [](pairtype a, pairtype b) { return a.second->id < b.second->id; })->second->id + 1;
+    }
+
     co->id = outfitId;
     co->npcsoundsid = 0;
     co->race = player->GetRace();
@@ -1804,7 +1810,13 @@ void FreedomMgr::CreateCustomNpcFromPlayer(Player* player, std::string const& ke
     sObjectMgr->_creatureOutfitStore[outfitId] = std::move(co);
 
     CreatureTemplate creatureTemplate;
-    uint32 npcCreatureTemplateId = sConfigMgr->GetInt64Default("Freedom.CustomNpc.CreatureTemplateIdStart", 400000) + _customNpcStore.size();
+
+    uint32 npcCreatureTemplateId = sConfigMgr->GetInt64Default("Freedom.CustomNpc.CreatureTemplateIdStart", 400000);
+    if (!_customNpcStore.empty()) {
+        using pairtype = std::pair<std::string, CustomNpcData>;
+        npcCreatureTemplateId = std::max_element(_customNpcStore.begin(), _customNpcStore.end(),
+            [](pairtype a, pairtype b) { return a.second.templateId < b.second.templateId; })->second.templateId+1;
+    }
     creatureTemplate.Entry = npcCreatureTemplateId;
 
     for (uint32 i = 0; i < MAX_CREATURE_DIFFICULTIES; ++i)
@@ -1905,7 +1917,6 @@ void FreedomMgr::CreateCustomNpcFromPlayer(Player* player, std::string const& ke
     SaveNpcEquipmentInfoToDb(creatureTemplate.Entry, 1);
 }
 
-
 void FreedomMgr::SetCustomNpcOutfitEquipmentSlot(std::string const& key, uint8 variationId, EquipmentSlots slot, int32 displayId)
 {
     uint32 templateId = _customNpcStore[key].templateId;
@@ -1961,19 +1972,7 @@ void FreedomMgr::SetCustomNpcOutfitGender(std::string const& key, uint8 variatio
     ReloadSpawnedCustomNpcs(key);
 }
 
-
 void FreedomMgr::SetCustomNpcLeftHand(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId)
-{
-    uint32 templateId = _customNpcStore[key].templateId;
-    EnsureEquipmentInfoExists(templateId, variationId);
-    EquipmentInfo _equipmentInfo = sObjectMgr->_equipmentInfoStore[templateId][variationId];
-    _equipmentInfo.Items[0].ItemId = itemId;
-    _equipmentInfo.Items[0].AppearanceModId = appearanceModId;
-    sObjectMgr->_equipmentInfoStore[templateId][variationId] = _equipmentInfo;
-    SaveNpcEquipmentInfoToDb(templateId, variationId);
-    ReloadSpawnedCustomNpcs(key);
-}
-void FreedomMgr::SetCustomNpcRightHand(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId)
 {
     uint32 templateId = _customNpcStore[key].templateId;
     EnsureEquipmentInfoExists(templateId, variationId);
@@ -1984,6 +1983,19 @@ void FreedomMgr::SetCustomNpcRightHand(std::string const& key, uint8 variationId
     SaveNpcEquipmentInfoToDb(templateId, variationId);
     ReloadSpawnedCustomNpcs(key);
 }
+
+void FreedomMgr::SetCustomNpcRightHand(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureEquipmentInfoExists(templateId, variationId);
+    EquipmentInfo _equipmentInfo = sObjectMgr->_equipmentInfoStore[templateId][variationId];
+    _equipmentInfo.Items[0].ItemId = itemId;
+    _equipmentInfo.Items[0].AppearanceModId = appearanceModId;
+    sObjectMgr->_equipmentInfoStore[templateId][variationId] = _equipmentInfo;
+    SaveNpcEquipmentInfoToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+
 void FreedomMgr::SetCustomNpcRanged(std::string const& key, uint8 variationId, int32 itemId, int32 appearanceModId)
 {
     uint32 templateId = _customNpcStore[key].templateId;
@@ -1995,29 +2007,79 @@ void FreedomMgr::SetCustomNpcRanged(std::string const& key, uint8 variationId, i
     SaveNpcEquipmentInfoToDb(templateId, variationId);
     ReloadSpawnedCustomNpcs(key);
 }
+
+void FreedomMgr::SetCustomNpcDisplayId(std::string const& key, uint8 variationId, uint32 displayId)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureNpcModelExists(templateId, variationId);
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Setting model display id for custom npc '%s' variation '%u' to '%u'", key.c_str(), variationId, displayId);
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    CreatureModel model = cTemplate.Models[variationId - 1];
+    model.CreatureDisplayID = displayId;
+    cTemplate.Models[variationId-1] = model;
+    sObjectMgr->_creatureTemplateStore[templateId] = cTemplate;
+    SaveNpcModelInfo(model, templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcModelScale(std::string const& key, uint8 variationId, float displayScale)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureNpcModelExists(templateId, variationId);
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Setting model scale for custom npc '%s' variation '%u' to '%f'", key.c_str(), variationId, displayScale);
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    CreatureModel model = cTemplate.Models[variationId - 1];
+    model.DisplayScale = displayScale;
+    cTemplate.Models[variationId - 1] = model;
+    sObjectMgr->_creatureTemplateStore[templateId] = cTemplate;
+    SaveNpcModelInfo(model, templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcRank(std::string const& key, uint32 rank)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    cTemplate.rank = rank;
+
+    sObjectMgr->_creatureTemplateStore[cTemplate.Entry] = cTemplate;
+    SaveNpcCreatureTemplateToDb(cTemplate);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcGuild(std::string const& key, uint8 variationId, uint64 guild)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    EnsureNpcOutfitExists(templateId, variationId);
+    uint32 outfitId = sObjectMgr->_creatureTemplateStore[templateId].Models[variationId - 1].CreatureDisplayID;
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Setting guild for custom npc '%s' with outfitId '%u'", key.c_str(), outfitId);
+
+    std::shared_ptr<CreatureOutfit> co = sObjectMgr->_creatureOutfitStore[outfitId];
+    co->guild = guild;
+    sObjectMgr->_creatureOutfitStore[outfitId] = std::move(co);
+    SaveNpcOutfitToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcTameable(std::string const& key, bool tameable)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    cTemplate.type = tameable ? 1 : 0;
+    cTemplate.family = tameable ? CREATURE_FAMILY_GORILLA : CREATURE_FAMILY_NONE;
+    cTemplate.type_flags = tameable ? 1 : 0;
+
+    sObjectMgr->_creatureTemplateStore[cTemplate.Entry] = cTemplate;
+    SaveNpcCreatureTemplateToDb(cTemplate);
+    ReloadSpawnedCustomNpcs(key);
+}
+
 void FreedomMgr::SetCustomNpcName(std::string const& key, std::string const& displayName)
 {
     uint32 templateId = _customNpcStore[key].templateId;
     CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
     cTemplate.Name = displayName;
 
-    // Redo cached creatureTemplates
-    cTemplate.InitializeQueryData();
-
-    // Resend creature template query packet for npc to all players. Best update we can do atm.
-    SessionMap const& smap = sWorld->GetAllSessions();
-    for (SessionMap::const_iterator iter = smap.begin(); iter != smap.end(); ++iter)
-    {
-        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Sending query packet for creatureTemplate '%s' to '%s'.", cTemplate.Name.c_str(), iter->second->GetPlayer()->GetName().c_str());
-        if (sWorld->getBoolConfig(CONFIG_CACHE_DATA_QUERIES)) {
-            iter->second->SendPacket(&cTemplate.QueryData[static_cast<uint32>(iter->second->GetSessionDbLocaleIndex())]);
-        }
-        else
-        {
-            WorldPacket response = cTemplate.BuildQueryData(iter->second->GetSessionDbLocaleIndex());
-            iter->second->SendPacket(&response);
-        }
-    }
     sObjectMgr->_creatureTemplateStore[cTemplate.Entry] = cTemplate;
     SaveNpcCreatureTemplateToDb(cTemplate);
     ReloadSpawnedCustomNpcs(key);
@@ -2028,25 +2090,6 @@ void FreedomMgr::SetCustomNpcSubName(std::string const& key, std::string const& 
     uint32 templateId = _customNpcStore[key].templateId;
     CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
     cTemplate.SubName = subName;
-
-    // Redo cached creatureTemplates
-    cTemplate.InitializeQueryData();
-
-    // Resend creature template query packet for npc to all players. Best update we can do atm.
-    SessionMap const& smap = sWorld->GetAllSessions();
-    for (SessionMap::const_iterator iter = smap.begin(); iter != smap.end(); ++iter)
-    {
-        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Sending query packet for creatureTemplate '%s' to '%s'.",
-            cTemplate.Name.c_str(), iter->second->GetPlayer()->GetName().c_str());
-        if (sWorld->getBoolConfig(CONFIG_CACHE_DATA_QUERIES)) {
-            iter->second->SendPacket(&cTemplate.QueryData[static_cast<uint32>(iter->second->GetSessionDbLocaleIndex())]);
-        }
-        else
-        {
-            WorldPacket response = cTemplate.BuildQueryData(iter->second->GetSessionDbLocaleIndex());
-            iter->second->SendPacket(&response);
-        }
-    }
 
     sObjectMgr->_creatureTemplateStore[cTemplate.Entry] = cTemplate;
     SaveNpcCreatureTemplateToDb(cTemplate);
@@ -2068,6 +2111,29 @@ void FreedomMgr::SetCustomNpcCustomizations(std::string const& key, uint8 variat
     co->Customizations = customizations;
     sObjectMgr->_creatureOutfitStore[outfitId] = std::move(co);
     SaveNpcOutfitToDb(templateId, variationId);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+
+void FreedomMgr::RemoveCustomNpcVariation(std::string const& key, uint8 variationId)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    uint8 currentModel = variationId;
+    while(currentModel != cTemplate.Models.size()) {
+        // Shift models lower
+        cTemplate.Models[currentModel - 1] = cTemplate.Models[currentModel];
+        SaveNpcModelInfo(cTemplate.Models[currentModel - 1], templateId, currentModel);
+        currentModel++;
+    }
+
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_TEMPLATE_MODEL);
+    stmt->setUInt32(0, templateId);
+    stmt->setUInt8(1, currentModel-1);
+    WorldDatabase.Execute(stmt);
+
+    cTemplate.Models.pop_back();
+    sObjectMgr->_creatureTemplateStore[templateId] = cTemplate;
     ReloadSpawnedCustomNpcs(key);
 }
 
@@ -2102,14 +2168,25 @@ void FreedomMgr::SaveNpcOutfitToDb(uint32 templateId, uint8 variationId)
     }
     trans->Append(stmt);
 
-    // "REPLACE INTO creature_template_model (CreatureId, Idx, CreatureDisplayId, DisplayScale, Probability) VALUES (?, ?, ?, 1, 1)"
+    // "REPLACE INTO creature_template_model (CreatureId, Idx, CreatureDisplayId, DisplayScale, Probability) VALUES (?, ?, ?, ?, 1)"
     stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_TEMPLATE_MODEL);
-    index = 0;
-    stmt->setUInt32(index++, templateId);
-    stmt->setUInt8(index++, variationId - 1);
-    stmt->setUInt32(index++, outfitId);
+    stmt->setUInt32(0, templateId);
+    stmt->setUInt8(1, variationId-1);
+    stmt->setUInt32(2, outfitId);
+    stmt->setFloat(3, cTemplate.Models[variationId-1].DisplayScale);
     trans->Append(stmt);
     WorldDatabase.CommitTransaction(trans);
+}
+
+void FreedomMgr::SaveNpcModelInfo(CreatureModel model, uint32 creatureTemplateId, uint8 variationId)
+{
+    // "REPLACE INTO creature_template_model (CreatureId, Idx, CreatureDisplayId, DisplayScale, Probability) VALUES (?, ?, ?, ?, 1)"
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_TEMPLATE_MODEL);
+    stmt->setUInt32(0, creatureTemplateId);
+    stmt->setUInt8(1, variationId - 1);
+    stmt->setUInt32(2, model.CreatureDisplayID);
+    stmt->setFloat(3, model.DisplayScale);
+    WorldDatabase.Execute(stmt);
 }
 
 void FreedomMgr::SaveCustomNpcDataToDb(CustomNpcData outfitData)
@@ -2133,6 +2210,24 @@ void FreedomMgr::SaveNpcCreatureTemplateToDb(CreatureTemplate cTemplate)
     stmt->setString(index++, cTemplate.Name);
     stmt->setString(index++, cTemplate.SubName);
     WorldDatabase.Execute(stmt);
+
+    // Redo cached creatureTemplates
+    cTemplate.InitializeQueryData();
+
+    // Resend creature template query packet for npc to all players. Best update we can do atm.
+    SessionMap const& smap = sWorld->GetAllSessions();
+    for (SessionMap::const_iterator iter = smap.begin(); iter != smap.end(); ++iter)
+    {
+        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Sending query packet for creatureTemplate '%s' to '%s'.", cTemplate.Name.c_str(), iter->second->GetPlayer()->GetName().c_str());
+        if (sWorld->getBoolConfig(CONFIG_CACHE_DATA_QUERIES)) {
+            iter->second->SendPacket(&cTemplate.QueryData[static_cast<uint32>(iter->second->GetSessionDbLocaleIndex())]);
+        }
+        else
+        {
+            WorldPacket response = cTemplate.BuildQueryData(iter->second->GetSessionDbLocaleIndex());
+            iter->second->SendPacket(&response);
+        }
+    }
 }
 
 void FreedomMgr::SaveNpcEquipmentInfoToDb(uint32 templateId, uint8 variationId)
@@ -2167,7 +2262,11 @@ void FreedomMgr::ReloadSpawnedCustomNpcs(std::string const& key)
         else {
             TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloading creature id '%lu'", spawn);
             uint8 modelId = urand(0u, sObjectMgr->_creatureTemplateStore[data.templateId].Models.size() - 1);
-            creature->SetOutfit(sObjectMgr->_creatureOutfitStore[sObjectMgr->_creatureTemplateStore[data.templateId].Models[modelId].CreatureDisplayID]);
+            CreatureModel model = sObjectMgr->_creatureTemplateStore[data.templateId].Models[modelId];
+            creature->SetDisplayId(model.CreatureDisplayID, model.DisplayScale);
+            if (CreatureOutfit::IsFake(model.CreatureDisplayID)) {
+                creature->SetOutfit(sObjectMgr->_creatureOutfitStore[model.CreatureDisplayID]);
+            }
             creature->SetName(sObjectMgr->_creatureTemplateStore[data.templateId].Name);
             creature->LoadEquipment(urand(1u, sObjectMgr->_equipmentInfoStore[data.templateId].size()));
             TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloaded creature id '%lu'", spawn);
@@ -2175,21 +2274,20 @@ void FreedomMgr::ReloadSpawnedCustomNpcs(std::string const& key)
     }
 }
 
-
 void FreedomMgr::DeleteCustomNpc(std::string const& key)
 {
     CustomNpcData data = _customNpcStore[key];
     TC_LOG_DEBUG("freedom", "FREEDOMMGR: Deleting custom npc '%s' with entry '%u'", key.c_str(), data.templateId);
     // Remove spawns
     for (auto spawn : data.spawns) {
-        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Deleting spawn %lu", key, spawn);
+        TC_LOG_DEBUG("freedom", "FREEDOMMGR: Deleting spawn " UI64FMTD, spawn);
         Creature* creature = GetAnyCreature(spawn);
         CreatureDelete(creature);
     }
     // Cleanup database
     WorldDatabaseTransaction trans = WorldDatabase.BeginTransaction();
 
-    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_TEMPLATE_MODEL);
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_ALL_CREATURE_TEMPLATE_MODEL);
     stmt->setUInt32(0, data.templateId);
     trans->Append(stmt);
 
@@ -2225,17 +2323,51 @@ void FreedomMgr::DeleteCustomNpc(std::string const& key)
     sObjectMgr->_creatureTemplateStore.erase(data.templateId);
 }
 
-void FreedomMgr::EnsureNpcOutfitExists(uint32 templateId, uint8 variationId)
+
+void FreedomMgr::EnsureNpcOutfitExists(uint32 templateId, uint8 variationId, float displayScale)
 {
     CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
     uint32 modelsSize = cTemplate.Models.size();
+
+    std::vector<uint8> toCreate;
+
+    // Ensure the variation exists
     if (modelsSize < variationId) {
         for (uint8 i = modelsSize; i < variationId; i++) {
-            uint32 outfitId = sConfigMgr->GetInt64Default("Freedom.CustomNpc.OutfitIdStart", 3000000001) + sObjectMgr->_creatureOutfitStore.size();
-            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Adding outfit '%u' to create variation '%u' for template '%u'.", outfitId, variationId, templateId);
+            toCreate.push_back(i);
+        }
+    }   // Ensure model is an outfit
+    else if (!CreatureOutfit::IsFake(cTemplate.Models[variationId - 1].CreatureDisplayID)) {
+        toCreate.push_back(variationId - 1);
+    }
 
+    if (!toCreate.empty())
+    {
+        using pairtype = std::pair<uint32, std::shared_ptr<CreatureOutfit>>;
+        uint32 maxOutfitId = std::max_element(sObjectMgr->_creatureOutfitStore.begin(), sObjectMgr->_creatureOutfitStore.end(),
+            [](pairtype a, pairtype b) { return a.second->id < b.second->id; })->second->id;
+        std::shared_ptr<CreatureOutfit> lastOutfit;
+        bool setOutfit = false;
+        for (uint8 i = 1; i < modelsSize; i++) {
+            uint32 displayId = cTemplate.Models[modelsSize - i].CreatureDisplayID;
+            if (CreatureOutfit::IsFake(displayId)) {
+                lastOutfit = sObjectMgr->_creatureOutfitStore[displayId];
+                setOutfit = true;
+                break;
+            }
+        }
+        if (!setOutfit) {
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Custom NPC template '%u' has no outfits, selecting first option in store for variation '%u'.", templateId, variationId);
+            // Custom NPC has only used displayids, in this case we'll just take the first creatureoutfit available.
+            lastOutfit = sObjectMgr->_creatureOutfitStore.begin()->second;
+        }
+
+        uint8 created = 0;
+        for (uint8 variation : toCreate)
+        {
             std::shared_ptr<CreatureOutfit> outfit(new CreatureOutfit());
-            std::shared_ptr<CreatureOutfit> lastOutfit = sObjectMgr->_creatureOutfitStore[cTemplate.Models[modelsSize - 1].CreatureDisplayID];
+            uint32 outfitId = maxOutfitId + ++created;
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Adding outfit '%u' to create variation '%u' for template '%u'.", outfitId, variation, templateId);
             outfit->id = outfitId;
             outfit->npcsoundsid = 0;
             outfit->race = lastOutfit->race;
@@ -2250,12 +2382,18 @@ void FreedomMgr::EnsureNpcOutfitExists(uint32 templateId, uint8 variationId)
             }
             outfit->guild = lastOutfit->guild;
             outfit->id = outfitId;
-
             sObjectMgr->_creatureOutfitStore[outfitId] = std::move(outfit);
-            cTemplate.Models.push_back(CreatureModel(outfitId, 1, 1));
+            if (variation >= modelsSize) {
+                cTemplate.Models.push_back(CreatureModel(outfitId, displayScale, 1));
+            }
+            else {
+                cTemplate.Models[variation] = CreatureModel(outfitId, displayScale, 1);
+            }
             sObjectMgr->_creatureTemplateStore[templateId] = cTemplate;
         }
     }
+
+
     TC_LOG_DEBUG("freedom", "FREEDOMMGR: Model variation '%u' for template '%u' ensured.", variationId, templateId);
 }
 
@@ -2272,6 +2410,21 @@ void FreedomMgr::EnsureEquipmentInfoExists(uint32 templateId, uint8 variationId)
         sObjectMgr->_equipmentInfoStore[templateId][variationId] = equipInfo;
     }
     TC_LOG_DEBUG("freedom", "FREEDOMMGR: Equipment variation '%u' for template '%u' ensured.", variationId, templateId);
+}
+
+void FreedomMgr::EnsureNpcModelExists(uint32 templateId, uint8 variationId)
+{
+    CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
+    uint32 modelsSize = cTemplate.Models.size();
+    if (modelsSize < variationId) {
+        for (uint8 i = modelsSize; i < variationId; i++) {
+            uint32 prevDisplayId = cTemplate.Models[modelsSize - 1].CreatureDisplayID;
+            TC_LOG_DEBUG("freedom", "FREEDOMMGR: Creating model variation '%u' for template '%u' using displayid: '%u'.", i, templateId, prevDisplayId);
+            cTemplate.Models.push_back(CreatureModel(prevDisplayId, 1, 1));
+            sObjectMgr->_creatureTemplateStore[templateId] = cTemplate;
+        }
+    }
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Model variation '%u' for template '%u' ensured.", variationId, templateId);
 }
 
 uint8 FreedomMgr::GetModelVariationCountForNpc(std::string const& key) {
@@ -2371,7 +2524,6 @@ void FreedomMgr::LoadFormations()
 
     TC_LOG_INFO("server.loading", ">> Loaded %u formations in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
-
 
 void FreedomMgr::SaveFormationPosition(std::string const& key, Player* player)
 {

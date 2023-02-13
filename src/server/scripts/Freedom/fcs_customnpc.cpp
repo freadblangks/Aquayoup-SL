@@ -23,11 +23,16 @@ public:
     {
         static ChatCommandTable customNpcSetCommandTable =
         {
-            { "name",      HandleCustomNpcSetDisplayNameCommand,   rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_DISPLAYNAME, Console::No },
+            { "displayid", HandleCustomNpcSetDisplayIdCommand,     rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_DISPLAYID,   Console::No },
             { "face",      HandleCustomNpcSetFaceCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_FACE,        Console::No },
             { "gender",    HandleCustomNpcSetGenderCommand,        rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_GENDER,      Console::No },
+            { "guild",     HandleCustomNpcSetGuildCommand,         rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_GUILD,       Console::No },
+            { "name",      HandleCustomNpcSetDisplayNameCommand,   rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_DISPLAYNAME, Console::No },
             { "race",      HandleCustomNpcSetRaceCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_RACE,        Console::No },
+            { "rank",      HandleCustomNpcSetRankCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_RANK,        Console::No },
+            { "scale",     HandleCustomNpcSetScaleCommand,         rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_SCALE,       Console::No },
             { "subname",   HandleCustomNpcSetSubNameCommand,       rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_SUBNAME,     Console::No },
+            { "tameable",  HandleCustomNpcSetTameableCommand,      rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_TAMEABLE,    Console::No },
         };
         static ChatCommandTable customNpcEquipCommandTable =
         {
@@ -47,11 +52,17 @@ public:
             { "temp",      HandleCustomNpcSpawnTempCommand,        rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SPAWN,           Console::No },
             { "",          HandleCustomNpcSpawnCommand,            rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SPAWN,           Console::No },
         };
+
+        static ChatCommandTable CustomNpcRemoveCommandTable = {
+            { "variation", HandleCustomNpcRemoveVariationCommand, rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_REMOVE_VARIATION, Console::No },
+        };
+
         static ChatCommandTable customNpcCommandTable =
         {
             { "add",       HandleCustomNpcCreateCommand,           rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_CREATE,          Console::No },
             { "delete",    HandleCustomNpcDeleteCommand,           rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_DELETE,          Console::No },
             { "equip",     customNpcEquipCommandTable },
+            { "remove",    CustomNpcRemoveCommandTable },
             { "set",       customNpcSetCommandTable },
             { "spawn",     CustomNpcSpawnCommandTable },
             { "unequip",   customNpcUnequipCommandTable }
@@ -551,6 +562,130 @@ public:
         handler->PSendSysMessage("Ranged weapon unequipped from custom NPC %s, equipment variation '%u'!", name, variation);
         return true;
     }
+
+    static bool HandleCustomNpcSetDisplayIdCommand(ChatHandler* handler, std::string const& name, uint32 displayId, Optional<uint8> variationId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcDisplayId(name, variation, displayId);
+        handler->PSendSysMessage("Custom NPC %s, model variation %u now has displayId %u!", name, variation, displayId);
+        return true;
+    }
+
+    static bool HandleCustomNpcSetGuildCommand(ChatHandler* handler, std::string const& name, Optional<uint8> variationId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcGuild(name, variation, handler->GetPlayer()->GetGuildId());
+        handler->PSendSysMessage("Custom NPC %s, model variation %u has copied your guild!", name, variation);
+        return true;
+    }
+
+    static bool HandleCustomNpcSetScaleCommand(ChatHandler* handler, std::string const& name, float scale, Optional<uint8> variationId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint8 variation = variationId.value_or(1);
+        uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
+        if ((modelCount + 1) < variation) {
+            handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcModelScale(name, variation, scale);
+        handler->PSendSysMessage("Custom NPC %s, model variation %u has been set to scale %f!", name, variation, scale);
+        return true;
+    }
+
+    static bool HandleCustomNpcSetRankCommand(ChatHandler* handler, std::string const& name, uint32 rank)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcRank(name, rank);
+        handler->PSendSysMessage("Custom NPC %s now has rank %u!", name, rank);
+        return true;
+    }
+
+    static bool HandleCustomNpcSetTameableCommand(ChatHandler* handler, std::string const& name, uint8 on)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (on) {
+            sFreedomMgr->SetCustomNpcTameable(name, true);
+            handler->PSendSysMessage("Custom NPC %s has been made tameable.", name);
+        }
+        else {
+            sFreedomMgr->SetCustomNpcTameable(name, false);
+            handler->PSendSysMessage("Custom NPC %s has been made untameable.", name);
+        }
+        return true;
+    }
+
+    static bool HandleCustomNpcRemoveVariationCommand(ChatHandler* handler, std::string const& name, uint8 variationId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (variationId == 1) {
+            handler->PSendSysMessage("Variation 1 for a custom NPC can not be removed. Use .cnpc delete to delete a custom NPC in its entirety.");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
+        if (modelCount < variationId)
+        {
+            handler->PSendSysMessage("Custom NPC %s only has %u variations.", name, variationId);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->RemoveCustomNpcVariation(name, variationId);
+        handler->PSendSysMessage("Custom NPC variation %u for template %s has been removed.", variationId, name);
+
+        return true;
+    }
+
 };
 
 void AddSC_F_customnpc_commandscript()
