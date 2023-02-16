@@ -2348,7 +2348,7 @@ void FreedomMgr::EnsureNpcOutfitExists(uint32 templateId, uint8 variationId, flo
             [](pairtype a, pairtype b) { return a.second->id < b.second->id; })->second->id;
         std::shared_ptr<CreatureOutfit> lastOutfit;
         bool setOutfit = false;
-        for (uint8 i = 1; i < modelsSize; i++) {
+        for (uint8 i = 1; i <= modelsSize; i++) {
             uint32 displayId = cTemplate.Models[modelsSize - i].CreatureDisplayID;
             if (CreatureOutfit::IsFake(displayId)) {
                 lastOutfit = sObjectMgr->_creatureOutfitStore[displayId];
