@@ -11222,6 +11222,8 @@ Item* Player::StoreNewItem(ItemPosCountVec const& pos, uint32 itemId, bool updat
 
         if (item->GetTemplate()->GetInventoryType() != INVTYPE_NON_EQUIP)
             UpdateAverageItemLevelTotal();
+
+        item->CheckArtifactRelicSlotUnlock(this);
     }
 
     return item;
