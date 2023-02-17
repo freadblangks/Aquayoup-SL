@@ -804,9 +804,11 @@ enum RBACPermissions
     RBAC_FPERM_COMMAND_NPC_TURN                              = 1325,
     RBAC_FPERM_COMMAND_NPC_SELECT                            = 1326,
     RBAC_FPERM_COMMAND_NPC_RETURN                            = 1327,
+
     RBAC_FPERM_COMMAND_PHASE                                 = 1328,
     RBAC_FPERM_COMMAND_PHASE_LOCK                            = 1329,
     RBAC_FPERM_COMMAND_PHASE_CLEAR                           = 1330,
+
     RBAC_FPERM_COMMAND_CUSTOMNPC_CREATE                      = 1331,
     RBAC_FPERM_COMMAND_CUSTOMNPC_SPAWN                       = 1332,
     RBAC_FPERM_COMMAND_CUSTOMNPC_SET_DISPLAYNAME             = 1333,
@@ -823,8 +825,30 @@ enum RBACPermissions
     RBAC_FPERM_COMMAND_CUSTOMNPC_UNEQUIP_LEFT                = 1344,
     RBAC_FPERM_COMMAND_CUSTOMNPC_UNEQUIP_RANGED              = 1345,
     RBAC_FPERM_COMMAND_CUSTOMNPC_UNEQUIP_RIGHT               = 1346,
+
     RBAC_FPERM_COMMAND_FREEDOM_ENCHANT                       = 1347,
     RBAC_FPERM_COMMAND_GOBJECT_CLONE                         = 1348,
+
+    RBAC_FPERM_COMMAND_FORMATION_NEW                         = 1349,
+    RBAC_FPERM_COMMAND_FORMATION_ADD                         = 1350,
+    RBAC_FPERM_COMMAND_FORMATION_REMOVE                      = 1351,
+    RBAC_FPERM_COMMAND_FORMATION_DELETE                      = 1352,
+
+    RBAC_FPERM_COMMAND_GOTOMARKER                            = 1353,
+    RBAC_FPERM_COMMAND_TURNTOMARKER                          = 1354,
+    RBAC_FPERM_COMMAND_GOTOMARKER_FORMATION                  = 1355,
+    RBAC_FPERM_COMMAND_TURNTOMARKER_FORMATION                = 1356,
+
+    RBAC_FPERM_COMMAND_FORMATION_SAVEPOSITION                = 1357,
+    RBAC_FPERM_COMMAND_WALKTOMARKER                          = 1358,
+    RBAC_FPERM_COMMAND_WALKTOMARKER_FORMATION                = 1359,
+
+    RBAC_FPERM_COMMAND_CUSTOMNPC_SET_DISPLAYID               = 1360,
+    RBAC_FPERM_COMMAND_CUSTOMNPC_SET_GUILD                   = 1361,
+    RBAC_FPERM_COMMAND_CUSTOMNPC_SET_RANK                    = 1362,
+    RBAC_FPERM_COMMAND_CUSTOMNPC_SET_SCALE                   = 1363,
+    RBAC_FPERM_COMMAND_CUSTOMNPC_SET_TAMEABLE                = 1364,
+    RBAC_FPERM_COMMAND_CUSTOMNPC_REMOVE_VARIATION            = 1365,
 
     // custom .reload permissions 9000-9099
     RBAC_FPERM_COMMAND_RELOAD_PLAYERCREATEINFO_SPELL_CUSTOM  = 9000,

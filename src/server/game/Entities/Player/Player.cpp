@@ -710,6 +710,8 @@ uint32 Player::EnvironmentalDamage(EnviromentalDamage type, uint32 damage)
 
 int32 Player::getMaxTimer(MirrorTimerType timer) const
 {
+    return DISABLED_MIRROR_TIMER;
+
     switch (timer)
     {
         case FATIGUE_TIMER:
@@ -11220,6 +11222,8 @@ Item* Player::StoreNewItem(ItemPosCountVec const& pos, uint32 itemId, bool updat
 
         if (item->GetTemplate()->GetInventoryType() != INVTYPE_NON_EQUIP)
             UpdateAverageItemLevelTotal();
+
+        item->CheckArtifactRelicSlotUnlock(this);
     }
 
     return item;

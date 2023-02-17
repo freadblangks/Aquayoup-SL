@@ -34,10 +34,10 @@ enum FreedomCmdAuraSpells
     SPELL_PERMANENT_HOVER = 138092
 };
 
-class freedom_commandscript : public CommandScript
+class F_freedom_commandscript : public CommandScript
 {
 public:
-    freedom_commandscript() : CommandScript("freedom_commandscript") { }
+    F_freedom_commandscript() : CommandScript("F_freedom_commandscript") { }
 
     std::vector<ChatCommand> GetCommands() const override
     {
@@ -169,6 +169,7 @@ public:
         static std::vector<ChatCommand> commandTable =
         {
             { "freedom",            rbac::RBAC_FPERM_COMMAND_FREEDOM,               false, NULL,                                    "", freedomCommandTable },
+            { "f",                  rbac::RBAC_FPERM_COMMAND_FREEDOM,               false, NULL,                                    "", freedomCommandTable },
         };
         return commandTable;
     }
@@ -216,7 +217,6 @@ public:
         handler->PSendSysMessage(FREEDOM_CMDI_MOD_SPEED, speedName.c_str(), value);
     }
 
-#pragma region COMMAND TABLE : .freedom -> morph -> *
     static bool HandleFreedomMorphListCommand(ChatHandler* handler, Optional<std::string> morphName)
     {
         const MorphDataContainer morphList = sFreedomMgr->GetMorphContainer(handler->GetSession()->GetPlayer()->GetGUID().GetCounter());
@@ -400,9 +400,7 @@ public:
         handler->PSendSysMessage(FREEDOM_CMDI_MORPH, morphData->name, morphData->displayId);
         return true;
     }
-#pragma endregion
 
-#pragma region COMMAND TABLE : .freedom -> teleport -> *
     static bool HandleFreedomTeleListCommand(ChatHandler* handler, char const* args)
     {
         const PublicTeleContainer teleList = sFreedomMgr->GetPublicTeleportContainer();
@@ -542,9 +540,7 @@ public:
         sFreedomMgr->PlayerPhase(source, teleData->phaseId);
         return true;
     }
-#pragma endregion
 
-#pragma region COMMAND TABLE : .freedom -> pteleport -> *
     static bool HandleFreedomPrivateTeleListCommand(ChatHandler* handler, char const* args)
     {
         const PrivateTeleVector teleList = sFreedomMgr->GetPrivateTeleportContainer(handler->GetSession()->GetBattlenetAccountId());
@@ -685,9 +681,7 @@ public:
         sFreedomMgr->PlayerPhase(source, teleData->phaseId);
         return true;
     }
-#pragma endregion
 
-#pragma region COMMAND TABLE : .freedom -> spell -> *
     static bool HandleFreedomSpellListCommand(ChatHandler* handler, char const* args)
     {
         const PublicSpellContainer spellList = sFreedomMgr->GetPublicSpellContainer();
@@ -840,9 +834,7 @@ public:
         spellName = spellData->name;
         return true;
     }
-#pragma endregion
 
-#pragma region COMMAND TABLE : .freedom -> reload -> *
     static bool HandleFreedomReloadAllCommand(ChatHandler* handler)
     {
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_EXECUTOR, "freedomtables", handler->GetNameLink()).c_str());
@@ -976,9 +968,7 @@ public:
         handler->SendGlobalSysMessage(handler->PGetParseString(FREEDOM_CMDI_RELOAD_FINISH, GetMSTimeDiffToNow(oldMSTime)).c_str());
         return true;
     }
-#pragma endregion
 
-#pragma region COMMAND TABLE : .freedom -> *
     static bool HandleFreedomGuildCreateCommand(ChatHandler* handler, char const* args)
     {
         if (!*args)
@@ -1991,10 +1981,9 @@ public:
         handler->PSendSysMessage("Applied enchant id '%u' to your main hand weapon.", enchantId);
         return true;
     }
-#pragma endregion
 };
 
-void AddSC_freedom_commandscript()
+void AddSC_F_freedom_commandscript()
 {
-    new freedom_commandscript();
+    new F_freedom_commandscript();
 }

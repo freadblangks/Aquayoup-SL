@@ -86,6 +86,12 @@ class TC_GAME_API CreatureGroup
         bool IsFormed() const { return _formed; }
         bool IsLeader(Creature const* creature) const { return _leader == creature; }
 
+        std::vector<Creature*> GetMembers() {
+            std::vector<Creature*> result(_members.size());
+            transform(_members.begin(), _members.end(), result.begin(), [](auto pair) { return pair.first; });
+            return result;
+        }
+
         bool HasMember(Creature* member) const { return _members.count(member) > 0; }
         void AddMember(Creature* member);
         void RemoveMember(Creature* member);

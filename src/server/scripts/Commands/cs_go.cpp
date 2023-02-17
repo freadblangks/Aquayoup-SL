@@ -104,7 +104,6 @@ public:
         return true;
     }
 
-    #pragma region FREEDOM_COMMANDS
     static bool HandleGotoRelativeCommand(ChatHandler* handler, char const* args)
     {
         // Get parameters and location info about source player
@@ -158,7 +157,6 @@ public:
         source->TeleportTo(source_map_id, new_x, new_y, new_z, new_o);
         return true;
     }
-#pragma endregion
 
     static bool HandleGoCreatureSpawnIdCommand(ChatHandler* handler, Variant<Hyperlink<creature>, ObjectGuid::LowType> spawnId)
     {
