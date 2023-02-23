@@ -1369,11 +1369,16 @@ public:
 
             sFreedomMgr->RemoveHoverFromPlayer(source); // unaura removes hover animation, so proceed to remove entire hover mechanic
             source->RemoveAllAuras();
+            source->RemoveAllAreaTriggers();
+            while (!source->m_dynObj.empty())
+                source->m_dynObj.front()->Remove();
             handler->PSendSysMessage(FREEDOM_CMDI_UNAURA);
             return true;
         }
 
         source->RemoveAura(auraId.value());
+        source->RemoveAreaTrigger(auraId.value());
+        source->RemoveDynObject(auraId.value());
         handler->PSendSysMessage("Aura %u has been removed from you.", auraId.value());
         return true;
     }

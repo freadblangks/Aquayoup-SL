@@ -1886,6 +1886,12 @@ class TC_GAME_API Unit : public WorldObject
 
         UF::UpdateField<UF::UnitData, 0, TYPEID_UNIT> m_unitData;
 
+        typedef std::vector<AreaTrigger*> AreaTriggerList;
+        AreaTriggerList m_areaTrigger;
+
+        typedef std::list<DynamicObject*> DynObjectList;
+        DynObjectList m_dynObj;
+
     protected:
         explicit Unit (bool isWorldObject);
 
@@ -1931,14 +1937,8 @@ class TC_GAME_API Unit : public WorldObject
 
         int32 m_procDeep;
 
-        typedef std::list<DynamicObject*> DynObjectList;
-        DynObjectList m_dynObj;
-
         typedef std::list<GameObject*> GameObjectList;
         GameObjectList m_gameObj;
-
-        typedef std::vector<AreaTrigger*> AreaTriggerList;
-        AreaTriggerList m_areaTrigger;
 
         uint32 m_transformSpell;
 

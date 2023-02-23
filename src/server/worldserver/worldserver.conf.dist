@@ -112,6 +112,15 @@ Freedom.Creature.MinScale = 0.0
 Freedom.CustomNpc.OutfitIdStart = 3000000001
 Freedom.CustomNpc.CreatureTemplateIdStart = 400000
 
+#
+#    Freedom.Areatrigger.SameLimit
+#    Freedom.Areatrigger.TotalLimit
+#        Description: Controls max amount of areatriggers/AOE's one player can have active of the same spellid at a time and how many area effects they can have active in total.
+#        Default:     TotalLimit = 5
+#					  SameLimit  = 2
+
+Freedom.Areatrigger.SameLimit  = 2
+Freedom.Areatrigger.TotalLimit = 5
 
 ###################################################################################################
 # CONNECTIONS AND DIRECTORIES
