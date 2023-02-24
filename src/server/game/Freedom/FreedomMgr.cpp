@@ -2153,8 +2153,8 @@ void FreedomMgr::SaveNpcOutfitToDb(uint32 templateId, uint8 variationId)
     }
 
     WorldDatabaseTransaction trans = WorldDatabase.BeginTransaction();
-    // "REPLACE INTO creature_template_outfits (entry, race, class, gender, customizations, head, shoulders, body, chest, waist, legs, feet, wrists, hands, back, tabard)
-    //  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    // "REPLACE INTO creature_template_outfits (entry, race, class, gender, customizations, head, shoulders, body, chest, waist, legs, feet, wrists, hands, back, tabard, guildid)
+    //  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_DRESSNPC_OUTFIT);
     int index = 0;
     stmt->setUInt32(index++, outfitId);
@@ -2166,6 +2166,7 @@ void FreedomMgr::SaveNpcOutfitToDb(uint32 templateId, uint8 variationId)
     {
         stmt->setInt32(index++, -((int)co->outfitdisplays[slot]));
     }
+    stmt->setUInt64(index++, co->guild);
     trans->Append(stmt);
 
     // "REPLACE INTO creature_template_model (CreatureId, Idx, CreatureDisplayId, DisplayScale, Probability) VALUES (?, ?, ?, ?, 1)"
