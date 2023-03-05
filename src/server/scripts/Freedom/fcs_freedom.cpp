@@ -1362,6 +1362,7 @@ public:
             source->RemoveAllAreaTriggers();
             while (!source->m_dynObj.empty())
                 source->m_dynObj.front()->Remove();
+            source->RemoveAllGameObjects();
             handler->PSendSysMessage(FREEDOM_CMDI_UNAURA);
             return true;
         }
@@ -1369,6 +1370,7 @@ public:
         source->RemoveAura(auraId.value());
         source->RemoveAreaTrigger(auraId.value());
         source->RemoveDynObject(auraId.value());
+        source->RemoveGameObject(auraId.value(), true);
         handler->PSendSysMessage("Aura %u has been removed from you.", auraId.value());
         return true;
     }

@@ -1892,6 +1892,9 @@ class TC_GAME_API Unit : public WorldObject
         typedef std::list<DynamicObject*> DynObjectList;
         DynObjectList m_dynObj;
 
+        typedef std::list<GameObject*> GameObjectList;
+        GameObjectList m_gameObj;
+
     protected:
         explicit Unit (bool isWorldObject);
 
@@ -1936,9 +1939,6 @@ class TC_GAME_API Unit : public WorldObject
         DeathState m_deathState;
 
         int32 m_procDeep;
-
-        typedef std::list<GameObject*> GameObjectList;
-        GameObjectList m_gameObj;
 
         uint32 m_transformSpell;
 

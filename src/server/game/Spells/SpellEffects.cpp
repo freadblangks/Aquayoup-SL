@@ -4388,6 +4388,7 @@ void Spell::EffectTransmitted()
         case GAMEOBJECT_TYPE_FISHINGHOLE:
         case GAMEOBJECT_TYPE_CHEST:
         default:
+            unitCaster->AddGameObject(go);
             break;
     }
 
