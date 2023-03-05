@@ -802,8 +802,7 @@ public:
 
         uint32 spellId = handler->extractSpellIdFromLink((char*)args);
         Player* source = handler->GetSession()->GetPlayer();
-        Player* target = handler->getSelectedPlayerOrSelf();
-        std::string spellName;
+        Unit* target = handler->getSelectedUnit();
 
         // Check if public spell already exists
         const PublicSpellData* spellData = sFreedomMgr->GetPublicSpell(spellId);
@@ -822,16 +821,7 @@ public:
             return true;
         }
 
-        if (spellData->targetOthers)
-        {
-            source->CastSpell(target, spellId);
-        }
-        else
-        {
-            source->CastSpell(source, spellId);
-        }
-
-        spellName = spellData->name;
+        source->CastSpell(target, spellId);
         return true;
     }
 
