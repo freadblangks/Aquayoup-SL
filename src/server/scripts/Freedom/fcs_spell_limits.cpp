@@ -19,6 +19,12 @@ public:
         uint32 spellId = spellInfo->Id;
         TC_LOG_DEBUG("freedom", "Player %s is casting spell %u...", player->GetName().c_str(), spellId);
 
+        if (spellInfo->HasEffect(SPELL_EFFECT_APPLY_AURA) && spell->m_targets.GetUnitTarget() && spell->m_targets.GetUnitTarget() != player) {
+            TC_LOG_DEBUG("freedom", "Player %s is affecting a different target '" SZFMTD "' with its spell", player->GetName().c_str(), spell->m_targets.GetUnitTarget()->GetGUID().GetCounter());
+            // Keep track of applied auras on others for players
+            sFreedomMgr->AddAuraApplication(player, spellId, spell->m_targets.GetUnitTarget());
+        }
+
         if (spellInfo->HasEffect(SPELL_EFFECT_CREATE_AREATRIGGER) || spellInfo->IsAffectingArea()) {
             TC_LOG_DEBUG("freedom", "Player %s is casting spell %u that affects an area...", player->GetName().c_str(), spellId);
 
