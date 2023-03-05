@@ -34,6 +34,7 @@ void WorldSession::HandleJoinChannel(WorldPackets::Channel::JoinChannel& packet)
         GetPlayerInfo().c_str(), packet.ChatChannelId, packet.CreateVoiceSession, packet.Internal, packet.ChannelName.c_str(), packet.Password.c_str());
 
     AreaTableEntry const* zone = sAreaTableStore.LookupEntry(GetPlayer()->GetZoneId());
+
     if (packet.ChatChannelId)
     {
         ChatChannelsEntry const* channel = sChatChannelsStore.LookupEntry(packet.ChatChannelId);
@@ -53,16 +54,6 @@ void WorldSession::HandleJoinChannel(WorldPackets::Channel::JoinChannel& packet)
         return;
     }
 
-    if (packet.ChannelName.length() > MAX_CHANNEL_NAME_STR)
-    {
-        WorldPackets::Channel::ChannelNotify channelNotify;
-        channelNotify.Type = CHAT_INVALID_NAME_NOTICE;
-        channelNotify._Channel = packet.ChannelName;
-        SendPacket(channelNotify.Write());
-        TC_LOG_ERROR("network", "Player %s tried to create a channel with a name more than " SZFMTD " characters long - blocked", GetPlayer()->GetGUID().ToString().c_str(), MAX_CHANNEL_NAME_STR);
-        return;
-    }
-
     if (packet.Password.length() > MAX_CHANNEL_PASS_STR)
     {
         TC_LOG_ERROR("network", "Player %s tried to create a channel with a password more than " SZFMTD " characters long - blocked", GetPlayer()->GetGUID().ToString().c_str(), MAX_CHANNEL_PASS_STR);
@@ -75,14 +66,20 @@ void WorldSession::HandleJoinChannel(WorldPackets::Channel::JoinChannel& packet)
     if (ChannelMgr* cMgr = ChannelMgr::ForTeam(GetPlayer()->GetTeam()))
     {
         if (packet.ChatChannelId)
-        { // system channel
+        {
+            // system channel
             if (Channel* channel = cMgr->GetSystemChannel(packet.ChatChannelId, zone))
                 channel->JoinChannel(GetPlayer());
         }
         else
         { // custom channel
+
             if (packet.ChannelName.length() > MAX_CHANNEL_NAME_STR)
             {
+                WorldPackets::Channel::ChannelNotify channelNotify;
+                channelNotify.Type = CHAT_INVALID_NAME_NOTICE;
+                channelNotify._Channel = packet.ChannelName;
+                SendPacket(channelNotify.Write());
                 TC_LOG_ERROR("network", "Player %s tried to create a channel with a name more than " SZFMTD " characters long - blocked", GetPlayer()->GetGUID().ToString().c_str(), MAX_CHANNEL_NAME_STR);
                 return;
             }
