@@ -36,6 +36,7 @@
 #include "SpellMgr.h"
 #include "Vehicle.h"
 #include <G3D/g3dmath.h>
+#include "Config.h"
 
 uint32 GetTargetFlagMask(SpellTargetObjectTypes objType)
 {
@@ -533,7 +534,10 @@ int32 SpellEffectInfo::CalcValue(WorldObject const* caster /*= nullptr*/, int32 
     if (caster)
         value = caster->ApplyEffectModifiers(_spellInfo, EffectIndex, value);
 
-    return int32(round(value));
+
+    float damageMod = sConfigMgr->GetFloatDefault("Freedom.Spell.DamageModifier", 0.0f);
+
+    return int32(round(value * damageMod));
 }
 
 int32 SpellEffectInfo::CalcBaseValue(WorldObject const* caster, Unit const* target, uint32 itemId, int32 itemLevel) const

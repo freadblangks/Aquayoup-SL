@@ -80,6 +80,7 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#include "Config.h"
 
 NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EFFECTS] =
 {
@@ -415,6 +416,9 @@ void Spell::EffectResurrectNew()
 
 void Spell::EffectInstaKill()
 {
+    if (!sConfigMgr->GetBoolDefault("Freedom.Spell.AllowInstakill", false))
+        return;
+
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
         return;
 
