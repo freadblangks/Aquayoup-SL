@@ -333,16 +333,6 @@ enum CombatRating
 
 #define MAX_COMBAT_RATING         32
 
-enum DamageEffectType : uint8
-{
-    DIRECT_DAMAGE           = 0,                            // used for normal weapon damage (not for class abilities or spells)
-    SPELL_DIRECT_DAMAGE     = 1,                            // spell/class abilities damage
-    DOT                     = 2,
-    HEAL                    = 3,
-    NODAMAGE                = 4,                            // used also in case when damage applied to health but not applied to spell channelInterruptFlags/etc
-    SELF_DAMAGE             = 5
-};
-
 enum UnitTypeMask
 {
     UNIT_MASK_NONE                  = 0x00000000,
@@ -1193,6 +1183,13 @@ class TC_GAME_API Unit : public WorldObject
         Aura* AddAura(SpellInfo const* spellInfo, uint32 effMask, Unit* target);
         void SetAuraStack(uint32 spellId, Unit* target, uint32 stack);
 
+        void SendPlaySpellVisual(Unit* target, uint32 spellVisualId, uint16 missReason, uint16 reflectStatus, float travelSpeed, bool speedAsTime = false, float launchDelay = 0.0f);
+        void SendPlaySpellVisual(Position const& targetPosition, uint32 spellVisualId, uint16 missReason, uint16 reflectStatus, float travelSpeed, bool speedAsTime = false, float launchDelay = 0.0f);
+        void SendCancelSpellVisual(uint32 id);
+
+        void SendPlaySpellVisualKit(uint32 id, uint32 type, uint32 duration) const;
+        void SendCancelSpellVisualKit(uint32 id);
+
         void CancelSpellMissiles(uint32 spellId, bool reverseMissile = false);
 
         void DeMorph();
@@ -1251,6 +1248,7 @@ class TC_GAME_API Unit : public WorldObject
         void SetInFront(WorldObject const* target);
         void SetFacingTo(float const ori, bool force = true);
         void SetFacingToObject(WorldObject const* object, bool force = true);
+        void SetFacingToPoint(Position const& point, bool force = true);
 
         bool IsAlive() const { return (m_deathState == ALIVE); }
         bool isDying() const { return (m_deathState == JUST_DIED); }
@@ -1517,7 +1515,7 @@ class TC_GAME_API Unit : public WorldObject
 
         void SetCurrentCastSpell(Spell* pSpell);
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool withInstant = true);
-        void FinishSpell(CurrentSpellTypes spellType, bool ok = true);
+        void FinishSpell(CurrentSpellTypes spellType, SpellCastResult result = SPELL_CAST_OK);
 
         // set withDelayed to true to account delayed spells as cast
         // delayed+channeled spells are always accounted as cast
@@ -1538,6 +1536,10 @@ class TC_GAME_API Unit : public WorldObject
         virtual bool HasSpellFocus(Spell const* /*focusSpell*/ = nullptr) const { return false; }
         virtual bool IsMovementPreventedByCasting() const;
         bool CanCastSpellWhileMoving(SpellInfo const* spellInfo) const;
+
+        bool IsSilenced(SpellSchoolMask schoolMask) const { return (*m_unitData->SilencedSchoolMask & schoolMask) != 0; }
+        void SetSilencedSchoolMask(SpellSchoolMask schoolMask) { SetUpdateFieldFlagValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::SilencedSchoolMask), schoolMask); }
+        void ReplaceAllSilencedSchoolMask(SpellSchoolMask schoolMask) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::SilencedSchoolMask), schoolMask); }
 
         SpellHistory* GetSpellHistory() { return _spellHistory; }
         SpellHistory const* GetSpellHistory() const { return _spellHistory; }

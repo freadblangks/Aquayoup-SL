@@ -640,6 +640,7 @@ namespace WorldPackets
         class QuestConfirmAccept;
         class QuestGiverStatusQuery;
         class QuestGiverStatusMultipleQuery;
+        class QuestGiverStatusTrackedQuery;
         class QuestGiverHello;
         class QueryQuestInfo;
         class QuestGiverChooseReward;
@@ -720,6 +721,7 @@ namespace WorldPackets
         class MissileTrajectoryCollision;
         class UpdateMissileTrajectory;
         class TradeSkillSetFavorite;
+        class KeyboundOverride;
     }
 
     namespace Talent
@@ -1516,6 +1518,7 @@ class TC_GAME_API WorldSession
 
         void HandleQuestgiverStatusQueryOpcode(WorldPackets::Quest::QuestGiverStatusQuery& packet);
         void HandleQuestgiverStatusMultipleQuery(WorldPackets::Quest::QuestGiverStatusMultipleQuery& packet);
+        void HandleQuestgiverStatusTrackedQueryOpcode(WorldPackets::Quest::QuestGiverStatusTrackedQuery& questGiverStatusTrackedQuery);
         void HandleQuestgiverHelloOpcode(WorldPackets::Quest::QuestGiverHello& packet);
         void HandleQuestgiverAcceptQuestOpcode(WorldPackets::Quest::QuestGiverAcceptQuest& packet);
         void HandleQuestgiverQueryQuestOpcode(WorldPackets::Quest::QuestGiverQueryQuest& packet);
@@ -1732,6 +1735,7 @@ class TC_GAME_API WorldSession
         void HandleRequestCategoryCooldowns(WorldPackets::Spells::RequestCategoryCooldowns& requestCategoryCooldowns);
         void HandleCloseInteraction(WorldPackets::Misc::CloseInteraction& closeInteraction);
         void HandleConversationLineStarted(WorldPackets::Misc::ConversationLineStarted& conversationLineStarted);
+        void HandleKeyboundOverride(WorldPackets::Spells::KeyboundOverride& keyboundOverride);
 
         // Adventure Journal
         void HandleAdventureJournalOpenQuest(WorldPackets::AdventureJournal::AdventureJournalOpenQuest& openQuest);

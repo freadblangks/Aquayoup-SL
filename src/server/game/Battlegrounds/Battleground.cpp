@@ -134,7 +134,9 @@ Battleground::~Battleground()
     // unload map
     if (m_Map)
     {
-        m_Map->SetUnload();
+        m_Map->UnloadAll(); // unload all objects (they may hold a reference to bg in their ZoneScript pointer)
+        m_Map->SetUnload(); // mark for deletion by MapManager
+
         //unlink to prevent crash, always unlink all pointer reference before destruction
         m_Map->SetBG(nullptr);
         m_Map = nullptr;
@@ -1216,8 +1218,8 @@ void Battleground::EventPlayerLoggedOut(Player* player)
         // drop flag and handle other cleanups
         RemovePlayer(player, guid, GetPlayerTeam(guid));
 
-        // 1 player is logging out, if it is the last, then end arena!
-        if (isArena())
+        // 1 player is logging out, if it is the last alive, then end arena!
+        if (isArena() && player->IsAlive())
             if (GetAlivePlayersCountByTeam(player->GetBGTeam()) <= 1 && GetPlayersCountByTeam(GetOtherTeam(player->GetBGTeam())))
                 EndBattleground(GetOtherTeam(player->GetBGTeam()));
     }

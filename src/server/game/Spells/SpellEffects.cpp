@@ -100,7 +100,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectBind,                                     // 11 SPELL_EFFECT_BIND
     &Spell::EffectNULL,                                     // 12 SPELL_EFFECT_PORTAL
     &Spell::EffectTeleportToReturnPoint,                    // 13 SPELL_EFFECT_TELEPORT_TO_RETURN_POINT
-    &Spell::EffectNULL,                                     // 14 SPELL_EFFECT_INCREASE_CURRENCY_CAP
+    &Spell::EffectIncreaseCurrencyCap,                      // 14 SPELL_EFFECT_INCREASE_CURRENCY_CAP
     &Spell::EffectTeleportUnitsWithVisualLoadingScreen,     // 15 SPELL_EFFECT_TELEPORT_WITH_SPELL_VISUAL_KIT_LOADING_SCREEN
     &Spell::EffectQuestComplete,                            // 16 SPELL_EFFECT_QUEST_COMPLETE
     &Spell::EffectWeaponDmg,                                // 17 SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL
@@ -298,7 +298,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectUnused,                                   //209 SPELL_EFFECT_209
     &Spell::EffectLearnGarrisonBuilding,                    //210 SPELL_EFFECT_LEARN_GARRISON_BUILDING
     &Spell::EffectNULL,                                     //211 SPELL_EFFECT_LEARN_GARRISON_SPECIALIZATION
-    &Spell::EffectNULL,                                     //212 SPELL_EFFECT_REMOVE_AURA_BY_SPELL_LABEL
+    &Spell::EffectRemoveAuraBySpellLabel,                   //212 SPELL_EFFECT_REMOVE_AURA_BY_SPELL_LABEL
     &Spell::EffectJumpDest,                                 //213 SPELL_EFFECT_JUMP_DEST_2
     &Spell::EffectCreateGarrison,                           //214 SPELL_EFFECT_CREATE_GARRISON
     &Spell::EffectNULL,                                     //215 SPELL_EFFECT_UPGRADE_CHARACTER_SPELLS
@@ -830,29 +830,15 @@ void Spell::CalculateJumpSpeeds(SpellEffectInfo const* effInfo, float dist, floa
 {
     Unit* unitCaster = GetUnitCasterForEffectHandlers();
     ASSERT(unitCaster);
-    float runSpeed = unitCaster->IsControlledByPlayer() ? playerBaseMoveSpeed[MOVE_RUN] : baseMoveSpeed[MOVE_RUN];
-    if (Creature* creature = unitCaster->ToCreature())
-        runSpeed *= creature->GetCreatureTemplate()->speed_run;
 
     float multiplier = effInfo->Amplitude;
     if (multiplier <= 0.0f)
         multiplier = 1.0f;
 
-    speedXY = std::min(runSpeed * 3.0f * multiplier, std::max(28.0f, unitCaster->GetSpeed(MOVE_RUN) * 4.0f));
-
-    float duration = dist / speedXY;
-    float durationSqr = duration * duration;
     float minHeight = effInfo->MiscValue  ? effInfo->MiscValue  / 10.0f :    0.5f; // Lower bound is blizzlike
     float maxHeight = effInfo->MiscValueB ? effInfo->MiscValueB / 10.0f : 1000.0f; // Upper bound is unknown
-    float height;
-    if (durationSqr < minHeight * 8 / Movement::gravity)
-        height = minHeight;
-    else if (durationSqr > maxHeight * 8 / Movement::gravity)
-        height = maxHeight;
-    else
-        height = Movement::gravity * durationSqr / 8;
 
-    speedZ = std::sqrt(2 * Movement::gravity * height);
+    unitCaster->GetMotionMaster()->CalculateJumpSpeeds(dist, MOVE_RUN, multiplier, minHeight, maxHeight, speedXY, speedZ);
 }
 
 void Spell::EffectJump()
@@ -2059,7 +2045,6 @@ void Spell::EffectDispel()
     size_t remaining = dispelList.size();
 
     // Ok if exist some buffs for dispel try dispel it
-    uint32 failCount = 0;
     DispelChargesList successList;
     successList.reserve(damage);
 
@@ -2102,7 +2087,6 @@ void Spell::EffectDispel()
         }
         else
         {
-            ++failCount;
             dispelFailed.FailedSpells.push_back(int32(itr->GetAura()->GetId()));
         }
         ++count;
@@ -4567,7 +4551,6 @@ void Spell::EffectStealBeneficialBuff()
     size_t remaining = stealList.size();
 
     // Ok if exist some buffs for dispel try dispel it
-    uint32 failCount = 0;
     std::vector<std::tuple<uint32, ObjectGuid, int32>> successList;
     successList.reserve(damage);
 
@@ -4598,7 +4581,6 @@ void Spell::EffectStealBeneficialBuff()
         }
         else
         {
-            ++failCount;
             dispelFailed.FailedSpells.push_back(int32(itr->GetAura()->GetId()));
         }
         ++count;
@@ -4973,7 +4955,7 @@ void Spell::EffectGiveCurrency()
     if (!sCurrencyTypesStore.LookupEntry(effectInfo->MiscValue))
         return;
 
-    unitTarget->ToPlayer()->ModifyCurrency(effectInfo->MiscValue, damage);
+    unitTarget->ToPlayer()->ModifyCurrency(effectInfo->MiscValue, damage, CurrencyGainSource::Spell, CurrencyDestroyReason::Spell);
 }
 
 void Spell::EffectCastButtons()
@@ -5079,6 +5061,18 @@ void Spell::EffectTeleportToReturnPoint()
     if (Player* player = unitTarget->ToPlayer())
         if (WorldLocation const* dest = player->GetStoredAuraTeleportLocation(effectInfo->MiscValue))
             player->TeleportTo(*dest, unitTarget == m_caster ? TELE_TO_SPELL | TELE_TO_NOT_LEAVE_COMBAT : 0);
+}
+
+void Spell::EffectIncreaseCurrencyCap()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (damage <= 0)
+        return;
+
+    if (Player* player = unitTarget->ToPlayer())
+        player->IncreaseCurrencyCap(effectInfo->MiscValue, damage);
 }
 
 void Spell::EffectSummonRaFFriend()
@@ -5241,6 +5235,20 @@ void Spell::EffectLearnGarrisonBuilding()
 
     if (Garrison* garrison = unitTarget->ToPlayer()->GetGarrison())
         garrison->LearnBlueprint(effectInfo->MiscValue);
+}
+
+void Spell::EffectRemoveAuraBySpellLabel()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget)
+        return;
+
+    unitTarget->RemoveAppliedAuras([&](AuraApplication const* aurApp)
+    {
+        return aurApp->GetBase()->GetSpellInfo()->HasLabel(effectInfo->MiscValue);
+    });
 }
 
 void Spell::EffectCreateGarrison()

@@ -1091,34 +1091,6 @@ void World::LoadConfigSettings(bool reload)
         m_int_configs[CONFIG_CURRENCY_RESET_INTERVAL] = 7;
     }
 
-    m_int_configs[CONFIG_CURRENCY_START_APEXIS_CRYSTALS] = sConfigMgr->GetIntDefault("Currency.StartApexisCrystals", 0);
-    if (int32(m_int_configs[CONFIG_CURRENCY_START_APEXIS_CRYSTALS]) < 0)
-    {
-        TC_LOG_ERROR("server.loading", "Currency.StartApexisCrystals ({}) must be >= 0, set to default 0.", m_int_configs[CONFIG_CURRENCY_START_APEXIS_CRYSTALS]);
-        m_int_configs[CONFIG_CURRENCY_START_APEXIS_CRYSTALS] = 0;
-    }
-    m_int_configs[CONFIG_CURRENCY_MAX_APEXIS_CRYSTALS] = sConfigMgr->GetIntDefault("Currency.MaxApexisCrystals", 20000);
-    if (int32(m_int_configs[CONFIG_CURRENCY_MAX_APEXIS_CRYSTALS]) < 0)
-    {
-        TC_LOG_ERROR("server.loading", "Currency.MaxApexisCrystals ({}) can't be negative. Set to default 20000.", m_int_configs[CONFIG_CURRENCY_MAX_APEXIS_CRYSTALS]);
-        m_int_configs[CONFIG_CURRENCY_MAX_APEXIS_CRYSTALS] = 20000;
-    }
-    m_int_configs[CONFIG_CURRENCY_MAX_APEXIS_CRYSTALS] *= 100;     //precision mod
-
-    m_int_configs[CONFIG_CURRENCY_START_JUSTICE_POINTS] = sConfigMgr->GetIntDefault("Currency.StartJusticePoints", 0);
-    if (int32(m_int_configs[CONFIG_CURRENCY_START_JUSTICE_POINTS]) < 0)
-    {
-        TC_LOG_ERROR("server.loading", "Currency.StartJusticePoints ({}) must be >= 0, set to default 0.", m_int_configs[CONFIG_CURRENCY_START_JUSTICE_POINTS]);
-        m_int_configs[CONFIG_CURRENCY_START_JUSTICE_POINTS] = 0;
-    }
-    m_int_configs[CONFIG_CURRENCY_MAX_JUSTICE_POINTS] = sConfigMgr->GetIntDefault("Currency.MaxJusticePoints", 4000);
-    if (int32(m_int_configs[CONFIG_CURRENCY_MAX_JUSTICE_POINTS]) < 0)
-    {
-        TC_LOG_ERROR("server.loading", "Currency.MaxJusticePoints ({}) can't be negative. Set to default 4000.", m_int_configs[CONFIG_CURRENCY_MAX_JUSTICE_POINTS]);
-        m_int_configs[CONFIG_CURRENCY_MAX_JUSTICE_POINTS] = 4000;
-    }
-    m_int_configs[CONFIG_CURRENCY_MAX_JUSTICE_POINTS] *= 100;     //precision mod
-
     m_int_configs[CONFIG_MAX_RECRUIT_A_FRIEND_BONUS_PLAYER_LEVEL] = sConfigMgr->GetIntDefault("RecruitAFriend.MaxLevel", 85);
     if (m_int_configs[CONFIG_MAX_RECRUIT_A_FRIEND_BONUS_PLAYER_LEVEL] > m_int_configs[CONFIG_MAX_PLAYER_LEVEL])
     {
@@ -1814,6 +1786,13 @@ void World::SetInitialWorldSettings()
         exit(1);
     }
 
+    TC_LOG_INFO("server.loading", "Loading GameObject models...");
+    if (!LoadGameObjectModelList(m_dataPath))
+    {
+        TC_LOG_FATAL("server.loading", "Unable to load gameobject models (part of vmaps), objects using WMO models will crash the client - server shutting down!");
+        exit(1);
+    }
+
     TC_LOG_INFO("misc", "Loading hotfix blobs...");
     sDB2Manager.LoadHotfixBlob(m_availableDbcLocaleMask);
     TC_LOG_INFO("misc", "Loading hotfix info...");
@@ -1896,13 +1875,6 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading languages words...");
     sLanguageMgr->LoadLanguagesWords();
-
-    TC_LOG_INFO("server.loading", "Loading GameObject models...");
-    if (!LoadGameObjectModelList(m_dataPath))
-    {
-        TC_LOG_FATAL("server.loading", "Unable to load gameobject models, objects using WMO models will crash the client - server shutting down!");
-        exit(1);
-    }
 
     TC_LOG_INFO("server.loading", "Loading Instance Template...");
     sObjectMgr->LoadInstanceTemplate();
