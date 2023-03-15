@@ -802,8 +802,7 @@ public:
 
         uint32 spellId = handler->extractSpellIdFromLink((char*)args);
         Player* source = handler->GetSession()->GetPlayer();
-        Player* target = handler->getSelectedPlayerOrSelf();
-        std::string spellName;
+        Unit* target = handler->getSelectedUnit();
 
         // Check if public spell already exists
         const PublicSpellData* spellData = sFreedomMgr->GetPublicSpell(spellId);
@@ -822,16 +821,7 @@ public:
             return true;
         }
 
-        if (spellData->targetOthers)
-        {
-            source->CastSpell(target, spellId);
-        }
-        else
-        {
-            source->CastSpell(source, spellId);
-        }
-
-        spellName = spellData->name;
+        source->CastSpell(target, spellId);
         return true;
     }
 
@@ -1369,11 +1359,20 @@ public:
 
             sFreedomMgr->RemoveHoverFromPlayer(source); // unaura removes hover animation, so proceed to remove entire hover mechanic
             source->RemoveAllAuras();
+            source->RemoveAllAreaTriggers();
+            while (!source->m_dynObj.empty())
+                source->m_dynObj.front()->Remove();
+            source->RemoveAllGameObjects();
+            sFreedomMgr->RemoveAllAuraApplications(source);
             handler->PSendSysMessage(FREEDOM_CMDI_UNAURA);
             return true;
         }
 
         source->RemoveAura(auraId.value());
+        source->RemoveAreaTrigger(auraId.value());
+        source->RemoveDynObject(auraId.value());
+        source->RemoveGameObject(auraId.value(), true);
+        sFreedomMgr->RemoveAuraApplications(source, auraId.value());
         handler->PSendSysMessage("Aura %u has been removed from you.", auraId.value());
         return true;
     }

@@ -96,11 +96,19 @@ struct MorphData
 
 typedef std::vector<MorphData> MorphDataContainer;
 
+struct AppliedAuraData
+{
+    uint32 spellId;
+    Unit* target;
+};
+typedef std::vector<AppliedAuraData> AppliedAuraContainer;
+
 struct PlayerExtraData
 {
     ObjectGuid::LowType selectedGameobjectGuid;
     ObjectGuid::LowType selectedCreatureGuid;
     MorphDataContainer morphDataStore;
+    AppliedAuraContainer appliedAuraStore;
     WorldLocation markerLocation;
     uint32 phaseMask;
     bool phaseLock;
@@ -334,6 +342,11 @@ class TC_GAME_API FreedomMgr
         // Marker
         void StoreMarkerLocationForPlayer(Player* player, const WorldLocation* marker);
         WorldLocation* GetMarketLocationForPlayer(Player* player) { return &_playerExtraDataStore[player->GetGUID().GetCounter()].markerLocation; }
+
+        // Aura application tracking
+        void AddAuraApplication(Player* player, uint32 spellId, Unit* target);
+        void RemoveAllAuraApplications(Player* player);
+        void RemoveAuraApplications(Player* player, uint32 spellId);
 
     protected:
         PlayerExtraDataContainer _playerExtraDataStore;

@@ -670,6 +670,7 @@ bool CollectionMgr::CanAddAppearance(ItemModifiedAppearanceEntry const* itemModi
     if (itemModifiedAppearance->TransmogSourceTypeEnum == 6 || itemModifiedAppearance->TransmogSourceTypeEnum == 9)
         return false;
 
+
     if (!sItemSearchNameStore.LookupEntry(itemModifiedAppearance->ItemID))
         return false;
 
@@ -726,9 +727,6 @@ bool CollectionMgr::CanAddAppearance(ItemModifiedAppearanceEntry const* itemModi
                 default:
                     return false;
             }
-            if (itemTemplate->GetInventoryType() != INVTYPE_CLOAK)
-                if (!(PlayerClassByArmorSubclass[itemTemplate->GetSubClass()] & _owner->GetPlayer()->GetClassMask()))
-                    return false;
             break;
         }
         default:

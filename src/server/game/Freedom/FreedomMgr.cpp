@@ -2153,8 +2153,8 @@ void FreedomMgr::SaveNpcOutfitToDb(uint32 templateId, uint8 variationId)
     }
 
     WorldDatabaseTransaction trans = WorldDatabase.BeginTransaction();
-    // "REPLACE INTO creature_template_outfits (entry, race, class, gender, customizations, head, shoulders, body, chest, waist, legs, feet, wrists, hands, back, tabard)
-    //  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    // "REPLACE INTO creature_template_outfits (entry, race, class, gender, customizations, head, shoulders, body, chest, waist, legs, feet, wrists, hands, back, tabard, guildid)
+    //  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_DRESSNPC_OUTFIT);
     int index = 0;
     stmt->setUInt32(index++, outfitId);
@@ -2166,6 +2166,7 @@ void FreedomMgr::SaveNpcOutfitToDb(uint32 templateId, uint8 variationId)
     {
         stmt->setInt32(index++, -((int)co->outfitdisplays[slot]));
     }
+    stmt->setUInt64(index++, co->guild);
     trans->Append(stmt);
 
     // "REPLACE INTO creature_template_model (CreatureId, Idx, CreatureDisplayId, DisplayScale, Probability) VALUES (?, ?, ?, ?, 1)"
@@ -2543,4 +2544,54 @@ void FreedomMgr::SaveFormationPosition(std::string const& key, Player* player)
             SaveCreature(member);
         }
     }
+}
+
+void FreedomMgr::AddAuraApplication(Player* player, uint32 spellId, Unit* target)
+{
+    AppliedAuraData auraData;
+    auraData.spellId = spellId;
+    auraData.target = target;
+
+    AppliedAuraContainer auraContainer = _playerExtraDataStore[player->GetGUID().GetCounter()].appliedAuraStore;
+    auraContainer.push_back(auraData);
+    _playerExtraDataStore[player->GetGUID().GetCounter()].appliedAuraStore = auraContainer;
+}
+
+void FreedomMgr::RemoveAllAuraApplications(Player* player)
+{
+    AppliedAuraContainer auraContainer = _playerExtraDataStore[player->GetGUID().GetCounter()].appliedAuraStore;
+
+    TC_LOG_DEBUG("freedom", "RemoveAllAuraApplications :: AuraContainer size = " SZFMTD, auraContainer.size());
+    while (!auraContainer.empty()) {
+        AppliedAuraData auraData = auraContainer.front();
+        if (auraData.target) {
+            TC_LOG_DEBUG("freedom", "Removing aura %u cast on " SZFMTD, auraData.spellId, auraData.target->GetGUID().GetCounter());
+            auraData.target->RemoveAura(auraData.spellId, player->GetGUID());
+        }
+        auraContainer.erase(auraContainer.begin());
+    }
+
+    _playerExtraDataStore[player->GetGUID().GetCounter()].appliedAuraStore = auraContainer;
+}
+
+void FreedomMgr::RemoveAuraApplications(Player* player, uint32 spellId)
+{
+    AppliedAuraContainer auraContainer = _playerExtraDataStore[player->GetGUID().GetCounter()].appliedAuraStore;
+    TC_LOG_DEBUG("freedom", "RemoveAllAuraApplications spellId :: AuraContainer size = " SZFMTD, auraContainer.size());
+
+    std::vector<int> toRemove;
+    for (auto i = auraContainer.begin(); i != auraContainer.end();)
+    {
+        AppliedAuraData auraData = *i;
+        if (auraData.spellId == spellId) {
+            TC_LOG_DEBUG("freedom", "Removing aura %u cast on " SZFMTD, auraData.spellId, auraData.target->GetGUID().GetCounter());
+            auraData.target->RemoveAura(auraData.spellId, player->GetGUID());
+            auraContainer.erase(i);
+            i = auraContainer.begin();
+        }
+        else
+            ++i;
+    }
+
+    _playerExtraDataStore[player->GetGUID().GetCounter()].appliedAuraStore = auraContainer;
 }
