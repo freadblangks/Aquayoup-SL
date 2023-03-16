@@ -1,0 +1,2 @@
+ALTER TABLE `character_extra`
+ADD COLUMN `phase` INTEGER NOT NULL DEFAULT -1
