@@ -1843,9 +1843,9 @@ void WorldSession::HandleCharCustomizeCallback(std::shared_ptr<WorldPackets::Cha
         stmt->setUInt8(1, customizeInfo->SexID);
         stmt->setUInt16(2, PLAYER_EXTRA_HAS_RACE_CHANGED);
         stmt->setUInt64(3, lowGuid);
+        trans->Append(stmt);
     }
 
-    trans->Append(stmt);
 
     CharacterDatabase.CommitTransaction(trans);
 
