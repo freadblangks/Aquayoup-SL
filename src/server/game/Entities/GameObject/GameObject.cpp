@@ -708,6 +708,7 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
         float scale = extraData->scale;
         SetObjectScale(scale < 0 ? goInfo->size : scale);
     }
+    else
     {
         SetObjectScale(goInfo->size);
     }
