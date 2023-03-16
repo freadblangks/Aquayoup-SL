@@ -1351,30 +1351,67 @@ public:
         return true;
     }
 
-    static bool HandleFreedomUnAuraCommand(ChatHandler* handler, Optional<uint32> auraId)
+    static bool HandleFreedomUnAuraCommand(ChatHandler* handler, Optional<uint32> spellId)
     {
         Player* source = handler->GetSession()->GetPlayer();
 
-        if (!auraId.has_value()) {
+        if (!spellId.has_value()) {
 
             sFreedomMgr->RemoveHoverFromPlayer(source); // unaura removes hover animation, so proceed to remove entire hover mechanic
             source->RemoveAllAuras();
             source->RemoveAllAreaTriggers();
             while (!source->m_dynObj.empty())
                 source->m_dynObj.front()->Remove();
+            // Remove summons from spells.
+            for (auto i = source->m_Controlled.begin(); i != source->m_Controlled.end();)
+            {
+                TempSummon* summon = (*i)->ToTempSummon();
+                if (summon) {
+                    summon->UnSummon(0);
+                    i = source->m_Controlled.begin();
+                }
+                else {
+                    ++i;
+                }
+            }
             source->RemoveAllGameObjects();
             sFreedomMgr->RemoveAllAuraApplications(source);
+
             handler->PSendSysMessage(FREEDOM_CMDI_UNAURA);
             return true;
         }
 
-        source->RemoveAura(auraId.value());
-        source->RemoveAreaTrigger(auraId.value());
-        source->RemoveDynObject(auraId.value());
-        source->RemoveGameObject(auraId.value(), true);
-        sFreedomMgr->RemoveAuraApplications(source, auraId.value());
-        handler->PSendSysMessage("Aura %u has been removed from you.", auraId.value());
+        RemoveSpellEffects(source, spellId.value());
+        handler->PSendSysMessage("Effects from spell %u have been removed from you.", spellId.value());
         return true;
+    }
+
+    static void RemoveSpellEffects(Player* player, uint32 spellId) {
+        player->RemoveAreaTrigger(spellId);
+        player->RemoveDynObject(spellId);
+        player->RemoveGameObject(spellId, true);
+        sFreedomMgr->RemoveAuraApplications(player, spellId);
+        // Remove temp summons created by spell
+        for (auto i = player->m_Controlled.begin(); i != player->m_Controlled.end();)
+        {
+            TempSummon* summon = (*i)->ToTempSummon();
+            TC_LOG_DEBUG("freedom", "help");
+            if (summon && (uint32)summon->m_unitData->CreatedBySpell == spellId) {
+                summon->UnSummon(0);
+                i = player->m_Controlled.begin();
+            }
+            else {
+                ++i;
+            }
+        }
+
+        // Recursively remove effects from spells that cast spells...
+        const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId, player->GetMap()->GetDifficultyID());
+        for (auto effect : spellInfo->GetEffects()) {
+            if (effect.TriggerSpell) {
+                RemoveSpellEffects(player, effect.TriggerSpell);
+            }
+        }
     }
 
     static bool HandleFreedomSpeedCommand(ChatHandler* handler, char const* args)
