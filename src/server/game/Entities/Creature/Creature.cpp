@@ -1595,6 +1595,40 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     stmt->setUInt32(index++, dynamicflags);
     trans->Append(stmt);
 
+    CreatureAddon const* addonData = GetCreatureAddon();
+    if (addonData)
+    {
+        index = 0;
+        // REPLACE INTO creature_addon(guid, path_id, mount, bytes1, bytes2, emote, auras) 
+        stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_ADDON_FULL);
+        stmt->setUInt64(index++, m_spawnId);
+        stmt->setUInt32(index++, addonData->path_id);
+        stmt->setUInt32(index++, addonData->mount);
+        stmt->setUInt32(index++, addonData->bytes1);
+        stmt->setUInt32(index++, addonData->bytes2);
+        stmt->setUInt32(index++, addonData->emote);
+
+        if (!addonData->auras.empty())
+        {
+            std::string auraList = "";
+            for (auto aura : addonData->auras)
+            {
+                if (auraList.empty())
+                    auraList = std::to_string(aura);
+                else
+                    auraList += " " + std::to_string(aura);
+            }
+
+            stmt->setString(index, auraList);
+        }
+        else
+        {
+            stmt->setNull(index);
+        }
+
+        trans->Append(stmt);
+    }
+
     WorldDatabase.CommitTransaction(trans);
 }
 
