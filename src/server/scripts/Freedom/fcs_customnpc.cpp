@@ -117,7 +117,11 @@ public:
 
         Creature* creature = Creature::CreateCreature(id, map, chr->GetPosition());
         if (!creature)
+        {
+            handler->PSendSysMessage("Could not spawn customnpc '%s', this can happen when an unknown displayid is set.", name);
+            handler->SetSentErrorMessage(true);
             return false;
+        }
 
         PhasingHandler::InheritPhaseShift(creature, chr);
         creature->SetDBPhase(sFreedomMgr->GetPlayerPhase(chr));
@@ -130,7 +134,11 @@ public:
 
         creature = Creature::CreateCreatureFromDB(db_guid, map, true, true);
         if (!creature)
+        {
+            handler->PSendSysMessage("Could spawn customnpc '%s', this can happen when an unknown displayid is set.", id);
+            handler->SetSentErrorMessage(true);
             return false;
+        }
 
         sObjectMgr->AddCreatureToGrid(sObjectMgr->GetCreatureData(db_guid));
 

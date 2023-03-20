@@ -156,7 +156,11 @@ public:
     static bool HandleNpcAddCommand(ChatHandler* handler, CreatureEntry id)
     {
         if (!sObjectMgr->GetCreatureTemplate(id))
+        {
+            handler->PSendSysMessage("Could not find a creature template with id: %u. Perhaps you entered the wrong id or there is something wrong with the template?", id);
+            handler->SetSentErrorMessage(true);
             return false;
+        }
 
         Player* chr = handler->GetSession()->GetPlayer();
         Map* map = chr->GetMap();
@@ -179,7 +183,11 @@ public:
 
         Creature* creature = Creature::CreateCreature(id, map, chr->GetPosition());
         if (!creature)
+        {
+            handler->PSendSysMessage("Could not create creature with id: %u. This indicates there is something wrong with the creature template.", id);
+            handler->SetSentErrorMessage(true);
             return false;
+        }
 
         PhasingHandler::InheritPhaseShift(creature, chr);
         creature->SetDBPhase(sFreedomMgr->GetPlayerPhase(chr));
@@ -194,7 +202,11 @@ public:
 
         creature = Creature::CreateCreatureFromDB(db_guid, map, true, true);
         if (!creature)
+        {
+            handler->PSendSysMessage("Could not create creature with id: %u. This indicates there is something wrong with the creature template.", id);
+            handler->SetSentErrorMessage(true);
             return false;
+        }
 
         sObjectMgr->AddCreatureToGrid(sObjectMgr->GetCreatureData(db_guid));
         // PhasingHandler::InheritPhaseShift(creature, chr);
