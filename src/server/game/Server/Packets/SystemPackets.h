@@ -106,7 +106,7 @@ namespace WorldPackets
                 uint32 Unknown1007 = 0;
             };
 
-            FeatureSystemStatus() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS, 200) { }
+            FeatureSystemStatus() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS, 206) { }
 
             WorldPacket const* Write() override;
 
@@ -174,7 +174,7 @@ namespace WorldPackets
         class FeatureSystemStatusGlueScreen final : public ServerPacket
         {
         public:
-            FeatureSystemStatusGlueScreen() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS_GLUE_SCREEN, 64) { }
+            FeatureSystemStatusGlueScreen() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS_GLUE_SCREEN, 80) { }
 
             WorldPacket const* Write() override;
 
