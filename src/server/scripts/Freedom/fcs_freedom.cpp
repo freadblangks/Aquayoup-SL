@@ -1381,37 +1381,9 @@ public:
             return true;
         }
 
-        RemoveSpellEffects(source, spellId.value());
+        sFreedomMgr->RemoveSpellEffects(source, spellId.value());
         handler->PSendSysMessage("Effects from spell %u have been removed from you.", spellId.value());
         return true;
-    }
-
-    static void RemoveSpellEffects(Player* player, uint32 spellId) {
-        player->RemoveAreaTrigger(spellId);
-        player->RemoveDynObject(spellId);
-        player->RemoveGameObject(spellId, true);
-        sFreedomMgr->RemoveAuraApplications(player, spellId);
-        // Remove temp summons created by spell
-        for (auto i = player->m_Controlled.begin(); i != player->m_Controlled.end();)
-        {
-            TempSummon* summon = (*i)->ToTempSummon();
-            TC_LOG_DEBUG("freedom", "help");
-            if (summon && (uint32)summon->m_unitData->CreatedBySpell == spellId) {
-                summon->UnSummon(0);
-                i = player->m_Controlled.begin();
-            }
-            else {
-                ++i;
-            }
-        }
-
-        // Recursively remove effects from spells that cast spells...
-        const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId, player->GetMap()->GetDifficultyID());
-        for (auto effect : spellInfo->GetEffects()) {
-            if (effect.TriggerSpell) {
-                RemoveSpellEffects(player, effect.TriggerSpell);
-            }
-        }
     }
 
     static bool HandleFreedomSpeedCommand(ChatHandler* handler, char const* args)

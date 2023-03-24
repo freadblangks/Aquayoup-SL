@@ -293,6 +293,12 @@ class TC_GAME_API WorldScript : public ScriptObject
 
         // Called when the world is actually shut down.
         virtual void OnShutdown() { }
+
+        // Called when a creature is added to the world
+        virtual void OnCreatureAddedToWorld(Creature* /* creature*/) { }
+
+        // Called when a creature is removed from the world
+        virtual void OnCreatureRemovedFromWorld(Creature* /* creature*/) { }
 };
 
 class TC_GAME_API FormulaScript : public ScriptObject
@@ -1090,6 +1096,8 @@ class TC_GAME_API ScriptMgr
         void OnWorldUpdate(uint32 diff);
         void OnStartup();
         void OnShutdown();
+        void OnCreatureAddedToWorld(Creature* creature);
+        void OnCreatureRemovedFromWorld(Creature* creature);
 
     public: /* FormulaScript */
 

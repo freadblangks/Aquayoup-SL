@@ -21,8 +21,12 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/tokenizer.hpp>
 #include <G3D/Quat.h>
-#include <QueryPackets.h>
-#include <CreatureGroups.h>
+#include "QueryPackets.h"
+#include "CreatureGroups.h"
+#include "SpellInfo.h"
+#include "TemporarySummon.h"
+#include <CharacterCache.h>
+#include "ObjectAccessor.h"
 
 FreedomMgr::FreedomMgr()
 {
@@ -65,6 +69,7 @@ void FreedomMgr::LoadAllTables()
     LoadCreatureTemplateExtras();
     LoadCustomNpcs();
     LoadFormations();
+    LoadNpcCasts();
 
     TC_LOG_INFO("server.loading", ">> Loaded FreedomMgr tables in %u ms", GetMSTimeDiffToNow(oldMSTime));
 }
@@ -714,13 +719,19 @@ Creature* FreedomMgr::GetAnyCreature(ObjectGuid::LowType lowguid)
 {
     auto data = sObjectMgr->GetCreatureData(lowguid);
     if (!data)
+    {
+        TC_LOG_DEBUG("freedom", "FreedomMgr::GetAnyCreature failed to find creatureData for GUID: " SZFMTD, lowguid);
         return nullptr;
+    }
 
     auto objectGuid = ObjectGuid::Create<HighGuid::Creature>(data->mapId, data->id, lowguid);
     Map* map = sMapMgr->FindMap(data->mapId, 0);
 
     if (!map)
+    {
+        TC_LOG_DEBUG("freedom", "FreedomMgr::GetAnyCreature failed to find map %u for GUID: " SZFMTD, data->mapId, lowguid);
         return nullptr;
+    }
 
     Creature* creature = map->GetCreature(objectGuid);
 
@@ -729,7 +740,10 @@ Creature* FreedomMgr::GetAnyCreature(ObjectGuid::LowType lowguid)
     {
         auto bounds = map->GetCreatureBySpawnIdStore().equal_range(lowguid);
         if (bounds.first == bounds.second)
+        {
+            TC_LOG_DEBUG("freedom", "FreedomMgr::GetAnyCreature failed to find creature in spawnidstore on map %u for GUID: " SZFMTD, data->mapId, lowguid);
             return nullptr;
+        }
 
         return bounds.first->second;
     }
@@ -754,6 +768,22 @@ Creature* FreedomMgr::GetAnyCreature(Map* map, ObjectGuid::LowType lowguid, uint
     }
 
     return creature;
+}
+
+
+Unit* FreedomMgr::GetAnyUnit(ObjectGuid::LowType guidLow)
+{
+    Creature* creature = GetAnyCreature(guidLow);
+    if (creature) {
+        return creature;
+    }
+
+    Player* player = ObjectAccessor::FindPlayerByLowGUID(guidLow);
+    if (player) {
+        return player;
+    }
+
+     return nullptr;
 }
 
 void FreedomMgr::SetCreatureSelectionForPlayer(ObjectGuid::LowType playerId, ObjectGuid::LowType creatureId)
@@ -1818,7 +1848,7 @@ void FreedomMgr::CreateCustomNpcFromPlayer(Player* player, std::string const& ke
     if (!_customNpcStore.empty()) {
         using pairtype = std::pair<std::string, CustomNpcData>;
         npcCreatureTemplateId = std::max_element(_customNpcStore.begin(), _customNpcStore.end(),
-            [](pairtype a, pairtype b) { return a.second.templateId < b.second.templateId; })->second.templateId+1;
+            [](pairtype a, pairtype b) { return a.second.templateId < b.second.templateId; })->second.templateId + 1;
     }
     creatureTemplate.Entry = npcCreatureTemplateId;
 
@@ -2019,7 +2049,7 @@ void FreedomMgr::SetCustomNpcDisplayId(std::string const& key, uint8 variationId
     CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
     CreatureModel model = cTemplate.Models[variationId - 1];
     model.CreatureDisplayID = displayId;
-    cTemplate.Models[variationId-1] = model;
+    cTemplate.Models[variationId - 1] = model;
     sObjectMgr->_creatureTemplateStore[templateId] = cTemplate;
     SaveNpcModelInfo(model, templateId, variationId);
     ReloadSpawnedCustomNpcs(key);
@@ -2123,7 +2153,7 @@ void FreedomMgr::RemoveCustomNpcVariation(std::string const& key, uint8 variatio
     uint32 templateId = _customNpcStore[key].templateId;
     CreatureTemplate cTemplate = sObjectMgr->_creatureTemplateStore[templateId];
     uint8 currentModel = variationId;
-    while(currentModel != cTemplate.Models.size()) {
+    while (currentModel != cTemplate.Models.size()) {
         // Shift models lower
         cTemplate.Models[currentModel - 1] = cTemplate.Models[currentModel];
         SaveNpcModelInfo(cTemplate.Models[currentModel - 1], templateId, currentModel);
@@ -2132,7 +2162,7 @@ void FreedomMgr::RemoveCustomNpcVariation(std::string const& key, uint8 variatio
 
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_TEMPLATE_MODEL);
     stmt->setUInt32(0, templateId);
-    stmt->setUInt8(1, currentModel-1);
+    stmt->setUInt8(1, currentModel - 1);
     WorldDatabase.Execute(stmt);
 
     cTemplate.Models.pop_back();
@@ -2175,9 +2205,9 @@ void FreedomMgr::SaveNpcOutfitToDb(uint32 templateId, uint8 variationId)
     // "REPLACE INTO creature_template_model (CreatureId, Idx, CreatureDisplayId, DisplayScale, Probability) VALUES (?, ?, ?, ?, 1)"
     stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_TEMPLATE_MODEL);
     stmt->setUInt32(0, templateId);
-    stmt->setUInt8(1, variationId-1);
+    stmt->setUInt8(1, variationId - 1);
     stmt->setUInt32(2, outfitId);
-    stmt->setFloat(3, cTemplate.Models[variationId-1].DisplayScale);
+    stmt->setFloat(3, cTemplate.Models[variationId - 1].DisplayScale);
     trans->Append(stmt);
     WorldDatabase.CommitTransaction(trans);
 }
@@ -2594,4 +2624,207 @@ void FreedomMgr::RemoveAuraApplications(Player* player, uint32 spellId)
     }
 
     _playerExtraDataStore[player->GetGUID().GetCounter()].appliedAuraStore = auraContainer;
+}
+
+void FreedomMgr::LoadNpcCasts() {
+    // clear current storage
+    _npcCastStore.clear();
+
+    uint32 oldMSTime = getMSTime();
+    QueryResult result = FreedomDatabase.Query("SELECT `id`, source_spawn, target_spawn, spell_id, duration, restInterval, initialRest FROM npc_casts");
+    if (!result)
+    {
+        TC_LOG_INFO("server.loading", ">> Loaded 0 NPC spell casts. DB table `npc_casts` is empty!");
+        return;
+    }
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+
+        std::shared_ptr<NpcCastData> castData(new NpcCastData());
+        castData->id = fields[0].GetUInt32();
+        castData->source = fields[1].GetUInt64();
+        castData->target = fields[2].GetUInt64();
+        castData->spell_id = fields[3].GetUInt32();
+        castData->duration = fields[4].GetUInt32();
+        castData->restInterval = fields[5].GetUInt32();
+        castData->initialRest = fields[6].GetUInt32();
+
+        castData->currentRest = castData->initialRest;
+
+        _npcCastStore.push_back(std::move(castData));
+        ++count;
+    } while (result->NextRow());
+
+    TC_LOG_INFO("server.loading", ">> Loaded %u custom npcs in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+void FreedomMgr::AddNpcCast(Creature* source, Unit* target, uint32 spellId, uint32 duration, uint32 restInterval, uint32 initialRest, bool persist)
+{
+    std::shared_ptr<NpcCastData> castData(new NpcCastData());
+    castData->id = 0;
+    castData->source = source->GetSpawnId();
+    castData->target = target->IsPlayer() ? target->GetGUID().GetCounter() : target->ToCreature()->GetSpawnId();
+    castData->spell_id = spellId;
+    castData->duration = duration;
+    castData->restInterval = restInterval;
+    castData->initialRest = initialRest;
+    castData->currentRest = initialRest;
+
+    _npcCastStore.push_back(castData);
+    _activeNpcCastStore.push_back(castData);
+
+    Creature* targetCreature = target->ToCreature();
+    if (!persist || !targetCreature || source->GetSpawnId() == 0 || targetCreature->GetSpawnId() == 0) {
+        return;
+    }
+
+    TC_LOG_DEBUG("freedom", "FreedomMgr::AddNpcCast | Adding npc cast to db...");
+    // INSERT INTO npc_casts (source_spawn, target_spawn, spell_id, duration, restInterval, initialRest) VALUES (?, ?, ?, ?, ?, ?)
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_NPC_CAST);
+    stmt->setUInt64(0, source->GetSpawnId());
+    stmt->setUInt64(1, targetCreature->GetSpawnId());
+    stmt->setUInt32(2, castData->spell_id);
+    stmt->setUInt32(3, castData->duration);
+    stmt->setUInt32(4, castData->restInterval);
+    stmt->setUInt32(5, castData->initialRest);
+    FreedomDatabase.DirectExecute(stmt);
+    PreparedQueryResult result = FreedomDatabase.Query(FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_NPC_CAST_MAX_ID));
+    castData->id = result->Fetch()[0].GetUInt32();
+    TC_LOG_DEBUG("freedom", "FreedomMgr::AddNpcCast | Npc cast received id: %u", castData->id);
+}
+
+
+void FreedomMgr::StopNpcCast(std::shared_ptr<NpcCastData> cast)
+{
+    TC_LOG_DEBUG("freedom", "FreedomMgr::StopNpcCast | Stopping npc cast %u", cast->spell_id);
+    Unit* caster = GetAnyUnit(cast->source);
+    if (caster) {
+        RemoveSpellEffects(caster, cast->spell_id);
+        Unit* target = GetAnyUnit(cast->target);
+        if (target) {
+            target->RemoveAura(cast->spell_id, caster->GetGUID());
+        }
+    }
+}
+
+void FreedomMgr::DisableNpcCast(std::shared_ptr <NpcCastData> cast, bool stop)
+{
+    if (stop) {
+        StopNpcCast(cast);
+    }
+    _activeNpcCastStore.erase(std::remove(_activeNpcCastStore.begin(), _activeNpcCastStore.end(), cast), _activeNpcCastStore.end());
+}
+
+void FreedomMgr::DeleteNpcCast(Creature* source, uint32 spellId)
+{
+    ObjectGuid sourceGuid = source->GetGUID();
+    TC_LOG_DEBUG("freedom", "FreedomMgr::RemoveNpcCast | Removing npc cast '%u' from creature " SZFMTD, spellId, sourceGuid.GetCounter());
+    for (auto i = _npcCastStore.begin(); i != _npcCastStore.end();)
+    {
+        if ((*i)->spell_id == spellId && (*i)->source == source->GetSpawnId()) {
+            TC_LOG_DEBUG("freedom", "FreedomMgr::RemoveNpcCast | Stopping cast...");
+            DisableNpcCast((*i));
+            if ((*i)->id > 0) {
+                TC_LOG_DEBUG("freedom", "FreedomMgr::RemoveNpcCast | Removing npc cast '%u' from db...", (*i)->id);
+                FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_NPC_CAST);
+                stmt->setUInt32(0, (*i)->id);
+                FreedomDatabase.Execute(stmt);
+            }
+            i = _npcCastStore.erase(i);
+        }
+        else {
+            ++i;
+        }
+    }
+}
+
+void FreedomMgr::EnableNpcCastsForCreature(Creature* creature)
+{
+    ObjectGuid::LowType spawnId = creature->GetSpawnId();
+    if (!spawnId) {
+        return;
+    }
+    TC_LOG_DEBUG("freedom", "FreedomMgr::EnableNpcCastsForCreature | Enabling casts for creature: " SZFMTD "...", spawnId);
+    for (auto i = _npcCastStore.begin(); i != _npcCastStore.end();)
+    {
+        if ((*i)->source == spawnId) {
+            if (GetAnyUnit((*i)->target)) {
+                _activeNpcCastStore.push_back((*i));
+            }
+        }
+        else if ((*i)->target == spawnId) {
+            if (GetAnyUnit((*i)->source)) {
+                _activeNpcCastStore.push_back((*i));
+            }
+        }
+        ++i;
+    }
+}
+
+void FreedomMgr::DisableNpcCastsForCreature(Creature* creature)
+{
+    ObjectGuid::LowType spawnId = creature->GetSpawnId();
+    if (!spawnId) {
+        return;
+    }
+    TC_LOG_DEBUG("freedom", "FreedomMgr::DisableNpcCastsForCreature | Disabling casts for creature: " SZFMTD "...", spawnId);
+    for (auto i = _activeNpcCastStore.begin(); i != _activeNpcCastStore.end();)
+    {
+        if ((*i)->source == spawnId) {
+            _removedNpcCastStore.insert((*i));
+        }
+        else if ((*i)->target == spawnId) {
+            _removedNpcCastStore.insert((*i));
+        }
+        ++i;
+    }
+}
+
+void FreedomMgr::CleanNpcCastsRemoveList()
+{
+    for (auto i = _removedNpcCastStore.begin(); i != _removedNpcCastStore.end();)
+    {
+        DisableNpcCast((*i));
+        i = _removedNpcCastStore.erase(i);
+    }
+}
+
+void FreedomMgr::RemoveSpellEffects(Unit* unit, uint32 spellId) {
+    TC_LOG_DEBUG("freedom", "FreedomMgr::RemoveSpellEffects | Removing spell effects of '%u' from unit " SZFMTD, spellId, unit->GetGUID().GetCounter());
+    if (!unit) {
+        return;
+    }
+    unit->RemoveAura(spellId, unit->GetGUID());
+    unit->RemoveAreaTrigger(spellId);
+    unit->RemoveDynObject(spellId);
+    unit->RemoveGameObject(spellId, true);
+    // Remove temp summons created by spell
+    for (auto i = unit->m_Controlled.begin(); i != unit->m_Controlled.end();)
+    {
+        TempSummon* summon = (*i)->ToTempSummon();
+        TC_LOG_DEBUG("freedom", "help");
+        if (summon && (uint32)summon->m_unitData->CreatedBySpell == spellId) {
+            summon->UnSummon(0);
+            i = unit->m_Controlled.begin();
+        }
+        else {
+            ++i;
+        }
+    }
+
+    // Remove aura's applied by players
+    Player* player = unit->ToPlayer();
+    if (player) {
+        sFreedomMgr->RemoveAuraApplications(player, spellId);
+    }
+
+    // Recursively remove effects from spells that cast spells...
+    const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId, unit->GetMap()->GetDifficultyID());
+    for (auto effect : spellInfo->GetEffects()) {
+        if (effect.TriggerSpell) {
+            RemoveSpellEffects(unit, effect.TriggerSpell);
+        }
+    }
 }

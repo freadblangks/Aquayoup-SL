@@ -114,7 +114,7 @@ void ArgumentTokenizer::LoadModifier(std::string modifier, uint32 paramCount)
     for (auto param : m_storage)
     {
         if (!IsModifier(param) && modifierCheck)
-            break;
+            continue;
         else
             modifierCheck = false;
 

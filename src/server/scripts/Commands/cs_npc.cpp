@@ -119,10 +119,16 @@ public:
             { "flystate",       HandleNpcSetFlyStateCommand,       rbac::RBAC_FPERM_COMMAND_NPC_SET_FLYSTATE,                  Console::No },
 
         };
+        static ChatCommandTable npcCastTable =
+        {
+            { "remove", HandleRemoveNpcCastCommand, rbac::RBAC_FPERM_COMMAND_NPCCAST_REMOVE, Console::No},
+            { "",       HandleNpcCastCommand,       rbac::RBAC_FPERM_COMMAND_NPCCAST,        Console::No},
+        };
         static ChatCommandTable npcCommandTable =
         {
-            { "add", npcAddCommandTable },
-            { "set", npcSetCommandTable },
+            { "add",  npcAddCommandTable },
+            { "cast", npcCastTable       },
+            { "set",  npcSetCommandTable },
             { "info",           HandleNpcInfoCommand2,              rbac::RBAC_PERM_COMMAND_NPC_INFO,                           Console::No },
             { "near",           HandleNpcNearCommand,              rbac::RBAC_PERM_COMMAND_NPC_NEAR,                           Console::No },
             { "move",           HandleNpcMoveCommand,              rbac::RBAC_PERM_COMMAND_NPC_MOVE,                           Console::No },
@@ -2718,6 +2724,95 @@ public:
         pCreature->AI()->EnterEvadeMode();
         return true;
     }
+
+    static bool HandleNpcCastCommand(ChatHandler* handler, char const* args)
+    {
+        ArgumentTokenizer tokenizer(args);
+        uint32 spellId = tokenizer.TryGetParam<uint32>(0);
+        if (!spellId) {
+            return false;
+        }
+
+        Player* source = handler->GetSession()->GetPlayer();
+        Creature* target = handler->getSelectedCreature();
+        uint64 guidLow = target ? target->GetSpawnId() : sFreedomMgr->GetSelectedCreatureGuidFromPlayer(source->GetGUID().GetCounter());
+
+        target = sFreedomMgr->GetAnyCreature(guidLow);
+
+        if (!target || target->GetMapId() != source->GetMapId())
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_CREATURE_NOT_FOUND);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        tokenizer.LoadModifier("-p", 0);
+        tokenizer.LoadModifier("-t", 1);
+        tokenizer.LoadModifier("-i", 1);
+        tokenizer.LoadModifier("-d", 1);
+        tokenizer.LoadModifier("-o", 1);
+
+        Unit* spellTarget = target;
+        if (tokenizer.ModifierExists("-t"))
+        {
+            std::string targetString = tokenizer.GetModifierValue("-t", 0);
+            char* p;
+            uint64 spellTargetId = strtol(targetString.c_str(), &p, 10);
+            if (*p) {
+                ObjectGuid spellTargetGuid = sCharacterCache->GetCharacterGuidByName(targetString);
+                if (spellTargetGuid == ObjectGuid::Empty) {
+                    handler->PSendSysMessage("Could not find a player named '%s'", targetString);
+                    handler->SetSentErrorMessage(true);
+                    return false;
+                }
+                spellTarget = sFreedomMgr->GetAnyUnit(spellTargetGuid.GetCounter());
+            }
+            else {
+                spellTarget = sFreedomMgr->GetAnyCreature(spellTargetId);
+                if (!spellTarget) {
+                    handler->PSendSysMessage("Could not find intended target creature: '%u'.", spellTargetId);
+                    handler->SetSentErrorMessage(true);
+                    return false;
+                }
+            }
+        }
+
+        uint32 interval = 0;
+        if (tokenizer.ModifierExists("-i")) {
+            interval = atoul(tokenizer.GetModifierValue("-i", 0).c_str());
+        }
+        uint32 duration = 0;
+        if (tokenizer.ModifierExists("-d")) {
+            duration = atoul(tokenizer.GetModifierValue("-d", 0).c_str());
+        }
+        uint32 initialRest = 0;
+        if (tokenizer.ModifierExists("-o")) {
+            initialRest = atoul(tokenizer.GetModifierValue("-o", 0).c_str());
+        }
+        bool persist = tokenizer.ModifierExists("-p");
+
+        sFreedomMgr->AddNpcCast(target, spellTarget, spellId, duration, interval, initialRest, persist);
+        return true;
+    }
+
+    static bool HandleRemoveNpcCastCommand(ChatHandler* handler, uint32 spellId)
+    {
+        Player* source = handler->GetSession()->GetPlayer();
+        Creature* target = handler->getSelectedCreature();
+        uint64 guidLow = target ? target->GetSpawnId() : sFreedomMgr->GetSelectedCreatureGuidFromPlayer(source->GetGUID().GetCounter());
+
+        target = sFreedomMgr->GetAnyCreature(guidLow);
+
+        if (!target || target->GetMapId() != source->GetMapId())
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_CREATURE_NOT_FOUND);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->DeleteNpcCast(target, spellId);
+        return true;
+    }
 };
 
 void AddSC_npc_commandscript()
@@ -2796,3 +2891,5 @@ bool HandleNpcDespawnGroup(ChatHandler* handler, std::vector<Variant<uint32, EXA
 
     return true;
 }
+
+

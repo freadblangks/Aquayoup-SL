@@ -344,6 +344,8 @@ void Creature::AddToWorld()
 
         if (GetZoneScript())
             GetZoneScript()->OnCreatureCreate(this);
+
+        sScriptMgr->OnCreatureAddedToWorld(this);
     }
 }
 
@@ -353,6 +355,8 @@ void Creature::RemoveFromWorld()
     {
         if (GetZoneScript())
             GetZoneScript()->OnCreatureRemove(this);
+
+        sScriptMgr->OnCreatureRemovedFromWorld(this);
 
         if (m_formation)
             sFormationMgr->RemoveCreatureFromGroup(m_formation, this);

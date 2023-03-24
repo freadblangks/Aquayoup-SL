@@ -169,6 +169,22 @@ typedef std::unordered_map<uint32, CreatureTemplateExtraData> CreatureTemplateEx
 
 typedef std::vector<std::pair<uint32, uint32>> PhaseListContainer;
 
+struct NpcCastData
+{
+    uint32 id;
+    ObjectGuid::LowType source;
+    ObjectGuid::LowType target;
+    uint32 spell_id;
+    uint32 duration;
+    uint32 restInterval;
+    uint32 initialRest;
+
+    uint32 currentDuration;
+    uint32 currentRest;
+};
+
+typedef std::vector<std::shared_ptr<NpcCastData>> NpcCastContainer;
+
 class Map;
 
 using G3D::Vector3;
@@ -254,6 +270,7 @@ class TC_GAME_API FreedomMgr
         ObjectGuid::LowType GetSelectedCreatureGuidFromPlayer(ObjectGuid::LowType playerId);
         Creature* GetAnyCreature(ObjectGuid::LowType lowguid);
         Creature* GetAnyCreature(Map* map, ObjectGuid::LowType lowguid, uint32 entry);
+        Unit* GetAnyUnit(ObjectGuid::LowType lowguid);
 
         // Public teleports
         void LoadPublicTeleports();
@@ -348,6 +365,18 @@ class TC_GAME_API FreedomMgr
         void RemoveAllAuraApplications(Player* player);
         void RemoveAuraApplications(Player* player, uint32 spellId);
 
+        // NPC casts
+        void AddNpcCast(Creature* source, Unit* target, uint32 spellId, uint32 duration, uint32 restInterval, uint32 initialRest, bool persist);
+        void StopNpcCast(std::shared_ptr<NpcCastData> cast);
+        void DisableNpcCast(std::shared_ptr <NpcCastData> cast, bool stop = true);
+        void DeleteNpcCast(Creature* source, uint32 spellId);
+        void LoadNpcCasts();
+        void RemoveSpellEffects(Unit* unit, uint32 spellId);
+        void EnableNpcCastsForCreature(Creature* creature);
+        void DisableNpcCastsForCreature(Creature* creature);
+        void CleanNpcCastsRemoveList();
+        NpcCastContainer GetActiveNpcCasts() { return _activeNpcCastStore; }
+
     protected:
         PlayerExtraDataContainer _playerExtraDataStore;
         PublicTeleContainer _publicTeleStore;
@@ -361,6 +390,9 @@ class TC_GAME_API FreedomMgr
         CreatureTemplateExtraContainer _creatureTemplateExtraStore;
         CustomNpcDataContainer _customNpcStore;
         FormationDataContainer _formationStore;
+        NpcCastContainer _activeNpcCastStore;
+        std::set<std::shared_ptr<NpcCastData>> _removedNpcCastStore;
+        NpcCastContainer _npcCastStore;
 
     private:
         void SaveNpcOutfitToDb(uint32 templateId, uint8 variationId);
