@@ -348,7 +348,7 @@ void Creature::AddToWorld()
 
         if (GetZoneScript())
             GetZoneScript()->OnCreatureCreate(this);
-		
+
 #ifdef ELUNA
         sEluna->OnAddToWorld(this);
 #endif
@@ -362,7 +362,7 @@ void Creature::RemoveFromWorld()
 #ifdef ELUNA
         sEluna->OnRemoveFromWorld(this);
 #endif
-		
+
         if (GetZoneScript())
             GetZoneScript()->OnCreatureRemove(this);
 
@@ -661,7 +661,7 @@ bool Creature::UpdateEntry(uint32 entry, CreatureData const* data /*= nullptr*/,
 
     ReplaceAllUnitFlags(UnitFlags(unitFlags));
     ReplaceAllUnitFlags2(UnitFlags2(unitFlags2));
-	bool needsflag = m_outfit && Unit::GetDisplayId() == m_outfit->GetDisplayId();
+    bool needsflag = m_outfit && Unit::GetDisplayId() == m_outfit->GetDisplayId();
     if (needsflag)
         SetMirrorImageFlag(true);
     ReplaceAllUnitFlags3(UnitFlags3(unitFlags3));
@@ -753,13 +753,13 @@ static uint32 GetUpdateFieldHolderIndex(UF::UpdateField<T, BlockBit, Bit>(Derive
 
 void Creature::Update(uint32 diff)
 {
-	if (m_outfit && !m_values.HasChanged(GetUpdateFieldHolderIndex(&UF::UnitData::DisplayID)) && Unit::GetDisplayId() == CreatureOutfit::invisible_model)
+    if (m_outfit && !m_values.HasChanged(GetUpdateFieldHolderIndex(&UF::UnitData::DisplayID)) && Unit::GetDisplayId() == CreatureOutfit::invisible_model)
     {
         // has outfit, displayid is invisible and displayid update already sent to clients
         // set outfit display
         SetDisplayId(m_outfit->GetDisplayId(), m_unitData->DisplayScale);
     }
-	
+
     if (IsAIEnabled() && m_triggerJustAppeared && m_deathState != DEAD)
     {
         if (m_respawnCompatibilityMode && m_vehicleKit)
@@ -1119,8 +1119,8 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
 {
     ASSERT(map);
     SetMap(map);
-	
-	auto extraData = sRoleplay->GetCreatureExtraData(GetSpawnId());
+
+    auto extraData = sRoleplay->GetCreatureExtraData(GetSpawnId());
 
     if (data)
     {
@@ -1194,7 +1194,7 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
 
     LastUsedScriptID = GetScriptId();
 
-	if (extraData && extraData->displayLock)
+    if (extraData && extraData->displayLock)
     {
         SetDisplayId(extraData->displayId);
         SetNativeDisplayId(extraData->nativeDisplayId);
@@ -1558,7 +1558,7 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     data.dynamicflags = dynamicflags;
     if (!data.spawnGroupData)
         data.spawnGroupData = sObjectMgr->GetDefaultSpawnGroup();
-		if (data.size == 0.0f)
+    if (data.size == 0.0f)
     {
         // first save, use default if scale matches template or use custom scale if not
         if (cinfo && cinfo->scale == GetObjectScale())
@@ -1626,7 +1626,7 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     stmt->setUInt32(index++, unitFlags2);
     stmt->setUInt32(index++, unitFlags3);
     stmt->setUInt32(index++, dynamicflags);
-	stmt->setFloat(index++, data.size);
+    stmt->setFloat(index++, data.size);
     trans->Append(stmt);
 
     WorldDatabase.CommitTransaction(trans);
@@ -2084,8 +2084,8 @@ bool Creature::hasInvolvedQuest(uint32 quest_id) const
     trans->Append(stmt);
 
     WorldDatabase.CommitTransaction(trans);
-	
-	RoleplayDatabasePreparedStatement* fstmt = RoleplayDatabase.GetPreparedStatement(Roleplay_DEL_CREATUREEXTRA);
+
+    RoleplayDatabasePreparedStatement* fstmt = RoleplayDatabase.GetPreparedStatement(Roleplay_DEL_CREATUREEXTRA);
     fstmt->setUInt64(0, spawnId);
 
     RoleplayDatabase.Execute(fstmt);
@@ -2298,7 +2298,7 @@ void Creature::setDeathState(DeathState s)
 
             ReplaceAllUnitFlags(UnitFlags(unitFlags));
             ReplaceAllUnitFlags2(UnitFlags2(unitFlags2));
-			bool needsflag = m_outfit && Unit::GetDisplayId() == m_outfit->GetDisplayId();
+            bool needsflag = m_outfit && Unit::GetDisplayId() == m_outfit->GetDisplayId();
             if (needsflag)
                 SetMirrorImageFlag(true);
             ReplaceAllUnitFlags3(UnitFlags3(unitFlags3));
@@ -3386,7 +3386,7 @@ uint32 Creature::GetDisplayId() const
 
 void Creature::SetDisplayId(uint32 modelId, float displayScale /*= 1.f*/)
 {
-	if (auto const& outfit = sObjectMgr->GetOutfit(modelId))
+    if (auto const& outfit = sObjectMgr->GetOutfit(modelId))
     {
         SetOutfit(outfit, displayScale);
         return;
@@ -3566,22 +3566,10 @@ void Creature::DoNotReacquireSpellFocusTarget()
 
 bool Creature::IsMovementPreventedByCasting() const
 {
-	// Can always move when not casting
-    if (!HasUnitState(UNIT_STATE_CASTING))
+    if (!Unit::IsMovementPreventedByCasting() && !HasSpellFocus())
         return false;
-	
-    // first check if currently a movement allowed channel is active and we're not casting
-    if (Spell* spell = m_currentSpells[CURRENT_CHANNELED_SPELL])
-    {
-        if (spell->getState() != SPELL_STATE_FINISHED && spell->IsChannelActive())
-            if (spell->CheckMovement() != SPELL_CAST_OK)
-                return true;
-    }
 
-    if (HasSpellFocus())
-        return true;
-
-    return false;
+    return true;
 }
 
 void Creature::StartPickPocketRefillTimer()
