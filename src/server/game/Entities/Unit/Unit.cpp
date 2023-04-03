@@ -12643,15 +12643,15 @@ bool Unit::SetDisableGravity(bool disable, bool updateAnimTier /*= true*/)
         SendMessageToSet(packet.Write(), true);
     }
 
-    if (IsCreature() && updateAnimTier && IsAlive() && !HasUnitState(UNIT_STATE_ROOT) && !ToCreature()->GetMovementTemplate().IsRooted())
-    {
-        if (IsGravityDisabled())
-            SetAnimTier(AnimTier::Fly);
-        else if (IsHovering())
-            SetAnimTier(AnimTier::Hover);
-        else
-            SetAnimTier(AnimTier::Ground);
-    }
+    //if (IsCreature() && updateAnimTier && IsAlive() && !HasUnitState(UNIT_STATE_ROOT) && !ToCreature()->GetMovementTemplate().IsRooted())
+    //{
+    //    if (IsGravityDisabled())
+    //        SetAnimTier(AnimTier::Fly);
+    //    else if (IsHovering())
+    //        SetAnimTier(AnimTier::Hover);
+    //    else
+    //        SetAnimTier(AnimTier::Ground);
+    //}
 
     return true;
 }
