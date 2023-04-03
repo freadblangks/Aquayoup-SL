@@ -553,7 +553,7 @@ INSERT INTO rbac_linked_permissions (`id`, `linkedId`) VALUES
 (@ADMIN, 413), -- instance listbinds
 (@ADMIN, 414), -- instance unbind
 (@ADMIN, 415), -- instance stats
-(@ADMIN, 416), -- instance savedata
+-- (@ADMIN, 416), -- instance savedata
 (@ADMIN, 483), -- send
 (@ADMIN, 484), -- send items
 (@ADMIN, 485), -- send mail
