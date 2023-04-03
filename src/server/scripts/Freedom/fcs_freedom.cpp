@@ -1457,7 +1457,7 @@ public:
         if (!*args)
         {
             float currentScale = handler->GetSession()->GetPlayer()->GetObjectScale();
-            handler->PSendSysMessage(FREEDOM_CMDH_SCALE, currentScale);
+            handler->PSendSysMessage(FREEDOM_CMDI_SCALE, currentScale);
             return true;
         }
 
