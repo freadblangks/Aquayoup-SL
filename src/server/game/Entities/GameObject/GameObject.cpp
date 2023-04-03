@@ -3323,9 +3323,13 @@ bool GameObject::IsFullyLooted() const
 {
     if (m_loot && !m_loot->isLooted())
         return false;
+    if (m_restockTime == 0 && m_lootState == GO_READY && m_loot == nullptr)
+    {
+        return true;
+    }
 
     for (auto const& [_, loot] : m_personalLoot)
-        if (!loot->isLooted())
+        if (loot && !loot->isLooted())
             return false;
 
     return true;
