@@ -28,8 +28,8 @@ public:
 
         static ChatCommandTable walktoMarkerCommandTable =
         {
-            { "formation", HandleFormationWalkToMarkerCommand,  rbac::RBAC_FPERM_ADMINISTRATION,  Console::No},
-            { "",          HandleWalkToMarkerCommand,          rbac::RBAC_FPERM_ADMINISTRATION,  Console::No},
+            { "formation", HandleFormationWalkToMarkerCommand,  rbac::RBAC_FPERM_COMMAND_WALKTOMARKER_FORMATION,  Console::No},
+            { "",          HandleWalkToMarkerCommand,          rbac::RBAC_FPERM_COMMAND_WALKTOMARKER,             Console::No},
         };
 
         static ChatCommandTable commandTable =
