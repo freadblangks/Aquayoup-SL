@@ -2823,9 +2823,11 @@ void FreedomMgr::RemoveSpellEffects(Unit* unit, uint32 spellId) {
 
     // Recursively remove effects from spells that cast spells...
     const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId, unit->GetMap()->GetDifficultyID());
-    for (auto effect : spellInfo->GetEffects()) {
-        if (effect.TriggerSpell) {
-            RemoveSpellEffects(unit, effect.TriggerSpell);
+    if (spellInfo) {
+        for (auto effect : spellInfo->GetEffects()) {
+            if (effect.TriggerSpell) {
+                RemoveSpellEffects(unit, effect.TriggerSpell);
+            }
         }
     }
 }
