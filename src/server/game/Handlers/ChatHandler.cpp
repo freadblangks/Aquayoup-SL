@@ -196,9 +196,9 @@ void WorldSession::HandleChatMessage(ChatMsg type, Language lang, std::string ms
         }
 
         // but overwrite it by SPELL_AURA_MOD_LANGUAGE auras (only single case used)
-        Unit::AuraEffectList const& ModLangAuras = sender->GetAuraEffectsByType(SPELL_AURA_MOD_LANGUAGE);
-        if (!ModLangAuras.empty())
-            lang = Language(ModLangAuras.front()->GetMiscValue());
+        //Unit::AuraEffectList const& ModLangAuras = sender->GetAuraEffectsByType(SPELL_AURA_MOD_LANGUAGE);
+        //if (!ModLangAuras.empty())
+        //    lang = Language(ModLangAuras.front()->GetMiscValue());
     }
 
     if (!CanSpeak())
