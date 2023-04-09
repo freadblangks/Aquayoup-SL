@@ -534,10 +534,11 @@ int32 SpellEffectInfo::CalcValue(WorldObject const* caster /*= nullptr*/, int32 
     if (caster)
         value = caster->ApplyEffectModifiers(_spellInfo, EffectIndex, value);
 
-
-    float damageMod = sConfigMgr->GetFloatDefault("Freedom.Spell.DamageModifier", 0.0f);
-
-    return int32(round(value * damageMod));
+    if (Effect == SPELL_EFFECT_SCHOOL_DAMAGE || Effect == SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL || Effect == SPELL_EFFECT_WEAPON_DAMAGE) {
+        float damageMod = sConfigMgr->GetFloatDefault("Freedom.Spell.DamageModifier", 0.0f);
+        return int32(round(value * damageMod));
+    }
+    return value;
 }
 
 int32 SpellEffectInfo::CalcBaseValue(WorldObject const* caster, Unit const* target, uint32 itemId, int32 itemLevel) const
