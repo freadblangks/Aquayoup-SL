@@ -4478,6 +4478,131 @@ class spell_item_eggnog : public SpellScript
     }
 };
 
+enum AmalgamsSeventhSpine
+{
+    SPELL_FRAGILE_ECHOES_MONK               = 225281,
+    SPELL_FRAGILE_ECHOES_SHAMAN             = 225292,
+    SPELL_FRAGILE_ECHOES_PRIEST_DISCIPLINE  = 225294,
+    SPELL_FRAGILE_ECHOES_PALADIN            = 225297,
+    SPELL_FRAGILE_ECHOES_DRUID              = 225298,
+    SPELL_FRAGILE_ECHOES_PRIEST_HOLY        = 225366,
+    SPELL_FRAGILE_ECHO_ENERGIZE             = 215270,
+};
+
+// 215266 - Fragile Echoes
+class spell_item_amalgams_seventh_spine : public AuraScript
+{
+    PrepareAuraScript(spell_item_amalgams_seventh_spine);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({
+            SPELL_FRAGILE_ECHOES_MONK,
+            SPELL_FRAGILE_ECHOES_SHAMAN,
+            SPELL_FRAGILE_ECHOES_PRIEST_DISCIPLINE,
+            SPELL_FRAGILE_ECHOES_PALADIN,
+            SPELL_FRAGILE_ECHOES_DRUID,
+            SPELL_FRAGILE_ECHOES_PRIEST_HOLY
+        });
+    }
+
+    void ForcePeriodic(AuraEffect const* /*aurEff*/, bool& isPeriodic, int32& amplitude)
+    {
+        // simulate heartbeat timer
+        isPeriodic = true;
+        amplitude = 5000;
+    }
+
+    void UpdateSpecAura(AuraEffect const* aurEff)
+    {
+        PreventDefaultAction();
+        Player* target = GetTarget()->ToPlayer();
+        if (!target)
+            return;
+
+        auto updateAuraIfInCorrectSpec = [&](TalentSpecialization spec, AmalgamsSeventhSpine aura)
+        {
+            if (target->GetPrimarySpecialization() != uint32(spec))
+                target->RemoveAurasDueToSpell(aura);
+            else if (!target->HasAura(aura))
+                target->CastSpell(target, aura, aurEff);
+        };
+
+        switch (target->GetClass())
+        {
+            case CLASS_MONK:
+                updateAuraIfInCorrectSpec(TALENT_SPEC_MONK_MISTWEAVER, SPELL_FRAGILE_ECHOES_MONK);
+                break;
+            case CLASS_SHAMAN:
+                updateAuraIfInCorrectSpec(TALENT_SPEC_SHAMAN_RESTORATION, SPELL_FRAGILE_ECHOES_SHAMAN);
+                break;
+            case CLASS_PRIEST:
+                updateAuraIfInCorrectSpec(TALENT_SPEC_PRIEST_DISCIPLINE, SPELL_FRAGILE_ECHOES_PRIEST_DISCIPLINE);
+                updateAuraIfInCorrectSpec(TALENT_SPEC_PRIEST_HOLY, SPELL_FRAGILE_ECHOES_PRIEST_HOLY);
+                break;
+            case CLASS_PALADIN:
+                updateAuraIfInCorrectSpec(TALENT_SPEC_PALADIN_HOLY, SPELL_FRAGILE_ECHOES_PALADIN);
+                break;
+            case CLASS_DRUID:
+                updateAuraIfInCorrectSpec(TALENT_SPEC_DRUID_RESTORATION, SPELL_FRAGILE_ECHOES_DRUID);
+                break;
+            default:
+                break;
+        }
+    }
+
+    void Register() override
+    {
+        DoEffectCalcPeriodic += AuraEffectCalcPeriodicFn(spell_item_amalgams_seventh_spine::ForcePeriodic, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_item_amalgams_seventh_spine::UpdateSpecAura, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 215267 - Fragile Echo
+class spell_item_amalgams_seventh_spine_mana_restore : public AuraScript
+{
+    PrepareAuraScript(spell_item_amalgams_seventh_spine_mana_restore);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_FRAGILE_ECHO_ENERGIZE });
+    }
+
+    void TriggerManaRestoration(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE)
+            return;
+
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
+
+        if (AuraEffect const* trinketEffect = caster->GetAuraEffect(aurEff->GetSpellEffectInfo().TriggerSpell, EFFECT_0))
+            caster->CastSpell(caster, SPELL_FRAGILE_ECHO_ENERGIZE, CastSpellExtraArgs(aurEff).AddSpellMod(SPELLVALUE_BASE_POINT0, trinketEffect->GetAmount()));
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(spell_item_amalgams_seventh_spine_mana_restore::TriggerManaRestoration, EFFECT_1, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 228445 - March of the Legion
+class spell_item_set_march_of_the_legion : public AuraScript
+{
+    PrepareAuraScript(spell_item_set_march_of_the_legion);
+
+    bool IsDemon(AuraEffect const* /*aurEff*/, ProcEventInfo& eventInfo)
+    {
+        return eventInfo.GetProcTarget() && eventInfo.GetProcTarget()->GetCreatureType() == CREATURE_TYPE_DEMON;
+    }
+
+    void Register() override
+    {
+        DoCheckEffectProc += AuraCheckEffectProcFn(spell_item_set_march_of_the_legion::IsDemon, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 // 277253 - Heart of Azeroth
 class spell_item_heart_of_azeroth : public AuraScript
 {
@@ -4493,7 +4618,7 @@ class spell_item_heart_of_azeroth : public AuraScript
         SetState(false);
     }
 
-    void SetState(bool equipped)
+    void SetState(bool equipped) const
     {
         if (Player* target = GetTarget()->ToPlayer())
         {
@@ -4505,7 +4630,7 @@ class spell_item_heart_of_azeroth : public AuraScript
         }
     }
 
-    void Register()
+    void Register() override
     {
         OnEffectApply += AuraEffectApplyFn(spell_item_heart_of_azeroth::SetEquippedFlag, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
         OnEffectRemove += AuraEffectRemoveFn(spell_item_heart_of_azeroth::ClearEquippedFlag, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
@@ -4651,6 +4776,10 @@ void AddSC_item_spell_scripts()
     RegisterSpellScript(spell_item_mad_alchemists_potion);
     RegisterSpellScript(spell_item_crazy_alchemists_potion);
     RegisterSpellScript(spell_item_eggnog);
+
+    RegisterSpellScript(spell_item_amalgams_seventh_spine);
+    RegisterSpellScript(spell_item_amalgams_seventh_spine_mana_restore);
+    RegisterSpellScript(spell_item_set_march_of_the_legion);
 
     RegisterSpellScript(spell_item_heart_of_azeroth);
 }
