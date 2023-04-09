@@ -1407,6 +1407,12 @@ public:
         if (goData = sObjectMgr->GetGameObjectData(guidLow))
             object = sFreedomMgr->GetAnyGameObject(source->GetMap(), guidLow, goData->id);
 
+        if (!object)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_NOT_FOUND);
+            return true;
+        }
+
         if (auto extraData = sFreedomMgr->GetGameObjectTemplateExtraData(object->GetEntry()))
         {
             if (extraData->disabled)
