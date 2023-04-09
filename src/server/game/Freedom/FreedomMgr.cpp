@@ -2805,7 +2805,6 @@ void FreedomMgr::RemoveSpellEffects(Unit* unit, uint32 spellId) {
     for (auto i = unit->m_Controlled.begin(); i != unit->m_Controlled.end();)
     {
         TempSummon* summon = (*i)->ToTempSummon();
-        TC_LOG_DEBUG("freedom", "help");
         if (summon && (uint32)summon->m_unitData->CreatedBySpell == spellId) {
             summon->UnSummon(0);
             i = unit->m_Controlled.begin();
