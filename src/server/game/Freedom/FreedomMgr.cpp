@@ -1145,7 +1145,7 @@ void FreedomMgr::GameObjectSetModifyHistory(GameObject* go, Player* modifier)
     _gameObjectExtraStore[go->GetSpawnId()] = data;
 }
 
-GameObject* FreedomMgr::GameObjectCreate(Player* creator, GameObjectTemplate const* gobTemplate, uint32 spawnTimeSecs)
+GameObject* FreedomMgr::GameObjectCreate(Player* creator, GameObjectTemplate const* gobTemplate, uint32 spawnTimeSecs, float scale)
 {
     if (gobTemplate->displayId && !sGameObjectDisplayInfoStore.LookupEntry(gobTemplate->displayId))
     {
@@ -1181,7 +1181,7 @@ GameObject* FreedomMgr::GameObjectCreate(Player* creator, GameObjectTemplate con
     object->SaveToDB(map->GetId(), { map->GetDifficultyID() });
     ObjectGuid::LowType spawnId = object->GetSpawnId();
 
-    sFreedomMgr->GameObjectScale(object, object->GetObjectScale());
+    sFreedomMgr->GameObjectScale(object, scale == -1.0f ? object->GetObjectScale() : scale);
 
     // delete the old object and do a clean load from DB with a fresh new GameObject instance.
     // this is required to avoid weird behavior and memory leaks
@@ -1200,7 +1200,7 @@ GameObject* FreedomMgr::GameObjectCreate(Player* creator, GameObjectTemplate con
 
     // Creation history and straight update
     GameObjectExtraData data;
-    data.scale = object->GetGOInfo()->size;
+    data.scale = scale == -1.0f ? object->GetGOInfo()->size : scale;
     data.creatorBnetAccId = creator->GetSession()->GetBattlenetAccountId();
     data.creatorPlayerId = creator->GetGUID().GetCounter();
     data.modifierBnetAccId = creator->GetSession()->GetBattlenetAccountId();

@@ -1424,16 +1424,22 @@ public:
 
         const GameObjectTemplate* objectInfo = sObjectMgr->GetGameObjectTemplate(object->GetEntry());
 
-        float x, y, z, o;
-        object->GetPosition(x, y, z, o);
 
-        GameObject* clone = sFreedomMgr->GameObjectCreate(source, objectInfo, 0);
+        float scale = -1.0f;
+        const GameObjectExtraData* gobExtra = sFreedomMgr->GetGameObjectExtraData(object->GetSpawnId());
+        if (gobExtra) {
+            scale = gobExtra->scale;
+        }
+
+        GameObject* clone = sFreedomMgr->GameObjectCreate(source, objectInfo, 0, scale);
         if (!clone)
         {
             handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_SPAWN_FAIL, object->GetEntry());
             return true;
         }
 
+        float x, y, z, o;
+        clone->GetPosition(x, y, z, o);
         handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_SPAWN,
             sFreedomMgr->ToChatLink("Hgameobject", clone->GetSpawnId(), objectInfo->name),
             clone->GetSpawnId(),
