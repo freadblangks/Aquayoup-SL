@@ -2756,6 +2756,7 @@ public:
         if (tokenizer.ModifierExists("-t"))
         {
             std::string targetString = tokenizer.GetModifierValue("-t", 0);
+            targetString[0] = toupper(targetString[0]);
             char* p;
             uint64 spellTargetId = strtol(targetString.c_str(), &p, 10);
             if (*p) {

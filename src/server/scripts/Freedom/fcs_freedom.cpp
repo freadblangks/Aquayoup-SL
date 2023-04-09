@@ -1251,10 +1251,12 @@ public:
             handler->PSendSysMessage(FREEDOM_CMDH_SUMMON);
             return true;
         }
+        std::string playerName = args;
+        playerName[0] = toupper(playerName[0]);
 
         Player* source = handler->GetSession()->GetPlayer();
-        ObjectGuid targetGuid = sCharacterCache->GetCharacterGuidByName(args);
-        Player* target = ObjectAccessor::FindConnectedPlayer(ObjectGuid::Create<HighGuid::Player>(targetGuid.GetCounter()));
+        ObjectGuid targetGuid = sCharacterCache->GetCharacterGuidByName(playerName);
+        Player* target = ObjectAccessor::FindConnectedPlayer(targetGuid);
 
         if (!target || target->IsLoading() || target->IsBeingTeleported())
         {
