@@ -478,7 +478,7 @@ struct TC_GAME_API CreatureTemplate
     std::string  SubName;
     std::string  TitleAlt;
     std::string  IconName;
-    uint32  GossipMenuId;
+    std::vector<uint32> GossipMenuIds;
     std::unordered_map<Difficulty, CreatureLevelScaling> scalingStore;
     int32   HealthScalingExpansion;
     uint32  RequiredExpansion;
@@ -515,7 +515,6 @@ struct TC_GAME_API CreatureTemplate
     std::string AIName;
     uint32  MovementType;
     CreatureMovementData Movement;
-    float   HoverHeight;
     float   ModHealth;
     float   ModHealthExtra;
     float   ModMana;
