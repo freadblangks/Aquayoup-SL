@@ -343,6 +343,9 @@ class TC_GAME_API FreedomMgr
         void SetCustomNpcRank(std::string const& key, uint32 rank);
         void SetCustomNpcGuild(std::string const& key, uint8 variationId, uint64 guildId);
         void SetCustomNpcTameable(std::string const& key, bool tameable);
+        void ToggleCustomNpcAura(std::string const& key, uint32 auraId, bool active);
+        void SetCustomNpcMount(std::string const& key, uint32 mount);
+        void SetCustomNpcEmote(std::string const& key, uint32 emote);
         void LoadCustomNpcSpawn(uint32 templateId, ObjectGuid::LowType spawn);
         void RemoveCustomNpcVariation(std::string const& key, uint8 variationId);
         void DeleteCustomNpc(std::string const& key);
@@ -398,6 +401,7 @@ class TC_GAME_API FreedomMgr
         void SaveNpcOutfitToDb(uint32 templateId, uint8 variationId);
         void SaveCustomNpcDataToDb(CustomNpcData outfitData);
         void SaveNpcCreatureTemplateToDb(CreatureTemplate cTemplate);
+        void SaveNpcCreatureTemplateAddonToDb(uint32 templateId, CreatureAddon cAddon);
         void SaveNpcEquipmentInfoToDb(uint32 templateId, uint8 variationId);
         void SaveNpcModelInfo(CreatureModel model, uint32 creatureTemplateId, uint8 variationId);
         void ReloadSpawnedCustomNpcs(std::string const& key);

@@ -23,10 +23,13 @@ public:
     {
         static ChatCommandTable customNpcSetCommandTable =
         {
+            { "aura",      HandleCustomNpcSetAuraCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_AURA,        Console::No },
             { "displayid", HandleCustomNpcSetDisplayIdCommand,     rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_DISPLAYID,   Console::No },
+            { "emote",     HandleCustomNpcSetEmoteCommand,         rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_EMOTE,       Console::No },
             { "face",      HandleCustomNpcSetFaceCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_FACE,        Console::No },
             { "gender",    HandleCustomNpcSetGenderCommand,        rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_GENDER,      Console::No },
             { "guild",     HandleCustomNpcSetGuildCommand,         rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_GUILD,       Console::No },
+            { "mount",     HandleCustomNpcSetMountCommand,         rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_MOUNT,       Console::No },
             { "name",      HandleCustomNpcSetDisplayNameCommand,   rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_DISPLAYNAME, Console::No },
             { "race",      HandleCustomNpcSetRaceCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_RACE,        Console::No },
             { "rank",      HandleCustomNpcSetRankCommand,          rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_SET_RANK,        Console::No },
@@ -694,6 +697,45 @@ public:
         return true;
     }
 
+    static bool HandleCustomNpcSetAuraCommand(ChatHandler* handler, std::string const& name, uint32 auraId, Optional<uint8> activeInt)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        bool active = activeInt.has_value() ? activeInt.value() == 1 : true;
+        sFreedomMgr->ToggleCustomNpcAura(name, auraId,active);
+        handler->PSendSysMessage("Custom NPC %s now has aura %u toggled: %s!", name, auraId, active ? "on" : "off");
+        return true;
+    }
+
+    static bool HandleCustomNpcSetEmoteCommand(ChatHandler* handler, std::string const& name, uint32 emoteId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcEmote(name, emoteId);
+        handler->PSendSysMessage("Custom NPC %s default emote state set to %u!", name, emoteId);
+        return true;
+    }
+
+    static bool HandleCustomNpcSetMountCommand(ChatHandler* handler, std::string const& name, uint32 mountId)
+    {
+        if (!sFreedomMgr->CustomNpcNameExists(name)) {
+            handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        sFreedomMgr->SetCustomNpcMount(name, mountId);
+        handler->PSendSysMessage("Custom NPC %s mount set to %u!", name, mountId);
+        return true;
+    }
 };
 
 void AddSC_F_customnpc_commandscript()

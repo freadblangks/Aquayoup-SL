@@ -2147,6 +2147,59 @@ void FreedomMgr::SetCustomNpcCustomizations(std::string const& key, uint8 variat
     ReloadSpawnedCustomNpcs(key);
 }
 
+void FreedomMgr::ToggleCustomNpcAura(std::string const& key, uint32 auraId, bool active)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    CreatureAddon cAddon = sObjectMgr->_creatureTemplateAddonStore[templateId];
+
+    auto it = cAddon.auras.begin();
+    for (; it != cAddon.auras.end(); it++)
+    {
+        if (*it == auraId && active) // Nothing to do aura already on
+        {
+            return;
+        }
+
+        if (*it == auraId && !active) // we found auraId we want to remove
+            break;
+    }
+    if (active)
+    {
+        cAddon.auras.push_back(auraId);
+    }
+    else if (it != cAddon.auras.end())
+    {
+        cAddon.auras.erase(it);
+    }
+
+    sObjectMgr->_creatureTemplateAddonStore[templateId] = cAddon;
+    SaveNpcCreatureTemplateAddonToDb(templateId, cAddon);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcMount(std::string const& key, uint32 mount)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    CreatureAddon cAddon = sObjectMgr->_creatureTemplateAddonStore[templateId];
+
+    cAddon.mount = mount;
+
+    sObjectMgr->_creatureTemplateAddonStore[templateId] = cAddon;
+    SaveNpcCreatureTemplateAddonToDb(templateId, cAddon);
+    ReloadSpawnedCustomNpcs(key);
+}
+
+void FreedomMgr::SetCustomNpcEmote(std::string const& key, uint32 emote)
+{
+    uint32 templateId = _customNpcStore[key].templateId;
+    CreatureAddon cAddon = sObjectMgr->_creatureTemplateAddonStore[templateId];
+
+    cAddon.emote = emote;
+
+    sObjectMgr->_creatureTemplateAddonStore[templateId] = cAddon;
+    SaveNpcCreatureTemplateAddonToDb(templateId, cAddon);
+    ReloadSpawnedCustomNpcs(key);
+}
 
 void FreedomMgr::RemoveCustomNpcVariation(std::string const& key, uint8 variationId)
 {
@@ -2283,6 +2336,42 @@ void FreedomMgr::SaveNpcEquipmentInfoToDb(uint32 templateId, uint8 variationId)
     WorldDatabase.Execute(stmt);
 }
 
+void FreedomMgr::SaveNpcCreatureTemplateAddonToDb(uint32 templateId, CreatureAddon cAddon)
+{
+    TC_LOG_DEBUG("freedom", "FREEDOMMGR: Saving creature addon template for creature template id '%u' to DB...", templateId);
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_TEMPLATE_ADDON);
+
+    // REPLACE INTO creature_template_addon (entry, path_id, mount, bytes1, bytes2, emote, aiAnimKit, movementAnimKit, meleeAnimkit, visibilityDistanceType, auras) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    int index = 0;
+    stmt->setUInt32(index++, templateId);
+    stmt->setUInt32(index++, cAddon.path_id);
+    stmt->setUInt32(index++, cAddon.mount);
+    stmt->setUInt32(index++, cAddon.bytes1);
+    stmt->setUInt32(index++, cAddon.bytes2);
+    stmt->setUInt32(index++, cAddon.emote);
+    stmt->setUInt16(index++, cAddon.aiAnimKit);
+    stmt->setUInt16(index++, cAddon.movementAnimKit);
+    stmt->setUInt16(index++, cAddon.meleeAnimKit);
+    stmt->setUInt8(index++, uint8(cAddon.visibilityDistanceType));
+    if (!cAddon.auras.empty())
+    {
+        std::string auraList = "";
+        for (auto aura : cAddon.auras)
+        {
+            if (auraList.empty())
+                auraList = std::to_string(aura);
+            else
+                auraList += " " + std::to_string(aura);
+        }
+        stmt->setString(index, auraList);
+    }
+    else
+    {
+        stmt->setNull(index);
+    }
+    WorldDatabase.Execute(stmt);
+}
+
 void FreedomMgr::ReloadSpawnedCustomNpcs(std::string const& key)
 {
     TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloading custom npc '%s'", key.c_str());
@@ -2297,9 +2386,22 @@ void FreedomMgr::ReloadSpawnedCustomNpcs(std::string const& key)
             TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloading creature id '%lu'", spawn);
             uint8 modelId = urand(0u, sObjectMgr->_creatureTemplateStore[data.templateId].Models.size() - 1);
             CreatureModel model = sObjectMgr->_creatureTemplateStore[data.templateId].Models[modelId];
+            CreatureAddon cAddon = sObjectMgr->_creatureTemplateAddonStore[data.templateId];
             creature->SetDisplayId(model.CreatureDisplayID, model.DisplayScale);
             creature->SetName(sObjectMgr->_creatureTemplateStore[data.templateId].Name);
             creature->LoadEquipment(urand(1u, sObjectMgr->_equipmentInfoStore[data.templateId].size()));
+
+            creature->RemoveAllAuras();
+            for (auto auraId : cAddon.auras) {
+                creature->AddAura(auraId, creature);
+            }
+
+            creature->SetEmoteState(Emote(cAddon.emote));
+            if (cAddon.mount)
+                creature->Mount(cAddon.mount);
+            else
+                creature->Dismount();
+
             TC_LOG_DEBUG("freedom", "FREEDOMMGR: Reloaded creature id '%lu'", spawn);
         }
     }
@@ -2323,6 +2425,10 @@ void FreedomMgr::DeleteCustomNpc(std::string const& key)
     trans->Append(stmt);
 
     stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_EQUIP_TEMPLATE);
+    stmt->setUInt32(0, data.templateId);
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_TEMPLATE_ADDON);
     stmt->setUInt32(0, data.templateId);
     trans->Append(stmt);
 
@@ -2351,6 +2457,7 @@ void FreedomMgr::DeleteCustomNpc(std::string const& key)
         sObjectMgr->_creatureOutfitStore.erase(outfitId);
     }
     sObjectMgr->_equipmentInfoStore.erase(data.templateId);
+    sObjectMgr->_creatureTemplateAddonStore.erase(data.templateId);
     sObjectMgr->_creatureTemplateStore.erase(data.templateId);
 }
 
