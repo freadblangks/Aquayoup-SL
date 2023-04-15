@@ -388,6 +388,12 @@ public:
             return true;
         }
 
+
+        Trinity::Hyperlinks::HyperlinkInfo hyperlinkInfo = Trinity::Hyperlinks::ParseSingleHyperlink(namePart);
+        if (hyperlinkInfo) {
+            namePart = hyperlinkInfo.text;
+        }
+
         if (tokenizer.ModifierExists("-a") && tokenizer.ModifierExists("-w"))
         {
             handler->PSendSysMessage(FREEDOM_CMDE_MODIFIERS_CANNOT_BE_USED_TGTHR, "-a, -w");
