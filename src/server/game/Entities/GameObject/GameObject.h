@@ -81,6 +81,15 @@ private:
 
 union GameObjectValue
 {
+    //11 GAMEOBJECT_TYPE_TRANSPORT
+    struct
+    {
+        uint32 PathProgress;
+        TransportAnimation const* AnimationInfo;
+        uint32 CurrentSeg;
+        std::vector<uint32>* StopFrames;
+        uint32 StateUpdateTimer;
+    } Transport;
     //25 GAMEOBJECT_TYPE_FISHINGHOLE
     struct
     {
@@ -152,11 +161,12 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void CleanupsBeforeDelete(bool finalCleanup = true) override;
 
     private:
-        bool Create(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit, bool dynamic, ObjectGuid::LowType spawnid);
+        bool Create(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit, bool dynamic, ObjectGuid::LowType spawnid, float size = -1.0f);
     public:
         static GameObject* CreateGameObject(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit = 0);
         static GameObject* CreateGameObjectFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap = true);
 
+        void TimeSeg(uint32 p_timeSeg);
         void Update(uint32 p_time) override;
         GameObjectTemplate const* GetGOInfo() const { return m_goInfo; }
         GameObjectTemplateAddon const* GetTemplateAddon() const { return m_goTemplateAddon; }
@@ -238,6 +248,7 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void SetGoType(GameobjectTypes type) { SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::TypeID), type); }
         GOState GetGoState() const { return GOState(*m_gameObjectData->State); }
         void SetGoState(GOState state);
+        virtual uint32 GetTransportPeriod() const;
         GOState GetGoStateFor(ObjectGuid const& viewer) const;
         void SetGoStateFor(GOState state, Player const* viewer);
         uint32 GetGoArtKit() const { return m_gameObjectData->ArtKit; }
@@ -252,6 +263,9 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void EnableCollision(bool enable);
 
         void Use(Unit* user);
+
+		void CastSpell(Unit* target, uint32 spell, bool triggered = true);
+		void CastSpell(Unit* target, uint32 spell, TriggerCastFlags triggered);
 
         LootState getLootState() const { return m_lootState; }
         // Note: unit is only used when s = GO_ACTIVATED

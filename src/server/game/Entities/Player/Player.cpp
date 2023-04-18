@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -47,6 +47,7 @@
 #include "Common.h"
 #include "ConditionMgr.h"
 #include "Containers.h"
+#include "Config.h"
 #include "CreatureAI.h"
 #include "DB2Stores.h"
 #include "DatabaseEnv.h"
@@ -123,6 +124,7 @@
 #include "TraitPacketsCommon.h"
 #include "Transport.h"
 #include "UpdateData.h"
+#include "UpdateFields.h"
 #include "Util.h"
 #include "Vehicle.h"
 #include "VehiclePackets.h"
@@ -133,6 +135,10 @@
 #include "WorldStatePackets.h"
 #include <G3D/g3dmath.h>
 #include <sstream>
+#include <BattlePet.h>
+#include <BotGroupAI.cpp>
+#include "..\Custom\DynamicResurrection\DynamicResurrection.h"
+#include <G3D/Vector3.h>//Later I add
 
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 
@@ -237,6 +243,11 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this)
         m_bgBattlegroundQueueID[j].joinTime = 0;
     }
 
+    // TimeIsMoneyFriend
+	ptr_Interval = sConfigMgr->GetIntDefault("TimeIsMoneyFriend.Interval", 0);
+	ptr_Money = sConfigMgr->GetIntDefault("TimeIsMoneyFriend.Money", 0);
+
+    //m_logintime = time(nullptr);//Transport in
     m_logintime = GameTime::GetGameTime();
     m_Last_tick = m_logintime;
     m_Played_time[PLAYED_TIME_TOTAL] = 0;
@@ -394,12 +405,96 @@ Player::~Player()
     sWorld->DecreasePlayerCount();
 }
 
+uint32 Player::FindTalentType()
+{
+    if (GetClass() == CLASS_MAGE)
+    {
+        switch (GetSpecializationId())
+        {
+        case TALENT_SPEC_MAGE_ARCANE:
+            return 0;
+        case TALENT_SPEC_MAGE_FIRE:
+            return 1;
+        case TALENT_SPEC_MAGE_FROST:
+            return 2;
+        }
+    }
+    return 0;
+}
+
+bool Player::ResetPlayerToLevel(uint32 /*level*/, uint32 /*talent*/)
+{
+ //tmp   return m_PlayerBotSetting->ResetPlayerToLevel(level, talent);
+    return false;//This is to void mistake,a mass write
+}
+
+bool Player::IsSettingFinish()  //later add
+{
+    return m_PlayerBotSetting->IsFinish();
+}
+
+
+//bool Player::IsTankPlayer()//TCB
+//{
+//    return GetRoleForGroup() == ROLE_TANK;
+//}
+
+
+//void Player::OnLevelupToBotAI()
+//{
+//    if (UnitAI* pUnitAI = GetAI())
+//    {
+//        BotGroupAI* pAI = dynamic_cast<BotGroupAI*>(pUnitAI);
+//        if (pAI)
+//        {
+//            if (IsPlayerBot())
+//                m_PlayerBotSetting->LearnTalents();
+//            pAI->OnLevelUp(0);
+//        }
+//    }
+//}
+
+
 void Player::CleanupsBeforeDelete(bool finalCleanup)
 {
     TradeCancel(false);
     DuelComplete(DUEL_INTERRUPTED);
 
     Unit::CleanupsBeforeDelete(finalCleanup);
+}
+//later add,temp unuse
+void Player::SetPersonnalXpRate(float personnalXPRate)
+{
+    _PersonnalXpRate = personnalXPRate;
+
+    CharacterDatabasePreparedStatement* statement = CharacterDatabase.GetPreparedStatement(CHAR_UPD_XP_RATE);
+    statement->setFloat(0, personnalXPRate);
+    statement->setUInt64(1, GetGUID().GetCounter());
+    CharacterDatabase.Execute(statement);
+}
+
+std::shared_ptr<BattlePet>* Player::GetBattlePetCombatTeam()
+{
+    return _battlePetCombatTeam;
+}
+
+bool Player::HasBattlePetTraining()
+{
+    return HasSpell(119467);
+}
+
+uint32 Player::GetUnlockedPetBattleSlot()
+{
+    if (m_achievementMgr->HasAchieved(6566))
+        return 3;
+
+    if (m_achievementMgr->HasAchieved(7433))
+        return 2;
+
+    if (HasBattlePetTraining())
+        return 1;
+
+    return 0;
 }
 
 bool Player::Create(ObjectGuid::LowType guidlow, WorldPackets::Character::CharacterCreateInfo const* createInfo)
@@ -990,6 +1085,21 @@ void Player::Update(uint32 p_time)
         LoginDatabase.Execute(stmt);
     }
 
+	// TimeIsMoneyFriend
+	if (ptr_Interval > 0)
+	{
+		if (ptr_Interval <= p_time)
+		{
+			std::ostringstream ss;
+			ss << "|cff3DAEFF[Time is money friend]|cffFFD800 You recieved |cffFF0000" << sConfigMgr->GetIntDefault("TimeIsMoneyFriend.Money", 0) << "|cffFFD800 money for |cffFF0000"<< sConfigMgr->GetIntDefault("TimeIsMoneyFriend.Interval", 0) /60000 <<"|cffFFD800 minute(s) played time.|cffFFD800";
+			sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());("");
+			ModifyMoney(ptr_Money);
+			ptr_Interval = sConfigMgr->GetIntDefault("TimeIsMoneyFriend.Interval", 0);
+		}
+		else
+	ptr_Interval -= p_time;
+	}
+
     if (!m_timedquests.empty())
     {
         QuestSet::iterator iter = m_timedquests.begin();
@@ -1052,7 +1162,10 @@ void Player::Update(uint32 p_time)
 
                     // do attack
                     AttackerStateUpdate(victim, BASE_ATTACK);
-                    resetAttackTimer(BASE_ATTACK);
+					if (sWorld->getBoolConfig(CONFIG_HURT_IN_REAL_TIME))
+						resetAttackTimer(BASE_ATTACK), AttackStop();
+					else
+						resetAttackTimer(BASE_ATTACK);
                 }
             }
 
@@ -4835,13 +4948,45 @@ void Player::RepopAtGraveyard()
     // and don't show spirit healer location
     if (ClosestGrave)
     {
-        TeleportTo(ClosestGrave->Loc, shouldResurrect ? TELE_REVIVE_AT_TELEPORT : 0);
-        if (isDead())                                        // not send if alive, because it used in TeleportTo()
+        if (sConfigMgr->GetBoolDefault("Dungeon.Checkpoints.Enable", true))//config to open or close this function
         {
-            WorldPackets::Misc::DeathReleaseLoc packet;
-            packet.MapID = ClosestGrave->Loc.GetMapId();
-            packet.Loc = ClosestGrave->Loc;
-            SendDirectMessage(packet.Write());
+            if (sDynRes->IsInDungeonOrRaid(this) && sDynRes->CheckForSpawnPoint(this))  //On revive,teleport to the last kiied boss in dungeon or raid
+                sDynRes->DynamicResurrection(this);
+
+            //else  //Later add org
+            //{
+            //    TeleportTo(ClosestGrave->MapID, ClosestGrave->Loc.X, ClosestGrave->Loc.Y, ClosestGrave->Loc.Z, (ClosestGrave->Facing * M_PI) / 180); // Orientation is initially in degrees
+            //    if (isDead())                                        // not send if alive, because it used in TeleportTo()
+            //    {
+            //        WorldPackets::Misc::DeathReleaseLoc packet;
+            //        packet.MapID = ClosestGrave->MapID;
+            //        packet.Loc = G3D::Vector3(ClosestGrave->Loc.X, ClosestGrave->Loc.Y, ClosestGrave->Loc.Z);
+            //        GetSession()->SendPacket(packet.Write());
+            //    }//Because the writing methods changed,I cant slove this,maybe after a time,I can have a another try
+
+            //else
+            //{
+            //    //TeleportTo(ClosestGrave->Loc.GetMapId(), ClosestGrave->Loc.m_positionX, ClosestGrave->Loc.m_positionY, ClosestGrave->Loc.m_positionZ/*, (ClosestGrave->Facing * M_PI) / 180*/); // Orientation is initially in degrees
+            //    TeleportTo(ClosestGrave->Loc.GetMapId(), ClosestGrave->Loc.m_positionX, ClosestGrave->Loc.m_positionY, ClosestGrave->Loc.m_positionZ, GetOrientation, m_teleport_options,GetInstanceId);
+            //    if (isDead())                                        // not send if alive, because it used in TeleportTo()  
+            //    {
+            //        WorldPackets::Misc::DeathReleaseLoc packet;
+            //        packet.MapID = ClosestGrave->Loc.GetMapId();
+            //        packet.Loc = G3D::Vector3(ClosestGrave->Loc.m_positionX, ClosestGrave->Loc.m_positionY, ClosestGrave->Loc.m_positionZ);
+            //        GetSession()->SendPacket(packet.Write());
+            //    }//This is my try,failed,but I found it maybe duplicated with below
+            //}
+        }
+        else
+        {
+            TeleportTo(ClosestGrave->Loc, shouldResurrect ? TELE_REVIVE_AT_TELEPORT : 0);
+            if (isDead())                                        // not send if alive, because it used in TeleportTo()
+            {
+                WorldPackets::Misc::DeathReleaseLoc packet;
+                packet.MapID = ClosestGrave->Loc.GetMapId();
+                packet.Loc = ClosestGrave->Loc;
+                SendDirectMessage(packet.Write());
+            }
         }
     }
     else if (GetPositionZ() < GetMap()->GetMinHeight(GetPhaseShift(), GetPositionX(), GetPositionY()))
@@ -6416,6 +6561,19 @@ TeamId Player::TeamIdForRace(uint8 race)
     return TEAM_NEUTRAL;
 }
 
+TeamId Player::BotTeamIdForRace(uint8 race)
+{
+    if (ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(race))
+    {
+        switch (rEntry->Alliance)
+        {
+        case 0: return TEAM_HORDE;
+        case 1: return TEAM_ALLIANCE;
+        }
+    }
+    return TEAM_NEUTRAL;
+}
+
 uint8 Player::GetFactionGroupForRace(uint8 race)
 {
     if (ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(race))
@@ -6659,6 +6817,8 @@ void Player::UpdateHonorFields()
     m_lastHonorUpdateTime = now;
 }
 
+
+
 ///Calculate the amount of honor gained based on the victim
 ///and the size of the group for which the honor is divided
 ///An exact honor value can also be given (overriding the calcs)
@@ -6747,6 +6907,72 @@ bool Player::RewardHonor(Unit* victim, uint32 groupsize, int32 honor, bool pvpto
             UpdateCriteria(CriteriaType::EarnHonorableKill, 1, 0, 0, victim);
             UpdateCriteria(CriteriaType::KillPlayer, 1, 0, 0, victim);
         }
+		//else if (sWorld->getBoolConfig(CONFIG_GAIN_HONOR_GUARD) && victim->ToCreature()->IsGuard())   //org
+  //      else if (sWorld->getBoolConfig(CONFIG_GAIN_HONOR_GUARD) && victim->ToCreature()->IsGuard()) //judge whether use config of kill elite or guard to gain honore
+		//{//if (sConfigMgr->GetBoolDefault("Duel_Reset.enable", false))
+  //      //Former is to use write config,later found already has a config in file,abort     
+
+  //      // This mod is used to give honor to players after killed elite or guard
+  //      // This mod is not function correctly,I copied this from old code
+  //      // So I think it will cause crash after you kill something
+		//	uint8 k_level = getLevel();
+		//	uint8 k_grey = Trinity::XP::GetGrayLevel(k_level);
+		//	uint8 v_level = victim->getLevel();
+
+		//	if (v_level <= k_grey)
+		//		return false;
+
+		//	uint32 victim_title = 0;
+		//	victim_guid = ObjectGuid::Empty;
+
+		//	honor_f = ceil(Trinity::Honor::hk_honor_at_level_f(k_level) * (v_level - k_grey) / (k_level - k_grey));
+
+		//	// count the number of playerkills in one day
+		//	//ApplyModUInt32Value(PLAYER_FIELD_KILLS, 1, true);//tmp disable    //tmp disable,try to find what makes crash
+		//	// and those in a lifetime
+		//	//ApplyModUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, 1, true);//tmp disable,try to find what makes crash
+		//	//UpdateCriteria(CRITERIA_TYPE_EARN_HONORABLE_KILL);                  //1
+		//	//UpdateCriteria(CRITERIA_TYPE_HK_CLASS, victim->getClass());         //2
+		//	//UpdateCriteria(CRITERIA_TYPE_HK_RACE, victim->getRace());           //3
+		//	//UpdateCriteria(CRITERIA_TYPE_HONORABLE_KILL_AT_AREA, GetAreaId());  //4
+		//	//UpdateCriteria(CRITERIA_TYPE_HONORABLE_KILL, 1, 0, 0, victim);      //5
+  //          //Former is od code,left to check,of course below things are mass of mine,you want to know what will happen?Sorry,I dont know...
+
+  //          /*UpdateCriteria(CriteriaType::EarnHonorableKill);
+  //          UpdateCriteria(CriteriaType::DeliverKillingBlowToClass, victim->getClass());
+  //          UpdateCriteria(CriteriaType::DeliverKillingBlowToRace, victim->getRace());
+  //          UpdateCriteria(CriteriaType::PVPKillInArea, GetAreaId());
+  //          UpdateCriteria(CriteriaType::HonorableKills, 1, 0, 0, victim);*///tmp disable,try to find what makes crash
+		//}
+		//else if (sWorld->getBoolConfig(CONFIG_GAIN_HONOR_ELITE) && victim->ToCreature()->isElite())
+		//{
+		//	uint8 k_level = getLevel();
+		//	uint8 k_grey = Trinity::XP::GetGrayLevel(k_level);
+		//	uint8 v_level = victim->getLevel();
+
+		//	if (v_level <= k_grey)
+		//		return false;
+
+		//	uint32 victim_title = 0;
+		//	victim_guid = ObjectGuid::Empty;
+		//	honor_f = ceil(Trinity::Honor::hk_honor_at_level_f(k_level) * (v_level - k_grey) / (k_level - k_grey));
+		//	// count the number of playerkills in one day
+		//	//ApplyModUInt32Value(PLAYER_FIELD_KILLS, 1, true);//tmp disable,try to find what makes crash
+
+		//	// and those in a lifetime
+		//	//ApplyModUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, 1, true);//tmp disable,try to find what makes crash
+		//	/*UpdateCriteria(CRITERIA_TYPE_EARN_HONORABLE_KILL);
+		//	UpdateCriteria(CRITERIA_TYPE_HK_CLASS, victim->getClass());
+		//	UpdateCriteria(CRITERIA_TYPE_HK_RACE, victim->getRace());
+		//	UpdateCriteria(CRITERIA_TYPE_HONORABLE_KILL_AT_AREA, GetAreaId());
+		//	UpdateCriteria(CRITERIA_TYPE_HONORABLE_KILL, 1, 0, 0, victim);*/
+
+  //          /*UpdateCriteria(CriteriaType::EarnHonorableKill);
+  //          UpdateCriteria(CriteriaType::DeliverKillingBlowToClass, victim->getClass());
+  //          UpdateCriteria(CriteriaType::DeliverKillingBlowToRace, victim->getRace());
+  //          UpdateCriteria(CriteriaType::PVPKillInArea, GetAreaId());
+  //          UpdateCriteria(CriteriaType::HonorableKills, 1, 0, 0, victim);*///tmp disable,try to find what makes crash
+		//}//Disable ALL!
         else
         {
             if (!victim->ToCreature()->IsRacialLeader())
@@ -7022,6 +7248,20 @@ void Player::SendCurrencies() const
     }
 
     SendDirectMessage(packet.Write());
+}
+
+void Player::ModifyCurrencyFlag(uint32 id, uint8 flag)
+{
+    if (!id)
+        return;
+
+    if (_currencyStorage.find(id) == _currencyStorage.end())
+        return;
+
+    _currencyStorage[id].Flags = (CurrencyDbFlags)flag;
+ // _currencyStorage[id].Flags = (CurrencyDbFlags)flag;//org
+    if (_currencyStorage[id].state != PLAYERCURRENCY_NEW)
+        _currencyStorage[id].state = PLAYERCURRENCY_CHANGED;
 }
 
 void Player::SendPvpRewards() const
@@ -11741,6 +11981,99 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
     return pItem;
 }
 
+uint32 Player::GetBattlePayCredits() const
+{
+    LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_BATTLE_PAY_ACCOUNT_CREDITS);
+
+    stmt->setUInt32(0, GetSession()->GetBattlenetAccountId());
+
+    PreparedQueryResult result_don = LoginDatabase.Query(stmt);
+
+    if (!result_don)
+        return 0;
+
+    Field* fields = result_don->Fetch();
+    uint32 credits = fields[0].GetUInt32();
+
+    return credits;
+}
+
+bool Player::AddBattlePetByCreatureId(uint32 /*creatureId*/, bool /*sendUpdate*/ /*= true*/, bool /*sendDiliveryUpdate*/ /*= false*/)
+{
+//    return AddBattlePetWithSpeciesId(sDB2Manager.GetSpeciesByCreatureID(creatureId), 0, sendUpdate, sendDiliveryUpdate);//tmp
+    return false;//this is for a return value,no before,when fix,delete this.
+}
+
+bool Player::AddBattlePetWithSpeciesId(BattlePetSpeciesEntry const* entry, uint16 flags /*= 0*/, bool /*sendUpdate*/ /*= true*/, bool /*sendDiliveryUpdate*/ /*= false*/)
+{
+    if (!entry)
+        return false;
+
+    auto pet = std::make_shared<BattlePet>();
+    pet->Slot = PET_BATTLE_NULL_SLOT;
+    pet->NameTimeStamp = 0;
+    pet->Species = entry->ID;
+    pet->DisplayModelID = 0;
+    pet->Flags = flags;
+    pet->Level = 1;
+    pet->XP = 0;
+
+    //if (auto temp = sBattlePetDataStore->GetBattlePetTemplate(entry->ID))
+    //{
+    //    pet->Breed = sBattlePetDataStore->GetRandomBreedID(temp->BreedIDs);
+    //    pet->Quality = temp->MinQuality;
+    //}
+    //else//tmp
+    {
+        pet->Breed = 3;
+        pet->Quality = BATTLE_PET_QUALITY_COMMON;
+    }
+
+
+//    pet->UpdateStats();//tmp
+    pet->Health = pet->InfoMaxHealth;
+//    auto guidlow = pet->AddToPlayer(this);//tmp
+//    _battlePets.emplace(pet->JournalID, pet);//tmp
+
+   /* if (sendUpdate)
+    {
+        GetSession()->SendBattlePetUpdates();
+        UpdateCriteria(CRITERIA_TYPE_OWN_PET, entry->CreatureID);
+    }
+
+    if (sendDiliveryUpdate)
+        SendBattlePayBattlePetDelivered(ObjectGuid::Create<HighGuid::BattlePet>(guidlow), entry->CreatureID);*///tmp
+
+    return true;
+}
+
+void Player::SendBattlePayMessage(uint32 bpaymessageID, std::string name, uint32 value) const
+{
+    std::ostringstream msg;
+    if (bpaymessageID == 1)
+        msg << "The purchase '" << name << "' was successful!";
+    if (bpaymessageID == 2)
+        msg << "Remaining credits: " << GetBattlePayCredits() << " .";
+
+    if (bpaymessageID == 10)
+        msg << "You cannot purchase '" << name << "' . Contact a game master to find out more.";
+    if (bpaymessageID == 11)
+        msg << "Your bags are too full to add : " << name << " .";
+    if (bpaymessageID == 12)
+        msg << "You have already purchased : " << name << " .";
+
+    if (bpaymessageID == 20)
+        msg << "The battle pay credits have been updated for the character '" << name << "' ! Available credits:" << value << " .";
+    if (bpaymessageID == 21)
+        msg << "You must enter an amount !";
+    if (bpaymessageID == 3)
+        msg << "You have now '" << value << "' credits.";
+
+    ChatHandler(GetSession()).SendSysMessage(msg.str().c_str());
+}
+
+
+
 void Player::EquipChildItem(uint8 parentBag, uint8 parentSlot, Item* parentItem)
 {
     if (ItemChildEquipmentEntry const* itemChildEquipment = sDB2Manager.GetItemChildEquipment(parentItem->GetEntry()))
@@ -14081,7 +14414,7 @@ void Player::OnGossipSelect(WorldObject* source, int32 gossipOptionId, uint32 me
     switch (gossipOptionNpc)
     {
         case GossipOptionNpc::Vendor:
-            GetSession()->SendListInventory(guid);
+            GetSession()->SendListInventory(guid, item->ActionMenuID);
             break;
         case GossipOptionNpc::Taxinode:
             GetSession()->SendTaxiMenu(source->ToCreature());
@@ -16526,7 +16859,7 @@ void Player::UpdateQuestObjectiveProgress(QuestObjectiveType objectiveType, int3
         Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
 
         if (!QuestObjective::CanAlwaysBeProgressedInRaid(objectiveType))
-            if (GetGroup() && GetGroup()->isRaidGroup() && quest->IsAllowedInRaid(GetMap()->GetDifficultyID()))
+            if (GetGroup() && GetGroup()->isRaidGroup() && !quest->IsAllowedInRaid(GetMap()->GetDifficultyID()))
                 continue;
 
         uint16 logSlot = objectiveItr.second.QuestStatusItr->second.Slot;
@@ -19107,6 +19440,80 @@ void Player::_LoadQuestStatusRewarded(PreparedQueryResult result)
         while (result->NextRow());
     }
 }
+
+void Player::UnbindInstance(BoundInstancesMap::mapped_type::iterator& itr, BoundInstancesMap::iterator& difficultyItr, bool unload)
+{
+    if (itr != difficultyItr->second.end())
+    {
+        if (!unload)
+        {
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_INSTANCE_BY_INSTANCE_GUID);
+
+            stmt->setUInt64(0, GetGUID().GetCounter());
+            stmt->setUInt32(1, itr->second.save->GetInstanceId());
+
+            CharacterDatabase.Execute(stmt);
+        }
+
+        if (itr->second.perm)
+            GetSession()->SendCalendarRaidLockout(itr->second.save, false);
+
+        itr->second.save->RemovePlayer(this);               // save can become invalid
+        difficultyItr->second.erase(itr++);
+    }
+}
+
+
+void Player::UnbindInstance(uint32 mapid, Difficulty difficulty, bool unload)
+{
+    //uint32 difficultyItr = (uint32)m_boundInstances.find(difficulty);
+    auto difficultyItr = m_boundInstances.find(difficulty);
+    if (difficultyItr != m_boundInstances.end())
+    {
+        auto itr = difficultyItr->second.find(mapid);
+        //uint32 itr = difficultyItr->second.find(mapid);
+        if (itr != difficultyItr->second.end())
+            UnbindInstance(itr, difficultyItr, unload);
+    }
+}
+
+
+InstancePlayerBind* Player::GetBoundInstance(uint32 mapid, Difficulty difficulty, bool withExpired)
+{
+    // some instances only have one difficulty
+    MapDifficultyEntry const* mapDiff = sDB2Manager.GetDownscaledMapDifficultyData(mapid, difficulty);
+    if (!mapDiff)
+        return nullptr;
+
+    auto difficultyItr = m_boundInstances.find(difficulty);
+    if (difficultyItr == m_boundInstances.end())
+        return nullptr;
+
+    auto itr = difficultyItr->second.find(mapid);
+    if (itr != difficultyItr->second.end())
+        if (itr->second.extendState || withExpired)
+            return &itr->second;
+    return nullptr;
+}
+
+InstancePlayerBind const* Player::GetBoundInstance(uint32 mapid, Difficulty difficulty) const
+{
+    // some instances only have one difficulty
+    MapDifficultyEntry const* mapDiff = sDB2Manager.GetDownscaledMapDifficultyData(mapid, difficulty);
+    if (!mapDiff)
+        return nullptr;
+
+    auto difficultyItr = m_boundInstances.find(difficulty);
+    if (difficultyItr == m_boundInstances.end())
+        return nullptr;
+
+    auto itr = difficultyItr->second.find(mapid);
+    if (itr != difficultyItr->second.end())
+        return &itr->second;
+
+    return nullptr;
+}
+
 
 void Player::_LoadDailyQuestStatus(PreparedQueryResult result)
 {
@@ -22692,7 +23099,11 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
         return false;
     }
 
-    VendorItemData const* vItems = creature->GetVendorItems();
+    uint32 currentVendor = PlayerTalkClass->GetInteractionData().VendorId;
+    if (currentVendor && vendorguid != PlayerTalkClass->GetInteractionData().SourceGuid)
+        return false; // Cheating
+
+    VendorItemData const* vItems = currentVendor ? sObjectMgr->GetNpcVendorItemList(currentVendor) : creature->GetVendorItems();
     if (!vItems || vItems->Empty())
     {
         SendBuyError(BUY_ERR_CANT_FIND_ITEM, creature, item, 0);
@@ -23806,15 +24217,24 @@ void Player::SendInitialPacketsBeforeAddToMap()
     /// SMSG_EQUIPMENT_SET_LIST
     SendEquipmentSetList();
 
+	float speedrate = sWorld->getFloatConfig(CONFIG_SPEED_GAME);
+	//uint32 speedtime = ((sWorld->GetGameTime() - sWorld->GetUptime()) + (sWorld->GetUptime() * speedrate));//NO USE
+
     m_achievementMgr->SendAllData(this);
     m_questObjectiveCriteriaMgr->SendAllData(this);
 
     /// SMSG_LOGIN_SETTIMESPEED
-    static float const TimeSpeed = 0.01666667f;
+    //static float const TimeSpeed = 0.01666667f;//org
+    static float const TimeSpeed = 0.01666667f * speedrate;
     WorldPackets::Misc::LoginSetTimeSpeed loginSetTimeSpeed;
     loginSetTimeSpeed.NewSpeed = TimeSpeed;
     loginSetTimeSpeed.GameTime = GameTime::GetGameTime();
     loginSetTimeSpeed.ServerTime = GameTime::GetGameTime();
+    //If probelm occours,release this
+    //Former is org,to test whether fast cast script is enabled,unuse it.
+    //Original,to test SpeedGame, NoCastTime, HurtInRealTime patches commit works or not,temp unuse this
+    /*loginSetTimeSpeed.GameTime = speedtime;
+    loginSetTimeSpeed.ServerTime = speedtime;*/
     loginSetTimeSpeed.GameTimeHolidayOffset = 0; /// @todo
     loginSetTimeSpeed.ServerTimeHolidayOffset = 0; /// @todo
     SendDirectMessage(loginSetTimeSpeed.Write());
@@ -23978,6 +24398,34 @@ void Player::SendTransferAborted(uint32 mapid, TransferAbortReason reason, uint8
     transferAborted.MapDifficultyXConditionID = mapDifficultyXConditionID;
     SendDirectMessage(transferAborted.Write());
 }
+
+void Player::SendInstanceResetWarning(uint32 mapid, Difficulty difficulty, uint32 time, bool welcome) const
+{
+    // type of warning, based on the time remaining until reset
+    uint32 type;
+    if (welcome)
+        type = RAID_INSTANCE_WELCOME;
+    else if (time > 21600)
+        type = RAID_INSTANCE_WELCOME;
+    else if (time > 3600)
+        type = RAID_INSTANCE_WARNING_HOURS;
+    else if (time > 300)
+        type = RAID_INSTANCE_WARNING_MIN;
+    else
+        type = RAID_INSTANCE_WARNING_MIN_SOON;
+
+    WorldPackets::Instance::RaidInstanceMessage raidInstanceMessage;
+    raidInstanceMessage.Type = type;
+    raidInstanceMessage.MapID = mapid;
+    raidInstanceMessage.DifficultyID = difficulty;
+    if (InstancePlayerBind const* bind = GetBoundInstance(mapid, difficulty))
+        raidInstanceMessage.Locked = bind->perm;
+    else
+        raidInstanceMessage.Locked = false;
+    raidInstanceMessage.Extended = false;
+    SendDirectMessage(raidInstanceMessage.Write());
+}
+
 
 void Player::ApplyEquipCooldown(Item* pItem)
 {
@@ -24747,6 +25195,18 @@ void Player::UpdateVisibleGameobjectsOrSpellClicks()
     }
     udata.BuildPacket(&packet);
     SendDirectMessage(&packet);
+}
+
+bool Player::HasQuest(uint32 questID) const
+{
+    if (questID == 0)
+        return false;
+
+    for (uint8 itr = 0; itr < MAX_QUEST_LOG_SIZE; ++itr)
+        if (GetQuestSlotQuestId(itr) == questID)
+            return true;
+
+    return false;
 }
 
 bool Player::HasSummonPending() const
@@ -25919,6 +26379,10 @@ void Player::StoreLootItem(ObjectGuid lootWorldObjectGuid, uint8 lootSlot, Loot*
             sLootItemStorage->RemoveStoredLootItemForContainer(lootWorldObjectGuid.GetCounter(), item->itemid, item->count, item->LootListId);
 
         ApplyItemLootedSpell(newitem, true);
+        if (!loot->containerID.IsEmpty())
+            loot->DeleteLootItemFromContainerItemDB(item->itemid);
+
+		sScriptMgr->OnLootItem(this, newitem, item->count);
     }
     else
         SendEquipError(msg, nullptr, nullptr, item->itemid);
@@ -28905,6 +29369,15 @@ void Player::RemoveSocial()
 uint32 Player::GetDefaultSpecId() const
 {
     return ASSERT_NOTNULL(sDB2Manager.GetDefaultChrSpecializationForClass(GetClass()))->ID;
+}
+
+uint32 Player::GetRoleBySpecializationId(uint32 specializationId) //later add
+{
+    if (specializationId)
+        if (ChrSpecializationEntry const* spec = sChrSpecializationStore.LookupEntry(specializationId))
+            return spec->Role;
+
+    return ROLE_DAMAGE;
 }
 
 void Player::SendSpellCategoryCooldowns() const

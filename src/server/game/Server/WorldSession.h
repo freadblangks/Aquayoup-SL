@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@
 #include <map>
 #include <memory>
 #include <unordered_map>
+#include <PetBattle.h>
 
 class BlackMarketEntry;
 class CollectionMgr;
@@ -268,6 +269,7 @@ namespace WorldPackets
         class SetFactionInactive;
         class SetWatchedFaction;
         class SetPlayerDeclinedNames;
+        class SetCurrencyFlags;
 
         enum class LoginFailureReason : uint8;
     }
@@ -519,6 +521,7 @@ namespace WorldPackets
         class CloseInteraction;
         class ConversationLineStarted;
         class RequestLatestSplashScreen;
+        class IslandAzeriteXpGain;
     }
 
     namespace Movement
@@ -730,6 +733,7 @@ namespace WorldPackets
         class LearnTalents;
         class LearnPvpTalents;
         class ConfirmRespecWipe;
+        class UnlearnSpecialization;
     }
 
     namespace Taxi
@@ -956,7 +960,7 @@ class TC_GAME_API WorldSession
         WorldSession(uint32 id, std::string&& name, uint32 battlenetAccountId, std::shared_ptr<WorldSocket> sock, AccountTypes sec, uint8 expansion, time_t mute_time,
             std::string os, LocaleConstant locale, uint32 recruiter, bool isARecruiter);
         ~WorldSession();
-
+        
         bool PlayerLoading() const { return !m_playerLoading.IsEmpty(); }
         bool PlayerLogout() const { return m_playerLogout; }
         bool PlayerLogoutWithSave() const { return m_playerLogout && m_playerSave; }
@@ -964,6 +968,17 @@ class TC_GAME_API WorldSession
         bool PlayerDisconnected() const;
 
         bool IsAddonRegistered(std::string_view prefix) const;
+
+
+        void SetAddress(std::string mybot);
+        void Setexpansion(uint8 mybot)
+        {
+            m_expansion = mybot;
+        }
+        void HandleWorldPortAck();                // for server-side calls
+        void HandleFakerPackets();
+        void HandleBotMoveTeleportAck();
+        void HandleBotPlayerLogin(LoginQueryHolder* holder);
 
         void SendPacket(WorldPacket const* packet, bool forced = false);
         void AddInstanceConnection(std::shared_ptr<WorldSocket> sock) { m_Socket[CONNECTION_TYPE_INSTANCE] = sock; }
@@ -1050,7 +1065,7 @@ class TC_GAME_API WorldSession
         void BuildNameQueryData(ObjectGuid guid, WorldPackets::Query::NameCacheLookupResult& lookupData);
 
         void SendTrainerList(Creature* npc, uint32 trainerId);
-        void SendListInventory(ObjectGuid guid);
+        void SendListInventory(ObjectGuid guid, uint32 vendorEntry = 0);
         void SendShowBank(ObjectGuid guid);
         bool CanOpenMailBox(ObjectGuid guid);
         void SendShowMailBox(ObjectGuid guid);
@@ -1164,6 +1179,59 @@ class TC_GAME_API WorldSession
 
         // Battle Pets
         BattlePets::BattlePetMgr* GetBattlePetMgr() const { return _battlePetMgr.get(); }
+        void SendPetBattleChatRestricted();
+        void SendPetBattleQueueProposeMatch();
+        void SendPetBattleQueueStatus(uint32 p_TicketTime, uint32 p_TicketID, uint32 p_Status, uint32 p_AvgWaitTime);
+        
+        void HandlePetBattleFinalNotify(WorldPackets::BattlePet::NullCmsg& packet);
+        void HandlePetBattleQuitNotify(WorldPackets::BattlePet::NullCmsg& packet);
+       
+        void HandleBattlePetJournalLock(WorldPackets::BattlePet::NullCmsg& packet);
+        void HandleJoinPetBattleQueue(WorldPackets::BattlePet::NullCmsg& packet);
+        void HandlePetBattleScriptErrorNotify(WorldPackets::BattlePet::NullCmsg& packet);
+        
+        void SendBattlePetUpdates(BattlePet* pet = nullptr, bool add = false);
+        void SendBattlePetTrapLevel();
+        void SendBattlePetJournalLockAcquired();
+        void SendBattlePetJournalLockDenied();
+        void SendBattlePetJournal();
+        void SendBattlePetDeleted(ObjectGuid battlePetGUID);
+        void SendBattlePetRevoked(ObjectGuid battlePetGUID);
+        void SendBattlePetRestored(ObjectGuid battlePetGUID);
+        void SendBattlePetsHealed();
+        void SendBattlePetLicenseChanged();
+        void SendBattlePetError(BattlePetError result, uint32 creatureID);
+        void SendBattlePetCageDateError(uint32 secondsUntilCanCage);
+
+        void SendPetBattleSlotUpdates(bool newSlotUnlocked = false);
+        void SendPetBattleRequestFailed(uint8 p_Reason);
+        void SendPetBattlePvPChallenge(PetBattleRequest* petBattleRequest);
+        void SendPetBattleFinalizeLocation(PetBattleRequest* petBattleRequest);
+        void SendPetBattleInitialUpdate(PetBattle* petBattle);
+        void SendPetBattleFirstRound(PetBattle* petBattle);
+        void SendPetBattleRoundResult(PetBattle* petBattle);
+        void SendPetBattleReplacementMade(PetBattle* petBattle);
+        void SendPetBattleFinalRound(PetBattle* petBattle);
+        void SendPetBattleFinished();
+
+        //void HandleBattlePetDeletePetCheat(WorldPackets::BattlePet::BattlePetGuidRead& packet);
+        //void HandlePetBattleRequestPVP(WorldPackets::BattlePet::RequestPVP& packet);
+        //void HandleReplaceFrontPet(WorldPackets::BattlePet::ReplaceFrontPet& packet);
+        //void HanldeQueueProposeMatchResult(WorldPackets::BattlePet::QueueProposeMatchResult& packet);
+        //void HandleBattlePetLeaveQueue(WorldPackets::BattlePet::LeaveQueue& packet);
+        //void HandleBattlePetSetFlags(WorldPackets::BattlePet::SetFlags& packet);
+        //void HandleBattlePetModifyName(WorldPackets::BattlePet::ModifyName& packet);
+        //void HandleBattlePetNameQuery(WorldPackets::BattlePet::Query& packet);
+        //void HandleCageBattlePet(WorldPackets::BattlePet::BattlePetGuidRead& packet);
+        //void HandleBattlePetSetSlot(WorldPackets::BattlePet::SetBattleSlot& packet);
+        //void HandleBattlePetSummon(WorldPackets::BattlePet::BattlePetGuidRead& packet);
+        //void HandleBattlePetUpdateNotify(WorldPackets::BattlePet::BattlePetGuidRead& packet);
+        //void HandlePetBattleRequestWild(WorldPackets::BattlePet::RequestWild& packet);
+        //void HandlePetBattleRequestUpdate(WorldPackets::BattlePet::RequestUpdate& packet);
+        //void HandlePetBattleInput(WorldPackets::BattlePet::PetBattleInput& packet);
+         //void HandleBattlePetDelete(WorldPackets::BattlePet::BattlePetGuidRead& packet);
+        //void HandleBattlePetRequestJournal(WorldPackets::BattlePet::NullCmsg& packet);
+
 
         CollectionMgr* GetCollectionMgr() const { return _collectionMgr.get(); }
 
@@ -1282,7 +1350,6 @@ class TC_GAME_API WorldSession
 
         void HandleSetFactionAtWar(WorldPackets::Character::SetFactionAtWar& packet);
         void HandleSetFactionNotAtWar(WorldPackets::Character::SetFactionNotAtWar& packet);
-        void HandleSetFactionCheat(WorldPacket& recvData);
         void HandleSetWatchedFactionOpcode(WorldPackets::Character::SetWatchedFaction& packet);
         void HandleSetFactionInactiveOpcode(WorldPackets::Character::SetFactionInactive& packet);
         void HandleRequestForcedReactionsOpcode(WorldPackets::Reputation::RequestForcedReactions& requestForcedReactions);
@@ -1507,6 +1574,7 @@ class TC_GAME_API WorldSession
         void HandleLearnPvpTalentsOpcode(WorldPackets::Talent::LearnPvpTalents& packet);
         void HandleLearnTalentsOpcode(WorldPackets::Talent::LearnTalents& packet);
         void HandleConfirmRespecWipeOpcode(WorldPackets::Talent::ConfirmRespecWipe& confirmRespecWipe);
+        void HandleUnlearnSpecialization(WorldPackets::Talent::UnlearnSpecialization& packet);
         void HandleUnlearnSkillOpcode(WorldPackets::Spells::UnlearnSkill& packet);
         void HandleTradeSkillSetFavorite(WorldPackets::Spells::TradeSkillSetFavorite const& tradeSkillSetFavorite);
 
@@ -1687,6 +1755,8 @@ class TC_GAME_API WorldSession
         void HandleGuildBankTextQuery(WorldPackets::Guild::GuildBankTextQuery& packet);
         void HandleGuildBankSetTabText(WorldPackets::Guild::GuildBankSetTabText& packet);
 
+        void SendCalendarRaidLockout(InstanceSave const* save, bool add);
+
         // Calendar
         void HandleCalendarGetCalendar(WorldPackets::Calendar::CalendarGetCalendar& calendarGetCalendar);
         void HandleCalendarGetEvent(WorldPackets::Calendar::CalendarGetEvent& calendarGetEvent);
@@ -1735,6 +1805,7 @@ class TC_GAME_API WorldSession
         void HandleObjectUpdateFailedOpcode(WorldPackets::Misc::ObjectUpdateFailed& objectUpdateFailed);
         void HandleObjectUpdateRescuedOpcode(WorldPackets::Misc::ObjectUpdateRescued& objectUpdateRescued);
         void HandleRequestCategoryCooldowns(WorldPackets::Spells::RequestCategoryCooldowns& requestCategoryCooldowns);
+        void HandleSetCurrencyFlags(WorldPackets::Character::SetCurrencyFlags& packet);
         void HandleCloseInteraction(WorldPackets::Misc::CloseInteraction& closeInteraction);
         void HandleConversationLineStarted(WorldPackets::Misc::ConversationLineStarted& conversationLineStarted);
         void HandleKeyboundOverride(WorldPackets::Spells::KeyboundOverride& keyboundOverride);
@@ -1784,7 +1855,10 @@ class TC_GAME_API WorldSession
         void HandleBattlePetClearFanfare(WorldPackets::BattlePet::BattlePetClearFanfare& battlePetClearFanfare);
         void HandleBattlePetSummon(WorldPackets::BattlePet::BattlePetSummon& battlePetSummon);
         void HandleBattlePetUpdateNotify(WorldPackets::BattlePet::BattlePetUpdateNotify& battlePetUpdateNotify);
+        //void SendPetBattleRequestFailed(uint8 reason);
+        //void SendPetBattleFinalizeLocation(PetBattleRequest* petBattleRequest);
         void HandleCageBattlePet(WorldPackets::BattlePet::CageBattlePet& cageBattlePet);
+        //void SendBattlePetUpdates(BattlePet* pet = nullptr, bool add = false);
 
         // Warden
         void HandleWardenData(WorldPackets::Warden::WardenData& packet);
@@ -1842,6 +1916,11 @@ class TC_GAME_API WorldSession
         QueryCallbackProcessor& GetQueryProcessor() { return _queryProcessor; }
         TransactionCallback& AddTransactionCallback(TransactionCallback&& callback);
         SQLQueryHolderCallback& AddQueryHolderCallback(SQLQueryHolderCallback&& callback);
+
+        virtual bool IsBotSession() { return false; }
+        virtual bool HasSchedules() { return false; }
+        virtual bool HasBGSchedule() { return false; }
+        virtual bool IsAccountBotSession() { return false; }
 
     private:
         void ProcessQueryCallbacks();

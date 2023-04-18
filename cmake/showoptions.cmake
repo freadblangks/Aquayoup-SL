@@ -1,4 +1,4 @@
-# output generic information about the core and buildtype chosen
+﻿# output generic information about the core and buildtype chosen
 message("")
 message("* TrinityCore revision   : ${rev_hash} ${rev_date} (${rev_branch} branch)")
 if(UNIX)
@@ -32,6 +32,14 @@ if(SCRIPTS AND (NOT SCRIPTS STREQUAL "none"))
 else()
   message("* Build with scripts     : No")
 endif()
+
+if( ELUNA )
+  message("* Build Eluna LuaEngine   : Yes (default)")
+  add_definitions(-DELUNA)
+else()
+  message("* Build Eluna LuaEngine   : No")
+endif()
+
 
 if(TOOLS)
   message("* Build map/vmap tools   : Yes (default)")
@@ -188,6 +196,12 @@ if(BUILD_SHARED_LIBS)
   add_definitions(-DTRINITY_API_USE_DYNAMIC_LINKING)
 
   WarnAboutSpacesInBuildPath()
+endif()
+
+if (DISABLE_DRESSNPCS_CORESOUNDS)
+  message("")
+  message("DressNPCs sound workaround disabled. Live without sounds or use a client side patch.")
+  add_definitions(-DDISABLE_DRESSNPCS_CORESOUNDS)
 endif()
 
 message("")

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -635,6 +635,59 @@ struct BarberShopStyleLoadInfo
     static constexpr DB2LoadInfo Instance{ Fields, 8, &BarberShopStyleMeta::Instance, HOTFIX_SEL_BARBER_SHOP_STYLE };
 };
 
+//struct BattlePetAbilityLoadInfo
+//{
+//    static DB2LoadInfo const* Instance()
+//    {
+//        static DB2FieldMeta const fields[] =
+//        {
+//            { false, FT_INT, "ID" },
+//            { false, FT_STRING, "Name" },
+//            { false, FT_STRING, "Description" },
+//            { true, FT_INT, "IconFileDataID" },
+//            { true, FT_BYTE, "PetTypeEnum" },
+//            { false, FT_INT, "Cooldown" },
+//            { false, FT_SHORT, "BattlePetVisualID" },
+//            { false, FT_BYTE, "Flags" },
+//        };
+//        static DB2LoadInfo const loadInfo(&fields[0], std::extent<decltype(fields)>::value, BattlePetAbilityMeta2::Instance(), HOTFIX_SEL_BATTLE_PET_ABILITY);
+//        return &loadInfo;
+//    }
+//};
+//struct BattlePetAbilityTurnLoadInfo
+//{
+//    static DB2LoadInfo const* Instance()
+//    {
+//        static DB2FieldMeta const fields[] =
+//        {
+//            { false, FT_INT, "ID" },
+//            { false, FT_SHORT, "BattlePetAbilityID" },
+//            { false, FT_BYTE, "OrderIndex" },
+//            { false, FT_BYTE, "TurnTypeEnum" },
+//            { true, FT_BYTE, "EventTypeEnum" },
+//            { false, FT_SHORT, "BattlePetVisualID" },
+//        };
+//        static DB2LoadInfo const loadInfo(&fields[0], std::extent<decltype(fields)>::value, BattlePetAbilityTurnMeta2::Instance(), HOTFIX_SEL_BATTLE_PET_ABILITY_TURN);
+//        return &loadInfo;
+//    }
+//};
+//
+//struct BattlePetStateLoadInfo
+//{
+//    static DB2LoadInfo const* Instance()
+//    {
+//        static DB2FieldMeta const fields[] =
+//        {
+//            { false, FT_INT, "ID" },
+//            { false, FT_STRING_NOT_LOCALIZED, "LuaName" },
+//            { false, FT_SHORT, "Flags" },
+//            { false, FT_SHORT, "BattlePetVisualID" },
+//        };
+//        static DB2LoadInfo const loadInfo(&fields[0], std::extent<decltype(fields)>::value, BattlePetStateMeta2::Instance(), HOTFIX_SEL_BATTLE_PET_STATE);//BattlePetStateMeta2-->origins-project-source-2
+//        return &loadInfo;
+//    }
+//};
+
 struct BattlePetBreedQualityLoadInfo
 {
     static constexpr DB2FieldMeta Fields[4] =
@@ -736,6 +789,24 @@ struct BattlemasterListLoadInfo
 
     static constexpr DB2LoadInfo Instance{ Fields, 33, &BattlemasterListMeta::Instance, HOTFIX_SEL_BATTLEMASTER_LIST };
 };
+
+//struct BattlePetSpeciesXAbilityLoadInfo
+//{
+//    static DB2LoadInfo const* Instance()
+//    {
+//        static DB2FieldMeta const fields[] =
+//        {
+//            { false, FT_INT, "ID" },
+//            { false, FT_SHORT, "BattlePetAbilityID" },
+//            { false, FT_BYTE, "RequiredLevel" },
+//            { true, FT_BYTE, "SlotEnum" },
+//            { false, FT_INT, "BattlePetSpeciesID" },
+//        };
+//        static DB2LoadInfo const loadInfo(&fields[0], std::extent<decltype(fields)>::value, &BattlePetSpeciesXAbilityMeta::Instance, HOTFIX_SEL_BATTLE_PET_SPECIES_X_ABILITY);
+//        return &loadInfo;
+//    }
+//};
+
 
 struct BroadcastTextLoadInfo
 {
@@ -3731,6 +3802,20 @@ struct NamesReservedLocaleLoadInfo
     };
 
     static constexpr DB2LoadInfo Instance{ Fields, 3, &NamesReservedLocaleMeta::Instance, HOTFIX_SEL_NAMES_RESERVED };
+};
+
+struct NPCSoundsLoadInfo
+{
+    static constexpr DB2FieldMeta Fields[5] =
+    {
+        { false, FT_INT, "ID" },
+        { false, FT_INT, "hello" },
+        { false, FT_INT, "goodbye" },
+        { false, FT_INT, "pissed" },
+        { false, FT_INT, "ack" },
+    };
+
+    static constexpr DB2LoadInfo Instance{ Fields, 5, &NPCSoundsMeta::Instance, HOTFIX_SEL_NPC_SOUNDS };
 };
 
 struct NumTalentsAtLevelLoadInfo

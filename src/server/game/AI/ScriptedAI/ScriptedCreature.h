@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -99,11 +99,14 @@ public:
     {
         // We need to use a copy of SummonList here, otherwise original SummonList would be modified
         StorageType listCopy;
-        std::copy_if(std::begin(_storage), std::end(_storage), std::inserter(listCopy, std::end(listCopy)), predicate);
+        //std::copy_if(std::begin(_storage), std::end(_storage), std::inserter(listCopy, std::end(listCopy)), predicate);//暂时注释
         DoActionImpl(info, listCopy, max);
     }
 
     void DoZoneInCombat(uint32 entry = 0);
+    //void DoZoneInCombat(uint32 entry = 0, float maxRangeToNearestTarget = 250.0f);
+    //void DoZoneInCombat(uint32 entry, float maxRangeToNearestTarget);//系统自动生成
+    //上面这两货修改时要慎重,很容易导致脚本成批失效
     void RemoveNotExisting();
     bool HasEntry(uint32 entry) const;
 
@@ -112,6 +115,8 @@ private:
 
     Creature* _me;
     StorageType _storage;
+    Creature* me;           //kyriancore
+    StorageType storage_;   //kyriancore
 };
 
 class TC_GAME_API EntryCheckPredicate
@@ -142,6 +147,9 @@ struct TC_GAME_API ScriptedAI : public CreatureAI
         // *************
 
         void AttackStartNoMove(Unit* target);
+
+        // Called at any Damage from any attacker (before damage apply)
+        void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/) override { }
 
         // Called at World update tick
         virtual void UpdateAI(uint32 diff) override;
@@ -329,10 +337,15 @@ class TC_GAME_API BossAI : public ScriptedAI
 
         virtual void ScheduleTasks() { }
 
+        //For lock
+        bool IsLock;
+
         void Reset() override { _Reset(); }
         void JustEngagedWith(Unit* who) override { _JustEngagedWith(who); }
         void JustDied(Unit* /*killer*/) override { _JustDied(); }
         void JustReachedHome() override { _JustReachedHome(); }
+        //void KilledUnit(Unit* victim) override { _KilledUnit(victim); }   //DONT USE,MAY CAUSE MANY MANY ERROS!
+        //void DamageTaken(Unit* attacker, uint32& damage) override { _DamageTaken(attacker, damage); }//DONT USE,MAY CAUSE MANY MANY ERROS!
 
         bool CanAIAttack(Unit const* target) const override;
 
@@ -343,6 +356,8 @@ class TC_GAME_API BossAI : public ScriptedAI
         void _JustEngagedWith(Unit* who);
         void _JustDied();
         void _JustReachedHome();
+        void _KilledUnit(Unit* victim);
+        void _DamageTaken(Unit* attacker, uint32& damage);
         void _DespawnAtEvade(Seconds delayToRespawn = 30s, Creature* who = nullptr);
 
         void TeleportCheaters();

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -63,6 +63,15 @@ enum SpellEffIndex : uint8
 // used in script definitions
 #define EFFECT_FIRST_FOUND 254
 #define EFFECT_ALL 255
+
+enum Roles
+{
+    ROLE_TANK = 0,
+    ROLE_HEALER = 1,
+    ROLE_DAMAGE = 2,
+    ROLES_DEFAULT = 3
+};
+
 
 // loot modes for creatures and gameobjects, bitmask!
 enum LootModes
@@ -6742,6 +6751,7 @@ enum class CurrencyGainFlags : uint32
 };
 
 DEFINE_ENUM_FLAG(CurrencyGainFlags);
+//#define CURRENCY_PRECISION 100  //From:alexkulya/pandaria_5.4.8(github)
 
 enum PartyResult
 {

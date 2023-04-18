@@ -481,4 +481,139 @@ WorldPacket const* GarrisonBuildingActivated::Write()
 
     return &_worldPacket;
 }
+
+
+WorldPacket const* GarrisonCompleteMissionResult::Write()
+{
+    _worldPacket << Result;
+    _worldPacket << Mission;
+    _worldPacket << Mission.MissionRecID;
+    _worldPacket << uint32(Followers.size());
+
+    for (auto itr : Followers)
+    {
+        _worldPacket << itr.first;
+        _worldPacket << itr.second;
+    }
+
+    _worldPacket.WriteBit(Succeed);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* GarrisonFollowerChangeXP::Write()
+{
+    _worldPacket << XP;
+    _worldPacket << Unk;
+    _worldPacket << OldFollower;
+    _worldPacket << NewFollower;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* GarrisonMissionBonusRollResult::Write()
+{
+    _worldPacket << Mission;
+    _worldPacket << Mission.MissionRecID;
+    _worldPacket << Result;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* GarrisonOpenMissionNpc::Write()
+{
+    _worldPacket << int32(garrType);
+    _worldPacket << int32(result);
+    _worldPacket << uint32(Missions.size());
+
+    for (auto const& missionId : Missions)
+        _worldPacket << int32(missionId);
+
+    _worldPacket.WriteBit(unk4);
+    _worldPacket.WriteBit(preventXmlOpenMissionEvent);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* GarrisonOpenRecruitmentNpc::Write()
+{
+    _worldPacket << NpcGUID;
+    _worldPacket << Unk1;
+    //_worldPacket << Unk2;
+    //_worldPacket << Unk3;
+    if (followers.empty())
+    {
+        for (uint8 l_Itr = 0; l_Itr < 3; ++l_Itr)
+        {
+            GarrisonFollower follower;
+            InsertGarrisonFollower(_worldPacket, follower);
+        }
+    }
+    else
+    {
+        for (GarrisonFollower follower : followers)
+        {
+            InsertGarrisonFollower(_worldPacket, follower);
+        }
+    }
+    _worldPacket << CanRecruitFollower;
+    _worldPacket << Unk4;
+    return &_worldPacket;
+}
+
+WorldPacket const* GarrisonRecruitFollowerResult::Write()
+{
+    _worldPacket << resultID;
+
+    if (followers.empty())
+    {
+        for (uint8 l_Itr = 0; l_Itr < 3; ++l_Itr)
+        {
+            GarrisonFollower follower;
+            InsertGarrisonFollower(_worldPacket, follower);
+        }
+    }
+    else
+    {
+        for (GarrisonFollower follower : followers)
+        {
+            InsertGarrisonFollower(_worldPacket, follower);
+        }
+    }
+
+    return &_worldPacket;
+}
+
+WorldPacket InsertGarrisonFollower(WorldPacket& worldPacket, GarrisonFollower follower)
+{
+    worldPacket << follower.DbID;
+    worldPacket << follower.GarrFollowerID;
+    worldPacket << follower.Quality;
+    worldPacket << follower.FollowerLevel;
+    worldPacket << follower.ItemLevelWeapon;
+    worldPacket << follower.ItemLevelArmor;
+    worldPacket << follower.Xp;
+    worldPacket << follower.Durability;
+    worldPacket << follower.CurrentBuildingID;
+
+    worldPacket << follower.CurrentMissionID;
+    worldPacket << uint32(follower.AbilityID.size());
+    worldPacket << follower.ZoneSupportSpellID;
+    worldPacket << follower.FollowerStatus;
+
+    for (auto it = follower.AbilityID.begin(); it != follower.AbilityID.end(); it++)
+        worldPacket << int32(((const GarrAbilityEntry*)*it)->ID);
+
+    worldPacket << follower.CustomName;
+    return worldPacket;
+}
+
+void WorldPackets::Garrison::GarrisonAssignFollowerToBuilding::Read()
+{
+    _worldPacket >> NpcGUID;
+    _worldPacket >> PlotInstanceID;
+    _worldPacket >> FollowerDBID;
+}
 }

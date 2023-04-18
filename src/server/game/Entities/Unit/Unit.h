@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -19,17 +19,25 @@
 #define __UNIT_H
 
 #include "Object.h"
+#include "EventProcessor.h"
+//#include "FollowerReference.h"
+//#include "FollowerRefManager.h"
 #include "CombatManager.h"
+//#include "OptionalFwd.h"
 #include "FlatSet.h"
 #include "SpellAuraDefines.h"
+#include "SpellDefines.h"
 #include "ThreatManager.h"
+#include "TaskScheduler.h"
 #include "Timer.h"
 #include "UnitDefines.h"
 #include "Util.h"
+#include <boost/container/flat_set.hpp>
 #include <array>
 #include <map>
 #include <memory>
 #include <stack>
+#include <BrawlersGuild/BrawlersGuild.h>
 
 #define VISUAL_WAYPOINT 1 // Creature Entry ID used for waypoints show, visible only for GMs
 #define WORLD_TRIGGER 12999
@@ -46,6 +54,40 @@
 
 #define MAX_AGGRO_RESET_TIME 10 // in seconds
 #define MAX_AGGRO_RADIUS 45.0f  // yards
+
+class CustomSpellValues
+{
+    typedef std::pair<SpellValueMod, int32> CustomSpellValueMod;
+    typedef std::vector<CustomSpellValueMod> StorageType;
+public:
+    typedef StorageType::const_iterator const_iterator;
+public:
+    void AddSpellMod(SpellValueMod mod, int32 value)
+    {
+        storage_.push_back(CustomSpellValueMod(mod, value));
+    }
+    const_iterator begin() const
+    {
+        return storage_.begin();
+    }
+    const_iterator end() const
+    {
+        return storage_.end();
+    }
+
+    void Reserve(uint32 amount)
+    {
+        storage_.reserve(amount);
+    }
+
+    void Clear()
+    {
+        storage_.clear();
+    }
+
+private:
+    StorageType storage_;
+};
 
 enum VictimState
 {
@@ -772,13 +814,13 @@ class TC_GAME_API Unit : public WorldObject
         void PushAI(UnitAI* newAI);
         bool PopAI();
     protected:
-        void SetAI(UnitAI* newAI);
+        //void SetAI(UnitAI* newAI);
         UnitAI* GetTopAI() const { return i_AIs.empty() ? nullptr : i_AIs.top().get(); }
         void RefreshAI();
         UnitAI* GetScheduledChangeAI();
         bool HasScheduledAIChange() const;
     public:
-
+        void SetAI(UnitAI* newAI);
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
@@ -852,14 +894,19 @@ class TC_GAME_API Unit : public WorldObject
         bool IsTotem() const    { return (m_unitTypeMask & UNIT_MASK_TOTEM) != 0; }
         bool IsVehicle() const  { return (m_unitTypeMask & UNIT_MASK_VEHICLE) != 0; }
 
+        uint8 getLevel() const { return uint8(m_unitData->Level); }//后加 发现是大小写修改了,使用下面的,本条放弃.与此类似的还有下面的SetLevel等.后发现许多脚本调用,为了兼容,增加本条,下同
         int32 GetContentTuning() const { return m_unitData->ContentTuningID; }
         uint8 GetLevel() const { return uint8(m_unitData->Level); }
         uint8 GetLevelForTarget(WorldObject const* /*target*/) const override { return GetLevel(); }
         void SetLevel(uint8 lvl, bool sendUpdate = true);
+        uint8 getRace() const { return m_unitData->Race; }
         uint8 GetRace() const { return m_unitData->Race; }
         void SetRace(uint8 race) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Race), race); }
         uint64 GetRaceMask() const { return UI64LIT(1) << (GetRace() - 1); }
+        uint8 getClass() const { return m_unitData->ClassId; }//���Լ��ݾɰ汾,��TCB
         uint8 GetClass() const { return m_unitData->ClassId; }
+        bool IsAlliedRace();
+
         void SetClass(uint8 classId) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ClassId), classId); }
         uint32 GetClassMask() const { return 1 << (GetClass()-1); }
         Gender GetGender() const { return Gender(*m_unitData->Sex); }
@@ -913,6 +960,7 @@ class TC_GAME_API Unit : public WorldObject
         int32 GetPower(Powers power) const;
         int32 GetMinPower(Powers power) const { return power == POWER_LUNAR_POWER ? -100 : 0; }
         int32 GetMaxPower(Powers power) const;
+        
         float GetPowerPct(Powers power) const { return GetMaxPower(power) ? 100.f * GetPower(power) / GetMaxPower(power) : 0.0f; }
         int32 CountPctFromMaxPower(Powers power, int32 pct) const { return CalculatePct(GetMaxPower(power), pct); }
         void SetPower(Powers power, int32 val, bool withPowerUpdate = true);
@@ -939,8 +987,12 @@ class TC_GAME_API Unit : public WorldObject
         void SetModTimeRate(float timeRate) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModTimeRate), timeRate); }
 
         bool HasUnitFlag(UnitFlags flags) const { return (*m_unitData->Flags & flags) != 0; }
+        void AddUnitFlag(UnitFlags flags) { SetUpdateFieldFlagValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Flags), flags); }
         void SetUnitFlag(UnitFlags flags) { SetUpdateFieldFlagValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Flags), flags); }
         void RemoveUnitFlag(UnitFlags flags) { RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Flags), flags); }
+        void SetUnitFlags(UnitFlags flags) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Flags), flags); }
+
+
         void ReplaceAllUnitFlags(UnitFlags flags) { SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Flags), flags); }
 
         bool HasUnitFlag2(UnitFlags2 flags) const { return (*m_unitData->Flags2 & flags) != 0; }
@@ -1180,6 +1232,20 @@ class TC_GAME_API Unit : public WorldObject
         void SendEnergizeSpellLog(Unit* victim, uint32 spellId, int32 damage, int32 overEnergize, Powers powerType);
         void EnergizeBySpell(Unit* victim, SpellInfo const* spellInfo, int32 damage, Powers powerType);
 
+        //bool CastSpell(float x, float y, float z, uint32 spellId, TriggerCastFlags triggerFlags = TRIGGERED_NONE, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        //bool CastSpell(SpellCastTargets const& targets, SpellInfo const* spellInfo, CustomSpellValues const* value, TriggerCastFlags triggerFlags = TRIGGERED_NONE, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+
+        //bool CastSpell(float x, float y, float z, uint32 spellId, bool triggered, Item* castItem = nullptr, AuraEffect const* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid::Empty);
+        //void CastSpell(Unit* victim, uint32 spellId, bool triggered, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster);
+        //void CastSpell(Unit* victim, uint32 spellId, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster);
+        //void CastSpell(Unit* victim, SpellInfo const* spellInfo, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster);
+        //// CastSpell's third arg can be a variety of things - check out CastSpellExtraArgs' constructors!
+        //void CastSpell(SpellCastTargets const& targets, uint32 spellId, CastSpellExtraArgs const& args = {});
+        ////The front may have problem,and two below,the define made by system
+        //void CastSpell(WorldObject* target, uint32 spellId, CastSpellExtraArgs const& args = {});
+        //void CastSpell(Position const& dest, uint32 spellId, CastSpellExtraArgs const& args = {});
+
+
         Aura* AddAura(uint32 spellId, Unit* target);
         Aura* AddAura(SpellInfo const* spellInfo, uint32 effMask, Unit* target);
         void SetAuraStack(uint32 spellId, Unit* target, uint32 stack);
@@ -1275,9 +1341,13 @@ class TC_GAME_API Unit : public WorldObject
 
         ObjectGuid GetCharmerGUID() const { return m_unitData->CharmedBy; }
         Unit* GetCharmer() const { return m_charmer; }
+        //BrawlersGuild* GetBrawlerGuild();//��ʱע��
+        
 
         ObjectGuid GetCharmedGUID() const { return m_unitData->Charm; }
         Unit* GetCharmed() const { return m_charmed; }
+
+        ObjectGuid _petBattleId;
 
         bool IsControlledByPlayer() const { return m_ControlledByPlayer; }
         Player* GetControllingPlayer() const;
@@ -1565,7 +1635,25 @@ class TC_GAME_API Unit : public WorldObject
         uint32 m_baseAttackSpeed[MAX_ATTACK];
         float m_modAttackSpeedPct[MAX_ATTACK];
         uint32 m_attackTimer[MAX_ATTACK];
+        //AddDelayedEvent
+        void UpdateDelayedEventOperations(uint32 const diff);
 
+        /// Add timed delayed operation
+        /// @p_Timeout  : Delay time
+        /// @p_Function : Callback function
+        void AddDelayedEvent(uint32 timeout, std::function<void()>&& function)
+        {
+            emptyWarned = false;
+            timedDelayedOperations.push_back(std::pair<uint32, std::function<void()>>(timeout, function));
+        }
+
+        /// Called after last delayed operation was deleted
+        /// Do whatever you want
+        virtual void LastOperationCalled() { }
+
+        std::vector<std::pair<int32, std::function<void()>>>    timedDelayedOperations;   ///< Delayed operations
+        bool                                                    emptyWarned;              ///< Warning when there are no more delayed operations
+        //AddDelayedEvent
         // stat system
         void HandleStatFlatModifier(UnitMods unitMod, UnitModifierFlatType modifierType, float amount, bool apply);
         void ApplyStatPctModifier(UnitMods unitMod, UnitModifierPctType modifierType, float amount);
@@ -1652,6 +1740,8 @@ class TC_GAME_API Unit : public WorldObject
 
         virtual float GetNativeObjectScale() const { return 1.0f; }
         virtual void RecalculateObjectScale();
+        //virtual uint32 GetDisplayId() const { return m_unitData->DisplayID; }
+        //virtual void SetDisplayId(uint32 modelId, float displayScale = 1.f);
         uint32 GetDisplayId() const { return m_unitData->DisplayID; }
         float GetDisplayScale() const { return m_unitData->DisplayScale; }
         virtual void SetDisplayId(uint32 displayId, bool setNative = false);
@@ -1797,6 +1887,7 @@ class TC_GAME_API Unit : public WorldObject
         uint32 GetModelForForm(ShapeshiftForm form, uint32 spellId) const;
 
         friend class VehicleJoinEvent;
+        //tmp        bool IsAIEnabled, NeedChangeAI;
         ObjectGuid LastCharmerGUID;
         bool CreateVehicleKit(uint32 id, uint32 creatureEntry, bool loading = false);
         void RemoveVehicleKit(bool onRemoveFromWorld = false);
@@ -1851,7 +1942,25 @@ class TC_GAME_API Unit : public WorldObject
         TempSummon const* ToTempSummon() const { if (IsSummon()) return reinterpret_cast<TempSummon const*>(this); else return nullptr; }
 
         ObjectGuid GetTarget() const { return m_unitData->Target; }
+        /*void SetTarget(ObjectGuid const& guid)
+        {
+            if (!_focusSpell)
+                SetGuidValue(UNIT_FIELD_TARGET, guid);
+            if (guid)
+                m_lastTargetGUID = guid;
+        }*/
+
         virtual void SetTarget(ObjectGuid const& /*guid*/) = 0;
+
+       /* void SetTargetGUID(ObjectGuid const& guid)
+        {
+            m_curTargetGUID = guid;
+        }*/
+
+       /* ObjectGuid GetTargetGUID()
+        {
+            return m_curTargetGUID;
+        }*/
 
         void SetInstantCast(bool set) { _instantCast = set; }
         bool CanInstantCast() const { return _instantCast; }
@@ -1879,6 +1988,11 @@ class TC_GAME_API Unit : public WorldObject
         uint16 GetVirtualItemAppearanceMod(uint32 slot) const;
         void SetVirtualItem(uint32 slot, uint32 itemId, uint16 appearanceModId = 0, uint16 itemVisual = 0);
 
+        TaskScheduler& GetScheduler() { return _scheduler; }
+
+
+        void GetAttackableUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange) const;//Later add
+
         // returns if the unit can't enter combat
         bool IsCombatDisallowed() const { return _isCombatDisallowed; }
         // enables / disables combat interaction of this unit
@@ -1896,8 +2010,10 @@ class TC_GAME_API Unit : public WorldObject
         std::string GetDebugInfo() const override;
 
         UF::UpdateField<UF::UnitData, 0, TYPEID_UNIT> m_unitData;
-
+        bool IsPlayerBot();
     protected:
+
+        
         explicit Unit (bool isWorldObject);
 
         UF::UpdateFieldFlag GetUpdateFieldFlagsFor(Player const* target) const override;
@@ -2071,6 +2187,8 @@ class TC_GAME_API Unit : public WorldObject
         uint16 _meleeAnimKitId;
 
         SpellHistory* _spellHistory;
+
+        TaskScheduler _scheduler;
 
         std::unique_ptr<MovementForces> _movementForces;
         PositionUpdateInfo _positionUpdateInfo;

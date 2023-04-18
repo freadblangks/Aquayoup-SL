@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -16,7 +16,11 @@
  */
 
 #include "MiscPackets.h"
+#include "PacketUtilities.h"
+#include "Player.h"
 #include "Common.h"
+#include "Time.h"
+
 
 WorldPacket const* WorldPackets::Misc::BindPointUpdate::Write()
 {
@@ -789,3 +793,26 @@ WorldPacket const* WorldPackets::Misc::DisplayToast::Write()
 
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Misc::IslandAzeriteXpGain::Write()    //后加
+{
+    _worldPacket << XpGain;
+    _worldPacket << PlayerGuid;
+    _worldPacket << SourceGuid;
+    _worldPacket << SourceID;
+
+    return &_worldPacket;
+}
+
+/*
+WorldPacket const* WorldPackets::Misc::DisplayToast::Write()    //应该是使用修补程序后添加的,重复
+{
+    return nullptr;
+}
+
+
+_worldPacket.FlushBits()   //应该是使用修补程序后添加的,无效
+{
+    return _worldPacket .();
+}
+*/

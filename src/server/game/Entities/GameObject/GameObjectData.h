@@ -1232,6 +1232,19 @@ struct GameObjectTemplate
         }
     }
 
+    bool IsDisplayMandatory() const
+    {
+        switch (type)
+        {
+            case GAMEOBJECT_TYPE_SPELL_FOCUS:
+            case GAMEOBJECT_TYPE_MULTI:
+            case GAMEOBJECT_TYPE_SIEGEABLE_MULTI:
+                return false;
+            default:
+                return true;
+        }
+    }
+
     void InitializeQueryData();
     WorldPacket BuildQueryData(LocaleConstant loc) const;
 };
@@ -1278,6 +1291,7 @@ struct GameObjectData : public SpawnData
     uint32 animprogress = 0;
     GOState goState = GO_STATE_ACTIVE;
     uint32 artKit = 0;
+    float size = 0.0f;
 };
 
 enum class GameObjectActions : uint32

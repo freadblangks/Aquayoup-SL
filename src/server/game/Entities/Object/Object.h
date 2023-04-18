@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -183,6 +183,27 @@ class TC_GAME_API Object
         virtual void DestroyForPlayer(Player* target) const;
         void SendOutOfRangeForPlayer(Player* target) const;
 
+//        int32 GetInt32Value(uint16 index) const;  //AZ
+        uint32 GetUInt32Value(uint16 index) const;
+        uint64 GetUInt64Value(uint16 index) const;
+        float GetFloatValue(uint16 index) const;
+        uint8 GetByteValue(uint16 index, uint8 offset) const;
+        uint16 GetUInt16Value(uint16 index, uint8 offset) const;
+        ObjectGuid const& GetGuidValue(uint16 index) const;
+
+//        void SetInt32Value(uint16 index, int32 value);    //AZ
+        void SetUInt32Value(uint16 index, uint32 value);
+        void UpdateUInt32Value(uint16 index, uint32 value);
+        void SetUInt64Value(uint16 index, uint64 value);
+        void SetFloatValue(uint16 index, float value);
+        void SetByteValue(uint16 index, uint8 offset, uint8 value);
+        void SetUInt16Value(uint16 index, uint8 offset, uint16 value);
+        void SetGuidValue(uint16 index, ObjectGuid const& value);
+        void SetStatFloatValue(uint16 index, float value);
+        void SetStatInt32Value(uint16 index, int32 value);
+
+        void ApplyModUInt32Value(uint16 index, int32 val, bool apply);
+
         virtual void ClearUpdateMask(bool remove);
 
         virtual std::string GetNameForLocaleIdx(LocaleConstant locale) const = 0;
@@ -196,9 +217,14 @@ class TC_GAME_API Object
         void BuildFieldsUpdate(Player*, UpdateDataMapType &) const;
 
         inline bool IsPlayer() const { return GetTypeId() == TYPEID_PLAYER; }
+       /* Player* ToPlayer() { if (IsPlayer()) return reinterpret_cast<Player*>(this); else return nullptr; }
+        Player const* ToPlayer() const { if (IsPlayer()) return reinterpret_cast<Player const*>(this); else return nullptr; }*/
+        //�ظ�����
+        Player* ToPlayer() { if (IsPlayer()) return reinterpret_cast<Player*>(this); else return nullptr; }
+//        Player* ToPlayer() { if (IsPlayer()) return reinterpret_cast<Player*>(this); else return nullptr; }//�Ѿ�����,Ԥ�ƺ��Ϸ������ͬ
         static Player* ToPlayer(Object* o) { return o ? o->ToPlayer() : nullptr; }
         static Player const* ToPlayer(Object const* o) { return o ? o->ToPlayer() : nullptr; }
-        Player* ToPlayer() { if (IsPlayer()) return reinterpret_cast<Player*>(this); else return nullptr; }
+
         Player const* ToPlayer() const { if (IsPlayer()) return reinterpret_cast<Player const*>(this); else return nullptr; }
 
         inline bool IsCreature() const { return GetTypeId() == TYPEID_UNIT; }
@@ -378,6 +404,14 @@ class TC_GAME_API Object
         virtual void BuildValuesCreate(ByteBuffer* data, Player const* target) const = 0;
         virtual void BuildValuesUpdate(ByteBuffer* data, Player const* target) const = 0;
 
+        union
+        {
+            int32* m_int32Values;
+            uint32* m_uint32Values;
+            float* m_floatValues;
+        };
+        uint16 m_valuesCount;
+        std::vector<uint8> _changesMask;
     public:
         virtual void BuildValuesUpdateWithFlag(ByteBuffer* data, UF::UpdateFieldFlag flags, Player const* target) const;
 
@@ -386,6 +420,17 @@ class TC_GAME_API Object
 
         TypeID m_objectTypeId;
         CreateObjectBits m_updateFlag;
+
+        //union//AZ
+        //{
+        //    int32* m_int32Values;
+        //    uint32* m_uint32Values;
+        //    float* m_floatValues;
+        //};
+
+        //UpdateMask_AZ _changesMask;//AZ
+        //uint16 m_valuesCount;//AZ
+
 
         virtual bool AddToObjectUpdate() = 0;
         virtual void RemoveFromObjectUpdate() = 0;
@@ -398,6 +443,9 @@ class TC_GAME_API Object
         bool m_inWorld;
         bool m_isNewObject;
         bool m_isDestroyedObject;
+
+        // for output helpfull error messages from asserts
+//        bool PrintIndexError(uint32 index, bool set) const;
 
         Object(Object const& right) = delete;
         Object(Object&& right) = delete;
@@ -501,6 +549,8 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         Position GetRandomNearPosition(float radius);
         void GetContactPoint(WorldObject const* obj, float& x, float& y, float& z, float distance2d = CONTACT_DISTANCE) const;
 
+        float GetObjectSize() const;
+
         virtual float GetCombatReach() const { return 0.0f; } // overridden (only) in Unit
         void UpdateGroundPositionZ(float x, float y, float &z) const;
         void UpdateAllowedPositionZ(float x, float y, float &z, float* groundZ = nullptr) const;
@@ -514,10 +564,12 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         PhaseShift const& GetPhaseShift() const { return _phaseShift; }
         PhaseShift& GetSuppressedPhaseShift() { return _suppressedPhaseShift; }
         PhaseShift const& GetSuppressedPhaseShift() const { return _suppressedPhaseShift; }
+
         bool InSamePhase(PhaseShift const& phaseShift) const
         {
             return GetPhaseShift().CanSee(phaseShift);
         }
+        
         bool InSamePhase(WorldObject const* obj) const
         {
             return GetPhaseShift().CanSee(obj->GetPhaseShift());
@@ -527,7 +579,19 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
             return a && b && a->InSamePhase(b);
         }
 
+        bool IsInPhase(WorldObject const* obj) const
+        {
+            return GetPhaseShift().CanSee(obj->GetPhaseShift());
+        }
         int32 GetDBPhase() const { return _dbPhase; }
+
+
+        //virtual void SetPhaseId(std::set<uint32> const& newPhaseId, bool update);//maybe duplicate,cause erros.
+        //bool HasPhaseId(uint32 PhaseID) const;
+        std::set<uint32> const& GetPhases() const;
+        //bool InSamePhaseId(WorldObject const* obj) const;
+        //bool InSamePhaseId(std::set<uint32> const& phase, bool otherIsPlayer) const;
+
 
         // if negative it is used as PhaseGroupId
         void SetDBPhase(int32 p) { _dbPhase = p; }
@@ -608,6 +672,10 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         virtual void SetMap(Map* map);
         virtual void ResetMap();
+
+        //this function should be removed in nearest time...
+        Map const* GetBaseMap() const;
+
         Map* GetMap() const { ASSERT(m_currMap); return m_currMap; }
         Map* FindMap() const { return m_currMap; }
         //used to check all object's GetMap() calls when object is not in world!
@@ -619,6 +687,8 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         Scenario* GetScenario() const;
 
         TempSummon* SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, uint32 vehId = 0, uint32 spellId = 0, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
+        TempSummon* SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType, uint32 despawnTime, uint32 vehId, ObjectGuid privateObjectOwner);
+        TempSummon* SummonCreature(uint32 id, float x, float y, float z, float o, TempSummonType despawnType, uint32 despawnTime, ObjectGuid privateObjectOwner);
         TempSummon* SummonCreature(uint32 entry, float x, float y, float z, float o = 0, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
         TempSummon* SummonPersonalClone(Position const& pos, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, uint32 vehId = 0, uint32 spellId = 0, Player* privateObjectOwner = nullptr);
         GameObject* SummonGameObject(uint32 entry, Position const& pos, QuaternionData const& rot, Seconds respawnTime, GOSummonType summonType = GO_SUMMON_TIMED_OR_CORPSE_DESPAWN);
@@ -730,6 +800,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         // Transports
         TransportBase* GetTransport() const { return m_transport; }
+        //Transport* getTransport() const { return m_Transport; } //���ݾɰ汾,����
         float GetTransOffsetX() const { return m_movementInfo.transport.pos.GetPositionX(); }
         float GetTransOffsetY() const { return m_movementInfo.transport.pos.GetPositionY(); }
         float GetTransOffsetZ() const { return m_movementInfo.transport.pos.GetPositionZ(); }
@@ -783,6 +854,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         // transports (gameobjects only)
         TransportBase* m_transport;
+        //Transport* m_Transport;//���ݾɰ汾
 
         virtual void ProcessPositionDataChanged(PositionFullTerrainStatus const& data);
         uint32 m_zoneId;

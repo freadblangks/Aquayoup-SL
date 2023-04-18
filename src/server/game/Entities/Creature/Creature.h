@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -26,6 +26,9 @@
 #include "GridObject.h"
 #include "MapObject.h"
 #include <list>
+
+class CreatureOutfit;
+#include <memory>
 
 class CreatureAI;
 class CreatureGroup;
@@ -79,6 +82,13 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
         void SetObjectScale(float scale) override;
         void SetDisplayId(uint32 displayId, bool setNative = false) override;
         void SetDisplayFromModel(uint32 modelIdx);
+        //uint32 GetDisplayId() const final;
+        void SetDisplayIdRaw(uint32 modelId, float displayScale = 1.f);
+
+        std::shared_ptr<CreatureOutfit> & GetOutfit() { return m_outfit; };
+        void SetOutfit(std::shared_ptr<CreatureOutfit> const & outfit);
+        void SetMirrorImageFlag(bool on) { if (on) SetUnitFlag2(UNIT_FLAG2_MIRROR_IMAGE); else RemoveUnitFlag2(UNIT_FLAG2_MIRROR_IMAGE); };
+        void SendMirrorSound(Player* target, uint8 type);
 
         void DisappearAndDie() { ForcedDespawn(0); }
 
@@ -479,7 +489,7 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
 
         bool IsInvisibleDueToDespawn(WorldObject const* seer) const override;
         bool CanAlwaysSee(WorldObject const* obj) const override;
-
+        
     private:
         void ForcedDespawn(uint32 timeMSToDespawn = 0, Seconds forceRespawnTimer = 0s);
         bool CheckNoGrayAggroConfig(uint32 playerLevel, uint32 creatureLevel) const; // No aggro from gray creatures
@@ -502,6 +512,8 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
             ObjectGuid Target;        // the creature's "real" target while casting
             float Orientation = 0.0f; // the creature's "real" orientation while casting
         } _spellFocusInfo;
+
+        std::shared_ptr<CreatureOutfit> m_outfit;
 
         time_t _lastDamagedTime; // Part of Evade mechanics
         CreatureTextRepeatGroup m_textRepeat;

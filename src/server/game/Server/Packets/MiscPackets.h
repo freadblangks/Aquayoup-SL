@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -24,13 +24,18 @@
 #include "ItemPacketsCommon.h"
 #include "ObjectGuid.h"
 #include "Optional.h"
+#include "ItemPackets.h"
 #include "PacketUtilities.h"
 #include "Player.h"
 #include "Position.h"
+#include "Unit.h"
+#include "Weather.h"
 #include "SharedDefines.h"
+#include "WorldSession.h"
 #include <array>
 #include <map>
-
+#include <Server\Packets\InspectPackets.h>
+enum MountStatusFlags : uint8;
 enum UnitStandStateType : uint8;
 enum WeatherState : uint32;
 
@@ -934,6 +939,19 @@ namespace WorldPackets
 
             StartTimer() : ServerPacket(SMSG_START_TIMER, 12) { }
 
+            class IslandAzeriteXpGain final : public ServerPacket //���
+            {
+            public:
+                IslandAzeriteXpGain() : ServerPacket(SMSG_ISLAND_AZERITE_GAIN, 4 + 36 + 36 + 4) { }
+
+                WorldPacket const* Write() override;
+
+                int32 XpGain = 0;
+                ObjectGuid PlayerGuid;
+                ObjectGuid SourceGuid;
+                int32 SourceID = 0;
+            };
+
             WorldPacket const* Write() override;
 
             Duration<Seconds> TotalTime;
@@ -988,6 +1006,19 @@ namespace WorldPackets
             int32 LootSpec = 0;
             ::Gender Gender = GENDER_NONE;
             uint32 CurrencyID = 0;
+        };
+
+        class IslandAzeriteXpGain final : public ServerPacket
+        {
+        public:
+            IslandAzeriteXpGain() : ServerPacket(SMSG_ISLAND_AZERITE_GAIN, 4 + 36 + 36 + 4) { }
+
+            WorldPacket const* Write() override;
+
+            int32 XpGain = 0;
+            ObjectGuid PlayerGuid;
+            ObjectGuid SourceGuid;
+            int32 SourceID = 0;
         };
     }
 }

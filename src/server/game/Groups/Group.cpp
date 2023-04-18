@@ -36,6 +36,7 @@
 #include "Player.h"
 #include "UpdateData.h"
 #include "WorldSession.h"
+#include <BotGroupAI.h>
 
 Group::Group() : m_leaderGuid(), m_leaderFactionGroup(0), m_leaderName(""), m_groupFlags(GROUP_FLAG_NONE), m_groupCategory(GROUP_CATEGORY_HOME),
 m_dungeonDifficulty(DIFFICULTY_NORMAL), m_raidDifficulty(DIFFICULTY_NORMAL_RAID), m_legacyRaidDifficulty(DIFFICULTY_10_N),
@@ -117,6 +118,35 @@ void Group::SelectNewPartyOrRaidLeader()
         SendUpdate();
     }
 }
+InstanceGroupBind* Group::GetBoundInstance(Map* aMap)
+{
+    return GetBoundInstance(aMap->GetEntry());
+}
+
+InstanceGroupBind* Group::GetBoundInstance(MapEntry const* mapEntry)
+{
+    if (!mapEntry || !mapEntry->IsDungeon())
+        return nullptr;
+
+    Difficulty difficulty = GetDifficultyID(mapEntry);
+    return GetBoundInstance(difficulty, mapEntry->ID);
+}
+
+InstanceGroupBind* Group::GetBoundInstance(Difficulty difficulty, uint32 mapId)
+{
+    // some instances only have one difficulty
+    sDB2Manager.GetDownscaledMapDifficultyData(mapId, difficulty);
+
+    auto difficultyItr = m_boundInstances.find(difficulty);
+    if (difficultyItr == m_boundInstances.end())
+        return nullptr;
+
+    auto itr = difficultyItr->second.find(mapId);
+    if (itr != difficultyItr->second.end())
+        return &itr->second;
+    else
+        return nullptr;
+}
 
 bool Group::Create(Player* leader)
 {
@@ -192,6 +222,41 @@ bool Group::Create(Player* leader)
 
     return true;
 }
+
+
+void Group::OnLeaderChangePhase(Player* changeTarget)
+{
+    if (isBGGroup() || isBFGroup())
+        return;
+    if (!changeTarget || !changeTarget->IsInWorld() || changeTarget->GetGUID() != GetLeaderGUID() || changeTarget->IsPlayerBot())
+        return;
+    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
+    {
+        Player* player = ObjectAccessor::FindPlayer(citr->guid);
+        if (player == changeTarget || !player->IsPlayerBot() || player->IsInPhase(changeTarget))
+            continue;
+
+        //PhasingHandler::InheritPhaseShift(player, changeTarget);//暂时解决不了,临时注释
+    }
+}
+
+
+bool Group::AllGroupIsIDLE()
+{
+    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
+    {
+        Player* player = ObjectAccessor::FindConnectedPlayer(citr->guid);
+        if (!player)
+            continue;
+        BotGroupAI* pAI = dynamic_cast<BotGroupAI*>(player->GetAI());
+        if (!pAI)
+            continue;
+        //if (!pAI->IsIDLEBot())
+        //    return false; //tmp
+    }
+    return true;
+}
+
 
 void Group::LoadGroupFromDB(Field* fields)
 {
@@ -1373,6 +1438,31 @@ void Group::LinkOwnedInstance(GroupInstanceReference* ref)
 {
     m_ownedInstancesMgr.insertLast(ref);
 }
+
+void Group::UnbindInstance(uint32 mapid, uint8 difficulty, bool unload)
+{
+    auto difficultyItr = m_boundInstances.find(Difficulty(difficulty));
+    if (difficultyItr == m_boundInstances.end())
+        return;
+
+    auto itr = difficultyItr->second.find(mapid);
+    if (itr != difficultyItr->second.end())
+    {
+        if (!unload)
+        {
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_GROUP_INSTANCE_BY_GUID);
+
+            stmt->setUInt32(0, m_dbStoreId);
+            stmt->setUInt32(1, itr->second.save->GetInstanceId());
+
+            CharacterDatabase.Execute(stmt);
+        }
+
+        itr->second.save->RemoveGroup(this);                // save can become invalid
+        difficultyItr->second.erase(itr);
+    }
+}
+
 
 void Group::_homebindIfInstance(Player* player)
 {

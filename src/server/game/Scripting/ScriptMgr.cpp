@@ -1657,6 +1657,24 @@ bool ScriptMgr::OnItemRemove(Player* player, Item* item)
     return tmpscript->OnRemove(player, item);
 }
 
+void ScriptMgr::OnGossipSelect(Player* player, Item* item, uint32 sender, uint32 action)
+{
+    ASSERT(player);
+    ASSERT(item);
+
+    GET_SCRIPT(ItemScript, item->GetScriptId(), tmpscript);
+    tmpscript->OnGossipSelect(player, item, sender, action);
+}
+
+void ScriptMgr::OnGossipSelectCode(Player* player, Item* item, uint32 sender, uint32 action, const char* code)
+{
+    ASSERT(player);
+    ASSERT(item);
+
+    GET_SCRIPT(ItemScript, item->GetScriptId(), tmpscript);
+    tmpscript->OnGossipSelectCode(player, item, sender, action, code);
+}
+
 bool ScriptMgr::OnCastItemCombatSpell(Player* player, Unit* victim, SpellInfo const* spellInfo, Item* item)
 {
     ASSERT(player);
@@ -2085,6 +2103,16 @@ void ScriptMgr::OnPlayerUpdateZone(Player* player, uint32 newZone, uint32 newAre
     FOREACH_SCRIPT(PlayerScript)->OnUpdateZone(player, newZone, newArea);
 }
 
+void ScriptMgr::OnGossipSelect(Player* player, uint32 menu_id, uint32 sender, uint32 action)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnGossipSelect(player, menu_id, sender, action);
+}
+
+void ScriptMgr::OnGossipSelectCode(Player* player, uint32 menu_id, uint32 sender, uint32 action, const char* code)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnGossipSelectCode(player, menu_id, sender, action, code);
+}
+
 void ScriptMgr::OnQuestStatusChange(Player* player, uint32 questId)
 {
     FOREACH_SCRIPT(PlayerScript)->OnQuestStatusChange(player, questId);
@@ -2134,6 +2162,21 @@ void ScriptMgr::OnPasswordChange(uint32 accountId)
 void ScriptMgr::OnFailedPasswordChange(uint32 accountId)
 {
     FOREACH_SCRIPT(AccountScript)->OnFailedPasswordChange(accountId);
+}
+
+void ScriptMgr::OnLootItem(Player* player, Item* item, uint32 count)
+{
+	FOREACH_SCRIPT(PlayerScript)->OnLootItem(player, item, count);
+}
+
+void ScriptMgr::OnCreateItem(Player* player, Item* item, uint32 count)
+{
+	FOREACH_SCRIPT(PlayerScript)->OnCreateItem(player, item, count);
+}
+
+void ScriptMgr::OnQuestRewardItem(Player* player, Item* item, uint32 count)
+{
+	FOREACH_SCRIPT(PlayerScript)->OnQuestRewardItem(player, item, count);
 }
 
 // Guild

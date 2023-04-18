@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -53,10 +53,26 @@ void SummonList::DoZoneInCombat(uint32 entry)
         if (summon && summon->IsAIEnabled()
                 && (!entry || summon->GetEntry() == entry))
         {
-            summon->AI()->DoZoneInCombat();
+            //tmp         summon->AI()->DoZoneInCombat(nullptr);
+            summon->AI()->DoZoneInCombat();//If cant work,disable this
         }
     }
 }
+
+//void SummonList::DoZoneInCombat(uint32 entry, float maxRangeToNearestTarget)
+//{
+//    //for (StorageType::iterator i = storage_.begin(); i != storage_.end();)//tmp
+//    //{
+//    //    Creature* summon = ObjectAccessor::GetCreature(*me, *i);
+//    //    ++i;
+//    //    if (summon && summon->IsAIEnabled
+//    //        && (!entry || summon->GetEntry() == entry))
+//    //    {
+//    //        summon->AI()->DoZoneInCombat(nullptr, maxRangeToNearestTarget);
+//    //    }
+//    //}
+//}
+
 
 void SummonList::DespawnEntry(uint32 entry)
 {
@@ -550,7 +566,7 @@ void BossAI::_JustEngagedWith(Unit* who)
 
     me->SetCombatPulseDelay(5);
     me->setActive(true);
-    DoZoneInCombat();
+//tmp    DoZoneInCombat();
     ScheduleTasks();
 }
 
@@ -570,8 +586,9 @@ void BossAI::TeleportCheaters()
 void BossAI::JustSummoned(Creature* summon)
 {
     summons.Summon(summon);
-    if (me->IsEngaged())
-        DoZoneInCombat(summon);
+    //if (me->IsEngaged())
+    //    //DoZoneInCombat(summon,250.0f);//����250.f����Ϲд��
+    //DoZoneInCombat(summon);//tmp
 }
 
 void BossAI::SummonedCreatureDespawn(Creature* summon)

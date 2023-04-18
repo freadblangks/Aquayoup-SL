@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -175,6 +175,13 @@ enum LoginDatabaseStatements : uint32
     LOGIN_DEL_BNET_ITEM_FAVORITE_APPEARANCE,
     LOGIN_SEL_BNET_TRANSMOG_ILLUSIONS,
     LOGIN_INS_BNET_TRANSMOG_ILLUSIONS,
+
+    LOGIN_SEL_BATTLE_PAY_ACCOUNT_CREDITS,
+    LOGIN_UPD_BATTLE_PAY_ACCOUNT_CREDITS,
+
+    LOGIN_INS_PURCHASE,
+    LOGIN_SEL_ALLARENA_NAME,
+    LOGIN_SEL_ALLRANDOM_NAME,
 
     MAX_LOGINDATABASE_STATEMENTS
 };

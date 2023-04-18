@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -74,6 +74,8 @@ Object::Object() : m_values(this)
     m_objectTypeId      = TYPEID_OBJECT;
     m_objectType        = TYPEMASK_OBJECT;
     m_updateFlag.Clear();
+
+    m_uint32Values = nullptr;
 
     m_inWorld           = false;
     m_isNewObject       = false;
@@ -205,6 +207,21 @@ void Object::BuildValuesUpdateBlockForPlayerWithFlag(UpdateData* data, UF::Updat
     data->AddUpdateBlock();
 }
 
+//
+//void Object::SetInt32Value(uint16 index, int32 value) //AZ
+//{
+//    ASSERT(index < m_valuesCount || PrintIndexError(index, true));
+//
+//    if (m_int32Values[index] != value)
+//    {
+//        m_int32Values[index] = value;
+//        _changesMask.SetBit(index);
+//
+//        AddToObjectUpdateIfNeeded();
+//    }
+//}
+
+
 void Object::BuildDestroyUpdateBlock(UpdateData* data) const
 {
     data->AddDestroyObject(GetGUID());
@@ -233,6 +250,22 @@ void Object::DestroyForPlayer(Player* target) const
     updateData.BuildPacket(&packet);
     target->SendDirectMessage(&packet);
 }
+
+//bool Object::PrintIndexError(uint32 index, bool set) const
+//{
+//    TC_LOG_INFO("misc", "Attempt {} non-existed value field: {} (count: {}) for object typeid: {} type mask: {}",
+//        (set ? "set value to" : "get value from"), index, m_valuesCount, GetTypeId(), m_objectType);
+//
+//    // ASSERT must fail after function call
+//    return false;
+//}
+
+//[[nodiscard]] int32 Object::GetInt32Value(uint16 index) const   //AZ
+//{
+//    ASSERT(index < m_valuesCount || PrintIndexError(index, false));
+//    return m_int32Values[index];
+//}
+//
 
 void Object::SendOutOfRangeForPlayer(Player* target) const
 {
@@ -787,6 +820,43 @@ void Object::ClearUpdateMask(bool remove)
         m_objectUpdated = false;
     }
 }
+
+//bool Object::PrintIndexError(uint32 index, bool set) const
+//{
+//    TC_LOG_ERROR("misc", "Attempt %s non-existed value field: %u (count: %u) for object typeid: %u type mask: %u", (set ? "set value to" : "get value from"), index, m_valuesCount, GetTypeId(), m_objectType);
+//
+//    // ASSERT must fail after function call
+//    //return false;//It's a dangerous place,disable,may cause crash
+//    return true;//tmp,I wrote this to reduce crash
+//}
+
+uint32 Object::GetUInt32Value(uint16 index) const
+{
+    //ASSERT(index < m_valuesCount || PrintIndexError(index, false));//It's a dangerous place,disable,may cause crash
+    return m_uint32Values[index];
+}
+
+//void Object::ApplyModUInt32Value(uint16 index, int32 val, bool apply)
+//{
+//    int32 cur = GetUInt32Value(index);
+//    cur += (apply ? val : -val);
+//    if (cur < 0)
+//        cur = 0;
+//    SetUInt32Value(index, cur);
+//}
+
+//void Object::SetUInt32Value(uint16 index, uint32 value)
+//{
+//    ASSERT(index < m_valuesCount || PrintIndexError(index, true));
+//
+//    if (m_uint32Values[index] != value)
+//    {
+//        m_uint32Values[index] = value;
+//        _changesMask[index] = 1;
+//
+//        AddToObjectUpdateIfNeeded();
+//    }
+//}
 
 void Object::BuildFieldsUpdate(Player* player, UpdateDataMapType& data_map) const
 {
@@ -1919,6 +1989,8 @@ TempSummon* Map::SummonCreature(uint32 entry, Position const& pos, SummonPropert
         summon->GetOrCreateSmoothPhasing()->SetSingleInfo(*smoothPhasingInfo);
     }
 
+
+
     if (!AddToMap(summon->ToCreature()))
     {
         // Returning false will cause the object to be deleted - remove from transport
@@ -1990,7 +2062,44 @@ Scenario* WorldObject::GetScenario() const
     return nullptr;
 }
 
-TempSummon* WorldObject::SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType /*= TEMPSUMMON_MANUAL_DESPAWN*/, Milliseconds despawnTime /*= 0s*/, uint32 vehId /*= 0*/, uint32 spellId /*= 0*/, ObjectGuid privateObjectOwner /* = ObjectGuid::Empty */)
+////旧的模板
+//
+////测试                          参数数量   1                   2                               3                                                     4               5                                    6                   
+////6参数
+//TempSummon* WorldObject::SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType /*= TEMPSUMMON_MANUAL_DESPAWN*/, uint32 despawnTime /*= 0*/, uint32 vehId /*= 0*/, ObjectGuid privateObjectOwner /* = ObjectGuid::Empty */)   //6参数
+//{
+//    if (Map* map = FindMap())
+//    {
+//        if (TempSummon* summon = map->SummonCreature(entry, pos, nullptr, despawnTime, ToUnit(), 0, vehId, privateObjectOwner))
+//        {
+//            summon->SetTempSummonType(despawnType);
+//            return summon;
+//        }
+//    }
+//
+//    return nullptr;
+//}
+////测试                          参数数量   1           2       3       4            5                            6                                              7                             8
+////8参数                                                                                                                       TempSummonType despawnType /*= TEMPSUMMON_MANUAL_DESPAWN*/
+////Creature* npc = player->SummonCreature(8000000,player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, minutesforassist * 60000);   //7参数
+////                                          id         float x              float y                 float z           float o /*= 0*/                   uint32 despawnTime /*= 0*/
+//TempSummon* WorldObject::SummonCreature(uint32 id, float x, float y, float z, float o /*= 0*/, TempSummonType despawnType /*= TEMPSUMMON_MANUAL_DESPAWN*/, uint32 despawnTime /*= 0*/, ObjectGuid privateObjectOwner /* = ObjectGuid::Empty */)         //8参数
+//{
+//    if (!x && !y && !z)
+//        GetClosePoint(x, y, z, GetCombatReach());
+//    if (!o)
+//        o = GetOrientation();
+//    return SummonCreature(id, { x,y,z,o }, despawnType, despawnTime, 0, privateObjectOwner);
+//}
+
+//测试                          参数数量   1              2                       3                       4               5               6                   7
+//Creature* npc = player->SummonCreature(8000000, player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, minutesforassist * 60000);   //7参数
+//7参数
+//结论:预计不是这个                                           这里需要的是指针
+//Creature* npc = player->SummonCreature(8000000,     player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, minutesforassist * 60000);   //7参数
+TempSummon* WorldObject::SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType /*= TEMPSUMMON_MANUAL_DESPAWN*/, Milliseconds despawnTime /*= 0s*/, uint32 vehId /*= 0*/, uint32 spellId /*= 0*/, ObjectGuid privateObjectOwner /* = ObjectGuid::Empty */)    //7参数
+//测试                         参数数量      1                 2                            3                                                 4                                 5                            6                                          7                           //7参数
+//7参数
 {
     if (Map* map = FindMap())
     {
@@ -2004,7 +2113,19 @@ TempSummon* WorldObject::SummonCreature(uint32 entry, Position const& pos, TempS
     return nullptr;
 }
 
-TempSummon* WorldObject::SummonCreature(uint32 id, float x, float y, float z, float o /*= 0*/, TempSummonType despawnType /*= TEMPSUMMON_MANUAL_DESPAWN*/, Milliseconds despawnTime /*= 0s*/, ObjectGuid privateObjectOwner /* = ObjectGuid::Empty */)
+TempSummon* WorldObject::SummonCreature(uint32 /*entry*/, Position const& /*pos*/, TempSummonType /*despawnType*/, uint32 /*despawnTime*/, uint32 /*vehId*/, ObjectGuid /*privateObjectOwner*/)
+{
+    return nullptr;
+}
+
+TempSummon* WorldObject::SummonCreature(uint32 /*id*/, float /*x*/, float /*y*/, float /*z*/, float /*o*/, TempSummonType /*despawnType*/, uint32 /*despawnTime*/, ObjectGuid /*privateObjectOwner*/)
+{
+    return nullptr;
+}
+
+//测试                         参数数量      1        2         3       4       5                            6                                                        7                             8                                                   //8参数
+//8参数
+TempSummon* WorldObject::SummonCreature(uint32 id, float x, float y, float z, float o /*= 0*/, TempSummonType despawnType /*= TEMPSUMMON_MANUAL_DESPAWN*/, Milliseconds despawnTime /*= 0s*/, ObjectGuid privateObjectOwner /* = ObjectGuid::Empty */)  //8参数
 {
     if (!x && !y && !z)
         GetClosePoint(x, y, z, GetCombatReach());
@@ -3348,6 +3469,14 @@ void WorldObject::GetContactPoint(WorldObject const* obj, float& x, float& y, fl
 {
     // angle to face `obj` to `this` using distance includes size of `obj`
     GetNearPoint(obj, x, y, z, distance2d, GetAbsoluteAngle(obj));
+}
+
+float WorldObject::GetObjectSize() const
+{
+    if (Unit const* thisUnit = ToUnit())
+        return thisUnit->m_unitData->CombatReach;
+
+    return DEFAULT_WORLD_OBJECT_SIZE;
 }
 
 void WorldObject::MovePosition(Position &pos, float dist, float angle)

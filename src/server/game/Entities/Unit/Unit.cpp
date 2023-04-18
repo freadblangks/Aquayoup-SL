@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -16,6 +16,7 @@
  */
 
 #include "Unit.h"
+#include "../BrawlersGuild/BrawlersGuild.h"
 #include "AbstractFollower.h"
 #include "Battlefield.h"
 #include "BattlefieldMgr.h"
@@ -33,6 +34,7 @@
 #include "ConditionMgr.h"
 #include "Containers.h"
 #include "Creature.h"
+#include "Config.h"
 #include "CreatureAI.h"
 #include "CreatureAIImpl.h"
 #include "CreatureAIFactory.h"
@@ -611,7 +613,27 @@ void Unit::DisableSpline()
 
 void Unit::resetAttackTimer(WeaponAttackType type)
 {
-    m_attackTimer[type] = uint32(GetBaseAttackTime(type) * m_modAttackSpeedPct[type]);
+	if (sConfigMgr->GetBoolDefault("Custom.HurtInRealTime", true))
+	{
+        //m_attackTimer[type] = uint32(GetBaseAttackTime(type) * m_modAttackSpeedPct[type]);//org
+        //The if group behind is added later.
+		if (GetTypeId() == TYPEID_PLAYER || (ToCreature()->GetOwner() && ToCreature()->GetOwner()->GetTypeId() == TYPEID_PLAYER))//later
+		{
+			m_attackTimer[type] = uint32(GetBaseAttackTime(type) * m_modAttackSpeedPct[type] / 2 / sWorld->getFloatConfig(CONFIG_ATTACKSPEED_PLAYER));
+		}
+		else
+		{
+			m_attackTimer[type] = uint32(GetBaseAttackTime(type) * m_modAttackSpeedPct[type] / sWorld->getFloatConfig(CONFIG_ATTACKSPEED_ALL));
+		}//later
+	}
+	else if (GetTypeId() == TYPEID_PLAYER || (ToCreature()->GetOwner() && ToCreature()->GetOwner()->GetTypeId() == TYPEID_PLAYER))
+	{
+		m_attackTimer[type] = uint32(GetBaseAttackTime(type) * m_modAttackSpeedPct[type] / sWorld->getFloatConfig(CONFIG_ATTACKSPEED_PLAYER));
+	}
+	else
+	{
+		m_attackTimer[type] = uint32(GetBaseAttackTime(type) * m_modAttackSpeedPct[type] / sWorld->getFloatConfig(CONFIG_ATTACKSPEED_ALL));
+	}
 }
 
 bool Unit::IsWithinCombatRange(Unit const* obj, float dist2compare) const
@@ -1436,6 +1458,106 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
         damageInfo->Damage = 0;
 }
 
+////1
+//void Unit::CastSpell(SpellCastTargets const& targets, uint32 spellId, CastSpellExtraArgs const& args)
+//{
+//    SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId, args.CastDifficulty != DIFFICULTY_NONE ? args.CastDifficulty : GetMap()->GetDifficultyID());
+//    if (!info)
+//    {
+//        TC_LOG_ERROR("entities.unit", "CastSpell: unknown spell %u by caster %s", spellId, GetGUID().ToString().c_str());
+//        return;
+//    }
+//
+//    Spell* spell = new Spell(this, info, args.TriggerFlags, args.OriginalCaster);
+//    for (auto const& pair : args.SpellValueOverrides)
+//        spell->SetSpellValue(pair.first, pair.second);
+//
+//    spell->m_CastItem = args.CastItem;
+//    spell->prepare(targets, args.TriggeringAura);
+//}
+////2
+//void Unit::CastSpell(WorldObject* target, uint32 spellId, CastSpellExtraArgs const& args)
+//{
+//    SpellCastTargets targets;
+//    if (target)
+//    {
+//        if (Unit* unitTarget = target->ToUnit())
+//            targets.SetUnitTarget(unitTarget);
+//        else if (GameObject* goTarget = target->ToGameObject())
+//            targets.SetGOTarget(goTarget);
+//        else
+//        {
+//            TC_LOG_ERROR("entities.unit", "CastSpell: Invalid target %s passed to spell cast by %s", target->GetGUID().ToString().c_str(), GetGUID().ToString().c_str());
+//            return;
+//        }
+//    }
+//    CastSpell(targets, spellId, args);
+//}
+////3
+//void Unit::CastSpell(Position const& dest, uint32 spellId, CastSpellExtraArgs const& args)
+//{
+//    SpellCastTargets targets;
+//    targets.SetDst(dest);
+//    CastSpell(targets, spellId, args);
+//}
+////4
+//void Unit::CastSpell(Unit* victim, uint32 spellId, bool triggered, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+//{
+//    return CastSpell(victim, spellId, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE, castItem, triggeredByAura, originalCaster);
+//}
+////5
+//void Unit::CastSpell(Unit* victim, uint32 spellId, TriggerCastFlags triggerFlags /*= TRIGGER_NONE*/, Item* castItem /*= nullptr*/, AuraEffect const* triggeredByAura /*= nullptr*/, ObjectGuid originalCaster /*= ObjectGuid::Empty*/)
+//{
+//    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, GetMap()->GetDifficultyID());
+//    if (!spellInfo)
+//    {
+//        TC_LOG_ERROR("entities.unit", "CastSpell: unknown spell id %u by caster: %s", spellId, GetGUID().ToString().c_str());
+//        return;
+//    }
+//
+//    return CastSpell(victim, spellInfo, triggerFlags, castItem, triggeredByAura, originalCaster);
+//}
+////6
+//bool Unit::CastSpell(float x, float y, float z, uint32 spellId, bool triggered, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+//{
+//    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, GetMap()->GetDifficultyID());
+//    if (!spellInfo)
+//    {
+//        TC_LOG_ERROR("entities.unit", "CastSpell: unknown spell id %u by caster: %s", spellId, GetGUID().ToString().c_str());
+//        return false;
+//    }
+//    SpellCastTargets targets;
+//    targets.SetDst(x, y, z, GetOrientation());
+//
+//    return CastSpell(targets, spellInfo, nullptr, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE, castItem, triggeredByAura, originalCaster);
+//}
+////7
+//void Unit::CastSpell(Unit* victim, SpellInfo const* spellInfo, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+//{
+//    SpellCastTargets targets;
+//    targets.SetUnitTarget(victim);
+//    CastSpell(targets, spellInfo, nullptr, triggerFlags, castItem, triggeredByAura, originalCaster);
+//}
+////8
+//bool Unit::CastSpell(SpellCastTargets const& targets, SpellInfo const* spellInfo, CustomSpellValues const* value, TriggerCastFlags triggerFlags, Item* castItem, AuraEffect const* triggeredByAura, ObjectGuid originalCaster)
+//{
+//    if (!spellInfo)
+//    {
+//        TC_LOG_ERROR("entities.unit", "CastSpell: unknown spell by caster: %s", GetGUID().ToString().c_str());
+//        return false;
+//    }
+//
+//    Spell* spell = new Spell(this, spellInfo, triggerFlags, originalCaster);
+//
+//    if (value)
+//        for (CustomSpellValues::const_iterator itr = value->begin(); itr != value->end(); ++itr)
+//            spell->SetSpellValue(itr->first, itr->second);
+//
+//    spell->m_CastItem = castItem;
+//    return spell->prepare(&targets, triggeredByAura);
+//}
+
+
 void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
 {
     Unit* victim = damageInfo->Target;
@@ -2079,6 +2201,14 @@ void Unit::HandleEmoteCommand(Emote emoteId, Player* target /*=nullptr*/, Trinit
         }
     }
 }
+
+//BrawlersGuild* Unit::GetBrawlerGuild()
+//{
+//    if (Map* map = GetMap())
+//        return map->m_brawlerGuild;
+//
+//    return nullptr;
+//}
 
 void Unit::AttackerStateUpdate(Unit* victim, WeaponAttackType attType, bool extra)
 {
@@ -5888,6 +6018,8 @@ void Unit::SetOwnerGUID(ObjectGuid owner)
     player->SendDirectMessage(&packet);
 }
 
+
+
 Player* Unit::GetControllingPlayer() const
 {
     ObjectGuid guid = GetCharmerOrOwnerGUID();
@@ -8511,6 +8643,7 @@ void Unit::AtTargetAttacked(Unit* target, bool canInitialAggro)
     }
 }
 
+
 void Unit::UpdatePetCombatState()
 {
     ASSERT(!IsPet()); // player pets do not use UNIT_FLAG_PET_IN_COMBAT for this purpose - but player pets should also never have minions of their own to call this
@@ -9113,6 +9246,75 @@ void Unit::SetLevel(uint8 lvl, bool sendUpdate/* = true*/)
 
         sCharacterCache->UpdateCharacterLevel(GetGUID(), lvl);
     }
+}
+
+//bool Unit::IsAlliedRace()//�ظ�
+//{
+//    if (Player* player = ToPlayer())
+//    {
+//        /* pandaren death knight (basically same thing as allied death knight) */
+//        if ((player->getRace() == RACE_PANDAREN_ALLIANCE) || (player->getRace() == RACE_PANDAREN_HORDE) || (player->getRace() == RACE_PANDAREN_NEUTRAL) && (player->getClass() == CLASS_DEATH_KNIGHT))
+//        {
+//            return true;
+//        }
+//
+//        /* other allied races */
+//        switch (player->getRace())
+//        {
+//        case RACE_NIGHTBORNE:
+//        case RACE_HIGHMOUNTAIN_TAUREN:
+//        case RACE_VOID_ELF:
+//        case RACE_LIGHTFORGED_DRAENEI:
+//        case RACE_ZANDALARI_TROLL:
+//        case RACE_KUL_TIRAN:
+//        case RACE_DARK_IRON_DWARF:
+//        case RACE_VULPERA:
+//        case RACE_MAGHAR_ORC:
+//        case RACE_MECHAGNOME:
+//            return true;
+//            break;
+//        default:
+//            return false;
+//            break;
+//        }
+//    }
+//
+//    return false;
+//}
+
+bool Unit::IsAlliedRace()
+{
+    if (Player* player = ToPlayer())
+    {
+        /* pandaren death knight (basically same thing as allied death knight) */
+        /* ��è��������ʿ(�����Ϻ�ͬ������������ʿ��ͬ)*/
+        if ((player->GetRace() == RACE_PANDAREN_ALLIANCE) || (player->GetRace() == RACE_PANDAREN_HORDE) || (player->GetRace() == RACE_PANDAREN_NEUTRAL) && (player->GetClass() == CLASS_DEATH_KNIGHT))
+        {
+            return true;
+        }
+
+        /* other allied races */
+        switch (player->GetRace())
+        {
+        case RACE_NIGHTBORNE:
+        case RACE_HIGHMOUNTAIN_TAUREN:
+        case RACE_VOID_ELF:
+        case RACE_LIGHTFORGED_DRAENEI:
+        case RACE_ZANDALARI_TROLL:
+        case RACE_KUL_TIRAN:
+        case RACE_DARK_IRON_DWARF:
+        case RACE_VULPERA:
+        case RACE_MAGHAR_ORC:
+        case RACE_MECHAGNOME:
+            return true;
+            break;
+        default:
+            return false;
+            break;
+        }
+    }
+
+    return false;
 }
 
 void Unit::SetHealth(uint64 val)
@@ -11872,6 +12074,18 @@ float Unit::MeleeSpellMissChance(Unit const* victim, WeaponAttackType attType, S
 
 void Unit::OnPhaseChange()
 {
+
+    if (!IsInWorld())
+        return;
+
+    if (GetTypeId() == TYPEID_UNIT || !ToPlayer()->GetSession()->PlayerLogout())
+        m_threatManager.UpdateOnlineStates(true, true);
+
+    if (IsPlayer() && !IsPlayerBot())
+    {
+        if (Group* pGroup = ToPlayer()->GetGroup())
+            pGroup->OnLeaderChangePhase(ToPlayer());
+    }
 }
 
 void Unit::UpdateObjectVisibility(bool forced)
@@ -13717,6 +13931,24 @@ uint32 Unit::GetCastSpellXSpellVisualId(SpellInfo const* spellInfo) const
     return WorldObject::GetCastSpellXSpellVisualId(spellInfo);
 }
 
+void Unit::GetAttackableUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange) const
+{
+    CellCoord p(Trinity::ComputeCellCoord(GetPositionX(), GetPositionY()));
+    Cell cell(p);
+    cell.SetNoCreate();
+
+    Trinity::AttackableUnitInObjectRangeCheck u_check(this, fMaxSearchRange);
+    Trinity::UnitListSearcher<Trinity::AttackableUnitInObjectRangeCheck> searcher(this, list, u_check);
+
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AttackableUnitInObjectRangeCheck>, WorldTypeMapContainer > world_unit_searcher(searcher);
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AttackableUnitInObjectRangeCheck>, GridTypeMapContainer >  grid_unit_searcher(searcher);
+
+    cell.Visit(p, world_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+    cell.Visit(p, grid_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+
+}
+
+
 bool Unit::VisibleAuraSlotCompare::operator()(AuraApplication* left, AuraApplication* right) const
 {
     return left->GetSlot() < right->GetSlot();
@@ -13771,4 +14003,28 @@ std::string Unit::GetDebugInfo() const
     }
 
     return sstr.str();
+}
+
+//tmp
+//BrawlersGuild* Unit::GetBrawlerGuild()
+//{
+//    if (Map* map = GetMap())
+//        return map->m_brawlerGuild;
+//
+//    return nullptr;
+//}
+
+
+
+bool Unit::IsPlayerBot()
+{
+    //if (GetTypeId() != TYPEID_PLAYER)
+    //	return false;
+    Player* player = ToPlayer();//dynamic_cast<Player*> (this);
+    if (!player)
+        return false;
+    WorldSession* pSession = player->GetSession();
+    if (!pSession)
+        return false;
+    return pSession->IsBotSession();
 }

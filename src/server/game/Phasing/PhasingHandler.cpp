@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -92,12 +92,66 @@ public:
 private:
     Trinity::Containers::FlatSet<WorldObject*, std::less<WorldObject*>, boost::container::small_vector<WorldObject*, 8>> _visited;
 };
+//旧的模板2 引用"ForAllControlled"
+template<typename Func>
+inline void ForAllControlled(Unit* unit, Func&& func)
+{
+    for (Unit* controlled : unit->m_Controlled)
+        if (controlled->GetTypeId() != TYPEID_PLAYER)
+            func(controlled);
 
+    for (ObjectGuid summonGuid : unit->m_SummonSlot)
+        if (!summonGuid.IsEmpty())
+            if (Creature* summon = unit->GetMap()->GetCreature(summonGuid))
+                func(summon);
+}
+
+//AddPhaseTC旧的模板1
 void PhasingHandler::AddPhase(WorldObject* object, uint32 phaseId, bool updateVisibility)
 {
     ControlledUnitVisitor visitor(object);
-    AddPhase(object, phaseId, object->GetGUID(), updateVisibility, visitor);
+    AddPhase(object, phaseId, object->GetGUID(), updateVisibility);//复制新模板,后加
 }
+
+//AddPhaseTC旧的模板2
+void PhasingHandler::AddPhase(WorldObject* object, uint32 phaseId, ObjectGuid const& personalGuid, bool updateVisibility)
+{
+    bool changed = object->GetPhaseShift().AddPhase(phaseId, GetPhaseFlags(phaseId), nullptr);
+
+    if (object->GetPhaseShift().PersonalReferences)
+        object->GetPhaseShift().PersonalGuid = personalGuid;
+
+    if (Unit* unit = object->ToUnit())
+    {
+        unit->OnPhaseChange();
+        ForAllControlled(unit, [&](Unit* controlled)
+            {
+                AddPhase(controlled, phaseId, personalGuid, updateVisibility);
+            });
+        unit->RemoveNotOwnSingleTargetAuras(true);
+    }
+
+    UpdateVisibilityIfNeeded(object, updateVisibility, changed);
+}
+//上面一段,可用CTRL+K,CTRL+U取消注释
+
+//void PhasingHandler::AddPhase(WorldObject* object, uint32 phaseId, ObjectGuid const& personalGuid, bool updateVisibility)
+//{
+//}
+//系统自动生成,重复
+
+
+
+//void PhasingHandler::AddPhase(WorldObject* object, uint32 phaseId, bool updateVisibility)
+//{
+//    ControlledUnitVisitor visitor(object);
+//    AddPhase(object, phaseId, object->GetGUID(), updateVisibility, visitor);
+//}
+//
+//void PhasingHandler::AddPhase(WorldObject* object, uint32 phaseId, ObjectGuid const& personalGuid, bool updateVisibility)
+//{
+//}
+
 
 void PhasingHandler::AddPhase(WorldObject* object, uint32 phaseId, ObjectGuid const& personalGuid, bool updateVisibility, ControlledUnitVisitor& visitor)
 {

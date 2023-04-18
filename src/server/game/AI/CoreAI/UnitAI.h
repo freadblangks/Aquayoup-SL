@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -72,6 +72,7 @@ class TC_GAME_API UnitAI
         virtual void DoAction(int32 /*param*/) { }
         virtual uint32 GetData(uint32 /*id = 0*/) const { return 0; }
         virtual void SetData(uint32 /*id*/, uint32 /*value*/) { }
+//        virtual void SetGUID(ObjectGuid /*guid*/, int32 /*id*/ = 0) { }//OLD STYLE
         virtual void SetGUID(ObjectGuid const& /*guid*/, int32 /*id*/ = 0) { }
         virtual ObjectGuid GetGUID(int32 /*id*/ = 0) const { return ObjectGuid::Empty; }
 
@@ -141,6 +142,10 @@ class TC_GAME_API UnitAI
         // Called at any Damage from any attacker (before damage apply)
         // Note: it for recalculation damage or special reaction at damage
         virtual void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) { }
+
+        // for attack reaction use AttackedBy called for not DOT damage in Unit::DealDamage also
+        virtual void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/) { }    //OLD STYLE
+
 
         // Called when the creature receives heal
         virtual void HealReceived(Unit* /*done_by*/, uint32& /*addhealth*/) { }

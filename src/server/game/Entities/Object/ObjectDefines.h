@@ -37,6 +37,8 @@
 #define DEFAULT_VISIBILITY_BGARENAS     533.0f                  // default visible distance in BG/Arenas, roughly 533 yards
 
 #define DEFAULT_PLAYER_BOUNDING_RADIUS      0.388999998569489f     // player size, also currently used (correctly?) for any non Unit world objects
+#define DEFAULT_WORLD_OBJECT_SIZE       0.388999998569489f      // player size, also currently used (correctly?) for any non Unit world objects
+
 #define DEFAULT_PLAYER_COMBAT_REACH         1.5f
 #define DEFAULT_PLAYER_DISPLAY_SCALE        1.0f
 #define DEFAULT_PLAYER_HOVER_HEIGHT         1.0f

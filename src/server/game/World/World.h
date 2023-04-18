@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -180,6 +180,8 @@ enum WorldBoolConfigs
     CONFIG_BASEMAP_LOAD_GRIDS,
     CONFIG_INSTANCEMAP_LOAD_GRIDS,
     CONFIG_BLACKMARKET_ENABLED,
+    
+
     CONFIG_HOTSWAP_ENABLED,
     CONFIG_HOTSWAP_RECOMPILER_ENABLED,
     CONFIG_HOTSWAP_EARLY_TERMINATION_ENABLED,
@@ -191,10 +193,16 @@ enum WorldBoolConfigs
     CONFIG_CREATURE_CHECK_INVALID_POSITION,
     CONFIG_GAME_OBJECT_CHECK_INVALID_POSITION,
     CONFIG_CHECK_GOBJECT_LOS,
-    CONFIG_RESPAWN_DYNAMIC_ESCORTNPC,
+    CONFIG_RESPAWN_DYNAMIC_ESCORTNPC,//要添加处
+
+    CONFIG_BATTLE_PAY_ENABLED,
     CONFIG_REGEN_HP_CANNOT_REACH_TARGET_IN_RAID,
     CONFIG_ALLOW_LOGGING_IP_ADDRESSES_IN_DATABASE,
     CONFIG_CHARACTER_CREATING_DISABLE_ALLIED_RACE_ACHIEVEMENT_REQUIREMENT,
+    CONFIG_NO_CAST_TIME,
+    CONFIG_HURT_IN_REAL_TIME,
+    CONFIG_GAIN_HONOR_GUARD,
+    CONFIG_GAIN_HONOR_ELITE,
     BOOL_CONFIG_VALUE_COUNT
 };
 
@@ -222,11 +230,18 @@ enum WorldFloatConfigs
     CONFIG_CALL_TO_ARMS_5_PCT,
     CONFIG_CALL_TO_ARMS_10_PCT,
     CONFIG_CALL_TO_ARMS_20_PCT,
-    FLOAT_CONFIG_VALUE_COUNT
+	CONFIG_SPEED_GAME,
+	CONFIG_ATTACKSPEED_PLAYER,
+    CONFIG_ATTACKSPEED_ALL,
+    CONFIG_RESPAWNSPEED,
+	FLOAT_CONFIG_VALUE_COUNT,
+
+    CONFIG_SPECIAL_FEAR_DISTANCE
 };
 
 enum WorldIntConfigs
 {
+    CONFIG_INSTANCE_RESET_TIME_HOUR,
     CONFIG_COMPRESSION = 0,
     CONFIG_INTERVAL_SAVE,
     CONFIG_INTERVAL_GRIDCLEAN,
@@ -374,6 +389,7 @@ enum WorldIntConfigs
     CONFIG_PRESERVE_CUSTOM_CHANNEL_INTERVAL,
     CONFIG_PERSISTENT_CHARACTER_CLEAN_FLAGS,
     CONFIG_LFG_OPTIONSMASK,
+    CONFIG_LFG_SOLOOPTIONSMASK,
     CONFIG_MAX_INSTANCES_PER_HOUR,
     CONFIG_XP_BOOST_DAYMASK,
     CONFIG_WARDEN_CLIENT_RESPONSE_DELAY,
@@ -412,6 +428,7 @@ enum WorldIntConfigs
     CONFIG_AHBOT_UPDATE_INTERVAL,
     CONFIG_FEATURE_SYSTEM_CHARACTER_UNDELETE_COOLDOWN,
     CONFIG_CHARTER_COST_GUILD,
+    CONFIG_QUEST_AUTOCOMPLETE_DELAY,
     CONFIG_CHARTER_COST_ARENA_2v2,
     CONFIG_CHARTER_COST_ARENA_3v3,
     CONFIG_CHARTER_COST_ARENA_5v5,
@@ -432,7 +449,13 @@ enum WorldIntConfigs
     CONFIG_SOCKET_TIMEOUTTIME_ACTIVE,
     CONFIG_BLACKMARKET_MAXAUCTIONS,
     CONFIG_BLACKMARKET_UPDATE_PERIOD,
+    CONFIG_PBOT_ACCOUNT_COUNT,
+    CONFIG_PBOT_MAX_ONLINE_COUNT,
+    CONFIG_PBOT_AUTOLOGIN_A_COUNT,
+    CONFIG_PBOT_AUTOLOGIN_H_COUNT,
     CONFIG_FACTION_BALANCE_LEVEL_CHECK_DIFF,
+
+    CONFIG_BATTLE_PAY_CURRENCY,
     INT_CONFIG_VALUE_COUNT
 };
 
@@ -666,6 +689,11 @@ class TC_GAME_API World
         /// Get the path where data (dbc, maps) are stored on disk
         std::string const& GetDataPath() const { return m_dataPath; }
 
+        /// What time is it?
+        time_t const& GetGameTime() const { return m_gameTime; }
+        /// Uptime (in secs)
+        uint32 GetUptime() const { return uint32(m_gameTime - m_startTime); }
+
         /// Next daily quests and random bg reset time
         time_t GetNextDailyQuestsResetTime() const { return m_NextDailyQuestReset; }
         time_t GetNextWeeklyQuestsResetTime() const { return m_NextWeeklyQuestReset; }
@@ -856,6 +884,8 @@ class TC_GAME_API World
         uint32 m_CleaningFlags;
 
         bool m_isClosed;
+        time_t m_startTime;
+        time_t m_gameTime;
 
         IntervalTimer m_timers[WUPDATE_COUNT];
         time_t mail_timer;

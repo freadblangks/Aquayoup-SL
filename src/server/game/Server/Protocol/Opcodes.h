@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -1021,6 +1021,7 @@ enum OpcodeServer : uint16
     SMSG_BATTLE_PET_TRAP_LEVEL                        = 0x25EA,
     SMSG_BATTLE_PET_UPDATES                           = 0x25E9,
     SMSG_BIND_POINT_UPDATE                            = 0x257D,
+    SMSG_BINDER_CONFIRM                               = 0x26EF,
     SMSG_BLACK_MARKET_BID_ON_ITEM_RESULT              = 0x2626,
     SMSG_BLACK_MARKET_OUTBID                          = 0x2627,
     SMSG_BLACK_MARKET_REQUEST_ITEMS_RESULT            = 0x2625,
@@ -1109,6 +1110,7 @@ enum OpcodeServer : uint16
     SMSG_CHECK_CHARACTER_NAME_AVAILABILITY_RESULT     = 0x2584,
     SMSG_CHECK_WARGAME_ENTRY                          = 0x2592,
     SMSG_CHROMIE_TIME_SELECT_EXPANSION_SUCCESS        = 0x286C,
+    SMSG_CHROMIE_TIME_OPEN_NPC                        = 0x27EC,
     SMSG_CLAIM_RAF_REWARD_RESPONSE                    = 0x2853,
     SMSG_CLEAR_ALL_SPELL_CHARGES                      = 0x2C27,
     SMSG_CLEAR_BOSS_EMOTES                            = 0x25BB,
@@ -1291,7 +1293,9 @@ enum OpcodeServer : uint16
     SMSG_GARRISON_MISSION_REQUEST_REWARD_INFO_RESPONSE = 0x29A1,
     SMSG_GARRISON_MISSION_START_CONDITION_UPDATE      = 0x2983,
     SMSG_GARRISON_OPEN_CRAFTER                        = 0x2995,
+    SMSG_GARRISON_OPEN_MISSION_NPC                    = 0x2996,
     SMSG_GARRISON_OPEN_RECRUITMENT_NPC                = 0x298E,
+    SMSG_GARRISON_OPEN_TALENT_NPC                     = 0x298F,
     SMSG_GARRISON_PLACE_BUILDING_RESULT               = 0x2961,
     SMSG_GARRISON_PLOT_PLACED                         = 0x295F,
     SMSG_GARRISON_PLOT_REMOVED                        = 0x2960,
@@ -1435,6 +1439,9 @@ enum OpcodeServer : uint16
     SMSG_INVALIDATE_PLAYER                            = 0x2FFF,
     SMSG_INVALID_PROMOTION_CODE                       = 0x274E,
     SMSG_INVENTORY_CHANGE_FAILURE                     = 0x2DA5,
+    
+    
+    SMSG_ISLANDS_MISSION_NPC                          = 0x27E9,
     SMSG_INVENTORY_FIXUP_COMPLETE                     = 0x280F,
     SMSG_INVENTORY_FULL_OVERFLOW                      = 0x2820,
     SMSG_ISLAND_AZERITE_GAIN                          = 0x2757,

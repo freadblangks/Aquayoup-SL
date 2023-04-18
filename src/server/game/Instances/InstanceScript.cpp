@@ -42,11 +42,13 @@
 #include "World.h"
 #include "WorldSession.h"
 #include "WorldStateMgr.h"
+#include "MiscPackets.h"
 #include <cstdarg>
 
 #ifdef TRINITY_API_USE_DYNAMIC_LINKING
 #include "ScriptMgr.h"
 #endif
+
 
 BossBoundaryData::~BossBoundaryData()
 {
@@ -200,6 +202,27 @@ void InstanceScript::LoadObjectData(ObjectData const* creatureData, ObjectData c
 
     TC_LOG_DEBUG("scripts", "InstanceScript::LoadObjectData: {} objects loaded.", _creatureInfo.size() + _gameObjectInfo.size());
 }
+//后加
+void InstanceScript::GiveIslandAzeriteXpGain(Player* player, ObjectGuid guid, int32 xp)
+{
+    WorldPackets::Misc::IslandAzeriteXpGain xpgain;
+    xpgain.SourceGuid = guid;
+    xpgain.SourceID = guid.GetEntry();
+    xpgain.PlayerGuid = player->GetGUID();
+    xpgain.XpGain = xp;
+    player->GetSession()->SendPacket(xpgain.Write());
+
+    if (player->IsInAlliance())
+        _islandCount[0] = _islandCount[0] + xp;
+    else
+        _islandCount[1] = _islandCount[1] + xp;
+
+
+    player->CastSpell(player, SPELL_AZERITE_ENERGY, true);
+
+    DoUpdateWorldState(WORLDSTATE_ALLIANCE_GAIN, _islandCount[0]);
+    DoUpdateWorldState(WORLDSTATE_HORDE_GAIN, _islandCount[1]);
+}
 
 void InstanceScript::LoadObjectData(ObjectData const* data, ObjectInfoMap& objectInfo)
 {
@@ -261,7 +284,7 @@ void InstanceScript::UpdateMinionState(Creature* minion, EncounterState state)
             if (!minion->IsAlive())
                 minion->Respawn();
             else if (!minion->GetVictim())
-                minion->AI()->DoZoneInCombat();
+                //tmp                minion->AI()->DoZoneInCombat();
             break;
         default:
             break;

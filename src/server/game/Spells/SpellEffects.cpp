@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -1337,6 +1337,8 @@ void Spell::DoCreateItem(uint32 itemId, ItemContext context /*= ItemContext::NON
         if (pItem->GetQuality() > ITEM_QUALITY_EPIC || (pItem->GetQuality() == ITEM_QUALITY_EPIC && pItem->GetItemLevel(player) >= MinNewsItemLevel))
             if (Guild* guild = player->GetGuild())
                 guild->AddGuildNews(GUILD_NEWS_ITEM_CRAFTED, player->GetGUID(), 0, pProto->GetId());
+
+		sScriptMgr->OnCreateItem(player, pItem, num_to_add);
 
         // we succeeded in creating at least one item, so a levelup is possible
         player->UpdateCraftSkill(m_spellInfo);
@@ -4093,7 +4095,7 @@ void Spell::EffectDispelMechanic()
         unitTarget->RemoveAura(itr->first, itr->second, 0, AURA_REMOVE_BY_ENEMY_SPELL);
 }
 
-void Spell::EffectResurrectPet()
+void Spell::EffectResurrectPet()//revive pet
 {
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
         return;
@@ -4106,6 +4108,7 @@ void Spell::EffectResurrectPet()
         return;
 
     // Maybe player dismissed dead pet or pet despawned?
+    
     bool hadPet = true;
 
     if (!player->GetPet())
@@ -4125,11 +4128,14 @@ void Spell::EffectResurrectPet()
     }
 
     // TODO: Better to fail Hunter's "Revive Pet" at cast instead of here when casting ends
-    Pet* pet = player->GetPet(); // Attempt to get current pet
-    if (!pet || pet->IsAlive())
+    // 将做:更新此处代码:当技能释放结束时,更好地让猎人"复活宠物"失败
+    //This is supposed to be the codes when pet revive
+    Pet* pet = player->GetPet(); // Attempt to get current pet  
+    if (!pet || pet->IsAlive()) //No pet or pet is dead
         return;
 
     // If player did have a pet before reviving, teleport it
+    
     if (hadPet)
     {
         // Reposition the pet's corpse before reviving so as not to grab aggro
@@ -4160,7 +4166,7 @@ void Spell::EffectResurrectPet()
         ci->SetIsReturning(false);
     }
 
-    pet->SavePetToDB(PET_SAVE_AS_CURRENT);
+    pet->SavePetToDB(PET_SAVE_AS_CURRENT);  //save pet to database
 }
 
 void Spell::EffectDestroyAllTotems()

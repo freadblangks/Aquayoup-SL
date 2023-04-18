@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -78,6 +78,8 @@ class TC_GAME_API CreatureAI : public UnitAI
 
         void Talk(uint8 id, WorldObject const* whisperTarget = nullptr);
 
+        //void DoZoneInCombat(Creature* creature, float maxRangeToNearestTarget);//系统自动生成
+        //void DoZoneInCombat(Creature* creature = nullptr, float maxRangeToNearestTarget = 250.0f);//后加
         /// == Reactions At =================================
 
         // Called if IsVisible(Unit* who) is true at each who move, reaction at visibility zone enter
@@ -106,7 +108,10 @@ class TC_GAME_API CreatureAI : public UnitAI
 
         // Called when the creature summon successfully other creature
         virtual void JustSummoned(Creature* /*summon*/) { }
-        virtual void IsSummonedBy(WorldObject* /*summoner*/) { }
+        
+        virtual void IsSummonedBy(WorldObject* /*summoner*/) { }//原版
+        
+        virtual void IsSummonedBy(Unit* /*summoner*/) { }//后来的
 
         virtual void SummonedCreatureDespawn(Creature* /*summon*/) { }
         virtual void SummonedCreatureDies(Creature* /*summon*/, Unit* /*killer*/) { }
@@ -151,6 +156,12 @@ class TC_GAME_API CreatureAI : public UnitAI
         virtual void MovementInform(uint32 /*type*/, uint32 /*id*/) { }
 
         void OnCharmed(bool isNew) override;
+
+        // Called when a spell cast gets interrupted
+        virtual void OnSpellCastInterrupt(SpellInfo const* /*spell*/) { }
+
+        // Called when a spell cast has been successfully finished
+        virtual void OnSuccessfulSpellCast(SpellInfo const* /*spell*/) { }
 
         // Called at reaching home after evade
         virtual void JustReachedHome() { }

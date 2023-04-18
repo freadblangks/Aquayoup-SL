@@ -116,6 +116,19 @@ class DatabaseWorkerPool
         //! Returns reference counted auto pointer, no need for manual memory management in upper level code.
         QueryResult Query(char const* sql, T* connection = nullptr);
 
+
+        //QueryResult Query(std::string_view sql);
+
+
+        //template<typename... Args>//AZ
+        //QueryResult Query(std::string_view sql, Args&&... args)//AZ
+        //{
+        //    if (sql.empty())
+        //        return QueryResult(nullptr);
+
+        //    return Query(Trinity::StringFormatFmt(sql, std::forward<Args>(args)...));
+        //}
+
         //! Directly executes an SQL query in string format -with variable args- that will block the calling thread until finished.
         //! Returns reference counted auto pointer, no need for manual memory management in upper level code.
         template<typename... Args>
@@ -209,7 +222,7 @@ class DatabaseWorkerPool
         void WarnAboutSyncQueries([[maybe_unused]] bool warn)
         {
 #ifdef TRINITY_DEBUG
-            _warnSyncQueries = warn;
+          //  _warnSyncQueries = warn;
 #endif
         }
 
@@ -235,7 +248,8 @@ class DatabaseWorkerPool
         std::vector<uint8> _preparedStatementSize;
         uint8 _async_threads, _synch_threads;
 #ifdef TRINITY_DEBUG
-        static inline thread_local bool _warnSyncQueries = false;
+       // static inline thread_local bool _warnSyncQueries = false;
+       // static inline thread_local bool _warnSyncQueries = true;
 #endif
 };
 

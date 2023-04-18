@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -311,6 +311,14 @@ struct LFGDungeonData
     uint32 Entry() const { return id + (type << 24); }
 };
 
+struct LFGBotRequirement
+{
+    TeamId needTeam;
+    LfgRoles needRole;
+    uint8 needLevel;
+    LfgDungeonSet selectedDungeons;
+};
+
 class TC_GAME_API LFGMgr
 {
     private:
@@ -424,6 +432,17 @@ class TC_GAME_API LFGMgr
         /// Gets unique join queue data
         WorldPackets::LFG::RideTicket const* GetTicket(ObjectGuid guid) const;
 
+        /// Toggle LFG in debug mode    //后加 TCB
+        void ToggleSoloLFG();           //后加 TCB
+        /// Check if debug mode         //后加 TCB  
+        bool IsSoloLFG() const { return m_isSoloLFG; }  //后加 TCB,来源于SOLO系列,但其实没成功,现在的单机是直接改的NumberPlayer的值
+
+        /// Toggle LFG in debug mode
+        void ToggleTesting();
+        /// Check if debug mode //OpenL
+        bool IsTesting() const { return m_isTesting; }//OpenL
+
+
         // LfgQueue
         /// Get last lfg state (NONE, DUNGEON or FINISHED_DUNGEON)
         LfgState GetOldState(ObjectGuid guid);
@@ -485,6 +504,10 @@ class TC_GAME_API LFGMgr
         uint32 m_QueueTimer;                               /// used to check interval of update
         uint32 m_lfgProposalId;                            /// used as internal counter for proposals
         uint32 m_options;                                  /// Stores config options
+
+        bool m_isTesting;   //OpenL
+
+        bool m_isSoloLFG;                                  /// solo lfg //根据TrinityCoreBased后加,为了实现单人随机地下城查找器脚本的启用
 
         LfgQueueContainer QueuesStore;                     /// Queues
         LfgCachedDungeonContainer CachedDungeonMapStore;   /// Stores all dungeons by groupType

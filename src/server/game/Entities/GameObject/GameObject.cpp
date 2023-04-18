@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -643,7 +643,7 @@ void GameObject::RemoveFromWorld()
     }
 }
 
-bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit, bool dynamic, ObjectGuid::LowType spawnid)
+bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit, bool dynamic, ObjectGuid::LowType spawnid, float size /*= -1*/)
 {
     ASSERT(map);
     SetMap(map);
@@ -713,7 +713,10 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
 
     SetParentRotation(parentRotation);
 
-    SetObjectScale(goInfo->size);
+    if (size > 0.0f)
+        SetObjectScale(size);
+    else
+        SetObjectScale(goInfo->size);
 
     if (GameObjectOverride const* goOverride = GetGameObjectOverride())
     {
@@ -889,6 +892,10 @@ GameObject* GameObject::CreateGameObjectFromDB(ObjectGuid::LowType spawnId, Map*
     return go;
 }
 
+void GameObject::TimeSeg(uint32 /*p_timeSeg*/)
+{
+}
+
 void GameObject::Update(uint32 diff)
 {
     WorldObject::Update(diff);
@@ -971,6 +978,55 @@ void GameObject::Update(uint32 diff)
                     SetLootState(GO_READY);
                     break;
                 }
+                case GAMEOBJECT_TYPE_TRANSPORT:
+                {
+                    if (!m_goValue.Transport.AnimationInfo)
+                        break;
+
+                    if (GetGoState() == GO_STATE_TRANSPORT_ACTIVE)
+                    {
+                        m_goValue.Transport.PathProgress += diff;
+                        /* TODO: Fix movement in unloaded grid - currently GO will just disappear*/
+                        //uint32 timer = m_goValue.Transport.PathProgress % GetTransportPeriod();
+                        //TransportAnimationEntry const* node = m_goValue.Transport.AnimationInfo->GetAnimNode(timer);
+                        /*if (node && m_goValue.Transport.CurrentSeg != node->TimeSeg)
+                        {
+                            m_goValue.Transport.CurrentSeg = node->TimeSeg;
+
+                            G3D::Quat rotation;
+                            if (TransportRotationEntry const* rot = m_goValue.Transport.AnimationInfo->GetAnimRotation(timer))
+                                rotation = G3D::Quat(rot->X, rot->Y, rot->Z, rot->W);
+
+                            G3D::Vector3 pos = rotation.toRotationMatrix()
+                                             * G3D::Matrix3::fromEulerAnglesZYX(GetOrientation(), 0.0f, 0.0f)
+                                             * G3D::Vector3(node->X, node->Y, node->Z);
+
+                            pos += G3D::Vector3(GetStationaryX(), GetStationaryY(), GetStationaryZ());
+
+                            G3D::Vector3 src(GetPositionX(), GetPositionY(), GetPositionZ());
+
+                            TC_LOG_DEBUG("misc", "Src: %s Dest: %s", src.toString().c_str(), pos.toString().c_str());
+
+                            GetMap()->GameObjectRelocation(this, pos.x, pos.y, pos.z, GetOrientation());
+                        }*/
+                        
+
+                        if (!m_goValue.Transport.StopFrames->empty())
+                        {
+                            uint32 visualStateBefore = (m_goValue.Transport.StateUpdateTimer / 20000) & 1;
+                            m_goValue.Transport.StateUpdateTimer += diff;
+                            uint32 visualStateAfter = (m_goValue.Transport.StateUpdateTimer / 20000) & 1;
+                            if (visualStateBefore != visualStateAfter)
+                            {
+                                ForceUpdateFieldChange(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::Level));
+                                ForceUpdateFieldChange(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::State));
+                            }
+                        }
+                    }
+                    break;
+                }
+                // This part is still a todo.It caused after a mass of merge.Tmp unuse.
+                // From today on,no chinese remarks.It often cant see after merged.
                 case GAMEOBJECT_TYPE_FISHINGNODE:
                 {
                     // fishing code (bobber ready)
@@ -1237,8 +1293,8 @@ void GameObject::Update(uint32 diff)
                         // Some traps do not have a spell but should be triggered
                         CastSpellExtraArgs args;
                         args.SetOriginalCaster(GetOwnerGUID());
-                        if (goInfo->trap.spell)
-                            CastSpell(target, goInfo->trap.spell, args);
+                        /*if (goInfo->trap.spell)
+                            CastSpell(target, goInfo->trap.spell, args);*/  //暂时不想弄
 
                         // Template value or 4 seconds
                         m_cooldownTime = GameTime::GetGameTimeMS() + (goInfo->trap.cooldown ? goInfo->trap.cooldown : uint32(4)) * IN_MILLISECONDS;
@@ -1541,6 +1597,24 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
     data.artKit = GetGoArtKit();
     if (!data.spawnGroupData)
         data.spawnGroupData = sObjectMgr->GetDefaultSpawnGroup();
+    if (data.size == 0.0f)
+    {
+        // first save, use default if scale matches template or use custom scale if not
+        if (goI && goI->size == GetObjectScale())
+            data.size = -1.0f;
+        else
+            data.size = GetObjectScale();
+    }
+    else if (data.size < 0.0f || (goI && goI->size == data.size))
+    {
+        // scale is negative or matches template, use default
+        data.size = -1.0f;
+    }
+    else
+    {
+        // scale is positive and does not match template
+        // using data.size or could do data.size = GetObjectScale()
+    }
 
     data.phaseId = GetDBPhase() > 0 ? GetDBPhase() : data.phaseId;
     data.phaseGroup = GetDBPhase() < 0 ? -GetDBPhase() : data.phaseGroup;
@@ -1585,6 +1659,7 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
     stmt->setInt32(index++, int32(m_respawnDelayTime));
     stmt->setUInt8(index++, GetGoAnimProgress());
     stmt->setUInt8(index++, uint8(GetGoState()));
+    stmt->setFloat(index++, data.size);
     trans->Append(stmt);
 
     WorldDatabase.CommitTransaction(trans);
@@ -1605,10 +1680,11 @@ bool GameObject::LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap
     uint32 animprogress = data->animprogress;
     GOState go_state = data->goState;
     uint32 artKit = data->artKit;
+    float size = data->size;
 
     m_spawnId = spawnId;
     m_respawnCompatibilityMode = ((data->spawnGroupData->flags & SPAWNGROUP_FLAG_COMPATIBILITY_MODE) != 0);
-    if (!Create(entry, map, data->spawnPoint, data->rotation, animprogress, go_state, artKit, !m_respawnCompatibilityMode, spawnId))
+    if (!Create(entry, map, data->spawnPoint, data->rotation, animprogress, go_state, artKit, !m_respawnCompatibilityMode, spawnId, size))
         return false;
 
     PhasingHandler::InitDbPhaseShift(GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
@@ -1799,7 +1875,7 @@ bool GameObject::IsNeverVisibleFor(WorldObject const* seer, bool allowServerside
     if (GetGOInfo()->GetServerOnly() && !allowServersideObjects)
         return true;
 
-    if (!GetDisplayId())
+    if (!GetDisplayId() && GetGOInfo()->IsDisplayMandatory())
         return true;
 
     return false;
@@ -2356,7 +2432,7 @@ void GameObject::Use(Unit* user)
             for (auto& [slot, sittingUnit] : ChairListSlots)
             {
                 // the distance between this slot and the center of the go - imagine a 1D space
-                float relativeDistance = (info->size * slot) - (info->size * (info->chair.chairslots - 1) / 2.0f);
+                float relativeDistance = (GetObjectScale() * slot) - (GetObjectScale() * (info->chair.chairslots - 1) / 2.0f);
 
                 float x_i = GetPositionX() + relativeDistance * std::cos(orthogonalOrientation);
                 float y_i = GetPositionY() + relativeDistance * std::sin(orthogonalOrientation);
@@ -3045,6 +3121,68 @@ void GameObject::Use(Unit* user)
         CastSpell(user, spellId);
 }
 
+void GameObject::CastSpell(Unit* target, uint32 spellId, bool triggered /* = true*/)
+{
+    CastSpell(target, spellId, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE);
+}
+
+void GameObject::CastSpell(Unit* target, uint32 spellId, TriggerCastFlags triggered)
+{
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, GetMap()->GetDifficultyID());
+    if (!spellInfo)
+        return;
+    bool self = false;
+    //for (SpellEffectInfo const* effect : &spellInfo->GetEffects())
+    //{
+    //    if (effect && effect->TargetA.GetTarget() == TARGET_UNIT_CASTER)
+    //    {
+    //        self = true;
+    //        break;
+    //    }
+    //}
+
+    if (self)
+    {
+        if (target)
+            target->CastSpell(target, spellInfo->Id, triggered);
+        return;
+    }
+
+    //summon world trigger
+    //Creature* trigger = SummonTrigger(GetPositionX(), GetPositionY(), GetPositionZ(), 0, spellInfo->CalcCastTime() + 100);
+    //if (!trigger)
+    //    return;
+
+    // remove immunity flags, to allow spell to target anything
+    //trigger->SetImmuneToAll(false);
+    //PhasingHandler::InheritPhaseShift(trigger, this);
+
+    CastSpellExtraArgs args;
+    args.TriggerFlags = triggered;
+    //if (Unit* owner = GetOwner())
+    //{
+    //    trigger->SetFaction(owner->GetFaction());
+    //    //if (owner->HasUnitFlag(UNIT_FLAG_PVP_ATTACKABLE))
+    //    //    trigger->AddUnitFlag(UNIT_FLAG_PVP_ATTACKABLE);
+    //    // copy pvp state flags from owner
+    //    /*trigger->SetPvpFlags(owner->GetPvpFlags());*/
+    //    // needed for GO casts for proper target validation checks
+    //    trigger->SetOwnerGUID(owner->GetGUID());
+
+    //    args.OriginalCaster = owner->GetGUID();
+    //    trigger->CastSpell(target ? target : trigger, spellInfo->Id, args);
+    //}
+    //else
+    //{
+    //    trigger->SetFaction(spellInfo->IsPositive() ? FACTION_FRIENDLY : FACTION_MONSTER);
+    //    // Set owner guid for target if no owner available - needed by trigger auras
+    //    // - trigger gets despawned and there's no caster avalible (see AuraEffect::TriggerSpell())
+    //    args.OriginalCaster = target ? target->GetGUID() : ObjectGuid::Empty;
+    //    trigger->CastSpell(target ? target : trigger, spellInfo->Id, args);
+    //}
+}
+
+
 void GameObject::SendCustomAnim(uint32 anim)
 {
     WorldPackets::GameObject::GameObjectCustomAnim customAnim;
@@ -3406,6 +3544,11 @@ void GameObject::SetGoState(GOState state)
 
         EnableCollision(collision);
     }
+}
+
+uint32 GameObject::GetTransportPeriod() const
+{
+    return uint32();
 }
 
 GOState GameObject::GetGoStateFor(ObjectGuid const& viewer) const

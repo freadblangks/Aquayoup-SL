@@ -203,7 +203,11 @@ void AddSC_tirisfal_glades();
 void AddSC_tol_barad();
 void AddSC_undercity();
 //void AddSC_western_plaguelands();
-
+//void AddSC_wetlands();
+//void AddSC_zone_gilneas();
+////void AddSC_western_plaguelands();
+//
+//void AddSC_zone_westfall();
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
 void AddEasternKingdomsScripts()
@@ -395,5 +399,9 @@ void AddEasternKingdomsScripts()
     AddSC_tirisfal_glades();
     AddSC_tol_barad();
     AddSC_undercity();
+    //AddSC_western_plaguelands();
+    //AddSC_zone_westfall();    // westfall
+    //AddSC_wetlands();
+    //AddSC_zone_gilneas();    // gilneas
     //AddSC_western_plaguelands();
 }

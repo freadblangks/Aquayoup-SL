@@ -53,6 +53,16 @@ enum LootMethod : uint8;
 #define RAID_MARKERS_COUNT  8
 
 #define READYCHECK_DURATION 35000
+struct InstanceGroupBind
+{
+    InstanceSave* save;
+    bool perm;
+    /* permanent InstanceGroupBinds exist if the leader has a permanent
+       PlayerInstanceBind for the same instance. */
+    InstanceGroupBind() : save(nullptr), perm(false) { }
+};
+
+InstanceGroupBind* GetBoundInstance(Map* aMap);
 
 enum GroupMemberOnlineStatus
 {
@@ -187,7 +197,7 @@ class TC_GAME_API Group
         };
         typedef std::list<MemberSlot> MemberSlotList;
         typedef MemberSlotList::const_iterator member_citerator;
-
+        typedef std::unordered_map<Difficulty, std::unordered_map<uint32 /*mapId*/, InstanceGroupBind>> BoundInstancesMap;
     protected:
         typedef MemberSlotList::iterator member_witerator;
         typedef std::set<Player*> InvitesList;
@@ -200,6 +210,10 @@ class TC_GAME_API Group
 
         // group manipulation methods
         bool Create(Player* leader);
+        void OnLeaderChangePhase(Player* changeTarget);
+        
+        //TCB
+        bool AllGroupIsIDLE();
         void LoadGroupFromDB(Field* field);
         void LoadMemberFromDB(ObjectGuid::LowType guidLow, uint8 memberFlags, uint8 subgroup, uint8 roles);
         bool AddInvite(Player* player);
@@ -356,9 +370,17 @@ class TC_GAME_API Group
 
         void LinkOwnedInstance(GroupInstanceReference* ref);
 
+        
+		void UnbindInstance(uint32 mapid, uint8 difficulty, bool unload = false);
         void StartLeaderOfflineTimer();
         void StopLeaderOfflineTimer();
         void SelectNewPartyOrRaidLeader();
+
+        InstanceGroupBind* GetBoundInstance(Map* aMap);
+        InstanceGroupBind* GetBoundInstance(MapEntry const* mapEntry);
+        InstanceGroupBind* GetBoundInstance(Difficulty difficulty, uint32 mapId);
+        //InstanceGroupBind* GetBoundInstance(Player* player);
+
 
         // FG: evil hacks
         void BroadcastGroupUpdate(void);
@@ -396,6 +418,7 @@ class TC_GAME_API Group
         GroupInstanceRefManager m_ownedInstancesMgr;
         uint8*              m_subGroupsCounts;
         ObjectGuid          m_guid;
+        BoundInstancesMap   m_boundInstances;
         uint32              m_dbStoreId;                    // Represents the ID used in database (Can be reused by other groups if group was disbanded)
         bool                m_isLeaderOffline;
         TimeTracker         m_leaderOfflineTimer;

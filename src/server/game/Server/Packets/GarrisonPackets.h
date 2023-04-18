@@ -437,6 +437,115 @@ namespace WorldPackets
 
             uint32 GarrPlotInstanceID = 0;
         };
+
+        class GarrisonAssignFollowerToBuilding final : public ClientPacket
+        {
+        public:
+            GarrisonAssignFollowerToBuilding(WorldPacket && packet) : ClientPacket(CMSG_GARRISON_ASSIGN_FOLLOWER_TO_BUILDING, std::move(packet)) { }
+            
+            void Read() override;
+            
+            ObjectGuid NpcGUID;
+            uint32 PlotInstanceID;
+            uint64 FollowerDBID;
+        };
+
+        class GarrisonAddMissionResult final : public ServerPacket
+        {
+        public:
+            GarrisonAddMissionResult() : ServerPacket(SMSG_GARRISON_ADD_MISSION_RESULT, 4) { }
+
+            uint32 GarrType = 0;
+            uint32 Result = 0;
+            uint8 State = 0;
+            GarrisonMission Mission;
+
+            std::vector<GarrisonMissionReward> Rewards;
+            std::vector<GarrisonMissionReward> BonusRewards;
+
+            bool Success = true;
+
+            WorldPacket const* Write() override;
+        };
+
+        class GarrisonCompleteMissionResult final : public ServerPacket
+        {
+        public:
+            GarrisonCompleteMissionResult() : ServerPacket(SMSG_GARRISON_COMPLETE_MISSION_RESULT, 4) { }
+
+            uint32 Result = 0;
+            GarrisonMission Mission;
+            std::map<uint64 /*followerDBID*/, uint32 /*unk*/> Followers;
+            bool Succeed = false;
+
+            WorldPacket const* Write() override;
+        };
+
+        class GarrisonFollowerChangeXP final : public ServerPacket
+        {
+        public:
+            GarrisonFollowerChangeXP() : ServerPacket(SMSG_GARRISON_FOLLOWER_CHANGED_XP, 4) { }
+
+            uint32 XP = 0;
+            uint32 Unk = 0;
+            GarrisonFollower OldFollower;
+            GarrisonFollower NewFollower;
+
+            WorldPacket const* Write() override;
+        };
+
+        class GarrisonMissionBonusRollResult final : public ServerPacket
+        {
+        public:
+            GarrisonMissionBonusRollResult() : ServerPacket(SMSG_GARRISON_MISSION_BONUS_ROLL_RESULT, 4) { }
+
+            GarrisonMission Mission;
+            uint32 Result = 0;
+
+            WorldPacket const* Write() override;
+        };
+
+        class GarrisonOpenMissionNpc final : public ServerPacket
+        {
+        public:
+            GarrisonOpenMissionNpc() : ServerPacket(SMSG_GARRISON_OPEN_MISSION_NPC, 4) { }
+
+            WorldPacket const* Write() override;
+
+            uint32 garrType = 3;
+            uint32 result = 0;
+            std::vector<uint32 /* dbID */> Missions;
+            bool   unk4 = false;
+            bool   preventXmlOpenMissionEvent = false;
+        };
+
+        class GarrisonRecruitFollowerResult final : public ServerPacket
+        {
+        public:
+            GarrisonRecruitFollowerResult() : ServerPacket(SMSG_GARRISON_RECRUIT_FOLLOWER_RESULT, 64) { }
+
+            uint32 resultID = 0;
+            std::vector <GarrisonFollower> followers;
+
+            WorldPacket const* Write() override;
+        };
+
+        WorldPacket InsertGarrisonFollower(WorldPacket& worldPacke, WorldPackets::Garrison::GarrisonFollower follower);
+
+        class GarrisonOpenRecruitmentNpc final : public ServerPacket
+        {
+        public:
+            GarrisonOpenRecruitmentNpc() : ServerPacket(SMSG_GARRISON_OPEN_RECRUITMENT_NPC, 4) { }
+
+            ObjectGuid NpcGUID;
+            uint32 Unk1 = 0;
+            //uint32 Unk2 = 0;
+            //uint32 Unk3 = 0;
+            std::vector <GarrisonFollower> followers;
+            bool CanRecruitFollower = false;
+            bool Unk4 = false;
+            WorldPacket const* Write() override;
+        };
     }
 }
 
