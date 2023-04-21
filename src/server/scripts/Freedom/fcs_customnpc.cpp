@@ -129,7 +129,6 @@ public:
         PhasingHandler::InheritPhaseShift(creature, chr);
         creature->SetDBPhase(sFreedomMgr->GetPlayerPhase(chr));
         creature->SaveToDB(map->GetId(), { map->GetDifficultyID() });
-
         ObjectGuid::LowType db_guid = creature->GetSpawnId();
 
         creature->CleanupsBeforeDelete();
@@ -144,6 +143,9 @@ public:
         }
 
         sObjectMgr->AddCreatureToGrid(sObjectMgr->GetCreatureData(db_guid));
+
+        sFreedomMgr->CreatureSetModifyHistory(creature, chr, true);
+        sFreedomMgr->SaveCreature(creature);
 
         sFreedomMgr->LoadCustomNpcSpawn(id, db_guid);
         handler->PSendSysMessage("Custom NPC %s spawned!", name);

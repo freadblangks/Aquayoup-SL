@@ -215,6 +215,8 @@ public:
         }
 
         sObjectMgr->AddCreatureToGrid(sObjectMgr->GetCreatureData(db_guid));
+        sFreedomMgr->CreatureSetModifyHistory(creature, chr, true);
+        sFreedomMgr->SaveCreature(creature);
         // PhasingHandler::InheritPhaseShift(creature, chr);
         return true;
     }

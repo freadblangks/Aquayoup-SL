@@ -246,7 +246,7 @@ class TC_GAME_API FreedomMgr
         void LoadCreatureTemplateExtras();
         void SetCreatureTemplateExtraDisabledFlag(uint32 entryId, bool disabled);
         void SaveCreature(Creature* creature);
-        void CreatureSetModifyHistory(Creature* creature, Player* modifier);
+        void CreatureSetModifyHistory(Creature* creature, Player* modifier, bool isCreate = false);
         void CreatureMove(Creature* creature, float x, float y, float z, float o);
         void CreatureTurn(Creature* creature, float o);
         void CreatureScale(Creature* creature, float scale);

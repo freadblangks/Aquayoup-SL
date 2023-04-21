@@ -493,7 +493,7 @@ void FreedomMgr::SaveCreature(Creature* creature)
     }
 }
 
-void FreedomMgr::CreatureSetModifyHistory(Creature* creature, Player* modifier)
+void FreedomMgr::CreatureSetModifyHistory(Creature* creature, Player* modifier, bool isCreate)
 {
     if (!creature || !modifier)
         return;
@@ -502,6 +502,11 @@ void FreedomMgr::CreatureSetModifyHistory(Creature* creature, Player* modifier)
     data.modifierBnetAccId = modifier->GetSession()->GetBattlenetAccountId();
     data.modifierPlayerId = modifier->GetGUID().GetCounter();
     data.modified = time(NULL);
+    if (isCreate) {
+        data.creatorBnetAccId = modifier->GetSession()->GetBattlenetAccountId();
+        data.creatorPlayerId = modifier->GetGUID().GetCounter();
+        data.created = time(NULL);
+    }
     _creatureExtraStore[creature->GetSpawnId()] = data;
 }
 
