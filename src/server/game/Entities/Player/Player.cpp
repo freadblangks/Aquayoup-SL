@@ -22553,9 +22553,11 @@ void Player::UpdatePvPState(bool onlyFFA)
 
 void Player::SetPvP(bool state)
 {
-    Unit::SetPvP(state);
-    for (ControlList::iterator itr = m_Controlled.begin(); itr != m_Controlled.end(); ++itr)
-        (*itr)->SetPvP(state);
+    if (!pvpInfo.IsInNoPvPArea && !IsGameMaster()) {
+        Unit::SetPvP(state);
+        for (ControlList::iterator itr = m_Controlled.begin(); itr != m_Controlled.end(); ++itr)
+            (*itr)->SetPvP(state);
+    }
 }
 
 void Player::UpdatePvP(bool state, bool _override)
