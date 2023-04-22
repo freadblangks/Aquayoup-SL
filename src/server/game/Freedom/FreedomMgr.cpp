@@ -578,7 +578,8 @@ void FreedomMgr::CreatureDelete(Creature* creature)
 {
     creature->CombatStop();
     creature->DeleteFromDB(creature->GetSpawnId());
-    creature->AddObjectToRemoveList();
+    // TODO: This should already happen in DeleteFromDB, check this.
+    //creature->AddObjectToRemoveList();
     // Remove spawn from custom npc spawns
     for (auto it : _customNpcStore)
     {
