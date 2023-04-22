@@ -1603,7 +1603,7 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     if (addonData)
     {
         index = 0;
-        // REPLACE INTO creature_addon(guid, path_id, mount, bytes1, bytes2, emote, auras) 
+        // REPLACE INTO creature_addon(guid, path_id, mount, bytes1, bytes2, emote, auras)
         stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_ADDON_FULL);
         stmt->setUInt64(index++, m_spawnId);
         stmt->setUInt32(index++, addonData->path_id);
@@ -1933,6 +1933,11 @@ bool Creature::LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap, 
 
     // checked at creature_template loading
     m_defaultMovementType = MovementGeneratorType(data->movementType);
+
+    if (data->displayid) {
+        SetDisplayId(data->displayid);
+        SetNativeDisplayId(data->displayid);
+    }
 
     if (addToMap && !GetMap()->AddToMap(this))
         return false;
