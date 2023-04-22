@@ -217,6 +217,8 @@ public:
         sObjectMgr->AddCreatureToGrid(sObjectMgr->GetCreatureData(db_guid));
         sFreedomMgr->CreatureSetModifyHistory(creature, chr, true);
         sFreedomMgr->SaveCreature(creature);
+        sFreedomMgr->SetCreatureSelectionForPlayer(chr->GetGUID().GetCounter(), creature->GetSpawnId());
+
         // PhasingHandler::InheritPhaseShift(creature, chr);
         return true;
     }
@@ -1125,7 +1127,8 @@ public:
         target->SetDisplayId(displayId);
         target->SetNativeDisplayId(displayId);
 
-        target->SaveToDB();
+        sFreedomMgr->CreatureSetModifyHistory(target, source);
+        sFreedomMgr->SaveCreature(target);
 
         handler->PSendSysMessage(FREEDOM_CMDI_NPC_SET_MODEL);
         return true;

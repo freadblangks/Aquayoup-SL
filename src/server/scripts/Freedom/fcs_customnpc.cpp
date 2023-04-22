@@ -146,6 +146,7 @@ public:
 
         sFreedomMgr->CreatureSetModifyHistory(creature, chr, true);
         sFreedomMgr->SaveCreature(creature);
+        sFreedomMgr->SetCreatureSelectionForPlayer(chr->GetGUID().GetCounter(), creature->GetSpawnId());
 
         sFreedomMgr->LoadCustomNpcSpawn(id, db_guid);
         handler->PSendSysMessage("Custom NPC %s spawned!", name);
