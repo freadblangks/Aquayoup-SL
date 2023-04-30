@@ -1891,7 +1891,7 @@ void Spell::EffectSummonType()
 
                     summon = unitCaster->GetMap()->SummonCreature(entry, *destTarget, properties, duration, unitCaster, m_spellInfo->Id, 0, privateObjectOwner);
                     if (!summon || !summon->HasUnitTypeMask(UNIT_MASK_MINION))
-                        return;
+                        break;
 
                     summon->SetImmuneToAll(true);
                     break;
@@ -1921,7 +1921,7 @@ void Spell::EffectSummonType()
 
                         ExecuteLogEffectSummonObject(SpellEffectName(effectInfo->Effect), summon);
                     }
-                    return;
+                    break;
                 }
             }
             break;
@@ -1973,6 +1973,12 @@ void Spell::EffectSummonType()
     if (summon)
     {
         summon->SetCreatorGUID(caster->GetGUID());
+        // Always set summons under player control for unaura-ing.
+        if (unitCaster->IsPlayer() && unitCaster->m_Controlled.find(summon) == unitCaster->m_Controlled.end())
+        {
+            TC_LOG_DEBUG("freedom", "Adding summon to player control list for unauara...");
+            unitCaster->m_Controlled.insert(summon);
+        }
         ExecuteLogEffectSummonObject(SpellEffectName(effectInfo->Effect), summon);
     }
 }

@@ -1370,6 +1370,7 @@ public:
                 TempSummon* summon = (*i)->ToTempSummon();
                 if (summon) {
                     summon->UnSummon(0);
+                    source->m_Controlled.erase(summon);
                     i = source->m_Controlled.begin();
                 }
                 else {
