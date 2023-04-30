@@ -2275,7 +2275,7 @@ bool Map::ShouldBeSpawnedOnGridLoad(SpawnObjectType type, ObjectGuid::LowType sp
 
     SpawnMetadata const* spawnData = sObjectMgr->GetSpawnMetadata(type, spawnId);
     if (!spawnData) {
-        TC_LOG_ERROR("freedom", "Half deleted spawn detected. Map: %s, Type: %s, SpawnID: " SZFMTD, GetMapName(), type, spawnId);
+        TC_LOG_ERROR("freedom", "Half deleted spawn detected. Map: %s, Type: %s, SpawnID: " SZFMTD, GetMapName(), type == 0 ? "Creature" : type == 1 ? "GameObject" : "AreaTrigger", spawnId);
         if (type == 0) {
             sObjectMgr->DeleteCreatureData(spawnId);
         }
