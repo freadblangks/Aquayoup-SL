@@ -84,17 +84,18 @@ public:
             { "despawngroup",   HandleNpcDespawnGroup,            rbac::RBAC_PERM_COMMAND_GOBJECT_DESPAWNGROUP,   Console::No },
             { "add",            addCommandTable                                                                               },
             { "spawn",          addCommandTable                                                                               },
+            { "anim",           HandleGameObjectAnimateCommand,   rbac::RBAC_FPERM_COMMAND_GOBJECT_ANIM,          Console::No },
             { "set phase",      HandleGameObjectSetPhaseCommand,  rbac::RBAC_PERM_COMMAND_GOBJECT_SET_PHASE,      Console::No },
             { "set state",      HandleGameObjectSetStateCommand,  rbac::RBAC_PERM_COMMAND_GOBJECT_SET_STATE,      Console::No },
 
-            { "phase",          HandleGameObjectPhaseCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_PHASE,         Console::No},
+            { "phase",          HandleGameObjectPhaseCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_PHASE,         Console::No },
             { "select",         HandleGameObjectSelectCommand,    rbac::RBAC_FPERM_COMMAND_GOBJECT_SELECT,        Console::No },
-            { "scale",          HandleGameObjectScaleCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_SCALE,         Console::No},
-            { "axial",          HandleGameObjectAxialCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_AXIAL,         Console::No},
-            { "roll",           HandleGameObjectRollCommand,      rbac::RBAC_FPERM_COMMAND_GOBJECT_ROLL,          Console::No},
-            { "pitch",          HandleGameObjectPitchCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_PITCH,         Console::No},
-            { "yaw",            HandleGameObjectYawCommand,       rbac::RBAC_FPERM_COMMAND_GOBJECT_YAW,           Console::No},
-            { "clone",          HandleGameObjectCloneCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_CLONE,         Console::No},
+            { "scale",          HandleGameObjectScaleCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_SCALE,         Console::No },
+            { "axial",          HandleGameObjectAxialCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_AXIAL,         Console::No },
+            { "roll",           HandleGameObjectRollCommand,      rbac::RBAC_FPERM_COMMAND_GOBJECT_ROLL,          Console::No },
+            { "pitch",          HandleGameObjectPitchCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_PITCH,         Console::No },
+            { "yaw",            HandleGameObjectYawCommand,       rbac::RBAC_FPERM_COMMAND_GOBJECT_YAW,           Console::No },
+            { "clone",          HandleGameObjectCloneCommand,     rbac::RBAC_FPERM_COMMAND_GOBJECT_CLONE,         Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -1445,6 +1446,52 @@ public:
             clone->GetSpawnId(),
             objectInfo->entry, x, y, z);
         sFreedomMgr->SetGameobjectSelectionForPlayer(source->GetGUID().GetCounter(), clone->GetSpawnId());
+        return true;
+    }
+
+    static bool HandleGameObjectAnimateCommand(ChatHandler* handler, int32 animState, Optional<GameObjectSpawnId> gobjectId)
+    {
+        Player* source = handler->GetSession()->GetPlayer();
+        ObjectGuid::LowType guidLow = sFreedomMgr->GetSelectedGameobjectGuidFromPlayer(source->GetGUID().GetCounter());
+
+        if (gobjectId.has_value()) {
+            guidLow = gobjectId.value();
+        }
+
+        if (!guidLow) {
+            handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_NOT_FOUND);
+            return true;
+        }
+
+        GameObject* object = NULL;
+        GameObjectData const* goData = NULL;
+
+        // by DB guid
+        if (goData = sObjectMgr->GetGameObjectData(guidLow))
+            object = sFreedomMgr->GetAnyGameObject(source->GetMap(), guidLow, goData->id);
+
+        if (!object)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_GUID_NOT_EXISTS, guidLow);
+            return true;
+        }
+
+        GameObjectTemplate const* goTemplate = sObjectMgr->GetGameObjectTemplate(goData->id);
+
+        if (!goTemplate)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_TEMPLATE_DOES_NOT_EXIST, guidLow, goData->id);
+            return true;
+        }
+
+        if (!sFreedomMgr->IsAnimKitMappingAvailable(animState)) {
+            handler->PSendSysMessage("No animation kit with the animation %u is currently known, therefore this animation can't be played.", animState);
+        }
+
+        object->SetAnimKitId(sFreedomMgr->GetAnimKitForAnimation(animState), false);
+
+        handler->PSendSysMessage("Gobject %u set to animation state %u!", guidLow, animState);
+
         return true;
     }
 };

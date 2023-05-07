@@ -169,6 +169,8 @@ typedef std::unordered_map<uint32, CreatureTemplateExtraData> CreatureTemplateEx
 
 typedef std::vector<std::pair<uint32, uint32>> PhaseListContainer;
 
+typedef std::unordered_map<int32, uint16> AnimationKitMappingContainer;
+
 struct NpcCastData
 {
     uint32 id;
@@ -380,6 +382,12 @@ class TC_GAME_API FreedomMgr
         void CleanNpcCastsRemoveList();
         NpcCastContainer GetActiveNpcCasts() { return _activeNpcCastStore; }
 
+        // Animation id -> animkit mappings
+        void LoadAnimationMappings();
+        bool IsAnimKitMappingAvailable(int32 animation) { return _animationKitMappingStore.find(animation) != _animationKitMappingStore.end(); }
+        uint16 GetAnimKitForAnimation(int32 animation) { return _animationKitMappingStore[animation]; }
+
+
     protected:
         PlayerExtraDataContainer _playerExtraDataStore;
         PublicTeleContainer _publicTeleStore;
@@ -396,6 +404,7 @@ class TC_GAME_API FreedomMgr
         NpcCastContainer _activeNpcCastStore;
         std::set<std::shared_ptr<NpcCastData>> _removedNpcCastStore;
         NpcCastContainer _npcCastStore;
+        AnimationKitMappingContainer _animationKitMappingStore;
 
     private:
         void SaveNpcOutfitToDb(uint32 templateId, uint8 variationId);

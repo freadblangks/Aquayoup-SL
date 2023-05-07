@@ -70,6 +70,7 @@ void FreedomMgr::LoadAllTables()
     LoadCustomNpcs();
     LoadFormations();
     LoadNpcCasts();
+    LoadAnimationMappings();
 
     TC_LOG_INFO("server.loading", ">> Loaded FreedomMgr tables in %u ms", GetMSTimeDiffToNow(oldMSTime));
 }
@@ -2942,4 +2943,30 @@ void FreedomMgr::RemoveSpellEffects(Unit* unit, uint32 spellId) {
             }
         }
     }
+}
+
+void FreedomMgr::LoadAnimationMappings()
+{
+    // clear current storage
+    _npcCastStore.clear();
+
+    uint32 oldMSTime = getMSTime();
+    QueryResult result = FreedomDatabase.Query("SELECT `animationId`, `animkitId` FROM animation_mapping");
+    if (!result)
+    {
+        TC_LOG_INFO("server.loading", ">> Loaded 0 animation to animationkit mappings. DB table `animation_mapping` is empty!");
+        return;
+    }
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+        int32 animationId = fields[0].GetInt32();
+        int16 animkitId = fields[1].GetInt16();
+
+        _animationKitMappingStore[animationId] = animkitId;
+        ++count;
+    } while (result->NextRow());
+
+    TC_LOG_INFO("server.loading", ">> Loaded %u animation to animationkit mappings in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
