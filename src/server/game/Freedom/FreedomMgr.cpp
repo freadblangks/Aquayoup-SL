@@ -163,8 +163,9 @@ void FreedomMgr::GameObjectPhase(GameObject* go, uint32 phaseMask)
 
 void FreedomMgr::PlayerPhase(Player* player, uint32 phase)
 {
-    PhasingHandler::ResetPhaseShift(player);
+    player->GetPhaseShift().ClearPhases();
     PhasingHandler::AddPhase(player, phase, true);
+
 
     FreedomDatabase.PExecute("INSERT INTO character_extra (guid,phase) VALUES ('%u',%u) ON DUPLICATE KEY UPDATE phase=%u", player->GetGUID().GetCounter(), phase, phase);
     _playerExtraDataStore[player->GetGUID().GetCounter()].phaseMask = phase;
@@ -172,7 +173,7 @@ void FreedomMgr::PlayerPhase(Player* player, uint32 phase)
 
 void FreedomMgr::ClearPlayerPhase(Player* player)
 {
-    PhasingHandler::ResetPhaseShift(player);
+    player->GetPhaseShift().ClearPhases();
     FreedomDatabase.PExecute("INSERT INTO character_extra (guid,phase) VALUES ('%u',-1) ON DUPLICATE KEY UPDATE phase=-1", player->GetGUID().GetCounter());
     _playerExtraDataStore[player->GetGUID().GetCounter()].phaseMask = 0;
 }
