@@ -2919,10 +2919,13 @@ void FreedomMgr::RemoveSpellEffects(Unit* unit, uint32 spellId) {
     // Remove temp summons created by spell
     for (auto i = unit->m_Controlled.begin(); i != unit->m_Controlled.end();)
     {
-        TempSummon* summon = (*i)->ToTempSummon();
-        if (summon && (uint32)summon->m_unitData->CreatedBySpell == spellId) {
-            summon->UnSummon(0);
-            i = unit->m_Controlled.begin();
+        Unit* unit = (*i);
+        if (unit) {
+            TempSummon* summon = (*i)->ToTempSummon();
+            if (summon && (uint32)summon->m_unitData->CreatedBySpell == spellId) {
+                summon->UnSummon(0);
+                i = unit->m_Controlled.begin();
+            }
         }
         else {
             ++i;

@@ -31,7 +31,7 @@ public:
             Unit* source = sFreedomMgr->GetAnyUnit(castData->source);
             Unit* target = sFreedomMgr->GetAnyUnit(castData->target);
             if (!source || !target) {
-                TC_LOG_DEBUG("freedom", "F_WS_npc_spells::OnUpdate | Target or source no longer exists, disalbing cast data...");
+                TC_LOG_DEBUG("freedom.npc.spells", "F_WS_npc_spells::OnUpdate | Target or source no longer exists, disalbing cast data...");
                 sFreedomMgr->DisableNpcCast(castData);
                 it++;
                 continue;
@@ -41,7 +41,7 @@ public:
                 // We have reached the end of the spell duration
                 if (castData->currentDuration == 0) {
                     if (castData->duration != 0) {
-                        TC_LOG_DEBUG("freedom", "F_WS_npc_spells::OnUpdate | Stopping cast %u for creature " SZFMTD "...", castData->spell_id, castData->source);
+                        TC_LOG_DEBUG("freedom.npc.spells", "F_WS_npc_spells::OnUpdate | Stopping cast %u for creature " SZFMTD "...", castData->spell_id, castData->source);
                         sFreedomMgr->StopNpcCast(castData);
                     }
                     if (castData->restInterval > 0) {
@@ -57,7 +57,7 @@ public:
                 // We have reached the end of the rest interval, cast spell.
                 if (castData->currentRest == 0)
                 {
-                    TC_LOG_DEBUG("freedom", "F_WS_npc_spells::OnUpdate | Starting cast %u for creature " SZFMTD "...", castData->spell_id, castData->source);
+                    TC_LOG_DEBUG("freedom.npc.spells", "F_WS_npc_spells::OnUpdate | Starting cast %u for creature " SZFMTD "...", castData->spell_id, castData->source);
                     source->CastSpell(target, castData->spell_id);
                     castData->currentDuration = std::max(castData->duration, 1u);
                 }

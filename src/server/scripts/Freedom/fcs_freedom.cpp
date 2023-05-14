@@ -1367,11 +1367,14 @@ public:
             // Remove summons from spells.
             for (auto i = source->m_Controlled.begin(); i != source->m_Controlled.end();)
             {
-                TempSummon* summon = (*i)->ToTempSummon();
-                if (summon) {
-                    summon->UnSummon(0);
-                    source->m_Controlled.erase(summon);
-                    i = source->m_Controlled.begin();
+                Unit* unit = (*i);
+                if (unit) {
+                    TempSummon* summon = (*i)->ToTempSummon();
+                    if (summon) {
+                        summon->UnSummon(0);
+                        source->m_Controlled.erase(summon);
+                        i = source->m_Controlled.begin();
+                    }
                 }
                 else {
                     ++i;
