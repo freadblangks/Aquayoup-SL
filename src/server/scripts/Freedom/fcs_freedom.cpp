@@ -1820,7 +1820,7 @@ public:
             return false;
         }
 
-        rbac::RBACData* rbac = handler->getSelectedPlayer()->GetSession()->GetRBACData();
+        rbac::RBACData* rbac = handler->GetSession()->GetRBACData();
         sAccountMgr->UpdateAccountAccess(rbac, handler->GetSession()->GetAccountId(), uint8(maingmlevel), -1);
         handler->SendSysMessage(FREEDOM_CMDI_ACCOUNTACCESS_DONE);
 
