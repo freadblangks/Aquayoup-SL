@@ -2773,7 +2773,7 @@ void FreedomMgr::LoadNpcCasts() {
         ++count;
     } while (result->NextRow());
 
-    TC_LOG_INFO("server.loading", ">> Loaded %u custom npcs in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
+    TC_LOG_INFO("server.loading", ">> Loaded %u npc spell casts in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
 
 void FreedomMgr::AddNpcCast(Creature* source, Unit* target, uint32 spellId, uint32 duration, uint32 restInterval, uint32 initialRest, bool persist)
@@ -2952,7 +2952,7 @@ void FreedomMgr::RemoveSpellEffects(Unit* unit, uint32 spellId) {
 void FreedomMgr::LoadAnimationMappings()
 {
     // clear current storage
-    _npcCastStore.clear();
+    _animationKitMappingStore.clear();
 
     uint32 oldMSTime = getMSTime();
     QueryResult result = FreedomDatabase.Query("SELECT `animationId`, `animkitId` FROM animation_mapping");

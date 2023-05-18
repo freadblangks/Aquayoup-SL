@@ -31,7 +31,7 @@ public:
             Unit* source = sFreedomMgr->GetAnyUnit(castData->source);
             Unit* target = sFreedomMgr->GetAnyUnit(castData->target);
             if (!source || !target) {
-                TC_LOG_DEBUG("freedom.npc.spells", "F_WS_npc_spells::OnUpdate | Target or source no longer exists, disalbing cast data...");
+                TC_LOG_WARN("freedom.npc.spells", "F_WS_npc_spells::OnUpdate | Target %u or source %u no longer exists for npc cast %u, disabling casting.", castData->target, castData->source, castData->id);
                 sFreedomMgr->DisableNpcCast(castData);
                 it++;
                 continue;
