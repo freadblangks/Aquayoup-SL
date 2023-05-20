@@ -113,7 +113,8 @@ namespace WorldPackets
             Optional<CurrencyGainSource> QuantityGainSource;
             Optional<CurrencyDestroyReason> QuantityLostSource;
             Optional<uint32> FirstCraftOperationID;
-            Optional<Timestamp<>> LastSpendTime;
+            Optional<Timestamp<>> NextRechargeTime;
+            Optional<Timestamp<>> RechargeCycleStartTime;
             bool SuppressChatLog = false;
         };
 
@@ -139,7 +140,8 @@ namespace WorldPackets
                 Optional<int32> TrackedQuantity;
                 Optional<int32> MaxQuantity;
                 Optional<int32> TotalEarned;
-                Optional<Timestamp<>> LastSpendTime;
+                Optional<Timestamp<>> NextRechargeTime;
+                Optional<Timestamp<>> RechargeCycleStartTime;
                 uint8 Flags = 0;
             };
 
@@ -1000,18 +1002,6 @@ namespace WorldPackets
 
             ObjectGuid ObjGUID;
             bool IsUpgrade;
-        };
-
-        class UIItemInteractionOpenNpc  final : public ServerPacket
-        {
-        public:
-            UIItemInteractionOpenNpc() : ServerPacket(SMSG_UI_ITEM_INTERACTION_NPC, 23) {}
-
-            WorldPacket const* Write() override;
-
-            ObjectGuid ObjectGUID;
-            int32 UiUnk1 = 0;
-            int32 UiUnk2 = 0;
         };
     }
 }

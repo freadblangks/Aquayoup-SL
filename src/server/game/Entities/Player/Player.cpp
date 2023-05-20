@@ -171,7 +171,7 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this)
     if (!GetSession()->HasPermission(rbac::RBAC_PERM_CAN_FILTER_WHISPERS))
         SetAcceptWhispers(true);
 
-    m_combatExitTime = 0;
+    m_regenInterruptTimestamp = GameTime::Now();
     m_regenTimer = 0;
     m_regenTimerCount = 0;
     m_foodEmoteTimerCount = 0;
@@ -798,45 +798,46 @@ void Player::HandleDrowning(uint32 time_diff)
     }
 
     // In dark water
-    if (sConfigMgr->GetBoolDefault("fatigue.enabled", true)) // If "fatigue.enabled" is enabled
+	if (sConfigMgr->GetBoolDefault("fatigue.enabled", true)) // If "fatigue.enabled" is enabled
+	{
+	
+    if (m_MirrorTimerFlags & UNDERWATER_INDARKWATER)
     {
-        if (m_MirrorTimerFlags & UNDERWATER_INDARKWATER)
+        // Fatigue timer not activated - activate it
+        if (m_MirrorTimer[FATIGUE_TIMER] == DISABLED_MIRROR_TIMER)
         {
-            // Fatigue timer not activated - activate it
-            if (m_MirrorTimer[FATIGUE_TIMER] == DISABLED_MIRROR_TIMER)
-            {
-                m_MirrorTimer[FATIGUE_TIMER] = getMaxTimer(FATIGUE_TIMER);
-                SendMirrorTimer(FATIGUE_TIMER, m_MirrorTimer[FATIGUE_TIMER], m_MirrorTimer[FATIGUE_TIMER], -1);
-            }
-            else
-            {
-                m_MirrorTimer[FATIGUE_TIMER] -= time_diff;
-                // Timer limit - need deal damage or teleport ghost to graveyard
-                if (m_MirrorTimer[FATIGUE_TIMER] < 0)
-                {
-                    m_MirrorTimer[FATIGUE_TIMER] += 1 * IN_MILLISECONDS;
-                    if (IsAlive())                                            // Calculate and deal damage
-                    {
-                        uint32 damage = GetMaxHealth() / 5 + urand(0, GetLevel() - 1);
-                        EnvironmentalDamage(DAMAGE_EXHAUSTED, damage);
-                    }
-                    else if (HasPlayerFlag(PLAYER_FLAGS_GHOST))       // Teleport ghost to graveyard
-                        RepopAtGraveyard();
-                }
-                else if (!(m_MirrorTimerFlagsLast & UNDERWATER_INDARKWATER))
-                    SendMirrorTimer(FATIGUE_TIMER, getMaxTimer(FATIGUE_TIMER), m_MirrorTimer[FATIGUE_TIMER], -1);
-            }
+            m_MirrorTimer[FATIGUE_TIMER] = getMaxTimer(FATIGUE_TIMER);
+            SendMirrorTimer(FATIGUE_TIMER, m_MirrorTimer[FATIGUE_TIMER], m_MirrorTimer[FATIGUE_TIMER], -1);
         }
-        else if (m_MirrorTimer[FATIGUE_TIMER] != DISABLED_MIRROR_TIMER)       // Regen timer
+        else
         {
-            int32 DarkWaterTime = getMaxTimer(FATIGUE_TIMER);
-            m_MirrorTimer[FATIGUE_TIMER] += 10 * time_diff;
-            if (m_MirrorTimer[FATIGUE_TIMER] >= DarkWaterTime || !IsAlive())
-                StopMirrorTimer(FATIGUE_TIMER);
-            else if (m_MirrorTimerFlagsLast & UNDERWATER_INDARKWATER)
-                SendMirrorTimer(FATIGUE_TIMER, DarkWaterTime, m_MirrorTimer[FATIGUE_TIMER], 10);
+            m_MirrorTimer[FATIGUE_TIMER] -= time_diff;
+            // Timer limit - need deal damage or teleport ghost to graveyard
+            if (m_MirrorTimer[FATIGUE_TIMER] < 0)
+            {
+                m_MirrorTimer[FATIGUE_TIMER] += 1 * IN_MILLISECONDS;
+                if (IsAlive())                                            // Calculate and deal damage
+                {
+                    uint32 damage = GetMaxHealth() / 5 + urand(0, GetLevel() - 1);
+                    EnvironmentalDamage(DAMAGE_EXHAUSTED, damage);
+                }
+                else if (HasPlayerFlag(PLAYER_FLAGS_GHOST))       // Teleport ghost to graveyard
+                    RepopAtGraveyard();
+            }
+            else if (!(m_MirrorTimerFlagsLast & UNDERWATER_INDARKWATER))
+                SendMirrorTimer(FATIGUE_TIMER, getMaxTimer(FATIGUE_TIMER), m_MirrorTimer[FATIGUE_TIMER], -1);
         }
     }
+    else if (m_MirrorTimer[FATIGUE_TIMER] != DISABLED_MIRROR_TIMER)       // Regen timer
+    {
+        int32 DarkWaterTime = getMaxTimer(FATIGUE_TIMER);
+        m_MirrorTimer[FATIGUE_TIMER] += 10 * time_diff;
+        if (m_MirrorTimer[FATIGUE_TIMER] >= DarkWaterTime || !IsAlive())
+            StopMirrorTimer(FATIGUE_TIMER);
+        else if (m_MirrorTimerFlagsLast & UNDERWATER_INDARKWATER)
+            SendMirrorTimer(FATIGUE_TIMER, DarkWaterTime, m_MirrorTimer[FATIGUE_TIMER], 10);
+    }
+	}
 
     if (m_MirrorTimerFlags & (UNDERWATER_INLAVA /*| UNDERWATER_INSLIME*/) && !(_lastLiquid && _lastLiquid->SpellID))
     {
@@ -1308,9 +1309,9 @@ void Player::ToggleDND()
         SetPlayerFlag(PLAYER_FLAGS_DND);
 }
 
-uint8 Player::GetChatFlags() const
+uint16 Player::GetChatFlags() const
 {
-    uint8 tag = CHAT_FLAG_NONE;
+    uint16 tag = CHAT_FLAG_NONE;
 
     if (isGMChat())
         tag |= CHAT_FLAG_GM;
@@ -1790,7 +1791,7 @@ void Player::Regenerate(Powers power)
     float addvalue = 0.0f;
     if (!IsInCombat())
     {
-        if (powerType->RegenInterruptTimeMS && GetMSTimeDiffToNow(m_combatExitTime) < uint32(powerType->RegenInterruptTimeMS))
+        if (powerType->GetFlags().HasFlag(PowerTypeFlags::UseRegenInterrupt) && m_regenInterruptTimestamp + Milliseconds(powerType->RegenInterruptTimeMS) < GameTime::Now())
             return;
 
         addvalue = (powerType->RegenPeace + m_unitData->PowerRegenFlatModifier[powerIndex]) * 0.001f * m_regenTimer;
@@ -1819,6 +1820,13 @@ void Player::Regenerate(Powers power)
         RATE_POWER_ARCANE_CHARGES,
         RATE_POWER_FURY,
         RATE_POWER_PAIN,
+        RATE_POWER_ESSENCE,
+        MAX_RATES, // runes
+        MAX_RATES, // runes
+        MAX_RATES, // runes
+        MAX_RATES, // alternate
+        MAX_RATES, // alternate
+        MAX_RATES, // alternate
     };
 
     if (RatesForPower[power] != MAX_RATES)
@@ -1913,23 +1921,15 @@ void Player::Regenerate(Powers power)
     }
 }
 
-void Player::SendPowerUpdate(Powers power, int32 amount)
+void Player::InterruptPowerRegen(Powers power)
 {
-    if (!IsInWorld())
-        return;
-
     uint32 powerIndex = GetPowerIndex(power);
     if (powerIndex == MAX_POWERS || powerIndex >= MAX_POWERS_PER_CLASS)
         return;
 
-    if (amount > GetMaxPower(power))
-        amount = GetMaxPower(power);
-
-    WorldPackets::Combat::PowerUpdatePower powUpd(amount, power);
-    WorldPackets::Combat::PowerUpdate upd;
-    upd.Guid = GetGUID();
-    upd.Powers.emplace_back(powUpd);
-    SendDirectMessage(upd.Write());
+    m_regenInterruptTimestamp = GameTime::Now();
+    m_powerFraction[powerIndex] = 0.0f;
+    SendDirectMessage(WorldPackets::Combat::InterruptPowerRegen(power).Write());
 }
 
 void Player::RegenerateHealth()
@@ -2411,7 +2411,9 @@ void Player::GiveLevel(uint8 level)
 
     // Only health and mana are set to maximum.
     SetFullHealth();
-    SetFullPower(POWER_MANA);
+    for (PowerTypeEntry const* powerType : sPowerTypeStore)
+        if (powerType->GetFlags().HasFlag(PowerTypeFlags::SetToMaxOnLevelUp))
+            SetFullPower(Powers(powerType->PowerTypeEnum));
 
     // update level to hunter/summon pet
     if (Pet* pet = GetPet())
@@ -3760,14 +3762,6 @@ void Player::ValuesUpdateForPlayerWithMaskSender::operator()(Player const* playe
     player->SendDirectMessage(&packet);
 }
 
-void Player::SendRuneforgeLegendaryCraftingOpenNpc(ObjectGuid const& guid, bool isUpgrade) const
-{
-    WorldPackets::Misc::RuneforgeLegendaryCraftingOpenNpc packet;
-    packet.ObjGUID = guid;
-    packet.IsUpgrade = isUpgrade;
-    SendDirectMessage(packet.Write());
-}
-
 void Player::DestroyForPlayer(Player* target) const
 {
     Unit::DestroyForPlayer(target);
@@ -4417,6 +4411,8 @@ void Player::BuildPlayerRepop()
 
 void Player::ResurrectPlayer(float restore_percent, bool applySickness)
 {
+    SetAreaSpiritHealer(nullptr);
+
     WorldPackets::Misc::DeathReleaseLoc packet;
     packet.MapID = -1;
     SendDirectMessage(packet.Write());
@@ -4475,7 +4471,6 @@ void Player::ResurrectPlayer(float restore_percent, bool applySickness)
 #ifdef ELUNA
     sEluna->OnResurrect(this);
 #endif
-
 
     if (!applySickness)
         return;
@@ -4851,7 +4846,7 @@ void Player::RepopAtGraveyard()
 
     bool shouldResurrect = false;
     // Such zones are considered unreachable as a ghost and the player must be automatically revived
-    if ((!IsAlive() && zone && zone->Flags[0] & AREA_FLAG_NEED_FLY) || GetTransport() || GetPositionZ() < GetMap()->GetMinHeight(GetPhaseShift(), GetPositionX(), GetPositionY()))
+    if ((!IsAlive() && zone && zone->GetFlags().HasFlag(AreaFlags::NoGhostOnRelease)) || GetTransport() || GetPositionZ() < GetMap()->GetMinHeight(GetPhaseShift(), GetPositionX(), GetPositionY()))
     {
         shouldResurrect = true;
         SpawnCorpseBones();
@@ -4894,10 +4889,10 @@ void Player::RepopAtGraveyard()
 
 bool Player::CanJoinConstantChannelInZone(ChatChannelsEntry const* channel, AreaTableEntry const* zone) const
 {
-    if (channel->Flags & CHANNEL_DBC_FLAG_ZONE_DEP && zone->Flags[0] & AREA_FLAG_ARENA_INSTANCE)
+    if (channel->Flags & CHANNEL_DBC_FLAG_ZONE_DEP && zone->GetFlags().HasFlag(AreaFlags::NoChatChannels))
         return false;
 
-    if ((channel->Flags & CHANNEL_DBC_FLAG_CITY_ONLY) && (!(zone->Flags[0] & AREA_FLAG_SLAVE_CAPITAL)))
+    if ((channel->Flags & CHANNEL_DBC_FLAG_CITY_ONLY) && (!(zone->GetFlags().HasFlag(AreaFlags::AllowTradeChannel))))
         return false;
 
     if ((channel->Flags & CHANNEL_DBC_FLAG_GUILD_REQ) && GetGuildId())
@@ -7472,7 +7467,7 @@ void Player::UpdateArea(uint32 newArea)
 
     AreaTableEntry const* area = sAreaTableStore.LookupEntry(newArea);
     bool oldFFAPvPArea = pvpInfo.IsInFFAPvPArea;
-    pvpInfo.IsInFFAPvPArea = area && (area->Flags[0] & AREA_FLAG_ARENA);
+    pvpInfo.IsInFFAPvPArea = area && (area->GetFlags().HasFlag(AreaFlags::FreeForAllPvP));
     UpdatePvPState(true);
 
     // check if we were in ffa arena and we left
@@ -7499,8 +7494,8 @@ void Player::UpdateArea(uint32 newArea)
     else
         RemovePvpFlag(UNIT_BYTE2_FLAG_SANCTUARY);
 
-    uint32 const areaRestFlag = (GetTeam() == ALLIANCE) ? AREA_FLAG_REST_ZONE_ALLIANCE : AREA_FLAG_REST_ZONE_HORDE;
-    if (area && area->Flags[0] & areaRestFlag)
+    AreaFlags const areaRestFlag = (GetTeam() == ALLIANCE) ? AreaFlags::AllianceResting : AreaFlags::HordeResting;
+    if (area && area->GetFlags().HasFlag(areaRestFlag))
         _restMgr->SetRestFlag(REST_FLAG_IN_FACTION_AREA);
     else
         _restMgr->RemoveRestFlag(REST_FLAG_IN_FACTION_AREA);
@@ -7554,7 +7549,7 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea)
 
     UpdateHostileAreaState(zone);
 
-    if (zone->Flags[0] & AREA_FLAG_CAPITAL) // Is in a capital city
+    if (zone->GetFlags().HasFlag(AreaFlags::LinkedChat)) // Is in a capital city
     {
         if (!pvpInfo.IsHostile || zone->IsSanctuary())
             _restMgr->SetRestFlag(REST_FLAG_IN_CITY);
@@ -7598,17 +7593,17 @@ void Player::UpdateHostileAreaState(AreaTableEntry const* area)
 
     if (area->IsSanctuary()) // sanctuary and arena cannot be overriden
         pvpInfo.IsInHostileArea = false;
-    else if (area->Flags[0] & AREA_FLAG_ARENA)
+    else if (area->GetFlags().HasFlag(AreaFlags::FreeForAllPvP))
         pvpInfo.IsInHostileArea = true;
     else if (overrideZonePvpType == ZonePVPTypeOverride::None)
     {
         if (area)
         {
-            if (InBattleground() || area->Flags[0] & AREA_FLAG_COMBAT || (area->PvpCombatWorldStateID != -1 && sWorldStateMgr->GetValue(area->PvpCombatWorldStateID, GetMap()) != 0))
+            if (InBattleground() || area->GetFlags().HasFlag(AreaFlags::CombatZone) || (area->PvpCombatWorldStateID != -1 && sWorldStateMgr->GetValue(area->PvpCombatWorldStateID, GetMap()) != 0))
                 pvpInfo.IsInHostileArea = true;
-            else if (IsWarModeLocalActive() || (area->Flags[0] & AREA_FLAG_UNK3))
+            else if (IsWarModeLocalActive() || (area->GetFlags().HasFlag(AreaFlags::EnemiesPvPFlagged)))
             {
-                if (area->Flags[0] & AREA_FLAG_CONTESTED_AREA)
+                if (area->GetFlags().HasFlag(AreaFlags::Contested))
                     pvpInfo.IsInHostileArea = IsWarModeLocalActive();
                 else
                 {
@@ -7786,6 +7781,9 @@ void Player::DuelComplete(DuelCompleteType type)
         else
             ++i;
     }
+
+    RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags2::DuelEnd);
+    opponent->RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags2::DuelEnd);
 
     // cleanup combo points
     ClearComboPoints();
@@ -11532,8 +11530,8 @@ Item* Player::StoreNewItem(ItemPosCountVec const& pos, uint32 itemId, bool updat
 
         if (item->GetTemplate()->GetInventoryType() != INVTYPE_NON_EQUIP)
             UpdateAverageItemLevelTotal();
-
-        item->CheckArtifactRelicSlotUnlock(this);
+		
+		item->CheckArtifactRelicSlotUnlock(this);
     }
 
     return item;
@@ -11927,7 +11925,7 @@ void Player::QuickEquipItem(uint16 pos, Item* pItem)
 
         UpdateCriteria(CriteriaType::EquipItem, pItem->GetEntry());
         UpdateCriteria(CriteriaType::EquipItemInSlot, slot, pItem->GetEntry());
-
+		
 #ifdef ELUNA
         sEluna->OnEquip(this, pItem, (pos >> 8), slot);
 #endif
@@ -14226,17 +14224,10 @@ void Player::OnGossipSelect(WorldObject* source, int32 gossipOptionId, uint32 me
         case GossipOptionNpc::GarrisonRecruitment: // NYI
             break;
         case GossipOptionNpc::ChromieTimeNpc: // NYI
-            handled = false;
             break;
         case GossipOptionNpc::RuneforgeLegendaryCrafting: // NYI
-            PlayerTalkClass->SendCloseGossip();
-            SendRuneforgeLegendaryCraftingOpenNpc(source->GetGUID(), false);
-            handled = false;
             break;
         case GossipOptionNpc::RuneforgeLegendaryUpgrade: // NYI
-            PlayerTalkClass->SendCloseGossip();
-            SendRuneforgeLegendaryCraftingOpenNpc(source->GetGUID(), true);
-            handled = false;
             break;
         case GossipOptionNpc::ProfessionsCraftingOrder: // NYI
             break;
@@ -14795,11 +14786,9 @@ void Player::AddQuestAndCheckCompletion(Quest const* quest, Object* questGiver)
         }
         case TYPEID_GAMEOBJECT:
             PlayerTalkClass->ClearMenus();
-
 #ifdef ELUNA
             sEluna->OnQuestAccept(this, questGiver->ToGameObject(), quest);
 #endif
-
             questGiver->ToGameObject()->AI()->OnQuestAccept(this, quest);
             break;
         default:
@@ -16181,6 +16170,7 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object* questgiver)
 #ifdef ELUNA
             sEluna->GetDialogStatus(this, questgiver->ToGameObject());
 #endif
+			
             if (GameObjectAI* ai = questgiver->ToGameObject()->AI())
                 if (Optional<QuestGiverStatus> questStatus = ai->GetDialogStatus(this))
                     return *questStatus;
@@ -16193,6 +16183,7 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object* questgiver)
 #ifdef ELUNA
             sEluna->GetDialogStatus(this, questgiver->ToCreature());
 #endif
+			
             if (CreatureAI* ai = questgiver->ToCreature()->AI())
                 if (Optional<QuestGiverStatus> questStatus = ai->GetDialogStatus(this))
                     return *questStatus;
@@ -17400,8 +17391,8 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
         // "position_x, position_y, position_z, map, orientation, taximask, createTime, createMode, cinematic, totaltime, leveltime, rest_bonus, logout_time, is_logout_resting, resettalents_cost, "
         // "resettalents_time, primarySpecialization, trans_x, trans_y, trans_z, trans_o, transguid, extra_flags, summonedPetNumber, at_login, zone, online, death_expire_time, taxi_path, dungeonDifficulty, "
         // "totalKills, todayKills, yesterdayKills, chosenTitle, watchedFaction, drunk, "
-        // "health, power1, power2, power3, power4, power5, power6, power7, instance_id, activeTalentGroup, lootSpecId, exploredZones, knownTitles, actionBars, raidDifficulty, legacyRaidDifficulty, fishingSteps, "
-        // "honor, honorLevel, honorRestState, honorRestBonus, numRespecs "
+        // "health, power1, power2, power3, power4, power5, power6, power7, power8, power9, power10, instance_id, activeTalentGroup, lootSpecId, exploredZones, knownTitles, actionBars, "
+        // "raidDifficulty, legacyRaidDifficulty, fishingSteps, honor, honorLevel, honorRestState, honorRestBonus, numRespecs "
         // "FROM characters c LEFT JOIN character_fishingsteps cfs ON c.guid = cfs.guid WHERE c.guid = ?", CONNECTION_ASYNC);
 
         ObjectGuid::LowType guid;
@@ -19794,19 +19785,8 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
         stmt->setUInt8(index++, GetDrunkValue());
         stmt->setUInt32(index++, GetHealth());
 
-        uint32 storedPowers = 0;
-        for (uint32 i = 0; i < MAX_POWERS; ++i)
-        {
-            if (GetPowerIndex(Powers(i)) != MAX_POWERS)
-            {
-                stmt->setUInt32(index++, m_unitData->Power[storedPowers]);
-                if (++storedPowers >= MAX_POWERS_PER_CLASS)
-                    break;
-            }
-        }
-
-        for (; storedPowers < MAX_POWERS_PER_CLASS; ++storedPowers)
-            stmt->setUInt32(index++, 0);
+        for (uint32 i = 0; i < MAX_POWERS_PER_CLASS; ++i)
+            stmt->setUInt32(index++, m_unitData->Power[i]);
 
         stmt->setUInt32(index++, GetSession()->GetLatency());
 
@@ -19942,19 +19922,8 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
         stmt->setUInt8(index++, GetDrunkValue());
         stmt->setUInt32(index++, GetHealth());
 
-        uint32 storedPowers = 0;
-        for (uint32 i = 0; i < MAX_POWERS; ++i)
-        {
-            if (GetPowerIndex(Powers(i)) != MAX_POWERS)
-            {
-                stmt->setUInt32(index++, m_unitData->Power[storedPowers]);
-                if (++storedPowers >= MAX_POWERS_PER_CLASS)
-                    break;
-            }
-        }
-
-        for (; storedPowers < MAX_POWERS_PER_CLASS; ++storedPowers)
-            stmt->setUInt32(index++, 0);
+        for (uint32 i = 0; i < MAX_POWERS_PER_CLASS; ++i)
+            stmt->setUInt32(index++, m_unitData->Power[i]);
 
         stmt->setUInt32(index++, GetSession()->GetLatency());
 
@@ -25660,7 +25629,7 @@ void Player::AtExitCombat()
 {
     Unit::AtExitCombat();
     UpdatePotionCooldown();
-    m_combatExitTime = getMSTime();
+    m_regenInterruptTimestamp = GameTime::Now();
 }
 
 float Player::GetBlockPercent(uint8 attackerLevel) const
@@ -26668,7 +26637,7 @@ bool Player::IsAreaThatActivatesPvpTalents(uint32 areaID) const
             if (area->IsSanctuary())
                 return false;
 
-            if (area->Flags[0] & AREA_FLAG_ARENA)
+            if (area->GetFlags().HasFlag(AreaFlags::FreeForAllPvP))
                 return true;
 
             if (sBattlefieldMgr->IsWorldPvpArea(area->ID))
@@ -29047,6 +29016,56 @@ void Player::RemoveSpecializationSpells()
     }
 }
 
+void Player::AddSpellCategoryCooldownMod(int32 spellCategoryId, int32 mod)
+{
+    int32 categoryIndex = m_activePlayerData->CategoryCooldownMods.FindIndexIf([spellCategoryId](UF::CategoryCooldownMod const& mod)
+    {
+        return mod.SpellCategoryID == spellCategoryId;
+    });
+
+    if (categoryIndex < 0)
+    {
+        UF::CategoryCooldownMod& newMod = AddDynamicUpdateFieldValue(m_values
+            .ModifyValue(&Player::m_activePlayerData)
+            .ModifyValue(&UF::ActivePlayerData::CategoryCooldownMods));
+
+        newMod.SpellCategoryID = spellCategoryId;
+        newMod.ModCooldown = -mod;
+    }
+    else
+    {
+        SetUpdateFieldValue(m_values
+            .ModifyValue(&Player::m_activePlayerData)
+            .ModifyValue(&UF::ActivePlayerData::CategoryCooldownMods, categoryIndex)
+            .ModifyValue(&UF::CategoryCooldownMod::ModCooldown), m_activePlayerData->CategoryCooldownMods[categoryIndex].ModCooldown - mod);
+    }
+}
+
+void Player::RemoveSpellCategoryCooldownMod(int32 spellCategoryId, int32 mod)
+{
+    int32 categoryIndex = m_activePlayerData->CategoryCooldownMods.FindIndexIf([spellCategoryId](UF::CategoryCooldownMod const& mod)
+    {
+        return mod.SpellCategoryID == spellCategoryId;
+    });
+
+    if (categoryIndex < 0)
+        return;
+
+    if (m_activePlayerData->CategoryCooldownMods[categoryIndex].ModCooldown + mod == 0)
+    {
+        RemoveDynamicUpdateFieldValue(m_values
+           .ModifyValue(&Player::m_activePlayerData)
+           .ModifyValue(&UF::ActivePlayerData::CategoryCooldownMods), categoryIndex);
+    }
+    else
+    {
+        SetUpdateFieldValue(m_values
+            .ModifyValue(&Player::m_activePlayerData)
+            .ModifyValue(&UF::ActivePlayerData::CategoryCooldownMods, categoryIndex)
+            .ModifyValue(&UF::CategoryCooldownMod::ModCooldown), m_activePlayerData->CategoryCooldownMods[categoryIndex].ModCooldown + mod);
+    }
+}
+
 void Player::RemoveSocial()
 {
     sSocialMgr->RemovePlayerSocial(GetGUID());
@@ -29056,29 +29075,6 @@ void Player::RemoveSocial()
 uint32 Player::GetDefaultSpecId() const
 {
     return ASSERT_NOTNULL(sDB2Manager.GetDefaultChrSpecializationForClass(GetClass()))->ID;
-}
-
-void Player::SendSpellCategoryCooldowns() const
-{
-    WorldPackets::Spells::CategoryCooldown cooldowns;
-
-    Unit::AuraEffectList const& categoryCooldownAuras = GetAuraEffectsByType(SPELL_AURA_MOD_SPELL_CATEGORY_COOLDOWN);
-    for (AuraEffect* aurEff : categoryCooldownAuras)
-    {
-        uint32 categoryId = aurEff->GetMiscValue();
-        auto cItr = std::find_if(cooldowns.CategoryCooldowns.begin(), cooldowns.CategoryCooldowns.end(),
-            [categoryId](WorldPackets::Spells::CategoryCooldown::CategoryCooldownInfo const& cooldown)
-        {
-            return cooldown.Category == categoryId;
-        });
-
-        if (cItr == cooldowns.CategoryCooldowns.end())
-            cooldowns.CategoryCooldowns.emplace_back(categoryId, -aurEff->GetAmount());
-        else
-            cItr->ModCooldown -= aurEff->GetAmount();
-    }
-
-    SendDirectMessage(cooldowns.Write());
 }
 
 void Player::SendRaidGroupOnlyMessage(RaidGroupReason reason, int32 delay) const
@@ -29321,7 +29317,7 @@ bool Player::CanEnableWarModeInArea() const
 
     do
     {
-        if (area->Flags[1] & AREA_FLAG_2_CAN_ENABLE_WAR_MODE)
+        if (area->GetFlags2().HasFlag(AreaFlags2::AllowWarModeToggle))
             return true;
 
         area = sAreaTableStore.LookupEntry(area->ParentAreaID);
@@ -29342,6 +29338,7 @@ void Player::UpdateWarModeAuras()
             RemovePlayerFlag(PLAYER_FLAGS_WAR_MODE_ACTIVE);
             CastSpell(this, auraInside, true);
             RemoveAurasDueToSpell(auraOutside);
+            RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags2::WarModeLeave);
         }
         else
         {
@@ -29359,6 +29356,7 @@ void Player::UpdateWarModeAuras()
         RemoveAurasDueToSpell(auraInside);
         RemovePlayerFlag(PLAYER_FLAGS_WAR_MODE_ACTIVE);
         RemovePvpFlag(UNIT_BYTE2_FLAG_PVP);
+        RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags2::WarModeLeave);
     }
 }
 
@@ -29374,6 +29372,39 @@ std::string Player::GetDebugInfo() const
     std::stringstream sstr;
     sstr << Unit::GetDebugInfo();
     return sstr.str();
+}
+
+void Player::SetAreaSpiritHealer(Creature* creature)
+{
+    if (!creature)
+    {
+        _areaSpiritHealerGUID = ObjectGuid::Empty;
+        RemoveAurasDueToSpell(SPELL_WAITING_FOR_RESURRECT);
+        return;
+    }
+
+    if (!creature->IsAreaSpiritHealer())
+        return;
+
+    _areaSpiritHealerGUID = creature->GetGUID();
+    CastSpell(nullptr, SPELL_WAITING_FOR_RESURRECT);
+}
+
+void Player::SendAreaSpiritHealerTime(Unit* spiritHealer) const
+{
+    int32 timeLeft = 0;
+    if (Spell* spell = spiritHealer->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+        timeLeft = spell->GetTimer();
+
+    SendAreaSpiritHealerTime(spiritHealer->GetGUID(), timeLeft);
+}
+
+void Player::SendAreaSpiritHealerTime(ObjectGuid const& spiritHealerGUID, int32 timeLeft) const
+{
+    WorldPackets::Battleground::AreaSpiritHealerTime areaSpiritHealerTime;
+    areaSpiritHealerTime.HealerGuid = spiritHealerGUID;
+    areaSpiritHealerTime.TimeLeft = timeLeft;
+    SendDirectMessage(areaSpiritHealerTime.Write());
 }
 
 void Player::SendDisplayToast(uint32 entry, DisplayToastType type, bool isBonusRoll, uint32 quantity, DisplayToastMethod method, uint32 questId, Item* item /*= nullptr*/) const
