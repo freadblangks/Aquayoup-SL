@@ -39,4 +39,7 @@ void AddDragonIslesScripts()
     // Azure Vault
     AddSC_instance_azure_vault();
     AddSC_boss_leymor();
+    AddSC_Boss_Azureblade();
+    AddSC_Boss_Telash_Greywing();
+    AddSC_Boss_Umbrelskul();
 }
