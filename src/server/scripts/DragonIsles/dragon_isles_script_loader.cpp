@@ -25,6 +25,9 @@ void AddSC_ruby_life_pools();
 // Azure Vault
 void AddSC_instance_azure_vault();
 void AddSC_boss_leymor();
+void AddSC_Boss_Azureblade();
+void AddSC_Boss_Telash_Greywing();
+void AddSC_Boss_Umbrelskul();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
