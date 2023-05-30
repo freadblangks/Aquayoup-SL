@@ -21,6 +21,9 @@ void AddSC_zone_the_forbidden_reach();
 // Ruby Life Pools
 void AddSC_instance_ruby_life_pools();
 void AddSC_ruby_life_pools();
+void AddSC_Boss_Melidrussa_Chillworn();
+void AddSC_Boss_Kokia_Blazehoof();
+void AddSC_Boss_Kyrakka();
 
 // Azure Vault
 void AddSC_instance_azure_vault();
@@ -38,6 +41,9 @@ void AddDragonIslesScripts()
     // Ruby Life Pools
     AddSC_instance_ruby_life_pools();
     AddSC_ruby_life_pools();
+    AddSC_Boss_Melidrussa_Chillworn();
+    AddSC_Boss_Kokia_Blazehoof();
+    AddSC_Boss_Kyrakka();
 
     // Azure Vault
     AddSC_instance_azure_vault();
