@@ -18,6 +18,9 @@
 // This is where scripts' loading functions should be declared:
 void AddSC_zone_the_forbidden_reach();
 void AddSC_zone_the_Walking_Shores();
+void AddSC_Zone_Ohnahran_Plains();
+void AddSC_Zone_Thaldraszus();
+void AddSC_Zone_Valdrakken();
 
 // Ruby Life Pools
 void AddSC_instance_ruby_life_pools();
@@ -39,6 +42,9 @@ void AddDragonIslesScripts()
 {
     AddSC_zone_the_forbidden_reach();
     AddSC_zone_the_Walking_Shores();
+    AddSC_Zone_Ohnahran_Plains();
+    AddSC_Zone_Thaldraszus();
+    AddSC_Zone_Valdrakken();
 
     // Ruby Life Pools
     AddSC_instance_ruby_life_pools();
