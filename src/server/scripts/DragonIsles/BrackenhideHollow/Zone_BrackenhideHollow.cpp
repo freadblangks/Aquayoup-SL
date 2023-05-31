@@ -19,7 +19,7 @@
 #include "SpellScript.h"
 #include "ScriptMgr.h"
 #include "Unit.h"
-#include "Zone_BrackenhideHollow..h"
+#include "Zone_BrackenhideHollow.h"
 
 enum RLPSpells
 {
