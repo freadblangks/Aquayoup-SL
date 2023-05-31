@@ -71,6 +71,6 @@ class spell_BLADESTORM : public AuraScript
 
     void Register() override
     {
-        OnEffectApply += AuraEffectApplyFn(spell_BLADESTORM::HandleEffectApply, EFFECT_1,EFFECT_2,EFFECT_3, SPELL_AURA_MOD_DUMMY, AURA_EFFECT_HANDLE_REAL);
+      //  OnEffectApply += AuraEffectApplyFn(spell_BLADESTORM::HandleEffectApply, EFFECT_1,EFFECT_2,EFFECT_3, SPELL_AURA_MOD_DUMMY);
     }
 };
