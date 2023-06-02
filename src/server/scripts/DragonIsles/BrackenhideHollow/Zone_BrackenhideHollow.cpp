@@ -46,13 +46,7 @@ enum RLPSpells
     PARTIALLY_DIGESTED =  1,  
     SHATTERED_PSYCHE =  1,  
     STARVING_FRENZY = 1,  
-    VINE_WHYP = 1,    
-    
-    // Gutshot
-    // https://www.wowhead.com/npc=186116/gutshot#abilities;mode:normal
-    
-    //Decatriarch Wratheye
-    //https://www.wowhead.com/npc=186121/decatriarch-wratheye
+    VINE_WHYP = 1,  
     
 };
 
@@ -64,13 +58,20 @@ class spell_BLADESTORM : public AuraScript
     void HandleEffectApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         Unit* target = GetTarget();
-        target->SetUnitFlag3(UNIT_FLAG1_Dummy);
-        target->SetUnitFlag2(UNIT_FLAG2_Mod Size);
-        target->SetUnitFlag(UNIT_FLAG3_Take_Control_of_Pet);
+      //  target->SetUnitFlag3(UNIT_FLAG1_Dummy);
+       // target->SetUnitFlag2(UNIT_FLAG2_Mod Size);
+       // target->SetUnitFlag(UNIT_FLAG3_Take_Control_of_Pet);
     }
 
-    void Register() override
-    {
-      //  OnEffectApply += AuraEffectApplyFn(spell_BLADESTORM::HandleEffectApply, EFFECT_1,EFFECT_2,EFFECT_3, SPELL_AURA_MOD_DUMMY);
-    }
+   // void Register() override
+    //{
+      //  OnEffectApply += AuraEffectApplyFn(spell_BLADESTORM::HandleEffectApply, EFFECT_1, SPELL_AURA_MOD_DUMMY);
+    //}
 };
+
+    
+    // Gutshot
+    // https://www.wowhead.com/npc=186116/gutshot#abilities;mode:normal
+    
+    //Decatriarch Wratheye
+    //https://www.wowhead.com/npc=186121/decatriarch-wratheye
