@@ -642,7 +642,7 @@ bool Transport::TeleportTransport(uint32 oldMapId, uint32 newMapId, float x, flo
 
 void Transport::TeleportPassengersAndHideTransport(uint32 newMapid, float x, float y, float z, float o)
 {
-    if (newMapid == GetMapId())
+    if (newMapid == GetMapId() && GetMap()->IsGridLoaded(GetPositionX(), GetPositionY()))
     {
         AddToWorld();
 
