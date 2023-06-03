@@ -176,6 +176,10 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
+
         uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount+1);
@@ -197,6 +201,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -269,6 +276,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -337,6 +347,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -371,6 +384,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -405,6 +421,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -426,6 +445,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -460,6 +482,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -523,6 +548,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -544,6 +572,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -565,6 +596,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetEquipmentVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest equipment set variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -586,6 +620,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -607,6 +644,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -628,6 +668,9 @@ public:
         }
 
         uint8 variation = variationId.value_or(1);
+        if (variation < 1) {
+            variation = 1;
+        }
         uint8 modelCount = sFreedomMgr->GetModelVariationCountForNpc(name);
         if ((modelCount + 1) < variation) {
             handler->PSendSysMessage("The highest model variation for Custom NPC '%s' is '%u'. The highest variation that can be added at the moment is '%u'.", name, modelCount, modelCount + 1);
@@ -678,6 +721,10 @@ public:
             handler->PSendSysMessage("There is no Custom NPC with the name: %s", name);
             handler->SetSentErrorMessage(true);
             return false;
+        }
+
+        if (variationId < 1) {
+            variationId = 1;
         }
 
         if (variationId == 1) {
