@@ -2613,31 +2613,8 @@ void FreedomMgr::AddFormation(std::string const& key, ObjectGuid::LowType leader
 void FreedomMgr::DeleteFormation(std::string const& key)
 {
     FormationData data = _formationStore[key];
-    Creature* leader = GetAnyCreature(data.leader);
-    if (leader) {
-        Map* map = leader->GetMap();
-        auto itr = map->CreatureGroupHolder.find(data.leader);
-        if (itr == map->CreatureGroupHolder.end())
-        {
-            TC_LOG_ERROR("freedom", "No creature group found for formation %s", key.c_str());
-        }
-        else {
-            for (Creature* member : itr->second->GetMembers())
-            {
-                TC_LOG_DEBUG("freedom", "Removing spawn " UI64FMTD " from formation %s", member->GetSpawnId(), key.c_str());
-                sFormationMgr->RemoveCreatureFromGroup(itr->second, member);
-
-                member->GetMotionMaster()->MoveIdle();
-                member->SetDefaultMovementType(IDLE_MOTION_TYPE);
-
-                WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_FORMATION);
-                stmt->setUInt64(0, member->GetSpawnId());
-                WorldDatabase.Execute(stmt);
-            }
-            map->CreatureGroupHolder.erase(data.leader);
-            _formationStore.erase(key);
-        }
-    }
+    sFormationMgr->DeleteFormationWithLeader(data.leader);
+    _formationStore.erase(key);
 
     FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_FORMATION);
     stmt->setString(0, key);

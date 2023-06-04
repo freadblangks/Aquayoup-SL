@@ -188,6 +188,31 @@ void FormationMgr::AddFormationMember(ObjectGuid::LowType spawnId, float followA
     _creatureGroupMap.emplace(spawnId, std::move(member));
 }
 
+void FormationMgr::DeleteFormationWithLeader(ObjectGuid::LowType leaderSpawnId)
+{
+    for (auto itr = _creatureGroupMap.begin(); itr != _creatureGroupMap.end(); ) {
+        if ((*itr).second.LeaderSpawnId == leaderSpawnId) {
+            Creature* creature = sFreedomMgr->GetAnyCreature((*itr).first);
+            // Creature is spawned
+            if (creature) {
+                auto groupItr = creature->GetMap()->CreatureGroupHolder.find(leaderSpawnId);
+                if (groupItr != creature->GetMap()->CreatureGroupHolder.end()) {
+                    RemoveCreatureFromGroup(groupItr->second, creature);
+                }
+                creature->GetMotionMaster()->MoveIdle();
+                creature->SetDefaultMovementType(IDLE_MOTION_TYPE);
+            }
+            WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_FORMATION);
+            stmt->setUInt64(0, (*itr).first);
+            WorldDatabase.Execute(stmt);
+            itr = _creatureGroupMap.erase(itr);
+        }
+        else {
+            itr++;
+        }
+    }
+}
+
 CreatureGroup::CreatureGroup(ObjectGuid::LowType leaderSpawnId) : _leader(nullptr), _members(), _leaderSpawnId(leaderSpawnId), _formed(false), _engaging(false)
 {
 }
