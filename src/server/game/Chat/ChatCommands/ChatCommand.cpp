@@ -135,7 +135,7 @@ void Trinity::Impl::ChatCommands::ChatCommandNode::ResolveNames(std::string name
     }
 }
 
-static void LogCommandUsage(WorldSession const& session, uint32 permission, std::string_view cmdStr)
+static void LogCommandUsage(WorldSession const& session, uint32 permission, std::string_view cmdStr, bool start)
 {
     if (AccountMgr::IsPlayerAccount(session.GetSecurity()))
         return;
@@ -156,14 +156,26 @@ static void LogCommandUsage(WorldSession const& session, uint32 permission, std:
             zoneName = zone->AreaName[locale];
     }
 
-    sLog->OutCommand(session.GetAccountId(), "Command: " STRING_VIEW_FMT " [Player: %s (%s) (Account: %u) X: %f Y: %f Z: %f Map: %u (%s) Area: %u (%s) Zone: %s Selected: %s (%s)]",
-        STRING_VIEW_FMT_ARG(cmdStr), player->GetName().c_str(), player->GetGUID().ToString().c_str(),
-        session.GetAccountId(), player->GetPositionX(), player->GetPositionY(),
-        player->GetPositionZ(), player->GetMapId(),
-        player->FindMap() ? player->FindMap()->GetMapName() : "Unknown",
-        areaId, areaName.c_str(), zoneName.c_str(),
-        (player->GetSelectedUnit()) ? player->GetSelectedUnit()->GetName().c_str() : "",
-        targetGuid.ToString().c_str());
+    if (start) {
+        sLog->OutCommand(session.GetAccountId(), "Command START: " STRING_VIEW_FMT " [Player: %s (%s) (Account: %u) X: %f Y: %f Z: %f Map: %u (%s) Area: %u (%s) Zone: %s Selected: %s (%s)]",
+            STRING_VIEW_FMT_ARG(cmdStr), player->GetName().c_str(), player->GetGUID().ToString().c_str(),
+            session.GetAccountId(), player->GetPositionX(), player->GetPositionY(),
+            player->GetPositionZ(), player->GetMapId(),
+            player->FindMap() ? player->FindMap()->GetMapName() : "Unknown",
+            areaId, areaName.c_str(), zoneName.c_str(),
+            (player->GetSelectedUnit()) ? player->GetSelectedUnit()->GetName().c_str() : "",
+            targetGuid.ToString().c_str());
+    }
+    else {
+        sLog->OutCommand(session.GetAccountId(), "Command ENDED: " STRING_VIEW_FMT " [Player: %s (%s) (Account: %u) X: %f Y: %f Z: %f Map: %u (%s) Area: %u (%s) Zone: %s Selected: %s (%s)]",
+            STRING_VIEW_FMT_ARG(cmdStr), player->GetName().c_str(), player->GetGUID().ToString().c_str(),
+            session.GetAccountId(), player->GetPositionX(), player->GetPositionY(),
+            player->GetPositionZ(), player->GetMapId(),
+            player->FindMap() ? player->FindMap()->GetMapName() : "Unknown",
+            areaId, areaName.c_str(), zoneName.c_str(),
+            (player->GetSelectedUnit()) ? player->GetSelectedUnit()->GetName().c_str() : "",
+            targetGuid.ToString().c_str());
+    }
 }
 
 void Trinity::Impl::ChatCommands::ChatCommandNode::SendCommandHelp(ChatHandler& handler) const
@@ -291,10 +303,15 @@ namespace Trinity::Impl::ChatCommands
     if (cmd)
     { /* if we matched a command at some point, invoke it */
         handler.SetSentErrorMessage(false);
-        if (cmd->IsInvokerVisible(handler) && cmd->_invoker(&handler, oldTail))
-        { /* invocation succeeded, log this */
+        if (cmd->IsInvokerVisible(handler))
+        {
             if (!handler.IsConsole())
-                LogCommandUsage(*handler.GetSession(), cmd->_permission.RequiredPermission, cmdStr);
+                LogCommandUsage(*handler.GetSession(), cmd->_permission.RequiredPermission, cmdStr, true);
+            if (cmd->_invoker(&handler, oldTail)) {
+                /* invocation succeeded, log this */
+                if (!handler.IsConsole())
+                    LogCommandUsage(*handler.GetSession(), cmd->_permission.RequiredPermission, cmdStr, false);
+            }
         }
         else if (!handler.HasSentErrorMessage())
         { /* invocation failed, we should show usage */
