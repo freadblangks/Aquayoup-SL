@@ -2798,6 +2798,10 @@ public:
         if (!unit)
             unit = handler->GetSession()->GetPlayer();
 
+        Creature* creature = unit->ToCreature();
+        if (creature) {
+            creature->SetHomePosition(creature->GetPosition());
+        }
         unit->RemoveCharmAuras();
 
         return true;
