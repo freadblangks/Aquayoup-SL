@@ -101,7 +101,7 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
         void SelectLevel();
         void UpdateLevelDependantStats();
         void SelectWildBattlePetLevel();
-        void LoadEquipment(int8 id = 1, bool force = false);
+        void LoadEquipment(int8 id = -1, bool force = false);
         void SetSpawnHealth();
         void LoadTemplateRoot();
 
