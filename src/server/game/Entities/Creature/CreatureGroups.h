@@ -58,6 +58,7 @@ class TC_GAME_API FormationMgr
 
         void AddCreatureToGroup(ObjectGuid::LowType leaderSpawnId, Creature* creature);
         void RemoveCreatureFromGroup(CreatureGroup* group, Creature* creature);
+        void ClearCreatureFormation(Creature* creature) { _creatureGroupMap.erase(creature->GetSpawnId()); }
 
         void LoadCreatureFormations();
         FormationInfo* GetFormationInfo(ObjectGuid::LowType spawnId);

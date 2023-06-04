@@ -55,6 +55,7 @@ public:
             return true;
 
         sFormationMgr->RemoveCreatureFromGroup(target->GetMap()->CreatureGroupHolder.find(target->GetFormation()->GetLeaderSpawnId())->second, target);
+        sFormationMgr->ClearCreatureFormation(target);
         target->GetMotionMaster()->MoveIdle();
 
         WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_FORMATION);
