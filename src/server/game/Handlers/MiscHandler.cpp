@@ -368,8 +368,11 @@ void WorldSession::HandleRequestCemeteryList(WorldPackets::Misc::RequestCemetery
 
     for (auto it = range.first; it != range.second && graveyardIds.size() < 16; ++it) // client max
     {
-        if (it->second.team == 0 || it->second.team == team)
-            graveyardIds.push_back(it->first);
+        ConditionSourceInfo conditionSource(_player);
+        if (!sConditionMgr->IsObjectMeetToConditions(conditionSource, it->second.Conditions))
+            continue;
+
+        graveyardIds.push_back(it->first);
     }
 
     if (graveyardIds.empty())
@@ -537,6 +540,9 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPackets::AreaTrigger::AreaTrigge
                         anyObjectiveChangedCompletionState = true;
                         break;
                     }
+
+                    if (qInfo->HasFlag(QUEST_FLAGS_COMPLETION_AREA_TRIGGER))
+                        player->AreaExploredOrEventHappens(questId);
 
                     if (player->CanCompleteQuest(questId))
                         player->CompleteQuest(questId);

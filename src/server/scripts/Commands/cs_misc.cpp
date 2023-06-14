@@ -564,7 +564,7 @@ public:
             // before GM
             float x, y, z;
             _player->GetClosePoint(x, y, z, target->GetCombatReach());
-            target->TeleportTo(_player->GetMapId(), x, y, z, target->GetOrientation(), 0, map->GetInstanceId());
+            target->TeleportTo(_player->GetMapId(), x, y, z, target->GetOrientation(), TELE_TO_NONE, map->GetInstanceId());
             PhasingHandler::InheritPhaseShift(target, _player);
             target->UpdateObjectVisibility();
         }
@@ -1020,7 +1020,7 @@ public:
             return false;
         }
 
-        if (sObjectMgr->AddGraveyardLink(graveyardId, zoneId, team))
+        if (sObjectMgr->AddGraveyardLink(graveyardId, zoneId, team, true))
             handler->PSendSysMessage(LANG_COMMAND_GRAVEYARDLINKED, graveyardId, zoneId);
         else
             handler->PSendSysMessage(LANG_COMMAND_GRAVEYARDALRLINKED, graveyardId, zoneId);
@@ -1056,8 +1056,6 @@ public:
                 handler->SetSentErrorMessage(true);
                 return false;
             }
-
-            team = data->team;
 
             std::string team_name = handler->GetTrinityString(LANG_COMMAND_GRAVEYARD_NOTEAM);
 
