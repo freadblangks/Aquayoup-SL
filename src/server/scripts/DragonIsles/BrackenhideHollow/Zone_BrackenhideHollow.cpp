@@ -19,7 +19,16 @@
 #include "SpellScript.h"
 #include "ScriptMgr.h"
 #include "Unit.h"
+#include "Npc.h"
 #include "Zone_BrackenhideHollow.h"
+
+enum Npc
+(
+   Rira_Hackclaw = 186122,
+   Treemouth = 186120.
+   decatriarch_wratheye = 186121,
+   Gutshot = 186116,
+)
 
 enum RLPSpells
 {
@@ -50,6 +59,20 @@ enum RLPSpells
     
 };
 
+class npc_Rira_Hackclaw : CreatureScript
+{
+  npc_Rira_Hackclaw(DATA_npc_Rira_Hackclaw)
+}
+
+class npc_Treemouth : CreatureScript
+{
+  npc_Treemouth(DATA_npc_Treemouth)
+}
+
+class npc_decatriarch_wratheye : CreatureScript
+{
+  npc_decatriarch_wratheye(DATA_npc_decatriarch_wratheye)
+}
 
 class spell_BLADESTORM : public AuraScript
 {
