@@ -1165,7 +1165,7 @@ public:
 
         CreatureTemplate const* cInfo = target->GetCreatureTemplate();
 
-        if (!cInfo->IsTameable(source->CanTameExoticPets()))
+        if (!cInfo->IsTameable(true))
         {
             handler->PSendSysMessage(FREEDOM_CMDE_FREEDOM_TAME_NOT_TAMEABLE);
             return true;
