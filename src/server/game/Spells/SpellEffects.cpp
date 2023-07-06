@@ -1978,6 +1978,7 @@ void Spell::EffectSummonType()
         {
             TC_LOG_DEBUG("freedom", "Adding summon to player control list for unauara...");
             unitCaster->m_Controlled.insert(summon);
+            summon->SetOwnerGUID(caster->GetGUID());
         }
         ExecuteLogEffectSummonObject(SpellEffectName(effectInfo->Effect), summon);
     }

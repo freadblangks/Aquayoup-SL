@@ -2897,13 +2897,10 @@ void FreedomMgr::RemoveSpellEffects(Unit* unit, uint32 spellId) {
     for (auto i = unit->m_Controlled.begin(); i != unit->m_Controlled.end();)
     {
         Unit* unit = (*i);
-        if (unit) {
-            TempSummon* summon = (*i)->ToTempSummon();
-            if (summon && (uint32)summon->m_unitData->CreatedBySpell == spellId) {
-                summon->UnSummon(0);
-            }
+        i++;
+        if (unit && unit->IsSummon() && (uint32)unit->m_unitData->CreatedBySpell == spellId) {
+            unit->ToTempSummon()->UnSummon();
         }
-        ++i;
     }
 
     // Remove aura's applied by players

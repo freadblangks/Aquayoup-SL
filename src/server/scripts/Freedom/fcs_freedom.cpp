@@ -1405,14 +1405,10 @@ public:
             for (auto i = source->m_Controlled.begin(); i != source->m_Controlled.end();)
             {
                 Unit* unit = (*i);
-                if (unit) {
-                    TempSummon* summon = (*i)->ToTempSummon();
-                    if (summon) {
-                        summon->UnSummon(0);
-                        source->m_Controlled.erase(summon);
-                    }
+                i++;
+                if (unit && unit->IsSummon()) {
+                    unit->ToTempSummon()->UnSummon();
                 }
-                ++i;
             }
             source->RemoveAllGameObjects();
             sFreedomMgr->RemoveAllAuraApplications(source);
