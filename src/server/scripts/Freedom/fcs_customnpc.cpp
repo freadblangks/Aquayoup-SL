@@ -11,6 +11,7 @@
 #include "TemporarySummon.h"
 #include "Transport.h"
 #include "PhasingHandler.h"
+#include <boost/algorithm/string/predicate.hpp>
 
 using namespace Trinity::ChatCommands;
 
@@ -64,6 +65,7 @@ public:
         {
             { "add",       HandleCustomNpcCreateCommand,           rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_CREATE,          Console::No },
             { "delete",    HandleCustomNpcDeleteCommand,           rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_DELETE,          Console::No },
+            { "list",      HandleCustomNpcListCommand,             rbac::RBAC_FPERM_COMMAND_CUSTOMNPC_LIST,            Console::No },
             { "equip",     customNpcEquipCommandTable },
             { "remove",    CustomNpcRemoveCommandTable },
             { "set",       customNpcSetCommandTable },
@@ -784,6 +786,41 @@ public:
 
         sFreedomMgr->SetCustomNpcMount(name, mountId);
         handler->PSendSysMessage("Custom NPC %s mount set to %u!", name, mountId);
+        return true;
+    }
+
+    static bool HandleCustomNpcListCommand(ChatHandler* handler, Tail namePart)
+    {
+        const CustomNpcDataContainer cnpcList = sFreedomMgr->GetCustomNpcContainer();
+        uint64 count = 0;
+
+        if (namePart.length() == 0)
+        {
+            for (auto cnpc : cnpcList)
+            {
+                handler->PSendSysMessage(FREEDOM_CMDI_CNPC_LIST_ITEM, cnpc.first, cnpc.second.templateId);
+                count++;
+            }
+        }
+        else
+        {
+            std::string name = namePart.data();
+
+            for (auto cnpc : cnpcList)
+            {
+                if (boost::istarts_with(cnpc.first, name))
+                {
+                    handler->PSendSysMessage(FREEDOM_CMDI_CNPC_LIST_ITEM, cnpc.first, cnpc.second.templateId);
+                    count++;
+                }
+            }
+        }
+
+        if (count == 0)
+            handler->PSendSysMessage(FREEDOM_CMDI_X_NOT_FOUND, "Custom NPCs");
+        else
+            handler->PSendSysMessage(FREEDOM_CMDI_SEARCH_QUERY_RESULT, count);
+
         return true;
     }
 };
