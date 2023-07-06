@@ -1410,12 +1410,9 @@ public:
                     if (summon) {
                         summon->UnSummon(0);
                         source->m_Controlled.erase(summon);
-                        i = source->m_Controlled.begin();
                     }
                 }
-                else {
-                    ++i;
-                }
+                ++i;
             }
             source->RemoveAllGameObjects();
             sFreedomMgr->RemoveAllAuraApplications(source);
