@@ -155,6 +155,7 @@ public:
             //{ "tabard",         rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomTabardCommand,               "" },
             { "panda",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "",  freedomPandaCommandTable },
             { "tame",           rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomTameCommand,               "" },
+            { "untame",           rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,       false, &HandleFreedomUntameCommand,             "" },
             { "title",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "", freedomTitleCommandTable },
             { "recall",         rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomRecallCommand,             "" },
             { "guild",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "", freedomGuildCommandTable },
@@ -1171,11 +1172,23 @@ public:
             return true;
         }
 
+        PetStable& petStable = source->GetOrInitPetStable();
+        auto freeActiveSlotItr = std::find_if(petStable.ActivePets.begin(), petStable.ActivePets.end(), [](Optional<PetStable::PetInfo> const& petInfo)
+            {
+                return !petInfo.has_value();
+            });
+
+        if (freeActiveSlotItr == petStable.ActivePets.end())
+        {
+            handler->PSendSysMessage("Your pet stable is currently full, please try abandoning an existing pet or using .freedom untame to clear up space.");
+            return true;
+        }
+
         // Everything looks OK, create new pet
         Pet* pet = source->CreateTamedPetFrom(target);
         if (!pet)
         {
-            handler->PSendSysMessage(FREEDOM_CMDE_FREEDOM_TAME_NOT_TAMEABLE);
+            handler->PSendSysMessage("Unable to create a tamed pet for creature template %u. Please contact a dev.", cInfo->Entry);
             return true;
         }
 
@@ -1207,6 +1220,30 @@ public:
 
         handler->PSendSysMessage(FREEDOM_CMDI_FREEDOM_TAME,
             sFreedomMgr->ToChatLink("Hcreature_entry", target->GetEntry(), target->GetName()));
+        return true;
+    }
+
+    static bool HandleFreedomUntameCommand(ChatHandler* handler, char const* args)
+    {
+        Player* source = handler->GetSession()->GetPlayer();
+        if (!*args) {
+            handler->PSendSysMessage("Please provide a slot (0-%u) to clear the pet from.", MAX_ACTIVE_PETS - 1);
+            return true;
+        }
+        int slot = atoi(args);
+        if (slot > MAX_ACTIVE_PETS - 1 || slot < 0) {
+            handler->PSendSysMessage("Slot %i is invalid. Please provide a slot (0-%u) to clear the pet from.", slot, MAX_ACTIVE_PETS - 1);
+            return true;
+        }
+        PetStable& petStable = source->GetOrInitPetStable();
+        std::optional<PetStable::PetInfo> pInfo = petStable.ActivePets[slot];
+        if (!pInfo.has_value()) {
+            handler->PSendSysMessage("Slot %i does not have an active pet in it.", slot);
+            return true;
+        }
+        Pet::DeleteFromDB(pInfo.value().PetNumber);
+        petStable.ActivePets[slot] = std::nullopt;
+        handler->PSendSysMessage("Pet %s in slot %i was succesfully deleted!", pInfo.value().Name, slot);
         return true;
     }
 
