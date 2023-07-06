@@ -155,7 +155,7 @@ public:
             //{ "tabard",         rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomTabardCommand,               "" },
             { "panda",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "",  freedomPandaCommandTable },
             { "tame",           rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomTameCommand,               "" },
-            { "untame",           rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,       false, &HandleFreedomUntameCommand,             "" },
+            { "pet delete",     rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomPetDeleteCommand,             "" },
             { "title",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "", freedomTitleCommandTable },
             { "recall",         rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomRecallCommand,             "" },
             { "guild",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "", freedomGuildCommandTable },
@@ -1180,7 +1180,7 @@ public:
 
         if (freeActiveSlotItr == petStable.ActivePets.end())
         {
-            handler->PSendSysMessage("Your pet stable is currently full, please try abandoning an existing pet or using .freedom untame to clear up space.");
+            handler->PSendSysMessage("Your pet stable is currently full, please try using .freedom pet delete to clear up space.");
             return true;
         }
 
@@ -1223,26 +1223,26 @@ public:
         return true;
     }
 
-    static bool HandleFreedomUntameCommand(ChatHandler* handler, char const* args)
+    static bool HandleFreedomPetDeleteCommand(ChatHandler* handler, char const* args)
     {
         Player* source = handler->GetSession()->GetPlayer();
         if (!*args) {
-            handler->PSendSysMessage("Please provide a slot (0-%u) to clear the pet from.", MAX_ACTIVE_PETS - 1);
+            handler->PSendSysMessage("Please provide a slot (1-%u) to clear the pet from.", MAX_ACTIVE_PETS);
             return true;
         }
         int slot = atoi(args);
-        if (slot > MAX_ACTIVE_PETS - 1 || slot < 0) {
-            handler->PSendSysMessage("Slot %i is invalid. Please provide a slot (0-%u) to clear the pet from.", slot, MAX_ACTIVE_PETS - 1);
+        if (slot > MAX_ACTIVE_PETS || slot < 1) {
+            handler->PSendSysMessage("Slot %i is invalid. Please provide a slot (1-%u) to clear the pet from.", slot, MAX_ACTIVE_PETS);
             return true;
         }
         PetStable& petStable = source->GetOrInitPetStable();
-        std::optional<PetStable::PetInfo> pInfo = petStable.ActivePets[slot];
+        std::optional<PetStable::PetInfo> pInfo = petStable.ActivePets[slot-1];
         if (!pInfo.has_value()) {
             handler->PSendSysMessage("Slot %i does not have an active pet in it.", slot);
             return true;
         }
         Pet::DeleteFromDB(pInfo.value().PetNumber);
-        petStable.ActivePets[slot] = std::nullopt;
+        petStable.ActivePets[slot-1] = std::nullopt;
         handler->PSendSysMessage("Pet %s in slot %i was succesfully deleted!", pInfo.value().Name, slot);
         return true;
     }
