@@ -2692,7 +2692,7 @@ void FreedomMgr::RemoveAllAuraApplications(Player* player)
     TC_LOG_DEBUG("freedom", "RemoveAllAuraApplications :: AuraContainer size = " SZFMTD, auraContainer.size());
     while (!auraContainer.empty()) {
         AppliedAuraData auraData = auraContainer.front();
-        if (auraData.target) {
+        if (auraData.target && auraData.target->IsInWorld()) {
             TC_LOG_DEBUG("freedom", "Removing aura %u cast on " SZFMTD, auraData.spellId, auraData.target->GetGUID().GetCounter());
             auraData.target->RemoveAura(auraData.spellId, player->GetGUID());
         }
@@ -2711,7 +2711,7 @@ void FreedomMgr::RemoveAuraApplications(Player* player, uint32 spellId)
     for (auto i = auraContainer.begin(); i != auraContainer.end();)
     {
         AppliedAuraData auraData = *i;
-        if (auraData.spellId == spellId) {
+        if (auraData.spellId == spellId && auraData.target && auraData.target->IsInWorld()) {
             TC_LOG_DEBUG("freedom", "Removing aura %u cast on " SZFMTD, auraData.spellId, auraData.target->GetGUID().GetCounter());
             auraData.target->RemoveAura(auraData.spellId, player->GetGUID());
             auraContainer.erase(i);
