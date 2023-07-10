@@ -2304,6 +2304,9 @@ void FreedomMgr::SaveNpcCreatureTemplateToDb(CreatureTemplate cTemplate)
     stmt->setUInt32(index++, cTemplate.Entry);
     stmt->setString(index++, cTemplate.Name);
     stmt->setString(index++, cTemplate.SubName);
+    stmt->setUInt32(index++, cTemplate.type);
+    stmt->setUInt32(index++, cTemplate.type_flags);
+    stmt->setUInt32(index++, cTemplate.family);
     WorldDatabase.Execute(stmt);
 
     // Redo cached creatureTemplates

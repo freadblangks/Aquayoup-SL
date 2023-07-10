@@ -108,7 +108,7 @@ void WorldDatabaseConnection::DoPrepareStatements()
     PrepareStatement(WORLD_DEL_CREATURE_FORMATION, "DELETE FROM creature_formations WHERE memberGUID = ?", CONNECTION_ASYNC);
 
     // Custom NPC Stuff
-    PrepareStatement(WORLD_REP_CREATURE_TEMPLATE, "REPLACE INTO creature_template (entry, name, subname, HealthScalingExpansion, RequiredExpansion, faction, unit_class, type, type_flags2, movementId, CreatureDifficultyID, minlevel, maxlevel) VALUES (?, ?, ?, 8, 0, 35, 1, 7, 2, 100, 204488, 60, 60)", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_REP_CREATURE_TEMPLATE, "REPLACE INTO creature_template (entry, name, subname, HealthScalingExpansion, RequiredExpansion, faction, unit_class, type, type_flags, type_flags2, movementId, CreatureDifficultyID, minlevel, maxlevel, family) VALUES (?, ?, ?, 8, 0, 35, 1, ?, ?, 2, 100, 204488, 60, 60, ?)", CONNECTION_ASYNC);
     PrepareStatement(WORLD_REP_CREATURE_TEMPLATE_MODEL, "REPLACE INTO creature_template_model (CreatureId, Idx, CreatureDisplayId, DisplayScale, Probability) VALUES (?, ?, ?, ?, 1)", CONNECTION_ASYNC);
     PrepareStatement(WORLD_REP_CREATURE_EQUIP_TEMPLATE, "REPLACE INTO creature_equip_template (CreatureId, ID, ItemID1, AppearanceModID1, ItemVisual1, ItemID2, AppearanceModID2, ItemVisual2, ItemID3, AppearanceModID3, ItemVisual3) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(WORLD_REP_DRESSNPC_OUTFIT, "REPLACE INTO creature_template_outfits (entry, race, class, gender, customizations, head, shoulders, body, chest, waist, legs, feet, wrists, hands, tabard, back, guildid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
