@@ -1246,6 +1246,15 @@ public:
             handler->PSendSysMessage("Slot %i does not have an active pet in it.", slot);
             return true;
         }
+
+        Pet* currentPet = source->GetPet();
+        if (currentPet && currentPet->GetCharmInfo()->GetPetNumber() == pInfo.value().PetNumber)
+        {
+            source->SetMinion(currentPet, false);
+            currentPet->AddObjectToRemoveList();
+            currentPet->m_removed = true;
+        }
+
         Pet::DeleteFromDB(pInfo.value().PetNumber);
         petStable.ActivePets[slot-1] = std::nullopt;
         handler->PSendSysMessage("Pet %s in slot %i was succesfully deleted!", pInfo.value().Name, slot);
@@ -1909,22 +1918,14 @@ public:
         uint32 oldAccountId = characterInfo->AccountId;
         uint32 newAccountId = oldAccountId;
 
-        //std::string accountName(accountNameStr);
-        std::string accountName = std::to_string(userBNetAccountId) + accountNameStr;
-        if (!Utf8ToUpperOnlyLatin(accountName))
-        {
-            handler->PSendSysMessage(LANG_ACCOUNT_NOT_EXIST, accountName.c_str());
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
+        std::string accountName = std::to_string(userBNetAccountId) + "#" + accountNameStr;
         LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_ID_BY_NAME);
         stmt->setString(0, accountName);
         if (PreparedQueryResult result = LoginDatabase.Query(stmt))
             newAccountId = (*result)[0].GetUInt32();
         else
         {
-            handler->PSendSysMessage(LANG_ACCOUNT_NOT_EXIST, accountName.c_str());
+            handler->PSendSysMessage(LANG_ACCOUNT_NOT_EXIST, accountNameStr);
             handler->SetSentErrorMessage(true);
             return false;
         }
