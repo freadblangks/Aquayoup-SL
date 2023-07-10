@@ -2298,7 +2298,9 @@ void FreedomMgr::SaveCustomNpcDataToDb(CustomNpcData outfitData)
 void FreedomMgr::SaveNpcCreatureTemplateToDb(CreatureTemplate cTemplate)
 {
     TC_LOG_DEBUG("freedom", "FREEDOMMGR: Saving creature template id '%u' to DB...", cTemplate.Entry);
-    // "REPLACE INTO creature_template (entry, name, subname, HealthScalingExpansion, RequiredExpansion, faction, unit_class, type, type_flags2, movementId, CreatureDifficultyID) VALUES (?, ?, ?, 8, 0, 35, 1, 7, 2, 100, 204488)"
+    // REPLACE INTO creature_template
+    // (entry, name, subname, HealthScalingExpansion, RequiredExpansion, faction, unit_class, type, type_flags, type_flags2, movementId, CreatureDifficultyID, minlevel, maxlevel, family)
+    // VALUES (?, ?, ?, 8, 0, 35, 1, ?, ?, 2, 100, 204488, 60, 60, ?)
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_TEMPLATE);
     int index = 0;
     stmt->setUInt32(index++, cTemplate.Entry);
