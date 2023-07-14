@@ -140,7 +140,7 @@ struct AreaTableEntry
     uint32 UwIntroSound;
     uint8 FactionGroupMask;
     float AmbientMultiplier;
-    uint8 MountFlags;
+    int32 MountFlags;
     int16 PvpCombatWorldStateID;
     uint8 WildBattlePetLevelMin;
     uint8 WildBattlePetLevelMax;
@@ -555,6 +555,18 @@ struct Cfg_RegionsEntry
     uint32 ChallengeOrigin;
 };
 
+struct ChallengeModeItemBonusOverrideEntry
+{
+    uint32 ID;
+    int32 ItemBonusTreeGroupID;
+    int32 DstItemBonusTreeID;
+    int8 Type;
+    int32 Value;
+    int32 MythicPlusSeasonID;
+    int32 PvPSeasonID;
+    uint32 SrcItemBonusTreeID;
+};
+
 struct CharTitlesEntry
 {
     uint32 ID;
@@ -733,6 +745,7 @@ struct ChrCustomizationOptionEntry
 struct ChrCustomizationReqEntry
 {
     uint32 ID;
+    Trinity::RaceMask<int64> RaceMask;
     LocalizedString ReqSource;
     int32 Flags;
     int32 ClassMask;
@@ -881,6 +894,25 @@ struct CinematicSequencesEntry
     std::array<uint16, 8> Camera;
 };
 
+struct ConditionalChrModelEntry
+{
+    int32 ID;
+    uint32 ChrModelID;                                      // This is the PK
+    int32 ChrCustomizationReqID;
+    int32 PlayerConditionID;
+    int32 Flags;
+    int32 ChrCustomizationCategoryID;
+};
+
+struct ConditionalContentTuningEntry
+{
+    uint32 ID;
+    int32 OrderIndex;
+    int32 RedirectContentTuningID;
+    int32 RedirectFlag;
+    uint32 ParentContentTuningID;
+};
+
 struct ContentTuningEntry
 {
     uint32 ID;
@@ -918,6 +950,13 @@ struct ContentTuningXExpectedEntry
     int32 ExpectedStatModID;
     int32 MinMythicPlusSeasonID;
     int32 MaxMythicPlusSeasonID;
+    uint32 ContentTuningID;
+};
+
+struct ContentTuningXLabelEntry
+{
+    uint32 ID;
+    int32 LabelID;
     uint32 ContentTuningID;
 };
 
@@ -1264,12 +1303,12 @@ struct CriteriaEntry
         int32 DungeonScore;
     } Asset;
     uint32 ModifierTreeId;
-    uint8 StartEvent;
+    int32 StartEvent;
     int32 StartAsset;
     uint16 StartTimer;
-    uint8 FailEvent;
+    int32 FailEvent;
     int32 FailAsset;
-    uint8 Flags;
+    int32 Flags;
     int16 EligibilityWorldStateID;
     int8 EligibilityWorldStateValue;
 
@@ -1282,7 +1321,7 @@ struct CriteriaTreeEntry
     LocalizedString Description;
     uint32 Parent;
     uint32 Amount;
-    int8 Operator;
+    int32 Operator;
     uint32 CriteriaID;
     int32 OrderIndex;
     int32 Flags;
@@ -1651,6 +1690,9 @@ struct GameObjectDisplayInfoEntry
     int16 ObjectEffectPackageID;
     float OverrideLootEffectScale;
     float OverrideNameScale;
+    int32 AlternateDisplayType;
+    int32 ClientCreatureDisplayInfoID;
+    int32 ClientItemID;
 };
 
 struct GameObjectsEntry
@@ -2103,18 +2145,18 @@ struct ItemBonusEntry
 };
 
 // new item upgrade system
-//struct ItemBonusListGroupEntryEntry
-//{
-//    uint32 ID;
-//    int32 ItemBonusListGroupID;
-//    int32 ItemBonusListID;
-//    int32 ItemLevelSelectorID;
-//    int32 SequenceValue;
-//    int32 ItemExtendedCostID;
-//    int32 PlayerConditionID;
-//    int32 Flags;
-//    int32 ItemLogicalCostGroupID;
-//};
+struct ItemBonusListGroupEntryEntry
+{
+    uint32 ID;
+    int32 ItemBonusListGroupID;
+    int32 ItemBonusListID;
+    int32 ItemLevelSelectorID;
+    int32 SequenceValue;
+    int32 ItemExtendedCostID;
+    int32 PlayerConditionID;
+    int32 Flags;
+    int32 ItemLogicalCostGroupID;
+};
 
 struct ItemBonusListLevelDeltaEntry
 {
@@ -2129,6 +2171,13 @@ struct ItemBonusListLevelDeltaEntry
 //    int32 ItemID;
 //};
 
+struct ItemBonusTreeEntry
+{
+    uint32 ID;
+    int32 Flags;
+    int32 InventoryTypeSlotMask;
+};
+
 struct ItemBonusTreeNodeEntry
 {
     uint32 ID;
@@ -2138,8 +2187,8 @@ struct ItemBonusTreeNodeEntry
     uint16 ChildItemLevelSelectorID;
     int32 ChildItemBonusListGroupID;
     int32 IblGroupPointsModSetID;
-    int32 Unknown1010_1;
-    int32 Unknown1010_2;
+    int32 MinMythicPlusLevel;
+    int32 MaxMythicPlusLevel;
     uint32 ParentItemBonusTreeID;
 };
 
@@ -2158,6 +2207,18 @@ struct ItemClassEntry
     int8 ClassID;
     float PriceModifier;
     uint8 Flags;
+};
+
+struct ItemContextPickerEntryEntry
+{
+    uint32 ID;
+    uint8 ItemCreationContext;
+    uint8 OrderIndex;
+    int32 PVal;
+    int32 LabelID;
+    uint32 Flags;
+    uint32 PlayerConditionID;
+    uint32 ItemContextPickerID;
 };
 
 struct ItemCurrencyCostEntry
@@ -2862,6 +2923,14 @@ struct MovieEntry
     int32 SubtitleFileFormat;
 };
 
+struct MythicPlusSeasonEntry
+{
+    uint32 ID;
+    int32 MilestoneSeason;
+    int32 ExpansionLevel;
+    int32 HeroicLFGDungeonMinGear;
+};
+
 struct NameGenEntry
 {
     uint32 ID;
@@ -3093,6 +3162,14 @@ struct PVPItemEntry
     uint32 ID;
     int32 ItemID;
     uint8 ItemLevelDelta;
+};
+
+struct PvpSeasonEntry
+{
+    uint32 ID;
+    int32 MilestoneSeason;
+    int32 AllianceAchievementID;
+    int32 HordeAchievementID;
 };
 
 struct PvpTalentEntry
@@ -3574,7 +3651,7 @@ struct SpellCategoryEntry
 {
     uint32 ID;
     LocalizedString Name;
-    int8 Flags;
+    int32 Flags;
     uint8 UsesPerWeek;
     int8 MaxCharges;
     int32 ChargeRecoveryTime;
@@ -4408,7 +4485,8 @@ struct UiMapEntry
     uint8 Type;
     int32 BountySetID;
     uint32 BountyDisplayLocation;
-    int32 VisibilityPlayerConditionID;
+    int32 VisibilityPlayerConditionID2; // if not met then map is skipped when evaluating UiMapAssignment
+    int32 VisibilityPlayerConditionID;  // if not met then client checks other maps with the same AlternateUiMapGroup, not re-evaluating UiMapAssignment for them
     int8 HelpTextPosition;
     int32 BkgAtlasID;
     int32 AlternateUiMapGroup;
