@@ -161,6 +161,10 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this)
 
     m_session = session;
 
+    m_modMeleeHitChance = 7.5f;
+    m_modRangedHitChance = 7.5f;
+    m_modSpellHitChance = 15.0f;
+
     m_ingametime = 0;
     m_sharedQuestId = 0;
 
@@ -16197,7 +16201,7 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object const* questgiver) const
                 break;
             case QUEST_STATUS_INCOMPLETE:
                 if (quest->IsImportant())
-                    result |= QuestGiverStatus::ImportantQuestReward;
+                    result |= QuestGiverStatus::ImportantReward;
                 else if (quest->GetQuestTag() == QuestTagType::CovenantCalling)
                     result |= QuestGiverStatus::CovenantCallingReward;
                 else if (quest->HasFlagEx(QUEST_FLAGS_EX_LEGENDARY))
@@ -16237,7 +16241,7 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object const* questgiver) const
                     if (quest->IsImportant())
                         result |= isTrivial ? QuestGiverStatus::TrivialImportantQuest : QuestGiverStatus::ImportantQuest;
                     else if (quest->GetQuestTag() == QuestTagType::CovenantCalling)
-                        result |= isTrivial ? QuestGiverStatus::TrivialCovenantCallingQuest : QuestGiverStatus::CovenantCallingQuest;
+                        result |= QuestGiverStatus::CovenantCallingQuest;
                     else if (quest->HasFlagEx(QUEST_FLAGS_EX_LEGENDARY))
                         result |= isTrivial ? QuestGiverStatus::TrivialLegendaryQuest : QuestGiverStatus::LegendaryQuest;
                     else if (quest->IsDaily())
@@ -16245,6 +16249,8 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object const* questgiver) const
                     else
                         result |= isTrivial ? QuestGiverStatus::Trivial : QuestGiverStatus::Quest;
                 }
+                else if (quest->IsImportant())
+                    result |= QuestGiverStatus::FutureImportantQuest;
                 else if (quest->HasFlagEx(QUEST_FLAGS_EX_LEGENDARY))
                     result |= QuestGiverStatus::FutureLegendaryQuest;
                 else
@@ -23638,7 +23644,7 @@ void Player::UpdateTriggerVisibility()
         {
             Creature* creature = GetMap()->GetCreature(*itr);
             // Update fields of triggers, transformed units or uninteractible units (values dependent on GM state)
-            if (!creature || (!creature->IsTrigger() && !creature->HasAuraType(SPELL_AURA_TRANSFORM) && !creature->HasUnitFlag(UNIT_FLAG_UNINTERACTIBLE)))
+            if (!creature || (!creature->IsTrigger() && !creature->HasAuraType(SPELL_AURA_TRANSFORM) && !creature->IsUninteractible()))
                 continue;
 
             creature->ForceUpdateFieldChange(creature->m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::DisplayID));

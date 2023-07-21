@@ -619,7 +619,7 @@ void GameObject::AddToWorld()
 
         EnableCollision(toggledState);
         WorldObject::AddToWorld();
-		
+
 #ifdef ELUNA
         sEluna->OnAddToWorld(this);
 #endif
@@ -634,6 +634,7 @@ void GameObject::RemoveFromWorld()
 #ifdef ELUNA
         sEluna->OnRemoveFromWorld(this);
 #endif
+
         if (m_zoneScript)
             m_zoneScript->OnGameObjectRemove(this);
 
@@ -650,8 +651,8 @@ void GameObject::RemoveFromWorld()
 
         if (m_spawnId)
             Trinity::Containers::MultimapErasePair(GetMap()->GetGameObjectBySpawnIdStore(), m_spawnId, this);
-		
-		GetMap()->RemoveInfiniteGameObject(GetGUID());
+
+        GetMap()->RemoveInfiniteGameObject(GetGUID());
         GetMap()->GetObjectsStore().Remove<GameObject>(GetGUID());
     }
 }
@@ -873,11 +874,11 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
     // Check if GameObject is Large
     if (goInfo->IsLargeGameObject())
         SetVisibilityDistanceOverride(VisibilityDistanceType::Large);
-	
-	SetVisibilityDistanceOverride(visibility);
+
+    SetVisibilityDistanceOverride(visibility);
 
     if (GetVisibilityRange() > SIZE_OF_GRIDS) {
-		GetMap()->AddInfiniteGameObject(this->GetGUID());
+        GetMap()->AddInfiniteGameObject(this->GetGUID());
     }
 
     return true;
@@ -916,7 +917,7 @@ void GameObject::Update(uint32 diff)
 #ifdef ELUNA
     sEluna->UpdateAI(this, diff);
 #endif
-	
+
     WorldObject::Update(diff);
 
     if (AI())
@@ -1571,7 +1572,7 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
     data.artKit = GetGoArtKit();
     if (!data.spawnGroupData)
         data.spawnGroupData = sObjectMgr->GetDefaultSpawnGroup();
-	if (data.size == 0.0f)
+    if (data.size == 0.0f)
     {
         // first save, use default if scale matches template or use custom scale if not
         if (goI && goI->size == GetObjectScale())
@@ -1633,7 +1634,7 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
     stmt->setInt32(index++, int32(m_respawnDelayTime));
     stmt->setUInt8(index++, GetGoAnimProgress());
     stmt->setUInt8(index++, uint8(GetGoState()));
-	stmt->setFloat(index++, data.size);
+    stmt->setFloat(index++, data.size);
     stmt->setFloat(index++, GetVisibilityRange());
     trans->Append(stmt);
 
@@ -1655,7 +1656,7 @@ bool GameObject::LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap
     uint32 animprogress = data->animprogress;
     GOState go_state = data->goState;
     uint32 artKit = data->artKit;
-	float size = data->size;
+    float size = data->size;
     float visibility = data->visibility;
 
     m_spawnId = spawnId;
@@ -2239,12 +2240,12 @@ void GameObject::Use(Unit* user)
             playerUser->RemoveAurasByType(SPELL_AURA_MOUNTED);
 
         playerUser->PlayerTalkClass->ClearMenus();
-		
+
 #ifdef ELUNA
         if (sEluna->OnGossipHello(playerUser, this))
             return;
 #endif
-		
+
         if (AI()->OnGossipHello(playerUser))
             return;
     }
@@ -2415,7 +2416,7 @@ void GameObject::Use(Unit* user)
             {
                 // the distance between this slot and the center of the go - imagine a 1D space
                 //float relativeDistance = (info->size * slot) - (info->size * (info->chair.chairslots - 1) / 2.0f);
-				float relativeDistance = (GetObjectScale() * slot) - (GetObjectScale() * (info->chair.chairslots - 1) / 2.0f);
+                float relativeDistance = (GetObjectScale() * slot) - (GetObjectScale() * (info->chair.chairslots - 1) / 2.0f);
 
                 float x_i = GetPositionX() + relativeDistance * std::cos(orthogonalOrientation);
                 float y_i = GetPositionY() + relativeDistance * std::sin(orthogonalOrientation);
@@ -3283,7 +3284,7 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, WorldOb
 #ifdef ELUNA
             sEluna->OnDamaged(this, attackerOrHealer);
 #endif
-            if (GetGOInfo()->destructibleBuilding.DamagedEvent)
+            if (GetGOInfo()->destructibleBuilding.DamagedEvent && attackerOrHealer)
                 GameEvents::Trigger(GetGOInfo()->destructibleBuilding.DamagedEvent, attackerOrHealer, this);
             AI()->Damaged(attackerOrHealer, m_goInfo->destructibleBuilding.DamagedEvent);
 
@@ -3312,7 +3313,8 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, WorldOb
 #ifdef ELUNA
             sEluna->OnDestroyed(this, attackerOrHealer);
 #endif
-            if (GetGOInfo()->destructibleBuilding.DestroyedEvent)
+
+            if (GetGOInfo()->destructibleBuilding.DestroyedEvent && attackerOrHealer)
                 GameEvents::Trigger(GetGOInfo()->destructibleBuilding.DestroyedEvent, attackerOrHealer, this);
             AI()->Destroyed(attackerOrHealer, m_goInfo->destructibleBuilding.DestroyedEvent);
 
@@ -3339,7 +3341,7 @@ void GameObject::SetDestructibleState(GameObjectDestructibleState state, WorldOb
         }
         case GO_DESTRUCTIBLE_REBUILDING:
         {
-            if (GetGOInfo()->destructibleBuilding.RebuildingEvent)
+            if (GetGOInfo()->destructibleBuilding.RebuildingEvent && attackerOrHealer)
                 GameEvents::Trigger(GetGOInfo()->destructibleBuilding.RebuildingEvent, attackerOrHealer, this);
             RemoveFlag(GO_FLAG_DAMAGED | GO_FLAG_DESTROYED);
 
@@ -3368,7 +3370,7 @@ void GameObject::SetLootState(LootState state, Unit* unit)
         m_lootStateUnitGUID = unit->GetGUID();
     else
         m_lootStateUnitGUID.Clear();
-	
+
 #ifdef ELUNA
     sEluna->OnLootStateChanged(this, state, unit);
 #endif
@@ -3457,9 +3459,11 @@ void GameObject::SetGoState(GOState state)
 {
     GOState oldState = GetGoState();
     SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::State), state);
+
 #ifdef ELUNA
     sEluna->OnGameObjectStateChanged(this, state);
 #endif
+
     if (AI())
         AI()->OnStateChanged(state);
 

@@ -1264,11 +1264,16 @@ class spell_mage_prismatic_barrier : public AuraScript
 {
     PrepareAuraScript(spell_mage_prismatic_barrier);
 
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        return ValidateSpellEffect({ { spellInfo->Id, EFFECT_5 } });
+    }
+
     void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& canBeRecalculated)
     {
         canBeRecalculated = false;
         if (Unit* caster = GetCaster())
-            amount += int32(caster->SpellBaseHealingBonusDone(GetSpellInfo()->GetSchoolMask()) * 7.0f);
+            amount = int32(CalculatePct(caster->GetMaxHealth(), GetEffectInfo(EFFECT_5).CalcValue(caster)));
     }
 
     void Register() override
@@ -1433,7 +1438,7 @@ class spell_mage_ring_of_frost_freeze : public SpellScript
     void FilterTargets(std::list<WorldObject*>& targets)
     {
         WorldLocation const* dest = GetExplTargetDest();
-        float outRadius = sSpellMgr->AssertSpellInfo(SPELL_MAGE_RING_OF_FROST_SUMMON, GetCastDifficulty())->GetEffect(EFFECT_0).CalcRadius();
+        float outRadius = sSpellMgr->AssertSpellInfo(SPELL_MAGE_RING_OF_FROST_SUMMON, GetCastDifficulty())->GetEffect(EFFECT_0).CalcRadius(nullptr, SpellTargetIndex::TargetB);
         float inRadius = 6.5f;
 
         targets.remove_if([dest, outRadius, inRadius](WorldObject* target)
@@ -1557,38 +1562,6 @@ class spell_mage_water_elemental_freeze : public SpellScript
     void Register() override
     {
         AfterHit += SpellHitFn(spell_mage_water_elemental_freeze::HandleImprovedFreeze);
-    }
-};
-
-// Mirror Image - 55342
-class spell_mage_mirror_image_summon : public SpellScriptLoader
-{
-public:
-    spell_mage_mirror_image_summon() : SpellScriptLoader("spell_mage_mirror_image_summon") { }
-
-    class spell_mage_mirror_image_summon_SpellScript : public SpellScript
-    {
-        PrepareSpellScript(spell_mage_mirror_image_summon_SpellScript);
-
-        void HandleDummy(SpellEffIndex /*effIndex*/)
-        {
-            if (Unit* caster = GetCaster())
-            {
-                caster->CastSpell(caster, SPELL_MAGE_MIRROR_IMAGE_LEFT, true);
-                caster->CastSpell(caster, SPELL_MAGE_MIRROR_IMAGE_FRONT, true);
-                caster->CastSpell(caster, SPELL_MAGE_MIRROR_IMAGE_RIGHT, true);
-            }
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_mage_mirror_image_summon_SpellScript::HandleDummy, EFFECT_1, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_mage_mirror_image_summon_SpellScript();
     }
 };
 
@@ -1853,7 +1826,6 @@ void AddSC_mage_spell_scripts()
     RegisterSpellScript(spell_mage_water_elemental_freeze);
 
     //new
-    RegisterSpellScript(spell_mage_mirror_image_summon);
     RegisterSpellScript(spell_mage_meteor);
     RegisterSpellScript(spell_mage_meteor_damage);
     new at_mage_meteor_timer();
