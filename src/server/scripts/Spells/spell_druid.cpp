@@ -47,6 +47,7 @@ enum DruidSpells
     SPELL_DRUID_BRAMBLES_REFLECT               = 203958,
     SPELL_DRUID_BRISTLING_FUR_GAIN_RAGE        = 204031,
     SPELL_DRUID_CAT_FORM                       = 768,
+    SPELL_DRUID_CURIOUS_BRAMBLEPATCH           = 330670,
     SPELL_DRUID_EARTHWARDEN_AURA               = 203975,
     SPELL_DRUID_ECLIPSE_DUMMY                  = 79577,
     SPELL_DRUID_ECLIPSE_LUNAR_AURA             = 48518,
@@ -54,6 +55,7 @@ enum DruidSpells
     SPELL_DRUID_ECLIPSE_OOC                    = 329910,
     SPELL_DRUID_ECLIPSE_SOLAR_AURA             = 48517,
     SPELL_DRUID_ECLIPSE_SOLAR_SPELL_CNT        = 326053,
+    SPELL_DRUID_ENTANGLING_ROOTS               = 339,
     SPELL_DRUID_EXHILARATE                     = 28742,
     SPELL_DRUID_FORM_AQUATIC_PASSIVE           = 276012,
     SPELL_DRUID_FORM_AQUATIC                   = 1066,
@@ -80,6 +82,7 @@ enum DruidSpells
     SPELL_DRUID_LIFEBLOOM_FINAL_HEAL           = 33778,
     SPELL_DRUID_LUNAR_INSPIRATION_OVERRIDE     = 155627,
     SPELL_DRUID_MANGLE                         = 33917,
+    SPELL_DRUID_MASS_ENTANGLEMENT              = 102359,
     SPELL_DRUID_MOONFIRE_DAMAGE                = 164812,
     SPELL_DRUID_PROWL                          = 5215,
     SPELL_DRUID_REJUVENATION_T10_PROC          = 70691,
@@ -94,7 +97,9 @@ enum DruidSpells
     SPELL_DRUID_TRAVEL_FORM                    = 783,
     SPELL_DRUID_THRASH_BEAR                    = 77758,
     SPELL_DRUID_THRASH_BEAR_AURA               = 192090,
-    SPELL_DRUID_THRASH_CAT                     = 106830
+    SPELL_DRUID_THRASH_CAT                     = 106830,
+    SPELL_DRUID_YSERAS_GIFT_HEAL_PARTY         = 145110,
+    SPELL_DRUID_YSERAS_GIFT_HEAL_SELF          = 145109
 };
 
 class RaidCheck
@@ -473,6 +478,63 @@ class spell_dru_earthwarden : public AuraScript
     void Register() override
     {
         OnEffectProc += AuraEffectProcFn(spell_dru_earthwarden::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 339 - Entangling Roots
+// 102359 - Mass Entanglement
+class spell_dru_entangling_roots : public SpellScript
+{
+    PrepareSpellScript(spell_dru_entangling_roots);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_DRUID_CURIOUS_BRAMBLEPATCH });
+    }
+
+    void HandleCuriousBramblepatch(WorldObject*& target)
+    {
+        if (!GetCaster()->HasAura(SPELL_DRUID_CURIOUS_BRAMBLEPATCH))
+            target = nullptr;
+    }
+
+    void HandleCuriousBramblepatchAOE(std::list<WorldObject*>& targets)
+    {
+        if (!GetCaster()->HasAura(SPELL_DRUID_CURIOUS_BRAMBLEPATCH))
+            targets.clear();
+    }
+
+    void Register() override
+    {
+        OnObjectTargetSelect += SpellObjectTargetSelectFn(spell_dru_entangling_roots::HandleCuriousBramblepatch, EFFECT_1, TARGET_UNIT_TARGET_ENEMY);
+        if (m_scriptSpellId == SPELL_DRUID_MASS_ENTANGLEMENT)
+            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_dru_entangling_roots::HandleCuriousBramblepatchAOE, EFFECT_1, TARGET_UNIT_DEST_AREA_ENEMY);
+    }
+};
+
+class spell_dru_entangling_roots_aura : public AuraScript
+{
+    PrepareAuraScript(spell_dru_entangling_roots_aura);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_DRUID_ENTANGLING_ROOTS, SPELL_DRUID_MASS_ENTANGLEMENT });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        if (SpellInfo const* spellInfo = eventInfo.GetSpellInfo())
+        {
+            // dont subtract dmg caused by roots from dmg required to break root
+            if (spellInfo->Id == SPELL_DRUID_ENTANGLING_ROOTS || spellInfo->Id == SPELL_DRUID_MASS_ENTANGLEMENT)
+                return false;
+        }
+        return true;
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_dru_entangling_roots_aura::CheckProc);
     }
 };
 
@@ -1662,6 +1724,52 @@ class spell_dru_wild_growth_aura : public AuraScript
     }
 };
 
+// 145108 - Ysera's Gift
+class spell_dru_yseras_gift : public AuraScript
+{
+    PrepareAuraScript(spell_dru_yseras_gift);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo
+        ({
+            SPELL_DRUID_YSERAS_GIFT_HEAL_SELF,
+            SPELL_DRUID_YSERAS_GIFT_HEAL_PARTY
+        });
+    }
+
+    void HandleEffectPeriodic(AuraEffect const* aurEff)
+    {
+        int32 healAmount = int32(GetTarget()->CountPctFromMaxHealth(aurEff->GetAmount()));
+
+        if (!GetTarget()->IsFullHealth())
+            GetTarget()->CastSpell(GetTarget(), SPELL_DRUID_YSERAS_GIFT_HEAL_SELF, CastSpellExtraArgs(aurEff).AddSpellBP0(healAmount));
+        else
+            GetTarget()->CastSpell(GetTarget(), SPELL_DRUID_YSERAS_GIFT_HEAL_PARTY, CastSpellExtraArgs(aurEff).AddSpellBP0(healAmount));
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_dru_yseras_gift::HandleEffectPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
+    }
+};
+
+// 145110 - Ysera's Gift (heal)
+class spell_dru_yseras_gift_group_heal : public SpellScript
+{
+    PrepareSpellScript(spell_dru_yseras_gift_group_heal);
+
+    void SelectTargets(std::list<WorldObject*>& targets)
+    {
+        Trinity::SelectRandomInjuredTargets(targets, 1, true);
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_dru_yseras_gift_group_heal::SelectTargets, EFFECT_0, TARGET_UNIT_CASTER_AREA_RAID);
+    }
+};
+
 void AddSC_druid_spell_scripts()
 {
     RegisterSpellScript(spell_dru_barkskin);
@@ -1674,6 +1782,7 @@ void AddSC_druid_spell_scripts()
     RegisterSpellScript(spell_dru_eclipse_aura);
     RegisterSpellScript(spell_dru_eclipse_dummy);
     RegisterSpellScript(spell_dru_eclipse_ooc);
+    RegisterSpellAndAuraScriptPair(spell_dru_entangling_roots, spell_dru_entangling_roots_aura);
     RegisterSpellScript(spell_dru_ferocious_bite);
     RegisterSpellScript(spell_dru_forms_trinket);
     RegisterSpellScript(spell_dru_galactic_guardian);
@@ -1709,4 +1818,6 @@ void AddSC_druid_spell_scripts()
     RegisterSpellAndAuraScriptPair(spell_dru_travel_form_dummy, spell_dru_travel_form_dummy_aura);
     RegisterSpellAndAuraScriptPair(spell_dru_tiger_dash, spell_dru_tiger_dash_aura);
     RegisterSpellAndAuraScriptPair(spell_dru_wild_growth, spell_dru_wild_growth_aura);
+    RegisterSpellScript(spell_dru_yseras_gift);
+    RegisterSpellScript(spell_dru_yseras_gift_group_heal);
 }
