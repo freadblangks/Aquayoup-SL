@@ -53,6 +53,9 @@
 #include "Transport.h"
 #include "Vehicle.h"
 #include "VMapFactory.h"
+#ifdef ELUNA
+#include "LuaEngine.h"
+#endif
 #include "VMapManager2.h"
 #include "Weather.h"
 #include "WeatherMgr.h"
@@ -2289,7 +2292,17 @@ bool Map::ShouldBeSpawnedOnGridLoad(SpawnObjectType type, ObjectGuid::LowType sp
     if (GetRespawnTime(type, spawnId))
         return false;
 
-    SpawnMetadata const* spawnData = ASSERT_NOTNULL(sObjectMgr->GetSpawnMetadata(type, spawnId));
+    SpawnMetadata const* spawnData = sObjectMgr->GetSpawnMetadata(type, spawnId);
+    if (!spawnData) {
+        TC_LOG_ERROR("roleplay", "Half deleted spawn detected. Map: %s, Type: %s, SpawnID: " SZFMTD, GetMapName(), type, spawnId);
+        if (type == 0) {
+            sObjectMgr->DeleteCreatureData(spawnId);
+        }
+        else if (type == 1) {
+            sObjectMgr->DeleteGameObjectData(spawnId);
+        }
+        return false;
+    }
     // check if the object is part of a spawn group
     SpawnGroupTemplateData const* spawnGroup = ASSERT_NOTNULL(spawnData->spawnGroupData);
     if (!(spawnGroup->flags & SPAWNGROUP_FLAG_SYSTEM))
@@ -2530,6 +2543,13 @@ void Map::DelayedUpdate(uint32 t_diff)
 void Map::AddObjectToRemoveList(WorldObject* obj)
 {
     ASSERT(obj->GetMapId() == GetId() && obj->GetInstanceId() == GetInstanceId());
+
+#ifdef ELUNA
+    if (Creature* creature = obj->ToCreature())
+        sEluna->OnRemove(creature);
+    else if (GameObject* gameobject = obj->ToGameObject())
+        sEluna->OnRemove(gameobject);
+#endif
 
     obj->SetDestroyedObject(true);
     obj->CleanupsBeforeDelete(false);                            // remove or simplify at least cross referenced links
@@ -2939,12 +2959,24 @@ void InstanceMap::CreateInstanceData()
     if (i_data != nullptr)
         return;
 
+	bool isElunaAI = false;
+	
+	#ifdef ELUNA
+	    i_data = sEluna->GetInstanceData(this);
+	    if (i_data)
+	        isElunaAI = true;
+	#endif
+	
+	    // if Eluna AI was fetched succesfully we should not call CreateInstanceData nor set the unused scriptID
+	    if (!isElunaAI)
+	{
     InstanceTemplate const* mInstance = sObjectMgr->GetInstanceTemplate(GetId());
     if (mInstance)
-    {
-        i_script_id = mInstance->ScriptId;
-        i_data = sScriptMgr->CreateInstanceData(this);
-    }
+		{
+			i_script_id = mInstance->ScriptId;
+			i_data = sScriptMgr->CreateInstanceData(this);
+		}
+	}
 
     if (!i_data)
         return;
@@ -2967,7 +2999,7 @@ void InstanceMap::CreateInstanceData()
     i_data->SetEntranceLocation(lockData->EntranceWorldSafeLocId);
     if (!lockData->Data.empty())
     {
-        TC_LOG_DEBUG("maps", "Loading instance data for `{}` with id {}", sObjectMgr->GetScriptName(i_script_id), i_InstanceId);
+        TC_LOG_DEBUG("maps", "Loading instance data for `{}` with id {}", isElunaAI ? "ElunaAI" : sObjectMgr->GetScriptName(i_script_id), i_InstanceId);
         i_data->Load(lockData->Data.c_str());
     }
     else
