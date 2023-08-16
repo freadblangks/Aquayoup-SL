@@ -45,9 +45,9 @@ class TC_GAME_API TempSummon : public Creature
 {
     public:
         explicit TempSummon(SummonPropertiesEntry const* properties, WorldObject* owner, bool isWorldObject);
-        virtual ~TempSummon() { }
-        void Update(uint32 time) override;
-        virtual void InitStats(WorldObject* summoner, uint32 lifetime);
+        virtual ~TempSummon();
+        void Update(uint32 diff) override;
+        virtual void InitStats(WorldObject* summoner, Milliseconds duration);
         virtual void InitSummon(WorldObject* summoner);
         void UpdateObjectVisibilityOnCreate() override;
         void UpdateObjectVisibilityOnDestroy() override;
@@ -62,7 +62,9 @@ class TC_GAME_API TempSummon : public Creature
         GameObject* GetSummonerGameObject() const;
         ObjectGuid GetSummonerGUID() const { return m_summonerGUID; }
         TempSummonType GetSummonType() const { return m_type; }
-        uint32 GetTimer() const { return m_timer; }
+        Milliseconds GetTimer() const { return m_timer; }
+        void RefreshTimer() { m_timer = m_lifetime; }
+        void ModifyTimer(Milliseconds mod) { m_timer += mod; m_lifetime += mod; }
         Optional<uint32> GetCreatureIdVisibleToSummoner() const { return m_creatureIdVisibleToSummoner; }
         Optional<uint32> GetDisplayIdVisibleToSummoner() const { return m_displayIdVisibleToSummoner; }
         bool CanFollowOwner() const { return m_canFollowOwner; }
@@ -71,10 +73,15 @@ class TC_GAME_API TempSummon : public Creature
         SummonPropertiesEntry const* const m_Properties;
 
         std::string GetDebugInfo() const override;
+
+    protected:
+        std::ptrdiff_t FindUsableTotemSlot(Unit const* summoner) const;
+
     private:
+        bool IsSharingTotemSlotWith(ObjectGuid objectGuid) const;
         TempSummonType m_type;
-        uint32 m_timer;
-        uint32 m_lifetime;
+        Milliseconds m_timer;
+        Milliseconds m_lifetime;
         ObjectGuid m_summonerGUID;
         Optional<uint32> m_creatureIdVisibleToSummoner;
         Optional<uint32> m_displayIdVisibleToSummoner;
@@ -85,7 +92,7 @@ class TC_GAME_API Minion : public TempSummon
 {
     public:
         Minion(SummonPropertiesEntry const* properties, Unit* owner, bool isWorldObject);
-        void InitStats(WorldObject* summoner, uint32 duration) override;
+        void InitStats(WorldObject* summoner, Milliseconds duration) override;
         void RemoveFromWorld() override;
         void setDeathState(DeathState s) override;
         Unit* GetOwner() const { return m_owner; }
@@ -120,7 +127,7 @@ class TC_GAME_API Guardian : public Minion
 {
     public:
         Guardian(SummonPropertiesEntry const* properties, Unit* owner, bool isWorldObject);
-        void InitStats(WorldObject* summoner, uint32 duration) override;
+        void InitStats(WorldObject* summoner, Milliseconds duration) override;
         bool InitStatsForLevel(uint8 level);
         void InitSummon(WorldObject* summoner) override;
 
@@ -146,7 +153,7 @@ class TC_GAME_API Puppet : public Minion
 {
     public:
         Puppet(SummonPropertiesEntry const* properties, Unit* owner);
-        void InitStats(WorldObject* summoner, uint32 duration) override;
+        void InitStats(WorldObject* summoner, Milliseconds duration) override;
         void InitSummon(WorldObject* summoner) override;
         void Update(uint32 time) override;
 };
