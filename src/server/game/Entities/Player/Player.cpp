@@ -1106,6 +1106,8 @@ void Player::Update(uint32 p_time)
         else
             m_zoneUpdateTimer -= p_time;
     }
+	
+	sScriptMgr->OnPlayerUpdate(this, p_time);
 
     if (IsAlive())
     {
