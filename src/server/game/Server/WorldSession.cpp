@@ -477,7 +477,10 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
         //process only a max amout of packets in 1 Update() call.
         //Any leftover will be processed in next update
         if (processedPackets > MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE)
+        {  
+            TC_LOG_WARN("server.worldserver", "Hit max packet processing limit for player %s", GetPlayerInfo().c_str());
             break;
+        }
     }
 
     TC_METRIC_VALUE("processed_packets", processedPackets);
