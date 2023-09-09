@@ -2904,6 +2904,28 @@ void Creature::UpdateMovementFlags()
     if (GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE)
         return;
 
+    // override
+    auto extraData = sFreedomMgr->GetCreatureExtraData(this->GetSpawnId());
+    if (extraData)
+    {
+        SetDisableGravity(!extraData->gravity);
+
+        if (extraData->swim)
+        {
+            SetSwim(true);
+        }
+        else if (extraData->gravity)
+            SetSwim(IsInWater() && extraData->swim);
+        else if (extraData->fly)
+            SetSwim(true);
+        else
+        {
+            SetSwim(CanSwim() && IsInWater());
+        }
+
+        return;
+    }
+
     // Set the movement flags if the creature is in that mode. (Only fly if actually in air, only swim if in water, etc)
     float ground = GetFloorZ();
 
@@ -2930,30 +2952,6 @@ void Creature::UpdateMovementFlags()
 
     if (!isInAir)
         RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING);
-
-    // override
-    auto extraData = sFreedomMgr->GetCreatureExtraData(this->GetSpawnId());
-    if (extraData)
-    {
-        SetDisableGravity(!extraData->gravity);
-
-        if (extraData->swim)
-        {
-            if (!HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING))
-                AddUnitMovementFlag(MOVEMENTFLAG_SWIMMING);
-            else
-                RemoveUnitMovementFlag(MOVEMENTFLAG_SWIMMING);
-
-        if (extraData->gravity)
-            SetSwim(IsInWater() && extraData->swim);
-        else if (extraData->fly)
-            SetSwim(true);
-        }
-        else
-        {
-            SetSwim(CanSwim() && IsInWater());
-        }
-    }
 }
 CreatureMovementData const& Creature::GetMovementTemplate() const
 {
