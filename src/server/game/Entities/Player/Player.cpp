@@ -1120,6 +1120,8 @@ void Player::Update(uint32 p_time)
         else
             m_zoneUpdateTimer -= p_time;
     }
+	
+	sScriptMgr->OnPlayerUpdate(this, p_time);
 
     if (IsAlive())
     {
@@ -23961,6 +23963,8 @@ void Player::SendInitialPacketsBeforeAddToMap()
 void Player::SendInitialPacketsAfterAddToMap()
 {
     UpdateVisibilityForPlayer();
+	
+	SetPlayerLocalFlag(PLAYER_LOCAL_FLAG_ACCOUNT_SECURED);
 
     // update zone
     uint32 newzone, newarea;
