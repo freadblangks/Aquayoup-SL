@@ -1120,8 +1120,6 @@ void Player::Update(uint32 p_time)
         else
             m_zoneUpdateTimer -= p_time;
     }
-	
-	sScriptMgr->OnPlayerUpdate(this, p_time);
 
     if (IsAlive())
     {
@@ -3116,13 +3114,44 @@ bool Player::AddSpell(uint32 spellId, bool active, bool learning, bool dependent
         // add dependent skills if this spell is not learned from adding skill already
         if (spellLearnSkill->skill != fromSkill)
         {
-            uint32 skill_value = GetPureSkillValue(spellLearnSkill->skill);
-            uint32 skill_max_value = GetPureMaxSkillValue(spellLearnSkill->skill);
+            uint16 skill_value = GetPureSkillValue(spellLearnSkill->skill);
+            uint16 skill_max_value = GetPureMaxSkillValue(spellLearnSkill->skill);
 
             if (skill_value < spellLearnSkill->value)
                 skill_value = spellLearnSkill->value;
 
-            uint32 new_skill_max_value = spellLearnSkill->maxvalue == 0 ? GetMaxSkillValueForLevel() : spellLearnSkill->maxvalue;
+            uint16 new_skill_max_value = spellLearnSkill->maxvalue;
+
+            if (new_skill_max_value == 0)
+            {
+                if (SkillRaceClassInfoEntry const* rcInfo = sDB2Manager.GetSkillRaceClassInfo(spellLearnSkill->skill, GetRace(), GetClass()))
+                {
+                    switch (GetSkillRangeType(rcInfo))
+                    {
+                        case SKILL_RANGE_LANGUAGE:
+                            skill_value = 300;
+                            new_skill_max_value = 300;
+                            break;
+                        case SKILL_RANGE_LEVEL:
+                            new_skill_max_value = GetMaxSkillValueForLevel();
+                            break;
+                        case SKILL_RANGE_MONO:
+                            new_skill_max_value = 1;
+                            break;
+                        case SKILL_RANGE_RANK:
+                        {
+                            SkillTiersEntry const* tier = sObjectMgr->GetSkillTier(rcInfo->SkillTierID);
+                            new_skill_max_value = tier->Value[spellLearnSkill->step - 1];
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+
+                    if (rcInfo->Flags & SKILL_FLAG_ALWAYS_MAX_VALUE)
+                        skill_value = new_skill_max_value;
+                }
+            }
 
             if (skill_max_value < new_skill_max_value)
                 skill_max_value = new_skill_max_value;
@@ -3363,16 +3392,49 @@ void Player::RemoveSpell(uint32 spell_id, bool disabled /*= false*/, bool learn_
                 SetSkill(spellLearnSkill->skill, 0, 0, 0);
             else                                            // set to prev. skill setting values
             {
-                uint32 skill_value = GetPureSkillValue(prevSkill->skill);
-                uint32 skill_max_value = GetPureMaxSkillValue(prevSkill->skill);
+                uint16 skill_value = GetPureSkillValue(prevSkill->skill);
+                uint16 skill_max_value = GetPureMaxSkillValue(prevSkill->skill);
 
-                if (skill_value > prevSkill->value)
+                uint16 new_skill_max_value = prevSkill->maxvalue;
+
+                if (new_skill_max_value == 0)
+                {
+                    if (SkillRaceClassInfoEntry const* rcInfo = sDB2Manager.GetSkillRaceClassInfo(prevSkill->skill, GetRace(), GetClass()))
+                    {
+                        switch (GetSkillRangeType(rcInfo))
+                        {
+                            case SKILL_RANGE_LANGUAGE:
+                                skill_value = 300;
+                                new_skill_max_value = 300;
+                                break;
+                            case SKILL_RANGE_LEVEL:
+                                new_skill_max_value = GetMaxSkillValueForLevel();
+                                break;
+                            case SKILL_RANGE_MONO:
+                                new_skill_max_value = 1;
+                                break;
+                            case SKILL_RANGE_RANK:
+                            {
+                                SkillTiersEntry const* tier = sObjectMgr->GetSkillTier(rcInfo->SkillTierID);
+                                new_skill_max_value = tier->Value[prevSkill->step - 1];
+                                break;
+                            }
+                            default:
+                                break;
+                        }
+
+                        if (rcInfo->Flags & SKILL_FLAG_ALWAYS_MAX_VALUE)
+                            skill_value = new_skill_max_value;
+                    }
+                }
+                else if (skill_value > prevSkill->value)
                     skill_value = prevSkill->value;
-
-                uint32 new_skill_max_value = prevSkill->maxvalue == 0 ? GetMaxSkillValueForLevel() : prevSkill->maxvalue;
 
                 if (skill_max_value > new_skill_max_value)
                     skill_max_value = new_skill_max_value;
+
+                if (skill_value > new_skill_max_value)
+                    skill_value = new_skill_max_value;
 
                 SetSkill(prevSkill->skill, prevSkill->step, skill_value, skill_max_value);
             }
@@ -16549,10 +16611,6 @@ void Player::UpdateQuestObjectiveProgress(QuestObjectiveType objectiveType, int3
         if (!IsQuestObjectiveCompletable(logSlot, quest, objective))
             continue;
 
-        // Ignore update of optional objectives if quest is completed
-        if ((GetQuestStatus(quest->GetQuestId()) == QUEST_STATUS_COMPLETE) && (objective.Flags & (QUEST_OBJECTIVE_FLAG_OPTIONAL)))
-            continue;
-
         if (quest->HasFlagEx(QUEST_FLAGS_EX_NO_CREDIT_FOR_PROXY))
             if (objective.Type == QUEST_OBJECTIVE_MONSTER && victimGuid.IsEmpty())
                 continue;
@@ -23963,8 +24021,6 @@ void Player::SendInitialPacketsBeforeAddToMap()
 void Player::SendInitialPacketsAfterAddToMap()
 {
     UpdateVisibilityForPlayer();
-	
-	SetPlayerLocalFlag(PLAYER_LOCAL_FLAG_ACCOUNT_SECURED);
 
     // update zone
     uint32 newzone, newarea;
@@ -24354,10 +24410,6 @@ void Player::LearnSkillRewardedSpells(uint32 skillId, uint32 skillValue, Races r
                 continue;
         }
 
-        // AcquireMethod == 2 && NumSkillUps == 1 --> automatically learn riding skill spell, else we skip it (client shows riding in spellbook as trainable).
-        if (skillId == SKILL_RIDING && (ability->AcquireMethod != SKILL_LINE_ABILITY_LEARNED_ON_SKILL_LEARN || ability->NumSkillUps != 1))
-            continue;
-
         // Check race if set
         if (!ability->RaceMask.IsEmpty() && !ability->RaceMask.HasRace(race))
             continue;
@@ -24367,23 +24419,17 @@ void Player::LearnSkillRewardedSpells(uint32 skillId, uint32 skillValue, Races r
             continue;
 
         // Check level, skip class spells if not high enough
-        // Special case for riding spells of the hero classes (Journeyman)
-        auto isRidingSpellForHeroClass = [&]()
+        uint32 requiredLevel = std::max(spellInfo->SpellLevel, spellInfo->BaseLevel);
+
+        // riding special cases
+        if (skillId == SKILL_RIDING)
         {
-            if (skillId != SKILL_RIDING)
-                return false;
+            if (GetClassMask() & ((1 << (CLASS_DEATH_KNIGHT - 1)) | (1 << (CLASS_DEMON_HUNTER - 1)))
+                && (ability->Spell == SPELL_APPRENTICE_RIDING || ability->Spell == SPELL_JOURNEYMAN_RIDING))
+                requiredLevel = 0;
+        }
 
-            if (!(GetClassMask() & ((1 << (CLASS_DEATH_KNIGHT - 1)) | (1 << (CLASS_DEMON_HUNTER - 1)))))
-                return false;
-
-            if (ability->Spell != SPELL_APPRENTICE_RIDING && ability->Spell != SPELL_JOURNEYMAN_RIDING)
-                return false;
-
-            return true;
-        };
-
-        // Some spells use BaseLevel instead of SpellLevel (Riding)
-        if (!isRidingSpellForHeroClass() && GetLevel() < std::max(spellInfo->SpellLevel, spellInfo->BaseLevel))
+        if (requiredLevel > GetLevel())
             continue;
 
         // need unlearn spell
