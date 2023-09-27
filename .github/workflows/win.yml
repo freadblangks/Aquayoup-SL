@@ -25,7 +25,7 @@ env:
   
 jobs:
   build:
-    runs-on: windows-2019
+    runs-on: windows-2022
     
     steps:
     #git checkout
@@ -82,8 +82,7 @@ jobs:
         cd $GITHUB_WORKSPACE
         
         mkdir -p build && cd build
-        cmake .. -DTOOLS=ON -DELUNA=0 -A x64
-        cmake --build . --config RelWithDebInfo --parallel 4
+      cmake --build . --config RelWithDebInfo --parallel 4
       #git bash shell
       shell: bash
     - name: Create Upload File Name
@@ -117,7 +116,7 @@ jobs:
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
+        automatic_release_tag: "latest Development Build"
         prerelease: true
         title: "Development Build(${{ steps.date.outputs.date }})"
         files: all_snapshots
