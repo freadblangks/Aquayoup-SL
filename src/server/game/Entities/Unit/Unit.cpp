@@ -5302,6 +5302,24 @@ void Unit::RemoveAllAreaTriggers()
         m_areaTrigger.front()->Remove();
 }
 
+void Unit::EnterAreaTrigger(uint32 areaTriggerId, ObjectGuid areaTriggerGUID)
+{
+    _insideAreaTriggers[areaTriggerId].insert(areaTriggerGUID);
+}
+
+void Unit::ExitAreaTrigger(uint32 areaTriggerId, ObjectGuid areaTriggerGUID)
+{
+    _insideAreaTriggers[areaTriggerId].erase(areaTriggerGUID);
+
+    if (_insideAreaTriggers[areaTriggerId].size() == 0)
+        _insideAreaTriggers.erase(areaTriggerId);
+}
+
+bool Unit::IsInAreaTrigger(uint32 areaTriggerId)
+{
+    return _insideAreaTriggers.find(areaTriggerId) != _insideAreaTriggers.end();
+}
+
 void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage const* log)
 {
     WorldPackets::CombatLog::SpellNonMeleeDamageLog packet;
@@ -7056,6 +7074,36 @@ int32 Unit::SpellHealingBonusDone(Unit* victim, SpellInfo const* spellProto, int
             default:
                 break;
         }
+    }
+
+    // 77495 - Mastery: Harmony
+    if (AuraEffect const* harmonyEffect = GetAuraEffect(77495, EFFECT_0))
+    {
+        int8 healingPeriodicCount = 0;
+
+        AuraEffectList const& periodicHealingAuras = victim->GetAuraEffectsByType(SPELL_AURA_PERIODIC_HEAL);
+        for (AuraEffect const* aurEff : periodicHealingAuras)
+        {
+            if (aurEff->GetSpellInfo()->SpellFamilyName == SPELLFAMILY_DRUID && aurEff->GetCasterGUID() == GetGUID())
+                healingPeriodicCount++;
+
+            // Note: Harmonious Blooming talent.
+            if (AuraEffect const* harmoniousBloomingEffect = GetAuraEffect(392256, EFFECT_0))
+            {
+                if (spellProto->Id == 33763 || spellProto->Id == 188550)
+                    healingPeriodicCount += harmoniousBloomingEffect->GetAmount();
+            }
+        }
+
+        // Note: Wild Synthesis talent.
+        if (Aura* wildSynthesisAura = GetAura(400534))
+            DoneTotalMod += (wildSynthesisAura->GetStackAmount() * wildSynthesisAura->GetEffect(EFFECT_1)->GetAmount());
+
+        // Note: Nourish talent.
+        if (spellProto->Id == 50464)
+            DoneTotalMod = float(spellProto->GetEffect(EFFECT_1).CalcValue() / 100.0f);
+
+        DoneTotal += int32(CalculatePct(int32(healamount), float(harmonyEffect->GetAmount() * healingPeriodicCount) * DoneTotalMod));
     }
 
     // Done fixed damage bonus auras

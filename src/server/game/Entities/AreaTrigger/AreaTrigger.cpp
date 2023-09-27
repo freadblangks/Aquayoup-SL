@@ -648,6 +648,8 @@ void AreaTrigger::HandleUnitEnterExit(std::vector<Unit*> const& newTargetList)
         DoActions(unit);
 
         _ai->OnUnitEnter(unit);
+
+        unit->EnterAreaTrigger(GetEntry(), GetGUID());
     }
 
     for (ObjectGuid const& exitUnitGuid : exitUnits)
@@ -661,6 +663,8 @@ void AreaTrigger::HandleUnitEnterExit(std::vector<Unit*> const& newTargetList)
 
                 player->UpdateQuestObjectiveProgress(QUEST_OBJECTIVE_AREA_TRIGGER_EXIT, GetEntry(), 1);
             }
+
+            leavingUnit->ExitAreaTrigger(GetEntry(), GetGUID());
 
             UndoActions(leavingUnit);
 

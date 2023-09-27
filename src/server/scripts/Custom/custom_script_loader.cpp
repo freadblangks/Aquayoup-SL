@@ -16,9 +16,15 @@
  */
 
 // This is where scripts' loading functions should be declared:
-
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
+void AddSC_WorgenPaladinScript();
+void AddSC_skip_StarterArea();
+void AddSC_skip_DracThyr();
+
 void AddCustomScripts()
 {
+    AddSC_WorgenPaladinScript();
+    AddSC_skip_StarterArea();
+    AddSC_skip_DracThyr();
 }

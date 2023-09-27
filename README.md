@@ -3,7 +3,7 @@
 [![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/TrinityCore/TrinityCore.svg)](https://isitmaintained.com/project/TrinityCore/TrinityCore "Average time to resolve an issue") [![Percentage of issues still open](https://isitmaintained.com/badge/open/TrinityCore/TrinityCore.svg)](https://isitmaintained.com/project/TrinityCore/TrinityCore "Percentage of issues still open")
 
 --------------
-
+https://app.travis-ci.com/NeverlandWOW/NVN_DF.svg?branch=master
 
 * [Build Status](#build-status)
 * [Introduction](#introduction)
