@@ -1,0 +1,14 @@
+inputSet:
+  pipeline:
+    identifier: Build_NVN_DF_1696015976714
+    properties:
+      ci:
+        codebase:
+          build:
+            type: tag
+            spec:
+              tag: df
+  name: dsf
+  identifier: dsf
+  orgIdentifier: default
+  projectIdentifier: DF
