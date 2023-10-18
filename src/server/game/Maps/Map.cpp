@@ -3482,7 +3482,7 @@ AreaTrigger* Map::GetAreaTriggerBySpawnId(ObjectGuid::LowType spawnId) const
 
 void Map::UpdateIteratorBack(Player* player)
 {
-    if (m_mapRefIter == player->GetMapRef())
+    if (&*m_mapRefIter == &player->GetMapRef())
         m_mapRefIter = m_mapRefIter->nocheck_prev();
 }
 
