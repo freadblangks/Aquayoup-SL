@@ -42,3 +42,4 @@ void AddShadowlandsScripts()
     // Sepulcher of The First Ones
     AddSC_boss_anduin_wrynn();
     AddSC_instance_sepulcher_of_the_first_ones();
+}
