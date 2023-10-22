@@ -358,7 +358,6 @@ enum AnduinWrynnActions
     ACTION_ACTIVATE_REMNANT,
     ACTION_DESPAWN_REMNANT,
     ACTION_SUMMON_KINGSMOURNE_SOULS,
-    ACTION_DESPAWN_BEACON,
     ACTION_END_ENCOUNTER,
     ACTION_START_OUTRODUCTION,
     ACTION_DESPAIR_GONE,
@@ -388,6 +387,7 @@ enum AnduinWrynnTexts
     SAY_EMPOWERED_HOPEBREAKER           = 11,
     SAY_DISENGAGE                       = 12,
     SAY_NECROTIC_DETONATION             = 13,
+    SAY_ANNOUNCE_EMPOWERED_WICKED_STAR  = 14,
 };
 
 enum AnduinWrynnConversations
@@ -412,12 +412,17 @@ enum AnduinWrynnPoints
     POINT_MARCH_OF_THE_DAMNED   = 4,
 };
 
-enum AnduinWrynnWayPoints
+enum AnduinWrynnPaths
 {
     WAYPOINT_JAINA      = 8,
     WAYPOINT_UTHER      = 9,
     WAYPOINT_FIRIM      = 10,
     WAYPOINT_SYLVANAS   = 13,
+
+    PATH_INTRODUCTION_JAINA     = 1836640,
+    PATH_INTRODUCTION_UTHER     = 1836650,
+    PATH_INTRODUCTION_SYLVANAS  = 1836660,
+    PATH_OUTRODUCTION_FIRIM     = 1845890,
 };
 
 enum AnduinWrynnSpellVisuals
@@ -672,6 +677,7 @@ struct boss_anduin_wrynn : public BossAI
         instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_BEFOULED_BARRIER_DEBUFF);
         instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_BEFOULED_BARRIER_EXPLODE);
         instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_LOST_SOUL_DIMENSION);
+        instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_FORCE_OF_WILL);
         instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_SCARRED_SOUL);
         instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_WEATHER_COSMETIC);
         instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_REMORSELESS_WINTER_PERIODIC);
@@ -814,7 +820,6 @@ struct boss_anduin_wrynn : public BossAI
             case NPC_ANDUIN_DOUBT:
             case NPC_ANDUIN_DESPAIR:
             {
-                // @TODO: move despawn to spellscript?
                 if (TempSummon* tempSummon = summon->ToTempSummon())
                     tempSummon->SetTempSummonType(TEMPSUMMON_CORPSE_DESPAWN);
                 break;
@@ -929,7 +934,7 @@ struct boss_anduin_wrynn : public BossAI
                         {
                             if (Creature* firim = instance->GetCreature(DATA_FIRIM))
                             {
-                                firim->GetMotionMaster()->MovePath(1845890, false); // @TODO: fixme magic number
+                                firim->GetMotionMaster()->MovePath(PATH_OUTRODUCTION_FIRIM, false);
 
                                 Conversation* introductionAnduin = Conversation::CreateConversation(CONVERSATION_ANDUIN_OUTRODUCTION, me, me->GetPosition(), ObjectGuid::Empty, nullptr, false);
                                 introductionAnduin->AddActor(NPC_LADY_JAINA_PROUDMOORE, 1, jaina->GetGUID());
@@ -983,8 +988,6 @@ struct boss_anduin_wrynn : public BossAI
 
             case ACTION_EXIT_INTERMISSION:
             {
-                me->RemoveUnitFlag(UNIT_FLAG_STUNNED); // @TODO: remove?
-
                 if (_intermissionsDone == 0)
                 {
                     PhaseEvents(PHASE_TWO);
@@ -1024,7 +1027,8 @@ struct boss_anduin_wrynn : public BossAI
         if (!UpdateVictim())
             return;
 
-        if (!me->GetVictim()->IsPlayer())
+        Unit* victim = me->GetVictim();
+        if (victim && !victim->IsPlayer())
         {
             EnterEvadeMode(EvadeReason::NoHostiles);
             return;
@@ -1363,14 +1367,23 @@ struct boss_anduin_wrynn : public BossAI
 
             PhaseEvents(PHASE_THREE);
 
-            if (Creature* remnant = instance->GetCreature(DATA_REMNANT_OF_A_FALLEN_KING))
-                remnant->GetAI()->DoAction(ACTION_DESPAWN_REMNANT);
+            std::list<Creature*> fiendishSouls;
+            GetCreatureListWithEntryInGrid(fiendishSouls, me, NPC_FIENDISH_SOUL, 300.0f);
+
+            for (Creature* fiends : fiendishSouls)
+            {
+                fiends->CastSpell(fiends, SPELL_SOUL_DESPAWN, false);
+                fiends->DespawnOrUnsummon(500ms);
+            }
 
             std::list<Creature*> marches;
             GetCreatureListWithEntryInGrid(marches, me, NPC_MARCH_OF_THE_DAMNED, 300.0f);
 
             for (Creature* march : marches)
                 march->DespawnOrUnsummon();
+
+            if (Creature* remnant = instance->GetCreature(DATA_REMNANT_OF_A_FALLEN_KING))
+                remnant->GetAI()->DoAction(ACTION_DESPAWN_REMNANT);
         }
     }
 
@@ -1383,9 +1396,8 @@ struct boss_anduin_wrynn : public BossAI
         instance->SetBossState(DATA_ANDUIN_WRYNN, DONE);
         _EnterEvadeMode();
         DoCastSelf(SPELL_ANDUIN_KNEEL_POSE);
-
-        if (Creature* beacon = instance->GetCreature(DATA_BEACON_OF_HOPE))
-            beacon->GetAI()->DoAction(ACTION_DESPAWN_BEACON);
+        if (Creature* beacon = me->FindNearestCreature(NPC_BEACON_OF_HOPE, 100.0f, true))
+            beacon->DespawnOrUnsummon();
 
         me->SetReactState(REACT_PASSIVE);
         me->SetFaction(FACTION_FRIENDLY);
@@ -1502,50 +1514,6 @@ struct npc_anduin_wrynn_beacon_of_hope : public ScriptedAI
 {
     npc_anduin_wrynn_beacon_of_hope(Creature* creature) : ScriptedAI(creature) { }
 
-    void JustAppeared() override
-    {
-        me->SetReactState(REACT_PASSIVE);
-    }
-
-    void DoAction(int32 action) override
-    {
-        switch (action)
-        {
-            case ACTION_DESPAWN_BEACON:
-            {
-                me->DespawnOrUnsummon();
-                break;
-            }
-
-            default:
-                break;
-        }
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        UpdateVictim();
-
-        _events.Update(diff);
-
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        while (uint32 eventId = _events.ExecuteEvent())
-        {
-            switch (eventId)
-            {
-                case EVENT_NPC_DESPAWN:
-                    me->DespawnOrUnsummon(1ms);
-                    break;
-
-                default:
-                    break;
-            }
-        }
-
-    }
-
     void JustUnregisteredAreaTrigger(AreaTrigger* areaTrigger) override
     {
         switch (areaTrigger->GetSpellId())
@@ -1567,9 +1535,6 @@ struct npc_anduin_wrynn_beacon_of_hope : public ScriptedAI
                 break;
         }
     }
-
-private:
-    EventMap _events;
 };
 
 // Empty Vessel - 183452
@@ -1778,7 +1743,6 @@ struct npc_anduin_wrynn_anduin_despair : public ScriptedAI
     {
         _instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
         DoCastSelf(SPELL_WILLPOWER_ENERGIZE_LARGE);
-        DoCastSelf(SPELL_SOUL_DESPAWN);
 
         if (Creature* soul = me->FindNearestCreature(NPC_ANDUIN_SOUL, 300.0f))
             soul->GetAI()->DoAction(ACTION_DESPAIR_GONE);
@@ -1911,7 +1875,6 @@ struct npc_anduin_wrynn_anduin_hope : public ScriptedAI
             case POINT_ESCAPE_PLATFORM:
             {
                 DoCastSelf(SPELL_SOUL_DESPAWN);
-                me->DespawnOrUnsummon(4s);
                 break;
             }
 
@@ -1928,7 +1891,6 @@ private:
 // Fiendish Soul - 183669
 struct npc_anduin_wrynn_fiendish_soul : public ScriptedAI
 {
-public:
     npc_anduin_wrynn_fiendish_soul(Creature* creature) : ScriptedAI(creature) { }
 
     void JustEngagedWith(Unit* /*who*/) override
@@ -1959,7 +1921,6 @@ public:
                 DoCastSelf(SPELL_SOUL_EXPLOSION_TARGET);
                 break;
             }
-
             default:
                 break;
         }
@@ -1967,13 +1928,10 @@ public:
 
     void UpdateAI(uint32 diff) override
     {
-
         if (!UpdateVictim())
             return;
 
         _events.Update(diff);
-
-        _scheduler.Update(diff);
 
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
@@ -1989,51 +1947,46 @@ public:
                     for (Player* target : targetList)
                         me->CastSpell(target, SPELL_NECROTIC_CLAWS_LEAP, true);
 
-                    _scheduler.Schedule(1ms, [this](TaskContext /*task*/)
-                    {
-                        DoCastVictim(SPELL_NECROTIC_CLAWS_DEBUFF);
-                    });
-
                     _events.Repeat(10s);
                     break;
                 }
-
                 case EVENT_NECROTIC_CLAWS:
                 {
                     DoCastVictim(SPELL_NECROTIC_CLAWS_DEBUFF);
                     _events.Repeat(5s, 10s);
                     break;
                 }
-
                 default:
                     break;
             }
-
         }
+
         DoMeleeAttackIfReady();
     }
 
 private:
     EventMap _events;
-    TaskScheduler _scheduler;
 };
 
 // Monstrous Soul - 183671
 struct npc_anduin_wrynn_monstrous_soul : public ScriptedAI
 {
-public:
-    npc_anduin_wrynn_monstrous_soul(Creature* creature) : ScriptedAI(creature),
-        _instance(creature->GetInstanceScript()) { }
+    npc_anduin_wrynn_monstrous_soul(Creature* creature) : ScriptedAI(creature) { }
 
     void JustEngagedWith(Unit* /*who*/) override
     {
         DoCastSelf(SPELL_UNRAVELING_FRENZY_PERIODIC, true);
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
-        if (!HealthAbovePct(35))
+        if (me->HealthBelowPctDamaged(35, damage))
             _events.ScheduleEvent(EVENT_NECROTIC_DETONATION, 1ms);
+    }
+
+    void Reset() override
+    {
+        _events.Reset();
     }
 
     void DoAction(int32 action) override
@@ -2046,7 +1999,6 @@ public:
                 DoCastSelf(SPELL_NECROTIC_DETONATION);
                 break;
             }
-
             default:
                 break;
         }
@@ -2063,7 +2015,6 @@ public:
             return;
 
         _events.Update(diff);
-        _scheduler.Update(diff);
 
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
@@ -2078,7 +2029,6 @@ public:
                     DoCastSelf(SPELL_NECROTIC_DETONATION);
                     break;
                 }
-
                 default:
                     break;
             }
@@ -2087,20 +2037,13 @@ public:
     }
 
 private:
-    InstanceScript* _instance;
     EventMap _events;
-    TaskScheduler _scheduler;
 };
 
 // Remnant of a Fallen King - 183463
 struct boss_remnant_of_a_fallen_king : public BossAI
 {
-    boss_remnant_of_a_fallen_king(Creature* creature) : BossAI(creature, DATA_REMNANT_OF_A_FALLEN_KING), _transitioned(0) { }
-
-    void Reset() override
-    {
-        _transitioned = 0;
-    }
+    boss_remnant_of_a_fallen_king(Creature* creature) : BossAI(creature, DATA_REMNANT_OF_A_FALLEN_KING) { }
 
     void JustAppeared() override
     {
@@ -2110,8 +2053,10 @@ struct boss_remnant_of_a_fallen_king : public BossAI
         me->SetPower(me->GetPowerType(), 0);
         me->SetFaction(16);
         for (MapReference const& players : me->GetMap()->GetPlayers())
+        {
             if (Player* player = players.GetSource())
                 me->CastSpell(player, SPELL_WEATHER_COSMETIC, true);
+        }
         instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_HOPEBREAKER);
         me->SetReactState(REACT_PASSIVE);
     }
@@ -2127,13 +2072,14 @@ struct boss_remnant_of_a_fallen_king : public BossAI
 
     void ContinueAttacking()
     {
-        Creature* sylvanas = instance->GetCreature(DATA_SYLVANAS_WINDRUNNER);
-        Creature* uther = instance->GetCreature(DATA_UTHER_THE_LIGHTBRINGER);
-        Creature* jaina = instance->GetCreature(DATA_JAINA_PROUDMOORE);
+        if (Creature* sylvanas = instance->GetCreature(DATA_SYLVANAS_WINDRUNNER))
+            sylvanas->GetAI()->AttackStartCaster(me, 25.0f);
 
-        sylvanas->GetAI()->AttackStartCaster(me, 25.0f);
-        uther->GetAI()->AttackStart(me);
-        jaina->GetAI()->AttackStartCaster(me, 25.0f);
+        if (Creature* uther = instance->GetCreature(DATA_UTHER_THE_LIGHTBRINGER))
+            uther->GetAI()->AttackStart(me);
+
+        if (Creature* jaina = instance->GetCreature(DATA_JAINA_PROUDMOORE))
+            jaina->GetAI()->AttackStartCaster(me, 25.0f);
     }
 
     void JustEngagedWith(Unit* who) override
@@ -2152,12 +2098,11 @@ struct boss_remnant_of_a_fallen_king : public BossAI
                 summon->SetReactState(REACT_PASSIVE);
                 summon->m_Events.AddEvent(new ActivateGhouls(me, summon), summon->m_Events.CalculateTime(5s));
                 break;
-
             default:
                 break;
         }
-
     }
+
     void DoAction(int32 action) override
     {
         switch (action)
@@ -2167,25 +2112,11 @@ struct boss_remnant_of_a_fallen_king : public BossAI
                 DoCastAOE(SPELL_DARK_PRESENCE);
                 DoZoneInCombat();
 
-                if (_transitioned == 0)
+                scheduler.Schedule(1500ms, [this](TaskContext /*task*/)
                 {
-                    scheduler.Schedule(1500ms, [this](TaskContext /*task*/)
-                    {
-                        instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
-                        me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
-                        _transitioned = 1;
-                    });
-                }
-
-                else if (_transitioned == 1)
-                {
-                    scheduler.Schedule(3000ms, [this](TaskContext /*task*/)
-                    {
-                        instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
-                        me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
-                        _transitioned = 2;
-                    });
-                }
+                    instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
+                    me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
+                });
 
                 scheduler.Schedule(2s, [this](TaskContext /*task*/)
                 {
@@ -2201,8 +2132,9 @@ struct boss_remnant_of_a_fallen_king : public BossAI
 
             case ACTION_DESPAWN_REMNANT:
             {
-                EnterEvadeMode(EvadeReason::Other);
-                me->DespawnOrUnsummon();
+                //EnterEvadeMode(EvadeReason::Other);
+                DoCastSelf(SPELL_SOUL_DESPAWN);
+                me->DespawnOrUnsummon(500ms);
                 break;
             }
 
@@ -2235,7 +2167,6 @@ struct boss_remnant_of_a_fallen_king : public BossAI
                     DoCastSelf(SPELL_RETURN_TO_KINGSMOURNE);
                     break;
                 }
-
                 case EVENT_ARMY_OF_THE_DEAD:
                 {
                     DoCastSelf(SPELL_ARMY_OF_THE_DEAD);
@@ -2244,14 +2175,12 @@ struct boss_remnant_of_a_fallen_king : public BossAI
                         events.Repeat(36900ms);
                     break;
                 }
-
                 case EVENT_SOUL_REAPER:
                 {
                     DoCastVictim(SPELL_SOUL_REAPER, false);
                     events.Repeat(12s);
                     break;
                 }
-
             }
 
             if (me->HasUnitState(UNIT_STATE_CASTING))
@@ -2262,7 +2191,6 @@ struct boss_remnant_of_a_fallen_king : public BossAI
     }
 
 private:
-    uint8 _transitioned;
     EventMap events;
     TaskScheduler scheduler;
 };
@@ -2270,8 +2198,7 @@ private:
 // Grim Reflection - 183033
 struct npc_anduin_wrynn_grim_reflection : public ScriptedAI
 {
-    npc_anduin_wrynn_grim_reflection(Creature* creature) : ScriptedAI(creature),
-        _instance(creature->GetInstanceScript()) { }
+    npc_anduin_wrynn_grim_reflection(Creature* creature) : ScriptedAI(creature) { }
 
     void Reset() override
     {
@@ -2280,7 +2207,6 @@ struct npc_anduin_wrynn_grim_reflection : public ScriptedAI
 
     void JustAppeared() override
     {
-        _scheduler.ClearValidator();
         SetCombatMovement(false);
         DoCastSelf(SPELL_CALAMITY_STATE_VISUAL);
         DoZoneInCombat();
@@ -2312,17 +2238,17 @@ struct npc_anduin_wrynn_grim_reflection : public ScriptedAI
             switch (eventId)
             {
                 case EVENT_PSYCHIC_TERROR:
+                {
                     DoCastSelf(SPELL_PSYCHIC_TERROR);
-                    _events.Repeat(Seconds(2));
+                    _events.Repeat(2s);
                     break;
-
+                }
                 case EVENT_GRIM_REFLECTION_IMMUNITY:
                 {
                     DoCastSelf(SPELL_WICKED_STAR_PROTECTION);
                     _events.Repeat(1s);
                     break;
                 }
-
                 default:
                     break;
             }
@@ -2333,37 +2259,22 @@ struct npc_anduin_wrynn_grim_reflection : public ScriptedAI
     }
 
 private:
-    InstanceScript* _instance;
     EventMap _events;
-    TaskScheduler _scheduler;
 };
 
 // 183666 - Sylvanas Windrunner
 struct npc_anduin_wrynn_sylvanas : public ScriptedAI
 {
-    npc_anduin_wrynn_sylvanas(Creature* creature) : ScriptedAI(creature, DATA_SYLVANAS_WINDRUNNER),
-        _instance(creature->GetInstanceScript()) { }
+    npc_anduin_wrynn_sylvanas(Creature* creature) : ScriptedAI(creature, DATA_SYLVANAS_WINDRUNNER) { }
 
     void JustAppeared() override
     {
-        _scheduler.ClearValidator();
         me->SetReactState(REACT_AGGRESSIVE);
     }
 
     void Reset() override
     {
         _events.Reset();
-    }
-
-    void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
-    {
-        switch (waypointId)
-        {
-            case WAYPOINT_SYLVANAS:
-                me->StopMoving();
-                me->PauseMovement(9999999, 0, true);
-                break;
-        }
     }
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
@@ -2389,8 +2300,6 @@ struct npc_anduin_wrynn_sylvanas : public ScriptedAI
 
     void UpdateAI(uint32 diff) override
     {
-        _scheduler.Update(diff);
-
         if (!UpdateVictim())
             return;
 
@@ -2409,7 +2318,6 @@ struct npc_anduin_wrynn_sylvanas : public ScriptedAI
                     _events.Repeat(10s);
                     break;
                 }
-
                 default:
                     break;
             }
@@ -2419,20 +2327,16 @@ struct npc_anduin_wrynn_sylvanas : public ScriptedAI
     }
 
 private:
-    InstanceScript* _instance;
     EventMap _events;
-    TaskScheduler _scheduler;
 };
 
 // 183664 - Jaina Proudmoore
 struct npc_anduin_wrynn_jaina : public ScriptedAI
 {
-    npc_anduin_wrynn_jaina(Creature* creature) : ScriptedAI(creature, DATA_JAINA_PROUDMOORE),
-        _instance(creature->GetInstanceScript()) { }
+    npc_anduin_wrynn_jaina(Creature* creature) : ScriptedAI(creature, DATA_JAINA_PROUDMOORE) { }
 
     void JustAppeared() override
     {
-        _scheduler.ClearValidator();
         me->SetReactState(REACT_AGGRESSIVE);
     }
 
@@ -2454,7 +2358,6 @@ struct npc_anduin_wrynn_jaina : public ScriptedAI
     void JustEngagedWith(Unit* /*who*/) override
     {
         _events.ScheduleEvent(EVENT_BLINK, 10s);
-
     }
 
     bool CanAIAttack(Unit const* target) const override
@@ -2462,28 +2365,17 @@ struct npc_anduin_wrynn_jaina : public ScriptedAI
         return !target->HasAura(SPELL_DOMINATION_GRASP_ROOT_AREATRIGGER);
     }
 
-    void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+    void WaypointPathEnded(uint32 /*nodeId*/, uint32 pathId) override
     {
-        switch (waypointId)
-        {
-            case WAYPOINT_JAINA:
-                me->StopMoving();
-                me->PauseMovement(9999999, 0, true);
-                break;
-        }
-    }
+        if (pathId != PATH_INTRODUCTION_JAINA)
+            return;
 
-    void MovementInform(uint32 /*type*/, uint32 pointId) override
-    {
-        if (pointId == 8)
-            if (Creature* anduin = _instance->GetCreature(DATA_ANDUIN_WRYNN))
-                anduin->GetAI()->DoAction(ACTION_START_INTRODUCTION);
+        if (Creature* anduin = me->GetInstanceScript()->GetCreature(DATA_ANDUIN_WRYNN))
+            anduin->GetAI()->DoAction(ACTION_START_INTRODUCTION);
     }
 
     void UpdateAI(uint32 diff) override
     {
-        _scheduler.Update(diff);
-
         if (!UpdateVictim())
             return;
 
@@ -2502,21 +2394,18 @@ struct npc_anduin_wrynn_jaina : public ScriptedAI
                     _events.CancelEvent(EVENT_FROSTBOLT);
                     break;
                 }
-
                 case EVENT_BLINK:
                 {
                     DoCastSelf(SPELL_BLINK);
                     _events.Repeat(60s);
                     break;
                 }
-
                 case EVENT_FROSTBOLT:
                 {
                     DoCastVictim(SPELL_FROSTBOLT);
                     _events.Repeat(1s);
                     break;
                 }
-
                 default:
                     break;
             }
@@ -2526,20 +2415,16 @@ struct npc_anduin_wrynn_jaina : public ScriptedAI
     }
 
 private:
-    InstanceScript* _instance;
     EventMap _events;
-    TaskScheduler _scheduler;
 };
 
 // 183665 - Uther The Lightbringer
 struct npc_anduin_wrynn_uther : public ScriptedAI
 {
-    npc_anduin_wrynn_uther(Creature* creature) : ScriptedAI(creature, DATA_UTHER_THE_LIGHTBRINGER),
-        _instance(creature->GetInstanceScript()) { }
+    npc_anduin_wrynn_uther(Creature* creature) : ScriptedAI(creature, DATA_UTHER_THE_LIGHTBRINGER) { }
 
     void JustAppeared() override
     {
-        _scheduler.ClearValidator();
         me->SetReactState(REACT_AGGRESSIVE);
     }
 
@@ -2569,21 +2454,8 @@ struct npc_anduin_wrynn_uther : public ScriptedAI
         return !target->HasAura(SPELL_DOMINATION_GRASP_ROOT_AREATRIGGER);
     }
 
-    void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
-    {
-        switch (waypointId)
-        {
-            case WAYPOINT_UTHER:
-                me->StopMoving();
-                me->PauseMovement(9999999, 0, true);
-                break;
-        }
-    }
-
     void UpdateAI(uint32 diff) override
     {
-        _scheduler.Update(diff);
-
         if (!UpdateVictim())
             return;
 
@@ -2601,14 +2473,12 @@ struct npc_anduin_wrynn_uther : public ScriptedAI
                     _events.CancelEvent(EVENT_BLADE_OF_JUSTICE);
                     break;
                 }
-
                 case EVENT_BLADE_OF_JUSTICE:
                 {
                     DoCastVictim(SPELL_BLADE_OF_JUSTICE);
                     _events.Repeat(10s);
                     break;
                 }
-
                 default:
                     break;
             }
@@ -2618,74 +2488,25 @@ struct npc_anduin_wrynn_uther : public ScriptedAI
     }
 
 private:
-    InstanceScript* _instance;
     EventMap _events;
-    TaskScheduler _scheduler;
-};
-
-// Firim
-struct npc_firim : public ScriptedAI
-{
-    npc_firim(Creature* creature) : ScriptedAI(creature, DATA_FIRIM),
-        _instance(creature->GetInstanceScript()) { }
-
-    void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
-    {
-        switch (waypointId)
-        {
-            case WAYPOINT_FIRIM:
-                me->StopMoving();
-                me->PauseMovement(9999999, 0, true);
-                break;
-        }
-    }
-
-private:
-    InstanceScript* _instance;
 };
 
 // 184297 - Dominated Translocator
 struct npc_dominated_translocator : public ScriptedAI
 {
-    npc_dominated_translocator(Creature* creature) : ScriptedAI(creature),
-        _instance(creature->GetInstanceScript()) { }
+    npc_dominated_translocator(Creature* creature) : ScriptedAI(creature) { }
 
     bool OnGossipSelect(Player* player, uint32 /*menuId*/, uint32 /*gossipListId*/) override
     {
-        if (_instance->GetBossState(DATA_ANDUIN_WRYNN) != DONE)
-        {
-            CloseGossipMenuFor(player);
-            return false;
-        }
         CloseGossipMenuFor(player);
+
+        // @TODO Alex: checkout if we can move this to conditions + smart_scripts
+        if (me->GetInstanceScript()->GetBossState(DATA_ANDUIN_WRYNN) != DONE)
+            return false;
+
         player->CastSpell(player, SPELL_TELEPORT_COSMIC_HUB, false);
         return true;
     }
-
-private:
-    InstanceScript* _instance;
-};
-
-// 185843 - Ancient Console
-struct npc_ancient_console : public ScriptedAI
-{
-    npc_ancient_console(Creature* creature) : ScriptedAI(creature),
-        _instance(creature->GetInstanceScript()) { }
-
-    bool OnGossipSelect(Player* player, uint32 /*menuId*/, uint32 /*gossipListId*/) override
-    {
-        if (_instance->GetBossState(DATA_ANDUIN_WRYNN) != DONE)
-        {
-            CloseGossipMenuFor(player);
-            return false;
-        }
-        CloseGossipMenuFor(player);
-        player->CastSpell(player, SPELL_TELEPORT_DOMINATIONS_GRASP, false);
-        return true;
-    }
-
-private:
-    InstanceScript* _instance;
 };
 
 // 367524 - Spawn Pre-Introduction
@@ -2695,18 +2516,24 @@ class spell_anduin_wrynn_pre_introduction : public AuraScript
 
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        Unit* target = GetTarget();
-        if (!target)
+        Unit* caster = GetCaster();
+        if (!caster)
             return;
 
-        if (GetTarget()->GetEntry() == NPC_LADY_JAINA_PROUDMOORE)
-            GetCaster()->NearTeleportTo(PreIntroductionAssistersPositions[0], false);
-
-        else if (GetCaster()->GetEntry() == NPC_UTHER_THE_LIGHTBRINGER)
-            GetCaster()->NearTeleportTo(PreIntroductionAssistersPositions[1], false);
-
-        else if (GetCaster()->GetEntry() == NPC_SYLVANAS_WINDRUNNER)
-            GetCaster()->NearTeleportTo(PreIntroductionAssistersPositions[2], false);
+        switch (caster->GetEntry())
+        {
+            case NPC_LADY_JAINA_PROUDMOORE:
+                caster->NearTeleportTo(PreIntroductionAssistersPositions[0], false);
+                break;
+            case NPC_UTHER_THE_LIGHTBRINGER:
+                caster->NearTeleportTo(PreIntroductionAssistersPositions[1], false);
+                break;
+            case NPC_SYLVANAS_WINDRUNNER:
+                caster->NearTeleportTo(PreIntroductionAssistersPositions[2], false);
+                break;
+            default:
+                break;
+        }
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
@@ -2715,14 +2542,22 @@ class spell_anduin_wrynn_pre_introduction : public AuraScript
         if (!caster)
             return;
 
-        if (GetCaster()->GetEntry() == NPC_LADY_JAINA_PROUDMOORE)
-            GetCaster()->GetMotionMaster()->MovePath(1836640, false);
-
-        else if (GetCaster()->GetEntry() == NPC_UTHER_THE_LIGHTBRINGER)
-            GetCaster()->GetMotionMaster()->MovePath(1836650, false);
-
-        else if (GetCaster()->GetEntry() == NPC_SYLVANAS_WINDRUNNER)
-            GetCaster()->GetMotionMaster()->MovePath(1836660, false);
+        uint32 pathId = 0;
+        switch (caster->GetEntry())
+        {
+            case NPC_LADY_JAINA_PROUDMOORE:
+                pathId = PATH_INTRODUCTION_JAINA;
+                break;
+            case NPC_UTHER_THE_LIGHTBRINGER:
+                pathId = PATH_INTRODUCTION_UTHER;
+                break;
+            case NPC_SYLVANAS_WINDRUNNER:
+                pathId = PATH_INTRODUCTION_SYLVANAS;
+                break;
+            default:
+                break;
+        }
+        caster->GetMotionMaster()->MovePath(pathId, false);
     }
 
     void Register() override
@@ -2738,11 +2573,6 @@ class spell_anduin_wrynn_progression_aura : public AuraScript
     PrepareAuraScript(spell_anduin_wrynn_progression_aura);
 
 public:
-    spell_anduin_wrynn_progression_aura()
-    {
-        _triggered = false;
-    }
-
     bool Load() override
     {
         return true;
@@ -2765,15 +2595,14 @@ public:
         if (dmgInfo.GetDamage() >= GetTarget()->GetHealth())
         {
             absorbAmount = dmgInfo.GetDamage();
-            if (!_triggered)
-            {
-                GetTarget()->SetHealth(1);
-                GetTarget()->CastSpell(GetTarget(), SPELL_ANDUIN_KNEEL_POSE);
-                GetTarget()->GetAI()->DoAction(ACTION_END_ENCOUNTER);
-                GetTarget()->SetFaction(FACTION_FRIENDLY);
-                _triggered = true;
-                absorbAmount = dmgInfo.GetDamage();
-            }
+            if (_triggered)
+                return;
+
+            GetTarget()->SetHealth(1);
+            GetTarget()->CastSpell(GetTarget(), SPELL_ANDUIN_KNEEL_POSE);
+            GetTarget()->GetAI()->DoAction(ACTION_END_ENCOUNTER);
+            GetTarget()->SetFaction(FACTION_FRIENDLY);
+            _triggered = true;
         }
     }
 
@@ -2784,7 +2613,7 @@ public:
     }
 
 private:
-    bool _triggered;
+    bool _triggered = false;
 };
 
 // 366848 - Anduin Willpower Periodic (Only LFR)
@@ -2792,15 +2621,18 @@ class spell_anduin_wrynn_energize_willpower_lfr : public AuraScript
 {
     PrepareAuraScript(spell_anduin_wrynn_energize_willpower_lfr);
 
+    static constexpr std::array<int32, 22> AnduinRegenCycle =
+    { 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1 }; // 0.681 willpower per second on Retail
+
     void HandlePeriodic(AuraEffect const* /*aurEff*/)
     {
         Unit* target = GetTarget();
-        powerGained = _anduinRegenCycle[powerRegenCycle++];
+        _powerGained = AnduinRegenCycle[_powerRegenCycle++];
 
-        if (powerRegenCycle >= 22)
-            powerRegenCycle = 0;
+        if (_powerRegenCycle >= 22)
+           _powerRegenCycle = 0;
 
-        target->ModifyPower(target->GetPowerType(), powerGained);
+        target->ModifyPower(target->GetPowerType(), _powerGained);
     }
 
     void Register() override
@@ -2809,10 +2641,8 @@ class spell_anduin_wrynn_energize_willpower_lfr : public AuraScript
     }
 
 private:
-    uint8 powerRegenCycle = 0;
-    uint32 powerGained = 0;
-    static constexpr std::array<int32, 22> _anduinRegenCycle =
-    { 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1 }; // 0.681 willpower per second on Retail
+    uint8 _powerRegenCycle = 0;
+    uint32 _powerGained = 0;
 };
 
 // Dark Zeal - 364247
@@ -2820,28 +2650,21 @@ class spell_anduin_wrynn_dark_zeal : public AuraScript
 {
     PrepareAuraScript(spell_anduin_wrynn_dark_zeal);
 
-    bool Load() override
-    {
-        currentTank = ObjectGuid::Empty;
-        return true;
-    }
-
     void OnProc(AuraEffect* /*aurEff*/, ProcEventInfo& eventInfo)
     {
         Unit* caster = eventInfo.GetActor();
         Unit* target = eventInfo.GetActionTarget();
 
-        GetCaster()->CastSpell(GetCaster(), SPELL_DARK_ZEAL_BUFF, true);
-
         if (!caster || !target)
             return;
 
-        if (target->GetGUID() == currentTank)
+        caster->CastSpell(caster, SPELL_DARK_ZEAL_BUFF, true);
+
+        if (target->GetGUID() == _currentTank)
             return;
 
-        PreventDefaultAction();
         caster->RemoveAura(SPELL_DARK_ZEAL_BUFF);
-        currentTank = target->GetGUID();
+        _currentTank = target->GetGUID();
     }
 
     void Register() override
@@ -2850,7 +2673,7 @@ class spell_anduin_wrynn_dark_zeal : public AuraScript
     }
 
 private:
-    ObjectGuid currentTank;
+    ObjectGuid _currentTank;
 };
 
 // Hopebreaker - 361815
@@ -2858,7 +2681,7 @@ class spell_anduin_wrynn_hopebreaker : public SpellScript
 {
     PrepareSpellScript(spell_anduin_wrynn_hopebreaker);
 
-    void HandleCast(SpellEffIndex /*effIndex*/)
+    void HandleHit(SpellEffIndex /*effIndex*/)
     {
         GetCaster()->CastSpell(GetHitUnit(), SPELL_HOPEBREAKER_DAMAGE, true);
         GetCaster()->CastSpell(GetHitUnit(), SPELL_HOPEBREAKER_DEBUFF, true);
@@ -2866,7 +2689,7 @@ class spell_anduin_wrynn_hopebreaker : public SpellScript
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_anduin_wrynn_hopebreaker::HandleCast, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnEffectHitTarget += SpellEffectFn(spell_anduin_wrynn_hopebreaker::HandleHit, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
@@ -2896,16 +2719,14 @@ class spell_anduin_wrynn_hopebreaker_damage : public SpellScript
 
     void HandleDamage(SpellEffIndex /*effIndex*/)
     {
-        Unit* caster = GetCaster();
         Unit* target = GetHitUnit();
 
-        if (!caster)
+        Aura* hopebreaker = target->GetAura(SPELL_HOPEBREAKER_DEBUFF);
+        if (!hopebreaker)
             return;
 
-        Aura* hopebreaker = target->GetAura(SPELL_HOPEBREAKER_DEBUFF);
         uint8 hopebreakerStacks = hopebreaker->GetStackAmount();
-        SetHitDamage(int32(GetHitDamage() * (uint8)hopebreakerStacks));
-
+        SetHitDamage(GetHitDamage() * hopebreakerStacks);
     }
 
     void Register() override
@@ -2917,26 +2738,25 @@ class spell_anduin_wrynn_hopebreaker_damage : public SpellScript
 // March of the Damned - 363133, AT - 24093  AT id 88888
 struct at_anduin_wrynn_march_of_the_damned : AreaTriggerAI
 {
-    at_anduin_wrynn_march_of_the_damned(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger),
-        _instance(at->GetInstanceScript()) { }
+    at_anduin_wrynn_march_of_the_damned(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
 
     void OnUnitEnter(Unit* unit) override
     {
         if (!unit->IsPlayer())
             return;
 
-        if (!at->GetCaster())
+        Unit* caster = at->GetCaster();
+        if (!caster)
             return;
 
-        at->GetCaster()->CastSpell(unit, SPELL_MARCH_OF_THE_DAMNED_DAMAGE, true);
+        caster->CastSpell(unit, SPELL_MARCH_OF_THE_DAMNED_DAMAGE, true);
     }
-
-private:
-    InstanceScript* _instance;
 };
 
 // Befouled Barrier - 24332 AT
 float constexpr BEFOULED_BARRIER_MAX_RADIUS = 12.0f;
+float constexpr BEFOULED_BARRIER_MIN_RADIUS = 4.0f;
+
 struct at_anduin_wrynn_befouled_barrier : AreaTriggerAI
 {
     at_anduin_wrynn_befouled_barrier(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
@@ -2957,9 +2777,8 @@ struct at_anduin_wrynn_befouled_barrier : AreaTriggerAI
         _scheduler.Schedule(500ms, [this](TaskContext task)
         {
             float startRadius = 1.0f;
-            float targetRadius = BEFOULED_BARRIER_MAX_RADIUS;
 
-            UpdateSize(startRadius, targetRadius);
+            UpdateSize(startRadius, BEFOULED_BARRIER_MAX_RADIUS);
             at->SetTimeToTargetScale(500);
 
             task.Schedule(Milliseconds(at->GetTimeToTargetScale()), [this](TaskContext task)
@@ -2994,10 +2813,9 @@ struct at_anduin_wrynn_befouled_barrier : AreaTriggerAI
         if (G3D::fuzzyEq(currentRadius, targetRadius))
             return;
 
-        if (targetRadius <= 3.741063f)
+        if (targetRadius <= BEFOULED_BARRIER_MIN_RADIUS)
         {
-            target->CastSpell(target, SPELL_BEFOULED_BARRIER_CLEAR, true);
-            target->ToCreature()->DespawnOrUnsummon();
+            // Players need to be able to actually enter the AT to heal it no sniff has a value lower than 4.0f
             return;
         }
 
@@ -3011,10 +2829,11 @@ struct at_anduin_wrynn_befouled_barrier : AreaTriggerAI
 
     void OnUnitEnter(Unit* unit) override
     {
-        if (!at->GetCaster())
+        Unit* caster = at->GetCaster();
+        if (!caster)
             return;
 
-        at->GetCaster()->CastSpell(unit, SPELL_BEFOULED_BARRIER_DEBUFF, true);
+        caster->CastSpell(unit, SPELL_BEFOULED_BARRIER_DEBUFF, true);
     }
 
     void OnUnitExit(Unit* unit) override
@@ -3054,6 +2873,7 @@ private:
 
 // Beacon of Hope - 25025 / 28469 365872
 float constexpr BEACON_OF_HOPE_MAX_RADIUS = 12.0f;
+float constexpr BEACON_OF_HOPE_MIN_RADIUS = 4.0f;
 struct at_anduin_wrynn_beacon_of_hope : AreaTriggerAI
 {
     at_anduin_wrynn_beacon_of_hope(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger),
@@ -3098,9 +2918,9 @@ struct at_anduin_wrynn_beacon_of_hope : AreaTriggerAI
     void UpdateSizeBasedOnCharges()
     {
         float radiusMod = 0.205129f * _entries;
-        float targetRadius = BEFOULED_BARRIER_MAX_RADIUS - radiusMod;
+        float targetRadius = BEACON_OF_HOPE_MAX_RADIUS - radiusMod;
 
-        if (targetRadius <= 4.0f || _chargesRemaining <= 0)
+        if (targetRadius <= BEACON_OF_HOPE_MIN_RADIUS || _chargesRemaining <= 0)
             at->Remove();
 
         float currentRadius = at->GetMaxSearchRadius();
@@ -3154,12 +2974,9 @@ class spell_anduin_wrynn_fragment_of_hope : public SpellScript
     {
         Unit* caster = GetCaster();
         Position dest = caster->GetPosition();
-        WorldObject* target = GetExplTargetWorldObject();
 
         if (Creature* beacon = caster->GetInstanceScript()->GetCreature(DATA_BEACON_OF_HOPE))
-        {
-            beacon->MovePositionToFirstCollision(dest, 30.0f, beacon->GetAbsoluteAngle(target) - beacon->GetOrientation());
-        }
+            beacon->MovePositionToFirstCollision(dest, 30.0f, beacon->GetAbsoluteAngle(GetExplTargetWorldObject()) - beacon->GetOrientation());
 
         destination.Relocate(dest);
     }
@@ -3238,7 +3055,7 @@ class spell_anduin_wrynn_blasphemy : public SpellScript
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_BLASPHEMY_OVERCONFIDENCE, SPELL_BLASPHEMY_HOPELESSNESS });
+        return ValidateSpellInfo({ SPELL_BLASPHEMY_PRE_HIT, SPELL_BLASPHEMY_OVERCONFIDENCE, SPELL_BLASPHEMY_HOPELESSNESS });
     }
 
     void OnPrecast() override
@@ -3246,23 +3063,16 @@ class spell_anduin_wrynn_blasphemy : public SpellScript
         GetCaster()->CastSpell(GetCaster(), SPELL_BLASPHEMY_PRE_HIT, true);
     }
 
-    void HandleDebuff(SpellEffIndex /*effIndex*/)
-    {
-        uint32* spellId = Trinity::Containers::MapGetValuePtr(_spellAssignments, GetHitUnit()->GetGUID());
-        if (!spellId)
-            return;
-        GetCaster()->CastSpell(GetHitUnit(), *spellId, true);
-    }
-
     void FilterTargets(std::list<WorldObject*>& targets)
     {
         targets.remove_if([](WorldObject* target) -> bool
         {
             if (!target->IsPlayer())
-            return true;
+                return true;
 
-        return false;
+            return false;
         });
+
         int8 hopelessnessAffected = static_cast<int8>(std::floor(targets.size() / 2));
         int8 maxAffected = hopelessnessAffected * 2;
         Trinity::Containers::RandomResize(targets, maxAffected);
@@ -3281,43 +3091,29 @@ class spell_anduin_wrynn_blasphemy : public SpellScript
         }
     }
 
+    void HandleDebuff(SpellEffIndex /*effIndex*/)
+    {
+        uint32* spellId = Trinity::Containers::MapGetValuePtr(_spellAssignments, GetHitUnit()->GetGUID());
+        if (!spellId)
+            return;
+
+        GetCaster()->CastSpell(GetHitUnit(), *spellId, true);
+    }
+
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_anduin_wrynn_blasphemy::HandleDebuff, EFFECT_0, SPELL_EFFECT_DUMMY);
         OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_anduin_wrynn_blasphemy::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnEffectHitTarget += SpellEffectFn(spell_anduin_wrynn_blasphemy::HandleDebuff, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 
 private:
     std::unordered_map<ObjectGuid /*player*/, uint32 /*spell*/> _spellAssignments;
 };
 
-// Blasphemy Pre hit - 364239
-class spell_anduin_wrynn_blasphemy_init : public SpellScript
-{
-    PrepareSpellScript(spell_anduin_wrynn_blasphemy_init);
-
-    void FilterTargets(std::list<WorldObject*>& targets)
-    {
-        targets.remove_if([](WorldObject* target) -> bool
-        {
-            if (target->IsPlayer())
-                return false;
-
-        return true;
-        });
-    }
-
-    void Register() override
-    {
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_anduin_wrynn_blasphemy_init::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-    }
-};
-
 // Blasphemy ATs 361992 Overconfidence | 361993 Hopelessness
 struct at_anduin_wrynn_blasphemy : AreaTriggerAI
 {
-    at_anduin_wrynn_blasphemy(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger),
-        _instance(at->GetInstanceScript()) { }
+    at_anduin_wrynn_blasphemy(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger)  { }
 
     void OnUnitEnter(Unit* unit) override
     {
@@ -3329,29 +3125,18 @@ struct at_anduin_wrynn_blasphemy : AreaTriggerAI
 
         if (unit->HasAura(at->GetSpellId()))
         {
-            if (at->GetMap()->GetDifficultyID() == DIFFICULTY_HEROIC_RAID || at->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID)
-            {
-                unit->CastSpell(unit, SPELL_BLASPHEMY_EXPLODE, true);
-                unit->RemoveAurasDueToSpell(at->GetSpellId());
-                if (Unit* target = at->GetTarget())
-                {
-                    target->CastSpell(target, SPELL_BLASPHEMY_EXPLODE, true);
-                    target->RemoveAurasDueToSpell(at->GetSpellId());
-                }
-            }
+            uint32 explodeSpellId = SPELL_BLASPHEMY_EXPLODE;
+            if (at->GetMap()->GetDifficultyID() == DIFFICULTY_LFR_NEW || at->GetMap()->GetDifficultyID() == DIFFICULTY_NORMAL_RAID)
+                explodeSpellId = SPELL_BLASPHEMY_EXPLODE_LFR_NORMAL;
 
-            else
+            unit->CastSpell(unit, explodeSpellId, true);
+            unit->RemoveAurasDueToSpell(at->GetSpellId());
+            if (Unit* target = at->GetTarget())
             {
-                unit->CastSpell(unit, SPELL_BLASPHEMY_EXPLODE_LFR_NORMAL, true);
-                unit->RemoveAurasDueToSpell(at->GetSpellId());
-                if (Unit* target = at->GetTarget())
-                {
-                    target->CastSpell(target, SPELL_BLASPHEMY_EXPLODE_LFR_NORMAL, true);
-                    target->RemoveAurasDueToSpell(at->GetSpellId());
-                }
+                target->CastSpell(target, explodeSpellId, true);
+                target->RemoveAurasDueToSpell(at->GetSpellId());
             }
         }
-
         else if (at->GetSpellId() == SPELL_BLASPHEMY_HOPELESSNESS_AREATRIGGER && unit->HasAura(SPELL_BLASPHEMY_OVERCONFIDENCE_AREATRIGGER))
         {
             unit->RemoveAurasDueToSpell(SPELL_BLASPHEMY_OVERCONFIDENCE);
@@ -3364,7 +3149,6 @@ struct at_anduin_wrynn_blasphemy : AreaTriggerAI
                 target->CastSpell(target, SPELL_BLASPHEMY_SUCCESS, true);
             }
         }
-
         else if (at->GetSpellId() == SPELL_BLASPHEMY_OVERCONFIDENCE_AREATRIGGER && unit->HasAura(SPELL_BLASPHEMY_HOPELESSNESS_AREATRIGGER))
         {
             unit->RemoveAurasDueToSpell(SPELL_BLASPHEMY_HOPELESSNESS);
@@ -3377,24 +3161,18 @@ struct at_anduin_wrynn_blasphemy : AreaTriggerAI
                 target->CastSpell(target, SPELL_BLASPHEMY_SUCCESS, true);
             }
         }
-
         else
         {
-            if (at->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID) // On Mythic players walking in with no debuff also trigger explosion
+            if (at->GetMap()->GetDifficultyID() != DIFFICULTY_MYTHIC_RAID) // On Mythic players walking in with no debuff also trigger explosion
+                return;
+
+            if (!unit->HasAura(SPELL_BLASPHEMY_HOPELESSNESS_AREATRIGGER) || !unit->HasAura(SPELL_BLASPHEMY_OVERCONFIDENCE_AREATRIGGER))
             {
-                if (!unit->HasAura(SPELL_BLASPHEMY_HOPELESSNESS_AREATRIGGER) || !unit->HasAura(SPELL_BLASPHEMY_OVERCONFIDENCE_AREATRIGGER))
-                {
-                    if (Unit* target = at->GetTarget())
-                    {
-                        target->CastSpell(target, SPELL_BLASPHEMY_EXPLODE, true);
-                    }
-                }
+                if (Unit* target = at->GetTarget())
+                    target->CastSpell(target, SPELL_BLASPHEMY_EXPLODE, true);
             }
         }
     }
-
-private:
-    InstanceScript* _instance;
 };
 
 // Blasphemy Expire - 361992, 361993
@@ -3404,20 +3182,23 @@ class spell_anduin_wrynn_hopelessness_overconfidence : public AuraScript
 
     bool Validate(SpellInfo const* /*spell*/) override
     {
-        return ValidateSpellInfo({
-            SPELL_BLASPHEMY_HOPELESSNESS_AREATRIGGER,
-            SPELL_BLASPHEMY_OVERCONFIDENCE_AREATRIGGER
-            });
+        return ValidateSpellInfo(
+        {
+            SPELL_BLASPHEMY_EXPLODE,
+            SPELL_BLASPHEMY_EXPLODE_LFR_NORMAL
+        });
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
         {
-            if (GetTarget()->GetMap()->GetDifficultyID() == DIFFICULTY_HEROIC_RAID || GetTarget()->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID)
-                GetTarget()->CastSpell(GetTarget(), SPELL_BLASPHEMY_EXPLODE, true);
-            else
-                GetTarget()->CastSpell(GetTarget(), SPELL_BLASPHEMY_EXPLODE_LFR_NORMAL, true);
+            Unit* target = GetTarget();
+            uint32 explodeSpellId = SPELL_BLASPHEMY_EXPLODE;
+            if (target->GetMap()->GetDifficultyID() == DIFFICULTY_LFR_NEW || target->GetMap()->GetDifficultyID() == DIFFICULTY_NORMAL_RAID)
+                explodeSpellId = SPELL_BLASPHEMY_EXPLODE_LFR_NORMAL;
+
+            target->CastSpell(target, explodeSpellId, true);
         }
     }
 
@@ -3428,13 +3209,14 @@ class spell_anduin_wrynn_hopelessness_overconfidence : public AuraScript
 };
 
 // Wicked Star Selector & Pointer - 365021
+// Empowered Wicked Star Selector & Pointer - 367632
 class spell_anduin_wrynn_wicked_star_selector : public SpellScript
 {
     PrepareSpellScript(spell_anduin_wrynn_wicked_star_selector);
 
     void FilterTargets(std::list<WorldObject*>& targets)
     {
-        uint32 dpsDistance = 0;
+        uint32 rangedDpsCount = 0;
         for (WorldObject* target : targets)
         {
             Player* targetPlayer = target->ToPlayer();
@@ -3445,37 +3227,31 @@ class spell_anduin_wrynn_wicked_star_selector : public SpellScript
             if (!spec)
                 continue;
 
-            if ((spec->GetRole() == ChrSpecializationRole::Dps &&
-                spec->GetFlags().HasFlag(ChrSpecializationFlag::Caster) && targetPlayer->IsAlive()) ||
-                (spec->GetRole() == ChrSpecializationRole::Dps &&
-                spec->GetFlags().HasFlag(ChrSpecializationFlag::Ranged) && targetPlayer->IsAlive()))
-            dpsDistance++;
+            if (!targetPlayer->IsAlive())
+                continue;
+
+            if ((spec->GetRole() == ChrSpecializationRole::Dps && spec->GetFlags().HasFlag(ChrSpecializationFlag::Caster)) ||
+                (spec->GetRole() == ChrSpecializationRole::Dps && spec->GetFlags().HasFlag(ChrSpecializationFlag::Ranged)))
+                rangedDpsCount++;
         }
 
-        targets.remove_if([dpsDistance](WorldObject* target) -> bool
+        targets.remove_if([rangedDpsCount](WorldObject* target) -> bool
         {
             Player* player = target->ToPlayer();
-            uint8 tanks = player->GetPrimarySpecializationEntry()->GetRole() == ChrSpecializationRole::Tank;
-
             if (!player || player->HasAura(SPELL_WICKED_STAR_TARGETED))
                 return true;
 
-            if (tanks)
+            if (player->GetPrimarySpecializationEntry()->GetRole() == ChrSpecializationRole::Tank)
                 return true;
 
-            if (dpsDistance >= 3)
+            if (rangedDpsCount >= 3)
             {
-                if (player->GetPrimarySpecializationEntry()->GetRole() == ChrSpecializationRole::Dps &&
-                    player->GetPrimarySpecializationEntry()->GetFlags().HasFlag(ChrSpecializationFlag::Melee))
+                if (player->GetPrimarySpecializationEntry()->GetRole() == ChrSpecializationRole::Dps && player->GetPrimarySpecializationEntry()->GetFlags().HasFlag(ChrSpecializationFlag::Melee))
                     return true;
 
                 if (player->GetPrimarySpecializationEntry()->GetRole() == ChrSpecializationRole::Healer)
                     return true;
             }
-
-            else
-                return false;
-
             return false;
         });
     }
@@ -3486,57 +3262,65 @@ class spell_anduin_wrynn_wicked_star_selector : public SpellScript
     }
 };
 
-class spell_anduin_wrynn_wicked_star_pointer : public AuraScript
+// Wicked Star Selector & Pointer - 365021
+class spell_anduin_wrynn_wicked_star_selector_AuraScript : public AuraScript
 {
+    PrepareAuraScript(spell_anduin_wrynn_wicked_star_selector_AuraScript);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_WICKED_STAR_TARGETED });
     }
 
-    PrepareAuraScript(spell_anduin_wrynn_wicked_star_pointer);
-
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        GetCaster()->CastSpell(GetTarget(), SPELL_WICKED_STAR_TARGETED, true);
+        Unit* caster = GetCaster();
+        Unit* target = GetTarget();
+        if (!caster)
+            return;
+
+        caster->CastSpell(target, SPELL_WICKED_STAR_TARGETED, true);
+
+        if (Creature* creature = caster->ToCreature())
+            if (CreatureAI* anduinAI = creature->AI())
+                anduinAI->Talk(SAY_ANNOUNCE_WICKED_STAR, target);
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
+        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE)
+            return;
+
         Unit* caster = GetCaster();
         if (!caster)
             return;
 
-        float angle = GetCaster()->GetAbsoluteAngle(GetTarget());
-        InstanceScript* instance = GetTarget()->GetInstanceScript();
-        Creature* anduin = instance->GetCreature(DATA_ANDUIN_WRYNN);
+        float angle = caster->GetAbsoluteAngle(GetTarget());
+        Position spellDest(caster->GetPositionX(), caster->GetPositionY(), caster->GetPositionZ(), angle);
 
-        if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+        if (InstanceScript* instance = GetTarget()->GetInstanceScript())
         {
-            anduin->CastSpell(Position(
-            GetCaster()->GetPositionX(),
-            GetCaster()->GetPositionY(),
-            GetCaster()->GetPositionZ(), angle),
-            SPELL_WICKED_STAR_AREATRIGGER, true);
+            if (Creature* anduin = instance->GetCreature(DATA_ANDUIN_WRYNN))
+                anduin->CastSpell(spellDest, SPELL_WICKED_STAR_AREATRIGGER, true);
         }
     }
 
     void Register() override
     {
-        OnEffectApply += AuraEffectApplyFn(spell_anduin_wrynn_wicked_star_pointer::OnApply, EFFECT_0, SPELL_AURA_MOD_SCALE, AURA_EFFECT_HANDLE_REAL);
-        AfterEffectRemove += AuraEffectRemoveFn(spell_anduin_wrynn_wicked_star_pointer::OnRemove, EFFECT_0, SPELL_AURA_MOD_SCALE, AURA_EFFECT_HANDLE_REAL);
+        OnEffectApply += AuraEffectApplyFn(spell_anduin_wrynn_wicked_star_selector_AuraScript::OnApply, EFFECT_0, SPELL_AURA_MOD_SCALE, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_anduin_wrynn_wicked_star_selector_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_MOD_SCALE, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // Wicked Star - 365017 - AT 24741
 struct at_anduin_wrynn_wicked_star : AreaTriggerAI
 {
-    at_anduin_wrynn_wicked_star(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger), _excludeUnit(false) { }
+    at_anduin_wrynn_wicked_star(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
 
     void OnInitialize() override
     {
         if (Unit* caster = at->GetCaster())
         {
-
             uint32 starLaunchSpeed = 0;
 
             switch (at->GetMap()->GetDifficultyID())
@@ -3558,9 +3342,9 @@ struct at_anduin_wrynn_wicked_star : AreaTriggerAI
                     break;
             }
 
-            _casterCurrentPosition = caster->GetPosition();
+            _casterInitialPosition = caster->GetPosition();
             float wickedStarXOffSet = 100.0f;
-            Position destPos = _casterCurrentPosition;
+            Position destPos = _casterInitialPosition;
 
             at->MovePositionToFirstCollision(destPos, wickedStarXOffSet, 0.0f);
 
@@ -3583,14 +3367,15 @@ struct at_anduin_wrynn_wicked_star : AreaTriggerAI
         {
             if (std::find(_affectedUnits.begin(), _affectedUnits.end(), unit->GetGUID()) == _affectedUnits.end())
             {
-                _excludeUnit = false;
+                bool excludeUnit = false;
                 if (unit->GetEntry() == NPC_SYLVANAS_WINDRUNNER || unit->GetEntry() == NPC_UTHER_THE_LIGHTBRINGER ||
                     unit->GetEntry() == NPC_LADY_JAINA_PROUDMOORE || unit->GetEntry() == BOSS_ANDUIN_WRYNN)
-                    _excludeUnit = true;
+                    excludeUnit = true;
 
-                if (!_excludeUnit && caster->IsValidAttackTarget(unit))
+                if (!excludeUnit && caster->IsValidAttackTarget(unit))
                     caster->CastSpell(unit, SPELL_WICKED_STAR_DAMAGE_SILENCE, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_IGNORE_GCD | TRIGGERED_IGNORE_CAST_IN_PROGRESS)));
-                if (!_excludeUnit && caster->IsValidAssistTarget(unit))
+
+                if (!excludeUnit && caster->IsValidAssistTarget(unit))
                     caster->CastSpell(unit, SPELL_WICKED_STAR_EMPOWERMENT, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_IGNORE_GCD | TRIGGERED_IGNORE_CAST_IN_PROGRESS)));
 
                 _affectedUnits.push_back(unit->GetGUID());
@@ -3604,17 +3389,15 @@ struct at_anduin_wrynn_wicked_star : AreaTriggerAI
         {
             if (std::find(_affectedUnits.begin(), _affectedUnits.end(), unit->GetGUID()) == _affectedUnits.end())
             {
-                _excludeUnit = false;
-
+                bool excludeUnit = false;
                 if (unit->GetEntry() == NPC_SYLVANAS_WINDRUNNER || unit->GetEntry() == NPC_UTHER_THE_LIGHTBRINGER ||
                     unit->GetEntry() == NPC_LADY_JAINA_PROUDMOORE || unit->GetEntry() == BOSS_ANDUIN_WRYNN)
-                {
-                    _excludeUnit = true;
-                }
+                    excludeUnit = true;
 
-                if (!_excludeUnit && caster->IsValidAttackTarget(unit))
+                if (!excludeUnit && caster->IsValidAttackTarget(unit))
                     caster->CastSpell(unit, SPELL_WICKED_STAR_DAMAGE_SILENCE, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_IGNORE_GCD | TRIGGERED_IGNORE_CAST_IN_PROGRESS)));
-                if (!_excludeUnit && caster->IsValidAssistTarget(unit))
+
+                if (!excludeUnit && caster->IsValidAssistTarget(unit))
                     caster->CastSpell(unit, SPELL_WICKED_STAR_EMPOWERMENT, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_IGNORE_GCD | TRIGGERED_IGNORE_CAST_IN_PROGRESS)));
 
                 _affectedUnits.push_back(unit->GetGUID());
@@ -3628,7 +3411,7 @@ struct at_anduin_wrynn_wicked_star : AreaTriggerAI
         if (!caster)
             return;
 
-        if (at->GetDistance(_casterCurrentPosition) > 0.05f)
+        if (at->GetDistance(_casterInitialPosition) > 0.05f)
         {
             _affectedUnits.clear();
 
@@ -3667,137 +3450,83 @@ struct at_anduin_wrynn_wicked_star : AreaTriggerAI
 
             returnSplinePoints.push_back(PositionToVector3(at));
             returnSplinePoints.push_back(PositionToVector3(at));
-            returnSplinePoints.push_back(PositionToVector3(_casterCurrentPosition));
-            returnSplinePoints.push_back(PositionToVector3(_casterCurrentPosition));
+            returnSplinePoints.push_back(PositionToVector3(_casterInitialPosition));
+            returnSplinePoints.push_back(PositionToVector3(_casterInitialPosition));
 
-            at->InitSplines(returnSplinePoints, static_cast<uint32>(at->GetDistance(_casterCurrentPosition) / starReturnSpeed * 600));
+            at->InitSplines(returnSplinePoints, static_cast<uint32>(at->GetDistance(_casterInitialPosition) / starReturnSpeed * 600));
             task.Repeat(250ms);
         });
     }
 
 private:
-    bool _excludeUnit;
     TaskScheduler _scheduler;
-    Position _casterCurrentPosition;
-    Position _targetCurrentPosition;
+    Position _casterInitialPosition;
     std::vector<ObjectGuid> _affectedUnits;
 };
 
 // Empowered Wicked Star Selector & Pointer - 367632
-class spell_anduin_wrynn_empowered_wicked_star_selector : public SpellScript
-{
-    PrepareSpellScript(spell_anduin_wrynn_empowered_wicked_star_selector);
-
-    void FilterTargets(std::list<WorldObject*>& targets)
-    {
-        uint32 dpsDistance = 0;
-        for (WorldObject* target : targets)
-        {
-            Player* targetPlayer = target->ToPlayer();
-            if (!targetPlayer)
-                continue;
-
-            ChrSpecializationEntry const* spec = targetPlayer->GetPrimarySpecializationEntry();
-            if (!spec)
-                continue;
-
-            if ((spec->GetRole() == ChrSpecializationRole::Dps &&
-                spec->GetFlags().HasFlag(ChrSpecializationFlag::Caster) && targetPlayer->IsAlive()) ||
-                (spec->GetRole() == ChrSpecializationRole::Dps &&
-                spec->GetFlags().HasFlag(ChrSpecializationFlag::Ranged) && targetPlayer->IsAlive()))
-            dpsDistance++;
-        }
-
-        targets.remove_if([dpsDistance](WorldObject* target) -> bool
-            {
-                Player* player = target->ToPlayer();
-        uint8 tanks = player->GetPrimarySpecializationEntry()->GetRole() == ChrSpecializationRole::Tank;
-
-        if (!player || player->HasAura(SPELL_WICKED_STAR_TARGETED))
-            return true;
-
-        if (tanks)
-            return true;
-
-        if (dpsDistance >= 3)
-        {
-            if (player->GetPrimarySpecializationEntry()->GetRole() == ChrSpecializationRole::Dps &&
-                player->GetPrimarySpecializationEntry()->GetFlags().HasFlag(ChrSpecializationFlag::Melee))
-                return true;
-
-            if (player->GetPrimarySpecializationEntry()->GetRole() == ChrSpecializationRole::Healer)
-                return true;
-        }
-
-        else
-            return false;
-
-        return false;
-            });
-    }
-
-    void Register() override
-    {
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_anduin_wrynn_empowered_wicked_star_selector::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-    }
-};
-
-class spell_anduin_wrynn_empowered_wicked_star_pointer : public AuraScript
+class spell_anduin_wrynn_empowered_wicked_star_selector_AuraScript : public AuraScript
 {
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_WICKED_STAR_TARGETED });
     }
 
-    PrepareAuraScript(spell_anduin_wrynn_empowered_wicked_star_pointer);
+    PrepareAuraScript(spell_anduin_wrynn_empowered_wicked_star_selector_AuraScript);
 
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        GetCaster()->CastSpell(GetTarget(), SPELL_WICKED_STAR_TARGETED, true);
+        Unit* caster = GetCaster();
+        Unit* target = GetTarget();
+        if (!caster)
+            return;
+
+        caster->CastSpell(target, SPELL_WICKED_STAR_TARGETED, true);
+
+        if (Creature* creature = caster->ToCreature())
+            if (CreatureAI* anduinAI = creature->AI())
+                anduinAI->Talk(SAY_ANNOUNCE_EMPOWERED_WICKED_STAR, target);
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
+        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE)
+            return;
 
         Unit* caster = GetCaster();
         if (!caster)
             return;
 
-        float angle = GetCaster()->GetAbsoluteAngle(GetTarget());
-        InstanceScript* instance = GetTarget()->GetInstanceScript();
-        Creature* anduin = instance->GetCreature(DATA_ANDUIN_WRYNN);
+        float angle = caster->GetAbsoluteAngle(GetTarget());
+        Position spellDest(caster->GetPositionX(), caster->GetPositionY(), caster->GetPositionZ(), angle);
 
-        if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+        if (InstanceScript* instance = GetTarget()->GetInstanceScript())
         {
-            anduin->CastSpell(Position(
-            GetCaster()->GetPositionX(),
-            GetCaster()->GetPositionY(),
-            GetCaster()->GetPositionZ(), angle),
-            SPELL_EMPOWERED_WICKED_STAR_AREATRIGGER, true);
+            if (Creature* anduin = instance->GetCreature(DATA_ANDUIN_WRYNN))
+                anduin->CastSpell(spellDest, SPELL_EMPOWERED_WICKED_STAR_AREATRIGGER, true);
         }
-
     }
 
     void Register() override
     {
-        OnEffectApply += AuraEffectApplyFn(spell_anduin_wrynn_empowered_wicked_star_pointer::OnApply, EFFECT_0, SPELL_AURA_MOD_SCALE, AURA_EFFECT_HANDLE_REAL);
-        AfterEffectRemove += AuraEffectRemoveFn(spell_anduin_wrynn_empowered_wicked_star_pointer::OnRemove, EFFECT_0, SPELL_AURA_MOD_SCALE, AURA_EFFECT_HANDLE_REAL);
+        OnEffectApply += AuraEffectApplyFn(spell_anduin_wrynn_empowered_wicked_star_selector_AuraScript::OnApply, EFFECT_0, SPELL_AURA_MOD_SCALE, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_anduin_wrynn_empowered_wicked_star_selector_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_MOD_SCALE, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // Empowered Wicked Star 367621  AT - 24599
 struct at_anduin_wrynn_empowered_wicked_star : AreaTriggerAI
 {
-    at_anduin_wrynn_empowered_wicked_star(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger), _excludeUnit(false) { }
+    at_anduin_wrynn_empowered_wicked_star(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
 
     void OnInitialize() override
     {
         if (Unit* caster = at->GetCaster())
         {
-            _casterCurrentPosition = caster->GetPosition();
+            _casterInitialPosition = caster->GetPosition();
             // Note: max distance irrelevant since it will bounce the moment it reaches the boundary
             float wickedStarXOffSet = 100.0f;
-            Position destPos = _casterCurrentPosition;
+            Position destPos = _casterInitialPosition;
 
             at->MovePositionToFirstCollision(destPos, wickedStarXOffSet, 0.0f);
 
@@ -3820,16 +3549,14 @@ struct at_anduin_wrynn_empowered_wicked_star : AreaTriggerAI
         {
             if (std::find(_affectedUnits.begin(), _affectedUnits.end(), unit->GetGUID()) == _affectedUnits.end())
             {
-                _excludeUnit = false;
+                bool excludeUnit = false;
                 if (unit->GetEntry() == NPC_SYLVANAS_WINDRUNNER || unit->GetEntry() == NPC_UTHER_THE_LIGHTBRINGER ||
                     unit->GetEntry() == NPC_LADY_JAINA_PROUDMOORE || unit->GetEntry() == BOSS_ANDUIN_WRYNN)
-                {
-                    _excludeUnit = true;
-                }
+                    excludeUnit = true;
 
-                if (!_excludeUnit && caster->IsValidAttackTarget(unit))
+                if (!excludeUnit && caster->IsValidAttackTarget(unit))
                     caster->CastSpell(unit, SPELL_WICKED_STAR_DAMAGE_SILENCE, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_IGNORE_GCD | TRIGGERED_IGNORE_CAST_IN_PROGRESS)));
-                if (!_excludeUnit && caster->IsValidAssistTarget(unit))
+                if (!excludeUnit && caster->IsValidAssistTarget(unit))
                     caster->CastSpell(unit, SPELL_WICKED_STAR_EMPOWERMENT, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_IGNORE_GCD | TRIGGERED_IGNORE_CAST_IN_PROGRESS)));
 
                 _affectedUnits.push_back(unit->GetGUID());
@@ -3843,15 +3570,15 @@ struct at_anduin_wrynn_empowered_wicked_star : AreaTriggerAI
         {
             if (std::find(_affectedUnits.begin(), _affectedUnits.end(), unit->GetGUID()) == _affectedUnits.end())
             {
-                _excludeUnit = false;
+                bool excludeUnit = false;
 
                 if (unit->GetEntry() == NPC_SYLVANAS_WINDRUNNER || unit->GetEntry() == NPC_UTHER_THE_LIGHTBRINGER ||
                     unit->GetEntry() == NPC_LADY_JAINA_PROUDMOORE || unit->GetEntry() == BOSS_ANDUIN_WRYNN)
-                    _excludeUnit = true;
+                    excludeUnit = true;
 
-                if (!_excludeUnit && caster->IsValidAttackTarget(unit))
+                if (!excludeUnit && caster->IsValidAttackTarget(unit))
                     caster->CastSpell(unit, SPELL_WICKED_STAR_DAMAGE_SILENCE, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_IGNORE_GCD | TRIGGERED_IGNORE_CAST_IN_PROGRESS)));
-                if (!_excludeUnit && caster->IsValidAssistTarget(unit))
+                if (!excludeUnit && caster->IsValidAssistTarget(unit))
                     caster->CastSpell(unit, SPELL_WICKED_STAR_EMPOWERMENT, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_IGNORE_GCD | TRIGGERED_IGNORE_CAST_IN_PROGRESS)));
 
                 _affectedUnits.push_back(unit->GetGUID());
@@ -3865,7 +3592,7 @@ struct at_anduin_wrynn_empowered_wicked_star : AreaTriggerAI
         if (!caster)
             return;
 
-        if (at->GetDistance(_casterCurrentPosition) > 0.05f)
+        if (at->GetDistance(_casterInitialPosition) > 0.05f)
         {
             _affectedUnits.clear();
             if (at->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID)
@@ -3907,42 +3634,40 @@ struct at_anduin_wrynn_empowered_wicked_star : AreaTriggerAI
 
         switch (at->GetMap()->GetDifficultyID())
         {
-        case DIFFICULTY_LFR_NEW:
-            starReturnSpeed = 8;
-            break;
-        case DIFFICULTY_NORMAL_RAID:
-            starReturnSpeed = 10;
-            break;
-        case DIFFICULTY_HEROIC_RAID:
-            starReturnSpeed = 12;
-            break;
-        case DIFFICULTY_MYTHIC_RAID:
-            starReturnSpeed = 14;
-            break;
-        default:
-            starReturnSpeed = 10;
-            break;
+            case DIFFICULTY_LFR_NEW:
+                starReturnSpeed = 8;
+                break;
+            case DIFFICULTY_NORMAL_RAID:
+                starReturnSpeed = 10;
+                break;
+            case DIFFICULTY_HEROIC_RAID:
+                starReturnSpeed = 12;
+                break;
+            case DIFFICULTY_MYTHIC_RAID:
+                starReturnSpeed = 14;
+                break;
+            default:
+                starReturnSpeed = 10;
+                break;
         }
 
         _scheduler.Schedule(0ms, [this, starReturnSpeed](TaskContext task)
-            {
-                Movement::PointsArray returnSplinePoints;
+        {
+            Movement::PointsArray returnSplinePoints;
 
-                returnSplinePoints.push_back(PositionToVector3(at));
-                returnSplinePoints.push_back(PositionToVector3(at));
-                returnSplinePoints.push_back(PositionToVector3(_casterCurrentPosition));
-                returnSplinePoints.push_back(PositionToVector3(_casterCurrentPosition));
+            returnSplinePoints.push_back(PositionToVector3(at));
+            returnSplinePoints.push_back(PositionToVector3(at));
+            returnSplinePoints.push_back(PositionToVector3(_casterInitialPosition));
+            returnSplinePoints.push_back(PositionToVector3(_casterInitialPosition));
 
-                at->InitSplines(returnSplinePoints, static_cast<uint32>(at->GetDistance(_casterCurrentPosition) / starReturnSpeed * 600));
-                task.Repeat(250ms);
-            });
+            at->InitSplines(returnSplinePoints, static_cast<uint32>(at->GetDistance(_casterInitialPosition) / starReturnSpeed * 600));
+            task.Repeat(250ms);
+        });
     }
 
 private:
-    bool _excludeUnit;
     TaskScheduler _scheduler;
-    Position _casterCurrentPosition;
-    Position _targetCurrentPosition;
+    Position _casterInitialPosition;
     std::vector<ObjectGuid> _affectedUnits;
 };
 
@@ -3957,6 +3682,7 @@ class spell_anduin_wrynn_kingsmourne_hungers : public SpellScript
         {
             SPELL_KINGSMOURNE_HUNGERS_DAMAGE,
             SPELL_LOST_SOUL_DIMENSION,
+            SPELL_LOST_SOUL,
             SPELL_SEVERED_SOUL
         });
     }
@@ -3981,11 +3707,13 @@ class spell_anduin_wrynn_kingsmourne_hungers : public SpellScript
 
     void HandleDummyEffect(SpellEffIndex /*effIndex*/)
     {
-        GetCaster()->CastSpell(GetHitUnit(), SPELL_KINGSMOURNE_HUNGERS_DAMAGE, true);
-        if (GetCaster()->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID)
-            GetHitUnit()->AddAura(SPELL_SEVERED_SOUL, GetHitUnit());
-        GetCaster()->CastSpell(GetHitUnit(), SPELL_LOST_SOUL_DIMENSION, false);
-        GetHitUnit()->CastSpell(GetHitUnit(), SPELL_LOST_SOUL, true);
+        Unit* caster = GetCaster();
+        Unit* hitUnit = GetHitUnit();
+        caster->CastSpell(hitUnit, SPELL_KINGSMOURNE_HUNGERS_DAMAGE, true);
+        if (caster->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID)
+            hitUnit->CastSpell(hitUnit, SPELL_SEVERED_SOUL, true);
+        caster->CastSpell(hitUnit, SPELL_LOST_SOUL_DIMENSION, false);
+        hitUnit->CastSpell(hitUnit, SPELL_LOST_SOUL, true);
     }
 
     void OnCast()
@@ -4009,47 +3737,49 @@ class spell_anduin_wrynn_kingsmourne_hungers : public SpellScript
 // Lost Soul Dimension - 362055
 class spell_anduin_wrynn_lost_soul : public AuraScript
 {
+    PrepareAuraScript(spell_anduin_wrynn_lost_soul);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_LOST_SOUL_GRACE });
+        return ValidateSpellInfo(
+        {
+            SPELL_LOST_SOUL_GRACE,
+            SPELL_SCARRED_SOUL
+        });
     }
-
-    PrepareAuraScript(spell_anduin_wrynn_lost_soul);
 
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        lostSoulPosition = GetTarget()->GetPosition();
-        GetTarget()->CastSpell(GetTarget(), SPELL_LOST_SOUL_GRACE, true);
+        Unit* target = GetTarget();
+        _lostSoulPosition = target->GetPosition();
+        target->CastSpell(target, SPELL_LOST_SOUL_GRACE, true);
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
+        Unit* target = GetTarget();
         switch (GetTargetApplication()->GetRemoveMode())
         {
             case AURA_REMOVE_BY_DEFAULT:
             case AURA_REMOVE_BY_ENEMY_SPELL:
-                GetTarget()->CastSpell(GetTarget(), SPELL_SCARRED_SOUL, true);
+                target->CastSpell(target, SPELL_SCARRED_SOUL, true);
                 break;
             case AURA_REMOVE_BY_EXPIRE:
             {
-                if (GetTarget()->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID)
+                if (target->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID)
                 {
-                    GetTarget()->KillSelf();
-                    GetTarget()->NearTeleportTo(lostSoulPosition, false);
+                    target->KillSelf();
+                    target->NearTeleportTo(_lostSoulPosition, false);
                 }
                 break;
             }
             case AURA_REMOVE_BY_DEATH:
             {
-                GetTarget()->CastSpell(GetTarget(), SPELL_SCARRED_SOUL, true);
-                if (GetTarget()->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID)
-                {
-                    GetTarget()->NearTeleportTo(lostSoulPosition, false);
-                    GetTarget()->CastSpell(GetTarget(), SPELL_SCARRED_SOUL, true);
-                }
+                target->CastSpell(target, SPELL_SCARRED_SOUL, true);
+                if (target->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID)
+                    target->NearTeleportTo(_lostSoulPosition, false);
                 break;
             }
-
             default:
                 return;
         }
@@ -4062,10 +3792,10 @@ class spell_anduin_wrynn_lost_soul : public AuraScript
     }
 
 private:
-    Position lostSoulPosition;
+    Position _lostSoulPosition;
 };
 
-//362392
+// Rain of Despair - 362392
 class spell_anduin_rain_of_despair_player_selector : public SpellScript
 {
     PrepareSpellScript(spell_anduin_rain_of_despair_player_selector);
@@ -4088,7 +3818,12 @@ class spell_anduin_wrynn_soul_despawn : public SpellScript
 
     void OnCast()
     {
-        GetCaster()->ToCreature()->DespawnOrUnsummon(3s);
+        if (Creature* creature = GetCaster()->ToCreature())
+        {
+            if (creature->GetEntry() == NPC_ANDUIN_HOPE || creature->GetEntry() == NPC_ANDUIN_DOUBT)
+                creature->DespawnOrUnsummon(3s);
+        }
+
     }
 
     void Register() override
@@ -4096,6 +3831,7 @@ class spell_anduin_wrynn_soul_despawn : public SpellScript
         AfterCast += SpellCastFn(spell_anduin_wrynn_soul_despawn::OnCast);
     }
 };
+
 // Force of Will - 368913
 class spell_anduin_wrynn_force_of_will : public AuraScript
 {
@@ -4103,16 +3839,24 @@ class spell_anduin_wrynn_force_of_will : public AuraScript
 
     void RecalculateHook(AuraEffect const* /*aurEffect*/, int32& amount, bool& canBeRecalculated)
     {
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
+
         // at 100 will power = 200% Damage Done increase
-        int32 powerValue = static_cast<int32>(GetCaster()->GetPower(GetCaster()->GetPowerType()));
+        int32 powerValue = caster->GetPower(caster->GetPowerType());
         amount = 2 * powerValue;
         canBeRecalculated = false;
     }
 
     void RecalculateHookDamageTaken(AuraEffect const* /*aurEffect*/, int32& amount, bool& canBeRecalculated)
     {
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
+
         // Damage Taken reduction can only be capped to 90%
-        int32 powerValue = static_cast<int32>(GetCaster()->GetPower(GetCaster()->GetPowerType()));
+        int32 powerValue = caster->GetPower(caster->GetPowerType());
         amount = -std::min(powerValue, 90);
         canBeRecalculated = false;
     }
@@ -4123,7 +3867,7 @@ class spell_anduin_wrynn_force_of_will : public AuraScript
         if (!caster)
             return;
 
-        GetCaster()->SetPower(GetCaster()->GetPowerType(), 0);
+        caster->SetPower(caster->GetPowerType(), 0);
     }
 
     void Register() override
@@ -4143,11 +3887,15 @@ class spell_anduin_wrynn_march_of_the_damned : public AuraScript
 public:
     spell_anduin_wrynn_march_of_the_damned()
     {
-        _marchOfTheDamned.assign(std::begin(MarchOfTheDamnedSpawnPositions), std::end(MarchOfTheDamnedSpawnPositions));
+        _availableSpawnPositions.assign(std::begin(MarchOfTheDamnedSpawnPositions), std::end(MarchOfTheDamnedSpawnPositions));
     }
 
     void OnPeriodic(AuraEffect const* aurEff)
     {
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
+
         uint8 raidDifficulty = 0;
 
         switch (GetCaster()->GetMap()->GetDifficultyID())
@@ -4165,21 +3913,16 @@ public:
                 break;
         }
 
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-
         // Don't summon the wall on aura granted
         if (aurEff->GetTickNumber() == 1)
             return;
 
-        if (_marchOfTheDamned.empty())
+        if (_availableSpawnPositions.empty())
             return;
 
-        Trinity::Containers::RandomShuffle(_marchOfTheDamned);
-        Position chosenPosition = Trinity::Containers::SelectRandomContainerElement(_marchOfTheDamned);
-        auto it = std::find(_marchOfTheDamned.begin(), _marchOfTheDamned.end(), chosenPosition);
-        _marchOfTheDamned.erase(it);
+        Position chosenPosition = Trinity::Containers::SelectRandomContainerElement(_availableSpawnPositions);
+        auto it = std::find(_availableSpawnPositions.begin(), _availableSpawnPositions.end(), chosenPosition);
+        _availableSpawnPositions.erase(it);
 
         GetCaster()->SummonCreature(NPC_MARCH_OF_THE_DAMNED, chosenPosition, TEMPSUMMON_TIMED_DESPAWN, Seconds(raidDifficulty));
     }
@@ -4190,7 +3933,7 @@ public:
     }
 
 private:
-    std::vector<Position> _marchOfTheDamned;
+    std::vector<Position> _availableSpawnPositions;
 };
 
 // Remnant Aura - 362500
@@ -4201,38 +3944,12 @@ class spell_remnant_of_a_fallen_king_spawn : public AuraScript
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
-        {
             GetTarget()->GetAI()->DoAction(ACTION_ACTIVATE_REMNANT);
-        }
     }
 
     void Register() override
     {
         AfterEffectRemove += AuraEffectRemoveFn(spell_remnant_of_a_fallen_king_spawn::OnRemove, EFFECT_2, SPELL_AURA_TRIGGER_SPELL_ON_EXPIRE, AURA_EFFECT_HANDLE_REAL);
-    }
-};
-
-// Dark Presence - 368986
-class spell_anduin_wrynn_dark_presence : public SpellScript
-{
-    PrepareSpellScript(spell_anduin_wrynn_dark_presence);
-
-    void FilterTargets(std::list<WorldObject*>& unitList)
-    {
-        for (std::list<WorldObject*>::iterator itr = unitList.begin(); itr != unitList.end();)
-        {
-            if ((*itr)->GetEntry() == NPC_GRIM_REFLECTION)
-                ++itr;
-            else
-                unitList.erase(itr++);
-        }
-    }
-
-    void Register() override
-    {
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_anduin_wrynn_dark_presence::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_anduin_wrynn_dark_presence::FilterTargets, EFFECT_1, TARGET_UNIT_SRC_AREA_ENTRY);
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_anduin_wrynn_dark_presence::FilterTargets, EFFECT_2, TARGET_UNIT_SRC_AREA_ENTRY);
     }
 };
 
@@ -4243,18 +3960,18 @@ class spell_anduin_soul_lost_soul : public SpellScript
 
     void FilterTargets(std::list<WorldObject*>& unitList)
     {
-        for (std::list<WorldObject*>::iterator itr = unitList.begin(); itr != unitList.end();)
+        unitList.remove_if([this](WorldObject* target)
         {
-            if ((*itr)->GetEntry() == NPC_ANDUIN_DOUBT && (*itr)->IsWithinDistInMap(GetCaster(), 0.2f))
-                ++itr;
-            else
-                unitList.erase(itr++);
-        }
+            if (target->GetEntry() == NPC_ANDUIN_DOUBT && target->IsWithinDistInMap(GetCaster(), 0.2f))
+                return false;
+            return true;
+        });
     }
 
     void HandleDummy(SpellEffIndex /*effIndex*/)
     {
-        GetHitUnit()->ToCreature()->DespawnOrUnsummon();
+        if (Creature* creature = GetHitUnit()->ToCreature())
+            creature->DespawnOrUnsummon();
     }
 
     void Register() override
@@ -4263,36 +3980,38 @@ class spell_anduin_soul_lost_soul : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_anduin_soul_lost_soul::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
+
 // Severed Soul - 367769
 class spell_anduin_wrynn_severed_soul : public AuraScript
 {
     PrepareAuraScript(spell_anduin_wrynn_severed_soul);
 
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_CANCEL_LOST_SOUL
+        });
+    }
+
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        _soulPosition = GetCaster()->GetPosition();
+        if (Unit* caster = GetCaster())
+            _soulPosition = caster->GetPosition();
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        switch (GetTargetApplication()->GetRemoveMode())
-        {
-            case AURA_REMOVE_BY_DEATH:
-            case AURA_REMOVE_BY_CANCEL:
-            case AURA_REMOVE_BY_DEFAULT:
-            case AURA_REMOVE_BY_ENEMY_SPELL:
-            {
-                GetCaster()->CastSpell(GetCaster(), SPELL_CANCEL_LOST_SOUL, true);
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
 
-                if (TempSummon* summon = GetTarget()->ToTempSummon())
-                {
-                    if (summon->GetSummonerUnit() == GetCaster())
-                        GetCaster()->NearTeleportTo(_soulPosition, false);
-                }
-                break;
-            }
-            default:
-                return;
+        caster->CastSpell(caster, SPELL_CANCEL_LOST_SOUL, true);
+
+        if (TempSummon* summon = GetTarget()->ToTempSummon())
+        {
+            if (summon->GetSummonerUnit() == caster)
+                caster->NearTeleportTo(_soulPosition, false);
         }
     }
 
@@ -4317,7 +4036,7 @@ class spell_anduin_wrynn_lost_soul_mirror_image : public SpellScript
         if (!caster)
             return;
 
-        ObjectGuid casterGuid = GetCaster()->GetGUID();
+        ObjectGuid casterGuid = caster->GetGUID();
 
         targets.remove_if([casterGuid](WorldObject* target) -> bool
         {
@@ -4332,7 +4051,7 @@ class spell_anduin_wrynn_lost_soul_mirror_image : public SpellScript
             if (summon->GetSummonerGUID() != casterGuid)
                 return true;
 
-        return false;
+            return false;
         });
     }
 
@@ -4345,13 +4064,17 @@ class spell_anduin_wrynn_lost_soul_mirror_image : public SpellScript
     }
 };
 
-// Soul Explosion - 363029 taken from DBS spell 72378
+// Soul Explosion - 363029
 class spell_friendish_soul_explosion : public SpellScript
 {
-public:
-    spell_friendish_soul_explosion()
+    PrepareSpellScript(spell_friendish_soul_explosion);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        target = nullptr;
+        return ValidateSpellInfo(
+        {
+            SPELL_SOUL_EXPLOSION_TRIGGER_MISSILE
+        });
     }
 
 private:
@@ -4360,34 +4083,30 @@ private:
         if (targets.empty())
             return;
 
-        targets.remove_if([](WorldObject* targets)
+        targets.remove_if([](WorldObject* target)
+        {
+            Player* player = target->ToPlayer();
+            if (!player)
+                return true;
+
+            return false;
+        });
+
+        std::vector<WorldObject*> rangedTargets;
+        for (WorldObject* target : targets)
+        {
+            if (target->GetDistance(GetCaster()) >= 5.0f)
             {
-                Player* unit = targets->ToPlayer();
-        if (!unit)
-            return true;
-
-        return false;
-            });
-
-        // select one random target, preferring ranged targets
-        uint32 targetsAtRange = 0;
-        uint32 const minTargets = 1;
-        targets.sort(Trinity::ObjectDistanceOrderPred(GetCaster(), false));
-
-        // get target count at range
-        for (std::list<WorldObject*>::iterator itr = targets.begin(); itr != targets.end(); ++itr, ++targetsAtRange)
-            if ((*itr)->GetDistance(GetCaster()) < 5.0f)
+                rangedTargets.push_back(target);
                 break;
+            }
+        }
 
-        // If not enough ranged targets are present just select anyone
-        if (targetsAtRange < minTargets)
-            targetsAtRange = uint32(targets.size());
-
-        std::list<WorldObject*>::const_iterator itr = targets.begin();
-        std::advance(itr, urand(0, targetsAtRange - 1));
-        target = *itr;
-        targets.clear();
-        targets.push_back(target);
+        if (!rangedTargets.empty())
+        {
+            targets.clear();
+            targets.push_back(Trinity::Containers::SelectRandomContainerElement(rangedTargets));
+        }
     }
 
     void HandleMissile(SpellEffIndex /*effIndex*/)
@@ -4400,8 +4119,6 @@ private:
         OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_friendish_soul_explosion::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
         OnEffectHitTarget += SpellEffectFn(spell_friendish_soul_explosion::HandleMissile, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
-
-    WorldObject* target;
 };
 
 // Return to Kingsmourne - 363022
@@ -4409,9 +4126,21 @@ class spell_remnant_of_a_fallen_king_return_to_kingsmourne_applied : public Aura
 {
     PrepareAuraScript(spell_remnant_of_a_fallen_king_return_to_kingsmourne_applied);
 
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_RETURN_TO_KINGSMOURNE_VISUALS
+        });
+    }
+
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        GetCaster()->CastSpell(GetCaster(), SPELL_RETURN_TO_KINGSMOURNE_VISUALS);
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
+
+        caster->CastSpell(caster, SPELL_RETURN_TO_KINGSMOURNE_VISUALS);
     }
 
     void Register() override
@@ -4425,23 +4154,37 @@ class spell_remnant_of_a_fallen_king_return_to_kingsmourne : public AuraScript
 {
     PrepareAuraScript(spell_remnant_of_a_fallen_king_return_to_kingsmourne);
 
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_DOMINATION_GRASP_ROOT_AREATRIGGER,
+            SPELL_CANCEL_FORCE_OF_WILL
+        });
+    }
+
     void AfterRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        if (InstanceScript* instance = GetCaster()->GetInstanceScript())
-        {
-            if (Creature* arthas = instance->GetCreature(DATA_REMNANT_OF_A_FALLEN_KING))
-                arthas->DespawnOrUnsummon();
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
 
-            if (Creature* anduin = instance->GetCreature(DATA_ANDUIN_WRYNN))
+        InstanceScript* instance = caster->GetInstanceScript();
+        if (!instance)
+            return;
+
+        if (Creature* arthas = instance->GetCreature(DATA_REMNANT_OF_A_FALLEN_KING))
+            arthas->DespawnOrUnsummon();
+
+        if (Creature* anduin = instance->GetCreature(DATA_ANDUIN_WRYNN))
+        {
+            anduin->RemoveAurasDueToSpell(SPELL_DOMINATION_GRASP_ROOT_AREATRIGGER);
+            instance->DoUpdateWorldState(WORLD_STATE_ANDUIN_INTERMISSION, 0);
+            instance->DoUpdateWorldState(WORLD_STATE_ANDUIN_ENCOUNTER_STARTED, 1);
+            if (anduin->IsAIEnabled())
             {
-                anduin->RemoveAurasDueToSpell(SPELL_DOMINATION_GRASP_ROOT_AREATRIGGER);
-                instance->DoUpdateWorldState(WORLD_STATE_ANDUIN_INTERMISSION, 0);
-                instance->DoUpdateWorldState(WORLD_STATE_ANDUIN_ENCOUNTER_STARTED, 1);
-                if (anduin->IsAIEnabled())
-                {
-                    anduin->AI()->DoAction(ACTION_EXIT_INTERMISSION);
-                    anduin->AI()->DoCastSelf(SPELL_CANCEL_FORCE_OF_WILL);
-                }
+                anduin->AI()->DoAction(ACTION_EXIT_INTERMISSION);
+                anduin->AI()->DoCastSelf(SPELL_CANCEL_FORCE_OF_WILL);
             }
         }
     }
@@ -4457,14 +4200,22 @@ class spell_anduin_wrynn_grim_reflections : public SpellScript
 {
     PrepareSpellScript(spell_anduin_wrynn_grim_reflections);
 
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_GRIM_REFLECTIONS_SUMMON
+        });
+    }
+
     void HandleCast()
     {
         uint8 reflectionsNumber = GetCaster()->GetMap()->GetDifficultyID() == DIFFICULTY_MYTHIC_RAID ? 4 : 3;
-        std::vector<Position> grimReflections(std::begin(GrimReflectionsSpawnPositions), std::end(GrimReflectionsSpawnPositions));
-        Trinity::Containers::RandomResize(grimReflections, reflectionsNumber);
+        std::vector<Position> grimReflectionPositions(std::begin(GrimReflectionsSpawnPositions), std::end(GrimReflectionsSpawnPositions));
+        Trinity::Containers::RandomResize(grimReflectionPositions, reflectionsNumber);
 
         for (uint8 i = 0; i < reflectionsNumber; i++)
-            GetCaster()->CastSpell(Position(grimReflections[i]), SPELL_GRIM_REFLECTIONS_SUMMON, true);
+            GetCaster()->CastSpell(grimReflectionPositions[i], SPELL_GRIM_REFLECTIONS_SUMMON, true);
     }
 
     void Register() override
@@ -4473,30 +4224,7 @@ class spell_anduin_wrynn_grim_reflections : public SpellScript
     }
 };
 
-// Grim Fate - 367932
-class spell_anduin_wrynn_grim_fate : public SpellScript
-{
-    PrepareSpellScript(spell_anduin_wrynn_grim_fate);
-
-    void FilterTargets(std::list<WorldObject*>& unitList)
-    {
-        for (std::list<WorldObject*>::iterator itr = unitList.begin(); itr != unitList.end();)
-        {
-            if ((*itr)->GetEntry() == NPC_GRIM_REFLECTION)
-                ++itr;
-            else
-                unitList.erase(itr++);
-        }
-    }
-
-    void Register() override
-    {
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_anduin_wrynn_grim_fate::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
-        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_anduin_wrynn_grim_fate::FilterTargets, EFFECT_1, TARGET_UNIT_DEST_AREA_ALLY);
-    }
-};
-
-// Beacon of Hope 365872
+// Beacon of Hope - 365872
 class spell_anduin_wrynn_beacon_of_hope : public SpellScript
 {
     PrepareSpellScript(spell_anduin_wrynn_beacon_of_hope);
@@ -4519,7 +4247,11 @@ class spell_anduin_wrynn_hopelessness : public SpellScript
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_HOPELESSNESS_MISSILE });
+        return ValidateSpellInfo(
+        {
+            SPELL_BLASPHEMY_PRE_HIT,
+            SPELL_HOPELESSNESS_MISSILE
+        });
     }
 
     void OnPrecast() override
@@ -4541,8 +4273,7 @@ class spell_anduin_wrynn_hopelessness : public SpellScript
 // Hopelessness 365966 - AT 24443
 struct at_anduin_wrynn_hopelessness : AreaTriggerAI
 {
-    at_anduin_wrynn_hopelessness(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger),
-        _instance(at->GetInstanceScript()) { }
+    at_anduin_wrynn_hopelessness(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger)  { }
 
     void OnUnitEnter(Unit* unit) override
     {
@@ -4550,17 +4281,17 @@ struct at_anduin_wrynn_hopelessness : AreaTriggerAI
             return;
 
         if (!unit->IsAlive())
+        {
             at->Remove();
+            return;
+        }
 
         if (unit->HasAura(at->GetSpellId()))
         {
             unit->CastSpell(unit, SPELL_BLASPHEMY_EXPLODE, true);
             if (Unit* target = at->GetTarget())
-            {
                 target->CastSpell(target, SPELL_BLASPHEMY_EXPLODE, true);
-            }
         }
-
     }
 
     void OnUnitExit(Unit* unit) override
@@ -4568,9 +4299,6 @@ struct at_anduin_wrynn_hopelessness : AreaTriggerAI
         if (!unit->IsAlive() && unit->HasAura(at->GetSpellId()))
             unit->RemoveAurasDueToSpell(at->GetSpellId());
     }
-
-private:
-    InstanceScript* _instance;
 };
 
 // Hopelessness Expire - 365966
@@ -4580,7 +4308,7 @@ class spell_anduin_wrynn_hopelessness_expire : public AuraScript
 
     bool Validate(SpellInfo const* /*spell*/) override
     {
-        return ValidateSpellInfo({ SPELL_HOPELESSNESS_HOPELESSNESS_AREATRIGGER });
+        return ValidateSpellInfo({ SPELL_HOPELESSNESS_EXPLODE });
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
@@ -4608,6 +4336,15 @@ class spell_anduin_wrynn_empowered_hopebreaker_periodic : public SpellScript
 {
     PrepareSpellScript(spell_anduin_wrynn_empowered_hopebreaker_periodic);
 
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_HOPEBREAKER_DAMAGE,
+            SPELL_HOPEBREAKER_DEBUFF,
+        });
+    }
+
     void HandleCast(SpellEffIndex /*effIndex*/)
     {
         GetCaster()->CastSpell(GetHitUnit(), SPELL_HOPEBREAKER_DAMAGE, true);
@@ -4625,13 +4362,15 @@ class spell_remnant_of_a_fallen_king_energize_runic_power : public AuraScript
 {
     PrepareAuraScript(spell_remnant_of_a_fallen_king_energize_runic_power);
 
+    static constexpr std::array<int32, 3> RemnantRegenCycle = { 1, 1, 2 };
+
     void HandlePeriodic(AuraEffect const* /*aurEff*/)
     {
         Unit* target = GetTarget();
-        powerGained = _anduinRegenCycle[powerRegenCycle++];
+        int32 powerGained = RemnantRegenCycle[_powerRegenCycle++];
 
-        if (powerRegenCycle > 2)
-            powerRegenCycle = 1;
+        if (_powerRegenCycle > 2)
+            _powerRegenCycle = 1;
 
         target->ModifyPower(target->GetPowerType(), powerGained);
     }
@@ -4642,10 +4381,7 @@ class spell_remnant_of_a_fallen_king_energize_runic_power : public AuraScript
     }
 
 private:
-    uint8 powerRegenCycle = 0;
-    uint32 powerGained = 0;
-    static constexpr std::array<int32, 3> _anduinRegenCycle =
-    { 1, 1, 2 };
+    uint8 _powerRegenCycle = 0;
 };
 
 // Army of the Dead - 362862
@@ -4653,12 +4389,20 @@ class spell_remnant_of_a_fallen_king_army_of_the_dead : public SpellScript
 {
     PrepareSpellScript(spell_remnant_of_a_fallen_king_army_of_the_dead);
 
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_ECHOES_OF_ANDORHAL_MONSTROUS_SOUL,
+        });
+    }
+
     void HandleAfterCast()
     {
         Position summonSoul = GetCaster()->GetNearPosition(frand(30.0f, 50.0f), frand(0.0f, 3.5f));
 
         if (GetCaster()->GetMap()->GetDifficultyID() != DIFFICULTY_LFR_NEW)
-            GetCaster()->CastSpell(Position(summonSoul), SPELL_ECHOES_OF_ANDORHAL_MONSTROUS_SOUL, true);
+            GetCaster()->CastSpell(summonSoul, SPELL_ECHOES_OF_ANDORHAL_MONSTROUS_SOUL, true);
     }
 
     void Register() override
@@ -4674,10 +4418,6 @@ class spell_remnant_of_a_fallen_king_echoes_of_andorhal : public SpellScript
 
     void SetDest(SpellDestination& dest)
     {
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-
         Position const echoesSummon = GetCaster()->GetRandomPoint(DominationGraspCenter, frand(20.5f, 30.0f));
         dest.Relocate(echoesSummon);
     }
@@ -4699,7 +4439,7 @@ class spell_remnant_of_a_fallen_king_remorseless_winter_periodic : public AuraSc
         if (!caster)
             return;
 
-        GetCaster()->CastSpell(GetTarget(), SPELL_REMORSELESS_WINTER_DEBUFF_DAMAGE, true);
+        caster->CastSpell(GetTarget(), SPELL_REMORSELESS_WINTER_DEBUFF_DAMAGE, true);
     }
 
     void Register() override
@@ -4716,14 +4456,14 @@ class spell_remnant_of_a_fallen_king_remorseless_winter_damage : public SpellScr
     void HandleDamage(SpellEffIndex /*effIndex*/)
     {
         Unit* caster = GetCaster();
-        Unit* target = GetHitUnit();
-
         if (!caster)
             return;
 
-        Aura* remorselessWinter = target->GetAura(SPELL_REMORSELESS_WINTER_PERIODIC);
-        uint8 remorselessWinterStacks = remorselessWinter->GetStackAmount();
-        SetHitDamage(int32(GetHitDamage() * (uint8)remorselessWinterStacks));
+        Aura* remorselessWinter = GetHitUnit()->GetAura(SPELL_REMORSELESS_WINTER_PERIODIC);
+        if (!remorselessWinter)
+            return;
+
+        SetHitDamage(int32(GetHitDamage() * (uint8)remorselessWinter->GetStackAmount()));
     }
 
     void Register() override
@@ -4745,16 +4485,18 @@ class spell_remnant_of_a_fallen_king_soul_reaper : public SpellScript
             SPELL_SOUL_REAPER_SHADOWFROST_DAMAGE,
             SPELL_SOUL_REAPER_DEBUFF,
             SPELL_SOUL_REAPER_ATTACK_SPEED,
-            });
+        });
     }
 
     void HandleDummyEffect(SpellEffIndex /*effIndex*/)
     {
-        GetCaster()->CastSpell(GetHitUnit(), SPELL_SOUL_REAPER_PHYSICAL_DAMAGE, true);
-        GetCaster()->CastSpell(GetHitUnit(), SPELL_SOUL_REAPER_SHADOWFROST_DAMAGE, true);
-        GetCaster()->CastSpell(GetHitUnit(), SPELL_SOUL_REAPER_DEBUFF, true);
-        GetCaster()->CastSpell(GetCaster(), SPELL_SOUL_REAPER_ATTACK_SPEED, true);
-        GetCaster()->resetAttackTimer(BASE_ATTACK);
+        Unit* caster = GetCaster();
+        Unit* hitUnit = GetHitUnit();
+        caster->CastSpell(hitUnit, SPELL_SOUL_REAPER_PHYSICAL_DAMAGE, true);
+        caster->CastSpell(hitUnit, SPELL_SOUL_REAPER_SHADOWFROST_DAMAGE, true);
+        caster->CastSpell(hitUnit, SPELL_SOUL_REAPER_DEBUFF, true);
+        caster->CastSpell(caster, SPELL_SOUL_REAPER_ATTACK_SPEED, true);
+        caster->resetAttackTimer(BASE_ATTACK);
     }
 
     void Register() override
@@ -4782,9 +4524,8 @@ struct at_anduin_wrynn_pre_introduction : AreaTriggerAI
         }
     }
 
-public:
+private:
     InstanceScript* _instance;
-    TaskScheduler _scheduler;
     bool _firstEntry;
 };
 
@@ -4803,7 +4544,6 @@ public:
         if (Creature* jaina = creator->GetInstanceScript()->GetCreature(DATA_JAINA_PROUDMOORE))
             conversation->AddActor(NPC_LADY_JAINA_PROUDMOORE, 3, jaina->GetGUID());
     }
-
 };
 
 // 17921 - Arthas to Uther Intermission
@@ -4840,7 +4580,6 @@ public:
 
     void OnConversationCreate(Conversation* conversation, Unit* creator) override
     {
-
         if (Creature* jaina = creator->GetInstanceScript()->GetCreature(DATA_JAINA_PROUDMOORE))
             conversation->AddActor(NPC_LADY_JAINA_PROUDMOORE, 1, jaina->GetGUID());
         if (Creature* sylvanas = creator->GetInstanceScript()->GetCreature(DATA_SYLVANAS_WINDRUNNER))
@@ -4860,30 +4599,30 @@ public:
 
     void MarkPlayerAsSkipped(uint32 playerId)
     {
-        skippedPlayers.insert(playerId);
+        _skippedPlayers.insert(playerId);
     }
 
     void OnMovieComplete(Player* player, uint32 /*movieId*/) override
     {
-        if (InstanceScript* instance = player->GetInstanceScript())
-        {
-            if (Creature* anduin = instance->GetCreature(DATA_ANDUIN_WRYNN))
-            {
-                MarkPlayerAsSkipped(static_cast<uint32>(player->GetGUID().GetCounter()));
-                player->RemoveAurasDueToSpell(SPELL_FINAL_MOVIE);
-                Map::PlayerList const& players = player->GetMap()->GetPlayers();
+        InstanceScript* instance = player->GetInstanceScript();
+        if (!instance)
+            return;
 
-                // Outroduciton must start once every player skips or completes the movie
-                if (skippedPlayers.size() == players.getSize())
-                {
-                    anduin->GetAI()->DoAction(ACTION_START_OUTRODUCTION);
-                }
-            }
-        }
+        Creature* anduin = instance->GetCreature(DATA_ANDUIN_WRYNN);
+        if (!anduin)
+            return;
+
+        MarkPlayerAsSkipped(static_cast<uint32>(player->GetGUID().GetCounter()));
+        player->RemoveAurasDueToSpell(SPELL_FINAL_MOVIE);
+        Map::PlayerList const& players = player->GetMap()->GetPlayers();
+
+        // Outroduciton must start once every player skips or completes the movie
+        if (_skippedPlayers.size() == players.getSize())
+            anduin->GetAI()->DoAction(ACTION_START_OUTRODUCTION);
     }
 
 private:
-    std::unordered_set<uint32> skippedPlayers;
+    std::unordered_set<uint32> _skippedPlayers;
 };
 
 void AddSC_boss_anduin_wrynn()
@@ -4893,7 +4632,6 @@ void AddSC_boss_anduin_wrynn()
     RegisterSepulcherOfTheFirstOnesCreatureAI(npc_anduin_wrynn_sylvanas);
     RegisterSepulcherOfTheFirstOnesCreatureAI(npc_anduin_wrynn_jaina);
     RegisterSepulcherOfTheFirstOnesCreatureAI(npc_anduin_wrynn_uther);
-    RegisterSepulcherOfTheFirstOnesCreatureAI(npc_firim);
     RegisterSepulcherOfTheFirstOnesCreatureAI(npc_anduin_wrynn_befouled_barrier);
     RegisterSepulcherOfTheFirstOnesCreatureAI(npc_anduin_wrynn_empty_vessel);
     RegisterSepulcherOfTheFirstOnesCreatureAI(npc_anduin_wrynn_lost_soul);
@@ -4905,8 +4643,6 @@ void AddSC_boss_anduin_wrynn()
     RegisterSepulcherOfTheFirstOnesCreatureAI(npc_anduin_wrynn_fiendish_soul);
     RegisterSepulcherOfTheFirstOnesCreatureAI(npc_anduin_wrynn_grim_reflection);
     RegisterSepulcherOfTheFirstOnesCreatureAI(npc_anduin_wrynn_beacon_of_hope);
-    RegisterSepulcherOfTheFirstOnesCreatureAI(npc_dominated_translocator);
-    RegisterSepulcherOfTheFirstOnesCreatureAI(npc_ancient_console);
 
     RegisterAreaTriggerAI(at_anduin_wrynn_pre_introduction);
     RegisterSpellScript(spell_anduin_wrynn_pre_introduction);
@@ -4920,13 +4656,12 @@ void AddSC_boss_anduin_wrynn()
     RegisterSpellScript(spell_anduin_wrynn_befouled_barrier_absorb);
     RegisterSpellScript(spell_anduin_wrynn_befouled_barrier_expire);
     RegisterAreaTriggerAI(at_anduin_wrynn_blasphemy);
-    RegisterSpellScript(spell_anduin_wrynn_blasphemy_init);
     RegisterSpellScript(spell_anduin_wrynn_blasphemy);
     RegisterSpellScript(spell_anduin_wrynn_hopelessness_overconfidence);
     RegisterAreaTriggerAI(at_anduin_wrynn_wicked_star);
     RegisterAreaTriggerAI(at_anduin_wrynn_empowered_wicked_star);
-    RegisterSpellAndAuraScriptPair(spell_anduin_wrynn_wicked_star_selector, spell_anduin_wrynn_wicked_star_pointer);
-    RegisterSpellAndAuraScriptPair(spell_anduin_wrynn_empowered_wicked_star_selector, spell_anduin_wrynn_empowered_wicked_star_pointer);
+    RegisterSpellAndAuraScriptPair(spell_anduin_wrynn_wicked_star_selector, spell_anduin_wrynn_wicked_star_selector_AuraScript);
+    RegisterSpellAndAuraScriptPairWithArgs(spell_anduin_wrynn_wicked_star_selector, spell_anduin_wrynn_empowered_wicked_star_selector_AuraScript, "spell_anduin_wrynn_empowered_wicked_star_selector");
     RegisterSpellScript(spell_anduin_wrynn_kingsmourne_hungers);
     RegisterSpellScript(spell_anduin_soul_lost_soul);
     RegisterSpellScript(spell_anduin_wrynn_lost_soul);
@@ -4938,9 +4673,7 @@ void AddSC_boss_anduin_wrynn()
     RegisterAreaTriggerAI(at_anduin_wrynn_march_of_the_damned);
     RegisterSpellScript(spell_anduin_wrynn_march_of_the_damned);
     RegisterSpellScript(spell_friendish_soul_explosion);
-    RegisterSpellScript(spell_anduin_wrynn_dark_presence);
     RegisterSpellScript(spell_anduin_wrynn_grim_reflections);
-    RegisterSpellScript(spell_anduin_wrynn_grim_fate);
     RegisterAreaTriggerAI(at_anduin_wrynn_beacon_of_hope);
     RegisterSpellScript(spell_anduin_wrynn_beacon_of_hope);
     RegisterSpellScript(spell_anduin_wrynn_empowered_hopebreaker_periodic);
