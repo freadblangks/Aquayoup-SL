@@ -909,14 +909,14 @@ enum Difficulty : uint8
 
 enum DifficultyFlags
 {
-    DIFFICULTY_FLAG_HEROIC          = 0x01,
-    DIFFICULTY_FLAG_DEFAULT         = 0x02,
-    DIFFICULTY_FLAG_CAN_SELECT      = 0x04, // Player can select this difficulty in dropdown menu
-    DIFFICULTY_FLAG_CHALLENGE_MODE  = 0x08,
-
-    DIFFICULTY_FLAG_LEGACY          = 0x20,
-    DIFFICULTY_FLAG_DISPLAY_HEROIC  = 0x40, // Controls icon displayed on minimap when inside the instance
-    DIFFICULTY_FLAG_DISPLAY_MYTHIC  = 0x80  // Controls icon displayed on minimap when inside the instance
+    DIFFICULTY_FLAG_HEROIC_STYLE_LOCKOUTS   = 0x01,
+    DIFFICULTY_FLAG_DEFAULT                 = 0x02,
+    DIFFICULTY_FLAG_CAN_SELECT              = 0x04, // Player can select this difficulty in dropdown menu
+    //DIFFICULTY_FLAG_CHALLENGE_MODE          = 0x08, // deprecated since Legion expansion
+    DIFFICULTY_FLAG_LFG_ONLY                = 0x10,
+    DIFFICULTY_FLAG_LEGACY                  = 0x20,
+    DIFFICULTY_FLAG_DISPLAY_HEROIC          = 0x40, // Controls icon displayed on minimap when inside the instance
+    DIFFICULTY_FLAG_DISPLAY_MYTHIC          = 0x80  // Controls icon displayed on minimap when inside the instance
 };
 
 enum class ExpectedStatType : uint8
@@ -2123,12 +2123,19 @@ DEFINE_ENUM_FLAG(SummonPropertiesFlags);
 #define MAX_TALENT_COLUMNS 3
 #define MAX_PVP_TALENT_SLOTS 4
 
-enum TaxiNodeFlags
+enum class TaxiNodeFlags : int32
 {
-    TAXI_NODE_FLAG_ALLIANCE             = 0x01,
-    TAXI_NODE_FLAG_HORDE                = 0x02,
-    TAXI_NODE_FLAG_USE_FAVORITE_MOUNT   = 0x10
+    ShowOnAllianceMap           = 0x00000001,
+    ShowOnHordeMap              = 0x00000002,
+    ShowOnMapBorder             = 0x00000004,
+    ShowIfClientPassesCondition = 0x00000008,
+    UsePlayerFavoriteMount      = 0x00000010,
+    EndPointPnly                = 0x00000020,
+    IgnoreForFindNearest        = 0x00000040,
+    DoNotShowInWorldMapUI       = 0x00000080,
 };
+
+DEFINE_ENUM_FLAG(TaxiNodeFlags);
 
 enum TaxiPathNodeFlags
 {

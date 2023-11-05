@@ -2380,6 +2380,19 @@ void ObjectMgr::LoadCreatures()
     TC_LOG_INFO("server.loading", ">> Loaded {} creatures in {} ms", _creatureDataStore.size(), GetMSTimeDiffToNow(oldMSTime));
 }
 
+CellObjectGuids const* ObjectMgr::GetCellObjectGuids(uint32 mapid, Difficulty spawnMode, uint32 cell_id)
+{
+    if (CellObjectGuidsMap const* mapGuids = Trinity::Containers::MapGetValuePtr(_mapObjectGuidsStore, { mapid, spawnMode }))
+        return Trinity::Containers::MapGetValuePtr(*mapGuids, cell_id);
+
+    return nullptr;
+}
+
+CellObjectGuidsMap const* ObjectMgr::GetMapObjectGuids(uint32 mapid, Difficulty spawnMode)
+{
+    return Trinity::Containers::MapGetValuePtr(_mapObjectGuidsStore, { mapid, spawnMode });
+}
+
 bool ObjectMgr::HasPersonalSpawns(uint32 mapid, Difficulty spawnMode, uint32 phaseId) const
 {
     return Trinity::Containers::MapGetValuePtr(_mapPersonalObjectGuidsStore, { mapid, spawnMode, phaseId }) != nullptr;
@@ -6657,10 +6670,10 @@ uint32 ObjectMgr::GetNearestTaxiNode(float x, float y, float z, uint32 mapid, ui
     float dist = 10000;
     uint32 id = 0;
 
-    uint32 requireFlag = (team == ALLIANCE) ? TAXI_NODE_FLAG_ALLIANCE : TAXI_NODE_FLAG_HORDE;
+    TaxiNodeFlags requireFlag = (team == ALLIANCE) ? TaxiNodeFlags::ShowOnAllianceMap : TaxiNodeFlags::ShowOnHordeMap;
     for (TaxiNodesEntry const* node : sTaxiNodesStore)
     {
-        if (!node || node->ContinentID != mapid || !(node->Flags & requireFlag))
+        if (!node || node->ContinentID != mapid || !node->GetFlags().HasFlag(requireFlag) || node->GetFlags().HasFlag(TaxiNodeFlags::IgnoreForFindNearest))
             continue;
 
         uint32 field   = uint32((node->ID - 1) / 8);
