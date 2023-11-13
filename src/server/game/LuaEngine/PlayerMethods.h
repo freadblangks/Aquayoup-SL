@@ -248,11 +248,11 @@ namespace LuaPlayer
      *
      * @return bool canUninviteFromGroup
      */
-    int CanUninviteFromGroup(lua_State* L, Player* player)
+    /*int CanUninviteFromGroup(lua_State* L, Player* player)
     {
         Eluna::Push(L, player->CanUninviteFromGroup() == ERR_PARTY_RESULT_OK);
         return 1;
-    }
+    }*/
 
     /**
      * Returns 'true' if the [Player] can fly, 'false' otherwise.
@@ -1862,14 +1862,15 @@ namespace LuaPlayer
      * Sends a tabard vendor window to the [Player] from the [WorldObject] specified
      *
      * @param [WorldObject] sender
+     * Need more arg (maybe fix later)
      */
-    int SendTabardVendorActivate(lua_State* L, Player* player)
+    /*int SendTabardVendorActivate(lua_State* L, Player* player)
     {
         WorldObject* obj = Eluna::CHECKOBJ<WorldObject>(L, 2);
 
         player->GetSession()->SendTabardVendorActivate(obj->GET_GUID());
         return 0;
-    }
+    }*/
 
     /**
      * Sends a bank window to the [Player] from the [WorldObject] specified.

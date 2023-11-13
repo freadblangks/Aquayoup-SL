@@ -288,6 +288,12 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_BROADCAST_TEXT_DURATION, "SELECT MAX(ID) + 1 FROM broadcast_text_duration", CONNECTION_SYNCH);
 
+    // CfgCategories.db2
+    PrepareStatement(HOTFIX_SEL_CFG_CATEGORIES, "SELECT ID, Name, LocaleMask, CreateCharsetMask, ExistingCharsetMask, Flags, `Order`"
+        " FROM cfg_categories WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
+    PREPARE_MAX_ID_STMT(HOTFIX_SEL_CFG_CATEGORIES, "SELECT MAX(ID) + 1 FROM cfg_categories", CONNECTION_SYNCH);
+    PREPARE_LOCALE_STMT(HOTFIX_SEL_CFG_CATEGORIES, "SELECT ID, Name_lang FROM cfg_categories_locale WHERE (`VerifiedBuild` > 0) = ? AND locale = ?", CONNECTION_SYNCH);
+
     // CfgRegions.db2
     PrepareStatement(HOTFIX_SEL_CFG_REGIONS, "SELECT ID, Tag, RegionID, Raidorigin, RegionGroupMask, ChallengeOrigin FROM cfg_regions"
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
@@ -355,20 +361,20 @@ void HotfixDatabaseConnection::DoPrepareStatements()
 
     // ChrCustomizationDisplayInfo.db2
     PrepareStatement(HOTFIX_SEL_CHR_CUSTOMIZATION_DISPLAY_INFO, "SELECT ID, ShapeshiftFormID, DisplayID, BarberShopMinCameraDistance, "
-        "BarberShopHeightOffset FROM chr_customization_display_info WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
+        "BarberShopHeightOffset, BarberShopCameraZoomOffset FROM chr_customization_display_info WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_CHR_CUSTOMIZATION_DISPLAY_INFO, "SELECT MAX(ID) + 1 FROM chr_customization_display_info", CONNECTION_SYNCH);
 
     // ChrCustomizationElement.db2
     PrepareStatement(HOTFIX_SEL_CHR_CUSTOMIZATION_ELEMENT, "SELECT ID, ChrCustomizationChoiceID, RelatedChrCustomizationChoiceID, "
         "ChrCustomizationGeosetID, ChrCustomizationSkinnedModelID, ChrCustomizationMaterialID, ChrCustomizationBoneSetID, "
-        "ChrCustomizationCondModelID, ChrCustomizationDisplayInfoID, ChrCustItemGeoModifyID, ChrCustomizationVoiceID, AnimKitID, ParticleColorID"
-        " FROM chr_customization_element WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
+        "ChrCustomizationCondModelID, ChrCustomizationDisplayInfoID, ChrCustItemGeoModifyID, ChrCustomizationVoiceID, AnimKitID, ParticleColorID, "
+        "ChrCustGeoComponentLinkID FROM chr_customization_element WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_CHR_CUSTOMIZATION_ELEMENT, "SELECT MAX(ID) + 1 FROM chr_customization_element", CONNECTION_SYNCH);
 
-	// ChrCustomizationMaterial.db2
-		PrepareStatement(HOTFIX_SEL_CHR_CUSTOMIZATION_MATERIAL, "SELECT ID, ChrModelTextureTargetID, MaterialResourcesID FROM chr_customization_material"
-			" WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
-		PREPARE_MAX_ID_STMT(HOTFIX_SEL_CHR_CUSTOMIZATION_MATERIAL, "SELECT MAX(ID) + 1 FROM chr_customization_material", CONNECTION_SYNCH);
+    // ChrCustomizationMaterial.db2
+    PrepareStatement(HOTFIX_SEL_CHR_CUSTOMIZATION_MATERIAL, "SELECT ID, ChrModelTextureTargetID, MaterialResourcesID FROM chr_customization_material"
+        " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
+    PREPARE_MAX_ID_STMT(HOTFIX_SEL_CHR_CUSTOMIZATION_MATERIAL, "SELECT MAX(ID) + 1 FROM chr_customization_material", CONNECTION_SYNCH);
 
     // ChrCustomizationOption.db2
     PrepareStatement(HOTFIX_SEL_CHR_CUSTOMIZATION_OPTION, "SELECT Name, ID, SecondaryID, Flags, ChrModelID, SortIndex, ChrCustomizationCategoryID, "
@@ -463,8 +469,8 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_CONTENT_TUNING_X_LABEL, "SELECT MAX(ID) + 1 FROM content_tuning_x_label", CONNECTION_SYNCH);
 
     // ConversationLine.db2
-    PrepareStatement(HOTFIX_SEL_CONVERSATION_LINE, "SELECT ID, BroadcastTextID, SpellVisualKitID, AdditionalDuration, NextConversationLineID, "
-        "AnimKitID, SpeechType, StartAnimation, EndAnimation FROM conversation_line WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
+    PrepareStatement(HOTFIX_SEL_CONVERSATION_LINE, "SELECT ID, BroadcastTextID, Unused1020, SpellVisualKitID, AdditionalDuration, "
+        "NextConversationLineID, AnimKitID, SpeechType, StartAnimation, EndAnimation FROM conversation_line WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_CONVERSATION_LINE, "SELECT MAX(ID) + 1 FROM conversation_line", CONNECTION_SYNCH);
 
     // CorruptionEffects.db2
@@ -485,10 +491,10 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         "HDBakeMaterialResourcesID FROM creature_display_info_extra WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_CREATURE_DISPLAY_INFO_EXTRA, "SELECT MAX(ID) + 1 FROM creature_display_info_extra", CONNECTION_SYNCH);
 
-	// CreatureDisplayInfoOption.db2
-		PrepareStatement(HOTFIX_SEL_CREATURE_DISPLAY_INFO_OPTION, "SELECT ID, ChrCustomizationOptionID, ChrCustomizationChoiceID, "
-			"CreatureDisplayInfoExtraID FROM creature_display_info_option WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
-		PREPARE_MAX_ID_STMT(HOTFIX_SEL_CREATURE_DISPLAY_INFO_OPTION, "SELECT MAX(ID) + 1 FROM creature_display_info_option", CONNECTION_SYNCH);
+    // CreatureDisplayInfoOption.db2
+    PrepareStatement(HOTFIX_SEL_CREATURE_DISPLAY_INFO_OPTION, "SELECT ID, ChrCustomizationOptionID, ChrCustomizationChoiceID, "
+        "CreatureDisplayInfoExtraID FROM creature_display_info_option WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
+    PREPARE_MAX_ID_STMT(HOTFIX_SEL_CREATURE_DISPLAY_INFO_OPTION, "SELECT MAX(ID) + 1 FROM creature_display_info_option", CONNECTION_SYNCH);
 
     // CreatureFamily.db2
     PrepareStatement(HOTFIX_SEL_CREATURE_FAMILY, "SELECT ID, Name, MinScale, MinScaleLevel, MaxScale, MaxScaleLevel, PetFoodMask, PetTalentType, "
@@ -655,7 +661,7 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_GAMEOBJECTS, "SELECT MAX(ID) + 1 FROM gameobjects", CONNECTION_SYNCH);
     PREPARE_LOCALE_STMT(HOTFIX_SEL_GAMEOBJECTS, "SELECT ID, Name_lang FROM gameobjects_locale WHERE (`VerifiedBuild` > 0) = ? AND locale = ?", CONNECTION_SYNCH);
 
-	// GameTips.db2
+    // GameTips.db2
     PrepareStatement(HOTFIX_SEL_GAME_TIPS, "SELECT ID, Text, SortIndex, MinLevel, MaxLevel, ContentTuningID FROM game_tips"
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_GAME_TIPS, "SELECT MAX(ID) + 1 FROM game_tips", CONNECTION_SYNCH);
@@ -1105,7 +1111,7 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_LIGHT, "SELECT MAX(ID) + 1 FROM light", CONNECTION_SYNCH);
 
-	// LightSkybox.db2
+    // LightSkybox.db2
     PrepareStatement(HOTFIX_SEL_LIGHT_SKYBOX, "SELECT ID, Name, Flags, SkyboxFileDataID, CelestialSkyboxFileDataID FROM light_skybox"
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_LIGHT_SKYBOX, "SELECT MAX(ID) + 1 FROM light_skybox", CONNECTION_SYNCH);
@@ -1158,11 +1164,11 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_MAP_DIFFICULTY, "SELECT MAX(ID) + 1 FROM map_difficulty", CONNECTION_SYNCH);
     PREPARE_LOCALE_STMT(HOTFIX_SEL_MAP_DIFFICULTY, "SELECT ID, Message_lang FROM map_difficulty_locale WHERE (`VerifiedBuild` > 0) = ? AND locale = ?", CONNECTION_SYNCH);
 
-	// ModelFileData.db2
-    PrepareStatement(HOTFIX_SEL_MODEL_FILE_DATA, "SELECT Geobox1, Geobox2, Geobox3, Geobox4, Geobox5, Geobox6, ID, Flags, LogCount, ModelID"
+    // ModelFileData.db2
+    PrepareStatement(HOTFIX_SEL_MODEL_FILE_DATA, "SELECT Geobox1, Geobox2, Geobox3, Geobox4, Geobox5, Geobox6, ID, Flags, LogCount, ModelResourcesID"
         " FROM model_file_data WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_MODEL_FILE_DATA, "SELECT MAX(ID) + 1 FROM model_file_data", CONNECTION_SYNCH);
- 
+
     // MapDifficultyXCondition.db2
     PrepareStatement(HOTFIX_SEL_MAP_DIFFICULTY_X_CONDITION, "SELECT ID, FailureDescription, PlayerConditionID, OrderIndex, MapDifficultyID"
         " FROM map_difficulty_x_condition WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
@@ -1228,7 +1234,7 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     PrepareStatement(HOTFIX_SEL_NAMES_RESERVED_LOCALE, "SELECT ID, Name, LocaleMask FROM names_reserved_locale WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_NAMES_RESERVED_LOCALE, "SELECT MAX(ID) + 1 FROM names_reserved_locale", CONNECTION_SYNCH);
 
-	// NPCModelItemSlotDisplayInfo.db2
+    // NPCModelItemSlotDisplayInfo.db2
     PrepareStatement(HOTFIX_SEL_NPC_MODEL_ITEM_SLOT_DISPLAY_INFO, "SELECT ID, DisplayID, Slot, ExtendedDisplayID FROM npc_model_item_slot_display_info WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_NPC_MODEL_ITEM_SLOT_DISPLAY_INFO, "SELECT MAX(ID) + 1 FROM npc_model_item_slot_display_info", CONNECTION_SYNCH);
 
@@ -1420,11 +1426,16 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     PrepareStatement(HOTFIX_SEL_SCENE_SCRIPT_TEXT, "SELECT ID, Name, Script FROM scene_script_text WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_SCENE_SCRIPT_TEXT, "SELECT MAX(ID) + 1 FROM scene_script_text", CONNECTION_SYNCH);
 
-	// ScreenEffect.db2
+    // ScreenEffect.db2
     PrepareStatement(HOTFIX_SEL_SCREEN_EFFECT, "SELECT ID, DisplayName, Param1, Param2, Param3, Param4, Effect, FullScreenEffectID, LightParamsID, "
         "LightParamsFadeIn, LightParamsFadeOut, SoundAmbienceID, ZoneMusicID, TimeOfDayOverride, EffectMask, LightFlags FROM screen_effect"
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_SCREEN_EFFECT, "SELECT MAX(ID) + 1 FROM screen_effect", CONNECTION_SYNCH);
+
+    // ServerMessages.db2
+    PrepareStatement(HOTFIX_SEL_SERVER_MESSAGES, "SELECT ID, `Text` FROM server_messages WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
+    PREPARE_MAX_ID_STMT(HOTFIX_SEL_SERVER_MESSAGES, "SELECT MAX(ID) + 1 FROM server_messages", CONNECTION_SYNCH);
+    PREPARE_LOCALE_STMT(HOTFIX_SEL_SERVER_MESSAGES, "SELECT ID, Text_lang FROM server_messages_locale WHERE (`VerifiedBuild` > 0) = ? AND locale = ?", CONNECTION_SYNCH);
 
     // SkillLine.db2
     PrepareStatement(HOTFIX_SEL_SKILL_LINE, "SELECT DisplayName, AlternateVerb, Description, HordeDisplayName, OverrideSourceInfoDisplayName, ID, "
@@ -1463,7 +1474,7 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         "SoundMixGroupID FROM sound_kit WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_SOUND_KIT, "SELECT MAX(ID) + 1 FROM sound_kit", CONNECTION_SYNCH);
 
-	// SoundKitEntry.db2
+    // SoundKitEntry.db2
     PrepareStatement(HOTFIX_SEL_SOUND_KIT_ENTRY, "SELECT ID, SoundKitID, FileDataID, Frequency, Volume FROM sound_kit_entry"
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_SOUND_KIT_ENTRY, "SELECT MAX(ID) + 1 FROM sound_kit_entry", CONNECTION_SYNCH);
@@ -1486,7 +1497,7 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     PREPARE_LOCALE_STMT(HOTFIX_SEL_SPECIALIZATION_SPELLS, "SELECT ID, Description_lang FROM specialization_spells_locale"
         " WHERE (`VerifiedBuild` > 0) = ? AND locale = ?", CONNECTION_SYNCH);
 
-	// SpecializationSpellsDisplay.db2
+    // SpecializationSpellsDisplay.db2
     PrepareStatement(HOTFIX_SEL_SPECIALIZATION_SPELLS_DISPLAY, "SELECT ID, SpecializationID, SpecllID1, SpecllID2, SpecllID3, SpecllID4, SpecllID5, "
         "SpecllID6 FROM specialization_spells_display WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_SPECIALIZATION_SPELLS_DISPLAY, "SELECT MAX(ID) + 1 FROM specialization_spells_display", CONNECTION_SYNCH);
@@ -1549,7 +1560,7 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         "ImplicitTarget2, SpellID FROM spell_effect WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_SPELL_EFFECT, "SELECT MAX(ID) + 1 FROM spell_effect", CONNECTION_SYNCH);
 
-	// Spell.db2
+    // Spell.db2
     PrepareStatement(HOTFIX_SEL_SPELL, "SELECT ID, NameSubtext, Description, AuraDescription FROM spell WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_SPELL, "SELECT MAX(ID) + 1 FROM spell", CONNECTION_SYNCH);
     PREPARE_LOCALE_STMT(HOTFIX_SEL_SPELL, "SELECT ID, NameSubtext_lang, Description_lang, AuraDescription_lang FROM spell_locale"
@@ -1676,10 +1687,9 @@ void HotfixDatabaseConnection::DoPrepareStatements()
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_SPELL_SHAPESHIFT, "SELECT MAX(ID) + 1 FROM spell_shapeshift", CONNECTION_SYNCH);
 
     // SpellShapeshiftForm.db2
-    PrepareStatement(HOTFIX_SEL_SPELL_SHAPESHIFT_FORM, "SELECT ID, Name, CreatureType, Flags, AttackIconFileID, BonusActionBar, CombatRoundTime, "
-        "DamageVariance, MountTypeID, CreatureDisplayID1, CreatureDisplayID2, CreatureDisplayID3, CreatureDisplayID4, PresetSpellID1, PresetSpellID2, "
-        "PresetSpellID3, PresetSpellID4, PresetSpellID5, PresetSpellID6, PresetSpellID7, PresetSpellID8 FROM spell_shapeshift_form"
-        " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
+    PrepareStatement(HOTFIX_SEL_SPELL_SHAPESHIFT_FORM, "SELECT ID, Name, CreatureDisplayID, CreatureType, Flags, AttackIconFileID, BonusActionBar, "
+        "CombatRoundTime, DamageVariance, MountTypeID, PresetSpellID1, PresetSpellID2, PresetSpellID3, PresetSpellID4, PresetSpellID5, "
+        "PresetSpellID6, PresetSpellID7, PresetSpellID8 FROM spell_shapeshift_form WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_SPELL_SHAPESHIFT_FORM, "SELECT MAX(ID) + 1 FROM spell_shapeshift_form", CONNECTION_SYNCH);
     PREPARE_LOCALE_STMT(HOTFIX_SEL_SPELL_SHAPESHIFT_FORM, "SELECT ID, Name_lang FROM spell_shapeshift_form_locale WHERE (`VerifiedBuild` > 0) = ?"
         " AND locale = ?", CONNECTION_SYNCH);
@@ -1758,7 +1768,7 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         "DepartureEventID FROM taxi_path_node WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_TAXI_PATH_NODE, "SELECT MAX(ID) + 1 FROM taxi_path_node", CONNECTION_SYNCH);
 
-	// TextureFileData.db2
+    // TextureFileData.db2
     PrepareStatement(HOTFIX_SEL_TEXTURE_FILE_DATA, "SELECT ID, UsageType, TextureID FROM texture_file_data WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_TEXTURE_FILE_DATA, "SELECT MAX(ID) + 1 FROM texture_file_data", CONNECTION_SYNCH);
 
@@ -1989,7 +1999,7 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_VEHICLE_SEAT, "SELECT MAX(ID) + 1 FROM vehicle_seat", CONNECTION_SYNCH);
 
-	// VehiclePoiType.db2
+    // VehiclePoiType.db2
     PrepareStatement(HOTFIX_SEL_VEHICLE_POI_TYPE, "SELECT ID, Flags, TextureWidth, TextureHeight, OccupiedTexture, UnoccupiedTexture"
         " FROM vehicle_poi_type WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_VEHICLE_POI_TYPE, "SELECT MAX(ID) + 1 FROM vehicle_poi_type", CONNECTION_SYNCH);

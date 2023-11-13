@@ -2315,14 +2315,15 @@ void Spell::EffectLearnSkill()
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
         return;
 
-    if (unitTarget->GetTypeId() != TYPEID_PLAYER)
+    Player* playerTarget = Object::ToPlayer(unitTarget);
+    if (!playerTarget)
         return;
 
     if (damage < 1)
         return;
 
     uint32 skillid = effectInfo->MiscValue;
-    SkillRaceClassInfoEntry const* rcEntry = sDB2Manager.GetSkillRaceClassInfo(skillid, unitTarget->GetRace(), unitTarget->GetClass());
+    SkillRaceClassInfoEntry const* rcEntry = sDB2Manager.GetSkillRaceClassInfo(skillid, playerTarget->GetRace(), playerTarget->GetClass());
     if (!rcEntry)
         return;
 
@@ -2330,8 +2331,13 @@ void Spell::EffectLearnSkill()
     if (!tier)
         return;
 
-    uint16 skillval = unitTarget->ToPlayer()->GetPureSkillValue(skillid);
-    unitTarget->ToPlayer()->SetSkill(skillid, damage, std::max<uint16>(skillval, 1), tier->Value[damage - 1]);
+    uint16 skillval = std::max<uint16>(1, playerTarget->GetPureSkillValue(skillid));
+    uint16 maxSkillVal = tier->Value[damage - 1];
+
+    if (rcEntry->Flags & SKILL_FLAG_ALWAYS_MAX_VALUE)
+        skillval = maxSkillVal;
+
+    playerTarget->SetSkill(skillid, damage, skillval, maxSkillVal);
 }
 
 void Spell::EffectPlayMovie()
@@ -2954,7 +2960,7 @@ void Spell::EffectInterruptCast()
 
 void Spell::EffectSummonObjectWild()
 {
-    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH)
         return;
 
     WorldObject* target = focusObject;
@@ -3521,7 +3527,7 @@ void Spell::EffectDismissPet()
 
 void Spell::EffectSummonObject()
 {
-    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH)
         return;
 
     Unit* unitCaster = GetUnitCasterForEffectHandlers();
@@ -3890,7 +3896,7 @@ void Spell::EffectCharge()
     if (effectHandleMode == SPELL_EFFECT_HANDLE_HIT_TARGET)
     {
         // not all charge effects used in negative spells
-        if (!m_spellInfo->IsPositive() && m_caster->GetTypeId() == TYPEID_PLAYER)
+        if (m_spellInfo->HasAttribute(SPELL_ATTR7_ATTACK_ON_CHARGE_TO_UNIT))
             unitCaster->Attack(unitTarget, true);
 
         if (effectInfo->TriggerSpell)
@@ -4363,7 +4369,7 @@ void Spell::EffectModifyThreatPercent()
 
 void Spell::EffectTransmitted()
 {
-    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH)
         return;
 
     Unit* unitCaster = GetUnitCasterForEffectHandlers();
@@ -4404,7 +4410,7 @@ void Spell::EffectTransmitted()
         //GO is always friendly to it's creator, get range for friends
         float min_dis = m_spellInfo->GetMinRange(true);
         float max_dis = m_spellInfo->GetMaxRange(true);
-        float dis = (float)rand_norm() * (max_dis - min_dis) + min_dis;
+        float dis = rand_norm() * (max_dis - min_dis) + min_dis;
 
         unitCaster->GetClosePoint(fx, fy, fz, DEFAULT_PLAYER_BOUNDING_RADIUS, dis);
         fo = unitCaster->GetOrientation();
@@ -4554,7 +4560,32 @@ void Spell::EffectSkill()
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
         return;
 
-    TC_LOG_DEBUG("spells", "WORLD: SkillEFFECT");
+    Player* playerTarget = Object::ToPlayer(GetUnitCasterForEffectHandlers());
+    if (!playerTarget)
+        return;
+
+    if (damage < 1)
+        return;
+
+    uint32 skillid = effectInfo->MiscValue;
+    if (playerTarget->GetSkillStep(skillid) >= damage)
+        return;
+
+    SkillRaceClassInfoEntry const* rcEntry = sDB2Manager.GetSkillRaceClassInfo(skillid, playerTarget->GetRace(), playerTarget->GetClass());
+    if (!rcEntry)
+        return;
+
+    SkillTiersEntry const* tier = sObjectMgr->GetSkillTier(rcEntry->SkillTierID);
+    if (!tier)
+        return;
+
+    uint16 skillval = std::max<uint16>(1, playerTarget->GetPureSkillValue(skillid));
+    uint16 maxSkillVal = tier->Value[damage - 1];
+
+    if (rcEntry->Flags & SKILL_FLAG_ALWAYS_MAX_VALUE)
+        skillval = maxSkillVal;
+
+    playerTarget->SetSkill(skillid, damage, skillval, maxSkillVal);
 }
 
 void Spell::EffectSpiritHeal()
@@ -4640,7 +4671,7 @@ void Spell::EffectStealBeneficialBuff()
             // The charges / stack amounts don't count towards the total number of auras that can be dispelled.
             // Ie: A dispel on a target with 5 stacks of Winters Chill and a Polymorph has 1 / (1 + 1) -> 50% chance to dispell
             // Polymorph instead of 1 / (5 + 1) -> 16%.
-            bool dispelCharges = aura->GetSpellInfo()->HasAttribute(SPELL_ATTR7_DISPEL_CHARGES);
+            bool dispelCharges = aura->GetSpellInfo()->HasAttribute(SPELL_ATTR7_DISPEL_REMOVES_CHARGES);
             uint8 charges = dispelCharges ? aura->GetCharges() : aura->GetStackAmount();
             if (charges > 0)
                 stealList.emplace_back(aura, chance, charges);
@@ -5087,7 +5118,7 @@ void Spell::EffectCastButtons()
         if (!player->HasSpell(spell_id) || player->GetSpellHistory()->HasCooldown(spell_id))
             continue;
 
-        if (!spellInfo->HasAttribute(SPELL_ATTR9_SUMMON_PLAYER_TOTEM))
+        if (!spellInfo->HasAttribute(SPELL_ATTR7_CAN_BE_MULTI_CAST))
             continue;
 
         CastSpellExtraArgs args;
@@ -5197,7 +5228,7 @@ void Spell::EffectUnlockGuildVaultTab()
 
 void Spell::EffectSummonPersonalGameObject()
 {
-    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH)
         return;
 
     uint32 goId = effectInfo->MiscValue;
@@ -5281,7 +5312,7 @@ void Spell::EffectResurrectWithAura()
 
 void Spell::EffectCreateAreaTrigger()
 {
-    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH)
         return;
 
     Unit* unitCaster = GetUnitCasterForEffectHandlers();
@@ -5362,7 +5393,7 @@ void Spell::EffectCreateGarrison()
 
 void Spell::EffectCreateConversation()
 {
-    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH)
         return;
 
     Unit* unitCaster = GetUnitCasterForEffectHandlers();
@@ -5688,7 +5719,7 @@ bool IsUnitTargetSceneObjectAura(Spell const* spell, TargetInfo const& target)
 
 void Spell::EffectCreateSceneObject()
 {
-    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH)
         return;
 
     Unit* unitCaster = GetUnitCasterForEffectHandlers();
@@ -5709,7 +5740,7 @@ void Spell::EffectCreateSceneObject()
 
 void Spell::EffectCreatePrivateSceneObject()
 {
-    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH)
         return;
 
     Unit* unitCaster = GetUnitCasterForEffectHandlers();
@@ -5882,7 +5913,7 @@ void Spell::EffectLearnAzeriteEssencePower()
 
 void Spell::EffectCreatePrivateConversation()
 {
-    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH_TARGET)
         return;
 
     if (unitTarget->GetTypeId() != TYPEID_PLAYER)
@@ -6025,7 +6056,14 @@ void Spell::EffectCreateTraitTreeConfig()
         return;
 
     newConfig.TraitSystemID = sTraitTreeStore.AssertEntry(effectInfo->MiscValue)->TraitSystemID;
-    target->CreateTraitConfig(newConfig);
+    int32 existingConfigForSystem = target->m_activePlayerData->TraitConfigs.FindIndexIf([&](UF::TraitConfig const& config)
+    {
+        return static_cast<TraitConfigType>(*config.Type) == TraitConfigType::Generic
+            && config.TraitSystemID == newConfig.TraitSystemID;
+    });
+
+    if (existingConfigForSystem < 0)
+        target->CreateTraitConfig(newConfig);
 }
 
 void Spell::EffectChangeActiveCombatTraitConfig()
