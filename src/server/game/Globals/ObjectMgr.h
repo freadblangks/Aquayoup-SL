@@ -420,7 +420,6 @@ typedef std::multimap<uint32 /*spell id*/, std::pair<uint32 /*script id*/, bool 
 typedef std::pair<SpellScriptsContainer::iterator, SpellScriptsContainer::iterator> SpellScriptsBounds;
 TC_GAME_API extern ScriptMapMap sSpellScripts;
 TC_GAME_API extern ScriptMapMap sEventScripts;
-TC_GAME_API extern ScriptMapMap sWaypointScripts;
 
 std::string GetScriptsTableNameByType(ScriptsType type);
 ScriptMapMap* GetScriptsMapByType(ScriptsType type);
@@ -1295,7 +1294,6 @@ class TC_GAME_API ObjectMgr
 
         void LoadEventScripts();
         void LoadSpellScripts();
-        void LoadWaypointScripts();
 
         void LoadSpellScriptNames();
         void ValidateSpellScripts();
@@ -1460,15 +1458,9 @@ class TC_GAME_API ObjectMgr
             return nullptr;
         }
 
-        CellObjectGuids const& GetCellObjectGuids(uint32 mapid, Difficulty spawnMode, uint32 cell_id)
-        {
-            return _mapObjectGuidsStore[{ mapid, spawnMode }][cell_id];
-        }
+        CellObjectGuids const* GetCellObjectGuids(uint32 mapid, Difficulty spawnMode, uint32 cell_id);
 
-        CellObjectGuidsMap const& GetMapObjectGuids(uint32 mapid, Difficulty spawnMode)
-        {
-            return _mapObjectGuidsStore[{ mapid, spawnMode }];
-        }
+        CellObjectGuidsMap const* GetMapObjectGuids(uint32 mapid, Difficulty spawnMode);
 
         bool HasPersonalSpawns(uint32 mapid, Difficulty spawnMode, uint32 phaseId) const;
         CellObjectGuids const* GetCellPersonalObjectGuids(uint32 mapid, Difficulty spawnMode, uint32 phaseId, uint32 cell_id) const;

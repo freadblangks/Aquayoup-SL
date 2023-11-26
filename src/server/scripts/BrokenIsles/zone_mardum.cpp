@@ -20,6 +20,8 @@
 #include "CellImpl.h"
 #include "Containers.h"
 #include "Conversation.h"
+#include "CreatureAIImpl.h"
+#include "EventProcessor.h"
 #include "GridNotifiersImpl.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
@@ -28,6 +30,8 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "ScriptedGossip.h"
+#include "SpellAuras.h"
 #include "SpellScript.h"
 #include "TemporarySummon.h"
 
@@ -854,6 +858,761 @@ struct at_enter_the_illidari_ashtongue_allari_killcredit : AreaTriggerAI
     }
 };
 
+enum ETICoilskarIntroData
+{
+    NPC_SEVIS_BRIGHTFLAME_COILSKAR      = 99917,
+    SAY_SEVIS_SAY_MEET_AT_LAST_GATEWAY  = 2,
+
+    PATH_SEVIS_BRIGHTFLAME_COILSKAR     = 9991700
+};
+
+// 1077 - Enter the Illidari: Coilskar
+class scene_enter_the_illidari_coilskar : public SceneScript
+{
+public:
+    scene_enter_the_illidari_coilskar() : SceneScript("scene_enter_the_illidari_coilskar") { }
+
+    void OnSceneStart(Player* player, uint32 /*sceneInstanceID*/, SceneTemplate const* /*sceneTemplate*/) override
+    {
+        PhasingHandler::OnConditionChange(player);
+        Creature* sevisObject = GetClosestCreatureWithOptions(player, 30.0f, { .CreatureId = NPC_SEVIS_BRIGHTFLAME_COILSKAR, .IgnorePhases = true });
+        if (!sevisObject)
+            return;
+
+        sevisObject->SummonPersonalClone(sevisObject->GetPosition(), TEMPSUMMON_MANUAL_DESPAWN, 0s, 0, 0, player);
+    }
+};
+
+// 99917 - Sevis Brightflame (Coilskar Gateway)
+struct npc_sevis_brightflame_coilskar_gateway_private : public ScriptedAI
+{
+    npc_sevis_brightflame_coilskar_gateway_private(Creature* creature) : ScriptedAI(creature) { }
+
+    void JustAppeared() override
+    {
+        TempSummon* summon = me->ToTempSummon();
+        if (!summon)
+            return;
+
+        Unit* summoner = summon->GetSummonerUnit();
+        if (!summoner)
+            return;
+
+        me->SetFacingToObject(summoner);
+        me->DespawnOrUnsummon(14s);
+
+        _scheduler.Schedule(1s, [this](TaskContext task)
+        {
+            Talk(SAY_SEVIS_SAY_MEET_AT_LAST_GATEWAY, me);
+
+            task.Schedule(2s, [this](TaskContext task)
+            {
+                me->SendPlaySpellVisualKit(SPELL_VISUAL_KIT_SEVIS_MOUNT, 0, 0);
+                me->SetMountDisplayId(DISPLAY_ID_SEVIS_MOUNT);
+
+                task.Schedule(3s, [this](TaskContext /*task*/)
+                {
+                    me->GetMotionMaster()->MovePath(PATH_SEVIS_BRIGHTFLAME_COILSKAR, false);
+                });
+            });
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+CreatureAI* SevisBrightflameCoilskarGatewayAISelector(Creature* creature)
+{
+    if (creature->IsPrivateObject())
+        return new npc_sevis_brightflame_coilskar_gateway_private(creature);
+    return new NullCreatureAI(creature);
+};
+
+enum EyeOnThePrizeData
+{
+    NPC_COLOSSAL_INFERNAL_BALEFUL               = 96159,
+
+    QUEST_EYE_ON_THE_PRIZE                      = 39049,
+
+    DISPLAYID_BALEFUL_EYE                       = 38795,
+
+    // Inquisitor Baleful text
+    SAY_BALEFUL_AGGRO                           = 0,
+    SAY_BALEFUL_AEGIS                           = 1,
+    SAY_BALEFUL_DEATH                           = 2,
+
+    // Inquisitor Baleful events
+    EVENT_BALEFUL_MIND_SPIKE                    = 1,
+    EVENT_BALEFUL_BEAMING_GAZE,
+    EVENT_BALEFUL_INCITE_MADNESS,
+    EVENT_BALEFUL_COLOSS_INFERNAL_SMASH,
+
+    // Inquisitor Baleful points
+    POINT_BALEFUL_AEGIS_UP                      = 1,
+    POINT_BALEFUL_AEGIS_DOWN,
+
+    // Inquisitor Baleful actions
+    ACTION_BALEFUL_AEGIS_DOWN                   = 1,
+
+    // Inquisitor Baleful spells
+    SPELL_BALEFUL_MIND_SPIKE                    = 194519,
+    SPELL_BALEFUL_BEAMING_GAZE                  = 195058,
+    SPELL_BALEFUL_INCITE_MADNESS                = 194529,
+    SPELL_BALEFUL_LEGION_AEGIS                  = 192665,
+    SPELL_BALEFUL_DIE_KNOCKBACK                 = 190742,
+    SPELL_BALEFUL_TAKING_POWER                  = 203925,
+    SPELL_BALEFUL_KILL_CREDIT                   = 188559,
+
+    // Baleful Infernal Coloss
+    SPELL_BALEFUL_COLOSS_INFERNAL_SMASH         = 192709,
+    SPELL_BALEFUL_COLOSS_INFERNAL_SMASH_CAST    = 183938,
+
+    // Baleful Beaming Eye
+    SPELL_BALEFUL_BEAMING_EYE_SUMMON            = 195061,
+    SPELL_BALEFUL_BEAMING_EYE_CREATE_AT         = 195051
+};
+
+class BalefulColossSmashEvent : public BasicEvent
+{
+public:
+    BalefulColossSmashEvent(Creature* owner) : BasicEvent(), _owner(owner) { }
+
+    bool Execute(uint64, uint32) override
+    {
+        Unit* target = _owner->AI()->SelectTarget(SelectTargetMethod::Random, 0, 150.0f, true);
+        _owner->CastSpell(target, SPELL_BALEFUL_COLOSS_INFERNAL_SMASH, false);
+        return true;
+    }
+
+private:
+    Creature* _owner;
+};
+
+Position const BalefulAegisPos = { 592.4335f, 2433.1067f, -62.91178f };
+
+// 93105 - Inquisitor Baleful
+struct npc_inquisitor_baleful_molten_shore : public ScriptedAI
+{
+    npc_inquisitor_baleful_molten_shore(Creature* creature) : ScriptedAI(creature), _castedLegionAegis(false) { }
+
+    void JustAppeared() override
+    {
+        // Blizz use a personal spawn for every DH on Quest: 39049 which leads to issues
+        TempSummon* balefulColoss = me->SummonCreature(NPC_COLOSSAL_INFERNAL_BALEFUL, 523.4045f, 2428.4113f, -117.0033f, 0.10887321f, TEMPSUMMON_MANUAL_DESPAWN, 0s);
+        if (!balefulColoss)
+            return;
+
+        _balefulColossGUID = balefulColoss->GetGUID();
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        Talk(SAY_BALEFUL_AGGRO);
+        _events.ScheduleEvent(EVENT_BALEFUL_MIND_SPIKE, 3s);
+        _events.ScheduleEvent(EVENT_BALEFUL_BEAMING_GAZE, 7s);
+        _events.ScheduleEvent(EVENT_BALEFUL_INCITE_MADNESS, 11s);
+    }
+
+    void DoAction(int32 action) override
+    {
+        if (action == ACTION_BALEFUL_AEGIS_DOWN)
+            me->GetMotionMaster()->MovePoint(POINT_BALEFUL_AEGIS_DOWN, me->GetHomePosition());
+    }
+
+    void MovementInform(uint32 type, uint32 pointId) override
+    {
+        if (type != POINT_MOTION_TYPE)
+            return;
+
+        if (pointId == POINT_BALEFUL_AEGIS_UP)
+            me->SetFacingTo(0.19842f);
+        else if (pointId == POINT_BALEFUL_AEGIS_DOWN)
+            me->SetReactState(REACT_AGGRESSIVE);
+    }
+
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
+    {
+        if (!_castedLegionAegis && me->HealthBelowPctDamaged(60, damage))
+        {
+            if (Creature* balefulColoss = ObjectAccessor::GetCreature(*me, _balefulColossGUID))
+            {
+                balefulColoss->m_Events.AddEventAtOffset(new BalefulColossSmashEvent(balefulColoss), 1s);
+                balefulColoss->m_Events.AddEventAtOffset(new BalefulColossSmashEvent(balefulColoss), 4s);
+                balefulColoss->m_Events.AddEventAtOffset(new BalefulColossSmashEvent(balefulColoss), 8s);
+                balefulColoss->m_Events.AddEventAtOffset(new BalefulColossSmashEvent(balefulColoss), 13s);
+            }
+
+            DoCast(SPELL_BALEFUL_LEGION_AEGIS);
+            me->SetReactState(REACT_PASSIVE);
+            Talk(SAY_BALEFUL_AEGIS);
+            me->GetMotionMaster()->MovePoint(POINT_BALEFUL_AEGIS_UP, BalefulAegisPos);
+            _castedLegionAegis = true;
+        }
+    }
+
+    void Reset() override
+    {
+        _castedLegionAegis = false;
+        _events.Reset();
+    }
+
+    void JustDied(Unit* /*killer*/) override
+    {
+        DoCast(SPELL_BALEFUL_DIE_KNOCKBACK);
+        Talk(SAY_BALEFUL_DEATH);
+
+        if (Creature* balefulColoss = ObjectAccessor::GetCreature(*me, _balefulColossGUID))
+            balefulColoss->KillSelf();
+
+        for (ObjectGuid tapperGUID : me->GetTapList())
+        {
+            if (Player* tapper = ObjectAccessor::GetPlayer(*me, tapperGUID))
+            {
+                tapper->CastSpell(tapper, SPELL_BALEFUL_KILL_CREDIT, false);
+                tapper->CastSpell(tapper, SPELL_BALEFUL_TAKING_POWER, false);
+            }
+        }
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        _events.Update(diff);
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        while (uint32 eventId = _events.ExecuteEvent())
+        {
+            switch (eventId)
+            {
+                case EVENT_BALEFUL_MIND_SPIKE:
+                    DoCastVictim(SPELL_BALEFUL_MIND_SPIKE);
+                    _events.ScheduleEvent(EVENT_BALEFUL_MIND_SPIKE, 7s);
+                    break;
+                case EVENT_BALEFUL_BEAMING_GAZE:
+                    DoCastVictim(SPELL_BALEFUL_BEAMING_GAZE);
+                    _events.ScheduleEvent(EVENT_BALEFUL_BEAMING_GAZE, 11s);
+                    break;
+                case EVENT_BALEFUL_INCITE_MADNESS:
+                    DoCastVictim(SPELL_BALEFUL_INCITE_MADNESS);
+                    _events.ScheduleEvent(EVENT_BALEFUL_INCITE_MADNESS, 30s);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    EventMap _events;
+    bool _castedLegionAegis;
+    ObjectGuid _balefulColossGUID;
+};
+
+// 99160 - Beaming Eye
+struct npc_baleful_beaming_eye : public ScriptedAI
+{
+    npc_baleful_beaming_eye(Creature* creature) : ScriptedAI(creature) { }
+
+    void JustAppeared() override
+    {
+        me->SetDisplayId(DISPLAYID_BALEFUL_EYE, true);
+        DoCastSelf(SPELL_BALEFUL_BEAMING_EYE_CREATE_AT);
+        // ToDo: rotation isn't changing orientation, turnspeed should be random
+        me->GetMotionMaster()->MoveRotate(0, 10000, RAND(ROTATE_DIRECTION_LEFT, ROTATE_DIRECTION_RIGHT));
+    }
+};
+
+// 192665 - Legion Aegis
+class spell_mardum_baleful_legion_aegis : public AuraScript
+{
+    void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+        {
+            if (UnitAI* ai = GetTarget()->GetAI())
+                ai->DoAction(ACTION_BALEFUL_AEGIS_DOWN);
+        }
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(spell_mardum_baleful_legion_aegis::HandleRemove, EFFECT_0, SPELL_AURA_SCHOOL_IMMUNITY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 192709 - Infernal Smash
+class spell_mardum_coloss_infernal_smash_selector : public SpellScript
+{
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_BALEFUL_COLOSS_INFERNAL_SMASH_CAST });
+    }
+
+    void HandleHitTarget(SpellEffIndex /*effIndex*/)
+    {
+        GetCaster()->CastSpell(GetHitUnit(), SPELL_BALEFUL_COLOSS_INFERNAL_SMASH_CAST, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_mardum_coloss_infernal_smash_selector::HandleHitTarget, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
+
+// 195058 - Beaming Gaze (selector)
+class spell_mardum_baleful_beaming_gaze_selector : public SpellScript
+{
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_BALEFUL_BEAMING_EYE_SUMMON });
+    }
+
+    void SummonBeamingEye(Unit* origin, float angle)
+    {
+        Position dest = origin->GetPosition();
+        origin->MovePositionToFirstCollision(dest, 6.5f, angle);
+        dest.m_positionZ += 0.35f;
+        origin->CastSpell(dest, SPELL_BALEFUL_BEAMING_EYE_SUMMON, true);
+    }
+
+    void HandleHitTarget(SpellEffIndex /*effIndex*/)
+    {
+        Unit* hitUnit = GetHitUnit();
+        SummonBeamingEye(hitUnit, float(M_PI));
+        SummonBeamingEye(hitUnit, float(-M_PI) / 4.0f);
+        SummonBeamingEye(hitUnit, float(M_PI) / 4.0f);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_mardum_baleful_beaming_gaze_selector::HandleHitTarget, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
+enum SetThemFreeData
+{
+    NPC_CYANA_NIGHTGLAIVE_FREED     = 94377,
+    NPC_IZAL_WHITEMOON_FREED        = 93117,
+    NPC_BELATH_DAWNBLADE_FREED      = 94400,
+    NPC_MANNETHREL_DARKSTAR_FREED   = 93230,
+
+    SAY_CYANA_NIGHTGLAIVE_FREED     = 1,
+    SAY_IZAL_WHITEMOON_FREED        = 1,
+    SAY_BELATH_DAWNBLADE_FREED      = 1,
+    SAY_MANNETHRE_DARKSTAR_FREED    = 1,
+
+    PATH_CYANA_NIGHTGLAIVE_FREED    = 9437700,
+    PATH_IZAL_WHITEMOON_FREED       = 9311700,
+    PATH_BELATH_DAWNBLADE_FREED     = 9440000,
+    PATH_MANNETHREL_DARKSTAR_FREED  = 9323000,
+
+    ANIM_DH_WALK_DAZED              = 1078
+};
+
+// 94377 - Cyana Nightglaive
+struct npc_cyana_nightglaive_freed_private : public ScriptedAI
+{
+    npc_cyana_nightglaive_freed_private(Creature* creature) : ScriptedAI(creature) { }
+
+    void JustAppeared() override
+    {
+        me->DespawnOrUnsummon(19s);
+
+        _scheduler.Schedule(2s + 500ms, [this](TaskContext task)
+        {
+            Talk(SAY_CYANA_NIGHTGLAIVE_FREED, me);
+
+            task.Schedule(3s, [this](TaskContext /*task*/)
+            {
+                me->GetMotionMaster()->MovePath(PATH_CYANA_NIGHTGLAIVE_FREED, false);
+            });
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+CreatureAI* CyanaNightglaiveFreedAISelector(Creature* creature)
+{
+    if (creature->IsPrivateObject())
+        return new npc_cyana_nightglaive_freed_private(creature);
+    return new NullCreatureAI(creature);
+};
+
+// 93117 - Izal Whitemoon
+struct npc_izal_whitemoon_freed_private : public ScriptedAI
+{
+    npc_izal_whitemoon_freed_private(Creature* creature) : ScriptedAI(creature) { }
+
+    void JustAppeared() override
+    {
+        me->DespawnOrUnsummon(18s);
+
+        _scheduler.Schedule(2s, [this](TaskContext task)
+        {
+            Talk(SAY_IZAL_WHITEMOON_FREED, me);
+
+            task.Schedule(3s, [this](TaskContext /*task*/)
+            {
+                me->GetMotionMaster()->MovePath(PATH_CYANA_NIGHTGLAIVE_FREED, false);
+            });
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+CreatureAI* IzalWhitemoonFreedAISelector(Creature* creature)
+{
+    if (creature->IsPrivateObject())
+        return new npc_izal_whitemoon_freed_private(creature);
+    return new NullCreatureAI(creature);
+};
+
+// 94400 - Belath Dawnblade
+struct npc_belath_dawnblade_freed_private : public ScriptedAI
+{
+    npc_belath_dawnblade_freed_private(Creature* creature) : ScriptedAI(creature) { }
+
+    void JustAppeared() override
+    {
+        me->DespawnOrUnsummon(5min); // wtf blizz
+
+        _scheduler.Schedule(3s, [this](TaskContext task)
+        {
+            Talk(SAY_BELATH_DAWNBLADE_FREED, me);
+
+            task.Schedule(6s, [this](TaskContext /*task*/)
+            {
+                me->GetMotionMaster()->MovePath(PATH_BELATH_DAWNBLADE_FREED, false);
+            });
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+CreatureAI* BelathDawnbladeFreedAISelector(Creature* creature)
+{
+    if (creature->IsPrivateObject())
+        return new npc_belath_dawnblade_freed_private(creature);
+    return new NullCreatureAI(creature);
+};
+
+// 93230 - Mannethrel Darkstar
+struct npc_mannethrel_darkstar_freed_private : public ScriptedAI
+{
+    npc_mannethrel_darkstar_freed_private(Creature* creature) : ScriptedAI(creature) { }
+
+    void JustAppeared() override
+    {
+        me->DespawnOrUnsummon(28s);
+
+        _scheduler.Schedule(2s, [this](TaskContext task)
+        {
+            Talk(SAY_BELATH_DAWNBLADE_FREED, me);
+
+            task.Schedule(6s, [this](TaskContext /*task*/)
+            {
+                me->SetAIAnimKitId(ANIM_DH_WALK_DAZED);
+                me->GetMotionMaster()->MovePath(PATH_MANNETHREL_DARKSTAR_FREED, false);
+            });
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+private:
+    TaskScheduler _scheduler;
+};
+
+CreatureAI* MannethrelDarkstarFreedAISelector(Creature* creature)
+{
+    if (creature->IsPrivateObject())
+        return new npc_mannethrel_darkstar_freed_private(creature);
+    return new NullCreatureAI(creature);
+};
+
+// 204711 - Set Them Free: Cyana Nightglaive Freed Kill Credit
+// 204714 - Set Them Free: Izal Whitemoon Freed Kill Credit
+// 204712 - Set Them Free: Belath Dawnblade Freed Kill Credit
+// 204715 - Set Them Free: Mannethrel Darkstar Freed Kill Credit
+template<uint32 CreatureId>
+class spell_freed_killcredit_set_them_free : public SpellScript
+{
+    void HandleHitTarget(SpellEffIndex /*effIndex*/)
+    {
+        if (Player* player = GetCaster()->ToPlayer())
+        {
+            Creature* staticObject = GetClosestCreatureWithOptions(player, 10.0f, { .CreatureId = CreatureId, .IgnorePhases = true });
+            if (!staticObject)
+                return;
+
+            staticObject->SummonPersonalClone(staticObject->GetPosition(), TEMPSUMMON_MANUAL_DESPAWN, 0s, 0, 0, player);
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_freed_killcredit_set_them_free::HandleHitTarget, EFFECT_1, SPELL_EFFECT_DUMMY);
+    }
+};
+
+enum ETIShivarraData
+{
+    NPC_SEVIS_BRIGHTFLAME_SHIVARRA          = 99915,
+
+    GOSSIP_MENU_SACRIFICE_PLAYER            = 19132,
+    GOSSIP_MENU_SACRIFICE_SEVIS             = 19133,
+
+    GOSSIP_OPTION_SACRIFICE_PLAYER          = 0,
+    GOSSIP_OPTION_SACRIFICE_SEVIS           = 0,
+
+    SAY_SEVIS_PLAYER_SACRIFICE              = 1,
+    SAY_SEVIS_GET_SACRIFICED                = 2,
+
+    ANIM_KIT_SWING_WEAPON                   = 8973,
+    ANIM_KIT_KNEEL                          = 2312,
+    ANIM_KIT_SALUTE                         = 3342,
+    ANIM_KIT_ONESHOT_GET_HIT                = 881,
+
+    SPELL_VISUAL_SACRIFICE_PLAYER           = 55406,
+
+    PATH_SEVIS_GATEWAY_SHIVARRA             = 9991500,
+
+    POINT_SEVIS_GATEWAY_SHIVARRA            = 1,
+
+    SPELL_SACRIFICE_SEVIS                   = 196731,
+    SPELL_SEVIS_SACRIFICE_ME                = 196735,
+    SPELL_SEVIS_CHAOS_STRIKE                = 204317,
+    SPELL_SEVIS_SOUL_MISSILE_02             = 191664,
+    SPELL_SEVIS_KILLED_ME_AURA              = 203292,
+    SPELL_TRIGGER_SHIVARRA_CONV_WHEN_DEAD   = 196866,
+
+    ACTION_SACRIFICE_PLAYER                 = 1,
+    ACTION_SACRIFICE_SEVIS,
+
+    QUEST_SEVIS_SACRIFICE_TRACKER           = 40087,
+};
+
+Position const SevisBrightflameShivarraGatewayPosition = { 1587.9618f, 2543.091f, 62.18399f, 3.49967908f };
+
+// 99915 - Sevis Brightflame (Shivarra Gateway)
+struct npc_sevis_brightflame_shivarra_gateway : public ScriptedAI
+{
+    npc_sevis_brightflame_shivarra_gateway(Creature* creature) : ScriptedAI(creature), _soulMissileCounter(0) { }
+
+    bool OnGossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
+    {
+        if (menuId == GOSSIP_MENU_SACRIFICE_PLAYER && gossipListId == GOSSIP_OPTION_SACRIFICE_PLAYER)
+        {
+            CloseGossipMenuFor(player);
+            player->CastSpell(nullptr, SPELL_SEVIS_SACRIFICE_ME, false);
+            return true;
+        }
+        else if (menuId == GOSSIP_MENU_SACRIFICE_SEVIS && gossipListId == GOSSIP_OPTION_SACRIFICE_SEVIS)
+        {
+            CloseGossipMenuFor(player);
+            player->CastSpell(me, SPELL_SACRIFICE_SEVIS, false);
+            return true;
+        }
+        return false;
+    }
+
+    void DoAction(int32 param) override
+    {
+        switch (param)
+        {
+            case ACTION_SACRIFICE_PLAYER:
+                SacrificePlayer();
+                break;
+            case ACTION_SACRIFICE_SEVIS:
+                SacrificeSelf();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void SacrificeSelf()
+    {
+        me->PlayOneShotAnimKitId(ANIM_KIT_ONESHOT_GET_HIT);
+        Talk(SAY_SEVIS_GET_SACRIFICED, me);
+
+        _scheduler.Schedule(1s, [this](TaskContext task)
+        {
+            me->KillSelf();
+
+            _soulMissileCounter = 0;
+            task.Schedule(2s, [this](TaskContext task)
+            {
+                DoCast(SPELL_SEVIS_SOUL_MISSILE_02);
+                _soulMissileCounter++;
+
+                if (_soulMissileCounter < 3)
+                    task.Repeat(2s);
+            });
+        });
+    }
+
+    void SacrificePlayer()
+    {
+        me->DespawnOrUnsummon(22s);
+        Talk(SAY_SEVIS_PLAYER_SACRIFICE, me);
+
+        _scheduler.Schedule(1s, [this](TaskContext task)
+        {
+            TempSummon* summon = me->ToTempSummon();
+            if (!summon)
+                return;
+
+            Unit* summoner = summon->GetSummonerUnit();
+            if (!summoner)
+                return;
+
+            me->GetMotionMaster()->MoveCloserAndStop(POINT_SEVIS_GATEWAY_SHIVARRA, summoner, 2.0f);
+
+            task.Schedule(2s, [this](TaskContext task)
+            {
+                me->SendPlaySpellVisualKit(SPELL_VISUAL_SACRIFICE_PLAYER, 4, 1000);
+                me->SetAIAnimKitId(ANIM_KIT_SWING_WEAPON);
+                DoCast(SPELL_SEVIS_CHAOS_STRIKE);
+
+                task.Schedule(2s, [this](TaskContext task)
+                {
+                    me->SetAIAnimKitId(ANIM_KIT_KNEEL);
+
+                    task.Schedule(5s, [this](TaskContext task)
+                    {
+                        me->SetAIAnimKitId(ANIM_KIT_SALUTE);
+
+                        task.Schedule(3s, [this](TaskContext task)
+                        {
+                            me->SendPlaySpellVisualKit(SPELL_VISUAL_KIT_SEVIS_MOUNT, 0, 0);
+                            me->SetMountDisplayId(DISPLAY_ID_SEVIS_MOUNT);
+
+                            task.Schedule(2s, [this](TaskContext /*task*/)
+                            {
+                                me->GetMotionMaster()->MovePath(PATH_SEVIS_GATEWAY_SHIVARRA, false);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
+    }
+
+private:
+    TaskScheduler _scheduler;
+    uint8 _soulMissileCounter;
+};
+
+// EventID 47550
+class event_sevis_sacrifice_player : public EventScript
+{
+public:
+    event_sevis_sacrifice_player() : EventScript("event_sevis_sacrifice_player") { }
+
+    void OnTrigger(WorldObject* /*object*/, WorldObject* invoker, uint32 /*eventId*/) override
+    {
+        if (Creature* creature = invoker->SummonCreature(NPC_SEVIS_BRIGHTFLAME_SHIVARRA, SevisBrightflameShivarraGatewayPosition, TEMPSUMMON_MANUAL_DESPAWN, 0s, 0, 0, invoker->GetGUID()))
+        {
+            if (Player* player = invoker->ToPlayer())
+            {
+                player->KilledMonsterCredit(NPC_SEVIS_BRIGHTFLAME_SHIVARRA);
+                player->CastSpell(nullptr, SPELL_SEVIS_KILLED_ME_AURA, false);
+            }
+            creature->AI()->DoAction(ACTION_SACRIFICE_PLAYER);
+        }
+    }
+};
+
+// EventID 47549
+class event_sevis_sacrifice_self : public EventScript
+{
+public:
+    event_sevis_sacrifice_self() : EventScript("event_sevis_sacrifice_self") { }
+
+    void OnTrigger(WorldObject* /*object*/, WorldObject* invoker, uint32 /*eventId*/) override
+    {
+        if (Creature* creature = invoker->SummonCreature(NPC_SEVIS_BRIGHTFLAME_SHIVARRA, SevisBrightflameShivarraGatewayPosition, TEMPSUMMON_TIMED_DESPAWN, 60s, 0, 0, invoker->GetGUID()))
+        {
+            if (Player* player = invoker->ToPlayer())
+                player->KilledMonsterCredit(NPC_SEVIS_BRIGHTFLAME_SHIVARRA);
+            creature->AI()->DoAction(ACTION_SACRIFICE_SEVIS);
+        }
+    }
+};
+
+// XX - Mardum - Trigger Conversation for Quest "Enter the Illidari: Shivarra"
+struct at_enter_the_illidari_shivarra_conversation : AreaTriggerAI
+{
+    at_enter_the_illidari_shivarra_conversation(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
+
+    void OnUnitEnter(Unit* unit) override
+    {
+        Player* player = unit->ToPlayer();
+        if (!player || !player->HasAura(SPELL_SEVIS_KILLED_ME_AURA))
+            return;
+
+        player->CastSpell(nullptr, SPELL_TRIGGER_SHIVARRA_CONV_WHEN_DEAD, true);
+    }
+};
+
+// 38765 - Enter the Illidari: Shivarra
+class quest_enter_the_illidari_shivarra : public QuestScript
+{
+public:
+    quest_enter_the_illidari_shivarra() : QuestScript("quest_enter_the_illidari_shivarra") { }
+
+    void OnQuestStatusChange(Player* player, Quest const* /*quest*/, QuestStatus /*oldStatus*/, QuestStatus newStatus) override
+    {
+        if (newStatus == QUEST_STATUS_NONE)
+        {
+            player->RemoveActiveQuest(QUEST_SEVIS_SACRIFICE_TRACKER, false);
+            player->RemoveRewardedQuest(QUEST_SEVIS_SACRIFICE_TRACKER);
+        }
+    }
+};
+
 void AddSC_zone_mardum()
 {
     // Creature
@@ -864,13 +1623,26 @@ void AddSC_zone_mardum()
     RegisterCreatureAI(npc_sevis_brightflame_invasion_begins);
     RegisterCreatureAI(npc_cyana_nightglaive_invasion_begins);
     RegisterCreatureAI(npc_illidari_fighting_invasion_begins);
+    RegisterCreatureAI(npc_inquisitor_baleful_molten_shore);
+    RegisterCreatureAI(npc_baleful_beaming_eye);
+    RegisterCreatureAI(npc_sevis_brightflame_shivarra_gateway);
 
     // AISelector
     new FactoryCreatureScript<CreatureAI, &KaynSunfuryNearLegionBannerAISelector>("npc_kayn_sunfury_ashtongue_intro");
     new FactoryCreatureScript<CreatureAI, &SevisBrightflameAshtongueGatewayAISelector>("npc_sevis_brightflame_ashtongue_gateway_private");
+    new FactoryCreatureScript<CreatureAI, &SevisBrightflameCoilskarGatewayAISelector>("npc_sevis_brightflame_coilskar_gateway_private");
+    new FactoryCreatureScript<CreatureAI, &CyanaNightglaiveFreedAISelector>("npc_cyana_nightglaive_freed_private");
+    new FactoryCreatureScript<CreatureAI, &IzalWhitemoonFreedAISelector>("npc_izal_whitemoon_freed_private");
+    new FactoryCreatureScript<CreatureAI, &BelathDawnbladeFreedAISelector>("npc_belath_dawnblade_freed_private");
+    new FactoryCreatureScript<CreatureAI, &MannethrelDarkstarFreedAISelector>("npc_mannethrel_darkstar_freed_private");
 
     // AreaTrigger
     RegisterAreaTriggerAI(at_enter_the_illidari_ashtongue_allari_killcredit);
+    RegisterAreaTriggerAI(at_enter_the_illidari_shivarra_conversation);
+
+    // EventScript
+    new event_sevis_sacrifice_player();
+    new event_sevis_sacrifice_self();
 
     // Conversation
     new conversation_the_invasion_begins();
@@ -878,8 +1650,19 @@ void AddSC_zone_mardum()
     // Scene
     new scene_demonhunter_intro();
     new scene_enter_the_illidari_ashtongue();
+    new scene_enter_the_illidari_coilskar();
 
     // Spells
     RegisterSpellScript(spell_demon_hunter_intro_aura);
     RegisterSpellScript(spell_accepting_felsaber_gift);
+    RegisterSpellScript(spell_mardum_baleful_legion_aegis);
+    RegisterSpellScript(spell_mardum_coloss_infernal_smash_selector);
+    RegisterSpellScript(spell_mardum_baleful_beaming_gaze_selector);
+    RegisterSpellScriptWithArgs(spell_freed_killcredit_set_them_free<NPC_CYANA_NIGHTGLAIVE_FREED>, "spell_cyana_nightglaive_killcredit_set_them_free");
+    RegisterSpellScriptWithArgs(spell_freed_killcredit_set_them_free<NPC_IZAL_WHITEMOON_FREED>, "spell_izal_whitemoon_killcredit_set_them_free");
+    RegisterSpellScriptWithArgs(spell_freed_killcredit_set_them_free<NPC_BELATH_DAWNBLADE_FREED>, "spell_belath_dawnblade_killcredit_set_them_free");
+    RegisterSpellScriptWithArgs(spell_freed_killcredit_set_them_free<NPC_MANNETHREL_DARKSTAR_FREED>, "spell_mannethrel_darkstar_killcredit_set_them_free");
+
+    // Quests
+    new quest_enter_the_illidari_shivarra();
 };

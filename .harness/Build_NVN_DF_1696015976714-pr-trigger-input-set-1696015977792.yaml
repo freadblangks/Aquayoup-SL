@@ -1,0 +1,14 @@
+inputSet:
+  name: Build_NVN_DF_1696015976714-pr-trigger-input-set
+  identifier: Build_NVN_DF_1696015976714prtriggerinputset
+  orgIdentifier: default
+  projectIdentifier: DF
+  pipeline:
+    identifier: Build_NVN_DF_1696015976714
+    properties:
+      ci:
+        codebase:
+          build:
+            type: PR
+            spec:
+              number: <+trigger.prNumber>

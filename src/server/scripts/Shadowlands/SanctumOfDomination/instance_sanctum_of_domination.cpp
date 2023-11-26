@@ -62,7 +62,7 @@ public:
             LoadDungeonEncounterData(encounters);
             LoadObjectData(creatureData, nullptr);
 
-            SylvanasIntroductionData = NOT_STARTED;
+            SylvanasIntroductionState = NOT_STARTED;
         }
 
         void OnCreatureCreate(Creature* creature) override
@@ -116,7 +116,7 @@ public:
                 case GAMEOBJECT_TORGHAST_SPIKE_10:
                 case GAMEOBJECT_TORGHAST_SPIKE_11:
                 case GAMEOBJECT_TORGHAST_SPIKE_12:
-                    TorghastSpikeGUID.push_back(go->GetGUID());
+                    TorghastSpikeGUIDs.push_back(go->GetGUID());
                     break;
 
                 default:
@@ -161,7 +161,7 @@ public:
                         if (Creature* throneTeleporter = GetCreature(DATA_THRONE_OF_THE_DAMNED))
                             throneTeleporter->SetVisible(true);
 
-                        for (ObjectGuid const& spikeGUID : TorghastSpikeGUID)
+                        for (ObjectGuid const& spikeGUID : TorghastSpikeGUIDs)
                             if (GameObject* torghastSpike = instance->GetGameObject(spikeGUID))
                                 torghastSpike->SetSpellVisualId(0);
                     }
@@ -192,13 +192,13 @@ public:
                     switch (data)
                     {
                         case IN_PROGRESS:
-                            SylvanasIntroductionData = IN_PROGRESS;
+                            SylvanasIntroductionState = IN_PROGRESS;
                             if (Creature* sylvanas = GetCreature(DATA_SYLVANAS_WINDRUNNER))
                                 sylvanas->SetHomePosition(SylvanasRespawnPos);
                             break;
 
                         case DONE:
-                            SylvanasIntroductionData = DONE;
+                            SylvanasIntroductionState = DONE;
                             if (Creature* sylvanas = GetCreature(DATA_SYLVANAS_WINDRUNNER))
                             {
                                 sylvanas->RemoveUnitFlag(UNIT_FLAG_NOT_ATTACKABLE_1);
@@ -223,7 +223,7 @@ public:
             switch (type)
             {
                 case DATA_SYLVANAS_INTRODUCTION:
-                    return SylvanasIntroductionData;
+                    return SylvanasIntroductionState;
                 default:
                     break;
             }
@@ -238,8 +238,8 @@ public:
         ObjectGuid JainaPinnacleGUID;
         ObjectGuid ThrallPinnacleGUID;
         ObjectGuid ThroneOfTheDamnedGUID;
-        std::vector<ObjectGuid> TorghastSpikeGUID;
-        uint8 SylvanasIntroductionData;
+        std::vector<ObjectGuid> TorghastSpikeGUIDs;
+        uint8 SylvanasIntroductionState;
     };
 
     InstanceScript* GetInstanceScript(InstanceMap* map) const override

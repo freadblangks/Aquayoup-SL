@@ -1,0 +1,14 @@
+inputSet:
+  name: Build_NVN_DF_1696015976714-push-trigger-input-set
+  identifier: Build_NVN_DF_1696015976714pushtriggerinputset
+  orgIdentifier: default
+  projectIdentifier: DF
+  pipeline:
+    identifier: Build_NVN_DF_1696015976714
+    properties:
+      ci:
+        codebase:
+          build:
+            type: branch
+            spec:
+              branch: <+trigger.branch>
