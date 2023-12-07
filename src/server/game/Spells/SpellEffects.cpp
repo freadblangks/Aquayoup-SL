@@ -766,6 +766,8 @@ void Spell::EffectTriggerMissileSpell()
     CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
     args.SetOriginalCaster(m_originalCasterGUID);
     args.SetTriggeringSpell(this);
+    args.SetCustomArg(m_customArg);
+
     // set basepoints for trigger with value effect
     if (effectInfo->Effect == SPELL_EFFECT_TRIGGER_MISSILE_SPELL_WITH_VALUE)
         for (uint32 i = 0; i < MAX_SPELL_EFFECTS; ++i)
@@ -2332,7 +2334,7 @@ void Spell::EffectLearnSkill()
         return;
 
     uint16 skillval = std::max<uint16>(1, playerTarget->GetPureSkillValue(skillid));
-    uint16 maxSkillVal = tier->Value[damage - 1];
+    uint16 maxSkillVal = tier->GetValueForTierIndex(damage - 1);
 
     if (rcEntry->Flags & SKILL_FLAG_ALWAYS_MAX_VALUE)
         skillval = maxSkillVal;
@@ -4580,7 +4582,7 @@ void Spell::EffectSkill()
         return;
 
     uint16 skillval = std::max<uint16>(1, playerTarget->GetPureSkillValue(skillid));
-    uint16 maxSkillVal = tier->Value[damage - 1];
+    uint16 maxSkillVal = tier->GetValueForTierIndex(damage - 1);
 
     if (rcEntry->Flags & SKILL_FLAG_ALWAYS_MAX_VALUE)
         skillval = maxSkillVal;
