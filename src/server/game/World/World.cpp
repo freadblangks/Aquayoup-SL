@@ -102,13 +102,13 @@
 #include "WardenCheckMgr.h"
 #include "WaypointManager.h"
 #include "WeatherMgr.h"
-#ifdef ELUNA
-#include "LuaEngine.h"
-#endif
 #include "WhoListStorage.h"
 #include "WorldSession.h"
 #include "WorldSocket.h"
 #include "WorldStateMgr.h"
+#ifdef ELUNA
+#include "LuaEngine.h"
+#endif
 
 #include "RolePlay.h"
 
@@ -1726,6 +1726,9 @@ void World::LoadConfigSettings(bool reload)
     // Specifies if IP addresses can be logged to the database
     m_bool_configs[CONFIG_ALLOW_LOGGING_IP_ADDRESSES_IN_DATABASE] = sConfigMgr->GetBoolDefault("AllowLoggingIPAddressesInDatabase", true, true);
 
+    // Enable AE loot
+    m_bool_configs[CONFIG_ENABLE_AE_LOOT] = sConfigMgr->GetBoolDefault("Loot.EnableAELoot", true);
+
     // call ScriptMgr if we're reloading the configuration
     if (reload)
         sScriptMgr->OnConfigLoad(reload);
@@ -1773,7 +1776,7 @@ void World::SetInitialWorldSettings()
         TC_LOG_FATAL("server.loading", "Unable to load map and vmap data for starting zones - server shutting down!");
         exit(1);
     }
-	
+
 #ifdef ELUNA
     TC_LOG_INFO("server.loading", "Initializing Eluna Lua Engine...");
     Eluna::Initialize();
@@ -1822,8 +1825,6 @@ void World::SetInitialWorldSettings()
     sDB2Manager.LoadHotfixData(m_availableDbcLocaleMask);
     TC_LOG_INFO("misc", "Loading hotfix optional data...");
     sDB2Manager.LoadHotfixOptionalData(m_availableDbcLocaleMask);
-    ///- Close hotfix database - it is only used during DB2 loading
-    //HotfixDatabase.Close();
     ///- Load M2 fly by cameras
     LoadM2Cameras(m_dataPath);
     ///- Load GameTables
@@ -1862,8 +1863,8 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Initializing PlayerDump tables...");
     PlayerDump::InitializeTables();
-	
-	TC_LOG_INFO("server.loading", "Loading Roleplay tables...");
+
+    TC_LOG_INFO("server.loading", "Loading Roleplay tables...");
     sRoleplay->LoadAllTables();
 
     TC_LOG_INFO("server.loading", "Loading SpellInfo store...");
@@ -1999,8 +2000,8 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading Creature Model Based Info Data...");
     sObjectMgr->LoadCreatureModelInfo();
-	
-	TC_LOG_INFO("server.loading", "Loading Creature template outfits...");     // must be before LoadCreatureTemplates
+
+    TC_LOG_INFO("server.loading", "Loading Creature template outfits...");     // must be before LoadCreatureTemplates
     sObjectMgr->LoadCreatureOutfits();
 
     TC_LOG_INFO("server.loading", "Loading Creature templates...");
@@ -2533,8 +2534,8 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading scenario poi data");
     sScenarioMgr->LoadScenarioPOI();
-	
-	#ifdef ELUNA
+
+#ifdef ELUNA
     ///- Run eluna scripts.
     // in multithread foreach: run scripts
     sEluna->RunScripts();
@@ -3483,7 +3484,7 @@ void World::SendServerMessage(ServerMessageType messageID, std::string_view stri
 
     WorldPackets::Chat::ChatServerMessage chatServerMessage;
     chatServerMessage.MessageID = int32(messageID);
-    if (strstr(serverMessage->Text[player->GetSession()->GetSessionDbcLocale()], "%s"))
+    if (strstr(serverMessage->Text[player ? player->GetSession()->GetSessionDbcLocale() : GetDefaultDbcLocale()], "%s"))
         chatServerMessage.StringParam = stringParam;
 
     if (player)

@@ -36,6 +36,7 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "SpellMgr.h"
+#include "World.h"
 #ifdef ELUNA
 #include "LuaEngine.h"
 #endif
@@ -199,7 +200,7 @@ void WorldSession::HandleLootMoneyOpcode(WorldPackets::Loot::LootMoney& /*packet
             packet.SoleLooter = true; // "You loot..."
             SendPacket(packet.Write());
         }
-		
+
 #ifdef ELUNA
         sEluna->OnLootMoney(player, loot->gold);
 #endif
@@ -239,9 +240,13 @@ void WorldSession::HandleLootOpcode(WorldPackets::Loot::LootUnit& packet)
 
     GetPlayer()->RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Looting);
 
+    bool const aeLootEnabled = sWorld->getBoolConfig(CONFIG_ENABLE_AE_LOOT);
     std::vector<Creature*> corpses;
-    Trinity::CreatureListSearcher<AELootCreatureCheck> searcher(_player, corpses, check);
-    Cell::VisitGridObjects(_player, searcher, AELootCreatureCheck::LootDistance);
+    if (aeLootEnabled)
+    {
+        Trinity::CreatureListSearcher<AELootCreatureCheck> searcher(_player, corpses, check);
+        Cell::VisitGridObjects(_player, searcher, AELootCreatureCheck::LootDistance);
+    }
 
     if (!corpses.empty())
         SendPacket(WorldPackets::Loot::AELootTargets(uint32(corpses.size() + 1)).Write());
@@ -466,14 +471,15 @@ void WorldSession::HandleLootMasterGiveOpcode(WorldPackets::Loot::MasterLootItem
         }
 
         // now move item from loot to target inventory
-        if (Item* newitem = target->StoreNewItem(dest, item.itemid, true, item.randomBonusListId, item.GetAllowedLooters(), item.context, &item.BonusListIDs))
+        Item* newitem = target->StoreNewItem(dest, item.itemid, true, item.randomBonusListId, item.GetAllowedLooters(), item.context, &item.BonusListIDs);
+        if (newitem)
             aeResult.Add(newitem, item.count, loot->loot_type, loot->GetDungeonEncounterId());
         else
             target->ApplyItemLootedSpell(sObjectMgr->GetItemTemplate(item.itemid));
 
-//#ifdef ELUNA
-//        sEluna->OnLootItem(target, newitem, item.count, loot->GetOwnerGUID());
-//#endif
+#ifdef ELUNA
+        sEluna->OnLootItem(target, newitem, item.count, loot->GetOwnerGUID());
+#endif
 
         // mark as looted
         item.count = 0;
