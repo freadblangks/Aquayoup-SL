@@ -103,6 +103,7 @@ enum MovementGeneratorType : uint8;
 enum ProcFlagsHit : uint32;
 enum ProcFlagsSpellPhase : uint32;
 enum ProcFlagsSpellType : uint32;
+enum class SpellOtherImmunity : uint8;
 enum ZLiquidStatus : uint32;
 
 namespace Movement
@@ -1466,7 +1467,7 @@ class TC_GAME_API Unit : public WorldObject
         float m_modMeleeHitChance;
         float m_modRangedHitChance;
         float m_modSpellHitChance;
-        int32 m_baseSpellCritChance;
+        float m_baseSpellCritChance;
 
         std::array<uint32, MAX_ATTACK> m_baseAttackSpeed;
         std::array<float, MAX_ATTACK> m_modAttackSpeedPct;
@@ -1621,6 +1622,7 @@ class TC_GAME_API Unit : public WorldObject
         uint32 GetSchoolImmunityMask() const;
         uint32 GetDamageImmunityMask() const;
         uint64 GetMechanicImmunityMask() const;
+        EnumFlag<SpellOtherImmunity> GetSpellOtherImmunityMask() const;
 
         bool IsImmunedToDamage(SpellSchoolMask meleeSchoolMask) const;
         bool IsImmunedToDamage(SpellInfo const* spellInfo, SpellEffectInfo const* spellEffectInfo = nullptr) const;
