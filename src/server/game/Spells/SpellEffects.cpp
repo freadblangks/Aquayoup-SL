@@ -522,6 +522,8 @@ void Spell::EffectSchoolDMG()
             damage = unitTarget->SpellDamageBonusTaken(unitCaster, m_spellInfo, (uint32)damage, SPELL_DIRECT_DAMAGE);
         }
 
+        float damageMod = sConfigMgr->GetFloatDefault("Freedom.Spell.DamageModifier", 0.0f);
+        damage = int32(round(damage * damageMod));
         m_damage += damage;
     }
 }
