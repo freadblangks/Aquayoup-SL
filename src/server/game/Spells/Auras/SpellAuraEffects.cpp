@@ -4898,6 +4898,11 @@ void AuraEffect::HandleAuraModFaction(AuraApplication const* aurApp, uint8 mode,
 
     Unit* target = aurApp->GetTarget();
 
+    // Prevent players from changing faction making them attackable
+    if (target->IsPlayer()) {
+        return;
+    }
+
     if (apply)
     {
         target->SetFaction(GetMiscValue());
