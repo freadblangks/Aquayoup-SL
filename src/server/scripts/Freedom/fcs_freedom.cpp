@@ -1155,12 +1155,6 @@ public:
             return true;
         }
 
-        if (target->IsPet())
-        {
-            handler->PSendSysMessage(FREEDOM_CMDE_FREEDOM_TAME_ALREADY_A_PET);
-            return true;
-        }
-
         Player* source = handler->GetSession()->GetPlayer();
 
         if (!source->GetPetGUID().IsEmpty())
