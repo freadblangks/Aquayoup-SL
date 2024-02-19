@@ -1171,12 +1171,6 @@ public:
 
         CreatureTemplate const* cInfo = target->GetCreatureTemplate();
 
-        if (!cInfo->IsTameable(true))
-        {
-            handler->PSendSysMessage(FREEDOM_CMDE_FREEDOM_TAME_NOT_TAMEABLE);
-            return true;
-        }
-
         PetStable& petStable = source->GetOrInitPetStable();
         auto freeActiveSlotItr = std::find_if(petStable.ActivePets.begin(), petStable.ActivePets.end(), [](Optional<PetStable::PetInfo> const& petInfo)
             {

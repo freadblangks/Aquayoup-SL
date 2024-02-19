@@ -218,24 +218,21 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
     }
 
     // Don't try to reload the current pet
-    if (petStable->GetCurrentPet() && owner->GetPet() && petStable->GetCurrentPet()->PetNumber == petInfo->PetNumber)
+    if (petStable->GetCurrentPet() && owner->GetPet() && petStable->GetCurrentPet()->PetNumber == petInfo->PetNumber) {
         return false;
+    }
 
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(petInfo->CreatedBySpellId, owner->GetMap()->GetDifficultyID());
 
     bool isTemporarySummon = spellInfo && spellInfo->GetDuration() > 0;
     if (current && isTemporarySummon)
-        return false;
-
-    if (petInfo->Type == HUNTER_PET)
     {
-        CreatureTemplate const* creatureInfo = sObjectMgr->GetCreatureTemplate(petInfo->CreatureId);
-        if (!creatureInfo || !creatureInfo->IsTameable(owner->CanTameExoticPets()))
-            return false;
+        return false;
     }
 
     if (current && owner->IsPetNeedBeTemporaryUnsummoned())
     {
+        TC_LOG_DEBUG("freedom", "Pet needs to be temporary summoned?");
         owner->SetTemporaryUnsummonedPetNumber(petInfo->PetNumber);
         return false;
     }
@@ -825,7 +822,8 @@ bool Pet::CreateBaseAtCreature(Creature* creature)
     if (CreatureFamilyEntry const* cFamily = sCreatureFamilyStore.LookupEntry(cinfo->family))
         SetName(cFamily->Name[GetOwner()->GetSession()->GetSessionDbcLocale()]);
     else
-        SetName(creature->GetNameForLocaleIdx(sObjectMgr->GetDBCLocaleIndex()));
+        SetName("Unknown");
+
 
     return true;
 }
@@ -855,14 +853,11 @@ bool Pet::CreateBaseAtTamed(CreatureTemplate const* cinfo, Map* map)
     ReplaceAllNpcFlags(UNIT_NPC_FLAG_NONE);
     ReplaceAllNpcFlags2(UNIT_NPC_FLAG_2_NONE);
 
-    if (cinfo->type == CREATURE_TYPE_BEAST)
-    {
-        SetClass(CLASS_WARRIOR);
-        SetGender(GENDER_NONE);
-        SetPowerType(POWER_FOCUS);
-        SetSheath(SHEATH_STATE_MELEE);
-        ReplaceAllPetFlags(UNIT_PET_FLAG_CAN_BE_RENAMED | UNIT_PET_FLAG_CAN_BE_ABANDONED);
-    }
+    SetClass(CLASS_WARRIOR);
+    SetGender(GENDER_NONE);
+    SetPowerType(POWER_FOCUS);
+    SetSheath(SHEATH_STATE_MELEE);
+    ReplaceAllPetFlags(UNIT_PET_FLAG_CAN_BE_RENAMED | UNIT_PET_FLAG_CAN_BE_ABANDONED);
 
     return true;
 }
@@ -889,11 +884,6 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
         {
             petType = HUNTER_PET;
             m_unitTypeMask |= UNIT_MASK_HUNTER_PET;
-        }
-        else
-        {
-            TC_LOG_ERROR("entities.pet", "Unknown type pet %u is summoned by player class %u",
-                           GetEntry(), GetOwner()->GetClass());
         }
     }
 
