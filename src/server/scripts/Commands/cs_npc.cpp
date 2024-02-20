@@ -844,6 +844,8 @@ public:
                 if (m && (mechanicImmuneMask & (1 << (m - 1))))
                     handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_MECHANICIMM_LI, EnumUtils::ToTitle(m), m);
 
+            handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_ANIMKITID, target->GetAIAnimKitId());
+
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_LEVEL, target-> GetLevel());
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_EQUIPMENT, target->GetCurrentEquipmentId(), target->GetOriginalEquipmentId());
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_HEALTH, target->GetHealth(), target->GetMaxHealth(), target->GetCreateHealth());

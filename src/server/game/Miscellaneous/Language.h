@@ -1605,5 +1605,7 @@ enum TrinityStrings
     FREEDOM_CMDH_CHANGEACCOUNT                      = 100366,
     FREEDOM_CMDE_CHANGEACCOUNT_DIFFBNETACCT         = 100367,
     FREEDOM_CMDI_CNPC_LIST_ITEM                     = 100368,
+
+    FREEDOM_CMDI_CREATURE_INFO_LI_ANIMKITID         = 100369
 };
 #endif
