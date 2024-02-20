@@ -117,6 +117,7 @@ public:
             { "gravity",        HandleNpcSetGravityCommand,        rbac::RBAC_FPERM_COMMAND_NPC_SET_GRAVITY,                   Console::No },
             { "swim",           HandleNpcSetSwimCommand,           rbac::RBAC_FPERM_COMMAND_NPC_SET_SWIM,                      Console::No },
             { "flystate",       HandleNpcSetFlyStateCommand,       rbac::RBAC_FPERM_COMMAND_NPC_SET_FLYSTATE,                  Console::No },
+            { "animkit",        HandleNpcSetAiAnimKitCommand,      rbac::RBAC_FPERM_COMMAND_NPC_SET_AIANIMKIT,                 Console::No },
 
         };
         static ChatCommandTable npcCastTable =
@@ -2817,6 +2818,46 @@ public:
         }
 
         sFreedomMgr->DeleteNpcCast(target, spellId);
+        return true;
+    }
+
+    static bool HandleNpcSetAiAnimKitCommand(ChatHandler* handler, char const* args)
+    {
+        if (!*args)
+        {
+            handler->PSendSysMessage("Please provide an animation kit id as an argument.");
+            return true;
+        }
+
+        Player* source = handler->GetSession()->GetPlayer();
+        Creature* target = handler->getSelectedCreature();
+        uint64 guidLow = target ? target->GetSpawnId() : sFreedomMgr->GetSelectedCreatureGuidFromPlayer(source->GetGUID().GetCounter());
+
+        target = sFreedomMgr->GetAnyCreature(guidLow);
+
+        if (!target)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_CREATURE_NOT_FOUND);
+            return true;
+        }
+
+        ArgumentTokenizer tokenizer(args);
+        std::string animKitString = tokenizer.TryGetParam(0);
+
+        uint64 animKitId = atoul(animKitString.c_str());
+
+        const AnimKitEntry* entry = sAnimKitStore.LookupEntry(animKitId);
+
+        if (!entry && animKitId != 0) {
+            handler->PSendSysMessage("Animation Kit Id '%u' is not valid.", animKitId);
+            return true;
+        }
+
+        sFreedomMgr->CreatureSetAnimKitId(target, animKitId);
+        sFreedomMgr->CreatureSetModifyHistory(target, source);
+        sFreedomMgr->SaveCreature(target);
+
+        handler->PSendSysMessage("NPC Animation kit sucessfully set to: %u!", animKitId);
         return true;
     }
 };

@@ -261,6 +261,7 @@ class TC_GAME_API FreedomMgr
         void CreatureSetGravity(Creature* creature, bool toggle);
         void CreatureSetSwim(Creature* creature, bool toggle);
         void CreatureSetFly(Creature* creature, bool toggle);
+        void CreatureSetAnimKitId(Creature* creature, uint16 animKitId);
         bool CreatureCanSwim(Creature const* creature);
         bool CreatureCanWalk(Creature const* creature);
         bool CreatureCanFly(Creature const* creature);

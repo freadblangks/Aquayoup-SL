@@ -422,6 +422,15 @@ void FreedomMgr::CreatureSetFly(Creature* creature, bool toggle)
     creature->SendMessageToSet(packet.Write(), true);
 }
 
+void FreedomMgr::CreatureSetAnimKitId(Creature* creature, uint16 animKitId)
+{
+    uint32 spawnId = creature->GetSpawnId();
+    auto addonData = &(sObjectMgr->_creatureAddonStore[spawnId]);
+    addonData->aiAnimKit = animKitId;
+
+    creature->SetAIAnimKitId(animKitId);
+}
+
 bool FreedomMgr::CreatureCanSwim(Creature const* creature)
 {
     return _creatureExtraStore[creature->GetSpawnId()].swim;
