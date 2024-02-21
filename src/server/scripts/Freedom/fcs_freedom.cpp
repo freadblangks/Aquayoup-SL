@@ -56,6 +56,14 @@ public:
             { "",               rbac::RBAC_FPERM_COMMAND_FREEDOM_MORPH,             false, &HandleFreedomMorphCommand,              "" },
         };
 
+        static std::vector<ChatCommand> freedomMountCommandTable =
+        {
+            { "list",           rbac::RBAC_FPERM_COMMAND_FREEDOM_MOUNT,             false, &HandleFreedomMountListCommand,          "" },
+            { "add",            rbac::RBAC_FPERM_COMMAND_FREEDOM_MOUNT_MODIFY,      false, &HandleFreedomMountAddCommand,           "" },
+            { "delete",         rbac::RBAC_FPERM_COMMAND_FREEDOM_MOUNT_MODIFY,      false, &HandleFreedomMountDelCommand,           "" },
+            { "",               rbac::RBAC_FPERM_COMMAND_FREEDOM_MOUNT,             false, &HandleFreedomMountCommand,              "" },
+        };
+
         static std::vector<ChatCommand> freedomTeleportCommandTable =
         {
             { "list",           rbac::RBAC_FPERM_COMMAND_FREEDOM_TELE,              false, &HandleFreedomTeleListCommand,           "" },
@@ -169,7 +177,8 @@ public:
             { "changeaccount",  rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomChangeAccountCommand,      "" },
             { "phase",          rbac::RBAC_FPERM_COMMAND_PHASE,                     false, NULL,                                    "", freedomPhaseCommandTable },
             { "enchant",        rbac::RBAC_FPERM_COMMAND_FREEDOM_ENCHANT,           false, &HandleFreedomEnchantCommand,            "" },
-            { "pet",            rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "", freedomPetCommandTable }
+            { "pet",            rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "", freedomPetCommandTable },
+            { "mount",          rbac::RBAC_FPERM_COMMAND_FREEDOM_MOUNT,             false, NULL,                                    "", freedomMountCommandTable }
         };
 
         static std::vector<ChatCommand> commandTable =
@@ -2019,6 +2028,193 @@ public:
         handler->PSendSysMessage("Applied enchant id '%u' to your main hand weapon.", enchantId);
         return true;
     }
+
+
+    static bool HandleFreedomMountListCommand(ChatHandler* handler, Optional<std::string> mountName)
+    {
+        const MountDataContainer mountList = sFreedomMgr->GetMountContainer(handler->GetSession()->GetPlayer()->GetGUID().GetCounter());
+        uint64 count = 0;
+
+        if (!mountName)
+        {
+            for (auto mountData : mountList)
+            {
+                handler->PSendSysMessage(FREEDOM_CMDI_MORPH_LIST_ITEM, mountData.displayId, mountData.name);
+                count++;
+            }
+        }
+        else
+        {
+            for (auto mountData : mountList)
+            {
+                if (boost::istarts_with(mountData.name, mountName.value()))
+                {
+                    handler->PSendSysMessage(FREEDOM_CMDI_MORPH_LIST_ITEM, mountData.displayId, mountData.name);
+                    count++;
+                }
+            }
+        }
+
+        if (count == 0)
+            handler->PSendSysMessage(FREEDOM_CMDI_X_NOT_FOUND, "Mounts");
+        else
+            handler->PSendSysMessage(FREEDOM_CMDI_SEARCH_QUERY_RESULT, count);
+
+        return true;
+    }
+
+    static bool HandleFreedomMountAddCommand(ChatHandler* handler, char const* args)
+    {
+        if (!*args)
+        {
+            handler->PSendSysMessage("Syntax: .freedom mount add $name $displayId [$playerName]");
+            return true;
+        }
+
+        ArgumentTokenizer tokenizer(args);
+
+        if (tokenizer.size() < 2)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_NOT_ENOUGH_PARAMS);
+            handler->PSendSysMessage("Syntax: .freedom mount add $name $displayId [$playerName]");
+            return true;
+        }
+
+        std::string mountName = tokenizer.TryGetParam<std::string>(0);
+        uint32 displayId = tokenizer.TryGetParam<uint32>(1);
+        Player* source = handler->GetSession()->GetPlayer();
+        std::string targetNameArg = tokenizer.size() > 2 ? tokenizer.TryGetParam<std::string>(2) : "";
+        std::string targetName;
+        ObjectGuid targetGuid;
+
+        if (!displayId)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_INVALID_ARGUMENT_X, "$displayId");
+            return true;
+        }
+
+        if (!sCreatureDisplayInfoStore.HasRecord(displayId))
+        {
+            handler->SendSysMessage(LANG_NO_MOUNT);
+            return true;
+        }
+
+        if (!handler->extractPlayerTarget(&targetNameArg[0], nullptr, &targetGuid, &targetName))
+            return true;
+
+        // Check if morph already exists
+        const MountData* mountDataByName = sFreedomMgr->GetMountByName(targetGuid.GetCounter(), mountName);
+        const MountData* mountDataByDisplayId = sFreedomMgr->GetMountByDisplayId(targetGuid.GetCounter(), displayId);
+
+        if (mountDataByName)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_X_WITH_NAME_ALREADY_EXISTS, "Mount", mountName);
+            return true;
+        }
+
+        if (mountDataByDisplayId)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_X_WITH_ID_ALREADY_EXISTS, "Mount", displayId);
+            return true;
+        }
+
+        // Create mount
+        MountData newMountData;
+        newMountData.name = mountName;
+        newMountData.displayId = displayId;
+        newMountData.gmBnetAccId = source->GetSession()->GetBattlenetAccountId();
+
+        sFreedomMgr->AddMount(targetGuid.GetCounter(), newMountData);
+
+        handler->PSendSysMessage("Mount (Name: %s, Display Id: %u) succesfully added to player '%s'.", mountName, displayId, targetName);
+        return true;
+    }
+
+    static bool HandleFreedomMountDelCommand(ChatHandler* handler, char const* args)
+    {
+        if (!*args)
+        {
+            handler->PSendSysMessage("Syntax: .freedom mount delete $name/$displayId [$playerName]");
+            return true;
+        }
+
+        ArgumentTokenizer tokenizer(args);
+        std::string mountName = tokenizer.TryGetParam(0);
+        uint32 displayId = tokenizer.TryGetParam<uint32>(0);
+        std::string targetNameArg = tokenizer.size() > 1 ? tokenizer.TryGetParam(1) : "";
+        std::string targetName;
+        ObjectGuid targetGuid;
+
+        if (!handler->extractPlayerTarget(&targetNameArg[0], nullptr, &targetGuid, &targetName))
+            return true;
+
+        // Check if morph actually exists
+        const MountData* mountData = sFreedomMgr->GetMountByName(targetGuid.GetCounter(), mountName);
+
+        if (displayId && !mountData) // get by displayId only if name search doesn't turn up anything
+        {
+            mountData = sFreedomMgr->GetMountByDisplayId(targetGuid.GetCounter(), displayId);
+
+            if (!mountData)
+            {
+                handler->PSendSysMessage(FREEDOM_CMDE_X_WITH_ID_NOT_FOUND, "Mount", displayId);
+                return true;
+            }
+        }
+        else if (!mountData)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_X_WITH_NAME_NOT_FOUND, "Mount", mountName);
+            return true;
+        }
+
+        mountName = mountData->name;
+        displayId = mountData->displayId;
+
+        sFreedomMgr->DeleteMountByName(targetGuid.GetCounter(), mountData->name);
+
+        handler->PSendSysMessage("Mount (Name: %s, Display Id: %u) succesfully removed from player '%s'.", mountName, displayId, targetName);
+        return true;
+    }
+
+    static bool HandleFreedomMountCommand(ChatHandler* handler, char const* args)
+    {
+        if (!*args)
+        {
+            handler->PSendSysMessage("Syntax: .freedom mount $name/$displayId");
+            return true;
+        }
+
+        ArgumentTokenizer tokenizer(args);
+        std::string mountName = tokenizer.TryGetParam(0);
+        uint32 displayId = tokenizer.TryGetParam<uint32>(0);
+        Player* source = handler->GetSession()->GetPlayer();
+
+        // Check if morph actually exists
+        const MountData* mountData = sFreedomMgr->GetMountByName(source->GetGUID().GetCounter(), mountName);
+
+        if (displayId && !mountData) // get by displayId only if name search doesn't turn up anything
+        {
+            mountData = sFreedomMgr->GetMountByDisplayId(source->GetGUID().GetCounter(), displayId);
+
+            if (!mountData)
+            {
+                handler->PSendSysMessage(FREEDOM_CMDE_X_WITH_ID_NOT_FOUND, "Mount", displayId);
+                return true;
+            }
+        }
+        else if (!mountData)
+        {
+            handler->PSendSysMessage(FREEDOM_CMDE_X_WITH_NAME_NOT_FOUND, "Mount", mountName);
+            return true;
+        }
+                                                
+
+        source->Mount(mountData->displayId);
+
+        handler->PSendSysMessage("You have now mounted the mount '%s' (Display ID: %u).", mountData->name, mountData->displayId);
+        return true;
+    }
+
 };
 
 void AddSC_F_freedom_commandscript()

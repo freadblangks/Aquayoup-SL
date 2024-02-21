@@ -103,11 +103,21 @@ struct AppliedAuraData
 };
 typedef std::vector<AppliedAuraData> AppliedAuraContainer;
 
+struct MountData
+{
+    std::string name;
+    uint32 displayId;
+    uint32 gmBnetAccId;
+};
+
+typedef std::vector<MountData> MountDataContainer;
+
 struct PlayerExtraData
 {
     ObjectGuid::LowType selectedGameobjectGuid;
     ObjectGuid::LowType selectedCreatureGuid;
     MorphDataContainer morphDataStore;
+    MountDataContainer mountDataStore;
     AppliedAuraContainer appliedAuraStore;
     WorldLocation markerLocation;
     uint32 phaseMask;
@@ -388,6 +398,13 @@ class TC_GAME_API FreedomMgr
         bool IsAnimKitMappingAvailable(int32 animation) { return _animationKitMappingStore.find(animation) != _animationKitMappingStore.end(); }
         uint16 GetAnimKitForAnimation(int32 animation) { return _animationKitMappingStore[animation]; }
 
+        // Mounts
+        void LoadMounts();
+        MountData const* GetMountByName(ObjectGuid::LowType playerId, std::string const& name);
+        MountData const* GetMountByDisplayId(ObjectGuid::LowType playerId, uint32 displayId);
+        void AddMount(ObjectGuid::LowType playerId, MountData const& data);
+        void DeleteMountByName(ObjectGuid::LowType playerId, std::string const& name);
+        MountDataContainer const& GetMountContainer(ObjectGuid::LowType playerId) { return _playerExtraDataStore[playerId].mountDataStore; }
 
     protected:
         PlayerExtraDataContainer _playerExtraDataStore;

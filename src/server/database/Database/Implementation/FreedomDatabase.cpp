@@ -36,6 +36,7 @@ void FreedomDatabaseConnection::DoPrepareStatements()
     PrepareStatement(FREEDOM_SEL_ITEMTEMPLATEEXTRA_LOOKUP, "SELECT entry_id, name, hidden FROM item_template_extra WHERE INSTR(name, ?) > 0 AND IF (?, entry_id >= 200000 AND entry_id < 900000, entry_id < 200000 OR entry_id >= 900000) AND IF (?, class = 4, true) AND IF (?, class = 2, true) LIMIT ?", CONNECTION_SYNCH);
     PrepareStatement(FREEDOM_SEL_CHAR_PET_EXTRA_BY_ID, "SELECT id, owner, scale FROM pet_extra WHERE id = ?", CONNECTION_SYNCH);
     PrepareStatement(FREEDOM_SEL_NPC_CAST_MAX_ID, "SELECT max(id) FROM npc_casts", CONNECTION_SYNCH);
+    PrepareStatement(FREEDOM_SEL_MOUNTS, "SELECT guid, name, id_display, id_bnet_gm FROM mounts ORDER BY guid, name", CONNECTION_SYNCH);
 
     // INSERTS
     PrepareStatement(FREEDOM_INS_PUBLIC_TELE, "INSERT INTO public_tele (name, position_x, position_y, position_z, orientation, map, id_bnet_gm, phaseId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
@@ -44,6 +45,7 @@ void FreedomDatabaseConnection::DoPrepareStatements()
     PrepareStatement(FREEDOM_INS_MORPHS, "INSERT INTO morphs (guid, name, id_display, id_bnet_gm) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_INS_FORMATION, "INSERT INTO formations (`Key`, leaderGUID) VALUES (?, ?)", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_INS_NPC_CAST, "INSERT INTO npc_casts (source_spawn, target_spawn, spell_id, duration, restInterval, initialRest) VALUES (?, ?, ?, ?, ?, ?)", CONNECTION_SYNCH);
+    PrepareStatement(FREEDOM_INS_MOUNT, "INSERT INTO mounts (guid, name, id_display, id_bnet_gm) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
 
     // DELETIONS
     PrepareStatement(FREEDOM_DEL_PUBLIC_TELE_NAME, "DELETE FROM public_tele WHERE name = ?", CONNECTION_ASYNC);
@@ -59,6 +61,7 @@ void FreedomDatabaseConnection::DoPrepareStatements()
     PrepareStatement(FREEDOM_DEL_CUSTOMNPC, "DELETE FROM custom_npcs WHERE `Key` = ?", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_DEL_FORMATION, "DELETE FROM formations WHERE `Key` = ?", CONNECTION_ASYNC);
     PrepareStatement(FREEDOM_DEL_NPC_CAST, "DELETE FROM npc_casts WHERE `id` =  ?", CONNECTION_ASYNC);
+    PrepareStatement(FREEDOM_DEL_MOUNTS_NAME, "DELETE FROM mounts WHERE name = ? AND guid = ?", CONNECTION_ASYNC);
 
     // UPDATES
     PrepareStatement(FREEDOM_UPD_ITEMTEMPLATEEXTRA, "UPDATE item_template_extra SET hidden = ? WHERE entry_id = ?", CONNECTION_ASYNC);

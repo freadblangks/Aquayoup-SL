@@ -71,6 +71,7 @@ void FreedomMgr::LoadAllTables()
     LoadFormations();
     LoadNpcCasts();
     LoadAnimationMappings();
+    LoadMounts();
 
     TC_LOG_INFO("server.loading", ">> Loaded FreedomMgr tables in %u ms", GetMSTimeDiffToNow(oldMSTime));
 }
@@ -2958,4 +2959,91 @@ void FreedomMgr::LoadAnimationMappings()
     } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %u animation to animationkit mappings in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+
+MountData const* FreedomMgr::GetMountByName(ObjectGuid::LowType playerId, std::string const& name)
+{
+    auto it = std::find_if(
+        _playerExtraDataStore[playerId].mountDataStore.begin(), _playerExtraDataStore[playerId].mountDataStore.end(),
+        [name](MountData m)->bool { return boost::iequals(name, m.name); }
+    );
+
+    if (it != _playerExtraDataStore[playerId].mountDataStore.end())
+        return &(*it);
+    else
+        return nullptr;
+}
+
+MountData const* FreedomMgr::GetMountByDisplayId(ObjectGuid::LowType playerId, uint32 displayId)
+{
+    auto it = std::find_if(
+        _playerExtraDataStore[playerId].mountDataStore.begin(), _playerExtraDataStore[playerId].mountDataStore.end(),
+        [displayId](MountData m)->bool { return m.displayId == displayId; }
+    );
+
+    if (it != _playerExtraDataStore[playerId].mountDataStore.end())
+        return &(*it);
+    else
+        return nullptr;
+}
+
+void FreedomMgr::AddMount(ObjectGuid::LowType playerId, MountData const& data)
+{
+    _playerExtraDataStore[playerId].mountDataStore.push_back(data);
+
+    // guid, name, id_display, id_bnet_gm
+    int index = 0;
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_INS_MOUNT);
+    stmt->setUInt64(index++, playerId);
+    stmt->setString(index++, data.name);
+    stmt->setUInt32(index++, data.displayId);
+    stmt->setUInt32(index++, data.gmBnetAccId);
+    FreedomDatabase.Execute(stmt);
+}
+
+void FreedomMgr::DeleteMountByName(ObjectGuid::LowType playerId, std::string const& name)
+{
+    auto it = std::find_if(
+        _playerExtraDataStore[playerId].mountDataStore.begin(), _playerExtraDataStore[playerId].mountDataStore.end(),
+        [name](MountData m)->bool { return boost::iequals(name, m.name); }
+    );
+
+    if (it != _playerExtraDataStore[playerId].mountDataStore.end())
+    {
+        FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_MOUNTS_NAME);
+        stmt->setString(0, name);
+        stmt->setUInt64(1, playerId);
+        FreedomDatabase.Execute(stmt);
+
+        _playerExtraDataStore[playerId].mountDataStore.erase(it);
+    }
+}
+
+void FreedomMgr::LoadMounts()
+{
+    // clear current Morph storage for each player
+    for (auto it : _playerExtraDataStore)
+    {
+        it.second.mountDataStore.clear();
+    }
+
+    // guid, name, id_display, id_bnet_gm
+    FreedomDatabasePreparedStatement* stmt = FreedomDatabase.GetPreparedStatement(FREEDOM_SEL_MOUNTS);
+    PreparedQueryResult result = FreedomDatabase.Query(stmt);
+
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+        MountData data;
+        ObjectGuid::LowType charGuid = fields[0].GetUInt64();
+        data.name = fields[1].GetString();
+        data.displayId = fields[2].GetUInt32();
+        data.gmBnetAccId = fields[3].GetUInt32();
+
+        _playerExtraDataStore[charGuid].mountDataStore.push_back(data);
+    } while (result->NextRow());
 }
