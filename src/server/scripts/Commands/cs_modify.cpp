@@ -67,6 +67,7 @@ public:
 
         static std::vector<ChatCommand> modifyCommandTable =
         {
+            { "animkit",      rbac::RBAC_FPERM_COMMAND_MODIFY_AIANIMKIT,   false, &HandleModifyAnimKitCommand,      "" },
             { "currency",     rbac::RBAC_PERM_COMMAND_MODIFY_CURRENCY,     false, &HandleModifyCurrencyCommand,      "" },
             { "drunk",        rbac::RBAC_PERM_COMMAND_MODIFY_DRUNK,        false, &HandleModifyDrunkCommand,         "" },
             { "energy",       rbac::RBAC_PERM_COMMAND_MODIFY_ENERGY,       false, &HandleModifyEnergyCommand,        "" },
@@ -1122,6 +1123,28 @@ public:
             return false;
 
         target->SetNativeDisplayId(display_id);
+
+        return true;
+    }
+
+    static bool HandleModifyAnimKitCommand(ChatHandler* handler, const char* args)
+    {
+            auto player = handler->GetSession()->GetPlayer();
+
+        if (!args || strlen(args) == 0) {
+            handler->PSendSysMessage("Please provide an animation kit id.");
+            return true;
+        }
+
+        uint64 animKitId = atoul(args);
+        const AnimKitEntry* entry = sAnimKitStore.LookupEntry(animKitId);
+
+        if (!entry && animKitId != 0) {
+            handler->PSendSysMessage("Animation Kit Id '%u' is not valid.", animKitId);
+            return true;
+        }
+
+        player->SetAIAnimKitId(animKitId);
 
         return true;
     }
