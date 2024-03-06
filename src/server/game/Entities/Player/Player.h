@@ -423,6 +423,12 @@ enum DrunkenState
 
 #define MAX_DRUNKEN   4
 
+enum BarberState
+{
+    NOT_IN_BARBER_STATE = 0,
+    JUST_PASSED_BARBER_CHECKS = 1,
+};
+
 enum PlayerFlags
 {
     PLAYER_FLAGS_GROUP_LEADER           = 0x00000001,
@@ -1237,7 +1243,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void AddPetAura(PetAura const* petSpell);
         void RemovePetAura(PetAura const* petSpell);
 
-        Creature* GetSummonedBattlePet();
+        Creature* GetSummonedBattlePet() const;
         void SetBattlePetData(BattlePets::BattlePet const* pet = nullptr);
 
         /// Handles said message in regular chat based on declared language and in config pre-defined Range.
@@ -1533,7 +1539,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
 
         uint32 GetGossipTextId(uint32 menuId, WorldObject* source);
         uint32 GetGossipTextId(WorldObject* source);
-        uint32 GetGossipMenuForSource(WorldObject* source);
+        uint32 GetGossipMenuForSource(WorldObject const* source) const;
 
         /*********************************************************/
         /***                    QUEST SYSTEM                   ***/
@@ -1596,7 +1602,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SetQuestStatus(uint32 questId, QuestStatus status, bool update = true);
         void RemoveActiveQuest(uint32 questId, bool update = true);
         void RemoveRewardedQuest(uint32 questId, bool update = true);
-        void SendQuestUpdate(uint32 questId);
+        void SendQuestUpdate(uint32 questId, bool updateInteractions = true, bool updateGameObjectQuestGiverStatus = false);
         QuestGiverStatus GetQuestDialogStatus(Object const* questGiver) const;
         void SkipQuests(std::vector<uint32> const& questIds); // removes quest from log, flags rewarded, but does not give any rewards to player
         void DespawnPersonalSummonsForQuest(uint32 questId);
@@ -1647,7 +1653,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         bool HasQuestForItem(uint32 itemId) const;
         QuestObjective const* GetQuestObjectiveForItem(uint32 itemId, bool onlyIncomplete) const;
         bool HasQuestForGO(int32 goId) const;
-        void UpdateVisibleGameobjectsOrSpellClicks();
+        void UpdateVisibleObjectInteractions(bool allUnits, bool onlySpellClicks, bool gameObjectQuestGiverStatus, bool questObjectiveGameObjects);
         bool CanShareQuest(uint32 questId) const;
 
         int32 GetQuestObjectiveData(QuestObjective const& objective) const;
@@ -1717,8 +1723,9 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SaveToDB(bool create = false);
         void SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDatabaseTransaction trans, bool create = false);
         void SaveInventoryAndGoldToDB(CharacterDatabaseTransaction trans);                    // fast save function for item/money cheating preventing
-        void SaveGoldToDB(CharacterDatabaseTransaction trans) const;
 
+        static void RemoveRaceGenderModelCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::LowType guid, uint8 race, uint8 gender);
+        static void RemoveShapehiftRaceCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::LowType guid, uint8 oldRace, uint8 newRace);
         static void SaveCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::LowType guid,
             Trinity::IteratorPair<UF::ChrCustomizationChoice const*> customizations);
         static void SavePositionInDB(WorldLocation const& loc, uint16 zoneId, ObjectGuid guid, CharacterDatabaseTransaction trans);
@@ -2553,6 +2560,8 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void EnablePetControlsOnDismount();
         void UnsummonPetTemporaryIfAny();
         void ResummonPetTemporaryUnSummonedIfAny();
+        void UnsummonBattlePetTemporaryIfAny(bool onFlyingMount = false);
+        void ResummonBattlePetTemporaryUnSummonedIfAny();
         bool IsPetNeedBeTemporaryUnsummoned() const;
 
         void SendCinematicStart(uint32 CinematicSequenceId) const;
@@ -2668,6 +2677,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SetKnownTitles(uint32 index, uint64 mask) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::KnownTitles, index), mask); }
 
         //bool isActiveObject() const { return true; }
+        bool CanSeeGossipOn(Creature const* creature) const;
         bool CanSeeSpellClickOn(Creature const* creature) const;
 
         uint32 GetChampioningFaction() const { return m_ChampioningFaction; }
@@ -2750,18 +2760,10 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SetAverageItemLevelTotal(float newItemLevel) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::AvgItemLevel, 0), newItemLevel); }
         void SetAverageItemLevelEquipped(float newItemLevel) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::AvgItemLevel, 1), newItemLevel); }
 
-        uint32 GetCustomizationChoice(uint32 chrCustomizationOptionId) const
-        {
-            int32 choiceIndex = m_playerData->Customizations.FindIndexIf([chrCustomizationOptionId](UF::ChrCustomizationChoice choice)
-            {
-                return choice.ChrCustomizationOptionID == chrCustomizationOptionId;
-            });
-
-            if (choiceIndex >= 0)
-                return m_playerData->Customizations[choiceIndex].ChrCustomizationChoiceID;
-
-            return 0;
-        }
+        uint32 GetCustomizationChoice(uint32 chrCustomizationOptionId) const;
+        void ClearPreviousModelCustomizations(const uint32 oldModel);
+        void ClearPreviousRaceGenderCustomizations(const uint8 race, const uint8 gender);
+        void SetMissingCustomizations();
 
         template<typename Iter>
         void SetCustomizations(Trinity::IteratorPair<Iter> customizations, bool markChanged = true)
@@ -2769,7 +2771,6 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
             if (markChanged)
                 m_customizationsChanged = true;
 
-            ClearDynamicUpdateFieldValues(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::Customizations));
             for (auto&& customization : customizations)
             {
                 UF::ChrCustomizationChoice& newChoice = AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::Customizations));
@@ -3192,6 +3193,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         uint32 m_temporaryUnsummonedPetNumber;
         Optional<ReactStates> m_temporaryPetReactState;
         uint32 m_oldpetspell;
+        ObjectGuid m_temporaryUnsummonedBattlePet;
 
         std::unique_ptr<PlayerAchievementMgr> m_achievementMgr;
         std::unique_ptr<ReputationMgr> m_reputationMgr;
@@ -3226,12 +3228,16 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         bool _usePvpItemLevels;
         ObjectGuid _areaSpiritHealerGUID;
 
+        bool _justPassedBarberChecks;
+
         // Spell cast request handling
     public:
         // Queues up a spell cast request that has been received via packet and processes it whenever possible.
         void RequestSpellCast(std::unique_ptr<SpellCastRequest> castRequest);
         void CancelPendingCastRequest();
         bool CanRequestSpellCast(SpellInfo const* spell, Unit const* castingUnit) const;
+
+        bool HasQuest(uint32 questID) const;
 
     private:
         std::unique_ptr<SpellCastRequest> _pendingSpellCastRequest;

@@ -67,6 +67,7 @@ enum WarlockSpells
     SPELL_WARLOCK_DEMONIC_CIRCLE_SUMMON             = 48018,
     SPELL_WARLOCK_DEMONIC_CIRCLE_TELEPORT           = 48020,
     SPELL_WARLOCK_DEVOUR_MAGIC_HEAL                 = 19658,
+    SPELL_WARLOCK_DOOM_ENERGIZE                     = 193318,
     SPELL_WARLOCK_DRAIN_SOUL_ENERGIZE               = 205292,
     SPELL_WARLOCK_GLYPH_OF_DEMON_TRAINING           = 56249,
     SPELL_WARLOCK_GLYPH_OF_SOUL_SWAP                = 56226,
@@ -129,7 +130,6 @@ enum WarlockSpells
     SPELL_WARLOCK_SHADOW_BOLT                       = 686,
     SPELL_WARLOCK_IMPLOSION_DAMAGE                  = 196278,
     SPELL_WARLOCK_IMPLOSION_JUMP                    = 205205,
-    SPELL_WARLOCK_DOOM_ENERGIZE                     = 193318,
     SPELL_WARLOCK_IMPENDING_DOOM                    = 196270,
     SPELL_WARLOCK_DOOM_DOUBLED                      = 218572,
     SPELL_WARLOCK_IMMOLATE                          = 348,
@@ -154,6 +154,7 @@ enum WarlockSpells
     SPELL_INQUISITORS_GAZE                          = 386344,
     SPELL_WARLOCK_FIRE_AND_BRIMSTONE                = 196408,
     SPELL_WARLOCK_AGONY                             = 980,
+    SPELL_WARLOCK_FIREBOLT_BONUS                    = 231795,
 };
 
 enum MiscSpells
@@ -427,6 +428,26 @@ class spell_warl_devour_magic : public SpellScript
     void Register() override
     {
         OnEffectSuccessfulDispel += SpellEffectFn(spell_warl_devour_magic::OnSuccessfulDispel, EFFECT_0, SPELL_EFFECT_DISPEL);
+    }
+};
+
+// 603 - Doom
+class spell_warl_doom : public AuraScript
+{
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo ({ SPELL_WARLOCK_DOOM_ENERGIZE });
+    }
+
+    void HandleEffectPeriodic(AuraEffect const* /*aurEff*/)
+    {
+        if (Unit* caster = GetCaster())
+            caster->CastSpell(caster, SPELL_WARLOCK_DOOM_ENERGIZE, true);
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_warl_doom::HandleEffectPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE);
     }
 };
 
@@ -2414,6 +2435,43 @@ public:
     }
 };
 
+// 3110 - Firebolt
+class spell_warlock_imp_firebolt : public SpellScriptLoader
+{
+public:
+    spell_warlock_imp_firebolt() : SpellScriptLoader("spell_warlock_imp_firebolt") { }
+
+    class spell_warlock_imp_firebolt_SpellScript : public SpellScript
+    {
+        PrepareSpellScript(spell_warlock_imp_firebolt_SpellScript);
+
+        void HandleHit(SpellEffIndex /*effIndex*/)
+        {
+            Unit* caster = GetCaster();
+            Unit* target = GetHitUnit();
+            if (!caster || !caster->GetOwner() || !target)
+                return;
+
+            Unit* owner = caster->GetOwner();
+            int32 damage = GetHitDamage();
+            if (target->HasAura(SPELL_WARLOCK_IMMOLATE_DOT, owner->GetGUID()))
+                AddPct(damage, owner->GetAuraEffectAmount(SPELL_WARLOCK_FIREBOLT_BONUS, EFFECT_0));
+
+            SetHitDamage(damage);
+        }
+
+        void Register() override
+        {
+            OnEffectHitTarget += SpellEffectFn(spell_warlock_imp_firebolt_SpellScript::HandleHit, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+        }
+    };
+
+    SpellScript* GetSpellScript() const override
+    {
+        return new spell_warlock_imp_firebolt_SpellScript();
+    }
+};
+
 void AddSC_warlock_spell_scripts()
 {
     RegisterSpellScript(spell_warl_banish);
@@ -2425,6 +2483,7 @@ void AddSC_warlock_spell_scripts()
     RegisterSpellScript(spell_warl_demonic_circle_summon);
     RegisterSpellScript(spell_warl_demonic_circle_teleport);
     RegisterSpellScript(spell_warl_devour_magic);
+    RegisterSpellScript(spell_warl_doom);
     RegisterSpellScript(spell_warl_drain_soul);
     RegisterSpellScript(spell_warl_haunt);
     RegisterSpellScript(spell_warl_health_funnel);
@@ -2483,4 +2542,5 @@ void AddSC_warlock_spell_scripts()
     new spell_warlock_inquisitors_gaze();
     RegisterSpellScript(spell_warl_incinerate);
     new spell_warlock_agony();
+    new spell_warlock_imp_firebolt();
 }

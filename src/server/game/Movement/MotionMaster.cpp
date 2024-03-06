@@ -639,21 +639,16 @@ void MotionMaster::MoveConfused()
     }
 }
 
-void MotionMaster::MoveFleeing(Unit* enemy, Milliseconds time)
+void MotionMaster::MoveFleeing(Unit* enemy, Milliseconds time /*= 0ms*/)
 {
     if (!enemy)
         return;
 
     TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MoveFleeing: '{}', flees from '{}' (time: {}ms)", _owner->GetGUID().ToString(), enemy->GetGUID().ToString(), time.count());
-    if (_owner->GetTypeId() == TYPEID_UNIT)
-    {
-        if (time > 0ms)
-            Add(new TimedFleeingMovementGenerator(enemy->GetGUID(), time));
-        else
-            Add(new FleeingMovementGenerator<Creature>(enemy->GetGUID()));
-    }
+    if (_owner->GetTypeId() == TYPEID_UNIT && time > 0ms)
+        Add(new TimedFleeingMovementGenerator(enemy->GetGUID(), time));
     else
-        Add(new FleeingMovementGenerator<Player>(enemy->GetGUID()));
+        Add(new FleeingMovementGenerator(enemy->GetGUID()));
 }
 
 void MotionMaster::MovePoint(uint32 id, Position const& pos, bool generatePath/* = true*/, Optional<float> finalOrient/* = {}*/, Optional<float> speed /*= {}*/,
@@ -1143,13 +1138,13 @@ void MotionMaster::MovePath(WaypointPath const& path, bool repeatable, Optional<
         wanderDistanceAtPathEnds, followPathBackwardsFromEndToStart, generatePath), MOTION_SLOT_DEFAULT);
 }
 
-void MotionMaster::MoveRotate(uint32 id, uint32 time, RotateDirection direction)
+void MotionMaster::MoveRotate(uint32 id, RotateDirection direction, Optional<Milliseconds> time /*= {}*/,
+    Optional<float> turnSpeed /*= {}*/, Optional<float> totalTurnAngle /*= {}*/)
 {
-    if (!time)
-        return;
+    TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MoveRotate: '{}', starts rotate (time: {}ms, turnSpeed: {}, totalTurnAngle: {}, direction: {})",
+        _owner->GetGUID().ToString(), time.value_or(0ms).count(), turnSpeed, totalTurnAngle, direction);
 
-    TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MoveRotate: '{}', starts rotate (time: {}, direction: {})", _owner->GetGUID().ToString(), time, direction);
-    Add(new RotateMovementGenerator(id, time, direction));
+    Add(new RotateMovementGenerator(id, direction, time, turnSpeed, totalTurnAngle));
 }
 
 void MotionMaster::MoveFormation(Unit* leader, float range, float angle, uint32 point1, uint32 point2)

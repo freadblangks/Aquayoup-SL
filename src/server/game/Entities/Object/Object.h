@@ -582,10 +582,11 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         virtual uint8 GetLevelForTarget(WorldObject const* /*target*/) const { return 1; }
 
-        void PlayDistanceSound(uint32 soundId, Player* target = nullptr);
-        void PlayDirectSound(uint32 soundId, Player* target = nullptr, uint32 broadcastTextId = 0);
-        void PlayDirectMusic(uint32 musicId, Player* target = nullptr);
-        void PlayObjectSound(int32 soundKitId, ObjectGuid targetObject, Player* target = nullptr, int32 broadcastTextId = 0);
+        void PlayDistanceSound(uint32 soundId, Player const* target = nullptr) const;
+        void StopDistanceSound(Player const* target = nullptr) const;
+        void PlayDirectSound(uint32 soundId, Player const* target = nullptr, uint32 broadcastTextId = 0) const;
+        void PlayDirectMusic(uint32 musicId, Player const* target = nullptr) const;
+        void PlayObjectSound(int32 soundKitId, ObjectGuid targetObject, Player const* target = nullptr, int32 broadcastTextId = 0) const;
 
         void AddObjectToRemoveList();
 
@@ -784,6 +785,10 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         SmoothPhasing* GetSmoothPhasing() { return _smoothPhasing.get(); }
         SmoothPhasing const* GetSmoothPhasing() const { return _smoothPhasing.get(); }
 
+        Player* FindNearestPlayer(float range, bool alive = true);
+        std::list<Creature*> FindNearestCreatures(std::list<uint32> entrys, float range) const;
+        template<class NOTIFIER> void VisitNearbyGridObject(const float& radius, NOTIFIER& notifier) const;
+
     protected:
         std::string m_name;
         bool m_isActive;
@@ -836,6 +841,15 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         bool CanDetectStealthOf(WorldObject const* obj, bool checkAlert = false) const;
 
     public:
+        std::list<Creature*> FindNearestCreatures(uint32 entry, float range) const;
+        std::list<Creature*> FindAllCreaturesInRange(float range);
+        std::list<Creature*> FindAllUnfriendlyCreaturesInRange(float range);
+        std::list<GameObject*> FindNearestGameObjects(uint32 entry, float range) const;
+        AreaTrigger* SelectNearestAreaTrigger(uint32 spellId, float distance) const;
+        std::list<AreaTrigger*> SelectNearestAreaTriggers(uint32 spellId, float range);
+        std::list<Player*> SelectNearestPlayers(float range, bool alive);
+        template <typename Container>
+        void GetCreatureListInGrid(Container& creatureContainer, float maxSearchRange = 250.0f) const;
         ThisCore::AnyData VariableStorage;
 };
 
