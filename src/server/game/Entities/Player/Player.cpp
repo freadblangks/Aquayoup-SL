@@ -131,6 +131,8 @@
 #include "Util.h"
 #include "Vehicle.h"
 #include "VehiclePackets.h"
+#include "Vignette.h"
+#include "VignettePackets.h"
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -7643,6 +7645,24 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea)
             guild->UpdateMemberData(this, GUILD_MEMBER_DATA_ZONEID, newZone);
         UpdateCriteria(CriteriaType::EnterTopLevelArea, newZone);
         UpdateCriteria(CriteriaType::LeaveTopLevelArea, oldZone);
+
+        {
+            WorldPackets::Vignette::VignetteUpdate vignetteUpdate;
+
+            for (Vignettes::VignetteData const* vignette : GetMap()->GetInfiniteAOIVignettes())
+            {
+                if (!vignette->Data->GetFlags().HasFlag(VignetteFlags::ZoneInfiniteAOI))
+                    continue;
+
+                if (vignette->ZoneID == newZone && Vignettes::CanSee(this, *vignette))
+                    vignette->FillPacket(vignetteUpdate.Added);
+                else if (vignette->ZoneID == oldZone)
+                    vignetteUpdate.Removed.push_back(vignette->Guid);
+            }
+
+            if (!vignetteUpdate.Added.IDs.empty() || !vignetteUpdate.Removed.empty())
+                SendDirectMessage(vignetteUpdate.Write());
+        }
     }
 }
 
@@ -17918,6 +17938,7 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
 
     SetCustomizations(Trinity::Containers::MakeIteratorPair(customizations.begin(), customizations.end()), false);
     SetMissingCustomizations();
+
     SetInventorySlotCount(fields.inventorySlots);
     SetBankBagSlotCount(fields.bankSlots);
     SetNativeGender(fields.gender);
@@ -20430,9 +20451,9 @@ void SavePlayerCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::Lo
 uint32 Player::GetCustomizationChoice(uint32 chrCustomizationOptionId) const
 {
     int32 choiceIndex = m_playerData->Customizations.FindIndexIf([chrCustomizationOptionId](UF::ChrCustomizationChoice choice)
-    {
-        return choice.ChrCustomizationOptionID == chrCustomizationOptionId;
-    });
+        {
+            return choice.ChrCustomizationOptionID == chrCustomizationOptionId;
+        });
 
     if (choiceIndex >= 0)
         return m_playerData->Customizations[choiceIndex].ChrCustomizationChoiceID;
@@ -20442,7 +20463,7 @@ uint32 Player::GetCustomizationChoice(uint32 chrCustomizationOptionId) const
 
 void Player::ClearPreviousModelCustomizations(const uint32 oldModel)
 {
-    if (const std::vector<ChrCustomizationOptionEntry const*> const* oldModelCustomizations = sDB2Manager.GetCustomiztionOptions(oldModel))
+    if (std::vector<ChrCustomizationOptionEntry const*> const* oldModelCustomizations = sDB2Manager.GetCustomiztionOptions(oldModel))
     {
         for (const auto optionEntry : *oldModelCustomizations)
         {
@@ -20455,23 +20476,23 @@ void Player::ClearPreviousModelCustomizations(const uint32 oldModel)
 
 void Player::ClearPreviousRaceGenderCustomizations(const uint8 race, const uint8 gender)
 {
-    if (const ChrModelEntry const* chrModel = sDB2Manager.GetChrModel(race, gender))
+    if (ChrModelEntry const* chrModel = sDB2Manager.GetChrModel(race, gender))
     {
         ClearPreviousModelCustomizations(chrModel->ID);
     }
 }
 
-// Force apply race specific druid custoisations if they are not set (at first login, occasionally on race change when using race-specific forms)
+// Force apply race specific druid customizations if they are not set (at character creation & occasionally on race change when previously using race-specific forms)
 void Player::SetMissingCustomizations()
 {
     if (GetClass() == CLASS_DRUID)
     {
-        static const std::vector<ShapeshiftForm> shapeshiftForms = { FORM_BEAR_FORM, FORM_CAT_FORM, FORM_TRAVEL_FORM, FORM_FLIGHT_FORM_EPIC, FORM_AQUATIC_FORM };
+        const std::array<ShapeshiftForm, 5> shapeshiftForms = { FORM_BEAR_FORM, FORM_CAT_FORM, FORM_TRAVEL_FORM, FORM_FLIGHT_FORM_EPIC, FORM_AQUATIC_FORM };
         for (const auto shapeshiftForm : shapeshiftForms)
         {
             if (ChrCustomizationChoiceEntry const* customization = sDB2Manager.GetShapeshiftRaceDefaultOptions(GetRace(), shapeshiftForm))
             {
-                const int32 index = m_playerData->Customizations.FindIndexIf([customization](UF::ChrCustomizationChoice const& choice) { return choice.ChrCustomizationOptionID == customization->ChrCustomizationOptionID; });
+                const int32 index = m_playerData->Customizations.FindIndexIf([customization](UF::ChrCustomizationChoice const& choice) { return int32(choice.ChrCustomizationOptionID) == customization->ChrCustomizationOptionID; });
                 if (index < 0)
                 {
                     UF::ChrCustomizationChoice& defaultChoice = AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::Customizations));
@@ -23938,26 +23959,6 @@ bool Player::IsVisibleGloballyFor(Player const* u) const
 }
 
 template<class T>
-inline void UpdateVisibilityOf_helper(GuidUnorderedSet& s64, T* target, std::set<Unit*>& /*v*/)
-{
-    s64.insert(target->GetGUID());
-}
-
-template<>
-inline void UpdateVisibilityOf_helper(GuidUnorderedSet& s64, Creature* target, std::set<Unit*>& v)
-{
-    s64.insert(target->GetGUID());
-    v.insert(target);
-}
-
-template<>
-inline void UpdateVisibilityOf_helper(GuidUnorderedSet& s64, Player* target, std::set<Unit*>& v)
-{
-    s64.insert(target->GetGUID());
-    v.insert(target);
-}
-
-template<class T>
 inline void BeforeVisibilityDestroy(T* /*t*/, Player* /*p*/) { }
 
 template<>
@@ -23965,6 +23966,44 @@ inline void BeforeVisibilityDestroy<Creature>(Creature* t, Player* p)
 {
     if (p->GetPetGUID() == t->GetGUID() && t->IsPet())
         t->ToPet()->Remove(PET_SAVE_NOT_IN_SLOT, true);
+
+    if (Vignettes::VignetteData const* vignette = t->GetVignette())
+    {
+        if (!vignette->Data->IsInfiniteAOI())
+        {
+            WorldPackets::Vignette::VignetteUpdate vignetteUpdate;
+            vignetteUpdate.Removed.push_back(vignette->Guid);
+            p->SendDirectMessage(vignetteUpdate.Write());
+        }
+    }
+}
+
+template<>
+inline void BeforeVisibilityDestroy<Player>(Player* t, Player* p)
+{
+    if (Vignettes::VignetteData const* vignette = t->GetVignette())
+    {
+        if (!vignette->Data->IsInfiniteAOI())
+        {
+            WorldPackets::Vignette::VignetteUpdate vignetteUpdate;
+            vignetteUpdate.Removed.push_back(vignette->Guid);
+            p->SendDirectMessage(vignetteUpdate.Write());
+        }
+    }
+}
+
+template<>
+inline void BeforeVisibilityDestroy<GameObject>(GameObject* t, Player* p)
+{
+    if (Vignettes::VignetteData const* vignette = t->GetVignette())
+    {
+        if (!vignette->Data->IsInfiniteAOI())
+        {
+            WorldPackets::Vignette::VignetteUpdate vignetteUpdate;
+            vignetteUpdate.Removed.push_back(vignette->Guid);
+            p->SendDirectMessage(vignetteUpdate.Write());
+        }
+    }
 }
 
 void Player::UpdateVisibilityOf(Trinity::IteratorPair<WorldObject**> targets)
@@ -23973,7 +24012,7 @@ void Player::UpdateVisibilityOf(Trinity::IteratorPair<WorldObject**> targets)
         return;
 
     UpdateData udata(GetMapId());
-    std::set<Unit*> newVisibleUnits;
+    std::set<WorldObject*> newVisibleObjects;
 
     for (WorldObject* target : targets)
     {
@@ -23983,28 +24022,28 @@ void Player::UpdateVisibilityOf(Trinity::IteratorPair<WorldObject**> targets)
         switch (target->GetTypeId())
         {
             case TYPEID_UNIT:
-                UpdateVisibilityOf(target->ToCreature(), udata, newVisibleUnits);
+                UpdateVisibilityOf(target->ToCreature(), udata, newVisibleObjects);
                 break;
             case TYPEID_PLAYER:
-                UpdateVisibilityOf(target->ToPlayer(), udata, newVisibleUnits);
+                UpdateVisibilityOf(target->ToPlayer(), udata, newVisibleObjects);
                 break;
             case TYPEID_GAMEOBJECT:
-                UpdateVisibilityOf(target->ToGameObject(), udata, newVisibleUnits);
+                UpdateVisibilityOf(target->ToGameObject(), udata, newVisibleObjects);
                 break;
             case TYPEID_DYNAMICOBJECT:
-                UpdateVisibilityOf(target->ToDynObject(), udata, newVisibleUnits);
+                UpdateVisibilityOf(target->ToDynObject(), udata, newVisibleObjects);
                 break;
             case TYPEID_CORPSE:
-                UpdateVisibilityOf(target->ToCorpse(), udata, newVisibleUnits);
+                UpdateVisibilityOf(target->ToCorpse(), udata, newVisibleObjects);
                 break;
             case TYPEID_AREATRIGGER:
-                UpdateVisibilityOf(target->ToAreaTrigger(), udata, newVisibleUnits);
+                UpdateVisibilityOf(target->ToAreaTrigger(), udata, newVisibleObjects);
                 break;
             case TYPEID_SCENEOBJECT:
-                UpdateVisibilityOf(target->ToSceneObject(), udata, newVisibleUnits);
+                UpdateVisibilityOf(target->ToSceneObject(), udata, newVisibleObjects);
                 break;
             case TYPEID_CONVERSATION:
-                UpdateVisibilityOf(target->ToConversation(), udata, newVisibleUnits);
+                UpdateVisibilityOf(target->ToConversation(), udata, newVisibleObjects);
                 break;
             default:
                 break;
@@ -24018,7 +24057,7 @@ void Player::UpdateVisibilityOf(Trinity::IteratorPair<WorldObject**> targets)
     udata.BuildPacket(&packet);
     SendDirectMessage(&packet);
 
-    for (Unit* visibleUnit : newVisibleUnits)
+    for (WorldObject* visibleUnit : newVisibleObjects)
         SendInitialVisiblePackets(visibleUnit);
 }
 
@@ -24028,8 +24067,20 @@ void Player::UpdateVisibilityOf(WorldObject* target)
     {
         if (!CanSeeOrDetect(target, false, true))
         {
-            if (target->GetTypeId() == TYPEID_UNIT)
-                BeforeVisibilityDestroy<Creature>(target->ToCreature(), this);
+            switch (target->GetTypeId())
+            {
+                case TYPEID_UNIT:
+                    BeforeVisibilityDestroy<Creature>(target->ToCreature(), this);
+                    break;
+                case TYPEID_PLAYER:
+                    BeforeVisibilityDestroy<Player>(target->ToPlayer(), this);
+                    break;
+                case TYPEID_GAMEOBJECT:
+                    BeforeVisibilityDestroy<GameObject>(target->ToGameObject(), this);
+                    break;
+                default:
+                    break;
+            }
 
             if (!target->IsDestroyedObject())
                 target->SendOutOfRangeForPlayer(this);
@@ -24103,18 +24154,39 @@ void Player::UpdateTriggerVisibility()
     SendDirectMessage(&packet);
 }
 
-void Player::SendInitialVisiblePackets(Unit* target) const
+void Player::SendInitialVisiblePackets(WorldObject* target) const
 {
-    SendAurasForTarget(target);
-    if (target->IsAlive())
+    auto sendVignette = [](Vignettes::VignetteData const& vignette, Player const* where)
     {
-        if (target->HasUnitState(UNIT_STATE_MELEE_ATTACKING) && target->GetVictim())
-            target->SendMeleeAttackStart(target->GetVictim());
+        if (!vignette.Data->IsInfiniteAOI() && Vignettes::CanSee(where, vignette))
+        {
+            WorldPackets::Vignette::VignetteUpdate vignetteUpdate;
+            vignette.FillPacket(vignetteUpdate.Added);
+            where->SendDirectMessage(vignetteUpdate.Write());
+        }
+    };
+
+    if (Unit* targetUnit = target->ToUnit())
+    {
+        SendAurasForTarget(targetUnit);
+        if (targetUnit->IsAlive())
+        {
+            if (targetUnit->HasUnitState(UNIT_STATE_MELEE_ATTACKING) && targetUnit->GetVictim())
+                targetUnit->SendMeleeAttackStart(targetUnit->GetVictim());
+        }
+
+        if (Vignettes::VignetteData const* vignette = targetUnit->GetVignette())
+            sendVignette(*vignette, this);
+    }
+    else if (GameObject* targetGo = target->ToGameObject())
+    {
+        if (Vignettes::VignetteData const* vignette = targetGo->GetVignette())
+            sendVignette(*vignette, this);
     }
 }
 
 template<class T>
-void Player::UpdateVisibilityOf(T* target, UpdateData& data, std::set<Unit*>& visibleNow)
+void Player::UpdateVisibilityOf(T* target, UpdateData& data, std::set<WorldObject*>& visibleNow)
 {
     if (HaveAtClient(target))
     {
@@ -24139,7 +24211,8 @@ void Player::UpdateVisibilityOf(T* target, UpdateData& data, std::set<Unit*>& vi
         if (CanSeeOrDetect(target, false, true))
         {
             target->BuildCreateUpdateBlockForPlayer(&data, this);
-            UpdateVisibilityOf_helper(m_clientGUIDs, target, visibleNow);
+            m_clientGUIDs.insert(target->GetGUID());
+            visibleNow.insert(target);
 
             #ifdef TRINITY_DEBUG
                 TC_LOG_DEBUG("maps", "Object {} is visible now for player {}. Distance = {}", target->GetGUID().ToString(), GetGUID().ToString(), GetDistance(target));
@@ -24148,14 +24221,14 @@ void Player::UpdateVisibilityOf(T* target, UpdateData& data, std::set<Unit*>& vi
     }
 }
 
-template void Player::UpdateVisibilityOf(Player*        target, UpdateData& data, std::set<Unit*>& visibleNow);
-template void Player::UpdateVisibilityOf(Creature*      target, UpdateData& data, std::set<Unit*>& visibleNow);
-template void Player::UpdateVisibilityOf(Corpse*        target, UpdateData& data, std::set<Unit*>& visibleNow);
-template void Player::UpdateVisibilityOf(GameObject*    target, UpdateData& data, std::set<Unit*>& visibleNow);
-template void Player::UpdateVisibilityOf(DynamicObject* target, UpdateData& data, std::set<Unit*>& visibleNow);
-template void Player::UpdateVisibilityOf(AreaTrigger*   target, UpdateData& data, std::set<Unit*>& visibleNow);
-template void Player::UpdateVisibilityOf(SceneObject*   target, UpdateData& data, std::set<Unit*>& visibleNow);
-template void Player::UpdateVisibilityOf(Conversation*  target, UpdateData& data, std::set<Unit*>& visibleNow);
+template void Player::UpdateVisibilityOf(Player*        target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+template void Player::UpdateVisibilityOf(Creature*      target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+template void Player::UpdateVisibilityOf(Corpse*        target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+template void Player::UpdateVisibilityOf(GameObject*    target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+template void Player::UpdateVisibilityOf(DynamicObject* target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+template void Player::UpdateVisibilityOf(AreaTrigger*   target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+template void Player::UpdateVisibilityOf(SceneObject*   target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+template void Player::UpdateVisibilityOf(Conversation*  target, UpdateData& data, std::set<WorldObject*>& visibleNow);
 
 void Player::UpdateObjectVisibility(bool forced)
 {
@@ -24439,6 +24512,19 @@ void Player::SendInitialPacketsBeforeAddToMap()
 void Player::SendInitialPacketsAfterAddToMap()
 {
     UpdateVisibilityForPlayer();
+
+    // Send map wide vignettes before UpdateZone, that will send zone wide vignettes
+    // But first send on new map will wipe all vignettes on client
+    {
+        WorldPackets::Vignette::VignetteUpdate vignetteUpdate;
+        vignetteUpdate.ForceUpdate = true;
+
+        for (Vignettes::VignetteData const* vignette : GetMap()->GetInfiniteAOIVignettes())
+            if (!vignette->Data->GetFlags().HasFlag(VignetteFlags::ZoneInfiniteAOI) && Vignettes::CanSee(this, *vignette))
+                vignette->FillPacket(vignetteUpdate.Added);
+
+        SendDirectMessage(vignetteUpdate.Write());
+    }
 
     // update zone
     uint32 newzone, newarea;

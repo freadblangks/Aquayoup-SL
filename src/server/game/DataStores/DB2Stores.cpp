@@ -389,6 +389,7 @@ DB2Storage<UnitPowerBarEntry>                   sUnitPowerBarStore("UnitPowerBar
 DB2Storage<VehicleEntry>                        sVehicleStore("Vehicle.db2", &VehicleLoadInfo::Instance);
 DB2Storage<VehicleSeatEntry>                    sVehicleSeatStore("VehicleSeat.db2", &VehicleSeatLoadInfo::Instance);
 DB2Storage<VehiclePOITypeEntry>                 sVehiclePOITypeStore("VehiclePOIType.db2", &VehiclePoiTypeLoadInfo::Instance);
+DB2Storage<VignetteEntry>                       sVignetteStore("Vignette.db2", &VignetteLoadInfo::Instance);
 DB2Storage<WMOAreaTableEntry>                   sWMOAreaTableStore("WMOAreaTable.db2", &WmoAreaTableLoadInfo::Instance);
 DB2Storage<WorldEffectEntry>                    sWorldEffectStore("WorldEffect.db2", &WorldEffectLoadInfo::Instance);
 DB2Storage<WorldMapOverlayEntry>                sWorldMapOverlayStore("WorldMapOverlay.db2", &WorldMapOverlayLoadInfo::Instance);
@@ -541,9 +542,6 @@ namespace
     std::unordered_map<uint32, std::unordered_set<uint32>> _pvpStatIdsByMap;
 }
 
-template<typename T>
-constexpr std::size_t GetCppRecordSize(DB2Storage<T> const&) { return sizeof(T); }
-
 void LoadDB2(std::bitset<TOTAL_LOCALES>& availableDb2Locales, std::vector<std::string>& errlist, StorageMap& stores, DB2StorageBase* storage, std::string const& db2Path,
     LocaleConstant defaultLocale, std::size_t cppRecordSize)
 {
@@ -660,7 +658,10 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     if (!availableDb2Locales[defaultLocale])
         return 0;
 
-#define LOAD_DB2(store) LoadDB2(availableDb2Locales, loadErrors, _stores, &(store), db2Path, defaultLocale, GetCppRecordSize(store))
+    auto LOAD_DB2 = [&]<typename T>(DB2Storage<T>& store)
+    {
+        LoadDB2(availableDb2Locales, loadErrors, _stores, &store, db2Path, defaultLocale, sizeof(T));
+    };
 
     LOAD_DB2(sAchievementStore);
     LOAD_DB2(sAchievementCategoryStore);
@@ -1004,6 +1005,7 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     LOAD_DB2(sVehicleStore);
     LOAD_DB2(sVehicleSeatStore);
     LOAD_DB2(sVehiclePOITypeStore);
+    LOAD_DB2(sVignetteStore);
     LOAD_DB2(sWMOAreaTableStore);
     LOAD_DB2(sWorldEffectStore);
     LOAD_DB2(sWorldMapOverlayStore);
@@ -1145,6 +1147,7 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     std::unordered_map<uint32, ChrCustomizationDisplayInfoEntry const*> displayInfoByCustomizationChoice;
 
     // build shapeshift form model lookup
+    std::array<uint8, 7> const druidRaces = { RACE_NIGHTELF, RACE_TAUREN, RACE_TROLL, RACE_WORGEN, RACE_HIGHMOUNTAIN_TAUREN, RACE_ZANDALARI_TROLL, RACE_KUL_TIRAN };
     for (ChrCustomizationElementEntry const* customizationElement : sChrCustomizationElementStore)
     {
         if (ChrCustomizationDisplayInfoEntry const* customizationDisplayInfo = sChrCustomizationDisplayInfoStore.LookupEntry(customizationElement->ChrCustomizationDisplayInfoID))
@@ -1156,7 +1159,6 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
                 {
                     if (customizationDisplayInfo->ShapeshiftFormID)
                     {
-                        static const std::vector<uint8> druidRaces = { RACE_NIGHTELF, RACE_TAUREN, RACE_TROLL, RACE_WORGEN, RACE_HIGHMOUNTAIN_TAUREN, RACE_TROLL, RACE_KUL_TIRAN };
                         if (ChrCustomizationReqEntry const* customizationReq = sChrCustomizationReqStore.LookupEntry(customizationChoice->ChrCustomizationReqID))
                         {
                             for (const auto race : druidRaces)
@@ -1165,7 +1167,9 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
                                 {
                                     shapeshiftFormByRace.emplace(race, std::make_pair(customizationOption->ID, uint8(customizationDisplayInfo->ShapeshiftFormID)));
                                     if (customizationReq->AchievementID == 0 && customizationReq->QuestID == 0 && customizationReq->ItemModifiedAppearanceID == 0 && customizationReq->RaceMask.RawValue != -1)
+                                    {
                                         _shapeshiftRaceFormDefaultOptions.emplace(std::make_pair(race, uint8(customizationDisplayInfo->ShapeshiftFormID)), customizationChoice);
+                                    }
                                 }
                             }
                         }
@@ -1227,7 +1231,7 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
             }
 
             // link shapeshift displays to race/gender/form
-            for (std::pair<uint32 const, std::pair<uint32, uint8>> const& shapeshiftOptionsForModel : Trinity::Containers::MapEqualRange(shapeshiftFormByRace, raceModel->ChrRacesID))
+            for (std::pair<uint8 const, std::pair<uint32, uint8>> const& shapeshiftOptionsForModel : Trinity::Containers::MapEqualRange(shapeshiftFormByRace, raceModel->ChrRacesID))
             {
                 ShapeshiftFormModelData& data = _chrCustomizationChoicesForShapeshifts[{ uint8(raceModel->ChrRacesID), shapeshiftOptionsForModel.second.second }];
                 data.OptionID = shapeshiftOptionsForModel.second.first;

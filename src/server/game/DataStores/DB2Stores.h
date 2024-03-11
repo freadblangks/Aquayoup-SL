@@ -97,10 +97,10 @@ TC_GAME_API extern DB2Storage<CreatureDisplayInfoExtraEntry>        sCreatureDis
 TC_GAME_API extern DB2Storage<CreatureFamilyEntry>                  sCreatureFamilyStore;
 TC_GAME_API extern DB2Storage<CreatureModelDataEntry>               sCreatureModelDataStore;
 TC_GAME_API extern DB2Storage<CreatureTypeEntry>                    sCreatureTypeStore;
-TC_GAME_API extern DB2Storage<CreatureDisplayInfoOptionEntry>       sCreatureDisplayInfoOptionStore;
 TC_GAME_API extern DB2Storage<CriteriaEntry>                        sCriteriaStore;
 TC_GAME_API extern DB2Storage<CriteriaTreeEntry>                    sCriteriaTreeStore;
 TC_GAME_API extern DB2Storage<CurrencyTypesEntry>                   sCurrencyTypesStore;
+TC_GAME_API extern DB2Storage<CreatureDisplayInfoOptionEntry>       sCreatureDisplayInfoOptionStore;
 TC_GAME_API extern DB2Storage<CurveEntry>                           sCurveStore;
 TC_GAME_API extern DB2Storage<DestructibleModelDataEntry>           sDestructibleModelDataStore;
 TC_GAME_API extern DB2Storage<DifficultyEntry>                      sDifficultyStore;
@@ -315,6 +315,7 @@ TC_GAME_API extern DB2Storage<UnitPowerBarEntry>                    sUnitPowerBa
 TC_GAME_API extern DB2Storage<VehicleEntry>                         sVehicleStore;
 TC_GAME_API extern DB2Storage<VehicleSeatEntry>                     sVehicleSeatStore;
 TC_GAME_API extern DB2Storage<VehiclePOITypeEntry>                  sVehiclePOITypeStore;
+TC_GAME_API extern DB2Storage<VignetteEntry>                        sVignetteStore;
 TC_GAME_API extern DB2Storage<WorldEffectEntry>                     sWorldEffectStore;
 TC_GAME_API extern DB2Storage<WorldMapOverlayEntry>                 sWorldMapOverlayStore;
 TC_GAME_API extern DB2Storage<WorldStateExpressionEntry>            sWorldStateExpressionStore;
