@@ -99,7 +99,7 @@ typedef std::vector<MorphData> MorphDataContainer;
 struct AppliedAuraData
 {
     uint32 spellId;
-    Unit* target;
+    ObjectGuid::LowType target;
 };
 typedef std::vector<AppliedAuraData> AppliedAuraContainer;
 

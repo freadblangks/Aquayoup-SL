@@ -2688,7 +2688,7 @@ void FreedomMgr::AddAuraApplication(Player* player, uint32 spellId, Unit* target
 {
     AppliedAuraData auraData;
     auraData.spellId = spellId;
-    auraData.target = target;
+    auraData.target = target->IsPlayer() ? target->GetGUID().GetCounter() : target->ToCreature()->GetSpawnId();
 
     AppliedAuraContainer auraContainer = _playerExtraDataStore[player->GetGUID().GetCounter()].appliedAuraStore;
     auraContainer.push_back(auraData);
@@ -2702,9 +2702,10 @@ void FreedomMgr::RemoveAllAuraApplications(Player* player)
     TC_LOG_DEBUG("freedom", "RemoveAllAuraApplications :: AuraContainer size = " SZFMTD, auraContainer.size());
     while (!auraContainer.empty()) {
         AppliedAuraData auraData = auraContainer.front();
-        if (auraData.target && auraData.target->IsInWorld()) {
-            TC_LOG_DEBUG("freedom", "Removing aura %u cast on " SZFMTD, auraData.spellId, auraData.target->GetGUID().GetCounter());
-            auraData.target->RemoveAura(auraData.spellId, player->GetGUID());
+        Unit* target = GetAnyUnit(auraData.target);
+        if (target && target->IsInWorld()) {
+            TC_LOG_DEBUG("freedom", "Removing aura %u cast on " SZFMTD, auraData.spellId, target->GetGUID().GetCounter());
+            target->RemoveAura(auraData.spellId, player->GetGUID());
         }
         auraContainer.erase(auraContainer.begin());
     }
@@ -2721,9 +2722,10 @@ void FreedomMgr::RemoveAuraApplications(Player* player, uint32 spellId)
     for (auto i = auraContainer.begin(); i != auraContainer.end();)
     {
         AppliedAuraData auraData = *i;
-        if (auraData.spellId == spellId && auraData.target && auraData.target->IsInWorld()) {
-            TC_LOG_DEBUG("freedom", "Removing aura %u cast on " SZFMTD, auraData.spellId, auraData.target->GetGUID().GetCounter());
-            auraData.target->RemoveAura(auraData.spellId, player->GetGUID());
+        Unit* target = GetAnyUnit(auraData.target);
+        if (auraData.spellId == spellId && target && target->IsInWorld()) {
+            TC_LOG_DEBUG("freedom", "Removing aura %u cast on " SZFMTD, auraData.spellId, target->GetGUID().GetCounter());
+            target->RemoveAura(auraData.spellId, player->GetGUID());
             auraContainer.erase(i);
             i = auraContainer.begin();
         }
