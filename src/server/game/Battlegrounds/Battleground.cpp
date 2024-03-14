@@ -131,7 +131,6 @@ Battleground::~Battleground()
     sEluna->OnBGDestroy(this, GetTypeID(), GetInstanceID());
 #endif
 
-    sBattlegroundMgr->RemoveBattleground(GetTypeID(), GetInstanceID());
     // unload map
     if (m_Map)
     {

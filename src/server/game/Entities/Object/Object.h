@@ -32,6 +32,7 @@
 #include "Position.h"
 #include "SharedDefines.h"
 #include "SpellDefines.h"
+#include "UniqueTrackablePtr.h"
 #include "UpdateFields.h"
 #include <list>
 #include <unordered_map>
@@ -44,6 +45,7 @@ class CreatureAI;
 class DynamicObject;
 class GameObject;
 class InstanceScript;
+class Item;
 class Map;
 class Object;
 class Player;
@@ -150,7 +152,7 @@ float const DEFAULT_COLLISION_HEIGHT = 2.03128f; // Most common value in dbc
 class TC_GAME_API Object
 {
     public:
-		ThisCore::AnyData Variables;
+        ThisCore::AnyData Variables;
         virtual ~Object();
 
         bool IsInWorld() const { return m_inWorld; }
@@ -198,6 +200,18 @@ class TC_GAME_API Object
         void SetDestroyedObject(bool destroyed) { m_isDestroyedObject = destroyed; }
         virtual void BuildUpdate(UpdateDataMapType&) { }
         void BuildFieldsUpdate(Player*, UpdateDataMapType &) const;
+
+        inline bool IsWorldObject() const { return isType(TYPEMASK_WORLDOBJECT); }
+        static WorldObject* ToWorldObject(Object* o) { return o ? o->ToWorldObject() : nullptr; }
+        static WorldObject const* ToWorldObject(Object const* o) { return o ? o->ToWorldObject() : nullptr; }
+        WorldObject* ToWorldObject() { if (IsUnit()) return reinterpret_cast<WorldObject*>(this); else return nullptr; }
+        WorldObject const* ToWorldObject() const { if (IsUnit()) return reinterpret_cast<WorldObject const*>(this); else return nullptr; }
+
+        inline bool IsItem() const { return isType(TYPEMASK_ITEM); }
+        static Item* ToItem(Object* o) { return o ? o->ToItem() : nullptr; }
+        static Item const* ToItem(Object const* o) { return o ? o->ToItem() : nullptr; }
+        Item* ToItem() { if (IsItem()) return reinterpret_cast<Item*>(this); else return nullptr; }
+        Item const* ToItem() const { if (IsItem()) return reinterpret_cast<Item const*>(this); else return nullptr; }
 
         inline bool IsPlayer() const { return GetTypeId() == TYPEID_PLAYER; }
         static Player* ToPlayer(Object* o) { return o ? o->ToPlayer() : nullptr; }
@@ -263,6 +277,8 @@ class TC_GAME_API Object
         }
 
         virtual std::string GetDebugInfo() const;
+
+        Trinity::unique_weak_ptr<Object> GetWeakPtr() const { return m_scriptRef; }
 
         virtual Loot* GetLootForPlayer([[maybe_unused]] Player const* player) const { return nullptr; }
 
@@ -402,6 +418,9 @@ class TC_GAME_API Object
         bool m_inWorld;
         bool m_isNewObject;
         bool m_isDestroyedObject;
+
+        struct NoopObjectDeleter { void operator()(Object*) const { /*noop - not managed*/ } };
+        Trinity::unique_trackable_ptr<Object> m_scriptRef;
 
         Object(Object const& right) = delete;
         Object(Object&& right) = delete;
@@ -729,10 +748,10 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void SetFarVisible(bool on);
         bool IsVisibilityOverridden() const { return m_visibilityDistanceOverride.has_value(); }
         void SetVisibilityDistanceOverride(VisibilityDistanceType type);
-		void SetVisibilityDistanceOverride(float distance);
-        void SetWorldObject(bool apply);
-        bool IsPermanentWorldObject() const { return m_isWorldObject; }
-        bool IsWorldObject() const;
+        void SetVisibilityDistanceOverride(float distance);
+        void SetIsStoredInWorldObjectGridContainer(bool apply);
+        bool IsAlwaysStoredInWorldObjectGridContainer() const { return m_isStoredInWorldObjectGridContainer; }
+        bool IsStoredInWorldObjectGridContainer() const;
 
         uint32  LastUsedScriptID;
 
@@ -794,7 +813,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         bool m_isActive;
         bool m_isFarVisible;
         Optional<float> m_visibilityDistanceOverride;
-        bool const m_isWorldObject;
+        bool const m_isStoredInWorldObjectGridContainer;
         ZoneScript* m_zoneScript;
 
         // transports (gameobjects only)
@@ -841,17 +860,17 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         bool CanDetectInvisibilityOf(WorldObject const* obj) const;
         bool CanDetectStealthOf(WorldObject const* obj, bool checkAlert = false) const;
 
-    public:
-        std::list<Creature*> FindNearestCreatures(uint32 entry, float range) const;
-        std::list<Creature*> FindAllCreaturesInRange(float range);
-        std::list<Creature*> FindAllUnfriendlyCreaturesInRange(float range);
-        std::list<GameObject*> FindNearestGameObjects(uint32 entry, float range) const;
-        AreaTrigger* SelectNearestAreaTrigger(uint32 spellId, float distance) const;
-        std::list<AreaTrigger*> SelectNearestAreaTriggers(uint32 spellId, float range);
-        std::list<Player*> SelectNearestPlayers(float range, bool alive);
-        template <typename Container>
-        void GetCreatureListInGrid(Container& creatureContainer, float maxSearchRange = 250.0f) const;
-        ThisCore::AnyData VariableStorage;
+        public:
+            std::list<Creature*> FindNearestCreatures(uint32 entry, float range) const;
+            std::list<Creature*> FindAllCreaturesInRange(float range);
+            std::list<Creature*> FindAllUnfriendlyCreaturesInRange(float range);
+            std::list<GameObject*> FindNearestGameObjects(uint32 entry, float range) const;
+            AreaTrigger* SelectNearestAreaTrigger(uint32 spellId, float distance) const;
+            std::list<AreaTrigger*> SelectNearestAreaTriggers(uint32 spellId, float range);
+            std::list<Player*> SelectNearestPlayers(float range, bool alive);
+            template <typename Container>
+            void GetCreatureListInGrid(Container& creatureContainer, float maxSearchRange = 250.0f) const;
+            ThisCore::AnyData VariableStorage;
 };
 
 namespace Trinity

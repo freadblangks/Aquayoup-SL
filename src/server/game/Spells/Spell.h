@@ -26,6 +26,7 @@
 #include "Position.h"
 #include "SharedDefines.h"
 #include "SpellDefines.h"
+#include "UniqueTrackablePtr.h"
 #include <memory>
 
 namespace WorldPackets::Spells
@@ -431,6 +432,24 @@ class TC_GAME_API Spell
         void EffectChangeActiveCombatTraitConfig();
         void EffectTeleportGraveyard();
 
+        //NEW
+        void EffectApplyAreaAura();
+        void EffectSurvey();
+        void EffectCorpseLoot();
+        void EffectSpecCount();
+        void EffectDespawnAreatrigger();
+        void SendScene();
+        void EffectLootWithToast();
+        void EffectJoinOrLeavePlayerParty();
+        uint8 m_diffMode;
+        void EffectTeleportToDigsite();
+        void EffectModReputation();
+        void EffectRemovePhase();
+        void EffectIncreaseSkill();
+        void EffectForceEquipItem();
+        void EffectScrapItem();
+        void EffectSetChromieTime();
+
         typedef std::unordered_set<Aura*> UsedSpellMods;
 
         Spell(WorldObject* caster, SpellInfo const* info, TriggerCastFlags triggerFlags, ObjectGuid originalCasterGUID = ObjectGuid::Empty, ObjectGuid originalCastId = ObjectGuid::Empty);
@@ -670,6 +689,9 @@ class TC_GAME_API Spell
         int64 GetCorpseTargetCountForEffect(SpellEffIndex effect) const;
 
         std::string GetDebugInfo() const;
+
+        Trinity::unique_weak_ptr<Spell> GetWeakPtr() const;
+
         void CallScriptOnResistAbsorbCalculateHandlers(DamageInfo const& damageInfo, uint32& resistAmount, int32& absorbAmount);
 
         bool IsWithinLOS(WorldObject const* source, WorldObject const* target, bool targetAsSourceLocation, VMAP::ModelIgnoreFlags ignoreFlags) const;
