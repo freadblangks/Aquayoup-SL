@@ -2644,7 +2644,7 @@ public:
 
     static bool HandleNpcSelectCommand(ChatHandler* handler, char const* args)
     {
-        uint32 entryId = 0;
+        uint64 entryId = 0;
         Player* source = handler->GetSession()->GetPlayer();
         float x, y, z;
         source->GetPosition(x, y, z);
@@ -2655,7 +2655,7 @@ public:
         if (*args)
         {
             ArgumentTokenizer tokenizer(args);
-            entryId = tokenizer.TryGetParam<uint32>(0, "Hcreature_entry");
+            entryId = tokenizer.TryGetParam<uint64>(0, "Hcreature_entry");
         }
 
         if (entryId)
@@ -2712,6 +2712,31 @@ public:
                 creatureDist);
 
             return true;
+        }
+        else if (entryId)
+        {
+            Creature* creature = sFreedomMgr->GetAnyCreature(entryId);
+            if (creature) {
+                CreatureTemplate const* creatureTemplate = sObjectMgr->GetCreatureTemplate(creature->GetEntry());
+                sFreedomMgr->SetCreatureSelectionForPlayer(source->GetGUID().GetCounter(), entryId);
+
+                float objX, objY, objZ;
+                creature->GetPosition(x, y, z);
+
+                double creatureDist = std::sqrt(std::pow(objX - x, 2) + std::pow(objY - y, 2) + std::pow(objZ - z, 2));
+
+                handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_SELECT,
+                    sFreedomMgr->ToChatLink("Hcreature", entryId, creatureTemplate->Name),
+                    entryId,
+                    creature->GetEntry(),
+                    creatureDist);
+
+                return true;
+            }
+            else {
+                handler->PSendSysMessage(FREEDOM_CMDE_CREATURE_NOT_FOUND);
+                return true;
+            }
         }
         else
         {
