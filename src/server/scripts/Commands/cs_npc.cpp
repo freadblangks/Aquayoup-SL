@@ -2721,7 +2721,7 @@ public:
                 sFreedomMgr->SetCreatureSelectionForPlayer(source->GetGUID().GetCounter(), entryId);
 
                 float objX, objY, objZ;
-                creature->GetPosition(x, y, z);
+                creature->GetPosition(objX, objY, objZ);
 
                 double creatureDist = std::sqrt(std::pow(objX - x, 2) + std::pow(objY - y, 2) + std::pow(objZ - z, 2));
 
