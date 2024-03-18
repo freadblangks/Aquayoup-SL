@@ -845,6 +845,7 @@ public:
                     handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_MECHANICIMM_LI, EnumUtils::ToTitle(m), m);
 
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_ANIMKITID, target->GetAIAnimKitId());
+            handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_SCALE, target->GetObjectScale());
 
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_LEVEL, target-> GetLevel());
             handler->PSendSysMessage(FREEDOM_CMDI_CREATURE_INFO_LI_EQUIPMENT, target->GetCurrentEquipmentId(), target->GetOriginalEquipmentId());
