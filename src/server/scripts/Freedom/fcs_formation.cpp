@@ -183,6 +183,15 @@ public:
             return false;
         }
 
+        ObjectGuid::LowType leaderGUID = sFreedomMgr->GetFormationLeaderGuid(formationKey);
+        Creature* leader = sFreedomMgr->GetAnyCreature(leaderGUID);
+
+        if (!leader || leader->GetMapId() != leader->GetMapId())
+        {
+            handler->PSendSysMessage("Could not find the leader of formation %s on this map.", formationKey.c_str());
+            return true;
+        }
+
         sFreedomMgr->SaveFormationPosition(formationKey, handler->GetPlayer());
 
         handler->PSendSysMessage("Formation %s positions saved.", formationKey.c_str());
