@@ -26,6 +26,7 @@
 #include "WorldSession.h"
 #include <boost/algorithm/string/predicate.hpp>
 #include "Utilities/ArgumentTokenizer.h"
+#include "CollectionMgr.h"
 
 enum FreedomCmdAuraSpells
 {
@@ -178,7 +179,9 @@ public:
             { "phase",          rbac::RBAC_FPERM_COMMAND_PHASE,                     false, NULL,                                    "", freedomPhaseCommandTable },
             { "enchant",        rbac::RBAC_FPERM_COMMAND_FREEDOM_ENCHANT,           false, &HandleFreedomEnchantCommand,            "" },
             { "pet",            rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, NULL,                                    "", freedomPetCommandTable },
-            { "mount",          rbac::RBAC_FPERM_COMMAND_FREEDOM_MOUNT,             false, NULL,                                    "", freedomMountCommandTable }
+            { "mount",          rbac::RBAC_FPERM_COMMAND_FREEDOM_MOUNT,             false, NULL,                                    "", freedomMountCommandTable },
+            { "artifactappearances", rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,    false, &HandleFreedomArtifactAppearancesCommand,"", },
+
         };
 
         static std::vector<ChatCommand> commandTable =
@@ -2215,6 +2218,29 @@ public:
         return true;
     }
 
+    static bool HandleFreedomArtifactAppearancesCommand(ChatHandler* handler)
+    {
+        std::vector<uint32> artiIds = {
+            120978, 127829, 127830, 127857, 128288,128289, 128292, 128293,128306, 128402, 128403, 128476, 128479, 128808, 128819,
+            128820, 128821, 128822, 128823, 128825, 128826, 128827, 128831, 128832, 128858,
+            128859, 128860, 128861, 128862, 128866, 128867, 128868, 128869, 128870, 128872, 128873, 128908, 128910, 128911, 128934,
+            128935, 128936, 128937, 128938, 128940, 128941, 128942, 128943, 129735, 129736,
+            129737, 129738, 129752, 129753, 129754, 129755, 129899, 129967, 129968, 129969, 129970, 130162, 132560, 133948, 133958,
+            133959, 134552, 134553, 134562, 136593, 136858, 137246, 139275, 139439,
+            139468, 139555, 139556, 139621, 139671, 139672, 139706, 139891, 140199, 140200, 140652, 140656, 143840, 144395
+        };
+
+        for (uint32 artifactId : artiIds) {
+            for (uint32 bonusId = 9; bonusId <= 32; bonusId++) {
+                auto itemModAppearance = sDB2Manager.GetItemModifiedAppearance(artifactId, bonusId);
+                if (itemModAppearance) {
+                    handler->GetPlayer()->GetSession()->GetCollectionMgr()->AddItemAppearance(itemModAppearance);
+                }
+            }
+        }
+
+        return true;
+    }
 };
 
 void AddSC_F_freedom_commandscript()

@@ -129,6 +129,7 @@ public:
     void SaveAccountItemAppearances(LoginDatabaseTransaction trans);
     void AddItemAppearance(Item* item);
     void AddItemAppearance(uint32 itemId, uint32 appearanceModId = 0);
+    void AddItemAppearance(ItemModifiedAppearanceEntry const* itemModifiedAppearance);
     void AddTransmogSet(uint32 transmogSetId);
     bool IsSetCompleted(uint32 transmogSetId) const;
     void RemoveTemporaryAppearance(Item* item);
@@ -157,7 +158,6 @@ public:
 
 private:
     bool CanAddAppearance(ItemModifiedAppearanceEntry const* itemModifiedAppearance) const;
-    void AddItemAppearance(ItemModifiedAppearanceEntry const* itemModifiedAppearance);
     void AddTemporaryAppearance(ObjectGuid const& itemGuid, ItemModifiedAppearanceEntry const* itemModifiedAppearance);
 
     WorldSession* _owner;
