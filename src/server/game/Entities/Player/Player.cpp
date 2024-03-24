@@ -15823,7 +15823,7 @@ bool Player::SatisfyQuestRace(Quest const* qInfo, bool msg) const
     return true;
 }
 
-bool Player::SatisfyQuestReputation(Quest const* qInfo, bool msg) const
+bool Player::SatisfyQuestMinReputation(Quest const* qInfo, bool msg) const
 {
     uint32 fIdMin = qInfo->GetRequiredMinRepFaction();      //Min required rep
     if (fIdMin && GetReputationMgr().GetReputation(fIdMin) < qInfo->GetRequiredMinRepValue())
@@ -15837,6 +15837,11 @@ bool Player::SatisfyQuestReputation(Quest const* qInfo, bool msg) const
         return false;
     }
 
+    return true;
+}
+
+bool Player::SatisfyQuestMaxReputation(Quest const* qInfo, bool msg) const
+{
     uint32 fIdMax = qInfo->GetRequiredMaxRepFaction();      //Max required rep
     if (fIdMax && GetReputationMgr().GetReputation(fIdMax) >= qInfo->GetRequiredMaxRepValue())
     {
@@ -15850,6 +15855,11 @@ bool Player::SatisfyQuestReputation(Quest const* qInfo, bool msg) const
     }
 
     return true;
+}
+
+bool Player::SatisfyQuestReputation(Quest const* qInfo, bool msg) const
+{
+    return SatisfyQuestMinReputation(qInfo, msg) && SatisfyQuestMaxReputation(qInfo, msg);
 }
 
 bool Player::SatisfyQuestStatus(Quest const* qInfo, bool msg) const
@@ -27334,9 +27344,9 @@ void Player::DisablePetControlsOnMount(ReactStates reactState, CommandStates com
 
     WorldPackets::Pet::PetMode petMode;
     petMode.PetGUID = pet->GetGUID();
-    petMode.ReactState = reactState;
-    petMode.CommandState = commandState;
-    petMode.Flag = 0;
+    petMode._reactState = reactState;
+    petMode._commandState = commandState;
+    petMode._flag = 0;
     SendDirectMessage(petMode.Write());
 }
 
@@ -27348,14 +27358,14 @@ void Player::EnablePetControlsOnDismount()
         petMode.PetGUID = pet->GetGUID();
         if (m_temporaryPetReactState)
         {
-            petMode.ReactState = *m_temporaryPetReactState;
+            petMode._reactState = *m_temporaryPetReactState;
             pet->SetReactState(*m_temporaryPetReactState);
         }
 
         if (CharmInfo* charmInfo = pet->GetCharmInfo())
-            petMode.CommandState = charmInfo->GetCommandState();
+            petMode._commandState = charmInfo->GetCommandState();
 
-        petMode.Flag = 0;
+        petMode._flag = 0;
         SendDirectMessage(petMode.Write());
     }
 
