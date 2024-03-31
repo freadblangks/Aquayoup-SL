@@ -35,6 +35,7 @@ class AuraScript;
 class Battlefield;
 class Battleground;
 class BattlegroundMap;
+class BattlegroundScript;
 class Channel;
 class Conversation;
 class Creature;
@@ -372,6 +373,9 @@ class TC_GAME_API BattlegroundMapScript : public ScriptObject, public MapScript<
     public:
 
         ~BattlegroundMapScript();
+
+        // Gets an BattlegroundScript object for this battleground.
+        virtual BattlegroundScript* GetBattlegroundScript(BattlegroundMap* map) const;
 };
 
 class TC_GAME_API ItemScript : public ScriptObject
@@ -505,20 +509,6 @@ class TC_GAME_API BattlefieldScript : public ScriptObject
         ~BattlefieldScript();
 
         virtual Battlefield* GetBattlefield(Map* map) const = 0;
-};
-
-class TC_GAME_API BattlegroundScript : public ScriptObject
-{
-    protected:
-
-        explicit BattlegroundScript(char const* name);
-
-    public:
-
-        ~BattlegroundScript();
-
-        // Should return a fully valid Battleground object for the type ID.
-        virtual Battleground* GetBattleground() const = 0;
 };
 
 class TC_GAME_API OutdoorPvPScript : public ScriptObject
@@ -812,6 +802,15 @@ class TC_GAME_API PlayerScript : public ScriptObject
 
         // Called when a player choose a response from a PlayerChoice
         virtual void OnPlayerChoiceResponse(Player* player, uint32 choiceId, uint32 responseId);
+
+        // Called in Spell::Cast after spell is actually casted
+        virtual void OnSuccessfulSpellCast(Player* /*player*/, Spell* /*spell*/) { }
+
+        // Called when a cooldown start for that player
+        virtual void OnCooldownStart(Player* /*player*/, SpellInfo const* /*spellInfo*/, uint32 /*itemId*/, int32& /*cooldown*/, uint32& /*categoryId*/, int32& /*categoryCooldown*/) { }
+
+        // Called when a charge recovery cooldown start for that player
+        virtual void OnChargeRecoveryTimeStart(Player* /*player*/, uint32 /*chargeCategoryId*/, int32& /*chargeRecoveryTime*/) { }
 };
 
 class TC_GAME_API AccountScript : public ScriptObject
@@ -1168,7 +1167,7 @@ class TC_GAME_API ScriptMgr
 
     public: /* BattlegroundScript */
 
-        Battleground* CreateBattleground(BattlegroundTypeId typeId);
+        BattlegroundScript* CreateBattlegroundData(BattlegroundMap* map);
 
     public: /* OutdoorPvPScript */
 
@@ -1261,6 +1260,9 @@ class TC_GAME_API ScriptMgr
         void OnPlayerRepop(Player* player);
         void OnMovieComplete(Player* player, uint32 movieId);
         void OnPlayerChoiceResponse(Player* player, uint32 choiceId, uint32 responseId);
+        void OnPlayerSuccessfulSpellCast(Player* player, Spell* spell);
+        void OnCooldownStart(Player* player, SpellInfo const* spellInfo, uint32 itemId, int32& cooldown, uint32& categoryId, int32& categoryCooldown);
+        void OnChargeRecoveryTimeStart(Player* player, uint32 chargeCategoryId, int32& chargeRecoveryTime);
 
     public: /* AccountScript */
 
@@ -1434,6 +1436,16 @@ class GenericAreaTriggerEntityScript : public AreaTriggerEntityScript
         AreaTriggerAI* GetAI(AreaTrigger* at) const override { return new AI(at); }
 };
 #define RegisterAreaTriggerAI(ai_name) new GenericAreaTriggerEntityScript<ai_name>(#ai_name)
+
+template<class Script>
+class GenericBattlegroundMapScript : public BattlegroundMapScript
+{
+public:
+    GenericBattlegroundMapScript(char const* name, uint32 mapId) : BattlegroundMapScript(name, mapId) { }
+
+    BattlegroundScript* GetBattlegroundScript(BattlegroundMap* map) const override { return new Script(map); }
+};
+#define RegisterBattlegroundMapScript(script_name, mapId) new GenericBattlegroundMapScript<script_name>(#script_name, mapId)
 
 #define sScriptMgr ScriptMgr::instance()
 

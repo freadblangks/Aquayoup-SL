@@ -743,12 +743,6 @@ bool SpellArea::IsFitToRequirements(Player const* player, uint32 newZone, uint32
         if (!player || (auraSpell > 0 && !player->HasAura(auraSpell)) || (auraSpell < 0 && player->HasAura(-auraSpell)))
             return false;
 
-    if (player)
-    {
-        if (Battleground* bg = player->GetBattleground())
-            return bg->IsSpellAllowed(spellId, player);
-    }
-
     // Extra conditions
     switch (spellId)
     {
@@ -4600,6 +4594,34 @@ void SpellMgr::LoadSpellInfoCorrections()
             spellEffectInfo->ApplyAuraName = SPELL_AURA_MOD_DECREASE_SPEED;
         });
     });
+
+    //
+    // MONK SPELLS
+    //
+
+    // Transcendence (for Transcendence: Transfer)
+    ApplySpellFix({ 101643 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
+        {
+            spellEffectInfo->ApplyAuraName = SPELL_AURA_PERIODIC_DUMMY;
+            spellEffectInfo->ApplyAuraPeriod = 500;
+        });
+    });
+
+    // Zen Pilgrimage
+    ApplySpellFix({ 126892 }, [](SpellInfo* spellInfo)
+    {
+        ApplySpellEffectFix(spellInfo, EFFECT_3, [](SpellEffectInfo* spellEffectInfo)
+        {
+            // Override spell trying to replace with unrelated version
+            spellEffectInfo->Effect = SPELL_EFFECT_NONE;
+            spellEffectInfo->BasePoints = 0;
+            spellEffectInfo->MiscValue = 0;
+        });
+    });
+
+    // END OF MONK SPELLS
 
     //
     // FIRELANDS SPELLS
