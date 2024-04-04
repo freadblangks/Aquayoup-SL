@@ -2438,7 +2438,12 @@ void FreedomMgr::DeleteCustomNpc(std::string const& key)
     for (auto spawn : data.spawns) {
         TC_LOG_DEBUG("freedom", "FREEDOMMGR: Deleting spawn " UI64FMTD, spawn);
         Creature* creature = GetAnyCreature(spawn);
-        CreatureDelete(creature);
+        if (creature) {
+            CreatureDelete(creature);
+        }
+        else {
+            Creature::DeleteFromDB(spawn);
+        }
     }
     // Cleanup database
     WorldDatabaseTransaction trans = WorldDatabase.BeginTransaction();
