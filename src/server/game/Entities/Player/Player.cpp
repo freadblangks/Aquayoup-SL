@@ -27810,6 +27810,10 @@ void Player::RemoveSpecializationSpells()
                 for (size_t j = 0; j < specSpells->size(); ++j)
                 {
                     SpecializationSpellsEntry const* specSpell = (*specSpells)[j];
+                    // Skip Titan's Grip
+                    if (specSpell->SpellID == 46917) {
+                        continue;
+                    }
                     RemoveSpell(specSpell->SpellID, true);
                     if (specSpell->OverridesSpellID)
                         RemoveOverrideSpell(specSpell->OverridesSpellID, specSpell->SpellID);
