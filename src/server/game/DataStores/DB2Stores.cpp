@@ -1203,10 +1203,23 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     for (ItemLevelSelectorQualityEntry const* itemLevelSelectorQuality : sItemLevelSelectorQualityStore)
         _itemLevelQualitySelectorQualities[itemLevelSelectorQuality->ParentILSQualitySetID].insert(itemLevelSelectorQuality);
 
+    ItemModifiedAppearanceByItemContainer itemAppearancesWithMods;
     for (ItemModifiedAppearanceEntry const* appearanceMod : sItemModifiedAppearanceStore)
     {
         ASSERT(appearanceMod->ItemID <= 0xFFFFFF);
         _itemModifiedAppearancesByItem[appearanceMod->ItemID | (appearanceMod->ItemAppearanceModifierID << 24)] = appearanceMod;
+        if (appearanceMod->ItemAppearanceModifierID) {
+            if (itemAppearancesWithMods.find(appearanceMod->ItemID) == itemAppearancesWithMods.end()) {
+                itemAppearancesWithMods[appearanceMod->ItemID] = appearanceMod;
+            }
+        }
+    }
+
+    for (std::pair<const uint32, const ItemModifiedAppearanceEntry*> pair : itemAppearancesWithMods) {
+        auto itr = _itemModifiedAppearancesByItem.find(pair.first);
+        if (itr == _itemModifiedAppearancesByItem.end()) {
+            _itemModifiedAppearancesByItem[pair.first] = pair.second;
+        }
     }
 
     for (ItemSetSpellEntry const* itemSetSpell : sItemSetSpellStore)
