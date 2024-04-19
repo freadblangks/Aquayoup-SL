@@ -93,14 +93,14 @@ public:
             size_t newSize = id + 1;
             ptr* newArr = new ptr[newSize];
             memset(newArr, 0, newSize * sizeof(ptr));
-            memcpy(newArr, _indexTable.AsChar, _indexTableSize * sizeof(ptr));
-            delete[] reinterpret_cast<char*>(_indexTable.AsT);
-            _indexTable.AsChar = newArr;
+            memcpy(newArr, _indexTable, _indexTableSize * sizeof(ptr));
+            delete[] reinterpret_cast<char*>(_indexTable);
+            _indexTable = newArr;
             _indexTableSize = newSize;
         }
 
-        delete _indexTable.AsT[id];
-        _indexTable.AsT[id] = t;
+        delete _indexTable[id];
+        _indexTable[id] = reinterpret_cast<char*>(t);
     }
 #endif
 
