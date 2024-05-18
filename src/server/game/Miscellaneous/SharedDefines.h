@@ -934,7 +934,7 @@ enum SpellAttr13 : uint32
     SPELL_ATTR13_UNK24                           = 0x01000000, // TITLE Unknown attribute 24@Attr13
     SPELL_ATTR13_UNK25                           = 0x02000000, // TITLE Unknown attribute 25@Attr13
     SPELL_ATTR13_UNK26                           = 0x04000000, // TITLE Unknown attribute 26@Attr13
-    SPELL_ATTR13_UNK27                           = 0x08000000, // TITLE Unknown attribute 27@Attr13
+    SPELL_ATTR13_DO_NOT_ALLOW_DISABLE_MOVEMENT_INTERRUPT            = 0x08000000, // TITLE Do Not Allow "Disable Movement Interrupt"
     SPELL_ATTR13_UNK28                           = 0x10000000, // TITLE Unknown attribute 28@Attr13
     SPELL_ATTR13_UNK29                           = 0x20000000, // TITLE Unknown attribute 29@Attr13
     SPELL_ATTR13_UNK30                           = 0x40000000, // TITLE Unknown attribute 30@Attr13
@@ -1365,7 +1365,7 @@ enum SpellEffectName
     SPELL_EFFECT_REMOVE_TALENT                      = 181,
     SPELL_EFFECT_DESPAWN_AREATRIGGER                = 182,
     SPELL_EFFECT_183                                = 183,
-    SPELL_EFFECT_REPUTATION_2                       = 184, // NYI
+    SPELL_EFFECT_REPUTATION_2                       = 184,
     SPELL_EFFECT_185                                = 185,
     SPELL_EFFECT_186                                = 186,
     SPELL_EFFECT_RANDOMIZE_ARCHAEOLOGY_DIGSITES     = 187, // NYI
