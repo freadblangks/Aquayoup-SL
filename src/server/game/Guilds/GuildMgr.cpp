@@ -165,7 +165,7 @@ void GuildMgr::LoadGuilds()
         CharacterDatabase.DirectExecute("DELETE gr FROM guild_rank gr LEFT JOIN guild g ON gr.guildId = g.guildId WHERE g.guildId IS NULL");
 
         //                                                         0    1          2      3       4                5
-        QueryResult result = CharacterDatabase.Query("SELECT guildid, rid, RankOrder, rname, rights, BankMoneyPerDay FROM guild_rank ORDER BY guildid ASC, rid ASC");
+        QueryResult result = CharacterDatabase.Query("SELECT guildid, rid, RankOrder, rname, rights, BankMoneyPerDay FROM guild_rank ORDER BY guildid ASC, RankOrder ASC");
 
         if (!result)
         {
