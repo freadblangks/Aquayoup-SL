@@ -7011,8 +7011,8 @@ void ObjectMgr::LoadWorldSafeLocs()
 {
     uint32 oldMSTime = getMSTime();
 
-    //                                                   0   1      2     3     4     5
-    if (QueryResult result = WorldDatabase.Query("SELECT ID, MapID, LocX, LocY, LocZ, Facing FROM world_safe_locs"))
+    //                                                   0   1      2     3     4     5       6
+    if (QueryResult result = WorldDatabase.Query("SELECT ID, MapID, LocX, LocY, LocZ, Facing, TransportSpawnId FROM world_safe_locs"))
     {
         do
         {
@@ -7025,9 +7025,22 @@ void ObjectMgr::LoadWorldSafeLocs()
                 continue;
             }
 
+            Optional<ObjectGuid::LowType> transportSpawnId = {};
+            if (!fields[6].IsNull())
+            {
+                if (!sTransportMgr->GetTransportSpawn(fields[6].GetUInt64()))
+                {
+                    TC_LOG_ERROR("sql.sql", "World location (ID: {}) has a invalid transportSpawnID {}, skipped.", id, fields[6].GetUInt64());
+                    continue;
+                }
+
+                transportSpawnId = fields[6].GetUInt64();
+            }
+
             WorldSafeLocsEntry& worldSafeLocs = _worldSafeLocs[id];
             worldSafeLocs.ID = id;
             worldSafeLocs.Loc.WorldRelocate(loc);
+            worldSafeLocs.TransportSpawnId = transportSpawnId;
 
         } while (result->NextRow());
 
@@ -10722,7 +10735,16 @@ JumpChargeParams const* ObjectMgr::GetJumpChargeParams(int32 id) const
 
 CreatureStaticFlagsOverride const* ObjectMgr::GetCreatureStaticFlagsOverride(ObjectGuid::LowType spawnId, Difficulty difficultyId) const
 {
-    return Trinity::Containers::MapGetValuePtr(_creatureStaticFlagsOverrideStore, std::make_pair(spawnId, difficultyId));
+    CreatureStaticFlagsOverride const* staticFlagsOverride = Trinity::Containers::MapGetValuePtr(_creatureStaticFlagsOverrideStore, std::make_pair(spawnId, difficultyId));
+    if (staticFlagsOverride)
+        return staticFlagsOverride;
+
+    // If there is no data for the difficulty, try to get data for the fallback difficulty
+    DifficultyEntry const* difficultyEntry = sDifficultyStore.LookupEntry(difficultyId);
+    if (difficultyEntry)
+        return GetCreatureStaticFlagsOverride(spawnId, Difficulty(difficultyEntry->FallbackDifficultyID));
+
+    return nullptr;
 }
 
 void ObjectMgr::LoadGameObjectQuestItems()
@@ -10889,10 +10911,14 @@ void ObjectMgr::LoadCreatureStaticFlagsOverride()
             continue;
         }
 
-        if (std::find(creatureData->spawnDifficulties.begin(), creatureData->spawnDifficulties.end(), difficultyId) == creatureData->spawnDifficulties.end())
+        // DIFFICULTY_NONE is always a valid fallback
+        if (difficultyId != DIFFICULTY_NONE)
         {
-            TC_LOG_ERROR("sql.sql", "Table `creature_static_flags_override` has data for a creature that is not available for the specified DifficultyId (SpawnId: {}, DifficultyId: {}), skipped", spawnId, difficultyId);
-            continue;
+            if (std::find(creatureData->spawnDifficulties.begin(), creatureData->spawnDifficulties.end(), difficultyId) == creatureData->spawnDifficulties.end())
+            {
+                TC_LOG_ERROR("sql.sql", "Table `creature_static_flags_override` has data for a creature that is not available for the specified DifficultyId (SpawnId: {}, DifficultyId: {}), skipped", spawnId, difficultyId);
+                continue;
+            }
         }
 
         CreatureStaticFlagsOverride& staticFlagsOverride = _creatureStaticFlagsOverrideStore[std::make_pair(spawnId, difficultyId)];
