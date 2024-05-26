@@ -386,6 +386,24 @@ Unit::Unit(bool isWorldObject) :
     _isCombatDisallowed = false;
 
     _lastExtraAttackSpell = 0;
+
+    SetAdvFlyRate(ADV_FLY_AIR_FRICTION, sWorld->getFloatConfig(CONFIG_ADV_FLY_AIR_FRICTION));
+    SetAdvFlyRate(ADV_FLY_MAX_VEL, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_VEL));
+    SetAdvFlyRate(ADV_FLY_LIFT_COEF, sWorld->getFloatConfig(CONFIG_ADV_FLY_LIFT_COEF));
+    SetAdvFlyRate(ADV_FLY_DOUBLE_JUMP_VEL_MOD, sWorld->getFloatConfig(CONFIG_ADV_FLY_DOUBLE_JUMP_VEL_MOD));
+    SetAdvFlyRate(ADV_FLY_GLIDE_START_MIN_HEIGHT, sWorld->getFloatConfig(CONFIG_ADV_FLY_GLIDE_START_MIN_HEIGHT));
+    SetAdvFlyRate(ADV_FLY_ADD_IMPULSE_MAX_SPEED, sWorld->getFloatConfig(CONFIG_ADV_FLY_ADD_IMPULSE_MAX_SPEED));
+    SetAdvFlyRate(ADV_FLY_MIN_BANKING_RATE, sWorld->getFloatConfig(CONFIG_ADV_FLY_MIN_BANKING_RATE));
+    SetAdvFlyRate(ADV_FLY_MAX_BANKING_RATE, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_BANKING_RATE));
+    SetAdvFlyRate(ADV_FLY_MIN_PITCHING_RATE_DOWN, sWorld->getFloatConfig(CONFIG_ADV_FLY_MIN_PITCHING_RATE_DOWN));
+    SetAdvFlyRate(ADV_FLY_MAX_PITCHING_RATE_DOWN, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_PITCHING_RATE_DOWN));
+    SetAdvFlyRate(ADV_FLY_MIN_PITCHING_RATE_UP, sWorld->getFloatConfig(CONFIG_ADV_FLY_MIN_PITCHING_RATE_UP));
+    SetAdvFlyRate(ADV_FLY_MAX_PITCHING_RATE_UP, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_PITCHING_RATE_UP));
+    SetAdvFlyRate(ADV_FLY_MIN_TURN_VELOCITY_THRESHOLD, sWorld->getFloatConfig(CONFIG_ADV_FLY_MIN_TURN_VELOCITY_THRESHOLD));
+    SetAdvFlyRate(ADV_FLY_MAX_TURN_VELOCITY_THRESHOLD, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_TURN_VELOCITY_THRESHOLD));
+    SetAdvFlyRate(ADV_FLY_SURFACE_FRICTION, sWorld->getFloatConfig(CONFIG_ADV_FLY_SURFACE_FRICTION));
+    SetAdvFlyRate(ADV_FLY_OVER_MAX_DECELERATION, sWorld->getFloatConfig(CONFIG_ADV_FLY_OVER_MAX_DECELERATION));
+    SetAdvFlyRate(ADV_FLY_LAUNCH_SPEED_COEFFICIENT, sWorld->getFloatConfig(CONFIG_ADV_FLY_LAUNCH_SPEED_COEFFICIENT));
 }
 
 ////////////////////////////////////////////////////////////
@@ -8145,8 +8163,12 @@ void Unit::UpdateMountCapability()
         if (!aurEff->GetAmount())
             aurEff->GetBase()->Remove();
         else if (MountCapabilityEntry const* capability = sMountCapabilityStore.LookupEntry(aurEff->GetAmount())) // aura may get removed by interrupt flag, reapply
+        {
             if (!HasAura(capability->ModSpellAuraID))
                 CastSpell(this, capability->ModSpellAuraID, aurEff);
+
+            SetFlightCapabilityID(capability->FlightCapabilityID);
+        }    
     }
 }
 
@@ -12412,20 +12434,18 @@ bool Unit::CanSwim() const
 void Unit::NearTeleportTo(Position const& pos, bool casting /*= false*/)
 {
     DisableSpline();
+    TeleportLocation target{ .Location = { GetMapId(), pos } };
     if (GetTypeId() == TYPEID_PLAYER)
-    {
-        WorldLocation target(GetMapId(), pos);
         ToPlayer()->TeleportTo(target, TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET | (casting ? TELE_TO_SPELL : TELE_TO_NONE));
-    }
     else
     {
-        SendTeleportPacket(pos);
+        SendTeleportPacket(target);
         UpdatePosition(pos, true);
         UpdateObjectVisibility();
     }
 }
 
-void Unit::SendTeleportPacket(Position const& pos)
+void Unit::SendTeleportPacket(TeleportLocation const& teleportLocation)
 {
     // SMSG_MOVE_UPDATE_TELEPORT is sent to nearby players to signal the teleport
     // SMSG_MOVE_TELEPORT is sent to self in order to trigger CMSG_MOVE_TELEPORT_ACK and update the position server side
@@ -12439,16 +12459,11 @@ void Unit::SendTeleportPacket(Position const& pos)
     // should this really be the unit _being_ moved? not the unit doing the moving?
     if (Player* playerMover = Unit::ToPlayer(GetUnitBeingMoved()))
     {
-        float x, y, z, o;
-        pos.GetPosition(x, y, z, o);
-        if (TransportBase* transportBase = GetDirectTransport())
-            transportBase->CalculatePassengerOffset(x, y, z, &o);
-
         WorldPackets::Movement::MoveTeleport moveTeleport;
         moveTeleport.MoverGUID = GetGUID();
-        moveTeleport.Pos = Position(x, y, z);
-        moveTeleport.TransportGUID = GetTransGUID();
-        moveTeleport.Facing = o;
+        moveTeleport.Pos = teleportLocation.Location;
+        moveTeleport.TransportGUID = teleportLocation.TransportGuid;
+        moveTeleport.Facing = teleportLocation.Location.GetOrientation();
         moveTeleport.SequenceIndex = m_movementCounter++;
         playerMover->SendDirectMessage(moveTeleport.Write());
 
@@ -12459,15 +12474,22 @@ void Unit::SendTeleportPacket(Position const& pos)
         // This is the only packet sent for creatures which contains MovementInfo structure
         // we do not update m_movementInfo for creatures so it needs to be done manually here
         moveUpdateTeleport.Status->guid = GetGUID();
-        moveUpdateTeleport.Status->pos.Relocate(pos);
         moveUpdateTeleport.Status->time = getMSTime();
-        if (TransportBase* transportBase = GetDirectTransport())
+
+        if (teleportLocation.TransportGuid)
         {
-            float tx, ty, tz, to;
-            pos.GetPosition(tx, ty, tz, to);
-            transportBase->CalculatePassengerOffset(tx, ty, tz, &to);
-            moveUpdateTeleport.Status->transport.pos.Relocate(tx, ty, tz, to);
+            Transport* transport = GetMap()->GetTransport(*teleportLocation.TransportGuid);
+            if (!transport)
+                return;
+
+            float x, y, z, o;
+            teleportLocation.Location.GetPosition(x, y, z, o);
+            transport->CalculatePassengerPosition(x, y, z, &o);
+            moveUpdateTeleport.Status->pos.Relocate(x, y, z, o);
+            moveUpdateTeleport.Status->transport.pos.Relocate(teleportLocation.Location);
         }
+        else
+            moveUpdateTeleport.Status->pos.Relocate(teleportLocation.Location);
     }
 
     // Broadcast the packet to everyone except self.
@@ -13974,4 +13996,44 @@ Unit::AuraApplicationVector Unit::GetTargetAuraApplications(uint32 spellId) cons
     }
 
     return aurApps;
+}
+
+float Unit::GetAdvFlyingVelocity() const
+{
+    auto advFlying = m_movementInfo.advFlying;
+    if (!advFlying)
+        return .0f;
+
+    return std::max((*advFlying).forwardVelocity, std::abs((*advFlying).upVelocity));
+}
+
+bool Unit::SetCanAdvFly(bool enable)
+{
+    if (enable == HasExtraUnitMovementFlag2(MOVEMENTFLAG3_CAN_ADV_FLY))
+        return false;
+
+    if (enable)
+        AddExtraUnitMovementFlag2(MOVEMENTFLAG3_CAN_ADV_FLY);
+    else
+        RemoveExtraUnitMovementFlag2(MOVEMENTFLAG3_CAN_ADV_FLY);
+
+    static OpcodeServer const advFlyOpcodeTable[2] =
+    {
+        { SMSG_MOVE_UNSET_CAN_ADV_FLY },
+        { SMSG_MOVE_SET_CAN_ADV_FLY   }
+    };
+
+    if (Player* playerMover = Unit::ToPlayer(GetUnitBeingMoved()))
+    {
+        WorldPackets::Movement::MoveSetFlag packet(advFlyOpcodeTable[enable]);
+        packet.MoverGUID = GetGUID();
+        packet.SequenceIndex = m_movementCounter++;
+        playerMover->SendDirectMessage(packet.Write());
+
+        WorldPackets::Movement::MoveUpdate moveUpdate;
+        moveUpdate.Status = &m_movementInfo;
+        SendMessageToSet(moveUpdate.Write(), playerMover);
+    }
+
+    return true;
 }
