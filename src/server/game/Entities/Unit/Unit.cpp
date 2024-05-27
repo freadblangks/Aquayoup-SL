@@ -9202,8 +9202,8 @@ void Unit::TriggerOnPowerChangeAuras(Powers power, int32 oldVal, int32 newVal)
             if (effect->GetAuraType() == SPELL_AURA_TRIGGER_SPELL_ON_POWER_PCT)
             {
                 int32 maxPower = GetMaxPower(power);
-                oldValueCheck = GetPctOf(oldVal, maxPower);
-                newValueCheck = GetPctOf(newVal, maxPower);
+                oldValueCheck = maxPower > 0 ? GetPctOf(oldVal, maxPower) : 100;
+                newValueCheck = maxPower > 0 ? GetPctOf(newVal, maxPower) : 100;
             }
 
             switch (AuraTriggerOnPowerChangeDirection(effect->GetMiscValueB()))
