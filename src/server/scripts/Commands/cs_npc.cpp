@@ -1128,9 +1128,7 @@ public:
             return true;
         }
 
-        target->SetDisplayId(displayId);
-        target->SetNativeDisplayId(displayId);
-
+        sFreedomMgr->CreatureSetModel(target, displayId);
         sFreedomMgr->CreatureSetModifyHistory(target, source);
         sFreedomMgr->SaveCreature(target);
 

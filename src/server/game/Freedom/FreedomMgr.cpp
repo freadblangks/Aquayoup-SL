@@ -432,6 +432,15 @@ void FreedomMgr::CreatureSetAnimKitId(Creature* creature, uint16 animKitId)
     creature->SetAIAnimKitId(animKitId);
 }
 
+void FreedomMgr::CreatureSetModel(Creature* creature, uint32 displayId) {
+    creature->SetDisplayId(displayId);
+    creature->SetNativeDisplayId(displayId);
+
+    _creatureExtraStore[creature->GetSpawnId()].displayLock = true;
+    _creatureExtraStore[creature->GetSpawnId()].displayId = displayId;
+    _creatureExtraStore[creature->GetSpawnId()].nativeDisplayId = displayId;
+}
+
 bool FreedomMgr::CreatureCanSwim(Creature const* creature)
 {
     return _creatureExtraStore[creature->GetSpawnId()].swim;
