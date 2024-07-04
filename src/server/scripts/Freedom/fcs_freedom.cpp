@@ -27,6 +27,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include "Utilities/ArgumentTokenizer.h"
 #include "CollectionMgr.h"
+#include "BattlePetMgr.h"
 
 enum FreedomCmdAuraSpells
 {
@@ -136,6 +137,8 @@ public:
         {
             { "scale",          rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomPetScaleCommand,           "" },
             { "delete",         rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomPetDeleteCommand,          "" },
+            { "list",           rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomListPetCommand,            "" },
+            { "add",            rbac::RBAC_FPERM_COMMAND_FREEDOM_UTILITIES,         false, &HandleFreedomAddBPetCommand,            "" },
         };
 
         static std::vector<ChatCommand> freedomCommandTable =
@@ -2238,6 +2241,91 @@ public:
                 }
             }
         }
+
+        return true;
+    }
+
+    static bool HandleFreedomListPetCommand(ChatHandler* handler, char const* args)
+    {
+        uint64 count = 0;
+
+        if (!*args)
+        {
+            for (auto petData : sBattlePetSpeciesStore)
+            {
+                auto creatureTemplate = sObjectMgr->GetCreatureTemplate(petData->CreatureID);
+                if (!creatureTemplate) {
+                    continue;
+                }
+                std::string petName = creatureTemplate->Name;
+                auto petLink = fmt::format("|cffffffff|Hbattlepet:{}:1:{}:100;10:10|h[{}]|h|r",
+                    petData->ID, BattlePets::BattlePetMgr::GetDefaultPetQuality(petData->ID),
+                    petName
+                );
+
+                handler->PSendSysMessage(FREEDOM_CMDI_BPET_LIST_ITEM, petData->ID, petLink);
+                count++;
+
+                if (count == 1000) {
+                    break;
+                }
+            }
+        }
+        else
+        {
+            ArgumentTokenizer tokenizer(args);
+            std::string name = tokenizer.TryGetParam(0);
+
+            for (auto petData : sBattlePetSpeciesStore)
+            {
+                auto creatureTemplate = sObjectMgr->GetCreatureTemplate(petData->CreatureID);
+                if (!creatureTemplate) {
+                    continue;
+                }
+
+                std::string petName = creatureTemplate->Name;
+                auto petLink = fmt::format("|cffffffff|Hbattlepet:{}:1:{}:100;10:10|h[{}]|h|r",
+                    petData->ID, BattlePets::BattlePetMgr::GetDefaultPetQuality(petData->ID),
+                    petName
+                );
+                if (boost::icontains(petName, name))
+                {
+                    handler->PSendSysMessage(FREEDOM_CMDI_BPET_LIST_ITEM, petData->ID, petLink);
+                    count++;
+                }
+
+                if (count == 1000) {
+                    break;
+                }
+            }
+        }
+
+        if (count == 0)
+            handler->PSendSysMessage(FREEDOM_CMDI_X_NOT_FOUND, "Pets");
+        else
+            handler->PSendSysMessage(FREEDOM_CMDI_SEARCH_QUERY_RESULT, count);
+
+        return true;
+    }
+
+    static bool HandleFreedomAddBPetCommand(ChatHandler* handler, char const* args)
+    {
+        if (!*args)
+        {
+            handler->PSendSysMessage("You need to provide a pet id to add.");
+            return true;
+        }
+
+        ArgumentTokenizer tokenizer(args);
+        int petId = tokenizer.TryGetParam<uint32>(0);
+        auto entry = sBattlePetSpeciesStore.LookupEntry(petId);
+        if (!entry) {
+            handler->PSendSysMessage("Could not find a pet with id: '%u'.", petId);
+            return true;
+        }
+
+        handler->GetPlayer()->GetSession()->GetBattlePetMgr()->AddPet(entry->ID, BattlePets::BattlePetMgr::SelectPetDisplay(entry),
+            BattlePets::BattlePetMgr::RollPetBreed(entry->ID), BattlePets::BattlePetMgr::GetDefaultPetQuality(entry->ID));
 
         return true;
     }
