@@ -586,6 +586,7 @@ public:
         }
 
         PhasingHandler::AddPhase(object, phaseId, true);
+        object->SetDBPhase(phaseId);
         object->SaveToDB();
         return true;
     }
@@ -940,10 +941,8 @@ public:
 
         Player* source = handler->GetSession()->GetPlayer();
         ObjectGuid::LowType guidLow = sFreedomMgr->GetSelectedGameobjectGuidFromPlayer(source->GetGUID().GetCounter());
-        bool parseAsPhaseMasks = true;
 
         ArgumentTokenizer tokenizer(args);
-        tokenizer.LoadModifier("-ids", 0);
         tokenizer.LoadModifier("-guid", 1);
 
         if (tokenizer.ModifierExists("-guid"))
@@ -951,11 +950,6 @@ public:
             std::string guidValue = tokenizer.GetModifierValue("-guid", 0);
             std::string guidKey = sFreedomMgr->GetChatLinkKey(guidValue, "Hgameobject");
             guidLow = atoul(guidKey.c_str());
-        }
-
-        if (tokenizer.ModifierExists("-ids"))
-        {
-            parseAsPhaseMasks = false;
         }
 
         if (!guidLow)
@@ -977,33 +971,7 @@ public:
             return true;
         }
 
-        std::string phases = "";
-        uint32 phaseMask = 0;
-
-        for (auto phaseElem : tokenizer)
-        {
-            uint32 phase = atoul(phaseElem.c_str());
-
-            if (!phase)
-                continue;
-
-            if (parseAsPhaseMasks)
-            {
-                if (!sFreedomMgr->IsValidPhaseMask(phase))
-                    continue;
-
-                phaseMask |= phase;
-                phases += " " + phaseElem;
-            }
-            else
-            {
-                if (!sFreedomMgr->IsValidPhaseId(phase))
-                    continue;
-
-                phaseMask |= sFreedomMgr->GetPhaseMask(phase);
-                phases += " " + phaseElem;
-            }
-        }
+        uint32 phaseMask = tokenizer.TryGetParam<uint32>(0);
 
         if (phaseMask)
         {
@@ -1013,12 +981,7 @@ public:
             object = sFreedomMgr->GameObjectRefresh(object);
         }
 
-        if (phases.empty())
-            handler->PSendSysMessage(FREEDOM_CMDE_GAMEOBJECT_PHASE_NOT_SET);
-        else if (parseAsPhaseMasks)
-            handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_PHASE_BITFIELDS, phases);
-        else
-            handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_PHASE_PHASEIDS, phases);
+        handler->PSendSysMessage(FREEDOM_CMDI_GAMEOBJECT_PHASE_PHASEIDS, phaseMask);
 
         return true;
     }

@@ -141,25 +141,12 @@ void FreedomMgr::CreaturePhase(Creature* creature, uint32 phaseMask)
     _creatureExtraStore[creature->GetSpawnId()].phaseMask = phaseMask;
 }
 
-void FreedomMgr::GameObjectPhase(GameObject* go, uint32 phaseMask)
+void FreedomMgr::GameObjectPhase(GameObject* go, uint32 phase)
 {
-    if (!phaseMask)
-        phaseMask = 1;
-
     PhasingHandler::ResetPhaseShift(go);
-
-    for (int i = 1; i < 512; i = i << 1)
-    {
-        uint32 phase = phaseMask & i;
-
-        if (phase)
-            //go->SetInPhase(GetPhaseId(phase), false, true);
-            PhasingHandler::AddPhase(go, phase, true);
-    }
-
-    //    go->SetPhaseMask(phaseMask, true);
-
-    _gameObjectExtraStore[go->GetSpawnId()].phaseMask = phaseMask;
+    PhasingHandler::AddPhase(go, phase, true);
+    go->SetDBPhase(phase);
+    _gameObjectExtraStore[go->GetSpawnId()].phaseMask = phase;
 }
 
 void FreedomMgr::PlayerPhase(Player* player, uint32 phase)
