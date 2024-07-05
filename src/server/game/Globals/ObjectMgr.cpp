@@ -2376,15 +2376,6 @@ void ObjectMgr::LoadCreatures()
             data.phaseGroup = 0;
         }
 
-        if (data.phaseId)
-        {
-            if (!sPhaseStore.LookupEntry(data.phaseId))
-            {
-                TC_LOG_ERROR("sql.sql", "Table `creature` have creature (GUID: " UI64FMTD " Entry: %u) with `phaseid` %u does not exist, set to 0", guid, data.id, data.phaseId);
-                data.phaseId = 0;
-            }
-        }
-
         if (data.phaseGroup)
         {
             if (!sDB2Manager.GetPhasesForGroup(data.phaseGroup))
@@ -2672,15 +2663,6 @@ void ObjectMgr::LoadGameObjects()
         {
             TC_LOG_ERROR("sql.sql", "Table `gameobject` have gameobject (GUID: " UI64FMTD " Entry: %u) with both `phaseid` and `phasegroup` set, `phasegroup` set to 0", guid, data.id);
             data.phaseGroup = 0;
-        }
-
-        if (data.phaseId)
-        {
-            if (!sPhaseStore.LookupEntry(data.phaseId))
-            {
-                TC_LOG_ERROR("sql.sql", "Table `gameobject` have gameobject (GUID: " UI64FMTD " Entry: %u) with `phaseid` %u does not exist, set to 0", guid, data.id, data.phaseId);
-                data.phaseId = 0;
-            }
         }
 
         if (data.phaseGroup)
