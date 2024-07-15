@@ -31,9 +31,12 @@ class TC_DATABASE_API ResultSet
         bool NextRow();
         uint64 GetRowCount() const { return _rowCount; }
         uint32 GetFieldCount() const { return _fieldCount; }
+        char* GetFieldName(uint32 index) const;
 
         Field* Fetch() const { return _currentRow; }
         Field const& operator[](std::size_t index) const;
+
+        QueryResultFieldMetadata const& GetFieldMetadata(std::size_t index) const;
 
     protected:
         std::vector<QueryResultFieldMetadata> _fieldMetadata;
@@ -62,6 +65,8 @@ class TC_DATABASE_API PreparedResultSet
 
         Field* Fetch() const;
         Field const& operator[](std::size_t index) const;
+
+        QueryResultFieldMetadata const& GetFieldMetadata(std::size_t index) const;
 
     protected:
         std::vector<QueryResultFieldMetadata> m_fieldMetadata;
