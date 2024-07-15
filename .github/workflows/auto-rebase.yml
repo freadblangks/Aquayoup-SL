@@ -1,8 +1,9 @@
-name: GCC
+name: automerge
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron:  '0 0 * * *'
 
 jobs:
   build:
@@ -10,7 +11,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        submodules: true
+        submodules: 'recursive'
+        fetch-depth: 0
+    - name: Merge TC
+      run: |
+        git status
+        git config user.email "niam5+ci@post.com" && git config user.name "Niam5"
+        git remote add Trinity https://github.com/TrinityCore/TrinityCore.git
+        git fetch --all
+        git rebase Trinity/master
+        git status
     - name: Set reusable strings
       id: strings
       shell: bash
@@ -22,8 +32,6 @@ jobs:
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/g++ g++ /usr/bin/g++-11
     - name: Setup
       env:
-        #CFLAGS: -Werror
-        #CXXFLAGS: -Werror
         CMAKE_BUILD_TYPE: Debug
       run: >
         cmake -S ${{ github.workspace }} -B ${{ steps.strings.outputs.build-output-dir }}
@@ -43,3 +51,6 @@ jobs:
         cd ${{ github.workspace }}/check_install/bin
         ./bnetserver --version
         ./worldserver --version
+    - name: Push changes
+      run: |
+          git push -f
