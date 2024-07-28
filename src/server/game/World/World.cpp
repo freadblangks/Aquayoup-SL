@@ -1837,6 +1837,9 @@ void World::SetInitialWorldSettings()
     TC_LOG_INFO("server.loading", "Initializing PlayerDump tables...");
     PlayerDump::InitializeTables();
 
+    TC_LOG_INFO("server.loading", "Loading FreedomMgr tables...");
+    sFreedomMgr->LoadAllTables();
+
     TC_LOG_INFO("server.loading", "Loading SpellInfo store...");
     sSpellMgr->LoadSpellInfoStore();
 
@@ -1967,6 +1970,9 @@ void World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading Creature Model Based Info Data...");
     sObjectMgr->LoadCreatureModelInfo();
+
+    TC_LOG_INFO("server.loading", "Loading Creature template outfits...");     // must be before LoadCreatureTemplates
+    sObjectMgr->LoadCreatureOutfits();
 
     TC_LOG_INFO("server.loading", "Loading Creature templates...");
     sObjectMgr->LoadCreatureTemplates();
@@ -3952,4 +3958,89 @@ CliCommandHolder::CliCommandHolder(void* callbackArg, char const* command, Print
 CliCommandHolder::~CliCommandHolder()
 {
     free(m_command);
+}
+
+// CUSTOM
+void TC_GAME_API World::CastAll(uint32 spell, bool triggered)
+{
+    for (SessionMap::iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+        {
+            if (itr->second &&
+                itr->second->GetPlayer() &&
+                itr->second->GetPlayer()->IsInWorld())
+            {
+                Player* target = itr->second->GetPlayer();
+                target->CastSpell(target, spell, triggered);
+            }
+        }
+    }
+
+void TC_GAME_API World::AddItemAll(uint32 itemId, int32 count, std::vector<int32> bonusListIDs, ItemContext itemContext)
+{
+    for (SessionMap::iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    {
+        if (itr->second &&
+            itr->second->GetPlayer() &&
+            itr->second->GetPlayer()->IsInWorld())
+        {
+            Player* target = itr->second->GetPlayer();
+
+                //Subtract
+                if (count < 0)
+                {
+                    target->DestroyItemCount(itemId, -count, true, false);
+                    break;
+                }
+
+                //Adding items
+                uint32 noSpaceForCount = 0;
+
+                // check space and find places
+                ItemPosCountVec dest;
+                InventoryResult msg = target->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, count, &noSpaceForCount);
+                if (msg != EQUIP_ERR_OK)                               // convert to possible store amount
+                    count -= noSpaceForCount;
+
+                if (count == 0 || dest.empty())                         // can't add any
+                    break;
+
+                Item* item = target->StoreNewItem(dest, itemId, true, GenerateItemRandomBonusListId(itemId), GuidSet(), itemContext, bonusListIDs);
+
+                if (count > 0 && item)
+                {
+                    target->SendNewItem(item, count, true, false);
+                }
+
+                if (noSpaceForCount > 0)
+                    break;
+            }
+        }
+    }
+
+void TC_GAME_API World::MassUnaura(uint32 spellId)
+{
+    for (SessionMap::iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    {
+        if (itr->second &&
+            itr->second->GetPlayer() &&
+            itr->second->GetPlayer()->IsInWorld())
+        {
+            Player* target = itr->second->GetPlayer();
+            target->RemoveAurasDueToSpell(spellId);
+        }
+    }
+}
+
+void TC_GAME_API World::MassUnauraAll()
+{
+    for (SessionMap::iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    {
+        if (itr->second &&
+            itr->second->GetPlayer() &&
+            itr->second->GetPlayer()->IsInWorld())
+        {
+            Player* target = itr->second->GetPlayer();
+            target->RemoveAllAuras();
+        }
+    }
 }

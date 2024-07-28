@@ -218,24 +218,21 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
     }
 
     // Don't try to reload the current pet
-    if (petStable->GetCurrentPet() && owner->GetPet() && petStable->GetCurrentPet()->PetNumber == petInfo->PetNumber)
+    if (petStable->GetCurrentPet() && owner->GetPet() && petStable->GetCurrentPet()->PetNumber == petInfo->PetNumber) {
         return false;
+    }
 
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(petInfo->CreatedBySpellId, owner->GetMap()->GetDifficultyID());
 
     bool isTemporarySummon = spellInfo && spellInfo->GetDuration() > 0;
     if (current && isTemporarySummon)
-        return false;
-
-    if (petInfo->Type == HUNTER_PET)
     {
-        CreatureTemplate const* creatureInfo = sObjectMgr->GetCreatureTemplate(petInfo->CreatureId);
-        if (!creatureInfo || !creatureInfo->IsTameable(owner->CanTameExoticPets()))
-            return false;
+        return false;
     }
 
     if (current && owner->IsPetNeedBeTemporaryUnsummoned())
     {
+        TC_LOG_DEBUG("freedom", "Pet needs to be temporary summoned?");
         owner->SetTemporaryUnsummonedPetNumber(petInfo->PetNumber);
         return false;
     }
@@ -393,6 +390,18 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
         m_charmInfo->LoadPetActionBar(petInfo->ActionBar);
 
     map->AddToMap(ToCreature());
+
+    // Custom pet scaling
+    QueryResult result2 = FreedomDatabase.PQuery("SELECT scale FROM pet_extra WHERE id='%u'", petInfo->PetNumber);
+    // update for case of current pet "slot = 0"
+    if (result2)
+    {
+        PetAddon& petAddon = _petAddonStore[petInfo->PetNumber];
+        petAddon.scale = (*result2)[0].GetFloat();
+        //petAddon.scale = fields[2].GetFloat();
+        if (petAddon.scale && petAddon.scale > 0.1)
+            SetObjectScale(petAddon.scale);
+    }
 
     //set last used pet number (for use in BG's)
     if (owner->GetTypeId() == TYPEID_PLAYER && isControlled() && !isTemporarySummoned() && (getPetType() == SUMMON_PET || getPetType() == HUNTER_PET))
@@ -606,6 +615,13 @@ void Pet::DeleteFromDB(uint32 petNumber)
     trans->Append(stmt);
 
     CharacterDatabase.CommitTransaction(trans);
+
+    // Cleanup custom pet scaling
+    FreedomDatabaseTransaction ftrans = FreedomDatabase.BeginTransaction();
+    FreedomDatabasePreparedStatement* fstmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_CHAR_PET_BY_ID);
+    fstmt->setUInt32(0, petNumber);
+    ftrans->Append(fstmt);
+    FreedomDatabase.CommitTransaction(ftrans);
 }
 
 void Pet::setDeathState(DeathState s)                       // overwrite virtual Creature::setDeathState and Unit::setDeathState
@@ -806,7 +822,8 @@ bool Pet::CreateBaseAtCreature(Creature* creature)
     if (CreatureFamilyEntry const* cFamily = sCreatureFamilyStore.LookupEntry(cinfo->family))
         SetName(cFamily->Name[GetOwner()->GetSession()->GetSessionDbcLocale()]);
     else
-        SetName(creature->GetNameForLocaleIdx(sObjectMgr->GetDBCLocaleIndex()));
+        SetName("Unknown");
+
 
     return true;
 }
@@ -836,14 +853,11 @@ bool Pet::CreateBaseAtTamed(CreatureTemplate const* cinfo, Map* map)
     ReplaceAllNpcFlags(UNIT_NPC_FLAG_NONE);
     ReplaceAllNpcFlags2(UNIT_NPC_FLAG_2_NONE);
 
-    if (cinfo->type == CREATURE_TYPE_BEAST)
-    {
-        SetClass(CLASS_WARRIOR);
-        SetGender(GENDER_NONE);
-        SetPowerType(POWER_FOCUS);
-        SetSheath(SHEATH_STATE_MELEE);
-        ReplaceAllPetFlags(UNIT_PET_FLAG_CAN_BE_RENAMED | UNIT_PET_FLAG_CAN_BE_ABANDONED);
-    }
+    SetClass(CLASS_WARRIOR);
+    SetGender(GENDER_NONE);
+    SetPowerType(POWER_FOCUS);
+    SetSheath(SHEATH_STATE_MELEE);
+    ReplaceAllPetFlags(UNIT_PET_FLAG_CAN_BE_RENAMED | UNIT_PET_FLAG_CAN_BE_ABANDONED);
 
     return true;
 }
@@ -870,11 +884,6 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
         {
             petType = HUNTER_PET;
             m_unitTypeMask |= UNIT_MASK_HUNTER_PET;
-        }
-        else
-        {
-            TC_LOG_ERROR("entities.pet", "Unknown type pet %u is summoned by player class %u",
-                           GetEntry(), GetOwner()->GetClass());
         }
     }
 
@@ -1959,4 +1968,45 @@ std::string Pet::GetDebugInfo() const
         << "PetType: " << std::to_string(getPetType()) << " "
         << "PetNumber: " << m_charmInfo->GetPetNumber();
     return sstr.str();
+}
+
+
+// Custom Pet scaling stuff
+PetAddon const* Pet::GetPetAddonDB(uint32 GUIDlow)
+{
+    PetAddonContainer::const_iterator itr = _petAddonStore.find(GUIDlow);
+    if (itr != _petAddonStore.end())
+        return &(itr->second);
+
+    return NULL;
+    }
+
+PetAddon const* Pet::GetPetAddon()
+{
+    if (m_charmInfo->GetPetNumber())
+    {
+        if (PetAddon const* petAddon = Pet::GetPetAddonDB(m_charmInfo->GetPetNumber()))
+            return petAddon;
+    }
+
+    return NULL;
+}
+void Pet::SetPetAddon(Player* owner, float Scale)
+{
+    uint32 petId = m_charmInfo->GetPetNumber();
+    uint64 ownerId = owner->GetGUID().GetCounter();
+    if (petId && ownerId)
+    {
+        if (Scale == 0)
+        {
+            FreedomDatabase.PExecute("DELETE FROM pet_extra WHERE owner='%u' AND id='%u'", ownerId, petId);
+            return;
+        }
+
+        QueryResult result = FreedomDatabase.PQuery("SELECT scale FROM pet_extra WHERE owner='%u' AND id='%u'", ownerId, petId);
+        if (result)
+            FreedomDatabase.PExecute("UPDATE pet_extra SET scale='%f' WHERE owner='%u' AND id='%u'", Scale, ownerId, petId);
+        else
+            FreedomDatabase.PExecute("INSERT INTO pet_extra(id,owner,scale) VALUES ('%u','%u','%f')", petId, ownerId, Scale);
+    }
 }

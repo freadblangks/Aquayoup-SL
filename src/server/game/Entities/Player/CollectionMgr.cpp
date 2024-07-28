@@ -670,6 +670,7 @@ bool CollectionMgr::CanAddAppearance(ItemModifiedAppearanceEntry const* itemModi
     if (itemModifiedAppearance->TransmogSourceTypeEnum == 6 || itemModifiedAppearance->TransmogSourceTypeEnum == 9)
         return false;
 
+
     if (!sItemSearchNameStore.LookupEntry(itemModifiedAppearance->ItemID))
         return false;
 
@@ -683,7 +684,7 @@ bool CollectionMgr::CanAddAppearance(ItemModifiedAppearanceEntry const* itemModi
     if (_owner->GetPlayer()->CanUseItem(itemTemplate) != EQUIP_ERR_OK)
         return false;
 
-    if (itemTemplate->HasFlag(ITEM_FLAG2_NO_SOURCE_FOR_ITEM_VISUAL) || itemTemplate->GetQuality() == ITEM_QUALITY_ARTIFACT)
+    if (itemTemplate->HasFlag(ITEM_FLAG2_NO_SOURCE_FOR_ITEM_VISUAL))
         return false;
 
     switch (itemTemplate->GetClass())
@@ -726,9 +727,6 @@ bool CollectionMgr::CanAddAppearance(ItemModifiedAppearanceEntry const* itemModi
                 default:
                     return false;
             }
-            if (itemTemplate->GetInventoryType() != INVTYPE_CLOAK)
-                if (!(PlayerClassByArmorSubclass[itemTemplate->GetSubClass()] & _owner->GetPlayer()->GetClassMask()))
-                    return false;
             break;
         }
         default:

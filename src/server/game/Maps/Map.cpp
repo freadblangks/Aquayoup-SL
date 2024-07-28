@@ -2273,7 +2273,17 @@ bool Map::ShouldBeSpawnedOnGridLoad(SpawnObjectType type, ObjectGuid::LowType sp
     if (GetRespawnTime(type, spawnId))
         return false;
 
-    SpawnMetadata const* spawnData = ASSERT_NOTNULL(sObjectMgr->GetSpawnMetadata(type, spawnId));
+    SpawnMetadata const* spawnData = sObjectMgr->GetSpawnMetadata(type, spawnId);
+    if (!spawnData) {
+        TC_LOG_ERROR("freedom", "Half deleted spawn detected. Map: %s, Type: %s, SpawnID: " SZFMTD, GetMapName(), type == 0 ? "Creature" : type == 1 ? "GameObject" : "AreaTrigger", spawnId);
+        if (type == 0) {
+            sObjectMgr->DeleteCreatureData(spawnId);
+        }
+        else if (type == 1) {
+            sObjectMgr->DeleteGameObjectData(spawnId);
+        }
+        return false;
+    }
     // check if the object is part of a spawn group
     SpawnGroupTemplateData const* spawnGroup = ASSERT_NOTNULL(spawnData->spawnGroupData);
     if (!(spawnGroup->flags & SPAWNGROUP_FLAG_SYSTEM))

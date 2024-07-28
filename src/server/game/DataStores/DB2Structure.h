@@ -2574,7 +2574,7 @@ struct MapEntry
     bool IsDynamicDifficultyMap() const { return GetFlags().HasFlag(MapFlags::DynamicDifficulty); }
     bool IsFlexLocking() const { return GetFlags().HasFlag(MapFlags::FlexibleRaidLocking); }
     bool IsGarrison() const { return GetFlags().HasFlag(MapFlags::Garrison); }
-    bool IsSplitByFaction() const { return ID == 609 || ID == 2175; }
+    bool IsSplitByFaction() const { return false; }// return ID == 609 || ID == 2175; }
 
     EnumFlag<MapFlags> GetFlags() const { return static_cast<MapFlags>(Flags[0]); }
     EnumFlag<MapFlags2> GetFlags2() const { return static_cast<MapFlags2>(Flags[1]); }
@@ -2733,6 +2733,22 @@ struct NamesReservedLocaleEntry
     uint32 ID;
     char const* Name;
     uint8 LocaleMask;
+};
+
+struct NPCSoundsEntry
+{
+    uint32 ID;
+    uint32 hello;
+    uint32 goodbye;
+    uint32 pissed;
+    uint32 ack;
+};
+
+struct CreatureDisplayInfoStore
+{
+    bool HasRecord(uint32 id) const;
+    const CreatureDisplayInfoEntry * LookupEntry(uint32 id) const;
+    const CreatureDisplayInfoEntry * AssertEntry(uint32 id) const;
 };
 
 struct NumTalentsAtLevelEntry

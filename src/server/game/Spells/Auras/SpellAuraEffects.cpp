@@ -49,6 +49,7 @@
 #include "WorldSession.h"
 #include <G3D/g3dmath.h>
 #include <numeric>
+#include "Config.h"
 
 class Aura;
 //
@@ -4898,6 +4899,11 @@ void AuraEffect::HandleAuraModFaction(AuraApplication const* aurApp, uint8 mode,
 
     Unit* target = aurApp->GetTarget();
 
+    // Prevent players from changing faction making them attackable
+    if (target->IsPlayer()) {
+        return;
+    }
+
     if (apply)
     {
         target->SetFaction(GetMiscValue());
@@ -5010,7 +5016,11 @@ void AuraEffect::HandleTriggerSpellOnPowerPercent(AuraApplication const* aurApp,
 
     int32 effectAmount = GetAmount();
     uint32 triggerSpell = GetSpellEffectInfo().TriggerSpell;
-    float powerAmountPct = GetPctOf(target->GetPower(Powers(GetMiscValue())), target->GetMaxPower(Powers(GetMiscValue())));
+    int32 targetPower = target->GetPower(Powers(GetMiscValue()));
+    int32 targetMaxPower = target->GetMaxPower(Powers(GetMiscValue()));
+    float powerAmountPct = targetMaxPower > 0 ? GetPctOf(targetPower, targetMaxPower) : 100.0f;
+
+    
 
     switch (AuraTriggerOnPowerChangeDirection(GetMiscValueB()))
     {
@@ -5350,6 +5360,9 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
         Unit::ApplyResilience(target, &dmg);
     damage = dmg;
 
+    float damageMod = sConfigMgr->GetFloatDefault("Freedom.Spell.DamageModifier", 0.0f);
+    damage = int32(round(dmg * damageMod));
+
     DamageInfo damageInfo(caster, target, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, BASE_ATTACK);
     Unit::CalcAbsorbResist(damageInfo);
     damage = damageInfo.GetDamage();
@@ -5439,6 +5452,9 @@ void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) c
         Unit::ApplyResilience(target, &dmg);
     damage = dmg;
 
+    float damageMod = sConfigMgr->GetFloatDefault("Freedom.Spell.DamageModifier", 0.0f);
+    damage = int32(round(dmg * damageMod));
+
     DamageInfo damageInfo(caster, target, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, GetSpellInfo()->GetAttackType());
     Unit::CalcAbsorbResist(damageInfo);
 
@@ -5500,6 +5516,9 @@ void AuraEffect::HandlePeriodicHealthFunnelAuraTick(Unit* target, Unit* caster) 
     }
 
     uint32 damage = std::max(GetAmount(), 0);
+
+    float damageMod = sConfigMgr->GetFloatDefault("Freedom.Spell.DamageModifier", 0.0f);
+    damage = int32(round(damage * damageMod));
     // do not kill health donator
     if (caster->GetHealth() < damage)
         damage = caster->GetHealth() - 1;

@@ -23,6 +23,7 @@
 #include "CreatureAI.h"
 #include "CreatureAISelector.h"
 #include "CreatureGroups.h"
+#include "CreatureOutfit.h"
 #include "DatabaseEnv.h"
 #include "DB2Stores.h"
 #include "Formulas.h"
@@ -343,6 +344,8 @@ void Creature::AddToWorld()
 
         if (GetZoneScript())
             GetZoneScript()->OnCreatureCreate(this);
+
+        sScriptMgr->OnCreatureAddedToWorld(this);
     }
 }
 
@@ -353,6 +356,8 @@ void Creature::RemoveFromWorld()
         if (GetZoneScript())
             GetZoneScript()->OnCreatureRemove(this);
 
+        sScriptMgr->OnCreatureRemovedFromWorld(this);
+
         if (m_formation)
             sFormationMgr->RemoveCreatureFromGroup(m_formation, this);
 
@@ -361,6 +366,49 @@ void Creature::RemoveFromWorld()
         if (m_spawnId)
             Trinity::Containers::MultimapErasePair(GetMap()->GetCreatureBySpawnIdStore(), m_spawnId, this);
         GetMap()->GetObjectsStore().Remove<Creature>(GetGUID());
+    }
+}
+
+void Creature::SetOutfit(std::shared_ptr<CreatureOutfit> const & outfit, float scale)
+{
+    // Set new outfit
+    if (m_outfit)
+    {
+        // if had old outfit
+        // then delay displayid setting to allow equipment
+        // to change by using invisible model in between
+        SetDisplayId(CreatureOutfit::invisible_model, scale);
+        m_outfit = outfit;
+    }
+    else
+    {
+        // else set new outfit directly since we change from non-outfit->outfit
+        m_outfit = outfit;
+        SetDisplayId(outfit->GetDisplayId(), scale);
+    }
+}
+
+void Creature::SendMirrorSound(Player* target, uint8 type)
+{
+    std::shared_ptr<CreatureOutfit> const & outfit = GetOutfit();
+    if (!outfit)
+        return;
+    if (!outfit->npcsoundsid)
+        return;
+    if (auto const* npcsounds = sNPCSoundsStore.LookupEntry(outfit->npcsoundsid))
+    {
+        switch (type)
+        {
+        case 0:
+            PlayDistanceSound(npcsounds->hello, target);
+            break;
+        case 1:
+            PlayDistanceSound(npcsounds->goodbye, target);
+            break;
+        case 2:
+            PlayDistanceSound(npcsounds->pissed, target);
+            break;
+        }
     }
 }
 
@@ -619,6 +667,9 @@ bool Creature::UpdateEntry(uint32 entry, CreatureData const* data /*= nullptr*/,
 
     ReplaceAllUnitFlags(UnitFlags(unitFlags));
     ReplaceAllUnitFlags2(UnitFlags2(unitFlags2));
+    bool needsflag = m_outfit && Unit::GetDisplayId() == m_outfit->GetDisplayId();
+    if (needsflag)
+        SetMirrorImageFlag(true);
     ReplaceAllUnitFlags3(UnitFlags3(unitFlags3));
 
     ReplaceAllDynamicFlags(dynamicFlags);
@@ -698,8 +749,22 @@ bool Creature::UpdateEntry(uint32 entry, CreatureData const* data /*= nullptr*/,
     return true;
 }
 
+// copy paste from ClearChangesMask
+template<typename Derived, typename T, uint32 BlockBit, uint32 Bit>
+static uint32 GetUpdateFieldHolderIndex(UF::UpdateField<T, BlockBit, Bit>(Derived::* /*field*/))
+{
+    return Bit;
+}
+
 void Creature::Update(uint32 diff)
 {
+    if (m_outfit && !m_values.HasChanged(GetUpdateFieldHolderIndex(&UF::UnitData::DisplayID)) && Unit::GetDisplayId() == CreatureOutfit::invisible_model)
+    {
+        // has outfit, displayid is invisible and displayid update already sent to clients
+        // set outfit display
+        SetDisplayId(m_outfit->GetDisplayId(), m_unitData->DisplayScale);
+    }
+
     if (IsAIEnabled() && m_triggerJustAppeared && m_deathState != DEAD)
     {
         if (m_respawnCompatibilityMode && m_vehicleKit)
@@ -1060,6 +1125,8 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
     ASSERT(map);
     SetMap(map);
 
+    auto extraData = sFreedomMgr->GetCreatureExtraData(GetSpawnId());
+
     if (data)
     {
         PhasingHandler::InitDbPhaseShift(GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
@@ -1132,6 +1199,19 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
 
     LastUsedScriptID = GetScriptId();
 
+    if (extraData && extraData->displayLock)
+    {
+        SetDisplayId(extraData->displayId);
+        SetNativeDisplayId(extraData->nativeDisplayId);
+    }
+
+    if (extraData && extraData->genderLock)
+    {
+        // TODO Determine if this is neccesary because ObjectMgr GetCreatureModelRandomGender just seems to set a new display id.
+        // Might already be covered by setting the displayId.
+        // SetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER, extraData->gender);
+    }
+
     if (IsSpiritHealer() || IsSpiritGuide() || (GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_GHOST_VISIBILITY))
     {
         m_serverSideVisibility.SetValue(SERVERSIDE_VISIBILITY_GHOST, GHOST_VISIBILITY_GHOST);
@@ -1149,6 +1229,10 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
 
     GetThreatManager().Initialize();
 
+    if (extraData && extraData->scale >= 0)
+    {
+        SetObjectScale(extraData->scale);
+    }
     return true;
 }
 
@@ -1515,6 +1599,41 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     stmt->setUInt32(index++, dynamicflags);
     trans->Append(stmt);
 
+    CreatureAddon const* addonData = GetCreatureAddon();
+    if (addonData)
+    {
+        index = 0;
+        // REPLACE INTO creature_addon(guid, path_id, mount, bytes1, bytes2, emote, aura, aiAnimKit)
+        stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_ADDON_FULL);
+        stmt->setUInt64(index++, m_spawnId);
+        stmt->setUInt32(index++, addonData->path_id);
+        stmt->setUInt32(index++, addonData->mount);
+        stmt->setUInt32(index++, addonData->bytes1);
+        stmt->setUInt32(index++, addonData->bytes2);
+        stmt->setUInt32(index++, addonData->emote);
+
+        if (!addonData->auras.empty())
+        {
+            std::string auraList = "";
+            for (auto aura : addonData->auras)
+            {
+                if (auraList.empty())
+                    auraList = std::to_string(aura);
+                else
+                    auraList += " " + std::to_string(aura);
+            }
+
+            stmt->setString(index++, auraList);
+        }
+        else
+        {
+            stmt->setNull(index++);
+        }
+
+        stmt->setUInt16(index, addonData->aiAnimKit);
+        trans->Append(stmt);
+    }
+
     WorldDatabase.CommitTransaction(trans);
 }
 
@@ -1816,6 +1935,11 @@ bool Creature::LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap, 
     // checked at creature_template loading
     m_defaultMovementType = MovementGeneratorType(data->movementType);
 
+    if (data->displayid) {
+        SetDisplayId(data->displayid);
+        SetNativeDisplayId(data->displayid);
+    }
+
     if (addToMap && !GetMap()->AddToMap(this))
         return false;
     return true;
@@ -1964,6 +2088,10 @@ bool Creature::hasInvolvedQuest(uint32 quest_id) const
 
     WorldDatabase.CommitTransaction(trans);
 
+    FreedomDatabasePreparedStatement* fstmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_CREATUREEXTRA);
+    fstmt->setUInt64(0, spawnId);
+
+    FreedomDatabase.Execute(fstmt);
     return true;
 }
 
@@ -2777,6 +2905,28 @@ void Creature::UpdateMovementFlags()
     if (GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE)
         return;
 
+    // override
+    auto extraData = sFreedomMgr->GetCreatureExtraData(this->GetSpawnId());
+    if (extraData)
+    {
+        SetDisableGravity(!extraData->gravity);
+
+        if (extraData->swim)
+        {
+            SetSwim(true);
+        }
+        else if (extraData->gravity)
+            SetSwim(IsInWater() && extraData->swim);
+        else if (extraData->fly)
+            SetSwim(true);
+        else
+        {
+            SetSwim(CanSwim() && IsInWater());
+        }
+
+        return;
+    }
+
     // Set the movement flags if the creature is in that mode. (Only fly if actually in air, only swim if in water, etc)
     float ground = GetFloorZ();
 
@@ -2803,10 +2953,7 @@ void Creature::UpdateMovementFlags()
 
     if (!isInAir)
         RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING);
-
-    SetSwim(CanSwim() && IsInWater());
 }
-
 CreatureMovementData const& Creature::GetMovementTemplate() const
 {
     if (CreatureMovementData const* movementOverride = sObjectMgr->GetCreatureMovementOverride(m_spawnId))
@@ -3220,7 +3367,45 @@ void Creature::SetObjectScale(float scale)
     }
 }
 
+uint32 Creature::GetDisplayId() const
+{
+    if (m_outfit && m_outfit->GetId())
+        return m_outfit->GetId();
+    return Unit::GetDisplayId();
+}
+
 void Creature::SetDisplayId(uint32 modelId, float displayScale /*= 1.f*/)
+{
+    if (auto const & outfit = sObjectMgr->GetOutfit(modelId))
+    {
+        SetOutfit(outfit, displayScale);
+        return;
+    }
+    else
+    {
+        if (m_outfit)
+        {
+            // if has outfit
+            if (modelId != m_outfit->GetDisplayId())
+            {
+                // and outfit's real modelid doesnt match modelid being set
+                // remove outfit and continue setting the new model
+                m_outfit.reset();
+                SetMirrorImageFlag(false);
+            }
+            else
+            {
+                // outfit's real modelid being set
+                // add flags and continue setting the model
+                SetMirrorImageFlag(true);
+            }
+        }
+    }
+
+    SetDisplayIdRaw(modelId, displayScale);
+}
+
+void Creature::SetDisplayIdRaw(uint32 modelId, float displayScale /*= 1.f*/)
 {
     Unit::SetDisplayId(modelId, displayScale);
 
@@ -3517,4 +3702,8 @@ void Creature::ExitVehicle(Position const* /*exitPosition*/)
     // if the creature exits a vehicle, set it's home position to the
     // exited position so it won't run away (home) and evade if it's hostile
     SetHomePosition(GetPosition());
+}
+
+void Creature::SetGuid(ObjectGuid const& guid) {
+    Object::_Create(guid);
 }

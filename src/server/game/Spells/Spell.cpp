@@ -6172,13 +6172,9 @@ SpellCastResult Spell::CheckCast(bool strict, int32* param1 /*= nullptr*/, int32
                         if (info.first->Type == HUNTER_PET)
                         {
                             CreatureTemplate const* creatureInfo = sObjectMgr->GetCreatureTemplate(info.first->CreatureId);
-                            if (!creatureInfo || !creatureInfo->IsTameable(playerCaster->CanTameExoticPets()))
+                            if (!creatureInfo)
                             {
-                                // if problem in exotic pet
-                                if (creatureInfo && creatureInfo->IsTameable(true))
-                                    playerCaster->SendTameFailure(PetTameResult::CantControlExotic);
-                                else
-                                    playerCaster->SendTameFailure(PetTameResult::NoPetAvailable);
+                                playerCaster->SendTameFailure(PetTameResult::NoPetAvailable);
 
                                 return SPELL_FAILED_DONT_REPORT;
                             }

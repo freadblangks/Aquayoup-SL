@@ -1760,7 +1760,7 @@ void WorldSession::HandleCharCustomizeCallback(std::shared_ptr<WorldPackets::Cha
     Gender plrGender = Gender(fields[3].GetUInt8());
     uint16 atLoginFlags = fields[4].GetUInt16();
 
-    if (!ValidateAppearance(plrRace, plrClass, plrGender, MakeChrCustomizationChoiceRange(customizeInfo->Customizations)))
+    if (!ValidateAppearance(plrRace, plrClass, Gender(customizeInfo->SexID), MakeChrCustomizationChoiceRange(customizeInfo->Customizations)))
     {
         SendCharCustomize(CHAR_CREATE_ERROR, customizeInfo.get());
         return;
@@ -1836,6 +1836,16 @@ void WorldSession::HandleCharCustomizeCallback(std::shared_ptr<WorldPackets::Cha
 
         trans->Append(stmt);
     }
+
+    if (plrGender != customizeInfo->SexID) {
+        stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_RACE);
+        stmt->setUInt8(0, plrRace);
+        stmt->setUInt8(1, customizeInfo->SexID);
+        stmt->setUInt16(2, PLAYER_EXTRA_HAS_RACE_CHANGED);
+        stmt->setUInt64(3, lowGuid);
+        trans->Append(stmt);
+    }
+
 
     CharacterDatabase.CommitTransaction(trans);
 
@@ -2158,8 +2168,9 @@ void WorldSession::HandleCharRaceOrFactionChangeCallback(std::shared_ptr<WorldPa
     {
         stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_RACE);
         stmt->setUInt8(0, factionChangeInfo->RaceID);
-        stmt->setUInt16(1, PLAYER_EXTRA_HAS_RACE_CHANGED);
-        stmt->setUInt64(2, lowGuid);
+        stmt->setUInt8(1, factionChangeInfo->SexID);
+        stmt->setUInt16(2, PLAYER_EXTRA_HAS_RACE_CHANGED);
+        stmt->setUInt64(3, lowGuid);
 
         trans->Append(stmt);
     }
@@ -2187,7 +2198,7 @@ void WorldSession::HandleCharRaceOrFactionChangeCallback(std::shared_ptr<WorldPa
         trans->Append(stmt);
 
         // Race specific languages
-        if (factionChangeInfo->RaceID != RACE_ORC && factionChangeInfo->RaceID != RACE_HUMAN && factionChangeInfo->RaceID != RACE_MAGHAR_ORC)
+        if (factionChangeInfo->RaceID != RACE_ORC && factionChangeInfo->RaceID != RACE_HUMAN && factionChangeInfo->RaceID != RACE_MAGHAR_ORC && factionChangeInfo->RaceID != RACE_KUL_TIRAN)
         {
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHAR_SKILL_LANGUAGE);
             stmt->setUInt64(0, lowGuid);
@@ -2203,6 +2214,7 @@ void WorldSession::HandleCharRaceOrFactionChangeCallback(std::shared_ptr<WorldPa
                     stmt->setUInt16(1, 759);
                     break;
                 case RACE_GNOME:
+                case RACE_MECHAGNOME:
                     stmt->setUInt16(1, 313);
                     break;
                 case RACE_NIGHTELF:
@@ -2219,6 +2231,7 @@ void WorldSession::HandleCharRaceOrFactionChangeCallback(std::shared_ptr<WorldPa
                     stmt->setUInt16(1, 115);
                     break;
                 case RACE_TROLL:
+                case RACE_ZANDALARI_TROLL:
                     stmt->setUInt16(1, 315);
                     break;
                 case RACE_BLOODELF:
@@ -2231,6 +2244,8 @@ void WorldSession::HandleCharRaceOrFactionChangeCallback(std::shared_ptr<WorldPa
                 case RACE_NIGHTBORNE:
                     stmt->setUInt16(1, 2464);
                     break;
+                case RACE_VULPERA:
+                    stmt->setUInt16(1, 2776);
                 default:
                     TC_LOG_ERROR("entities.player", "Could not find language data for race (%u).", factionChangeInfo->RaceID);
                     SendCharFactionChange(CHAR_CREATE_ERROR, factionChangeInfo.get());

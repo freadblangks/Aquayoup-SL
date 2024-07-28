@@ -58,8 +58,16 @@ public:
             { "swim",     rbac::RBAC_PERM_COMMAND_MODIFY_SPEED_SWIM,     false, &HandleModifySwimCommand,   "" },
             { "",         rbac::RBAC_PERM_COMMAND_MODIFY_SPEED,          false, &HandleModifyASpeedCommand, "" },
         };
+
+        static std::vector<ChatCommand> morphCommandTable =
+        {
+            { "native",  rbac::RBAC_PERM_COMMAND_MORPH,                  false, &HandleModifyMorphNativeCommand,  ""},
+            { "",        rbac::RBAC_PERM_COMMAND_MORPH,                  false, &HandleModifyMorphCommand,        ""},
+        };
+
         static std::vector<ChatCommand> modifyCommandTable =
         {
+            { "animkit",      rbac::RBAC_FPERM_COMMAND_MODIFY_AIANIMKIT,   false, &HandleModifyAnimKitCommand,      "" },
             { "currency",     rbac::RBAC_PERM_COMMAND_MODIFY_CURRENCY,     false, &HandleModifyCurrencyCommand,      "" },
             { "drunk",        rbac::RBAC_PERM_COMMAND_MODIFY_DRUNK,        false, &HandleModifyDrunkCommand,         "" },
             { "energy",       rbac::RBAC_PERM_COMMAND_MODIFY_ENERGY,       false, &HandleModifyEnergyCommand,        "" },
@@ -84,7 +92,7 @@ public:
         };
         static std::vector<ChatCommand> commandTable =
         {
-            { "morph",   rbac::RBAC_PERM_COMMAND_MORPH,   false, &HandleModifyMorphCommand,          "" },
+            { "morph",   rbac::RBAC_PERM_COMMAND_MORPH,   false, nullptr,                 "", morphCommandTable  },
             { "demorph", rbac::RBAC_PERM_COMMAND_DEMORPH, false, &HandleDeMorphCommand,              "" },
             { "modify",  rbac::RBAC_PERM_COMMAND_MODIFY,  false, nullptr,                 "", modifyCommandTable },
         };
@@ -1096,6 +1104,48 @@ public:
         powerAmount *= powerType->DisplayModifier;
         target->SetMaxPower(Powers(powerType->PowerTypeEnum), powerAmount);
         target->SetPower(Powers(powerType->PowerTypeEnum), powerAmount);
+        return true;
+    }
+
+    static bool HandleModifyMorphNativeCommand(ChatHandler* handler, const char* args)
+    {
+        if (!*args)
+            return false;
+
+        uint32 display_id = atoul(args);
+
+        Unit* target = handler->getSelectedUnit();
+        if (!target)
+            target = handler->GetSession()->GetPlayer();
+
+        // check online security
+        else if (target->GetTypeId() == TYPEID_PLAYER && handler->HasLowerSecurity(target->ToPlayer(), ObjectGuid::Empty))
+            return false;
+
+        target->SetNativeDisplayId(display_id);
+
+        return true;
+    }
+
+    static bool HandleModifyAnimKitCommand(ChatHandler* handler, const char* args)
+    {
+            auto player = handler->GetSession()->GetPlayer();
+
+        if (!args || strlen(args) == 0) {
+            handler->PSendSysMessage("Please provide an animation kit id.");
+            return true;
+        }
+
+        uint64 animKitId = atoul(args);
+        const AnimKitEntry* entry = sAnimKitStore.LookupEntry(animKitId);
+
+        if (!entry && animKitId != 0) {
+            handler->PSendSysMessage("Animation Kit Id '%u' is not valid.", animKitId);
+            return true;
+        }
+
+        player->SetAIAnimKitId(animKitId);
+
         return true;
     }
 };

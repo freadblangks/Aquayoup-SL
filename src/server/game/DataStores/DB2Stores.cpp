@@ -23,6 +23,8 @@
 #include "ItemTemplate.h"
 #include "IteratorPair.h"
 #include "Log.h"
+#include "ObjectDefines.h"
+#include "ObjectMgr.h"
 #include "Random.h"
 #include "Regex.h"
 #include "Timer.h"
@@ -108,7 +110,11 @@ DB2Storage<ContentTuningEntry>                  sContentTuningStore("ContentTuni
 DB2Storage<ContentTuningXExpectedEntry>         sContentTuningXExpectedStore("ContentTuningXExpected.db2", ContentTuningXExpectedLoadInfo::Instance());
 DB2Storage<ConversationLineEntry>               sConversationLineStore("ConversationLine.db2", ConversationLineLoadInfo::Instance());
 DB2Storage<CorruptionEffectsEntry>              sCorruptionEffectsStore("CorruptionEffects.db2", CorruptionEffectsLoadInfo::Instance());
-DB2Storage<CreatureDisplayInfoEntry>            sCreatureDisplayInfoStore("CreatureDisplayInfo.db2", CreatureDisplayInfoLoadInfo::Instance());
+DB2Storage<CreatureDisplayInfoEntry>            sCreatureDisplayInfoStoreRaw("CreatureDisplayInfo.db2", CreatureDisplayInfoLoadInfo::Instance());
+CreatureDisplayInfoStore                        sCreatureDisplayInfoStore;
+bool CreatureDisplayInfoStore::HasRecord(uint32 id) const { return sCreatureDisplayInfoStoreRaw.HasRecord(sObjectMgr->GetRealDisplayId(id)); }
+const CreatureDisplayInfoEntry * CreatureDisplayInfoStore::LookupEntry(uint32 id) const { return sCreatureDisplayInfoStoreRaw.LookupEntry(sObjectMgr->GetRealDisplayId(id)); }
+const CreatureDisplayInfoEntry * CreatureDisplayInfoStore::AssertEntry(uint32 id) const { return sCreatureDisplayInfoStoreRaw.AssertEntry(sObjectMgr->GetRealDisplayId(id)); }
 DB2Storage<CreatureDisplayInfoExtraEntry>       sCreatureDisplayInfoExtraStore("CreatureDisplayInfoExtra.db2", CreatureDisplayInfoExtraLoadInfo::Instance());
 DB2Storage<CreatureFamilyEntry>                 sCreatureFamilyStore("CreatureFamily.db2", CreatureFamilyLoadInfo::Instance());
 DB2Storage<CreatureModelDataEntry>              sCreatureModelDataStore("CreatureModelData.db2", CreatureModelDataLoadInfo::Instance());
@@ -229,6 +235,7 @@ DB2Storage<NameGenEntry>                        sNameGenStore("NameGen.db2", Nam
 DB2Storage<NamesProfanityEntry>                 sNamesProfanityStore("NamesProfanity.db2", NamesProfanityLoadInfo::Instance());
 DB2Storage<NamesReservedEntry>                  sNamesReservedStore("NamesReserved.db2", NamesReservedLoadInfo::Instance());
 DB2Storage<NamesReservedLocaleEntry>            sNamesReservedLocaleStore("NamesReservedLocale.db2", NamesReservedLocaleLoadInfo::Instance());
+DB2Storage<NPCSoundsEntry>                      sNPCSoundsStore("NPCSounds.db2", NPCSoundsLoadInfo::Instance());
 DB2Storage<NumTalentsAtLevelEntry>              sNumTalentsAtLevelStore("NumTalentsAtLevel.db2", NumTalentsAtLevelLoadInfo::Instance());
 DB2Storage<OverrideSpellDataEntry>              sOverrideSpellDataStore("OverrideSpellData.db2", OverrideSpellDataLoadInfo::Instance());
 DB2Storage<ParagonReputationEntry>              sParagonReputationStore("ParagonReputation.db2", ParagonReputationLoadInfo::Instance());
@@ -683,7 +690,7 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     LOAD_DB2(sContentTuningXExpectedStore);
     LOAD_DB2(sConversationLineStore);
     LOAD_DB2(sCorruptionEffectsStore);
-    LOAD_DB2(sCreatureDisplayInfoStore);
+    LOAD_DB2(sCreatureDisplayInfoStoreRaw);
     LOAD_DB2(sCreatureDisplayInfoExtraStore);
     LOAD_DB2(sCreatureFamilyStore);
     LOAD_DB2(sCreatureModelDataStore);
@@ -804,6 +811,7 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     LOAD_DB2(sNamesProfanityStore);
     LOAD_DB2(sNamesReservedStore);
     LOAD_DB2(sNamesReservedLocaleStore);
+    LOAD_DB2(sNPCSoundsStore);
     LOAD_DB2(sNumTalentsAtLevelStore);
     LOAD_DB2(sOverrideSpellDataStore);
     LOAD_DB2(sParagonReputationStore);
@@ -1195,10 +1203,23 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     for (ItemLevelSelectorQualityEntry const* itemLevelSelectorQuality : sItemLevelSelectorQualityStore)
         _itemLevelQualitySelectorQualities[itemLevelSelectorQuality->ParentILSQualitySetID].insert(itemLevelSelectorQuality);
 
+    ItemModifiedAppearanceByItemContainer itemAppearancesWithMods;
     for (ItemModifiedAppearanceEntry const* appearanceMod : sItemModifiedAppearanceStore)
     {
         ASSERT(appearanceMod->ItemID <= 0xFFFFFF);
         _itemModifiedAppearancesByItem[appearanceMod->ItemID | (appearanceMod->ItemAppearanceModifierID << 24)] = appearanceMod;
+        if (appearanceMod->ItemAppearanceModifierID) {
+            if (itemAppearancesWithMods.find(appearanceMod->ItemID) == itemAppearancesWithMods.end()) {
+                itemAppearancesWithMods[appearanceMod->ItemID] = appearanceMod;
+            }
+        }
+    }
+
+    for (std::pair<const uint32, const ItemModifiedAppearanceEntry*> pair : itemAppearancesWithMods) {
+        auto itr = _itemModifiedAppearancesByItem.find(pair.first);
+        if (itr == _itemModifiedAppearancesByItem.end()) {
+            _itemModifiedAppearancesByItem[pair.first] = pair.second;
+        }
     }
 
     for (ItemSetSpellEntry const* itemSetSpell : sItemSetSpellStore)

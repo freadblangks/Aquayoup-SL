@@ -2009,7 +2009,7 @@ void Unit::HandleEmoteCommand(Emote emoteId, Player* target /*=nullptr*/, Trinit
                 absorbAurEff->ChangeAmount(absorbAurEff->GetAmount() - currentAbsorb);
                 // Aura cannot absorb anything more - remove it
                 if (absorbAurEff->GetAmount() <= 0)
-                    absorbAurEff->GetBase()->Remove(AURA_REMOVE_BY_ENEMY_SPELL);
+                    existExpired = true;
             }
         }
 
@@ -3551,6 +3551,9 @@ void Unit::RemoveAura(AuraApplicationMap::iterator &i, AuraRemoveMode mode)
 
 void Unit::RemoveAura(uint32 spellId, ObjectGuid caster, uint32 reqEffMask, AuraRemoveMode removeMode)
 {
+    if (m_appliedAuras.empty()) {
+        return;
+    }
     AuraApplicationMapBoundsNonConst range = m_appliedAuras.equal_range(spellId);
     for (AuraApplicationMap::iterator iter = range.first; iter != range.second;)
     {
@@ -9199,8 +9202,8 @@ void Unit::TriggerOnPowerChangeAuras(Powers power, int32 oldVal, int32 newVal)
             if (effect->GetAuraType() == SPELL_AURA_TRIGGER_SPELL_ON_POWER_PCT)
             {
                 int32 maxPower = GetMaxPower(power);
-                oldValueCheck = GetPctOf(oldVal, maxPower);
-                newValueCheck = GetPctOf(newVal, maxPower);
+                oldValueCheck = maxPower > 0 ? GetPctOf(oldVal, maxPower) : 100;
+                newValueCheck = maxPower > 0 ? GetPctOf(newVal, maxPower) : 100;
             }
 
             switch (AuraTriggerOnPowerChangeDirection(effect->GetMiscValueB()))
@@ -9360,8 +9363,10 @@ void Unit::RemoveFromWorld()
         {
             if (owner->m_Controlled.find(this) != owner->m_Controlled.end())
             {
-                TC_LOG_FATAL("entities.unit", "Unit %u is in controlled list of %u when removed from world", GetEntry(), owner->GetEntry());
-                ABORT();
+                // Due to unaura changes replaced this panic with a removal.
+                owner->m_Controlled.erase(this);
+                //TC_LOG_FATAL("entities.unit", "Unit %u is in controlled list of %u when removed from world", GetEntry(), owner->GetEntry());
+                //ABORT();
             }
         }
 
@@ -12606,7 +12611,7 @@ bool Unit::SetWalk(bool enable)
     return true;
 }
 
-bool Unit::SetDisableGravity(bool disable, bool updateAnimTier /*= true*/)
+bool Unit::SetDisableGravity(bool disable, bool /* updateAnimTier = true*/)
 {
     if (disable == IsGravityDisabled())
         return false;
@@ -12643,15 +12648,15 @@ bool Unit::SetDisableGravity(bool disable, bool updateAnimTier /*= true*/)
         SendMessageToSet(packet.Write(), true);
     }
 
-    if (IsCreature() && updateAnimTier && IsAlive() && !HasUnitState(UNIT_STATE_ROOT) && !ToCreature()->GetMovementTemplate().IsRooted())
-    {
-        if (IsGravityDisabled())
-            SetAnimTier(AnimTier::Fly);
-        else if (IsHovering())
-            SetAnimTier(AnimTier::Hover);
-        else
-            SetAnimTier(AnimTier::Ground);
-    }
+    //if (IsCreature() && updateAnimTier && IsAlive() && !HasUnitState(UNIT_STATE_ROOT) && !ToCreature()->GetMovementTemplate().IsRooted())
+    //{
+    //    if (IsGravityDisabled())
+    //        SetAnimTier(AnimTier::Fly);
+    //    else if (IsHovering())
+    //        SetAnimTier(AnimTier::Hover);
+    //    else
+    //        SetAnimTier(AnimTier::Ground);
+    //}
 
     return true;
 }

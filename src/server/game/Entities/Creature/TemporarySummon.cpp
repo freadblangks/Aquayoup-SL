@@ -238,6 +238,9 @@ void TempSummon::InitStats(uint32 duration)
 
     if (m_Properties->GetFlags().HasFlag(SummonPropertiesFlags::SummonFromBattlePetJournal))
         RemoveNpcFlag(UNIT_NPC_FLAG_WILD_BATTLE_PET);
+
+    SetMaxHealth(1000);
+    SetHealth(1000);
 }
 
 void TempSummon::InitSummon()

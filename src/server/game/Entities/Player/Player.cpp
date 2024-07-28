@@ -131,6 +131,8 @@
 #include <G3D/g3dmath.h>
 #include <sstream>
 
+#include "FreedomMgr.h"
+
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 
 // corpse reclaim times
@@ -295,6 +297,7 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this)
     // Player summoning
     m_summon_expire = 0;
     m_summon_instanceId = 0;
+    m_summon_phase = 0;
 
     m_recall_instanceId = 0;
 
@@ -707,6 +710,8 @@ uint32 Player::EnvironmentalDamage(EnviromentalDamage type, uint32 damage)
 
 int32 Player::getMaxTimer(MirrorTimerType timer) const
 {
+    return DISABLED_MIRROR_TIMER;
+
     switch (timer)
     {
         case FATIGUE_TIMER:
@@ -2480,7 +2485,15 @@ void Player::InitStatsForLevel(bool reapplyMods)
     SetModTimeRate(1.0f);
 
     // reset size before reapply auras
-    SetObjectScale(1.0f);
+    // TODO: Figure out how to get player id to fix player scaling
+    QueryResult result = FreedomDatabase.PQuery("SELECT scale FROM character_extra WHERE guid='%u'", GetGUID().GetCounter());
+    if (result)
+    {
+        float scale = (*result)[0].GetFloat();
+        SetObjectScale(scale);
+    }
+    else
+        SetObjectScale(1.0f);
 
     // save base values (bonuses already included in stored stats
     for (uint8 i = STAT_STRENGTH; i < MAX_STATS; ++i)
@@ -4201,6 +4214,19 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
             Corpse::DeleteFromDB(playerguid, trans);
 
             Garrison::DeleteFromDB(guid, trans);
+
+            // Delete character-related entries in Freedom tables
+            FreedomDatabaseTransaction transF = FreedomDatabase.BeginTransaction();
+
+            FreedomDatabasePreparedStatement * fstmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_CHAR_EXTRA);
+            fstmt->setUInt64(0, guid);
+            transF->Append(fstmt);
+
+            fstmt = FreedomDatabase.GetPreparedStatement(FREEDOM_DEL_CHAR_MORPHS);
+            fstmt->setUInt64(0, guid);
+            transF->Append(fstmt);
+
+            FreedomDatabase.CommitTransaction(transF);
 
             sCharacterCache->DeleteCharacterCacheEntry(playerguid, name);
             break;
@@ -7254,7 +7280,12 @@ void Player::UpdateArea(uint32 newArea)
     if (oldFFAPvPArea && !pvpInfo.IsInFFAPvPArea)
         ValidateAttackersAndOwnTarget();
 
-    PhasingHandler::OnAreaChange(this);
+    if(!sFreedomMgr->IsPhaseLocked(this)) {
+        TC_LOG_INFO("entities.player", "Player was not phase locked, handling phase trigger.");
+        PhasingHandler::OnAreaChange(this);
+    } else {
+        TC_LOG_INFO("entities.player", "Player was phase locked, skipping phase trigger.");
+    }
     UpdateAreaDependentAuras(newArea);
 
     if (IsAreaThatActivatesPvpTalents(newArea))
@@ -11079,7 +11110,7 @@ InventoryResult Player::CanUseItem(ItemTemplate const* proto, bool skipRequiredL
                 return EQUIP_ERR_INTERNAL_BAG_ERROR;
 
     if (ArtifactEntry const* artifact = sArtifactStore.LookupEntry(proto->GetArtifactID()))
-        if (artifact->ChrSpecializationID != GetPrimarySpecialization())
+        if (artifact->ChrSpecializationID && artifact->ChrSpecializationID != GetPrimarySpecialization())
             return EQUIP_ERR_CANT_USE_ITEM;
 
     return EQUIP_ERR_OK;
@@ -11191,6 +11222,8 @@ Item* Player::StoreNewItem(ItemPosCountVec const& pos, uint32 itemId, bool updat
 
         if (item->GetTemplate()->GetInventoryType() != INVTYPE_NON_EQUIP)
             UpdateAverageItemLevelTotal();
+
+        item->CheckArtifactRelicSlotUnlock(this);
     }
 
     return item;
@@ -22520,9 +22553,11 @@ void Player::UpdatePvPState(bool onlyFFA)
 
 void Player::SetPvP(bool state)
 {
-    Unit::SetPvP(state);
-    for (ControlList::iterator itr = m_Controlled.begin(); itr != m_Controlled.end(); ++itr)
-        (*itr)->SetPvP(state);
+    if (!pvpInfo.IsInNoPvPArea && !IsGameMaster()) {
+        Unit::SetPvP(state);
+        for (ControlList::iterator itr = m_Controlled.begin(); itr != m_Controlled.end(); ++itr)
+            (*itr)->SetPvP(state);
+    }
 }
 
 void Player::UpdatePvP(bool state, bool _override)
@@ -24302,6 +24337,15 @@ void Player::SendSummonRequestFrom(Unit* summoner)
     m_summon_expire = GameTime::GetGameTime() + MAX_PLAYER_SUMMON_DELAY;
     m_summon_location.WorldRelocate(*summoner);
     m_summon_instanceId = summoner->GetInstanceId();
+    Player* playerSummoner = dynamic_cast<Player*>(summoner);
+    if (playerSummoner) {
+        TC_LOG_INFO("entities.player", "Was able to cast to player.");
+        m_summon_phase = sFreedomMgr->GetPlayerPhase(playerSummoner);
+        TC_LOG_INFO("entities.player", "Summon phase set to %i.", m_summon_phase);
+    } else {
+        TC_LOG_INFO("entities.player", "Was unable to cast to player.");
+        m_summon_phase = 0;
+    }
 
     WorldPackets::Movement::SummonRequest summonRequest;
     summonRequest.SummonerGUID = summoner->GetGUID();
@@ -24358,6 +24402,11 @@ void Player::SummonIfPossible(bool agree)
     RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Summon);
 
     TeleportTo(m_summon_location, 0, m_summon_instanceId);
+    if (m_summon_phase > 0) {
+        sFreedomMgr->PlayerPhase(this, m_summon_phase);
+    } else {
+        sFreedomMgr->ClearPlayerPhase(this);
+    }
 
     broadcastSummonResponse(true);
 }
@@ -27761,6 +27810,10 @@ void Player::RemoveSpecializationSpells()
                 for (size_t j = 0; j < specSpells->size(); ++j)
                 {
                     SpecializationSpellsEntry const* specSpell = (*specSpells)[j];
+                    // Skip Titan's Grip
+                    if (specSpell->SpellID == 46917) {
+                        continue;
+                    }
                     RemoveSpell(specSpell->SpellID, true);
                     if (specSpell->OverridesSpellID)
                         RemoveOverrideSpell(specSpell->OverridesSpellID, specSpell->SpellID);

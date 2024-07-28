@@ -80,6 +80,7 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#include "Config.h"
 
 NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EFFECTS] =
 {
@@ -415,6 +416,9 @@ void Spell::EffectResurrectNew()
 
 void Spell::EffectInstaKill()
 {
+    if (!sConfigMgr->GetBoolDefault("Freedom.Spell.AllowInstakill", false))
+        return;
+
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
         return;
 
@@ -518,6 +522,8 @@ void Spell::EffectSchoolDMG()
             damage = unitTarget->SpellDamageBonusTaken(unitCaster, m_spellInfo, (uint32)damage, SPELL_DIRECT_DAMAGE);
         }
 
+        float damageMod = sConfigMgr->GetFloatDefault("Freedom.Spell.DamageModifier", 0.0f);
+        damage = int32(round(damage * damageMod));
         m_damage += damage;
     }
 }
@@ -1887,7 +1893,7 @@ void Spell::EffectSummonType()
 
                     summon = unitCaster->GetMap()->SummonCreature(entry, *destTarget, properties, duration, unitCaster, m_spellInfo->Id, 0, privateObjectOwner);
                     if (!summon || !summon->HasUnitTypeMask(UNIT_MASK_MINION))
-                        return;
+                        break;
 
                     summon->SetImmuneToAll(true);
                     break;
@@ -1917,7 +1923,7 @@ void Spell::EffectSummonType()
 
                         ExecuteLogEffectSummonObject(SpellEffectName(effectInfo->Effect), summon);
                     }
-                    return;
+                    break;
                 }
             }
             break;
@@ -1969,6 +1975,13 @@ void Spell::EffectSummonType()
     if (summon)
     {
         summon->SetCreatorGUID(caster->GetGUID());
+        // Always set summons under player control for unaura-ing.
+        if (unitCaster->IsPlayer() && unitCaster->m_Controlled.find(summon) == unitCaster->m_Controlled.end())
+        {
+            TC_LOG_DEBUG("freedom", "Adding summon to player control list for unauara...");
+            unitCaster->m_Controlled.insert(summon);
+            summon->SetOwnerGUID(caster->GetGUID());
+        }
         ExecuteLogEffectSummonObject(SpellEffectName(effectInfo->Effect), summon);
     }
 }
@@ -4384,6 +4397,7 @@ void Spell::EffectTransmitted()
         case GAMEOBJECT_TYPE_FISHINGHOLE:
         case GAMEOBJECT_TYPE_CHEST:
         default:
+            unitCaster->AddGameObject(go);
             break;
     }
 

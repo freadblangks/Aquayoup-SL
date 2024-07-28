@@ -52,6 +52,7 @@ public:
             { "channel set ownership",  HandleChannelSetOwnership,      rbac::RBAC_PERM_COMMAND_CHANNEL_SET_OWNERSHIP,  Console::No },
             { "nameannounce",           HandleNameAnnounceCommand,      rbac::RBAC_PERM_COMMAND_NAMEANNOUNCE,           Console::Yes },
             { "gmnameannounce",         HandleGMNameAnnounceCommand,    rbac::RBAC_PERM_COMMAND_GMNAMEANNOUNCE,         Console::Yes },
+            { "gmchat",                 HandleGMNameAnnounceCommand,    rbac::RBAC_PERM_COMMAND_GMNAMEANNOUNCE,         Console::Yes }, // Custom, for those used to .gmc
             { "announce",               HandleAnnounceCommand,          rbac::RBAC_PERM_COMMAND_ANNOUNCE,               Console::Yes },
             { "gmannounce",             HandleGMAnnounceCommand,        rbac::RBAC_PERM_COMMAND_GMANNOUNCE,             Console::Yes },
             { "notify",                 HandleNotifyCommand,            rbac::RBAC_PERM_COMMAND_NOTIFY,                 Console::Yes },

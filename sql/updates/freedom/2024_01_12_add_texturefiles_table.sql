@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS `texturefiles` (
+  `fileId` INTEGER UNSIGNED NOT NULL,
+  `fileName` VARCHAR(140)  NOT NULL,
+  PRIMARY KEY (`fileId`)
+);

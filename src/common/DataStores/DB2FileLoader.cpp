@@ -1802,7 +1802,7 @@ void DB2FileLoader::LoadHeaders(DB2FileSource* source, DB2FileLoadInfo const* lo
             totalParentLookupDataSize;
 
         if (source->GetFileSize() != expectedFileSize)
-            throw DB2FileLoadException(Trinity::StringFormat("%s failed size consistency check, expected " SZFMTD ", got " SZFMTD, expectedFileSize, source->GetFileSize()));
+            throw DB2FileLoadException(Trinity::StringFormat("%s failed size consistency check, expected " SZFMTD ", got " SZFMTD, source->GetFileName(), expectedFileSize, source->GetFileSize()));
     }
 
     std::unique_ptr<DB2FieldEntry[]> fieldData = std::make_unique<DB2FieldEntry[]>(_header.FieldCount);

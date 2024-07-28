@@ -58,6 +58,8 @@ class TC_GAME_API FormationMgr
 
         void AddCreatureToGroup(ObjectGuid::LowType leaderSpawnId, Creature* creature);
         void RemoveCreatureFromGroup(CreatureGroup* group, Creature* creature);
+        void ClearCreatureFormation(Creature* creature) { _creatureGroupMap.erase(creature->GetSpawnId()); }
+        void DeleteFormationWithLeader(ObjectGuid::LowType leaderSpawnId);
 
         void LoadCreatureFormations();
         FormationInfo* GetFormationInfo(ObjectGuid::LowType spawnId);
@@ -85,6 +87,12 @@ class TC_GAME_API CreatureGroup
         bool IsEmpty() const { return _members.empty(); }
         bool IsFormed() const { return _formed; }
         bool IsLeader(Creature const* creature) const { return _leader == creature; }
+
+        std::vector<Creature*> GetMembers() {
+            std::vector<Creature*> result(_members.size());
+            transform(_members.begin(), _members.end(), result.begin(), [](auto pair) { return pair.first; });
+            return result;
+        }
 
         bool HasMember(Creature* member) const { return _members.count(member) > 0; }
         void AddMember(Creature* member);

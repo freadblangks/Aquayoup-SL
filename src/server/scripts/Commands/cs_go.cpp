@@ -53,6 +53,7 @@ public:
         {
             { "creature",           HandleGoCreatureSpawnIdCommand,         rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "creature id",        HandleGoCreatureCIdCommand,             rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "gobtarget",          HandleGoGobTargetCommand,               rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "gameobject",         HandleGoGameObjectSpawnIdCommand,       rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "gameobject id",      HandleGoGameObjectGOIdCommand,          rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "graveyard",          HandleGoGraveyardCommand,               rbac::RBAC_PERM_COMMAND_GO,             Console::No },
@@ -67,7 +68,10 @@ public:
             { "suggestionticket",   HandleGoTicketCommand<SuggestionTicket>,rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "offset",             HandleGoOffsetCommand,                  rbac::RBAC_PERM_COMMAND_GO,             Console::No },
             { "instance",           HandleGoInstanceCommand,                rbac::RBAC_PERM_COMMAND_GO,             Console::No },
-            { "boss",               HandleGoBossCommand,                    rbac::RBAC_PERM_COMMAND_GO,             Console::No }
+            { "boss",               HandleGoBossCommand,                    rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "local",              HandleGotoRelativeCommand,              rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "relative",           HandleGotoRelativeCommand,              rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "",                   HandleGotoRelativeCommand,              rbac::RBAC_PERM_COMMAND_GO,             Console::No },
         };
 
         static ChatCommandTable commandTable =
@@ -97,6 +101,60 @@ public:
             player->SaveRecallPosition(); // save only in non-flight case
 
         player->TeleportTo({ mapId, pos });
+        return true;
+    }
+
+    static bool HandleGotoRelativeCommand(ChatHandler* handler, char const* args)
+    {
+        // Get parameters and location info about source player
+        Player* source = handler->GetSession()->GetPlayer();
+        char* token_x = strtok((char*)args, " ");
+        char* token_y = strtok(NULL, " ");
+        char* token_z = strtok(NULL, " ");
+        char* token_deg = strtok(NULL, " ");
+        float source_x = source->GetPositionX();
+        float source_y = source->GetPositionY();
+        float source_z = source->GetPositionZ();
+        float source_o = source->GetOrientation();
+        uint32 source_map_id = source->GetMapId();
+
+        if (!token_x) {
+            handler->PSendSysMessage(FREEDOM_CMDE_NOT_ENOUGH_PARAMS);
+            handler->PSendSysMessage(FREEDOM_CMDH_GOTO_RELATIVE);
+            return true;
+        }
+
+        // Extract parameters as values
+        float add_x = (float)atof(token_x);
+        float add_y = token_y ? (float)atof(token_y) : 0.0f;
+        float add_z = token_z ? (float)atof(token_z) : 0.0f;
+        float add_deg = token_deg ? (float)atof(token_deg) : 0.0f;
+
+        // Calculate and get new local/relative coordinates
+        float new_x = (add_x*cos(source_o)) - (add_y*sin(source_o)) + source_x; // rotation matrix for x
+        float new_y = (add_x*sin(source_o)) + (add_y*cos(source_o)) + source_y; // rotation matrix for y
+        float new_z = add_z + source_z;
+        float new_o = (add_deg * (M_PI / 180.0f)) + source_o;
+
+        // Validate coordinates before teleport
+        if (!MapManager::IsValidMapCoord(source_map_id, new_x, new_y, new_z))
+        {
+            handler->PSendSysMessage(FREEDOM_E_INVALID_MAP_COORD, new_x, new_y, source_map_id);
+            return true;
+        }
+
+        // stop flight if need
+        if (source->IsInFlight())
+        {
+            source->FinishTaxiFlight();
+        }
+        // save only in non-flight case
+        else
+        {
+            source->SaveRecallPosition();
+        }
+
+        source->TeleportTo(source_map_id, new_x, new_y, new_z, new_o);
         return true;
     }
 
@@ -615,6 +673,21 @@ public:
 
         handler->PSendSysMessage(LANG_COMMAND_WENT_TO_BOSS, boss->Name.c_str(), boss->Entry, spawn->spawnId);
         return true;
+    }
+
+    static bool HandleGoGobTargetCommand(ChatHandler* handler) {
+        Player* source = handler->GetSession()->GetPlayer();
+        ObjectGuid::LowType guidLow = sFreedomMgr->GetSelectedGameobjectGuidFromPlayer(source->GetGUID().GetCounter());
+
+        GameObjectData const* spawnpoint = sObjectMgr->GetGameObjectData(guidLow);
+        if (!spawnpoint)
+        {
+            handler->SendSysMessage(LANG_COMMAND_GOOBJNOTFOUND);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        return DoTeleport(handler, spawnpoint->spawnPoint, spawnpoint->mapId);
     }
 };
 

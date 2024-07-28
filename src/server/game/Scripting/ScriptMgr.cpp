@@ -1908,6 +1908,19 @@ void ScriptMgr::OnShutdown()
     FOREACH_SCRIPT(WorldScript)->OnShutdown();
 }
 
+
+void ScriptMgr::OnCreatureAddedToWorld(Creature* creature)
+{
+    TC_LOG_DEBUG("freedom", "Adding creature " SZFMTD " to world...", creature->GetSpawnId());
+    FOREACH_SCRIPT(WorldScript)->OnCreatureAddedToWorld(creature);
+}
+
+void ScriptMgr::OnCreatureRemovedFromWorld(Creature* creature)
+{
+    TC_LOG_DEBUG("freedom", "Removing creature " SZFMTD " to world...", creature->GetSpawnId());
+    FOREACH_SCRIPT(WorldScript)->OnCreatureRemovedFromWorld(creature);
+}
+
 // Achievement
 void ScriptMgr::OnAchievementCompleted(Player* player, AchievementEntry const* achievement)
 {
