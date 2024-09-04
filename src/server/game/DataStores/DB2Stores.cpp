@@ -256,6 +256,7 @@ DB2Storage<NameGenEntry>                        sNameGenStore("NameGen.db2", &Na
 DB2Storage<NamesProfanityEntry>                 sNamesProfanityStore("NamesProfanity.db2", &NamesProfanityLoadInfo::Instance);
 DB2Storage<NamesReservedEntry>                  sNamesReservedStore("NamesReserved.db2", &NamesReservedLoadInfo::Instance);
 DB2Storage<NamesReservedLocaleEntry>            sNamesReservedLocaleStore("NamesReservedLocale.db2", &NamesReservedLocaleLoadInfo::Instance);
+DB2Storage<NPCSoundsEntry>                      sNPCSoundsStore("NPCSounds.db2", &NPCSoundsLoadInfo::Instance);
 DB2Storage<NPCModelItemSlotDisplayInfoEntry>    sNPCModelItemSlotDisplayInfoStore("NPCModelItemSlotDisplayInfo.db2", &NPCModelItemSlotDisplayInfoLoadInfo::Instance);
 DB2Storage<NumTalentsAtLevelEntry>              sNumTalentsAtLevelStore("NumTalentsAtLevel.db2", &NumTalentsAtLevelLoadInfo::Instance);
 DB2Storage<OverrideSpellDataEntry>              sOverrideSpellDataStore("OverrideSpellData.db2", &OverrideSpellDataLoadInfo::Instance);
@@ -405,6 +406,7 @@ DB2Storage<WMOAreaTableEntry>                   sWMOAreaTableStore("WMOAreaTable
 DB2Storage<WorldEffectEntry>                    sWorldEffectStore("WorldEffect.db2", &WorldEffectLoadInfo::Instance);
 DB2Storage<WorldMapOverlayEntry>                sWorldMapOverlayStore("WorldMapOverlay.db2", &WorldMapOverlayLoadInfo::Instance);
 DB2Storage<WorldStateExpressionEntry>           sWorldStateExpressionStore("WorldStateExpression.db2", &WorldStateExpressionLoadInfo::Instance);
+DB2Storage<ZoneMusicEntry>                      sZoneMusicStore("ZoneMusic.db2", &ZoneMusicLoadInfo::Instance);
 
 TaxiMask                                        sTaxiNodesMask;
 TaxiMask                                        sOldContinentsNodesMask;
@@ -886,6 +888,7 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     LOAD_DB2(sNamesProfanityStore);
     LOAD_DB2(sNamesReservedStore);
     LOAD_DB2(sNamesReservedLocaleStore);
+    LOAD_DB2(sNPCSoundsStore);
     LOAD_DB2(sNPCModelItemSlotDisplayInfoStore);
     LOAD_DB2(sNumTalentsAtLevelStore);
     LOAD_DB2(sOverrideSpellDataStore);
@@ -934,9 +937,11 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     LOAD_DB2(sSoulbindConduitRankStore);
     LOAD_DB2(sSoundKitStore);
     LOAD_DB2(sSoundKitEntryStore);
+    LOAD_DB2(sSoundKitAdvancedStore);
     LOAD_DB2(sSpecializationSpellsStore);
     LOAD_DB2(sSpecializationSpellsDisplayStore);
     LOAD_DB2(sSpecSetMemberStore);
+    LOAD_DB2(sSpellStore);
     LOAD_DB2(sSpellAuraOptionsStore);
     LOAD_DB2(sSpellAuraRestrictionsStore);
     LOAD_DB2(sSpellCastTimesStore);
@@ -1033,6 +1038,7 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     LOAD_DB2(sWorldEffectStore);
     LOAD_DB2(sWorldMapOverlayStore);
     LOAD_DB2(sWorldStateExpressionStore);
+    LOAD_DB2(sZoneMusicStore);
 
     // error checks
     if (!loadErrors.empty())
@@ -1521,8 +1527,13 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
         }
     }
 
-    for (QuestLineXQuestEntry const* questLineQuest : sQuestLineXQuestStore)
-        _questsByQuestLine[questLineQuest->QuestLineID].push_back(questLineQuest);
+    {
+        for (QuestLineXQuestEntry const* questLineQuest : sQuestLineXQuestStore)
+            _questsByQuestLine[questLineQuest->QuestLineID].push_back(questLineQuest);
+
+        for (auto& [questLineId, questLineQuests] : _questsByQuestLine)
+            std::ranges::sort(questLineQuests, std::ranges::less(), &QuestLineXQuestEntry::OrderIndex);
+    }
 
     for (QuestPackageItemEntry const* questPackageItem : sQuestPackageItemStore)
     {
