@@ -202,6 +202,39 @@ class spell_warl_backdraft : public SpellScript
     }
 };
 
+// 146739 - Corruption
+// 445474 - Wither
+class spell_warl_absolute_corruption : public SpellScript
+{
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellEffect({ { SPELL_WARLOCK_ABSOLUTE_CORRUPTION, EFFECT_0 } });
+    }
+
+    bool Load() override
+    {
+        return GetCaster()->HasAura(SPELL_WARLOCK_ABSOLUTE_CORRUPTION);
+    }
+
+    void HandleApply(SpellEffIndex /*effIndex*/) const
+    {
+        if (Aura const* absoluteCorruption = GetCaster()->GetAura(SPELL_WARLOCK_ABSOLUTE_CORRUPTION))
+        {
+            Milliseconds duration = GetHitUnit()->IsPvP()
+                ? Seconds(absoluteCorruption->GetSpellInfo()->GetEffect(EFFECT_0).CalcValue())
+                : Milliseconds(-1);
+
+            GetHitAura()->SetMaxDuration(duration.count());
+            GetHitAura()->SetDuration(duration.count());
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_warl_absolute_corruption::HandleApply, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
+    }
+};
+
 // 710 - Banish
 class spell_warl_banish : public SpellScript
 {
@@ -359,33 +392,6 @@ class spell_warl_conflagrate : public SpellScript
     void Register() override
     {
         AfterCast += SpellCastFn(spell_warl_conflagrate::HandleAfterCast);
-    }
-};
-
-// Called by 146739 - Corruption
-class spell_warl_absolute_corruption : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_WARLOCK_ABSOLUTE_CORRUPTION });
-    }
-
-    void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        if (GetCaster()->HasAura(SPELL_WARLOCK_ABSOLUTE_CORRUPTION))
-        {
-            Milliseconds duration = 0ms;
-            duration = Seconds(sSpellMgr->GetSpellInfo(SPELL_WARLOCK_ABSOLUTE_CORRUPTION, GetCastDifficulty())->GetEffect(EFFECT_0).CalcValue());
-
-            Unit* target = GetTarget();
-            GetAura()->SetMaxDuration(target->GetTypeId() == TYPEID_PLAYER ? duration.count() : -1);
-            GetAura()->SetDuration(target->GetTypeId() == TYPEID_PLAYER ? duration.count() : -1);
-        }
-    }
-
-    void Register() override
-    {
-        OnEffectApply += AuraEffectApplyFn(spell_warl_absolute_corruption::HandleApply, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
     }
 };
 
@@ -1410,7 +1416,6 @@ class spell_warl_rain_of_fire : public AuraScript
                 {
                     if (GetTarget()->HasAura(SPELL_WARLOCK_PYROGENICS_TALENT))
                         GetTarget()->CastSpell(insideTarget, SPELL_WARLOCK_PYROGENICS_DEBUFF, true);
-
                     GetTarget()->CastSpell(insideTarget, SPELL_WARLOCK_RAIN_OF_FIRE_DAMAGE, true);
                 }
     }
