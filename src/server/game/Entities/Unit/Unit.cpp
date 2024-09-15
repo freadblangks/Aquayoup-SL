@@ -386,24 +386,6 @@ Unit::Unit(bool isWorldObject) :
     _isCombatDisallowed = false;
 
     _lastExtraAttackSpell = 0;
-
-    SetAdvFlyRate(ADV_FLY_AIR_FRICTION, sWorld->getFloatConfig(CONFIG_ADV_FLY_AIR_FRICTION));
-    SetAdvFlyRate(ADV_FLY_MAX_VEL, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_VEL));
-    SetAdvFlyRate(ADV_FLY_LIFT_COEF, sWorld->getFloatConfig(CONFIG_ADV_FLY_LIFT_COEF));
-    SetAdvFlyRate(ADV_FLY_DOUBLE_JUMP_VEL_MOD, sWorld->getFloatConfig(CONFIG_ADV_FLY_DOUBLE_JUMP_VEL_MOD));
-    SetAdvFlyRate(ADV_FLY_GLIDE_START_MIN_HEIGHT, sWorld->getFloatConfig(CONFIG_ADV_FLY_GLIDE_START_MIN_HEIGHT));
-    SetAdvFlyRate(ADV_FLY_ADD_IMPULSE_MAX_SPEED, sWorld->getFloatConfig(CONFIG_ADV_FLY_ADD_IMPULSE_MAX_SPEED));
-    SetAdvFlyRate(ADV_FLY_MIN_BANKING_RATE, sWorld->getFloatConfig(CONFIG_ADV_FLY_MIN_BANKING_RATE));
-    SetAdvFlyRate(ADV_FLY_MAX_BANKING_RATE, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_BANKING_RATE));
-    SetAdvFlyRate(ADV_FLY_MIN_PITCHING_RATE_DOWN, sWorld->getFloatConfig(CONFIG_ADV_FLY_MIN_PITCHING_RATE_DOWN));
-    SetAdvFlyRate(ADV_FLY_MAX_PITCHING_RATE_DOWN, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_PITCHING_RATE_DOWN));
-    SetAdvFlyRate(ADV_FLY_MIN_PITCHING_RATE_UP, sWorld->getFloatConfig(CONFIG_ADV_FLY_MIN_PITCHING_RATE_UP));
-    SetAdvFlyRate(ADV_FLY_MAX_PITCHING_RATE_UP, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_PITCHING_RATE_UP));
-    SetAdvFlyRate(ADV_FLY_MIN_TURN_VELOCITY_THRESHOLD, sWorld->getFloatConfig(CONFIG_ADV_FLY_MIN_TURN_VELOCITY_THRESHOLD));
-    SetAdvFlyRate(ADV_FLY_MAX_TURN_VELOCITY_THRESHOLD, sWorld->getFloatConfig(CONFIG_ADV_FLY_MAX_TURN_VELOCITY_THRESHOLD));
-    SetAdvFlyRate(ADV_FLY_SURFACE_FRICTION, sWorld->getFloatConfig(CONFIG_ADV_FLY_SURFACE_FRICTION));
-    SetAdvFlyRate(ADV_FLY_OVER_MAX_DECELERATION, sWorld->getFloatConfig(CONFIG_ADV_FLY_OVER_MAX_DECELERATION));
-    SetAdvFlyRate(ADV_FLY_LAUNCH_SPEED_COEFFICIENT, sWorld->getFloatConfig(CONFIG_ADV_FLY_LAUNCH_SPEED_COEFFICIENT));
 }
 
 ////////////////////////////////////////////////////////////
@@ -3225,6 +3207,56 @@ Creature* Unit::GetSummonedCreatureByEntry(uint32 entry)
     return ObjectAccessor::GetCreature(*this, itr->first);
 }
 
+int32 Unit::GetTotalSpellPowerValue(SpellSchoolMask mask, bool heal) const
+{
+    if (!IsPlayer())
+    {
+        if (GetOwner())
+        {
+            if (Player* ownerPlayer = GetOwner()->ToPlayer())
+            {
+                if (IsTotem())
+                    return GetOwner()->GetTotalSpellPowerValue(mask, heal);
+                else
+                {
+                    if (IsPet())
+                        return ownerPlayer->m_activePlayerData->PetSpellPower;
+                    else if (IsGuardian())
+                        return ((Guardian*)this)->GetBonusDamage();
+                }
+            }
+        }
+
+        if (heal)
+            return SpellBaseHealingBonusDone(mask);
+        else
+            return SpellBaseDamageBonusDone(mask);
+    }
+
+    Player const* thisPlayer = ToPlayer();
+
+    int32 sp = 0;
+
+    if (heal)
+        sp = thisPlayer->m_activePlayerData->ModHealingDonePos;
+    else
+    {
+        int32 counter = 0;
+        for (uint32 i = 1; i < MAX_SPELL_SCHOOL; i++)
+        {
+            if (mask & (1 << i))
+            {
+                sp += thisPlayer->m_activePlayerData->ModDamageDonePos[i];
+                counter++;
+            }
+        }
+        if (counter > 0)
+            sp /= counter;
+    }
+
+    return std::max(sp, 0); //avoid negative spell power
+}
+
 void Unit::UnsummonCreatureByEntry(uint32 entry, uint32 ms/* = 0*/)
 {
     if (Creature* creature = GetSummonedCreatureByEntry(entry))
@@ -3279,6 +3311,12 @@ bool Unit::isInAccessiblePlaceFor(Creature const* c) const
         return false;
 
     return true;
+}
+
+bool Unit::IsInAir() const
+{
+    float ground = GetFloorZ();
+    return (G3D::fuzzyGt(GetPositionZ(), ground + GetHoverOffset() + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
 }
 
 bool Unit::IsInWater() const
@@ -8273,10 +8311,10 @@ void Unit::UpdateMountCapability()
             aurEff->GetBase()->Remove();
         else if (MountCapabilityEntry const* capability = sMountCapabilityStore.LookupEntry(aurEff->GetAmount())) // aura may get removed by interrupt flag, reapply
         {
+            SetFlightCapabilityID(capability->FlightCapabilityID);
+
             if (!HasAura(capability->ModSpellAuraID))
                 CastSpell(this, capability->ModSpellAuraID, aurEff);
-
-            SetFlightCapabilityID(capability->FlightCapabilityID);
         }    
     }
 }
@@ -13398,13 +13436,44 @@ bool Unit::SetDisableInertia(bool disable)
 
     static OpcodeServer const disableInertiaOpcodeTable[2] =
     {
-        SMSG_MOVE_DISABLE_INERTIA,
-        SMSG_MOVE_ENABLE_INERTIA
+        SMSG_MOVE_ENABLE_INERTIA,
+        SMSG_MOVE_DISABLE_INERTIA
     };
 
     if (Player* playerMover = Unit::ToPlayer(GetUnitBeingMoved()))
     {
         WorldPackets::Movement::MoveSetFlag packet(disableInertiaOpcodeTable[disable]);
+        packet.MoverGUID = GetGUID();
+        packet.SequenceIndex = m_movementCounter++;
+        playerMover->SendDirectMessage(packet.Write());
+
+        WorldPackets::Movement::MoveUpdate moveUpdate;
+        moveUpdate.Status = &m_movementInfo;
+        SendMessageToSet(moveUpdate.Write(), playerMover);
+    }
+
+    return true;
+}
+
+bool Unit::SetMoveCantSwim(bool cantSwim)
+{
+    if (cantSwim == HasExtraUnitMovementFlag2(MOVEMENTFLAG3_CANT_SWIM))
+        return false;
+
+    if (cantSwim)
+        AddExtraUnitMovementFlag2(MOVEMENTFLAG3_CANT_SWIM);
+    else
+        RemoveExtraUnitMovementFlag2(MOVEMENTFLAG3_CANT_SWIM);
+
+    static OpcodeServer const cantSwimOpcodeTable[2] =
+    {
+        SMSG_MOVE_UNSET_CANT_SWIM,
+        SMSG_MOVE_SET_CANT_SWIM,
+    };
+
+    if (Player* playerMover = Unit::ToPlayer(GetUnitBeingMoved()))
+    {
+        WorldPackets::Movement::MoveSetFlag packet(cantSwimOpcodeTable[cantSwim]);
         packet.MoverGUID = GetGUID();
         packet.SequenceIndex = m_movementCounter++;
         playerMover->SendDirectMessage(packet.Write());
@@ -14154,11 +14223,11 @@ Unit::AuraApplicationVector Unit::GetTargetAuraApplications(uint32 spellId) cons
 
 float Unit::GetAdvFlyingVelocity() const
 {
-    auto advFlying = m_movementInfo.advFlying;
+    Optional<MovementInfo::AdvFlying> const& advFlying = m_movementInfo.advFlying;
     if (!advFlying)
         return .0f;
 
-    return std::max((*advFlying).forwardVelocity, std::abs((*advFlying).upVelocity));
+    return std::sqrt(advFlying->forwardVelocity * advFlying->forwardVelocity + advFlying->upVelocity * advFlying->upVelocity);
 }
 
 bool Unit::SetCanAdvFly(bool enable)

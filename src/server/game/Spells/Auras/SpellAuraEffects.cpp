@@ -617,7 +617,7 @@ NonDefaultConstructible<pAuraEffectHandler> AuraEffectHandler[TOTAL_AURAS]=
     &AuraEffect::HandleNULL,                                      //542 SPELL_AURA_TRIGGER_SPELL_ON_STACK_AMOUNT
     &AuraEffect::HandleNULL,                                      //543
     &AuraEffect::HandleNULL,                                      //544
-    &AuraEffect::HandleNULL,                                      //545
+    &AuraEffect::HandleSetCantSwim,                               //545 SPELL_AURA_MOVE_SET_CANT_SWIM
     &AuraEffect::HandleNULL,                                      //546
     &AuraEffect::HandleNULL,                                      //547
     &AuraEffect::HandleNULL,                                      //548
@@ -2801,8 +2801,8 @@ void AuraEffect::HandleAuraMounted(AuraApplication const* aurApp, uint8 mode, bo
         {
             if (MountCapabilityEntry const* mountCapability = sMountCapabilityStore.LookupEntry(GetAmount()))
             {
-                target->CastSpell(target, mountCapability->ModSpellAuraID, this);
                 target->SetFlightCapabilityID(mountCapability->FlightCapabilityID);
+                target->CastSpell(target, mountCapability->ModSpellAuraID, this);
             }
         }
     }
@@ -2983,6 +2983,23 @@ void AuraEffect::HandleDisableInertia(AuraApplication const* aurApp, uint8 mode,
     }
 
     target->SetDisableInertia(apply);
+}
+
+void AuraEffect::HandleSetCantSwim(AuraApplication const* aurApp, uint8 mode, bool apply) const
+{
+    if (!(mode & AURA_EFFECT_HANDLE_SEND_FOR_CLIENT_MASK))
+        return;
+
+    Unit* target = aurApp->GetTarget();
+
+    if (!apply)
+    {
+        // do not remove unit flag if there are more than this auraEffect of that kind on unit on unit
+        if (target->HasAuraType(GetAuraType()))
+            return;
+    }
+
+    target->SetMoveCantSwim(apply);
 }
 
 /****************************/
@@ -6616,7 +6633,7 @@ void AuraEffect::HandleAdvancedFlying(AuraApplication const* aurApp, uint8 mode,
     player->SetCanAdvFly(apply);
 
     if (apply)
-        player->InitAdvancedFly();
+        player->InitAdvFlying();
 }
 
 template TC_GAME_API void AuraEffect::GetTargetList(std::list<Unit*>&) const;

@@ -109,6 +109,7 @@ enum PlayerRestState : uint8;
 enum class PlayerCreateMode : int8;
 enum RestTypes : uint8;
 enum TransferAbortReason : uint32;
+enum OpcodeServer : uint16;
 
 namespace BattlePets
 {
@@ -2196,7 +2197,8 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
 
         void RemovedInsignia(Player* looterPlr);
 
-        void InitAdvancedFly();
+        void InitAdvFlying();
+        void SendAdvFlyingSpeed(OpcodeServer opcode, float speed, Optional<float> maxSpeed = {});
         void AddMoveImpulse(Position direction);
 
         WorldSession* GetSession() const { return m_session; }
@@ -2864,6 +2866,9 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
                 .ModifyValue(&UF::RestInfo::Threshold), threshold);
         }
 
+        uint32 GetLastTargetedGO() { return _lastTargetedGO; }
+        void SetLastTargetedGO(uint32 lastTargetedGO) { _lastTargetedGO = lastTargetedGO; }
+
         void SendPlayerChoice(ObjectGuid sender, int32 choiceId);
 
         bool MeetPlayerCondition(uint32 conditionId) const;
@@ -3329,6 +3334,8 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         uint32 _pendingBindTimer;
 
         uint32 _activeCheats;
+
+        uint32 _lastTargetedGO;
 
         std::unique_ptr<Garrison> _garrison;
 
