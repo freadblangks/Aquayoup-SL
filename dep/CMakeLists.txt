@@ -31,8 +31,11 @@ if(SERVERS)
   add_subdirectory(readline)
   add_subdirectory(gsoap)
   add_subdirectory(rapidjson)
-  add_subdirectory(efsw)
   add_subdirectory(protobuf)
+endif()
+
+if(SERVERS AND BUILD_EFSW)
+  add_subdirectory(efsw)
 endif()
 
 if(TOOLS)
@@ -46,4 +49,8 @@ if(BUILD_TESTING)
     GIT_TAG        v2.13.9
     GIT_SHALLOW    1)
   FetchContent_MakeAvailable(Catch2)
+endif()
+
+if (ELUNA)
+  add_subdirectory(lualib)
 endif()
