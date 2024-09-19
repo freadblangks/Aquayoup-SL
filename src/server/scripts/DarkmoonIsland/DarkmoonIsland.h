@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 ShadowCore
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,7 +21,11 @@
 enum darkmoonIslandQuests
 {
     QUEST_WHACK_A_GNOLL         = 29463,
-    QUEST_HUMANOID_CANNONBALL   = 29436
+    QUEST_HUMANOID_CANNONBALL   = 29436,
+    QUEST_TARGET_TURTLE         = 29455,
+    QUEST_HE_SHOOTS_HE_SCORES   = 29438,
+    QUEST_ITS_HAMMER_TIME       = 29463,
+    QUEST_TONK_COMMANDER        = 29434,
 };
 
 enum darkmoonIslandItems
@@ -37,6 +41,17 @@ enum darkmoonIslandSpells
 enum darkmoonIslandGameObjects
 {
     GOB_DARKMOON_CAROUSEL       = 216666
+};
+
+enum darkmoonIslandRingTossSpells
+{
+    SPELL_RINGTOSS_ENABLE = 102058,
+    SPELL_RINGTOSS_TOSS = 101695,
+    SPELL_RINGTOSS_HIT = 101699,
+    SPELL_RINGTOSS_TURTLE_CIRCLE_1 = 101734,
+    SPELL_RINGTOSS_TURTLE_CIRCLE_2 = 101736,
+    SPELL_RINGTOSS_TURTLE_CIRCLE_3 = 101738,
+    SPELL_RINGTOSS_KILL_CREDIT = 101807,
 };
 
 #endif

@@ -50,11 +50,9 @@ class spell_af_skyriding : public AuraScript
 {
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        Unit* caster = GetCaster();
-
-        if (caster->HasAura(SWITCH_AF_DRAGONRIDING))
+        if (GetCaster()->HasAura(SWITCH_AF_DRAGONRIDING))
         {
-            GetTarget()->CastSpell(GetTarget(), SPELL_ENERGY_WIDGET, true);
+            GetTarget()->CastSpell(GetTarget(), SPELL_ENERGY_WIDGET, TRIGGERED_FULL_MASK);
             GetTarget()->SetPower(POWER_ALTERNATE_MOUNT, GetTarget()->GetPower(POWER_ALTERNATE_MOUNT), true);
         }
     }
@@ -110,6 +108,23 @@ class spell_af_energy : public AuraScript
                     subAmountAurEff->SetAmount(newAmount);
                     subAmountAurEff->GetBase()->SetNeedClientUpdateForTargets();
                 }
+
+                int newMaxPower = 3;
+
+                if (caster->HasAura(377920) && !caster->HasAura(377921) && !caster->HasAura(377922))
+                {
+                    newMaxPower = 4;
+                }
+                else if (caster->HasAura(377921) && caster->HasAura(377920) && !caster->HasAura(377922))
+                {
+                    newMaxPower = 5;
+                }
+                else if (caster->HasAura(377922) && caster->HasAura(377921) && caster->HasAura(377920))
+                {
+                    newMaxPower = 6;
+                }
+
+                caster->SetMaxPower(POWER_ALTERNATE_MOUNT, newMaxPower);
             }
         }
     }
