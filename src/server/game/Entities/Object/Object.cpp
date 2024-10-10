@@ -383,14 +383,14 @@ void Object::BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags, Playe
         *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_DOUBLE_JUMP_VEL_MOD));
         *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_GLIDE_START_MIN_HEIGHT));
         *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_ADD_IMPULSE_MAX_SPEED));
-        *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_BANKING_RATE_MIN));
-        *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_BANKING_RATE_MAX));
-        *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_PITCHING_RATE_DOWN_MIN));
-        *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_PITCHING_RATE_DOWN_MAX));
-        *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_PITCHING_RATE_UP_MIN));
-        *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_PITCHING_RATE_UP_MAX));
-        *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_TURN_VELOCITY_THRESHOLD_MIN));
-        *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_TURN_VELOCITY_THRESHOLD_MAX));
+        *data << float(unit->GetAdvFlyingSpeedMin(ADV_FLYING_BANKING_RATE));
+        *data << float(unit->GetAdvFlyingSpeedMax(ADV_FLYING_BANKING_RATE));
+        *data << float(unit->GetAdvFlyingSpeedMin(ADV_FLYING_PITCHING_RATE_DOWN));
+        *data << float(unit->GetAdvFlyingSpeedMax(ADV_FLYING_PITCHING_RATE_DOWN));
+        *data << float(unit->GetAdvFlyingSpeedMin(ADV_FLYING_PITCHING_RATE_UP));
+        *data << float(unit->GetAdvFlyingSpeedMax(ADV_FLYING_PITCHING_RATE_UP));
+        *data << float(unit->GetAdvFlyingSpeedMin(ADV_FLYING_TURN_VELOCITY_THRESHOLD));
+        *data << float(unit->GetAdvFlyingSpeedMax(ADV_FLYING_TURN_VELOCITY_THRESHOLD));
         *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_SURFACE_FRICTION));
         *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_OVER_MAX_DECELERATION));
         *data << float(unit->GetAdvFlyingSpeed(ADV_FLYING_LAUNCH_SPEED_COEFFICIENT));
@@ -3538,7 +3538,7 @@ void WorldObject::GetContactPoint(WorldObject const* obj, float& x, float& y, fl
     GetNearPoint(obj, x, y, z, distance2d, GetAbsoluteAngle(obj));
 }
 
-void WorldObject::MovePosition(Position &pos, float dist, float angle) const
+void WorldObject::MovePosition(Position &pos, float dist, float angle, float maxHeightChange /*= 6.0f*/) const
 {
     angle += GetOrientation();
     float destx, desty, destz, ground, floor;
@@ -3562,7 +3562,7 @@ void WorldObject::MovePosition(Position &pos, float dist, float angle) const
     for (uint8 j = 0; j < 10; ++j)
     {
         // do not allow too big z changes
-        if (std::fabs(pos.m_positionZ - destz) > 6)
+        if (std::fabs(pos.m_positionZ - destz) > maxHeightChange)
         {
             destx -= step * std::cos(angle);
             desty -= step * std::sin(angle);

@@ -2046,7 +2046,7 @@ bool Player::IsInAreaTrigger(AreaTriggerEntry const* areaTrigger) const
     if (!areaTrigger)
         return false;
 
-    if (int32(GetMapId()) != areaTrigger->ContinentID && !GetPhaseShift().HasVisibleMapId(areaTrigger->ContinentID))
+    if (GetMapId() != areaTrigger->ContinentID && !GetPhaseShift().HasVisibleMapId(areaTrigger->ContinentID))
         return false;
 
     if (areaTrigger->PhaseID || areaTrigger->PhaseGroupID || areaTrigger->PhaseUseFlags)
@@ -26883,7 +26883,7 @@ void Player::InitRunes()
     SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::PowerRegenInterruptedFlatModifier, runeIndex), 0.0f);
 }
 
-void Player::AutoStoreLoot(uint8 bag, uint8 slot, uint32 loot_id, LootStore const& store, ItemContext context, bool broadcast, bool createdByPlayer, DisplayToastMethod toastMethod /*PersonalLoot*/)
+void Player::AutoStoreLoot(uint8 bag, uint8 slot, uint32 loot_id, LootStore const& store, ItemContext context, bool broadcast, bool createdByPlayer, DisplayToastMethod /*toastMethod*/)
 {
     Loot loot(nullptr, ObjectGuid::Empty, LOOT_NONE, nullptr);
     loot.FillLoot(loot_id, store, this, true, false, LOOT_MODE_DEFAULT, context);
@@ -27433,7 +27433,7 @@ TalentLearnResult Player::LearnPvpTalent(uint32 talentID, uint8 slot, int32* spe
     if (!talentInfo)
         return TALENT_FAILED_UNKNOWN;
 
-    if (talentInfo->SpecID != int32(GetPrimarySpecialization()))
+    if (ChrSpecialization(talentInfo->SpecID) != GetPrimarySpecialization())
         return TALENT_FAILED_UNKNOWN;
 
     if (talentInfo->LevelRequired > GetLevel())
@@ -30345,15 +30345,16 @@ Difficulty Player::CheckLoadedLegacyRaidDifficultyID(Difficulty difficulty)
     return difficulty;
 }
 
-SpellInfo const* Player::GetCastSpellInfo(SpellInfo const* spellInfo, TriggerCastFlags& triggerFlag) const
+SpellInfo const* Player::GetCastSpellInfo(SpellInfo const* spellInfo, TriggerCastFlags& triggerFlag, GetCastSpellInfoContext* context) const
 {
     auto overrides = m_overrideSpells.find(spellInfo->Id);
     if (overrides != m_overrideSpells.end())
         for (uint32 spellId : overrides->second)
-            if (SpellInfo const* newInfo = sSpellMgr->GetSpellInfo(spellId, GetMap()->GetDifficultyID()))
-                return GetCastSpellInfo(newInfo, triggerFlag);
+            if (context->AddSpell(spellId))
+                if (SpellInfo const* newInfo = sSpellMgr->GetSpellInfo(spellId, GetMap()->GetDifficultyID()))
+                    return GetCastSpellInfo(newInfo, triggerFlag, context);
 
-    return Unit::GetCastSpellInfo(spellInfo, triggerFlag);
+    return Unit::GetCastSpellInfo(spellInfo, triggerFlag, context);
 }
 
 void Player::AddOverrideSpell(uint32 overridenSpellId, uint32 newSpellId)
@@ -30981,7 +30982,8 @@ void Player::ExecutePendingSpellCastRequest()
     }
 
     // Check possible spell cast overrides
-    spellInfo = castingUnit->GetCastSpellInfo(spellInfo, triggerFlag);
+    GetCastSpellInfoContext overrideContext;
+    spellInfo = castingUnit->GetCastSpellInfo(spellInfo, triggerFlag, &overrideContext);
     if (spellInfo->IsPassive())
     {
         CancelPendingCastRequest();
