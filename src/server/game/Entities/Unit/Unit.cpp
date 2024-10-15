@@ -90,6 +90,10 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#ifdef ELUNA
+#include "LuaEngine.h"
+#include "ElunaEventMgr.h"
+#endif
 #include <queue>
 #include <sstream>
 #include <cmath>
@@ -420,6 +424,11 @@ Unit::~Unit()
 
 void Unit::Update(uint32 p_time)
 {
+#ifdef ELUNA
+    if (elunaEvents) // can be null on maps without eluna
+        elunaEvents->Update(p_time);
+#endif
+
     // WARNING! Order of execution here is important, do not change.
     // Spells must be processed with event system BEFORE they go to _UpdateSpells.
     // Or else we may have some SPELL_STATE_FINISHED spells stalled in pointers, that is bad.
@@ -3176,6 +3185,86 @@ bool Unit::IsMovementPreventedByCasting() const
     return true;
 }
 
+void Unit::AddSummonedCreature(ObjectGuid guid, uint32 entry)
+{
+    m_SummonedCreatures[guid] = entry;
+}
+
+void Unit::RemoveSummonedCreature(ObjectGuid guid)
+{
+    m_SummonedCreatures.erase(guid);
+}
+
+Creature* Unit::GetSummonedCreatureByEntry(uint32 entry)
+{
+    auto itr = std::find_if(m_SummonedCreatures.begin(), m_SummonedCreatures.end(), [entry](auto& p)
+    {
+        return p.second == entry;
+    });
+
+    if (itr == m_SummonedCreatures.end())
+        return nullptr;
+
+    return ObjectAccessor::GetCreature(*this, itr->first);
+}
+
+int32 Unit::GetTotalSpellPowerValue(SpellSchoolMask mask, bool heal) const
+{
+    if (!IsPlayer())
+    {
+        if (GetOwner())
+        {
+            if (Player* ownerPlayer = GetOwner()->ToPlayer())
+            {
+                if (IsTotem())
+                    return GetOwner()->GetTotalSpellPowerValue(mask, heal);
+                else
+                {
+                    if (IsPet())
+                        return ownerPlayer->m_activePlayerData->PetSpellPower;
+                    else if (IsGuardian())
+                        return ((Guardian*)this)->GetBonusDamage();
+                }
+            }
+        }
+
+        if (heal)
+            return SpellBaseHealingBonusDone(mask);
+        else
+            return SpellBaseDamageBonusDone(mask);
+    }
+
+    Player const* thisPlayer = ToPlayer();
+
+    int32 sp = 0;
+
+    if (heal)
+        sp = thisPlayer->m_activePlayerData->ModHealingDonePos;
+    else
+    {
+        int32 counter = 0;
+        for (uint32 i = 1; i < MAX_SPELL_SCHOOL; i++)
+        {
+            if (mask & (1 << i))
+            {
+                sp += thisPlayer->m_activePlayerData->ModDamageDonePos[i];
+                counter++;
+            }
+        }
+        if (counter > 0)
+            sp /= counter;
+    }
+
+    return std::max(sp, 0); //avoid negative spell power
+}
+
+void Unit::UnsummonCreatureByEntry(uint32 entry, uint32 ms/* = 0*/)
+{
+    if (Creature* creature = GetSummonedCreatureByEntry(entry))
+        if (TempSummon* tempSummon = creature->ToTempSummon())
+            tempSummon->UnSummon(ms);
+}
+
 bool Unit::CanCastSpellWhileMoving(SpellInfo const* spellInfo) const
 {
     if (spellInfo->HasAttribute(SPELL_ATTR13_DO_NOT_ALLOW_DISABLE_MOVEMENT_INTERRUPT))
@@ -3223,6 +3312,12 @@ bool Unit::isInAccessiblePlaceFor(Creature const* c) const
         return false;
 
     return true;
+}
+
+bool Unit::IsInAir() const
+{
+    float ground = GetFloorZ();
+    return (G3D::fuzzyGt(GetPositionZ(), ground + GetHoverOffset() + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
 }
 
 bool Unit::IsInWater() const
@@ -4939,6 +5034,33 @@ float Unit::GetTotalAuraMultiplier(AuraType auraType, std::function<bool(AuraEff
     return multiplier;
 }
 
+float Unit::GetTotalAuraPercent(AuraType auraType, std::function<bool(AuraEffect const*)> const& predicate) const
+{
+    AuraEffectList const& mTotalAuraList = GetAuraEffectsByType(auraType);
+    if (mTotalAuraList.empty())
+        return 1.0f;
+
+    std::map<SpellGroup, int32> sameEffectSpellGroup;
+    float multiplier = 1.0f;
+
+    for (AuraEffect const* aurEff : mTotalAuraList)
+    {
+        if (predicate(aurEff))
+        {
+            // Check if the Aura Effect has a the Same Effect Stack Rule and if so, use the highest amount of that SpellGroup
+            // If the Aura Effect does not have this Stack Rule, it returns false so we can add to the multiplier as usual
+            if (!sSpellMgr->AddSameEffectStackRuleSpellGroups(aurEff->GetSpellInfo(), static_cast<uint32>(auraType), aurEff->GetAmount(), sameEffectSpellGroup))
+                ApplyPct(multiplier, aurEff->GetAmount());
+        }
+    }
+
+    // Add the highest of the Same Effect Stack Rule SpellGroups to the multiplier
+    for (auto itr = sameEffectSpellGroup.begin(); itr != sameEffectSpellGroup.end(); ++itr)
+        ApplyPct(multiplier, itr->second);
+
+    return multiplier;
+}
+
 int32 Unit::GetMaxPositiveAuraModifier(AuraType auraType, std::function<bool(AuraEffect const*)> const& predicate) const
 {
     AuraEffectList const& mTotalAuraList = GetAuraEffectsByType(auraType);
@@ -4979,6 +5101,11 @@ int32 Unit::GetTotalAuraModifier(AuraType auraType) const
 float Unit::GetTotalAuraMultiplier(AuraType auraType) const
 {
     return GetTotalAuraMultiplier(auraType, [](AuraEffect const* /*aurEff*/) { return true; });
+}
+
+float Unit::GetTotalAuraPercent(AuraType auraType) const
+{
+    return GetTotalAuraPercent(auraType, [](AuraEffect const* /*aurEff*/) { return true; });
 }
 
 int32 Unit::GetMaxPositiveAuraModifier(AuraType auraType) const
@@ -9909,6 +10036,8 @@ void Unit::AddToWorld()
     i_motionMaster->AddToWorld();
 
     RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::EnterWorld);
+
+    CalculateAdvFlyingSpeeds();
 }
 
 void Unit::RemoveFromWorld()
@@ -12235,7 +12364,7 @@ uint32 Unit::GetModelForForm(ShapeshiftForm form, uint32 spellId) const
                     if (ShapeshiftForm(artifactAppearance->OverrideShapeshiftFormID) == form)
                         return artifactAppearance->OverrideShapeshiftDisplayID;
 
-        if (ShapeshiftFormModelData const* formModelData = sDB2Manager.GetShapeshiftFormModelData(GetRace(), player->GetNativeGender(), form))
+        if (ShapeshiftFormModelData const* formModelData = sDB2Manager.GetShapeshiftFormModelData(GetRace(), form))
         {
             bool useRandom = false;
             switch (form)
@@ -12617,6 +12746,42 @@ bool Unit::CanSwim() const
     if (HasUnitFlag(UNIT_FLAG_PET_IN_COMBAT))
         return true;
     return HasUnitFlag(UNIT_FLAG_RENAME | UNIT_FLAG_CAN_SWIM);
+}
+
+void Unit::CalculateAdvFlyingSpeeds()
+{
+    FlightCapabilityEntry const* flightCapabilityEntry = sFlightCapabilityStore.LookupEntry(GetFlightCapabilityID());
+    if (!flightCapabilityEntry)
+        flightCapabilityEntry = sFlightCapabilityStore.LookupEntry(1);
+
+    ASSERT(flightCapabilityEntry, "Wrong default value for flightCapabilityID");
+
+    _advFlyingSpeeds[ADV_FLYING_ADD_IMPULSE_MAX_SPEED] = flightCapabilityEntry->AddImpulseMaxSpeed;
+    _advFlyingSpeeds[ADV_FLYING_AIR_FRICTION] = flightCapabilityEntry->AirFriction;
+    _advFlyingSpeeds[ADV_FLYING_BANKING_RATE] = flightCapabilityEntry->BankingRateMin;
+    _advFlyingSpeeds[ADV_FLYING_BANKING_RATE] = flightCapabilityEntry->BankingRateMax;
+    _advFlyingSpeeds[ADV_FLYING_DOUBLE_JUMP_VEL_MOD] = flightCapabilityEntry->DoubleJumpVelMod;
+    _advFlyingSpeeds[ADV_FLYING_GLIDE_START_MIN_HEIGHT] = flightCapabilityEntry->GlideStartMinHeight;
+    _advFlyingSpeeds[ADV_FLYING_LAUNCH_SPEED_COEFFICIENT] = flightCapabilityEntry->LaunchSpeedCoefficient;
+    _advFlyingSpeeds[ADV_FLYING_LIFT_COEFFICIENT] = flightCapabilityEntry->LiftCoefficient;
+    _advFlyingSpeeds[ADV_FLYING_MAX_VEL] = flightCapabilityEntry->MaxVel;
+    _advFlyingSpeeds[ADV_FLYING_OVER_MAX_DECELERATION] = flightCapabilityEntry->OverMaxDeceleration;
+    _advFlyingSpeeds[ADV_FLYING_PITCHING_RATE_DOWN] = flightCapabilityEntry->PitchingRateDownMin;
+    _advFlyingSpeeds[ADV_FLYING_PITCHING_RATE_DOWN] = flightCapabilityEntry->PitchingRateDownMax;
+    _advFlyingSpeeds[ADV_FLYING_PITCHING_RATE_UP] = flightCapabilityEntry->PitchingRateUpMin;
+    _advFlyingSpeeds[ADV_FLYING_PITCHING_RATE_UP] = flightCapabilityEntry->PitchingRateUpMax;
+    _advFlyingSpeeds[ADV_FLYING_SURFACE_FRICTION] = flightCapabilityEntry->SurfaceFriction;
+    _advFlyingSpeeds[ADV_FLYING_TURN_VELOCITY_THRESHOLD] = flightCapabilityEntry->TurnVelocityThresholdMin;
+    _advFlyingSpeeds[ADV_FLYING_TURN_VELOCITY_THRESHOLD] = flightCapabilityEntry->TurnVelocityThresholdMax;
+}
+
+float Unit::GetAdvFlyingVelocity() const
+{
+    Optional<MovementInfo::AdvFlying> const& advFlying = m_movementInfo.advFlying;
+    if (!advFlying)
+        return .0f;
+
+    return std::sqrt(advFlying->forwardVelocity * advFlying->forwardVelocity + advFlying->upVelocity * advFlying->upVelocity);
 }
 
 void Unit::NearTeleportTo(Position const& pos, bool casting /*= false*/)
@@ -14159,20 +14324,43 @@ float Unit::GetCollisionHeight() const
         {
             if (CreatureModelDataEntry const* mountModelData = sCreatureModelDataStore.LookupEntry(mountDisplayInfo->ModelID))
             {
-                CreatureDisplayInfoEntry const* displayInfo = sCreatureDisplayInfoStore.AssertEntry(GetNativeDisplayId());
+                if (CreatureDisplayInfoEntry const* displayInfo = sCreatureDisplayInfoStoreRaw.LookupEntry(GetNativeDisplayId()))
+                {
+                    if (CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(displayInfo->ModelID))
+                    {
+                        float const collisionHeight = scaleMod * (mountModelData->MountHeight + modelData->CollisionHeight * modelData->ModelScale * displayInfo->CreatureModelScale * 0.5f);
+                        return collisionHeight == 0.0f ? DEFAULT_COLLISION_HEIGHT : collisionHeight;
+                    }
+                }
+            }
+        }
+    }
+
+                /*CreatureDisplayInfoEntry const* displayInfo = sCreatureDisplayInfoStore.AssertEntry(GetNativeDisplayId());
                 CreatureModelDataEntry const* modelData = sCreatureModelDataStore.AssertEntry(displayInfo->ModelID);
                 float const collisionHeight = scaleMod * ((mountModelData->MountHeight * mountDisplayInfo->CreatureModelScale) + (modelData->CollisionHeight * modelData->ModelScale * displayInfo->CreatureModelScale * 0.5f));
                 return collisionHeight == 0.0f ? DEFAULT_COLLISION_HEIGHT : collisionHeight;
             }
         }
-    }
+    }*/
 
     //! Dismounting case - use basic default model data
-    CreatureDisplayInfoEntry const* displayInfo = sCreatureDisplayInfoStore.AssertEntry(GetNativeDisplayId());
-    CreatureModelDataEntry const* modelData = sCreatureModelDataStore.AssertEntry(displayInfo->ModelID);
+    //CreatureDisplayInfoEntry const* displayInfo = sCreatureDisplayInfoStore.AssertEntry(GetNativeDisplayId());
+    //CreatureModelDataEntry const* modelData = sCreatureModelDataStore.AssertEntry(displayInfo->ModelID);
 
-    float const collisionHeight = scaleMod * modelData->CollisionHeight * modelData->ModelScale * displayInfo->CreatureModelScale;
-    return collisionHeight == 0.0f ? DEFAULT_COLLISION_HEIGHT : collisionHeight;
+    //float const collisionHeight = scaleMod * modelData->CollisionHeight * modelData->ModelScale * displayInfo->CreatureModelScale;
+    //return collisionHeight == 0.0f ? DEFAULT_COLLISION_HEIGHT : collisionHeight;
+
+    if (CreatureDisplayInfoEntry const* displayInfo = sCreatureDisplayInfoStoreRaw.LookupEntry(GetNativeDisplayId()))
+    {
+        if (CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(displayInfo->ModelID))
+        {
+            float const collisionHeight = scaleMod * modelData->CollisionHeight * modelData->ModelScale * displayInfo->CreatureModelScale;
+            return collisionHeight == 0.0f ? DEFAULT_COLLISION_HEIGHT : collisionHeight;
+        }
+    }
+
+    return DEFAULT_COLLISION_HEIGHT;
 }
 
 void Unit::SetVignette(uint32 vignetteId)
@@ -14218,4 +14406,75 @@ DeclinedName::DeclinedName(UF::DeclinedNames const& uf)
 {
     for (std::size_t i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
         name[i] = uf.Name[i];
+}
+
+void Unit::GetFriendlyUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange, bool exceptSelf /*= false*/) const
+{
+    CellCoord p(Trinity::ComputeCellCoord(GetPositionX(), GetPositionY()));
+    Cell cell(p);
+    cell.SetNoCreate();
+
+    Trinity::AnyFriendlyUnitInObjectRangeCheck u_check(this, this, fMaxSearchRange, false, exceptSelf);
+    Trinity::UnitListSearcher<Trinity::AnyFriendlyUnitInObjectRangeCheck> searcher(this, list, u_check);
+
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AnyFriendlyUnitInObjectRangeCheck>, WorldTypeMapContainer > world_unit_searcher(searcher);
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AnyFriendlyUnitInObjectRangeCheck>, GridTypeMapContainer >  grid_unit_searcher(searcher);
+
+    cell.Visit(p, world_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+    cell.Visit(p, grid_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+}
+
+void Unit::GetAttackableUnitListInRange(std::list<Unit*>& list, float fMaxSearchRange) const
+{
+    CellCoord p(Trinity::ComputeCellCoord(GetPositionX(), GetPositionY()));
+    Cell cell(p);
+    cell.SetNoCreate();
+
+    Trinity::AttackableUnitInObjectRangeCheck u_check(this, fMaxSearchRange);
+    Trinity::UnitListSearcher<Trinity::AttackableUnitInObjectRangeCheck> searcher(this, list, u_check);
+
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AttackableUnitInObjectRangeCheck>, WorldTypeMapContainer > world_unit_searcher(searcher);
+    TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AttackableUnitInObjectRangeCheck>, GridTypeMapContainer >  grid_unit_searcher(searcher);
+
+    cell.Visit(p, world_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+    cell.Visit(p, grid_unit_searcher, *GetMap(), *this, fMaxSearchRange);
+}
+
+int32 Unit::GetAuraEffectAmount(AuraType auraType, SpellFamilyNames spellFamilyName, uint32 /*IconFileDataId*/, uint8 /*effIndex*/) const
+{
+    if (AuraEffect* aurEff = GetAuraEffect(auraType, spellFamilyName))
+        return aurEff->GetAmount();
+
+    return 0;
+}
+
+int32 Unit::GetAuraEffectAmount(uint32 spellId, uint8 effIndex, ObjectGuid casterGuid) const
+{
+    if (AuraEffect* aurEff = GetAuraEffect(spellId, effIndex, casterGuid))
+        return aurEff->GetAmount();
+
+    return 0;
+}
+
+void Unit::RemoveAllAreaObjects()
+{
+    while (!m_AreaObj.empty())
+    {
+        m_AreaObj.front()->Remove();
+    }
+}
+
+Unit::AuraApplicationVector Unit::GetTargetAuraApplications(uint32 spellId) const
+{
+    AuraApplicationVector aurApps;
+
+    auto bounds = m_targetAuras.equal_range(spellId);
+    for (auto itr = bounds.first; itr != bounds.second; ++itr)
+    {
+        if (Unit* target = ObjectAccessor::GetUnit(*this, itr->second))
+            if (AuraApplication* aurApp = target->GetAuraApplication(itr->first, GetGUID()))
+                aurApps.push_back(aurApp);
+    }
+
+    return aurApps;
 }

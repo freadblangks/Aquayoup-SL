@@ -106,6 +106,13 @@
 #include "WorldSession.h"
 #include "WorldSocket.h"
 #include "WorldStateMgr.h"
+#ifdef ELUNA
+#include "LuaEngine.h"
+#include "ElunaLoader.h"
+#include "ElunaConfig.h"
+#endif
+
+#include "RolePlay.h"
 
 #include <boost/algorithm/string.hpp>
 
@@ -186,6 +193,12 @@ World::World()
 /// World destructor
 World::~World()
 {
+#ifdef ELUNA
+    // Delete world Eluna state
+    delete eluna;
+    eluna = nullptr;
+#endif
+
     ///- Empty the kicked session set
     while (!m_sessions.empty())
     {
@@ -1776,6 +1789,19 @@ bool World::SetInitialWorldSettings()
         return false;
     }
 
+#ifdef ELUNA
+    ///- Initialize Lua Engine
+    TC_LOG_INFO("server.loading", "Loading Eluna config...");
+    sElunaConfig->Initialize();
+
+    ///- Initialize Lua Engine
+    if (sElunaConfig->IsElunaEnabled())
+    {
+        TC_LOG_INFO("server.loading", "Loading Lua scripts...");
+        sElunaLoader->LoadScripts();
+    }
+#endif
+
     ///- Initialize pool manager
     sPoolMgr->Initialize();
 
@@ -1862,6 +1888,9 @@ bool World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Initializing PlayerDump tables...");
     PlayerDump::InitializeTables();
+
+    TC_LOG_INFO("server.loading", "Loading Roleplay tables...");
+    sRoleplay->LoadAllTables();
 
     TC_LOG_INFO("server.loading", "Loading SpellInfo store...");
     sSpellMgr->LoadSpellInfoStore();
@@ -2000,6 +2029,9 @@ bool World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Loading Creature Model Based Info Data...");
     sObjectMgr->LoadCreatureModelInfo();
+
+    TC_LOG_INFO("server.loading", "Loading Creature template outfits...");     // must be before LoadCreatureTemplates
+    sObjectMgr->LoadCreatureOutfits();
 
     TC_LOG_INFO("server.loading", "Loading Creature templates...");
     sObjectMgr->LoadCreatureTemplates();
@@ -2398,6 +2430,14 @@ bool World::SetInitialWorldSettings()
         sCreatureTextMgr->LoadCreatureTextLocales();
     }
 
+#ifdef ELUNA
+    if (sElunaConfig->IsElunaEnabled())
+    {
+        TC_LOG_INFO("server.loading", "Starting Eluna world state...");
+        eluna = new Eluna(nullptr, sElunaConfig->IsElunaCompatibilityMode());
+    }
+#endif
+
     TC_LOG_INFO("server.loading", "Loading creature StaticFlags overrides...");
     sObjectMgr->LoadCreatureStaticFlagsOverride(); // must be after LoadCreatures
 
@@ -2537,6 +2577,11 @@ bool World::SetInitialWorldSettings()
 
     TC_LOG_INFO("server.loading", "Calculate guild limitation(s) reset time...");
     InitGuildResetTime();
+
+#ifdef ELUNA
+    if (GetEluna())
+        GetEluna()->OnConfigLoad(false); // Must be done after Eluna is initialized and scripts have run.
+#endif
 
     TC_LOG_INFO("server.loading", "Calculate next currency reset time...");
     InitCurrencyResetTime();
@@ -2926,6 +2971,23 @@ void World::ForceGameEventUpdate()
     m_timers[WUPDATE_EVENTS].Reset();
 }
 
+void World::SendMapMessage(uint32 mapid, WorldPacket const* packet, WorldSession* self, uint32 team)
+{
+    SessionMap::const_iterator itr;
+    for (itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    {
+        if (itr->second &&
+            itr->second->GetPlayer() &&
+            itr->second->GetPlayer()->IsInWorld() &&
+            itr->second->GetPlayer()->GetMapId() == mapid &&
+            itr->second != self &&
+            (team == 0 || itr->second->GetPlayer()->GetTeam() == team))
+        {
+            itr->second->SendPacket(packet);
+        }
+    }
+}
+
 /// Send a packet to all players (except self if mentioned)
 void World::SendGlobalMessage(WorldPacket const* packet, WorldSession* self, Optional<Team> team)
 {
@@ -3102,6 +3164,28 @@ bool World::SendZoneMessage(uint32 zone, WorldPacket const* packet, WorldSession
             itr->second->GetPlayer()->GetZoneId() == zone &&
             itr->second != self &&
             (!team || itr->second->GetPlayer()->GetTeam() == team))
+        {
+            itr->second->SendPacket(packet);
+            foundPlayerToSend = true;
+        }
+    }
+
+    return foundPlayerToSend;
+}
+
+bool World::SendAreaIDMessage(uint32 areaID, WorldPacket const* packet, WorldSession* self, uint32 team)
+{
+    bool foundPlayerToSend = false;
+    SessionMap::const_iterator itr;
+
+    for (itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    {
+        if (itr->second &&
+            itr->second->GetPlayer() &&
+            itr->second->GetPlayer()->IsInWorld() &&
+            itr->second->GetPlayer()->GetAreaId() == areaID &&
+            itr->second != self &&
+            (team == 0 || itr->second->GetPlayer()->GetTeam() == team))
         {
             itr->second->SendPacket(packet);
             foundPlayerToSend = true;

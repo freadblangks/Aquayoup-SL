@@ -68,6 +68,9 @@
 #include "VMapManager2.h"
 #include "World.h"
 #include "WorldSession.h"
+#ifdef ELUNA
+#include "LuaEngine.h"
+#endif
 #include <numeric>
 #include <sstream>
 
@@ -165,6 +168,9 @@ SpellCastTargets::SpellCastTargets(Unit* caster, WorldPackets::Spells::SpellCast
         if (spellCastRequest.Target.Orientation)
             pos->SetOrientation(*spellCastRequest.Target.Orientation);
     }
+
+    for (WorldPackets::Spells::SpellCraftingReagent const& reagent : spellCastRequest.OptionalReagents)
+        ModifiedCraftingReagents[reagent.DataSlotIndex].push_back(reagent);
 
     SetPitch(spellCastRequest.MissileTrajectory.Pitch);
     SetSpeed(spellCastRequest.MissileTrajectory.Speed);
@@ -3708,6 +3714,11 @@ void Spell::_cast(bool skipCheck)
         cancel();
         return;
     }
+
+#ifdef ELUNA
+    if (Eluna* e = m_caster->GetEluna())
+        e->OnSpellCast(this, skipCheck);
+#endif
 
     if (Player* playerCaster = m_caster->ToPlayer())
     {
@@ -7656,7 +7667,7 @@ SpellCastResult Spell::CheckItems(int32* param1 /*= nullptr*/, int32* param2 /*=
                         }
                     }
                 }
-                if (!player->HasItemCount(itemid, itemcount))
+                if (itemcount && !player->HasItemCount(itemid, itemcount))
                 {
                     if (param1)
                         *param1 = itemid;
@@ -9077,6 +9088,19 @@ void Spell::CallScriptObjectTargetSelectHandlers(WorldObject*& target, SpellEffI
         for (SpellScript::ObjectTargetSelectHandler const& objectTargetSelect : script->OnObjectTargetSelect)
             if (objectTargetSelect.IsEffectAffected(m_spellInfo, effIndex) && targetType.GetTarget() == objectTargetSelect.GetTarget())
                 objectTargetSelect.Call(script, target);
+
+        script->_FinishScriptCall();
+    }
+}
+
+void Spell::CallScriptOnSummonHandlers(Creature* creature)
+{
+    for (SpellScript* script : m_loadedScripts)
+    {
+        script->_PrepareScriptCall(SPELL_SCRIPT_HOOK_ON_SUMMON);
+        auto hookItrEnd = script->OnEffectSummon.end(), hookItr = script->OnEffectSummon.begin();
+        for (; hookItr != hookItrEnd; ++hookItr)
+            hookItr->Call(script, creature);
 
         script->_FinishScriptCall();
     }

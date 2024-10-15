@@ -170,6 +170,8 @@ TC_GAME_API extern LootStore LootTemplates_Disenchant;
 TC_GAME_API extern LootStore LootTemplates_Prospecting;
 TC_GAME_API extern LootStore LootTemplates_Spell;
 
+TC_GAME_API extern LootStore LootTemplates_Scrapping;
+
 TC_GAME_API void LoadLootTemplates_Creature();
 TC_GAME_API void LoadLootTemplates_Fishing();
 TC_GAME_API void LoadLootTemplates_Gameobject();
@@ -185,5 +187,7 @@ TC_GAME_API void LoadLootTemplates_Spell();
 TC_GAME_API void LoadLootTemplates_Reference();
 
 TC_GAME_API void LoadLootTables();
+
+TC_GAME_API void LoadLootTemplates_Scrapping();
 
 #endif

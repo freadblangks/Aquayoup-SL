@@ -191,6 +191,7 @@ void WorldSession::HandleAutoEquipItemOpcode(WorldPackets::Item::AutoEquipItem& 
     InventoryResult msg = _player->CanEquipItem(NULL_SLOT, dest, srcItem, !srcItem->IsBag());
     if (msg != EQUIP_ERR_OK)
     {
+        TC_LOG_DEBUG("network", "HandleAutoEquipItemOpcode: Player can't equip item: %u", msg);
         _player->SendEquipError(msg, srcItem);
         return;
     }
@@ -591,6 +592,12 @@ void WorldSession::HandleListInventoryOpcode(WorldPackets::NPC::Hello& packet)
     if (!GetPlayer()->IsAlive())
         return;
 
+#ifndef DISABLE_DRESSNPCS_CORESOUNDS
+    if (packet.Unit.IsAnyTypeCreature())
+        if (Creature* creature = _player->GetMap()->GetCreature(packet.Unit))
+            creature->SendMirrorSound(_player, 0);
+#endif
+
     SendListInventory(packet.Unit);
 }
 
@@ -663,7 +670,7 @@ void WorldSession::SendListInventory(ObjectGuid vendorGuid)
                 continue;
             }
 
-            uint64 price = uint64(floor(itemTemplate->GetBuyPrice() * discountMod));
+            uint64 price = uint64(floor(vendorItem->GetBuyPrice(itemTemplate) * discountMod));
             price = itemTemplate->GetBuyPrice() > 0 ? std::max(uint64(1), price) : price;
 
             if (int32 priceMod = _player->GetTotalAuraModifier(SPELL_AURA_MOD_VENDOR_ITEMS_PRICES))
