@@ -89,7 +89,7 @@ void AddItemsSetItem(Player* player, Item const* item)
         {
             uint32 maxLevel = sDB2Manager.GetCurveXAxisRange(item->GetBonus()->PlayerLevelToItemLevelCurveId).second;
 
-            if (Optional<ContentTuningLevels> contentTuning = sDB2Manager.GetContentTuningData(item->GetBonus()->ContentTuningId, player->m_playerData->CtrOptions->ContentTuningConditionMask, true))
+            if (Optional<ContentTuningLevels> contentTuning = sDB2Manager.GetContentTuningData(item->GetBonus()->ContentTuningId, player->m_playerData->CtrOptions->ConditionalFlags, true))
                 maxLevel = std::min<uint32>(maxLevel, contentTuning->MaxLevel);
 
             if (player->GetLevel() > maxLevel)
@@ -445,6 +445,8 @@ Item::Item()
 {
     m_objectType |= TYPEMASK_ITEM;
     m_objectTypeId = TYPEID_ITEM;
+
+    m_entityFragments.Add(WowCS::EntityFragment::Tag_Item, false);
 
     m_slot = 0;
     uState = ITEM_NEW;
@@ -1749,6 +1751,7 @@ void Item::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::
     ByteBuffer& buffer = PrepareValuesUpdateBuffer(data);
     std::size_t sizePos = buffer.wpos();
     buffer << uint32(0);
+    BuildEntityFragmentsForValuesUpdateForPlayerWithMask(&buffer, flags);
     buffer << uint32(valuesMask.GetBlock(0));
 
     if (valuesMask[TYPEID_OBJECT])
