@@ -560,7 +560,7 @@ NonDefaultConstructible<pAuraEffectHandler> AuraEffectHandler[TOTAL_AURAS]=
     &AuraEffect::HandleModMovementForceMagnitude,                 //485 SPELL_AURA_MOD_MOVEMENT_FORCE_MAGNITUDE
     &AuraEffect::HandleNULL,                                      //486
     &AuraEffect::HandleCosmeticMounted,                           //487 SPELL_AURA_COSMETIC_MOUNTED
-    &AuraEffect::HandleNULL,                                      //488
+    &AuraEffect::HandleAuraDisableGravity,                        //488 SPELL_AURA_DISABLE_GRAVITY
     &AuraEffect::HandleModAlternativeDefaultLanguage,             //489 SPELL_AURA_MOD_ALTERNATIVE_DEFAULT_LANGUAGE
     &AuraEffect::HandleSwitchTeam,                                //490 SPELL_AURA_SWITCH_TEAM
     &AuraEffect::HandleNULL,                                      //491
@@ -1647,14 +1647,14 @@ void AuraEffect::HandleModInvisibility(AuraApplication const* aurApp, uint8 mode
         return;
 
     Unit* target = aurApp->GetTarget();
-    Player* playerTarget = target->ToPlayer();
     InvisibilityType type = InvisibilityType(GetMiscValue());
 
     if (apply)
     {
         // apply glow vision
-        if (playerTarget && type == INVISIBILITY_GENERAL)
-            playerTarget->AddAuraVision(PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
+        if (type == INVISIBILITY_GENERAL)
+            if (Player* playerTarget = target->ToPlayer())
+                playerTarget->AddAuraVision(PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
 
         target->m_invisibility.AddFlag(type);
         target->m_invisibility.AddValue(type, GetAmount());
@@ -1663,39 +1663,19 @@ void AuraEffect::HandleModInvisibility(AuraApplication const* aurApp, uint8 mode
     }
     else
     {
-        if (!target->HasAuraType(SPELL_AURA_MOD_INVISIBILITY))
+        if (!target->HasAuraTypeWithMiscvalue(SPELL_AURA_MOD_INVISIBILITY, type))
         {
-            // if not have different invisibility auras.
-            // always remove glow vision
-            if (Player * playerTarget = target->ToPlayer())
-                playerTarget->RemoveAuraVision(PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
-
-            target->m_invisibility.DelFlag(type);
-
-            target->RemoveVisFlag(UNIT_VIS_FLAGS_INVISIBLE);
-        }
-        else
-        {
-            bool found = false;
-            Unit::AuraEffectList const& invisAuras = target->GetAuraEffectsByType(SPELL_AURA_MOD_INVISIBILITY);
-            for (Unit::AuraEffectList::const_iterator i = invisAuras.begin(); i != invisAuras.end(); ++i)
-            {
-                if (GetMiscValue() == (*i)->GetMiscValue())
-                {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-            {
-                // if not have invisibility auras of type INVISIBILITY_GENERAL
-                // remove glow vision
-                if (playerTarget && type == INVISIBILITY_GENERAL)
+            // if not have invisibility auras of type INVISIBILITY_GENERAL
+            // remove glow vision
+            if (type == INVISIBILITY_GENERAL)
+                if (Player* playerTarget = target->ToPlayer())
                     playerTarget->RemoveAuraVision(PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
 
-                target->m_invisibility.DelFlag(type);
-            }
+            target->m_invisibility.DelFlag(type);
         }
+
+        if (!target->HasAuraType(SPELL_AURA_MOD_INVISIBILITY))
+            target->RemoveVisFlag(UNIT_VIS_FLAGS_INVISIBLE);
 
         target->m_invisibility.AddValue(type, -GetAmount());
     }
@@ -3147,6 +3127,21 @@ void AuraEffect::HandlePreventFleeing(AuraApplication const* aurApp, uint8 mode,
     target->SetControlled(false, UNIT_STATE_FLEEING);
 }
 
+static void HandleAuraDisableGravity(Unit* target, bool apply)
+{
+    // Do not remove DisableGravity if there are more than this auraEffect of that kind on the unit or if it's a creature with DisableGravity on its movement template.
+    if (!apply)
+        if (target->HasAuraType(SPELL_AURA_MOD_ROOT_DISABLE_GRAVITY)
+            || target->HasAuraType(SPELL_AURA_MOD_STUN_DISABLE_GRAVITY)
+            || target->HasAuraType(SPELL_AURA_DISABLE_GRAVITY)
+            || (target->IsCreature() && target->ToCreature()->IsFloating()))
+        return;
+
+    if (target->SetDisableGravity(apply))
+        if (!apply && !target->IsFlying())
+            target->GetMotionMaster()->MoveFall();
+}
+
 void AuraEffect::HandleAuraModRootAndDisableGravity(AuraApplication const* aurApp, uint8 mode, bool apply) const
 {
     if (!(mode & AURA_EFFECT_HANDLE_REAL))
@@ -3156,13 +3151,7 @@ void AuraEffect::HandleAuraModRootAndDisableGravity(AuraApplication const* aurAp
 
     target->SetControlled(apply, UNIT_STATE_ROOT);
 
-    // Do not remove DisableGravity if there are more than this auraEffect of that kind on the unit or if it's a creature with DisableGravity on its movement template.
-    if (!apply && (target->HasAuraType(GetAuraType()) || target->HasAuraType(SPELL_AURA_MOD_STUN_DISABLE_GRAVITY) || (target->IsCreature() && target->ToCreature()->IsFloating())))
-        return;
-
-    if (target->SetDisableGravity(apply))
-        if (!apply && !target->IsFlying())
-            target->GetMotionMaster()->MoveFall();
+    ::HandleAuraDisableGravity(target, apply);
 }
 
 void AuraEffect::HandleAuraModStunAndDisableGravity(AuraApplication const* aurApp, uint8 mode, bool apply) const
@@ -3177,13 +3166,17 @@ void AuraEffect::HandleAuraModStunAndDisableGravity(AuraApplication const* aurAp
     if (apply)
         target->GetThreatManager().EvaluateSuppressed();
 
-    // Do not remove DisableGravity if there are more than this auraEffect of that kind on the unit or if it's a creature with DisableGravity on its movement template.
-    if (!apply && (target->HasAuraType(GetAuraType()) || target->HasAuraType(SPELL_AURA_MOD_ROOT_DISABLE_GRAVITY) || (target->IsCreature() && target->ToCreature()->IsFloating())))
+    ::HandleAuraDisableGravity(target, apply);
+}
+
+void AuraEffect::HandleAuraDisableGravity(AuraApplication const* aurApp, uint8 mode, bool apply) const
+{
+    if (!(mode & AURA_EFFECT_HANDLE_REAL))
         return;
 
-    if (target->SetDisableGravity(apply))
-        if (!apply && !target->IsFlying())
-            target->GetMotionMaster()->MoveFall();
+    Unit* target = aurApp->GetTarget();
+
+    ::HandleAuraDisableGravity(target, apply);
 }
 
 /***************************/
