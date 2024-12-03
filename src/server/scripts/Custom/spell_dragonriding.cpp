@@ -38,6 +38,7 @@ enum AdvancedFlyingSpells
     SPELL_VIGOR_CACHE               = 433547,
     SPELL_RIDING_ABROAD             = 432503, // TODO outside of dragon isles
     SPELL_ENERGY_WIDGET             = 423624,
+
     SWITCH_AF_REGULAR               = 404468,
     SWITCH_AF_DRAGONRIDING          = 404464
 
@@ -227,29 +228,29 @@ class spell_af_whirling_surge : public SpellScript
 // 436854 - Switch Flight Style
 class spell_switch_flight : public SpellScript
 {
-    PrepareSpellScript(spell_switch_flight);
-
     void HandleDummy(SpellEffIndex /*effIndex*/)
     {
-        Unit* caster = GetCaster();
+        Unit* caster = GetCaster()->ToPlayer();
         if (!caster)
             return;
 
-        if (!caster->HasAura(SWITCH_AF_REGULAR) && !caster->HasAura(SWITCH_AF_DRAGONRIDING))
+        bool hasRegular = caster->HasAura(SWITCH_AF_REGULAR);
+        bool hasDragonRiding = caster->HasAura(SWITCH_AF_DRAGONRIDING);
+
+        if (!hasRegular && !hasDragonRiding)
         {
             caster->CastSpell(caster, SWITCH_AF_REGULAR, TRIGGERED_FULL_MASK);
         }
-        else if (!caster->HasAura(SWITCH_AF_REGULAR))
-        {
-            caster->RemoveAura(SWITCH_AF_DRAGONRIDING);
-            caster->CastSpell(caster, SWITCH_AF_REGULAR, TRIGGERED_FULL_MASK);
-        }
-        else if (!caster->HasAura(SWITCH_AF_DRAGONRIDING))
+        else if (hasRegular && !hasDragonRiding)
         {
             caster->RemoveAura(SWITCH_AF_REGULAR);
             caster->CastSpell(caster, SWITCH_AF_DRAGONRIDING, TRIGGERED_FULL_MASK);
         }
-
+        else if (!hasRegular && hasDragonRiding)
+        {
+            caster->RemoveAura(SWITCH_AF_DRAGONRIDING);
+            caster->CastSpell(caster, SWITCH_AF_REGULAR, TRIGGERED_FULL_MASK);
+        }
     }
 
     void Register() override
@@ -261,10 +262,10 @@ class spell_switch_flight : public SpellScript
 
 void AddSC_dragonriding_spell_scripts()
 {
-    //RegisterSpellScript(spell_af_skyriding);
-    //RegisterSpellScript(spell_af_energy);
-    //RegisterSpellScript(spell_af_skyward_ascent);
-    //RegisterSpellScript(spell_af_surge_forward);
-    //RegisterSpellScript(spell_af_whirling_surge);
+    RegisterSpellScript(spell_af_skyriding);
+    RegisterSpellScript(spell_af_energy);
+    RegisterSpellScript(spell_af_skyward_ascent);
+    RegisterSpellScript(spell_af_surge_forward);
+    RegisterSpellScript(spell_af_whirling_surge);
     RegisterSpellScript(spell_switch_flight);
 }

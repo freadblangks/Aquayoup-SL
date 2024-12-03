@@ -16784,16 +16784,20 @@ void Player::ItemRemovedQuestCheck(uint32 entry, uint32 /*count*/)
     UpdateVisibleObjectInteractions(true, false, false, true);
 }
 
-void Player::KilledMonster(CreatureTemplate const* cInfo, ObjectGuid guid)
+void Player::KilledMonster(Creature const* creature)
 {
-    ASSERT(cInfo);
+    ASSERT(creature);
 
-    if (cInfo->Entry)
-        KilledMonsterCredit(cInfo->Entry, guid);
+    CreatureTemplate const* cInfo = creature->GetCreatureTemplate();
+
+    KilledMonsterCredit(cInfo->Entry, creature->GetGUID());
 
     for (uint8 i = 0; i < MAX_KILL_CREDIT; ++i)
         if (cInfo->KillCredit[i])
             KilledMonsterCredit(cInfo->KillCredit[i], ObjectGuid::Empty);
+
+    for (int32 label : creature->GetLabels())
+        UpdateQuestObjectiveProgress(QUEST_OBJECTIVE_KILL_WITH_LABEL, label, 1, creature->GetGUID());
 }
 
 void Player::KilledMonsterCredit(uint32 entry, ObjectGuid guid /*= ObjectGuid::Empty*/)
@@ -17257,6 +17261,7 @@ bool Player::IsQuestObjectiveComplete(uint16 slot, Quest const* quest, QuestObje
         case QUEST_OBJECTIVE_HAVE_CURRENCY:
         case QUEST_OBJECTIVE_OBTAIN_CURRENCY:
         case QUEST_OBJECTIVE_INCREASE_REPUTATION:
+        case QUEST_OBJECTIVE_KILL_WITH_LABEL:
             if (GetQuestSlotObjectiveData(slot, objective) < objective.Amount)
                 return false;
             break;
@@ -31174,25 +31179,6 @@ bool Player::TeleportToDigsiteInMap(uint32 mapId)
 
     return true;
 
-}
-
-void Player::InitAdvFlying()
-{
-    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_AIR_FRICTION,               ADV_FLYING_AIR_FRICTION);
-    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_MAX_VEL,                    ADV_FLYING_MAX_VEL);
-    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_LIFT_COEFFICIENT,           ADV_FLYING_LIFT_COEFFICIENT);
-    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_DOUBLE_JUMP_VEL_MOD,        ADV_FLYING_DOUBLE_JUMP_VEL_MOD);
-    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_GLIDE_START_MIN_HEIGHT,     ADV_FLYING_GLIDE_START_MIN_HEIGHT);
-    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_ADD_IMPULSE_MAX_SPEED,      ADV_FLYING_ADD_IMPULSE_MAX_SPEED);
-    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_SURFACE_FRICTION,           ADV_FLYING_SURFACE_FRICTION);
-    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_OVER_MAX_DECELERATION,      ADV_FLYING_OVER_MAX_DECELERATION);
-    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_LAUNCH_SPEED_COEFFICIENT,   ADV_FLYING_LAUNCH_SPEED_COEFFICIENT);
-}
-
-inline void Player::SendAdvFlyingSpeed(OpcodeServer opcode, AdvFlyingRateTypeSingle speedType, Optional<AdvFlyingRateTypeSingle> maxSpeedType /*= {}*/)
-{
-    if (maxSpeedType.has_value())
-        SendDirectMessage(WorldPackets::Movement::SetAdvFlyingMinMaxSpeeds(opcode, m_movementCounter++, GetAdvFlyingSpeed(speedType), GetAdvFlyingSpeed(*maxSpeedType)).Write());
 }
 
 void Player::AddMoveImpulse(Position direction)
