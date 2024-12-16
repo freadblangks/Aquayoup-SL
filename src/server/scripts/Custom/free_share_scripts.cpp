@@ -28,6 +28,141 @@
 #include "RBAC.h"
 #include "MotionMaster.h"
 #include "Map.h"
+#include "World.h"
+#include "WorldPacket.h"
+#include "GameTime.h"
+#include "RoleplayDatabase.h"
+
+class StaticTimeManager
+{
+private:
+    static inline uint32 m_staticHour = 12;
+    static inline uint32 m_staticMinute = 0;
+    static inline bool m_timeFreezed = false;
+
+public:
+
+    static void SaveStaticTimeToDB()
+    {
+        RoleplayDatabasePreparedStatement* stmt = RoleplayDatabase.GetPreparedStatement(Roleplay_DEL_SERVER_SETTINGS);
+        RoleplayDatabase.Execute(stmt);
+
+        stmt = RoleplayDatabase.GetPreparedStatement(Roleplay_REP_SERVER_SETTINGS);
+        stmt->setString(0, "static_hour");
+        stmt->setString(1, std::to_string(m_staticHour));
+        RoleplayDatabase.Execute(stmt);
+
+        stmt = RoleplayDatabase.GetPreparedStatement(Roleplay_REP_SERVER_SETTINGS);
+        stmt->setString(0, "static_minute");
+        stmt->setString(1, std::to_string(m_staticMinute));
+        RoleplayDatabase.Execute(stmt);
+
+        stmt = RoleplayDatabase.GetPreparedStatement(Roleplay_REP_SERVER_SETTINGS);
+        stmt->setString(0, "time_freezed");
+        stmt->setString(1, std::to_string(m_timeFreezed ? 1 : 0));
+        RoleplayDatabase.Execute(stmt);
+    }
+
+    static void LoadStaticTimeFromDB()
+    {
+        RoleplayDatabasePreparedStatement* stmt = RoleplayDatabase.GetPreparedStatement(Roleplay_SEL_SERVER_SETTINGS);
+        PreparedQueryResult result = RoleplayDatabase.Query(stmt);
+
+        if (!result)
+        {
+            ResetToServerTime();
+            return;
+        }
+
+        bool hourSet = false, minuteSet = false, freezeSet = false;
+
+        do
+        {
+            Field* fields = result->Fetch();
+            std::string settingName = fields[0].GetString();
+            std::string settingValue = fields[1].GetString();
+
+            if (settingName == "static_hour")
+            {
+                m_staticHour = std::stoi(settingValue);
+                hourSet = true;
+            }
+            else if (settingName == "static_minute")
+            {
+                m_staticMinute = std::stoi(settingValue);
+                minuteSet = true;
+            }
+            else if (settingName == "time_freezed")
+            {
+                m_timeFreezed = (settingValue == "1");
+                freezeSet = true;
+            }
+
+        } while (result->NextRow());
+
+        if (!hourSet || !minuteSet || !freezeSet)
+        {
+            ResetToServerTime();
+        }
+
+        SendTimeSync();
+    }
+
+    static bool IsTimeFreezed()
+    {
+        return m_timeFreezed;
+    }
+
+    static void SetStaticTime(uint32 hour, uint32 minute, bool freeze = false)
+    {
+        m_staticHour = hour;
+        m_staticMinute = minute;
+        m_timeFreezed = freeze;
+
+        SaveStaticTimeToDB();
+        SendTimeSync();
+    }
+
+    static void ResetToServerTime()
+    {
+        time_t now = time(nullptr);
+        struct tm* localTime = localtime(&now);
+
+        m_staticHour = localTime->tm_hour;
+        m_staticMinute = localTime->tm_min;
+        m_timeFreezed = false;
+
+        SendTimeSync();
+    }
+
+    static void SendTimeSync()
+    {
+        WowTime custom;
+        WorldPackets::Misc::LoginSetTimeSpeed timePacket;
+
+        TC_LOG_INFO("server", "StaticTimeManager: Hour {}, Minute {}", m_staticHour, m_staticMinute);
+
+        custom.SetHour(m_staticHour);
+        custom.SetMinute(m_staticMinute);
+        timePacket.GameTime = custom;
+        timePacket.ServerTime = custom;
+        static float const TimeSpeed = 0.01666667f;
+        static float const TimeSpeedFreeze = 0.0f;
+
+        if (m_timeFreezed == true)
+        {
+            TC_LOG_INFO("server", "Time is freeze 0000000000000000000000000000000000000000");
+            timePacket.NewSpeed = TimeSpeedFreeze; // Until I find a way to freeze time, I'm gonna have to use this.
+        }
+        else
+        {
+            TC_LOG_INFO("server", "Time is unfreeze 0000000000000000000000000000000000000000");
+            timePacket.NewSpeed = TimeSpeed;
+        }
+
+        sWorld->SendGlobalMessage(timePacket.Write());
+    }
+};
 
 class free_share_scripts : public CommandScript
 {
@@ -44,6 +179,7 @@ public:
             { "npcmoveto",       rbac::RBAC_PERM_COMMAND_NPC_MOVE,      false,      &HandleNpcMoveTo,           ""},
             { "npcguidsay",      rbac::RBAC_PERM_COMMAND_NPC_SAY,       false,      &HandleNpcGuidSay,          ""},
             { "npcguidyell",     rbac::RBAC_PERM_COMMAND_NPC_YELL,      false,      &HandleNpcGuidYell,         ""},
+            { "settime",         rbac::RBAC_PERM_COMMAND_NPC_YELL,      false,      &HandleSetTimeCommand,      ""},
         };
 
         return commandTable;
@@ -263,10 +399,46 @@ public:
 
         return true;
     }
+
+    static bool HandleSetTimeCommand(ChatHandler* handler, Optional<uint32> hour, Optional<uint32> minute)
+    {
+        if (hour && *hour == 999)
+        {
+            StaticTimeManager::ResetToServerTime();
+            handler->PSendSysMessage("Time reset");
+            return true;
+        }
+
+        uint32 setHour = hour && *hour >= 0 ? *hour : 15;
+        uint32 setMinute = minute && *minute >= 0 ? *minute : 30;
+
+        if (setHour > 23 || setMinute > 59)
+        {
+            handler->SendSysMessage("Incorrect time. Use hours 0-23, minutes 0-59.");
+            return false;
+        }
+
+        StaticTimeManager::SetStaticTime(setHour, setMinute, true);
+
+        handler->PSendSysMessage("Server time is set to %02u:%02u (frozen)", setHour, setMinute);
+        return true;
+    }
 };
+
+    class PlayerScript_TimeSync : public PlayerScript
+    {
+    public:
+        PlayerScript_TimeSync() : PlayerScript("PlayerScript_TimeSync") {}
+
+        void OnLogin(Player* /*player*/, bool /*firstLogin*/) override
+        {
+            StaticTimeManager::LoadStaticTimeFromDB();
+        }
+    };
 
 void AddSC_free_share_scripts()
 {
     new free_share_scripts();
+    new PlayerScript_TimeSync();
 }
 
