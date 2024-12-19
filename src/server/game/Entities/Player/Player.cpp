@@ -11798,7 +11798,7 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
             }
         }
 
-        pItem->SetItemFlag2(ITEM_FIELD_FLAG2_EQUIPPED);
+        pItem->SetItemZoneFlag(ITEM_FIELD_FLAG2_EQUIPPED);
 
         if (IsInWorld() && update)
         {
@@ -11992,7 +11992,7 @@ void Player::QuickEquipItem(uint16 pos, Item* pItem)
         uint8 slot = pos & 255;
         VisualizeItem(slot, pItem);
 
-        pItem->SetItemFlag2(ITEM_FIELD_FLAG2_EQUIPPED);
+        pItem->SetItemZoneFlag(ITEM_FIELD_FLAG2_EQUIPPED);
 
         if (IsInWorld())
         {
@@ -12097,7 +12097,7 @@ void Player::RemoveItem(uint8 bag, uint8 slot, bool update)
 
                 _ApplyItemMods(pItem, slot, false, update);
 
-                pItem->RemoveItemFlag2(ITEM_FIELD_FLAG2_EQUIPPED);
+                pItem->RemoveItemZoneFlag(ITEM_FIELD_FLAG2_EQUIPPED);
 
                 // remove item dependent auras and casts (only weapon and armor slots)
                 if (slot < PROFESSION_SLOT_END)
@@ -16683,14 +16683,27 @@ void Player::SetQuestCompletedBit(uint32 questBit, bool completed)
         return;
 
     uint32 fieldOffset = (questBit - 1) / QUESTS_COMPLETED_BITS_PER_BLOCK;
-    if (fieldOffset >= QUESTS_COMPLETED_BITS_SIZE)
-        return;
-
     uint64 flag = UI64LIT(1) << ((questBit - 1) % QUESTS_COMPLETED_BITS_PER_BLOCK);
+    if (fieldOffset < QUESTS_COMPLETED_BITS_SIZE)
+    {
+        if (completed)
+            SetUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::QuestCompleted, fieldOffset), flag);
+        else
+            RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::QuestCompleted, fieldOffset), flag);
+    }
+
     if (completed)
-        SetUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::QuestCompleted, fieldOffset), flag);
+        SetUpdateFieldFlagValue(m_values
+            .ModifyValue(&Player::m_activePlayerData)
+            .ModifyValue(&UF::ActivePlayerData::BitVectors)
+            .ModifyValue(&UF::BitVectors::Values, PLAYER_DATA_FLAG_CHARACTER_QUEST_COMPLETED_INDEX)
+            .ModifyValue(&UF::BitVector::Values, fieldOffset), flag);
     else
-        RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::QuestCompleted, fieldOffset), flag);
+        RemoveUpdateFieldFlagValue(m_values
+            .ModifyValue(&Player::m_activePlayerData)
+            .ModifyValue(&UF::ActivePlayerData::BitVectors)
+            .ModifyValue(&UF::BitVectors::Values, PLAYER_DATA_FLAG_CHARACTER_QUEST_COMPLETED_INDEX)
+            .ModifyValue(&UF::BitVector::Values, fieldOffset), flag);
 }
 
 void Player::AreaExploredOrEventHappens(uint32 questId)
@@ -27614,9 +27627,9 @@ void Player::DisablePetControlsOnMount(ReactStates reactState, CommandStates com
 
     WorldPackets::Pet::PetMode petMode;
     petMode.PetGUID = pet->GetGUID();
-    petMode._reactState = reactState;
-    petMode._commandState = commandState;
-    petMode._flag = 0;
+    petMode.ReactState = reactState;
+    petMode.CommandState = commandState;
+    petMode.Flag = 0;
     SendDirectMessage(petMode.Write());
 }
 
@@ -27628,14 +27641,14 @@ void Player::EnablePetControlsOnDismount()
         petMode.PetGUID = pet->GetGUID();
         if (m_temporaryPetReactState)
         {
-            petMode._reactState = *m_temporaryPetReactState;
+            petMode.ReactState = *m_temporaryPetReactState;
             pet->SetReactState(*m_temporaryPetReactState);
         }
 
         if (CharmInfo* charmInfo = pet->GetCharmInfo())
-            petMode._commandState = charmInfo->GetCommandState();
+            petMode.CommandState = charmInfo->GetCommandState();
 
-        petMode._flag = 0;
+        petMode.Flag = 0;
         SendDirectMessage(petMode.Write());
     }
 
