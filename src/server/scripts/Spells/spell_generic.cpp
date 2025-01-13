@@ -23,6 +23,8 @@
  */
 
 #include "ScriptMgr.h"
+#include "AreaTrigger.h"
+#include "AreaTriggerAI.h"
 #include "Battleground.h"
 #include "BattlePetMgr.h"
 #include "CellImpl.h"
@@ -40,6 +42,7 @@
 #include "ObjectMgr.h"
 #include "Pet.h"
 #include "ReputationMgr.h"
+#include "PathGenerator.h"
 #include "SkillDiscovery.h"
 #include "SpellAuraEffects.h"
 #include "SpellHistory.h"
@@ -5496,13 +5499,67 @@ class spell_gen_saddlechute : public AuraScript
     }
 };
 
+enum SpatialRiftSpells
+{
+    SPELL_SPATIAL_RIFT_TELEPORT     = 257034,
+    SPELL_SPATIAL_RIFT_AREATRIGGER  = 256948
+};
+
+// 257040 - Spatial Rift
+class spell_gen_spatial_rift : public SpellScript
+{
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SPATIAL_RIFT_TELEPORT, SPELL_SPATIAL_RIFT_AREATRIGGER });
+    }
+
+    void HandleDummy(SpellEffIndex /*effIndex*/) const
+    {
+        Unit* caster = GetCaster();
+
+        AreaTrigger* at = caster->GetAreaTrigger(SPELL_SPATIAL_RIFT_AREATRIGGER);
+        if (!at)
+            return;
+
+        caster->CastSpell(at->GetPosition(), SPELL_SPATIAL_RIFT_TELEPORT, CastSpellExtraArgsInit{
+            .TriggerFlags = TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR,
+            .TriggeringSpell = GetSpell()
+        });
+
+        at->SetDuration(0);
+    }
+
+    void Register() override
+    {
+        OnEffectHit += SpellEffectFn(spell_gen_spatial_rift::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
+
+struct at_gen_spatial_rift : AreaTriggerAI
+{
+    using AreaTriggerAI::AreaTriggerAI;
+
+    void OnInitialize() override
+    {
+        SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(at->GetSpellId(), DIFFICULTY_NONE);
+        if (!spellInfo)
+            return;
+
+        Position destPos = at->GetPosition();
+        at->MovePositionToFirstCollision(destPos, spellInfo->GetMaxRange(), 0.0f);
+
+        PathGenerator path(at);
+        path.CalculatePath(destPos.GetPositionX(), destPos.GetPositionY(), destPos.GetPositionZ(), true);
+
+        at->InitSplines(path.GetPath());
+    }
+};
+
 //Allied Race SpellFix
 
 // Arcane Pulse (Nightborne racial) - 260364
 class spell_arcane_pulse : public SpellScript
 {
-    PrepareSpellScript(spell_arcane_pulse);
-
     void HandleDamage(SpellEffIndex /*effIndex*/)
     {
         float damage = GetCaster()->GetTotalAttackPowerValue(BASE_ATTACK) * 2.f;
@@ -5519,37 +5576,9 @@ class spell_arcane_pulse : public SpellScript
     }
 };
 
-enum SpatialRiftSpells
-{
-    SPELL_SPATIAL_RIFT_AT = 256948,
-    SPELL_SPATIAL_RIFT_TELEPORT = 257034,
-    SPELL_SPATIAL_RIFT_DESPAWN_AT = 257040
-};
-
-// Spatial Rift teleport (Void Elf racial) - 257040
-class spell_spatial_rift_despawn : public SpellScript
-{
-    PrepareSpellScript(spell_spatial_rift_despawn);
-
-    void OnDespawnAreaTrigger(SpellEffIndex /*effIndex*/)
-    {
-        if (AreaTrigger* at = GetCaster()->GetAreaTrigger(SPELL_SPATIAL_RIFT_AT))
-        {
-            GetCaster()->CastSpell(at->GetPosition(), SPELL_SPATIAL_RIFT_TELEPORT, true);
-            at->SetDuration(0);
-        }
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_spatial_rift_despawn::OnDespawnAreaTrigger, EFFECT_0, SPELL_EFFECT_DESPAWN_AREATRIGGER);
-    }
-};
-
 // Light's Judgement - 256893  (Lightforged Draenei Racial)
 class spell_light_judgement : public SpellScript
 {
-    PrepareSpellScript(spell_light_judgement);
 
     void HandleDamage(SpellEffIndex /*effIndex*/)
     {
@@ -5567,7 +5596,6 @@ class spell_light_judgement : public SpellScript
 // 9.0.5
 class spell_back_camp : public SpellScript
 {
-    PrepareSpellScript(spell_back_camp);
 
     SpellCastResult CheckRequirement()
     {
@@ -5619,7 +5647,6 @@ class spell_back_camp : public SpellScript
 //312370
 class spell_make_camp : public SpellScript
 {
-    PrepareSpellScript(spell_make_camp);
 
     void Oncast()
     {
@@ -5658,7 +5685,6 @@ class spell_make_camp : public SpellScript
 //274738
 class spell_maghar_orc_racial_ancestors_call : public SpellScript
 {
-    PrepareSpellScript(spell_maghar_orc_racial_ancestors_call);
 
     void Oncast()
     {
@@ -5670,30 +5696,30 @@ class spell_maghar_orc_racial_ancestors_call : public SpellScript
 
         switch (RandomStats)
         {
-            case 0:
-                //mastery
-                caster->CastSpell(nullptr, 274741, true);
-                break;
+        case 0:
+            //mastery
+            caster->CastSpell(nullptr, 274741, true);
+            break;
 
-            case 1:
+        case 1:
 
-                //versatility
-                caster->CastSpell(nullptr, 274742, true);
-                break;
+            //versatility
+            caster->CastSpell(nullptr, 274742, true);
+            break;
 
-            case 2:
-                //haste
-                caster->CastSpell(nullptr, 274740, true);
-                break;
+        case 2:
+            //haste
+            caster->CastSpell(nullptr, 274740, true);
+            break;
 
-            case 3:
-                //crit
-                caster->CastSpell(nullptr, 274739, true);
-                break;
+        case 3:
+            //crit
+            caster->CastSpell(nullptr, 274739, true);
+            break;
         }
     }
 
-void Register() override
+    void Register() override
     {
         OnCast += SpellCastFn(spell_maghar_orc_racial_ancestors_call::Oncast);
     }
@@ -5882,10 +5908,11 @@ void AddSC_generic_spell_scripts()
     RegisterSpellAndAuraScriptPair(spell_bg_defending_cart_aura, spell_bg_defending_cart_aura_AuraScript);
     RegisterSpellScript(spell_gen_comfortable_riders_barding);
     RegisterSpellScript(spell_gen_saddlechute);
-	
-	//Allied Race Spells
+    RegisterSpellScript(spell_gen_spatial_rift);
+    RegisterAreaTriggerAI(at_gen_spatial_rift);
+
+    //Allied Race Spells
     RegisterSpellScript(spell_arcane_pulse);
-    RegisterSpellScript(spell_spatial_rift_despawn);
     RegisterSpellScript(spell_light_judgement);
     RegisterSpellScript(spell_make_camp);
     RegisterSpellScript(spell_back_camp);
