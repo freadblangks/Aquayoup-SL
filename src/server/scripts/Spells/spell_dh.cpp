@@ -1018,7 +1018,7 @@ struct at_dh_glaive_tempest : AreaTriggerAI
     {
         _scheduler.Schedule(0ms, [this](TaskContext task)
         {
-            std::chrono::duration<float> period = 500ms; // 500ms, affected by haste
+            FloatMilliseconds period = 500ms; // 500ms, affected by haste
             if (Unit* caster = at->GetCaster())
             {
                 period *= *caster->m_unitData->ModHaste;
@@ -1589,7 +1589,7 @@ class spell_dh_vengeful_retreat_damage : public SpellScript
     void HandleVengefulBonds(std::list<WorldObject*>& targets)
     {
         if (!GetCaster()->HasAura(SPELL_DH_VENGEFUL_BONDS))
-            targets.clear();
+            targets.clear();    
     }
 
     void Register() override
@@ -3396,21 +3396,32 @@ public:
     class spell_dh_demonic_appetite_AuraScript : public AuraScript
     {
 
-        void OnProc(AuraEffect* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
+        bool CheckProc(ProcEventInfo& eventInfo)
         {
-            PreventDefaultAction();
+            return true;
+        }
+
+        void OnProc(AuraEffect const* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
+        {
             Unit* caster = GetCaster();
             if (!caster)
                 return;
+
+            CastSpellExtraArgs args;
+            args.SetOriginalCaster(caster->GetGUID());
+            args.AddSpellMod(SPELLVALUE_BASE_POINT0, SPELL_DH_LESSER_SOUL_SHARD);
+
+            caster->CastSpell(caster, SPELL_DH_SHATTERED_SOULS_MISSILE, args);
         }
 
-        void Register()
+        void Register() override
         {
+            DoCheckProc += AuraCheckProcFn(spell_dh_demonic_appetite_AuraScript::CheckProc);
             OnEffectProc += AuraEffectProcFn(spell_dh_demonic_appetite_AuraScript::OnProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
         }
     };
 
-    AuraScript* GetAuraScript() const
+    AuraScript* GetAuraScript() const override
     {
         return new spell_dh_demonic_appetite_AuraScript();
     }
@@ -4299,6 +4310,119 @@ public:
     }
 };
 
+// 178940 - Shattered Souls (havoc)
+// 204254 - Shattered Souls (vengeance)
+class spell_dh_shattered_souls_havoc : public SpellScriptLoader
+{
+public:
+    spell_dh_shattered_souls_havoc() : SpellScriptLoader("spell_dh_shattered_souls_havoc") { }
+
+    class spell_dh_shattered_souls_havoc_AuraScript : public AuraScript
+    {
+
+        bool CheckProc(ProcEventInfo& eventInfo)
+        {
+            Unit* target = eventInfo.GetActionTarget();
+            return target != nullptr;
+        }
+
+        void OnProc(AuraEffect const* /*aurEff*/, ProcEventInfo& eventInfo)
+        {
+            Unit* caster = GetCaster();
+            Unit* target = eventInfo.GetActionTarget();
+            if (!caster || !target)
+                return;
+
+            uint32 triggerSpellId = target->GetCreatureType() == CREATURE_TYPE_DEMON
+                ? SPELL_DH_SHATTERED_SOULS_DEMON
+                : SPELL_DH_SHATTERED_SOULS;
+
+            CastSpellExtraArgs args;
+            args.SetOriginalCaster(caster->GetGUID());
+            args.AddSpellMod(SPELLVALUE_BASE_POINT0, triggerSpellId);
+
+            caster->CastSpell(caster, SPELL_DH_SHATTERED_SOULS_MISSILE, args);
+        }
+
+        void Register() override
+        {
+            DoCheckProc += AuraCheckProcFn(spell_dh_shattered_souls_havoc_AuraScript::CheckProc);
+            OnEffectProc += AuraEffectProcFn(spell_dh_shattered_souls_havoc_AuraScript::OnProc, EFFECT_0, SPELL_AURA_DUMMY);
+        }
+    };
+
+    AuraScript* GetAuraScript() const override
+    {
+        return new spell_dh_shattered_souls_havoc_AuraScript();
+    }
+};
+
+// 204255, 204256 - Soul Fragment
+// MiscId - 5977, 6007
+struct at_dh_soul_fragment_havoc : AreaTriggerAI
+{
+    at_dh_soul_fragment_havoc(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
+
+    void OnUnitEnter(Unit* unit) override
+    {
+        Unit* caster = at->GetCaster();
+        if (!caster || !unit)
+            return;
+
+        if (caster == unit)
+        {
+            if (caster->GetClass() == CLASS_DEMON_HUNTER && at->GetCaster()->ToPlayer()->GetPrimarySpecialization() == ChrSpecialization::DemonHunterHavoc)
+            {
+                caster->CastSpell(caster, SPELL_DH_SOUL_FRAGMENT_HEAL_25_HAVOC, true);
+            }
+            else
+            {
+                caster->CastSpell(caster, SPELL_DH_SOUL_FRAGMENT_HEAL_VENGEANCE, true);
+            }
+
+            if (at->GetTemplate() && at->GetTemplate()->Id == AreaTriggerId(6007))
+                caster->CastSpell(caster, SPELL_DH_SOUL_FRAGMENT_DEMON_BONUS, true);
+
+            if (caster->HasAura(SPELL_DH_FEED_THE_DEMON))
+            {
+                if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SPELL_DH_DEMON_SPIKES, DIFFICULTY_NONE))
+                {
+                    caster->GetSpellHistory()->ReduceChargeCooldown(spellInfo->ChargeCategoryId, 1000);
+                }
+            }
+
+            // Painbringer
+            if (caster->HasAura(SPELL_DH_PAINBRINGER))
+                caster->CastSpell(caster, SPELL_DH_PAINBRINGER_BUFF, true);
+
+            if (Aura* soulBarrier = caster->GetAura(SPELL_DH_SOUL_BARRIER))
+            {
+                if (AuraEffect* soulBarrierEffect = soulBarrier->GetEffect(EFFECT_0))
+                {
+                    if (SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(SPELL_DH_SOUL_BARRIER, DIFFICULTY_NONE))
+                    {
+                        int32 basePoints = 0;
+                        if (SpellEffectInfo const* effect = &spellInfo->GetEffect(EFFECT_1))
+                        {
+                            basePoints = effect->BasePoints;
+                        }
+
+                        float apCoeff = basePoints / 100.0f;
+
+                        int32 bonusAmount = static_cast<int32>(caster->GetTotalAttackPowerValue(BASE_ATTACK) * apCoeff);
+
+                        int32 currentAmount = soulBarrierEffect->GetAmount();
+                        soulBarrierEffect->SetAmount(currentAmount + bonusAmount);
+                    }
+                }
+            }
+
+            at->SetDuration(0);
+        }
+    }
+};
+
+
 void AddSC_demon_hunter_spell_scripts()
 {
     RegisterSpellScript(spell_dh_army_unto_oneself);
@@ -4434,4 +4558,6 @@ void AddSC_demon_hunter_spell_scripts()
     new spell_dh_fel_rush_specless();
     RegisterPlayerScript(DH_DisableDoubleJump_OnMount);
     new DemonHunterAllowSpec();
+    new spell_dh_shattered_souls_havoc();
+    RegisterAreaTriggerAI(at_dh_soul_fragment_havoc);
 }
