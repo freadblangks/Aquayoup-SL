@@ -5103,7 +5103,7 @@ struct ScreenEffectLoadInfo
         { false, FT_INT, "ZoneMusicID" },
         { true, FT_SHORT, "TimeOfDayOverride" },
         { true, FT_BYTE, "EffectMask" },
-        { false, FT_INT, "LightFlags" },
+        { true, FT_INT, "LightFlags" },
     };
 
     static constexpr DB2LoadInfo Instance{ Fields, 16, &ScreenEffectMeta::Instance, HOTFIX_SEL_SCREEN_EFFECT };
@@ -7129,6 +7129,34 @@ struct VignetteLoadInfo
     };
 
     static constexpr DB2LoadInfo Instance{ Fields, 13, &VignetteMeta::Instance, HOTFIX_SEL_VIGNETTE };
+};
+
+struct WarbandSceneLoadInfo
+{
+    static constexpr DB2FieldMeta Fields[19] =
+    {
+        { .IsSigned = false, .Type = FT_STRING, .Name = "Name" },
+        { .IsSigned = false, .Type = FT_STRING, .Name = "Description" },
+        { .IsSigned = false, .Type = FT_STRING, .Name = "Source" },
+        { .IsSigned = false, .Type = FT_FLOAT, .Name = "PositionX" },
+        { .IsSigned = false, .Type = FT_FLOAT, .Name = "PositionY" },
+        { .IsSigned = false, .Type = FT_FLOAT, .Name = "PositionZ" },
+        { .IsSigned = false, .Type = FT_FLOAT, .Name = "LookAtX" },
+        { .IsSigned = false, .Type = FT_FLOAT, .Name = "LookAtY" },
+        { .IsSigned = false, .Type = FT_FLOAT, .Name = "LookAtZ" },
+        { .IsSigned = false, .Type = FT_INT, .Name = "ID" },
+        { .IsSigned = false, .Type = FT_INT, .Name = "MapID" },
+        { .IsSigned = false, .Type = FT_FLOAT, .Name = "Fov" },
+        { .IsSigned = true, .Type = FT_INT, .Name = "TimeOfDay" },
+        { .IsSigned = true, .Type = FT_INT, .Name = "Flags" },
+        { .IsSigned = true, .Type = FT_INT, .Name = "SoundAmbienceID" },
+        { .IsSigned = true, .Type = FT_BYTE, .Name = "Quality" },
+        { .IsSigned = true, .Type = FT_INT, .Name = "TextureKit" },
+        { .IsSigned = true, .Type = FT_INT, .Name = "DefaultScenePriority" },
+        { .IsSigned = true, .Type = FT_BYTE, .Name = "SourceType" },
+    };
+
+    static constexpr DB2LoadInfo Instance{ Fields, 19, &WarbandSceneMeta::Instance, HOTFIX_SEL_WARBAND_SCENE };
 };
 
 struct WmoAreaTableLoadInfo
