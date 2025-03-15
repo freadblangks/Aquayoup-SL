@@ -75,7 +75,7 @@ _flags(AFLAG_NONE), _effectsToApply(effMask), _needClientUpdate(false), _effectM
     ASSERT(GetTarget() && GetBase());
 
     // Try find slot for aura
-    uint8 slot = 0;
+    uint16 slot = 0;
     // lookup for free slots in units visibleAuras
     for (AuraApplication* visibleAura : GetTarget()->GetVisibleAuras())
     {
@@ -224,7 +224,7 @@ void AuraApplication::AddEffectToApplyEffectMask(SpellEffIndex spellEffectIndex)
 
 void AuraApplication::SetNeedClientUpdate()
 {
-    if (_needClientUpdate || GetRemoveMode() != AURA_REMOVE_NONE)
+    if (_needClientUpdate || GetSlot() >= MAX_AURAS || GetRemoveMode() != AURA_REMOVE_NONE)
         return;
 
     _needClientUpdate = true;
@@ -510,6 +510,17 @@ void Aura::_InitEffects(uint32 effMask, Unit* caster, int32 const* baseAmount)
 
     while (!_effects.back())
         _effects.pop_back();
+}
+
+bool Aura::CanPeriodicTickCrit() const
+{
+    if (GetSpellInfo()->HasAttribute(SPELL_ATTR2_CANT_CRIT))
+        return false;
+
+    if (GetSpellInfo()->HasAttribute(SPELL_ATTR8_PERIODIC_CAN_CRIT))
+        return true;
+
+    return false;
 }
 
 Aura::~Aura()
@@ -1025,13 +1036,9 @@ void Aura::DropChargeDelayed(uint32 delay, AuraRemoveMode removeMode)
     // aura is already during delayed charge drop
     if (m_dropEvent)
         return;
-    // only units have events
-    Unit* owner = m_owner->ToUnit();
-    if (!owner)
-        return;
 
     m_dropEvent = new ChargeDropEvent(this, removeMode);
-    owner->m_Events.AddEvent(m_dropEvent, owner->m_Events.CalculateTime(Milliseconds(delay)));
+    m_owner->m_Events.AddEventAtOffset(m_dropEvent, Milliseconds(delay));
 }
 
 void Aura::SetStackAmount(uint8 stackAmount)
@@ -2010,15 +2017,13 @@ void Aura::TriggerProcOnEvent(uint32 procEffectMask, AuraApplication* aurApp, Pr
 
 float Aura::CalcPPMProcChance(Unit* actor) const
 {
-    using FSeconds = std::chrono::duration<float, Seconds::period>;
-
     // Formula see http://us.battle.net/wow/en/forum/topic/8197741003#1
     float ppm = m_spellInfo->CalcProcPPM(actor, GetCastItemLevel());
     float averageProcInterval = 60.0f / ppm;
 
     TimePoint currentTime = GameTime::Now();
-    float secondsSinceLastAttempt = std::min(std::chrono::duration_cast<FSeconds>(currentTime - m_lastProcAttemptTime).count(), 10.0f);
-    float secondsSinceLastProc = std::min(std::chrono::duration_cast<FSeconds>(currentTime - m_lastProcSuccessTime).count(), 1000.0f);
+    float secondsSinceLastAttempt = std::min(duration_cast<FloatSeconds>(currentTime - m_lastProcAttemptTime).count(), 10.0f);
+    float secondsSinceLastProc = std::min(duration_cast<FloatSeconds>(currentTime - m_lastProcSuccessTime).count(), 1000.0f);
 
     float chance = std::max(1.0f, 1.0f + ((secondsSinceLastProc / averageProcInterval - 1.5f) * 3.0f)) * ppm * secondsSinceLastAttempt / 60.0f;
     RoundToInterval(chance, 0.0f, 1.0f);
