@@ -109,12 +109,16 @@ public:
         return false;
     }
 
-    static bool HandleGMBarberShopCommand(ChatHandler* handler)
+    static bool HandleGMBarberShopCommand(ChatHandler* handler, Optional<uint32> featureMask)
     {
+        if (!featureMask) {
+            featureMask = 0;
+        }
+
         if (WorldSession* session = handler->GetSession())
         {
             WorldPackets::Misc::EnableBarberShop enableBarberShop;
-            enableBarberShop.CustomizationScope = 0;
+            enableBarberShop.CustomizationFeatureMask = 0;
             session->GetPlayer()->SendDirectMessage(enableBarberShop.Write());
             return true;
         }
