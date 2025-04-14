@@ -68,7 +68,7 @@ void RealmList::Initialize(Trinity::Asio::IoContext& ioContext, uint32 updateInt
 {
     _updateInterval = updateInterval;
     _updateTimer = std::make_unique<Trinity::Asio::DeadlineTimer>(ioContext);
-    _resolver = std::make_unique<Trinity::Asio::Resolver>(ioContext);
+    _resolver = std::make_unique<Trinity::Net::Resolver>(ioContext);
 
     ClientBuild::LoadBuildInfo();
     // Get the content of the realmlist table in the database
@@ -200,7 +200,7 @@ void RealmList::UpdateRealms()
 
     if (_updateInterval)
     {
-        _updateTimer->expires_from_now(boost::posix_time::seconds(_updateInterval));
+        _updateTimer->expires_after(std::chrono::seconds(_updateInterval));
         _updateTimer->async_wait([this](boost::system::error_code const& error)
         {
             if (error)
