@@ -57,7 +57,6 @@ public:
             { "on",             HandleGMOnCommand,                      rbac::RBAC_PERM_COMMAND_GM,             Console::No  },
             { "off",            HandleGMOffCommand,                     rbac::RBAC_PERM_COMMAND_GM,             Console::No  },
             { "barber",         HandleGMBarberShopCommand,              rbac::RBAC_PERM_COMMAND_GM,             Console::No  },
-            { "preloadworld",   HandleGMPreloadWorldCommand,            rbac::RBAC_PERM_COMMAND_GM,             Console::No  },
             { "seamlesstp",     HandleGMSeamlessPortCommand,            rbac::RBAC_PERM_COMMAND_GM,             Console::No  },
             { "achievements",   HandleGMRewardAllAchievementsCommand,   rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
             { "toys",           HandleGMRewardAllToysCommand,           rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
@@ -250,23 +249,13 @@ public:
         return false;
     }
 
-    static bool HandleGMPreloadWorldCommand(ChatHandler* handler, uint32 mapID, float x, float y, float z)
-    {
-        Player* target = handler->getSelectedPlayer();
-        if (!target)
-            target = handler->GetSession()->GetPlayer();
-
-        target->SendPreloadWorld(mapID, x, y, z);
-
-        return true;
-    }
-
     static bool HandleGMSeamlessPortCommand(ChatHandler* handler, uint32 mapID, float x, float y, float z)
     {
         Player* target = handler->getSelectedPlayer();
         if (!target)
             target = handler->GetSession()->GetPlayer();
 
+        target->SendPreloadWorld(mapID, x, y, z);
         target->TeleportTo(mapID, x, y, z, 0.0f, TELE_TO_SEAMLESS);
 
         return true;
