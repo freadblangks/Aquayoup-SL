@@ -1776,34 +1776,7 @@ void WorldSession::HandleAlterAppearance(WorldPackets::Character::AlterApperance
     if (!ValidateAppearance(Races(_player->GetRace()), Classes(_player->GetClass()), Gender(packet.NewSex), customizations))
         return;
 
-    GameObject* go = _player->FindNearestGameObjectOfType(GAMEOBJECT_TYPE_BARBER_CHAIR, 5.0f);
-    if (!go)
-    {
-        SendPacket(WorldPackets::Character::BarberShopResult(WorldPackets::Character::BarberShopResult::ResultEnum::NotOnChair).Write());
-        return;
-    }
-
-    if (_player->GetStandState() != UnitStandStateType(UNIT_STAND_STATE_SIT_LOW_CHAIR + go->GetGOInfo()->barberChair.chairheight))
-    {
-        SendPacket(WorldPackets::Character::BarberShopResult(WorldPackets::Character::BarberShopResult::ResultEnum::NotOnChair).Write());
-        return;
-    }
-
-    int64 cost = _player->GetBarberShopCost(customizations);
-
-    // 0 - ok
-    // 1, 3 - not enough money
-    // 2 - you have to sit on barber chair
-    if (!_player->HasEnoughMoney(cost))
-    {
-        SendPacket(WorldPackets::Character::BarberShopResult(WorldPackets::Character::BarberShopResult::ResultEnum::NoMoney).Write());
-        return;
-    }
-
     SendPacket(WorldPackets::Character::BarberShopResult(WorldPackets::Character::BarberShopResult::ResultEnum::Success).Write());
-
-    _player->ModifyMoney(-cost);                     // it isn't free
-    _player->UpdateCriteria(CriteriaType::MoneySpentAtBarberShop, cost);
 
     if (_player->GetNativeGender() != packet.NewSex)
     {

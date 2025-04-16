@@ -33,6 +33,10 @@ EndScriptData */
 #include "RealmList.h"
 #include "World.h"
 #include "WorldSession.h"
+#include "MiscPackets.h"
+#include "AchievementMgr.h"
+#include "DB2Stores.cpp"
+#include "BattlePetMgr.h"
 
 using namespace Trinity::ChatCommands;
 
@@ -45,18 +49,30 @@ public:
     {
         static ChatCommandTable gmCommandTable =
         {
-            { "chat",       HandleGMChatCommand,        rbac::RBAC_PERM_COMMAND_GM_CHAT,        Console::No },
-            { "fly",        HandleGMFlyCommand,         rbac::RBAC_PERM_COMMAND_GM_FLY,         Console::No },
-            { "ingame",     HandleGMListIngameCommand,  rbac::RBAC_PERM_COMMAND_GM_INGAME,      Console::Yes },
-            { "list",       HandleGMListFullCommand,    rbac::RBAC_PERM_COMMAND_GM_LIST,        Console::Yes },
-            { "visible",    HandleGMVisibleCommand,     rbac::RBAC_PERM_COMMAND_GM_VISIBLE,     Console::No },
-            { "on",         HandleGMOnCommand,          rbac::RBAC_PERM_COMMAND_GM,             Console::No },
-            { "off",        HandleGMOffCommand,         rbac::RBAC_PERM_COMMAND_GM,             Console::No },
+            { "chat",           HandleGMChatCommand,                    rbac::RBAC_PERM_COMMAND_GM_CHAT,        Console::No  },
+            { "fly",            HandleGMFlyCommand,                     rbac::RBAC_PERM_COMMAND_GM_FLY,         Console::No  },
+            { "ingame",         HandleGMListIngameCommand,              rbac::RBAC_PERM_COMMAND_GM_INGAME,      Console::Yes },
+            { "list",           HandleGMListFullCommand,                rbac::RBAC_PERM_COMMAND_GM_LIST,        Console::Yes },
+            { "visible",        HandleGMVisibleCommand,                 rbac::RBAC_PERM_COMMAND_GM_VISIBLE,     Console::No  },
+            { "on",             HandleGMOnCommand,                      rbac::RBAC_PERM_COMMAND_GM,             Console::No  },
+            { "off",            HandleGMOffCommand,                     rbac::RBAC_PERM_COMMAND_GM,             Console::No  },
+            { "barber",         HandleGMBarberShopCommand,              rbac::RBAC_PERM_COMMAND_GM,             Console::No  },
+            { "seamlesstp",     HandleGMSeamlessPortCommand,            rbac::RBAC_PERM_COMMAND_GM,             Console::No  },
+            { "achievements",   HandleGMRewardAllAchievementsCommand,   rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
+            { "toys",           HandleGMRewardAllToysCommand,           rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
+            { "pets",           HandleGMRewardAllBattlePetsCommand,     rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
+            { "mounts",         HandleGMRewardAllMountsCommand,         rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
+            { "transmog",       HandleGMRewardAllTransmogCommand,       rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
+            { "transmogset",    HandleGMAddTransmogSetCommand,          rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
+            { "commentator",    HandleGMCommentatorCommand,             rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
+            { "camera",         HandleGMCameraCommand,                  rbac::RBAC_PERM_COMMAND_GM,             Console::Yes },
         };
+
         static ChatCommandTable commandTable =
         {
             { "gm", gmCommandTable },
         };
+
         return commandTable;
     }
 
@@ -91,6 +107,215 @@ public:
         handler->SendSysMessage(LANG_USE_BOL);
         handler->SetSentErrorMessage(true);
         return false;
+    }
+
+    static bool HandleGMBarberShopCommand(ChatHandler* handler, Optional<uint32> featureMask)
+    {
+        if (!featureMask) {
+            featureMask = 0;
+        }
+
+        if (WorldSession* session = handler->GetSession())
+        {
+            WorldPackets::Misc::EnableBarberShop enableBarberShop;
+            enableBarberShop.CustomizationFeatureMask = 0;
+            session->GetPlayer()->SendDirectMessage(enableBarberShop.Write());
+            return true;
+        }
+
+        handler->SendSysMessage(LANG_USE_BOL);
+        handler->SetSentErrorMessage(true);
+        return false;
+    }
+
+    static bool HandleGMRewardAllAchievementsCommand(ChatHandler* handler)
+    {
+        if (WorldSession* session = handler->GetSession())
+        {
+            Player* player = session->GetPlayer();
+            PlayerAchievementMgr achievementMgr(player);
+            for (const AchievementEntry* achievement : sAchievementStore)
+            {
+                achievementMgr.CompletedAchievement(achievement, player);
+            }
+            return true;
+        }
+
+        handler->SendSysMessage(LANG_USE_BOL);
+        handler->SetSentErrorMessage(true);
+        return false;
+    }
+
+    static bool HandleGMRewardAllToysCommand(ChatHandler* handler)
+    {
+        if (WorldSession* session = handler->GetSession())
+        {
+            CollectionMgr collections(session);
+            for (ToyEntry const* toy : sToyStore)
+            {
+                collections.AddToy(toy->ItemID, false, false);
+            }
+            return true;
+        }
+
+        handler->SendSysMessage(LANG_USE_BOL);
+        handler->SetSentErrorMessage(true);
+        return false;
+    }
+
+    static bool HandleGMRewardAllMountsCommand(ChatHandler* handler)
+    {
+        if (WorldSession* session = handler->GetSession())
+        {
+            CollectionMgr collections(session);
+            for (MountEntry const* mount : sMountStore)
+            {
+                collections.AddMount(mount->SourceSpellID, MOUNT_STATUS_NONE);
+            }
+            return true;
+        }
+
+        handler->SendSysMessage(LANG_USE_BOL);
+        handler->SetSentErrorMessage(true);
+        return false;
+    }
+
+    static bool HandleGMRewardAllTransmogCommand(ChatHandler* handler)
+    {
+        if (WorldSession* session = handler->GetSession())
+        {
+            CollectionMgr collections(session);
+            for (ItemModifiedAppearanceEntry const* itemModifiedAppearance : sItemModifiedAppearanceStore)
+            {
+                collections.AddItemAppearance(itemModifiedAppearance->ItemID, itemModifiedAppearance->ItemAppearanceModifierID);
+            }
+
+            for (TransmogIllusionEntry const* illusion : sTransmogIllusionStore)
+            {
+                collections.AddTransmogIllusion(illusion->ID);
+            }
+
+            return true;
+        }
+
+        handler->SendSysMessage(LANG_USE_BOL);
+        handler->SetSentErrorMessage(true);
+        return false;
+    }
+
+    static bool HandleGMRewardAllAppearancesCommand(ChatHandler* handler)
+    {
+        if (WorldSession* session = handler->GetSession())
+        {
+            CollectionMgr collections(session);
+            for (TransmogSetEntry const* tmogSet : sTransmogSetStore)
+            {
+                collections.AddTransmogSet(tmogSet->ID);
+            }
+            return true;
+        }
+
+        handler->SendSysMessage(LANG_USE_BOL);
+        handler->SetSentErrorMessage(true);
+        return false;
+    }
+
+    static bool HandleGMRewardAllBattlePetsCommand(ChatHandler* handler)
+    {
+        if (WorldSession* session = handler->GetSession())
+        {
+            BattlePets::BattlePetMgr collection(session);
+            for (BattlePetSpeciesEntry const* pet : sBattlePetSpeciesStore)
+            {
+                uint32 displayID = BattlePets::BattlePetMgr::SelectPetDisplay(pet);
+                uint16 breed = BattlePets::BattlePetMgr::RollPetBreed(pet->ID);
+                collection.AddPet(pet->ID, displayID, breed, BattlePets::BattlePetBreedQuality::Legendary, 25);
+            }
+            return true;
+        }
+
+        handler->SendSysMessage(LANG_USE_BOL);
+        handler->SetSentErrorMessage(true);
+        return false;
+    }
+
+    static bool HandleGMAddTransmogSetCommand(ChatHandler* handler, uint32 transmogSetID)
+    {
+        if (WorldSession* session = handler->GetSession())
+        {
+            CollectionMgr collections(session);
+            collections.AddTransmogSet(transmogSetID);
+            return true;
+        }
+
+        handler->SendSysMessage(LANG_USE_BOL);
+        handler->SetSentErrorMessage(true);
+        return false;
+    }
+
+    static bool HandleGMSeamlessPortCommand(ChatHandler* handler, uint32 mapID, float x, float y, float z)
+    {
+        Player* target = handler->getSelectedPlayer();
+        if (!target)
+            target = handler->GetSession()->GetPlayer();
+
+        target->SendPreloadWorld(mapID, x, y, z);
+        target->TeleportTo(mapID, x, y, z, 0.0f, TELE_TO_SEAMLESS);
+
+        return true;
+    }
+
+    static bool HandleGMCommentatorCommand(ChatHandler* handler, Optional<PlayerIdentifier> player)
+    {
+        if (!player)
+            player = PlayerIdentifier::FromTargetOrSelf(handler);
+
+        if (!player) {
+            TC_LOG_ERROR("network.commands", "Unable to find target for GMCommentatorNameCommand.");
+            return false;
+        }
+
+        Player* target = handler->getSelectedPlayer();
+
+        bool enable = !target->HasPlayerFlag(PLAYER_FLAGS_UBER);
+
+        if (enable) {
+            target->SetPlayerFlag(PLAYER_FLAGS_UBER);
+            target->SetPlayerFlag(PLAYER_FLAGS_COMMENTATOR2);
+            handler->PSendSysMessage("Commentator flags added.");
+        }
+        else {
+            target->RemovePlayerFlag(PLAYER_FLAGS_UBER);
+            target->RemovePlayerFlag(PLAYER_FLAGS_COMMENTATOR2);
+            handler->PSendSysMessage("Commentator flags removed.");
+        }
+
+        return true;
+    }
+
+    static bool HandleGMCameraCommand(ChatHandler* handler, Optional<PlayerIdentifier> player)
+    {
+        if (!player)
+            player = PlayerIdentifier::FromTargetOrSelf(handler);
+
+        if (!player) {
+            TC_LOG_ERROR("network.commands", "Unable to find target for GMCameraNameCommand.");
+            return false;
+        }
+
+        Player* target = handler->getSelectedPlayer();
+        bool enable = !target->HasPlayerFlag(PLAYER_FLAGS_UBER);
+
+        if (enable) {
+            target->SetPlayerFlag(PLAYER_FLAGS_COMMENTATOR_CAMERA);
+            handler->PSendSysMessage("Camera flag added.");
+        }
+        else {
+            target->RemovePlayerFlag(PLAYER_FLAGS_COMMENTATOR_CAMERA);
+            handler->PSendSysMessage("Camera flag removed.");
+        }
+
+        return true;
     }
 
     static bool HandleGMFlyCommand(ChatHandler* handler, bool enable)

@@ -467,11 +467,11 @@ enum PlayerFlags
     PLAYER_FLAGS_LOW_LEVEL_RAID_ENABLED = 0x00010000,       // pre-3.0.3 PLAYER_FLAGS_SANCTUARY flag for player entered sanctuary
     PLAYER_FLAGS_TAXI_BENCHMARK         = 0x00020000,       // taxi benchmark mode (on/off) (2.0.1)
     PLAYER_FLAGS_PVP_TIMER              = 0x00040000,       // 3.0.2, pvp timer active (after you disable pvp manually)
-    PLAYER_FLAGS_UBER                   = 0x00080000,
+    PLAYER_FLAGS_UBER                   = 0x00080000,       // commentator flag
     PLAYER_FLAGS_UNK20                  = 0x00100000,
     PLAYER_FLAGS_UNK21                  = 0x00200000,
-    PLAYER_FLAGS_COMMENTATOR2           = 0x00400000,
-    PLAYER_FLAGS_HIDE_ACCOUNT_ACHIEVEMENTS = 0x00800000,    // do not send account achievments in inspect packets
+    PLAYER_FLAGS_COMMENTATOR2           = 0x00400000,       // commentator2 - COMMENTATOR_CAN_USE_INSTANCE_COMMAND?
+    PLAYER_FLAGS_HIDE_ACCOUNT_ACHIEVEMENTS = 0x00800000,    // do not send account achievements in inspect packets
     PLAYER_FLAGS_PET_BATTLES_UNLOCKED   = 0x01000000,       // enables pet battles
     PLAYER_FLAGS_NO_XP_GAIN             = 0x02000000,
     PLAYER_FLAGS_UNK26                  = 0x04000000,
@@ -479,7 +479,7 @@ enum PlayerFlags
     PLAYER_FLAGS_GUILD_LEVEL_ENABLED    = 0x10000000,       // Lua_GetGuildLevelEnabled() - enables guild leveling related UI
     PLAYER_FLAGS_VOID_UNLOCKED          = 0x20000000,       // void storage
     PLAYER_FLAGS_TIMEWALKING            = 0x40000000,
-    PLAYER_FLAGS_COMMENTATOR_CAMERA     = 0x80000000
+    PLAYER_FLAGS_COMMENTATOR_CAMERA     = 0x80000000        // no idea
 };
 
 DEFINE_ENUM_FLAG(PlayerFlags);
@@ -1411,6 +1411,8 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
     public:
         void UpdateAverageItemLevelTotal();
         void UpdateAverageItemLevelEquipped();
+        void SendPreloadWorld(int mapID, float x, float y, float z);
+        void SendNewWorld(int mapID, float x, float y, float z);
 
         uint8 FindEquipSlot(Item const* item, uint32 slot, bool swap) const;
         uint32 GetFreeInventorySlotCount(EnumFlag<ItemSearchLocation> location = ItemSearchLocation::Inventory) const;
@@ -1993,7 +1995,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         PlayerSpellMap      & GetSpellMap()       { return m_spells; }
 
         void AddSpellMod(SpellModifier* mod, bool apply);
-        static bool IsAffectedBySpellmod(SpellInfo const* spellInfo, SpellModifier const* mod, Spell* spell = nullptr);
+        static uint32 IsAffectedBySpellmod(SpellInfo const* spellInfo, SpellModifier const* mod, Spell const* spell = nullptr);
         template <class T>
         void GetSpellModValues(SpellInfo const* spellInfo, SpellModOp op, Spell* spell, T base, int32* flat, float* pct) const;
         template <class T>
