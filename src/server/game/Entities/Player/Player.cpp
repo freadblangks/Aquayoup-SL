@@ -582,6 +582,15 @@ bool Player::Create(ObjectGuid::LowType guidlow, WorldPackets::Character::Charac
     return true;
 }
 
+void Player::SendPreloadWorld(int mapID, float x, float y, float z) {
+    WorldPackets::Misc::PreloadWorld packet;
+    packet.MapID = mapID;
+    packet.x = x;
+    packet.y = y;
+    packet.z = z;
+    SendDirectMessage(packet.Write());
+}
+
 bool Player::StoreNewItemInBestSlots(uint32 itemId, uint32 amount, ItemContext context)
 {
     TC_LOG_DEBUG("entities.player.items", "Player::StoreNewItemInBestSlots: Player '{}' ({}) creates initial item (ItemID: {}, Count: {})",
@@ -1482,9 +1491,6 @@ bool Player::TeleportTo(TeleportLocation const& teleportLocation, TeleportToOpti
             }
 
             SendDirectMessage(transferPending.Write());
-
-            RemovePlayerLocalFlag(PLAYER_LOCAL_FLAG_OVERRIDE_TRANSPORT_SERVER_TIME);
-            SetTransportServerTime(0);
         }
 
         // remove from old map now

@@ -1420,6 +1420,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
     public:
         void UpdateAverageItemLevelTotal();
         void UpdateAverageItemLevelEquipped();
+        void SendPreloadWorld(int mapID, float x, float y, float z);
 
         uint8 FindEquipSlot(Item const* item, uint32 slot, bool swap) const;
         uint32 GetFreeInventorySlotCount(EnumFlag<ItemSearchLocation> location = ItemSearchLocation::Inventory) const;
@@ -3375,6 +3376,19 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         ObjectGuid _areaSpiritHealerGUID;
 
         bool _justPassedBarberChecks;
+
+    public:
+        struct WargameRequest
+        {
+            ObjectGuid OpposingPartyMemberGUID;
+            uint64 QueueID;
+            time_t CreationDate;
+            bool TournamentRules;
+        };
+
+        bool HasWargameRequest() const { return _wargameRequest != nullptr; }
+        WargameRequest* GetWargameRequest() const { return _wargameRequest; }
+        WargameRequest* _wargameRequest;
 
         // Spell cast request handling
     public:
