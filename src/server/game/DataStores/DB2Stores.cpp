@@ -256,6 +256,7 @@ DB2Storage<ModifiedCraftingCategoryEntry>       sModifiedCraftingCategoryStore("
 DB2Storage<ModifiedCraftingReagentItemEntry>    sModifiedCraftingReagentItemStore("ModifiedCraftingReagentItem.db2", &ModifiedCraftingReagentItemLoadInfo::Instance);
 DB2Storage<ModifiedCraftingReagentSlotEntry>    sModifiedCraftingReagentSlotStore("ModifiedCraftingReagentSlot.db2", &ModifiedCraftingReagentSlotLoadInfo::Instance);
 DB2Storage<ModifiedCraftingSpellSlotEntry>      sModifiedCraftingSpellSlotStore("ModifiedCraftingSpellSlot.db2", &ModifiedCraftingSpellSlotLoadInfo::Instance);
+DB2Storage<ModifiedCraftingItemEntry>           sModifiedCraftingItemStore("ModifiedCraftingItem.db2", &ModifiedCraftingItemLoadInfo::Instance);
 DB2Storage<ModifierTreeEntry>                   sModifierTreeStore("ModifierTree.db2", &ModifierTreeLoadInfo::Instance);
 DB2Storage<MountCapabilityEntry>                sMountCapabilityStore("MountCapability.db2", &MountCapabilityLoadInfo::Instance);
 DB2Storage<MountEntry>                          sMountStore("Mount.db2", &MountLoadInfo::Instance);
@@ -276,6 +277,7 @@ DB2Storage<ParagonReputationEntry>              sParagonReputationStore("Paragon
 DB2Storage<PathEntry>                           sPathStore("Path.db2", &PathLoadInfo::Instance);
 DB2Storage<PathNodeEntry>                       sPathNodeStore("PathNode.db2", &PathNodeLoadInfo::Instance);
 DB2Storage<PathPropertyEntry>                   sPathPropertyStore("PathProperty.db2", &PathPropertyLoadInfo::Instance);
+DB2Storage<PerksActivityEntry>                  sPerksActivityStore("PerksActivity.db2", &PerksActivityLoadInfo::Instance);
 DB2Storage<PhaseEntry>                          sPhaseStore("Phase.db2", &PhaseLoadInfo::Instance);
 DB2Storage<PhaseXPhaseGroupEntry>               sPhaseXPhaseGroupStore("PhaseXPhaseGroup.db2", &PhaseXPhaseGroupLoadInfo::Instance);
 DB2Storage<PlayerConditionEntry>                sPlayerConditionStore("PlayerCondition.db2", &PlayerConditionLoadInfo::Instance);
@@ -914,6 +916,7 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     LOAD_DB2(sModifiedCraftingReagentSlotStore);
     LOAD_DB2(sModifiedCraftingReagentItemStore);
     LOAD_DB2(sModifiedCraftingSpellSlotStore);
+    LOAD_DB2(sModifiedCraftingItemStore);
     LOAD_DB2(sModifierTreeStore);
     LOAD_DB2(sMountCapabilityStore);
     LOAD_DB2(sMountStore);
@@ -934,6 +937,7 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     LOAD_DB2(sPathStore);
     LOAD_DB2(sPathNodeStore);
     LOAD_DB2(sPathPropertyStore);
+    LOAD_DB2(sPerksActivityStore);
     LOAD_DB2(sPhaseStore);
     LOAD_DB2(sPhaseXPhaseGroupStore);
     LOAD_DB2(sPlayerConditionStore);
@@ -1290,6 +1294,7 @@ void DB2Manager::IndexLoadedStores()
     for (ChrRaceXChrModelEntry const* raceModel : sChrRaceXChrModelStore)
     {
         _chrPlayerModels.insert(raceModel->ChrModelID);
+
         if (ChrModelEntry const* model = sChrModelStore.LookupEntry(raceModel->ChrModelID))
         {
             _chrModelsByRaceAndGender[{ uint8(raceModel->ChrRacesID), uint8(raceModel->Sex) }] = model;

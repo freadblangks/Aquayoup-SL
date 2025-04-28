@@ -538,6 +538,7 @@ namespace WorldPackets
         class RequestLatestSplashScreen;
         class QueryCountdownTimer;
         class AccountNotificationAcknowledge;
+        class OverrideScreenFlash;
         class ShowTradeSkill;
     }
 
@@ -552,6 +553,7 @@ namespace WorldPackets
         class MoveKnockBackAck;
         class SetActiveMover;
         class MoveSetCollisionHeightAck;
+        class DiscardedTimeSyncAcks;
         class MoveTimeSkipped;
         class SummonResponse;
         class MoveSplineDone;
@@ -1279,6 +1281,7 @@ class TC_GAME_API WorldSession
 
         // Movement forces
         void HandleMoveApplyMovementForceAck(WorldPackets::Movement::MoveApplyMovementForceAck& moveApplyMovementForceAck);
+        void HandleDiscardedTimeSyncAcks(WorldPackets::Movement::DiscardedTimeSyncAcks& packet);
         void HandleMoveRemoveMovementForceAck(WorldPackets::Movement::MoveRemoveMovementForceAck& moveRemoveMovementForceAck);
         void HandleMoveSetModMovementForceMagnitudeAck(WorldPackets::Movement::MovementSpeedAck& setModMovementForceMagnitudeAck);
 
@@ -1799,6 +1802,7 @@ class TC_GAME_API WorldSession
         void HandleConversationLineStarted(WorldPackets::Misc::ConversationLineStarted& conversationLineStarted);
         void HandleKeyboundOverride(WorldPackets::Spells::KeyboundOverride& keyboundOverride);
         void HandleQueryCountdownTimer(WorldPackets::Misc::QueryCountdownTimer& queryCountdownTimer);
+        void HandleOverrideScreenFlash(WorldPackets::Misc::OverrideScreenFlash& overrideScreenFlash);
 
         // Commentator
         void HandleAccountNotificationAcknowledge(WorldPackets::Misc::AccountNotificationAcknowledge& packet);

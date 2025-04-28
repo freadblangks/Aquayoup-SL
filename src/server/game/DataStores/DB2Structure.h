@@ -3101,6 +3101,13 @@ struct ModifiedCraftingSpellSlotEntry
     int32 ReagentReCraftCount;
 };
 
+struct ModifiedCraftingItemEntry
+{
+    uint32 ID;
+    int32 ModifiedCraftingReagentItemID;
+    int32 CraftingQualityID;
+};
+
 struct ModifierTreeEntry
 {
     uint32 ID;
@@ -3299,6 +3306,17 @@ struct PathPropertyEntry
     int32 Value;
 
     PathPropertyIndex GetPropertyIndex() const { return static_cast<PathPropertyIndex>(PropertyIndex); }
+};
+
+struct PerksActivityEntry
+{
+    LocalizedString ActivityName;
+    LocalizedString Description;
+    uint32 ID;
+    int32 CriteriaTreeID;
+    int32 ThresholdContributionAmount;
+    int32 Supersedes;
+    int32 Priority;
 };
 
 struct PhaseEntry
@@ -3806,7 +3824,6 @@ struct SoundKitEntry
     uint32 SoundMixGroupID;
 };
 
-// FileOptions: Index, None
 struct SoundKitEntryEntry
 {
     int32       ID;
@@ -4065,7 +4082,6 @@ struct SpellEquippedItemsEntry
     int32 EquippedItemSubclass;
 };
 
-// FileOptions: Index, None
 struct SpellEntry
 {
     uint32 ID;
@@ -5220,7 +5236,6 @@ struct SoundAmbienceEntry
     uint32 AmbienceStartID[2];
     uint32 AmbienceStopID[2];
     uint32 SoundKitID[2];
-
 };
 
 struct ZoneMusicEntry

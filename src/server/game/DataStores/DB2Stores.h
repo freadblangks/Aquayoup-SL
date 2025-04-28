@@ -206,6 +206,7 @@ TC_GAME_API extern DB2Storage<ModifiedCraftingCategoryEntry>        sModifiedCra
 TC_GAME_API extern DB2Storage<ModifiedCraftingReagentSlotEntry>     sModifiedCraftingReagentSlotStore;
 TC_GAME_API extern DB2Storage<ModifiedCraftingReagentItemEntry>     sModifiedCraftingReagentItemStore;
 TC_GAME_API extern DB2Storage<ModifiedCraftingSpellSlotEntry>       sModifiedCraftingSpellSlotStore;
+TC_GAME_API extern DB2Storage<ModifiedCraftingItemEntry>            sModifiedCraftingItemStore;
 TC_GAME_API extern DB2Storage<ModifierTreeEntry>                    sModifierTreeStore;
 TC_GAME_API extern DB2Storage<MountCapabilityEntry>                 sMountCapabilityStore;
 TC_GAME_API extern DB2Storage<MountEntry>                           sMountStore;
@@ -216,6 +217,7 @@ TC_GAME_API extern DB2Storage<NPCModelItemSlotDisplayInfoEntry>     sNPCModelIte
 TC_GAME_API extern DB2Storage<MythicPlusSeasonEntry>                sMythicPlusSeasonStore;
 TC_GAME_API extern DB2Storage<OverrideSpellDataEntry>               sOverrideSpellDataStore;
 TC_GAME_API extern DB2Storage<ParagonReputationEntry>               sParagonReputationStore;
+TC_GAME_API extern DB2Storage<PerksActivityEntry>                   sPerksActivityStore;
 TC_GAME_API extern DB2Storage<PhaseEntry>                           sPhaseStore;
 TC_GAME_API extern DB2Storage<PlayerConditionEntry>                 sPlayerConditionStore;
 TC_GAME_API extern DB2Storage<PowerDisplayEntry>                    sPowerDisplayStore;
