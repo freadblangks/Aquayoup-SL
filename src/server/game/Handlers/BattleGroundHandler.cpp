@@ -652,7 +652,7 @@ void WorldSession::HandleBattlemasterJoinArena(WorldPackets::Battleground::Battl
 void WorldSession::HandleJoinSkirmish(WorldPackets::Battleground::JoinSkirmish& packet)
 {
     // ignore if we already in BG or BG queue
-    if (_player->InBattleground() || packet.Bracket != ARENA_SKIRMISH)
+    if (_player->InBattleground())
         return;
 
     BattlegroundTemplate const* bgTemplate = sBattlegroundMgr->GetBattlegroundTemplateByTypeId(BATTLEGROUND_AA);
@@ -783,6 +783,12 @@ void WorldSession::HandleJoinSkirmish(WorldPackets::Battleground::JoinSkirmish& 
     sBattlegroundMgr->ScheduleQueueUpdate(0, bgQueueTypeId, bracketEntry->GetBracketId());
 }
 
+void WorldSession::HandleRequestScheduledPVPInfo(WorldPackets::Battleground::RequestScheduledPVPInfo& /*packet*/)
+{
+    WorldPackets::Battleground::RequestScheduledPVPInfoResponse requestScheduledPVPInfoResponse;
+    SendPacket(requestScheduledPVPInfoResponse.Write());
+}
+
 void WorldSession::HandleReportPvPAFK(WorldPackets::Battleground::ReportPvPPlayerAFK& reportPvPPlayerAFK)
 {
     Player* reportedPlayer = ObjectAccessor::FindPlayer(reportPvPPlayerAFK.Offender);
@@ -797,25 +803,25 @@ void WorldSession::HandleReportPvPAFK(WorldPackets::Battleground::ReportPvPPlaye
     reportedPlayer->ReportedAfkBy(_player);
 }
 
-void WorldSession::HandleRequestRatedPvpInfo(WorldPackets::Battleground::RequestRatedPvpInfo& /*packet*/)
+void WorldSession::HandleRequestRatedPVPInfo(WorldPackets::Battleground::RequestRatedPVPInfo& /*packet*/)
 {
-    WorldPackets::Battleground::RatedPvpInfo ratedPvpInfo;
+    WorldPackets::Battleground::RatedPVPInfo ratedPvpInfo;
     SendPacket(ratedPvpInfo.Write());
 }
 
 void WorldSession::HandleGetPVPOptionsEnabled(WorldPackets::Battleground::GetPVPOptionsEnabled& /*getPvPOptionsEnabled*/)
 {
     WorldPackets::Battleground::PVPOptionsEnabled pvpOptionsEnabled;
-    pvpOptionsEnabled.RatedBattlegrounds = false;
+    pvpOptionsEnabled.RatedBattlegrounds = true;
     pvpOptionsEnabled.PugBattlegrounds = true;
-    pvpOptionsEnabled.WargameBattlegrounds = false;
-    pvpOptionsEnabled.WargameArenas = false;
-    pvpOptionsEnabled.RatedArenas = false;
-    pvpOptionsEnabled.ArenaSkirmish = false;
-    pvpOptionsEnabled.SoloShuffle = false;
-    pvpOptionsEnabled.RatedSoloShuffle = false;
-    pvpOptionsEnabled.BattlegroundBlitz = false;
-    pvpOptionsEnabled.RatedBattlegroundBlitz = false;
+    pvpOptionsEnabled.WargameBattlegrounds = true;
+    pvpOptionsEnabled.WargameArenas = true;
+    pvpOptionsEnabled.RatedArenas = true;
+    pvpOptionsEnabled.ArenaSkirmish = true;
+    pvpOptionsEnabled.SoloShuffle = true;
+    pvpOptionsEnabled.RatedSoloShuffle = true;
+    pvpOptionsEnabled.BattlegroundBlitz = true;
+    pvpOptionsEnabled.RatedBattlegroundBlitz = true;
     SendPacket(pvpOptionsEnabled.Write());
 }
 
