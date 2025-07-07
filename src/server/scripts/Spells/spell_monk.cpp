@@ -101,7 +101,6 @@ enum MonkSpells
     SPELL_MONK_RISING_THUNDER                           = 210804,
     SPELL_MONK_RENEWING_MIST_HOT                        = 119611,
     SPELL_MONK_ESSENCE_FONT_PERIODIC_HEAL               = 191840,
-    SPELL_MONK_ENVELOPING_MIST                          = 124682,
     SPELL_MONK_FORTIFYING_BREW                          = 120954,
     SPELL_MONK_MODERATE_STAGGER                         = 124274,
     SPELL_MONK_LIGHT_STAGGER                            = 124275,
@@ -128,7 +127,6 @@ enum MonkSpells
     SPELL_MONK_ZEN_PULSE_DAMAGE                         = 124081,
     SPELL_MONK_ZEN_PULSE_HEAL                           = 198487,
     SPELL_MONK_COUNTERACT_MAGIC                         = 202428,
-    SPELL_MONK_RENEWING_MIST                            = 115151,
     SPELL_MONK_RENEWING_MIST_JUMP                       = 119607,
     SPELL_MONK_VISUAL_RENEWING_MIST                     = 24599,
     SPELL_MONK_ESSENCE_FONT_HEAL                        = 191840,
@@ -1723,7 +1721,7 @@ struct npc_monk_jade_serpent_statue : public ScriptedAI
 // 101643
 class spell_monk_transcendence : public SpellScript
 {
-public:
+
     void HandleSummon(Creature* creature)
     {
         DespawnSpirit(GetCaster());
@@ -1735,6 +1733,12 @@ public:
         GetCaster()->VariableStorage.Set(MONK_TRANSCENDENCE_GUID, creature->GetGUID());
     }
 
+    void Register() override
+    {
+        OnEffectSummon += SpellOnEffectSummonFn(spell_monk_transcendence::HandleSummon);
+    }
+
+public:
     static Creature* GetSpirit(Unit* caster)
     {
         ObjectGuid spiritGuid = caster->VariableStorage.GetValue<ObjectGuid>(MONK_TRANSCENDENCE_GUID, ObjectGuid());
@@ -1749,11 +1753,6 @@ public:
         if (Creature* spirit = GetSpirit(caster))
             spirit->DespawnOrUnsummon();
         caster->VariableStorage.Remove(MONK_TRANSCENDENCE_GUID);
-    }
-
-    void Register() override
-    {
-        OnEffectSummon += SpellOnEffectSummonFn(spell_monk_transcendence::HandleSummon);
     }
 };
 
@@ -1879,7 +1878,7 @@ public:
             targets.remove_if(Trinity::UnitAuraCheck(false, SPELL_MONK_RENEWING_MIST_HOT, GetCaster()->GetGUID()));
         }
 
-        void HandleOnPrepare()
+        void OnPrepareFunc()
         {
             if (GetCaster()->GetCurrentSpell(CURRENT_CHANNELED_SPELL) && GetCaster()->GetCurrentSpell(CURRENT_CHANNELED_SPELL)->GetSpellInfo()->Id == SPELL_MONK_SOOTHING_MIST)
             {
@@ -1902,7 +1901,7 @@ public:
 
         void Register() override
         {
-            OnPrepare += SpellOnPrepareFn(spell_monk_vivify_SpellScript::HandleOnPrepare);
+            OnPrepare += SpellOnPrepareFn(spell_monk_vivify_SpellScript::OnPrepareFunc);
             OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_monk_vivify_SpellScript::FilterRenewingMist, EFFECT_1, TARGET_UNIT_DEST_AREA_ALLY);
             AfterCast += SpellCastFn(spell_monk_vivify_SpellScript::LifeCycles);
         }
@@ -2363,7 +2362,7 @@ class aura_monk_mana_tea : public AuraScript
 class spell_monk_enveloping_mist : public SpellScriptLoader
 {
 public:
-    spell_monk_enveloping_mist() : SpellScriptLoader("spell_monk_enveloping_mist") { }
+    spell_monk_enveloping_mist() : SpellScriptLoader("spell_monk_enveloping_mist") {}
 
     class spell_monk_enveloping_mist_SpellScript : public SpellScript
     {
@@ -2377,7 +2376,7 @@ public:
             }
         }
 
-        void LifeCycles()
+        void HandleAfterCast()
         {
             Player* caster = GetCaster()->ToPlayer();
             if (!caster)
@@ -2391,7 +2390,7 @@ public:
         void Register() override
         {
             OnPrepare += SpellOnPrepareFn(spell_monk_enveloping_mist_SpellScript::HandleOnPrepare);
-            AfterCast += SpellCastFn(spell_monk_enveloping_mist_SpellScript::LifeCycles);
+            AfterCast += SpellCastFn(spell_monk_enveloping_mist_SpellScript::HandleAfterCast);
         }
     };
 
