@@ -229,7 +229,6 @@ public:
     static bool HandleBarberCommand(ChatHandler* handler)
     {
         WorldPackets::Misc::EnableBarberShop packet;
-        packet.CustomizationFeatureMask = 0x7FFFFFFF;
         handler->GetSession()->GetPlayer()->SendDirectMessage(packet.Write());
 
         return true;
@@ -246,9 +245,9 @@ public:
         if (!handler->GetSession()->GetPlayer()->GetGroup())
             return false;
 
-        for (GroupReference* itr = handler->GetSession()->GetPlayer()->GetGroup()->GetFirstMember(); itr != NULL; itr = itr->next())
+        for (GroupReference const& itr : handler->GetSession()->GetPlayer()->GetGroup()->GetMembers())
         {
-            Player* plr = itr->GetSource();
+            Player* plr = itr.GetSource();
             if (!plr || !plr->GetSession())
                 continue;
 
@@ -277,9 +276,9 @@ public:
         if (!handler->GetSession()->GetPlayer()->GetGroup())
             return false;
 
-        for (GroupReference* itr = handler->GetSession()->GetPlayer()->GetGroup()->GetFirstMember(); itr != NULL; itr = itr->next())
+        for (GroupReference const& itr : handler->GetSession()->GetPlayer()->GetGroup()->GetMembers())
         {
-            Player* plr = itr->GetSource();
+            Player* plr = itr.GetSource();
             if (!plr || !plr->GetSession())
                 continue;
 

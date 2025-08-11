@@ -932,9 +932,6 @@ void MovementInfo::OutDebug()
 }
 
 WorldObject::WorldObject(bool isWorldObject) : Object(), WorldLocation(), LastUsedScriptID(0),
-#ifdef ELUNA
-elunaEvents(NULL),
-#endif
 m_movementInfo(), m_name(), m_isActive(false), m_isFarVisible(false), m_isStoredInWorldObjectGridContainer(isWorldObject), m_zoneScript(nullptr),
 m_transport(nullptr), m_zoneId(0), m_areaId(0), m_staticFloorZ(VMAP_INVALID_HEIGHT), m_outdoors(false), m_liquidStatus(LIQUID_MAP_NO_WATER),
 m_currMap(nullptr), m_InstanceId(0), _dbPhase(0), m_notifyflags(0), _heartbeatTimer(HEARTBEAT_INTERVAL)
@@ -945,11 +942,6 @@ m_currMap(nullptr), m_InstanceId(0), _dbPhase(0), m_notifyflags(0), _heartbeatTi
 
 WorldObject::~WorldObject()
 {
-#ifdef ELUNA
-    delete elunaEvents;
-    elunaEvents = NULL;
-#endif
-
     // this may happen because there are many !create/delete
     if (IsStoredInWorldObjectGridContainer() && m_currMap)
     {
@@ -966,11 +958,6 @@ WorldObject::~WorldObject()
 void WorldObject::Update(uint32 diff)
 {
     m_Events.Update(diff);
-
-#ifdef ELUNA
-    if (elunaEvents) // can be null on maps without eluna
-        elunaEvents->Update(diff);
-#endif
 
     _heartbeatTimer -= Milliseconds(diff);
     while (_heartbeatTimer <= 0ms)
@@ -1889,19 +1876,21 @@ void WorldObject::SetMap(Map* map)
     m_InstanceId = map->GetInstanceId();
 
 #ifdef ELUNA
-    //@todo: possibly look into cleanly clearing all pending events from previous map's event mgr.
-
-    // if multistate, delete elunaEvents and set to nullptr. events shouldn't move across states.
-    // in single state, the timed events should move across maps
-    if (!sElunaConfig->IsElunaCompatibilityMode())
-    {
-        delete elunaEvents;
-        elunaEvents = nullptr; // set to null in case map doesn't use eluna
-    }
+    // always reset Map events, then recreate the Map events procesor if Eluna is enabled for the map
+    auto& events = GetElunaEvents(m_mapId);
+    if (events)
+        events.reset();
 
     if (Eluna* e = map->GetEluna())
-        if (!elunaEvents)
-            elunaEvents = new ElunaEventProcessor(e, this);
+        events = std::make_unique<ElunaEventProcessor>(e, this);
+
+    // create the World events processor
+    if (Eluna* e = sWorld->GetEluna())
+    {
+        auto& events = GetElunaEvents(-1);
+        if (!events)
+            events = std::make_unique<ElunaEventProcessor>(e, this);
+    }
 #endif
 
     if (IsStoredInWorldObjectGridContainer())
@@ -3788,28 +3777,82 @@ void WorldObject::PlayObjectSound(int32 soundKitId, ObjectGuid targetObjectGUID,
         SendMessageToSet(pkt.Write(), true);
 }
 
+template <std::invocable<Player*> Work>
+struct WorldObjectVisibleChangeVisitor
+{
+    Work& work;
+
+    explicit WorldObjectVisibleChangeVisitor(Work& work_) : work(work_) { }
+
+    void Visit(PlayerMapType& m) const
+    {
+        for (GridReference<Player>& ref : m)
+        {
+            Player* source = ref.GetSource();
+
+            work(source);
+
+            for (Player* viewer : source->GetSharedVisionList())
+                work(viewer);
+        }
+    }
+
+    void Visit(CreatureMapType& m) const
+    {
+        for (GridReference<Creature>& ref : m)
+            for (Player* viewer : ref.GetSource()->GetSharedVisionList())
+                work(viewer);
+    }
+
+    void Visit(DynamicObjectMapType& m) const
+    {
+        for (GridReference<DynamicObject>& ref : m)
+        {
+            DynamicObject* source = ref.GetSource();
+            ObjectGuid guid = source->GetCasterGUID();
+
+            if (guid.IsPlayer())
+            {
+                //GetCaster() will be nullptr if DynObj is in removelist
+                if (Player* caster = ObjectAccessor::GetPlayer(*source, guid))
+                    if (*caster->m_activePlayerData->FarsightObject == source->GetGUID())
+                        work(caster);
+            }
+        }
+    }
+
+    template <class SKIP>
+    static void Visit(GridRefManager<SKIP> const&) { }
+};
+
+struct WorldObjectClientDestroyWork
+{
+    WorldObject* object;
+
+    void operator()(Player* player) const
+    {
+        if (player == object)
+            return;
+
+        if (!player->HaveAtClient(object))
+            return;
+
+        if (Unit const* unit = object->ToUnit(); unit && unit->GetCharmerGUID() == player->GetGUID()) /// @todo this is for puppet
+            return;
+
+        object->DestroyForPlayer(player);
+        player->m_clientGUIDs.erase(object->GetGUID());
+    }
+};
+
 void WorldObject::DestroyForNearbyPlayers()
 {
     if (!IsInWorld())
         return;
 
-    auto destroyer = [this](Player* player)
-    {
-        if (player == this)
-            return;
-
-        if (!player->HaveAtClient(this))
-            return;
-
-        if (Unit const* unit = ToUnit(); unit && unit->GetCharmerGUID() == player->GetGUID()) /// @todo this is for puppet
-            return;
-
-        DestroyForPlayer(player);
-        player->m_clientGUIDs.erase(GetGUID());
-    };
-
-    Trinity::PlayerDistWorker worker(this, GetVisibilityRange(), destroyer);
-    Cell::VisitWorldObjects(this, worker, GetVisibilityRange());
+    WorldObjectClientDestroyWork destroyer{ .object = this };
+    WorldObjectVisibleChangeVisitor visitor(destroyer);
+    Cell::VisitWorldObjects(this, visitor, GetVisibilityRange());
 }
 
 void WorldObject::UpdateObjectVisibility(bool /*forced*/)
@@ -3824,77 +3867,23 @@ struct WorldObjectChangeAccumulator
 {
     UpdateDataMapType& i_updateDatas;
     WorldObject& i_object;
-    GuidSet plr_list;
+    GuidUnorderedSet plr_list;
     WorldObjectChangeAccumulator(WorldObject &obj, UpdateDataMapType &d) : i_updateDatas(d), i_object(obj) { }
-    void Visit(PlayerMapType &m)
-    {
-        Player* source = nullptr;
-        for (PlayerMapType::iterator iter = m.begin(); iter != m.end(); ++iter)
-        {
-            source = iter->GetSource();
 
-            BuildPacket(source);
-
-            if (!source->GetSharedVisionList().empty())
-            {
-                SharedVisionList::const_iterator it = source->GetSharedVisionList().begin();
-                for (; it != source->GetSharedVisionList().end(); ++it)
-                    BuildPacket(*it);
-            }
-        }
-    }
-
-    void Visit(CreatureMapType &m)
-    {
-        Creature* source = nullptr;
-        for (CreatureMapType::iterator iter = m.begin(); iter != m.end(); ++iter)
-        {
-            source = iter->GetSource();
-            if (!source->GetSharedVisionList().empty())
-            {
-                SharedVisionList::const_iterator it = source->GetSharedVisionList().begin();
-                for (; it != source->GetSharedVisionList().end(); ++it)
-                    BuildPacket(*it);
-            }
-        }
-    }
-
-    void Visit(DynamicObjectMapType &m)
-    {
-        DynamicObject* source = nullptr;
-        for (DynamicObjectMapType::iterator iter = m.begin(); iter != m.end(); ++iter)
-        {
-            source = iter->GetSource();
-            ObjectGuid guid = source->GetCasterGUID();
-
-            if (guid.IsPlayer())
-            {
-                //Caster may be nullptr if DynObj is in removelist
-                if (Player* caster = ObjectAccessor::FindPlayer(guid))
-                    if (*caster->m_activePlayerData->FarsightObject == source->GetGUID())
-                        BuildPacket(caster);
-            }
-        }
-    }
-
-    void BuildPacket(Player* player)
+    void operator()(Player* player)
     {
         // Only send update once to a player
-        if (plr_list.find(player->GetGUID()) == plr_list.end() && player->HaveAtClient(&i_object))
-        {
+        if (player->HaveAtClient(&i_object) && plr_list.insert(player->GetGUID()).second)
             i_object.BuildFieldsUpdate(player, i_updateDatas);
-            plr_list.insert(player->GetGUID());
-        }
     }
-
-    template<class SKIP> void Visit(GridRefManager<SKIP> &) { }
 };
 
 void WorldObject::BuildUpdate(UpdateDataMapType& data_map)
 {
     WorldObjectChangeAccumulator notifier(*this, data_map);
+    WorldObjectVisibleChangeVisitor visitor(notifier);
     //we must build packets for all visible players
-    Cell::VisitWorldObjects(this, notifier, GetVisibilityRange());
+    Cell::VisitWorldObjects(this, visitor, GetVisibilityRange());
 
     ClearUpdateMask(false);
 }

@@ -496,6 +496,19 @@ REPLACE INTO `spell_script_names` VALUES (271877, 'spell_rog_blade_rush');
 REPLACE INTO `spell_script_names` VALUES (197835, 'spell_rog_shuriken_storm');
 
 -- ----------------------------
+-- Priest spell fixes
+-- ----------------------------
+REPLACE INTO `spell_script_names` VALUES (186723, 'spell_pri_penance_620');
+REPLACE INTO `spell_script_names` VALUES (271466, 'spell_pri_luminous_barrier');
+REPLACE INTO `spell_script_names` VALUES (108945, 'spell_pri_angelic_bulwark');
+REPLACE INTO `spell_script_names` VALUES (8122, 'spell_pri_mental_scream');
+REPLACE INTO `spell_script_names` VALUES (194249, 'spell_pri_voidform');
+REPLACE INTO `spell_script_names` VALUES (228260, 'spell_pri_void_eruption');
+REPLACE INTO `spell_script_names` VALUES (335467, 'spell_pri_devouring_plague');
+REPLACE INTO `spell_script_names` VALUES (108920, 'spell_pri_void_tendrils');
+
+
+-- ----------------------------
 -- Paladin spell fixes
 -- ----------------------------
 
@@ -569,6 +582,14 @@ REPLACE INTO `spell_linked_spell` VALUES (152175, 158221, 0, 'Monk Whirling Drag
 REPLACE INTO `spell_script_names` VALUES (113656, 'spell_fist_of_fury_proc');
 REPLACE INTO `spell_script_names` VALUES (107428, 'spell_rising_sun_kick_proc');
 REPLACE INTO `spell_script_names` VALUES (152175, 'spell_monk_whirling_dragon_punch');
+
+-- ----------------------------
+-- Shaman spell fixes
+-- ----------------------------
+
+REPLACE INTO `spell_script_names` VALUES (192249, 'spell_shaman_generic_summon_elemental');
+REPLACE INTO `spell_script_names` VALUES (198103, 'spell_sha_earth_elemental');
+REPLACE INTO `spell_script_names` VALUES (198067, 'spell_sha_fire_elemental');
 
 -- ----------------------------
 -- DH spell fixes

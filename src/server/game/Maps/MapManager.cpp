@@ -36,7 +36,6 @@
 #include "WorldStateMgr.h"
 #ifdef ELUNA
 #include "LuaEngine.h"
-#include "ElunaConfig.h"
 #endif
 
 #include <boost/dynamic_bitset.hpp>
@@ -56,16 +55,6 @@ void MapManager::Initialize()
     Map::InitStateMachine();
 
     int num_threads(sWorld->getIntConfig(CONFIG_NUMTHREADS));
-	
-#if ELUNA
-    if (sElunaConfig->IsElunaEnabled() && sElunaConfig->IsElunaCompatibilityMode() && num_threads > 4)
-    {
-        // Force 1 thread for Eluna if compatibility mode is enabled. Compatibility mode is single state and does not allow more update threads.
-        TC_LOG_ERROR("maps", "Map update threads set to {}, when Eluna in compatibility mode only allows 4, changing to 4", num_threads);
-        num_threads = 4;
-    }
-#endif
-	
     // Start mtmaps if needed.
     if (num_threads > 0)
         m_updater.activate(num_threads);
@@ -128,7 +117,7 @@ InstanceMap* MapManager::CreateInstance(uint32 mapId, uint32 instanceId, Instanc
         map->TrySetOwningGroup(group);
 
     map->CreateInstanceData();
-    map->SetInstanceScenario(sScenarioMgr->CreateInstanceScenario(map, team));
+    map->SetInstanceScenario(sScenarioMgr->CreateInstanceScenarioForTeam(map, team));
     map->InitSpawnGroupState();
 
     if (sWorld->getBoolConfig(CONFIG_INSTANCEMAP_LOAD_GRIDS))
@@ -425,7 +414,7 @@ uint32 MapManager::GetNumInstances() const
 uint32 MapManager::GetNumPlayersInInstances() const
 {
     std::shared_lock<std::shared_mutex> lock(_mapsLock);
-    return std::accumulate(i_maps.begin(), i_maps.end(), 0u, [](uint32 total, MapMapType::value_type const& value) { return total + (value.second->IsDungeon() ? value.second->GetPlayers().getSize() : 0); });
+    return std::accumulate(i_maps.begin(), i_maps.end(), 0u, [](uint32 total, MapMapType::value_type const& value) { return total + (value.second->IsDungeon() ? value.second->GetPlayers().size() : 0); });
 }
 
 void MapManager::InitInstanceIds()
@@ -489,8 +478,14 @@ void MapManager::FreeInstanceId(uint32 instanceId)
     _freeInstanceIds->set(instanceId, true);
 	
 #ifdef ELUNA
-    if (Eluna* e = sWorld->GetEluna())
-    e->FreeInstanceId(instanceId);
+    for (MapMapType::iterator itr = i_maps.begin(); itr != i_maps.end(); ++itr)
+    {
+        if (!(*itr).second->Instanceable())
+            continue;
+
+        if (Eluna* e = sWorld->GetEluna())
+            e->FreeInstanceId(instanceId);
+    }
 #endif
 }
 
