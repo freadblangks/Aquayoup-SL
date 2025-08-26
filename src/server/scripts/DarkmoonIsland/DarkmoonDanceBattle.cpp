@@ -64,75 +64,64 @@
 #include "TemporarySummon.h"
 #include <sstream>
 
-// npc - 181097 WIP
-class npc_dance_battle_simon_sezdans : public CreatureScript
+// npc - 181097
+struct npc_dance_battle_simon_sezdans : public ScriptedAI
 {
-public:
-    npc_dance_battle_simon_sezdans() : CreatureScript("npc_dance_battle_simon_sezdans") { }
+    explicit npc_dance_battle_simon_sezdans(Creature* creature) : ScriptedAI(creature) { }
 
-    struct npc_dance_battle_simon_sezdansAI : public ScriptedAI
+    bool OnGossipHello(Player* player) override
     {
-        npc_dance_battle_simon_sezdansAI(Creature* creature) : ScriptedAI(creature) { }
+        if (me->IsQuestGiver())
+            player->PrepareQuestMenu(me->GetGUID());
 
-        bool OnGossipHello(Player* player) override
+        AddGossipItemFor(player, 26818, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+        AddGossipItemFor(player, 26818, 1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+
+        player->PlayerTalkClass->SendGossipMenu(player->GetGossipTextId(me), me->GetGUID());
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+    {
+        uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+        ClearGossipMenuFor(player);
+
+        switch (action)
         {
-            if (me->IsQuestGiver())
-                player->PrepareQuestMenu(me->GetGUID());
-
-            AddGossipItemFor(player, 26818, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-            AddGossipItemFor(player, 26818, 1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
-
-            player->PlayerTalkClass->SendGossipMenu(player->GetGossipTextId(me), me->GetGUID());
-            return true;
+            //Info
+        case GOSSIP_ACTION_INFO_DEF + 1:
+            AddGossipItemFor(player, 16972, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
+                SendGossipMenuFor(player, 42770, me->GetGUID());
+            break;
+            // Ready to play
+        case GOSSIP_ACTION_INFO_DEF + 2:
+            AddGossipItemFor(player, 26888, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 4);                   
+            AddGossipItemFor(player, 26888, 1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 5);                   
+            AddGossipItemFor(player, 26888, 2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 6);                   
+            AddGossipItemFor(player, 26888, 3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 7);
+                SendGossipMenuFor(player, 42798, me->GetGUID());
+            break;
+            // Understand
+        case GOSSIP_ACTION_INFO_DEF + 3:
+            player->PlayerTalkClass->ClearMenus();
+            return OnGossipHello(player);
+            break;
+        case GOSSIP_ACTION_INFO_DEF + 4:
+            player->CastSpell(player, 349094, true);
+            break;
+        case GOSSIP_ACTION_INFO_DEF + 5:
+            player->CastSpell(player, 351278, true);
+            break;
+        case GOSSIP_ACTION_INFO_DEF + 6:
+            player->CastSpell(player, 351277, true);
+            break;
+        case GOSSIP_ACTION_INFO_DEF + 7:
+            player->PlayerTalkClass->ClearMenus();
+            return OnGossipHello(player);
+            break;
         }
 
-        bool OnGossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
-        {
-            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
-            ClearGossipMenuFor(player);
-
-            switch (action)
-            {
-                //Info
-            case GOSSIP_ACTION_INFO_DEF + 1:
-                AddGossipItemFor(player, 16972, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
-                    SendGossipMenuFor(player, 42770, me->GetGUID());
-                break;
-                // Ready to play
-            case GOSSIP_ACTION_INFO_DEF + 2:
-                AddGossipItemFor(player, 26888, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 4);                   
-                AddGossipItemFor(player, 26888, 1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 5);                   
-                AddGossipItemFor(player, 26888, 2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 6);                   
-                AddGossipItemFor(player, 26888, 3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 7);
-                    SendGossipMenuFor(player, 42798, me->GetGUID());
-                break;
-                // Understand
-            case GOSSIP_ACTION_INFO_DEF + 3:
-                player->PlayerTalkClass->ClearMenus();
-                return OnGossipHello(player);
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 4:
-                player->CastSpell(player, 349094, true);
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 5:
-                player->CastSpell(player, 351278, true);
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 6:
-                player->CastSpell(player, 351277, true);
-                break;
-            case GOSSIP_ACTION_INFO_DEF + 7:
-                player->PlayerTalkClass->ClearMenus();
-                return OnGossipHello(player);
-                break;
-            }
-
-            return true;
-        }
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_dance_battle_simon_sezdansAI(creature);
+        return true;
     }
 };
 
@@ -218,5 +207,5 @@ public:
 void AddSC_darkmoon_dance_battle()
 {
     new scene_darkmoon_dance_battle();
-    new npc_dance_battle_simon_sezdans();
+    RegisterCreatureAI(npc_dance_battle_simon_sezdans);
 };
