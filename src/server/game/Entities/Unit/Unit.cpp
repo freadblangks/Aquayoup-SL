@@ -426,6 +426,13 @@ Unit::~Unit()
 
 void Unit::Update(uint32 p_time)
 {
+#ifdef ELUNA
+    if (elunaMapEvents) // can be null on maps without eluna
+        elunaMapEvents->Update(p_time);
+
+    if (elunaWorldEvents) // can be null on maps without eluna
+        elunaWorldEvents->Update(p_time);
+#endif
     // WARNING! Order of execution here is important, do not change.
     // Spells must be processed with event system BEFORE they go to _UpdateSpells.
     // Or else we may have some SPELL_STATE_FINISHED spells stalled in pointers, that is bad.
@@ -5621,6 +5628,23 @@ void Unit::RemoveAllAreaTriggers(AreaTriggerRemoveReason reason /*= AreaTriggerR
     }
 }
 
+void Unit::EnterAreaTrigger(AreaTrigger* areaTrigger)
+{
+    m_insideAreaTriggers.push_back(areaTrigger);
+}
+
+void Unit::ExitAreaTrigger(AreaTrigger* areaTrigger)
+{
+    std::erase(m_insideAreaTriggers, areaTrigger);
+}
+
+void Unit::ExitAllAreaTriggers()
+{
+    AreaTriggerList atList = std::move(m_insideAreaTriggers);
+    for (AreaTrigger* at : atList)
+        at->HandleUnitExit(this);
+}
+
 void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage const* log)
 {
     WorldPackets::CombatLog::SpellNonMeleeDamageLog packet;
@@ -10207,6 +10231,7 @@ void Unit::RemoveFromWorld()
         RemoveAllGameObjects();
         RemoveAllDynObjects();
         RemoveAllAreaTriggers(AreaTriggerRemoveReason::UnitDespawn);
+        ExitAllAreaTriggers(); // exit all areatriggers the unit is in
 
         ExitVehicle();  // Remove applied auras with SPELL_AURA_CONTROL_VEHICLE
         UnsummonAllTotems();

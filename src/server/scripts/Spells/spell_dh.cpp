@@ -783,7 +783,7 @@ struct areatrigger_dh_darkness : AreaTriggerAI
         });
     }
 
-    void OnUnitExit(Unit* unit) override
+    void OnUnitExit(Unit* unit, AreaTriggerExitReason /*reason*/) override
     {
         unit->RemoveAura(SPELL_DH_DARKNESS_ABSORB, at->GetCasterGuid());
     }
@@ -3844,7 +3844,7 @@ private:
         }
     }
 
-    void OnUnitExit(Unit* unit) override
+    void OnUnitExit(Unit* unit, AreaTriggerExitReason /*reason*/) override
     {
         Unit* caster = at->GetCaster();
         if (!caster || !unit)
@@ -3860,7 +3860,7 @@ struct at_demon_hunter_mana_rift : AreaTriggerAI
 {
     at_demon_hunter_mana_rift(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
 
-    void OnUnitExit(Unit* unit) override
+    void OnUnitExit(Unit* unit, AreaTriggerExitReason /*reason*/) override
     {
         Unit* caster = at->GetCaster();
         if (!caster || !unit)

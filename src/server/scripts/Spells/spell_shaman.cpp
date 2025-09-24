@@ -308,11 +308,6 @@ class spell_sha_ancestral_guidance : public AuraScript
 // 114911 - Ancestral Guidance Heal
 class spell_sha_ancestral_guidance_heal : public SpellScript
 {
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_ANCESTRAL_GUIDANCE });
-    }
-
     static void ResizeTargets(SpellScript const&, std::list<WorldObject*>& targets)
     {
         Trinity::SelectRandomInjuredTargets(targets, 3, true);
@@ -3400,7 +3395,7 @@ struct areatrigger_sha_arctic_snowstorm : AreaTriggerAI
         }
     }
 
-    void OnUnitExit(Unit* unit) override
+    void OnUnitExit(Unit* unit, AreaTriggerExitReason /*reason*/) override
     {
         unit->RemoveAurasDueToSpell(SPELL_SHAMAN_ARCTIC_SNOWSTORM_SLOW, at->GetCasterGuid());
     }

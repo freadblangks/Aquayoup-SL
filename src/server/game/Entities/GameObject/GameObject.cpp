@@ -58,6 +58,7 @@
 #include "World.h"
 #ifdef ELUNA
 #include "LuaEngine.h"
+#include "ElunaEventMgr.h"
 #endif
 #include <G3D/Box.h>
 #include <G3D/CoordinateFrame.h>
@@ -957,7 +958,11 @@ void GameObject::AddToWorld()
 
 #ifdef ELUNA
         if (Eluna* e = GetEluna())
+        {
+            // one of these should really be deprecated, they serve the exact same purpose
             e->OnAddToWorld(this);
+            e->OnSpawn(this);
+        }
 #endif
     }
 }
@@ -1274,6 +1279,12 @@ void GameObject::Update(uint32 diff)
 #ifdef ELUNA
     if (Eluna* e = GetEluna())
         e->UpdateAI(this, diff);
+
+    if (elunaMapEvents) // can be null on maps without eluna
+        elunaMapEvents->Update(diff);
+
+    if (elunaWorldEvents)
+        elunaWorldEvents->Update(diff);
 #endif
 
     WorldObject::Update(diff);
@@ -1959,20 +1970,22 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
     stmt->setUInt16(index++, uint16(mapid));
     stmt->setString(index++, [&data]() -> std::string
     {
-        if (data.spawnDifficulties.empty())
-            return "";
-
         std::ostringstream os;
-        auto itr = data.spawnDifficulties.begin();
-        os << int32(*itr++);
+        if (!data.spawnDifficulties.empty())
+        {
+            auto itr = data.spawnDifficulties.begin();
+            os << int32(*itr++);
 
-        for (; itr != data.spawnDifficulties.end(); ++itr)
-            os << ',' << int32(*itr);
+            for (; itr != data.spawnDifficulties.end(); ++itr)
+                os << ',' << int32(*itr);
+        }
 
-        return os.str();
+        return std::move(os).str();
     }());
+    stmt->setUInt8(index++, data.phaseUseFlags);
     stmt->setUInt32(index++, data.phaseId);
     stmt->setUInt32(index++, data.phaseGroup);
+    stmt->setInt32(index++, data.terrainSwapMap);
     stmt->setFloat(index++, GetPositionX());
     stmt->setFloat(index++, GetPositionY());
     stmt->setFloat(index++, GetPositionZ());
@@ -1984,6 +1997,11 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
     stmt->setInt32(index++, int32(m_respawnDelayTime));
     stmt->setUInt8(index++, GetGoAnimProgress());
     stmt->setUInt8(index++, uint8(GetGoState()));
+    stmt->setString(index++, sObjectMgr->GetScriptName(data.scriptId));
+    if (std::string_view stringId = GetStringId(StringIdType::Spawn); !stringId.empty())
+        stmt->setString(index++, stringId);
+    else
+        stmt->setNull(index++);
     stmt->setFloat(index++, data.size);
     stmt->setFloat(index++, GetVisibilityRange());
     trans->Append(stmt);

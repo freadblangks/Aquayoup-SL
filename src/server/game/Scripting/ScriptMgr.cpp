@@ -1650,10 +1650,11 @@ void ScriptMgr::OnCreateMap(Map* map)
     if (Eluna* e = map->GetEluna())
     {
         e->OnCreate(map);
-        if (map->IsBattleground())
+        if (map->IsBattlegroundOrArena())
         {
-            Battleground* bg = map->ToBattlegroundMap()->GetBG();
-            e->OnBGCreate(bg, bg->GetTypeID(), bg->GetInstanceID());
+            BattleGround* bg = ((BattlegroundMap*)map)->GetBG();
+            if (bg)
+                e->OnBGCreate(bg, bg->GetTypeID(), bg->GetInstanceID());
         }
     }
 #endif
@@ -1801,6 +1802,11 @@ void ScriptMgr::OnGossipSelect(Player* player, Item* item, uint32 sender, uint32
     ASSERT(player);
     ASSERT(item);
 
+#ifdef ELUNA
+    if (Eluna* e = player->GetEluna())
+        e->HandleGossipSelectOption(player, item, sender, action, "");
+#endif
+
     GET_SCRIPT(ItemScript, item->GetScriptId(), tmpscript);
     tmpscript->OnGossipSelect(player, item, sender, action);
 }
@@ -1809,6 +1815,11 @@ void ScriptMgr::OnGossipSelectCode(Player* player, Item* item, uint32 sender, ui
 {
     ASSERT(player);
     ASSERT(item);
+
+#ifdef ELUNA
+    if (Eluna* e = player->GetEluna())
+        e->HandleGossipSelectOption(player, item, sender, action, code);
+#endif
 
     GET_SCRIPT(ItemScript, item->GetScriptId(), tmpscript);
     tmpscript->OnGossipSelectCode(player, item, sender, action, code);

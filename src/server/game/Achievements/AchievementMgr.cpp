@@ -500,8 +500,8 @@ void PlayerAchievementMgr::CompletedAchievement(AchievementEntry const* achievem
     sScriptMgr->OnAchievementCompleted(referencePlayer, achievement);
 
 #ifdef ELUNA
-    if (Eluna* e = _owner->GetEluna())
-        e->OnAchievementComplete(_owner, achievement->ID);
+    if (Eluna* e = referencePlayer->GetEluna())
+        e->OnAchievementComplete(referencePlayer, achievement->ID);
 #endif
 
     // reward items and titles if any
@@ -1166,7 +1166,7 @@ void AchievementGlobalMgr::LoadAchievementScripts()
         Field* fields = result->Fetch();
 
         uint32 achievementId         = fields[0].GetUInt32();
-        std::string scriptName       = fields[1].GetString();
+        std::string_view scriptName  = fields[1].GetStringView();
 
         AchievementEntry const* achievement = sAchievementStore.LookupEntry(achievementId);
         if (!achievement)

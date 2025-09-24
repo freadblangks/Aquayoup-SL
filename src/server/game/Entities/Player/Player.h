@@ -338,6 +338,22 @@ enum ActionButtonType
     ACTION_BUTTON_ITEM      = 0x80
 };
 
+enum class HonorGainSource : uint8
+{
+    Kill                    = 0,
+    Quest                   = 1,
+    ArenaCompletion         = 2,
+    BGCompletion            = 3,
+    LFG                     = 4,
+    TeamContribution        = 5,
+    RankedBGCompletion      = 6,
+    RatedArenaCompletion    = 7,
+    ArenaSkirmishCompletion = 8,
+    RandomBGCompletion      = 9,
+    HolidayBGCompletion     = 10,
+    Spell                   = 11,
+};
+
 enum ReputationSource
 {
     REPUTATION_SOURCE_KILL,
@@ -1400,7 +1416,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void UpdateAverageItemLevelEquipped();
         void SendPreloadWorld(int mapID, float x, float y, float z);
 
-        uint8 FindEquipSlot(Item const* item, uint32 slot, bool swap) const;
+        uint8 FindEquipSlot(Item const* item, uint8 slot, bool swap) const;
         uint32 GetFreeInventorySlotCount(EnumFlag<ItemSearchLocation> location = ItemSearchLocation::Inventory) const;
         uint32 GetItemCount(uint32 item, bool inBankAlso = false, Item* skipItem = nullptr) const;
         uint32 GetItemCountWithLimitCategory(uint32 limitCategory, Item* skipItem = nullptr) const;
@@ -1449,7 +1465,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
             auto setter = m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::AccountBankTabSettings, tabId);
             SetBankTabSettings(setter, name, icon, description, depositFlags);
         }
-        void SetBankTabSettings(UF::MutableFieldReferenceWithChangesMask<UF::BankTabSettings, false> setter,  std::string const& name, std::string const& icon, std::string const& description, BagSlotFlags depositFlags)
+        void SetBankTabSettings(UF::MutableFieldReferenceWithChangesMask<UF::BankTabSettings, false> setter, std::string const& name, std::string const& icon, std::string const& description, BagSlotFlags depositFlags)
         {
             SetUpdateFieldValue(setter.ModifyValue(&UF::BankTabSettings::Name), name);
             SetUpdateFieldValue(setter.ModifyValue(&UF::BankTabSettings::Icon), icon);
@@ -2390,7 +2406,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         /***                  PVP SYSTEM                       ***/
         /*********************************************************/
         void UpdateHonorFields();
-        bool RewardHonor(Unit* victim, uint32 groupsize, int32 honor = -1, bool pvptoken = false);
+        bool RewardHonor(Unit* victim, uint32 groupsize, int32 honor = -1, HonorGainSource source = HonorGainSource::Kill);
         void ResetHonorStats();
         uint32 GetMaxPersonalArenaRatingRequirement(uint32 minarenaslot) const;
 
@@ -3396,6 +3412,8 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         bool HasWargameRequest() const { return _wargameRequest != nullptr; }
         WargameRequest* GetWargameRequest() const { return _wargameRequest; }
         WargameRequest* _wargameRequest;
+
+        void ShowNeutralPlayerFactionSelectUI();
 
         // Spell cast request handling
     public:

@@ -517,7 +517,10 @@ bool Player::Create(ObjectGuid::LowType guidlow, WorldPackets::Character::Charac
     // apply original stats mods before spell loading or item equipment that call before equip _RemoveStatsMods()
     UpdateMaxHealth();                                      // Update max Health (for add bonus from stamina)
     SetFullHealth();
-    SetFullPower(POWER_MANA);
+
+    for (PowerTypeEntry const* powerType : sPowerTypeStore)
+        if (powerType->GetFlags().HasFlag(PowerTypeFlags::SetToMaxOnInitialLogIn))
+            SetFullPower(Powers(powerType->PowerTypeEnum));
 
     // original spells
     LearnDefaultSkills();
@@ -5628,6 +5631,12 @@ bool Player::UpdateFishingSkill(int32 expansion)
 {
     TC_LOG_DEBUG("entities.player.skills", "Player::UpdateFishingSkill: Player '{}' ({}) Expansion: {}", GetName(), GetGUID().ToString(), expansion);
 
+    if (sConfigMgr->GetBoolDefault("fishing_fix.enabled", true))
+    {
+        if (expansion == -3) // hackfix until another solution is invented
+            expansion = 0;
+    }
+
     uint32 fishingSkill = GetProfessionSkillForExp(SKILL_FISHING, expansion);
     if (!fishingSkill || !HasSkill(fishingSkill))
         return false;
@@ -6804,7 +6813,7 @@ void Player::UpdateHonorFields()
 ///Calculate the amount of honor gained based on the victim
 ///and the size of the group for which the honor is divided
 ///An exact honor value can also be given (overriding the calcs)
-bool Player::RewardHonor(Unit* victim, uint32 groupsize, int32 honor, bool pvptoken)
+bool Player::RewardHonor(Unit* victim, uint32 groupsize, int32 honor, HonorGainSource source)
 {
     // do not reward honor in arenas, but enable onkill spellproc
     if (InArena())
@@ -6905,8 +6914,7 @@ bool Player::RewardHonor(Unit* victim, uint32 groupsize, int32 honor, bool pvpto
             honor_f /= groupsize;
 
         // apply honor multiplier from aura (not stacking-get highest)
-        AddPct(honor_f, GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HONOR_GAIN_PCT));
-        AddPct(honor_f, GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HONOR_GAIN_PCT_2));
+        AddPct(honor_f, GetMaxPositiveAuraModifierByMiscMask(SPELL_AURA_MOD_HONOR_GAIN_PCT_FROM_SOURCE, 1 << AsUnderlyingType(source)));
         honor_f += _restMgr->GetRestBonusFor(REST_TYPE_HONOR, honor_f);
     }
 
@@ -6932,11 +6940,11 @@ bool Player::RewardHonor(Unit* victim, uint32 groupsize, int32 honor, bool pvpto
     {
         if (Battleground* bg = GetBattleground())
         {
-            bg->UpdatePlayerScore(this, SCORE_BONUS_HONOR, honor, false); //false: prevent looping
+            bg->UpdatePlayerScore(this, SCORE_BONUS_HONOR, honor, false, source); //false: prevent looping
         }
     }
 
-    if (sWorld->getBoolConfig(CONFIG_PVP_TOKEN_ENABLE) && pvptoken)
+    if (sWorld->getBoolConfig(CONFIG_PVP_TOKEN_ENABLE) && source == HonorGainSource::Kill)
     {
         if (!victim || victim == this || victim->HasAuraType(SPELL_AURA_NO_PVP_CREDIT))
             return true;
@@ -7894,7 +7902,7 @@ void Player::DuelComplete(DuelCompleteType type)
 
             // Honor points after duel (the winner) - ImpConfig
             if (uint32 amount = sWorld->getIntConfig(CONFIG_HONOR_AFTER_DUEL))
-                opponent->RewardHonor(nullptr, 1, amount);
+                opponent->RewardHonor(nullptr, 1, amount, HonorGainSource::Kill);
 
             break;
         default:
@@ -9318,9 +9326,9 @@ void Player::SendRespecWipeConfirm(ObjectGuid const& guid, uint32 cost, SpecRese
 /***                    STORAGE SYSTEM                 ***/
 /*********************************************************/
 
-uint8 Player::FindEquipSlot(Item const* item, uint32 slot, bool swap) const
+uint8 Player::FindEquipSlot(Item const* item, uint8 slot, bool swap) const
 {
-    std::array<uint8, 4> slots = { NULL_SLOT, NULL_SLOT, NULL_SLOT, NULL_SLOT };
+    std::array<uint8, 6> slots = { NULL_SLOT, NULL_SLOT, NULL_SLOT, NULL_SLOT, NULL_SLOT, NULL_SLOT };
     switch (item->GetTemplate()->GetInventoryType())
     {
         case INVTYPE_HEAD:
@@ -9404,8 +9412,12 @@ uint8 Player::FindEquipSlot(Item const* item, uint32 slot, bool swap) const
             slots[0] = EQUIPMENT_SLOT_MAINHAND;
             break;
         case INVTYPE_BAG:
-            if (item->GetTemplate()->GetClass() != ITEM_CLASS_CONTAINER || item->GetTemplate()->GetSubClass() != ITEM_SUBCLASS_REAGENT_CONTAINER)
-                slots = { INVENTORY_SLOT_BAG_START + 0, INVENTORY_SLOT_BAG_START + 1, INVENTORY_SLOT_BAG_START + 2, INVENTORY_SLOT_BAG_START + 3 };
+            if (item->GetTemplate()->GetId() == ITEM_ACCOUNT_BANK_TAB_BAG)
+                slots = { ACCOUNT_BANK_SLOT_BAG_START + 0, ACCOUNT_BANK_SLOT_BAG_START + 1, ACCOUNT_BANK_SLOT_BAG_START + 2, ACCOUNT_BANK_SLOT_BAG_START + 3, ACCOUNT_BANK_SLOT_BAG_START + 4, NULL_SLOT };
+            else if (item->GetTemplate()->GetId() == ITEM_CHARACTER_BANK_TAB_BAG)
+                slots = { BANK_SLOT_BAG_START + 0, BANK_SLOT_BAG_START + 1, BANK_SLOT_BAG_START + 2, BANK_SLOT_BAG_START + 3, BANK_SLOT_BAG_START + 4, BANK_SLOT_BAG_START + 5 };
+            else if (item->GetTemplate()->GetClass() != ITEM_CLASS_CONTAINER || item->GetTemplate()->GetSubClass() != ITEM_SUBCLASS_REAGENT_CONTAINER)
+                slots = { INVENTORY_SLOT_BAG_START + 0, INVENTORY_SLOT_BAG_START + 1, INVENTORY_SLOT_BAG_START + 2, INVENTORY_SLOT_BAG_START + 3, NULL_SLOT, NULL_SLOT };
             else
                 slots[0] = REAGENT_BAG_SLOT_START;
             break;
@@ -9475,41 +9487,40 @@ uint8 Player::FindEquipSlot(Item const* item, uint32 slot, bool swap) const
     if (slot != NULL_SLOT)
     {
         if (swap || !GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
-            for (uint8 i = 0; i < 4; ++i)
-                if (slots[i] == slot)
-                    return slot;
+            if (advstd::ranges::contains(slots, slot))
+                return slot;
     }
     else
     {
         // search free slot at first
-        for (uint8 i = 0; i < 4; ++i)
-            if (slots[i] != NULL_SLOT && !GetItemByPos(INVENTORY_SLOT_BAG_0, slots[i]))
+        auto slotItr = std::ranges::find_if(slots, [&](uint8 candidateSlot)
+        {
+            if (candidateSlot != NULL_SLOT && !GetItemByPos(INVENTORY_SLOT_BAG_0, candidateSlot))
                 // in case 2hand equipped weapon (without titan grip) offhand slot empty but not free
-                if (slots[i] != EQUIPMENT_SLOT_OFFHAND || !IsTwoHandUsed())
-                    return slots[i];
+                if (candidateSlot != EQUIPMENT_SLOT_OFFHAND || !IsTwoHandUsed())
+                    return true;
+            return false;
+        });
+
+        if (slotItr != slots.end())
+            return *slotItr;
 
         // if not found free and can swap return slot with lower item level equipped
         if (swap)
         {
-            uint32 minItemLevel = std::numeric_limits<uint32>::max();
-            uint8 minItemLevelIndex = 0;
-            for (uint8 i = 0; i < 4; ++i)
+            slotItr = std::ranges::min_element(slots, std::ranges::less(), [&](uint8 candidateSlot)
             {
-                if (slots[i] != NULL_SLOT)
-                {
-                    if (Item const* equipped = GetItemByPos(INVENTORY_SLOT_BAG_0, slots[i]))
-                    {
-                        uint32 itemLevel = equipped->GetItemLevel(this);
-                        if (itemLevel < minItemLevel)
-                        {
-                            minItemLevel = itemLevel;
-                            minItemLevelIndex = i;
-                        }
-                    }
-                }
-            }
+                if (candidateSlot == NULL_SLOT)
+                    return std::numeric_limits<uint32>::max();
 
-            return slots[minItemLevelIndex];
+                if (Item const* equipped = GetItemByPos(INVENTORY_SLOT_BAG_0, candidateSlot))
+                    return equipped->GetItemLevel(this);
+
+                return 0u;
+            });
+
+            if (slotItr != slots.end())
+                return *slotItr;
         }
     }
 
@@ -15398,7 +15409,7 @@ void Player::RewardQuest(Quest const* quest, LootItemType rewardType, uint32 rew
 
     // honor reward
     if (uint32 honor = quest->CalculateHonorGain(GetLevel()))
-        RewardHonor(nullptr, 0, honor);
+        RewardHonor(nullptr, 0, honor, HonorGainSource::Quest);
 
     // title reward
     if (quest->GetRewTitle())
@@ -22276,6 +22287,9 @@ void Player::RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent)
     }
 
     pet->CombatStop();
+
+    // exit areatriggers before saving to remove auras applied by them
+    pet->ExitAllAreaTriggers();
 
     // only if current pet in slot
     pet->SavePetToDB(mode);
@@ -31660,4 +31674,10 @@ void Player::AddMoveImpulse(Position direction)
     addImpulse.SequenceIndex = m_movementCounter++;
     addImpulse.Direction = direction;
     SendMessageToSet(addImpulse.Write(), true);
+}
+
+void Player::ShowNeutralPlayerFactionSelectUI()
+{
+    WorldPackets::Misc::FactionSelectUI packet;
+    GetSession()->SendPacket(packet.Write());
 }

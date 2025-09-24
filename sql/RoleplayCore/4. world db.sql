@@ -459,8 +459,6 @@ REPLACE INTO `spell_script_names` VALUES (19574, 'spell_hun_bestial_wrath');
 REPLACE INTO `spell_script_names` VALUES (217200, 'spell_hun_barbed_shot');
 REPLACE INTO `spell_script_names` VALUES (120679, 'spell_hun_dire_beast');
 
-REPLACE INTO `areatrigger_create_properties` VALUES (1524, 0, 5972, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 4, 5, 5, 2, 2, 0.3, 0.3, 0, 0, 'at_hun_binding_shot', 31478);
-
 REPLACE INTO `spell_script_names` VALUES (321530, 'spell_hun_bloodshed');
 REPLACE INTO `spell_script_names` VALUES (260243, 'spell_hun_volley');
 REPLACE INTO `spell_script_names` VALUES (186387, 'spell_bursting_shot');
@@ -666,6 +664,8 @@ REPLACE INTO `areatrigger_create_properties` VALUES (6007, 1, 10666, 1, 0, 0, 0,
 -- ----------------------------
 -- Misc fix or changes
 -- ----------------------------
+
+REPLACE INTO `spell_script_names` VALUES (108897, 'spell_pandaren_faction_choice');
 
 REPLACE INTO `creature_template` VALUES (102199, 0, 0, 'Stampede', '', '', NULL, '',	0, 0, 35, 0, 1, 1.14286, 1, 0, 0, 1028, 2000, 1, 1, 1, 33554944, 0, 16777216, 0, 0, 10, 0, '', 0, 1, 0, 0, 0, 0, 1, 0, 0, '', NULL, 53040);
 REPLACE INTO `creature_template` VALUES (73967, 0, 0, 'Niuzao', '', '', NULL, '', 0, 0, 35, 0, 1, 0.857143, 1, 0, 0, 1989, 2000, 1, 1, 1, 32768, 2048, 0, 0, 0, 1, 0, '', 0, 1, 0, 121, 0, 0, 1, 0, 0, '', NULL, 53040);
