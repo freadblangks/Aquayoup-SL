@@ -295,6 +295,11 @@ void WorldSession::SendPacket(WorldPacket const* packet, bool forced /*= false*/
 
     sScriptMgr->OnPacketSend(this, *packet);
 
+#ifdef WITH_PLAYERBOTS
+    if (_player)
+        sScriptMgr->OnPlayerbotPacketSent(_player, packet);
+#endif
+
     TC_LOG_TRACE("network.opcode", "S->C: {} {}", GetPlayerInfo(), GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())));
     m_Socket[conIdx]->SendPacket(*packet);
 }
@@ -670,6 +675,11 @@ void WorldSession::LogoutPlayer(bool save)
 
         //! Call script hook before deletion
         sScriptMgr->OnPlayerLogout(_player);
+
+#ifdef WITH_PLAYERBOTS
+        //! Call playerbot script hook before deletion
+        sScriptMgr->OnPlayerbotLogout(_player);
+#endif
 
         TC_METRIC_EVENT("player_events", "Logout", _player->GetName());
 

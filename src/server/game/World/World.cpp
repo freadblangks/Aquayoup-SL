@@ -2431,6 +2431,13 @@ void World::Update(uint32 diff)
         sScriptMgr->OnWorldUpdate(diff);
     }
 
+#ifdef WITH_PLAYERBOTS
+    {
+        TC_METRIC_TIMER("world_update_time", TC_METRIC_TAG("type", "Update playerbots"));
+        sScriptMgr->OnPlayerbotUpdate(diff);
+    }
+#endif
+
     {
         TC_METRIC_TIMER("world_update_time", TC_METRIC_TAG("type", "Update metrics"));
         // Stats logger update
