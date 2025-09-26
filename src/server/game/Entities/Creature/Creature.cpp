@@ -100,6 +100,11 @@ VendorItem const* VendorItemData::FindItemCostPair(uint32 item_id, uint32 extend
 CreatureModel const CreatureModel::DefaultInvisibleModel(11686, 1.0f, 1.0f);
 CreatureModel const CreatureModel::DefaultVisibleModel(17519, 1.0f, 1.0f);
 
+CreatureTemplate::CreatureTemplate() = default;
+CreatureTemplate::CreatureTemplate(CreatureTemplate&& other) noexcept = default;
+CreatureTemplate& CreatureTemplate::operator=(CreatureTemplate&& other) noexcept = default;
+CreatureTemplate::~CreatureTemplate() = default;
+
 CreatureModel const* CreatureTemplate::GetModelByIdx(uint32 idx) const
 {
     return idx < Models.size() ? &Models[idx] : nullptr;
@@ -190,6 +195,7 @@ WorldPacket CreatureTemplate::BuildQueryData(LocaleConstant loc, Difficulty diff
 
     stats.Flags[0] = creatureDifficulty->TypeFlags;
     stats.Flags[1] = creatureDifficulty->TypeFlags2;
+    stats.Flags[2] = creatureDifficulty->TypeFlags3;
 
     stats.CreatureType = type;
     stats.CreatureFamily = family;
@@ -268,6 +274,7 @@ CreatureDifficulty const* CreatureTemplate::GetDifficulty(Difficulty difficulty)
             CreatureDifficultyID = 0;
             TypeFlags = 0;
             TypeFlags2 = 0;
+            TypeFlags3 = 0;
             LootID = 0;
             PickPocketLootID = 0;
             SkinLootID = 0;
@@ -629,7 +636,9 @@ bool Creature::UpdateEntry(uint32 entry, CreatureData const* data /*= nullptr*/,
 
     ReplaceAllDynamicFlags(UNIT_DYNFLAG_NONE);
 
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::StateWorldEffectsQuestObjectiveID), data ? data->spawnTrackingQuestObjectiveId : 0);
+    // Set StateWorldEffectsQuestObjectiveID if there is only one linked objective for this creature
+    if (data && data->spawnTrackingQuestObjectives.size() == 1)
+        SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::StateWorldEffectsQuestObjectiveID), data->spawnTrackingQuestObjectives.front());
 
     SetCanDualWield(cInfo->flags_extra & CREATURE_FLAG_EXTRA_USE_OFFHAND_ATTACK);
 
@@ -1389,9 +1398,9 @@ void Creature::SetTappedBy(Unit const* unit, bool withGroup)
     m_tapList.insert(player->GetGUID());
     if (withGroup)
         if (Group const* group = player->GetGroup())
-            for (auto const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
-                if (GetMap()->IsRaid() || group->SameSubGroup(player, itr->GetSource()))
-                    m_tapList.insert(itr->GetSource()->GetGUID());
+            for (GroupReference const& itr : group->GetMembers())
+                if (GetMap()->IsRaid() || group->SameSubGroup(player, itr.GetSource()))
+                    m_tapList.insert(itr.GetSource()->GetGUID());
 
     if (m_tapList.size() >= CREATURE_TAPPERS_SOFT_CAP)
         SetDynamicFlag(UNIT_DYNFLAG_TAPPED);
@@ -1549,20 +1558,22 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     stmt->setUInt16(index++, uint16(mapid));
     stmt->setString(index++, [&data]() -> std::string
     {
-        if (data.spawnDifficulties.empty())
-            return "";
-
         std::ostringstream os;
-        auto itr = data.spawnDifficulties.begin();
-        os << int32(*itr++);
+        if (!data.spawnDifficulties.empty())
+        {
+            auto itr = data.spawnDifficulties.begin();
+            os << int32(*itr++);
 
-        for (; itr != data.spawnDifficulties.end(); ++itr)
-            os << ',' << int32(*itr);
+            for (; itr != data.spawnDifficulties.end(); ++itr)
+                os << ',' << int32(*itr);
+        }
 
-        return os.str();
+        return std::move(os).str();
     }());
+    stmt->setUInt8(index++, data.phaseUseFlags);
     stmt->setUInt32(index++, data.phaseId);
     stmt->setUInt32(index++, data.phaseGroup);
+    stmt->setInt32(index++, data.terrainSwapMap);
     stmt->setUInt32(index++, displayId);
     stmt->setUInt8(index++, GetCurrentEquipmentId());
     stmt->setFloat(index++, GetPositionX());
@@ -1593,6 +1604,13 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
         stmt->setUInt32(index++, *unitFlags3);
     else
         stmt->setNull(index++);
+
+    stmt->setString(index++, sObjectMgr->GetScriptName(data.scriptId));
+    if (std::string_view stringId = GetStringId(StringIdType::Spawn); !stringId.empty())
+        stmt->setString(index++, stringId);
+    else
+        stmt->setNull(index++);
+
     trans->Append(stmt);
 
     WorldDatabase.CommitTransaction(trans);
@@ -3060,8 +3078,8 @@ uint64 Creature::GetMaxHealthByLevel(uint8 level) const
 {
     CreatureTemplate const* cInfo = GetCreatureTemplate();
     CreatureDifficulty const* creatureDifficulty = GetCreatureDifficulty();
-    float baseHealth = sDB2Manager.EvaluateExpectedStat(ExpectedStatType::CreatureHealth, level, creatureDifficulty->GetHealthScalingExpansion(), creatureDifficulty->ContentTuningID, Classes(cInfo->unit_class), 0);
-    return std::max(baseHealth * creatureDifficulty->HealthModifier, 1.0f);
+    double baseHealth = sDB2Manager.EvaluateExpectedStat(ExpectedStatType::CreatureHealth, level, creatureDifficulty->GetHealthScalingExpansion(), creatureDifficulty->ContentTuningID, Classes(cInfo->unit_class), 0);
+    return std::max(baseHealth * creatureDifficulty->HealthModifier, 1.0);
 }
 
 float Creature::GetHealthMultiplierForTarget(WorldObject const* target) const
@@ -3207,9 +3225,9 @@ SpawnTrackingStateData const* Creature::GetSpawnTrackingStateDataForPlayer(Playe
 
     if (CreatureData const* data = GetCreatureData())
     {
-        if (data->spawnTrackingQuestObjectiveId && data->spawnTrackingData)
+        if (data->spawnTrackingData && !data->spawnTrackingQuestObjectives.empty())
         {
-            SpawnTrackingState state = player->GetSpawnTrackingStateByObjective(data->spawnTrackingData->SpawnTrackingId, data->spawnTrackingQuestObjectiveId);
+            SpawnTrackingState state = player->GetSpawnTrackingStateByObjectives(data->spawnTrackingData->SpawnTrackingId, data->spawnTrackingQuestObjectives);
             return &data->spawnTrackingStates[AsUnderlyingType(state)];
         }
     }
@@ -3777,10 +3795,10 @@ void Creature::ForcePartyMembersIntoCombat()
 
     for (Group const* partyToForceIntoCombat : partiesToForceIntoCombat)
     {
-        for (GroupReference const* ref = partyToForceIntoCombat->GetFirstMember(); ref != nullptr; ref = ref->next())
+        for (GroupReference const& ref : partyToForceIntoCombat->GetMembers())
         {
-            Player* player = ref->GetSource();
-            if (!player || !player->IsInWorld() || player->GetMap() != GetMap() || player->IsGameMaster())
+            Player* player = ref.GetSource();
+            if (!player->IsInMap(this) || player->IsGameMaster())
                 continue;
 
             EngageWithTarget(player);

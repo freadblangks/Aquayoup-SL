@@ -402,8 +402,8 @@ class spell_volkaal_rapid_decay : public AuraScript
 
         float range = 100.0f;
         Player* player = nullptr;
-        Trinity::AnyPlayerInObjectRangeCheck check(caster, range);
-        Trinity::PlayerSearcher<Trinity::AnyPlayerInObjectRangeCheck> searcher(caster, player, check);
+        Trinity::AnyUnitInObjectRangeCheck check(caster, range);
+        Trinity::PlayerSearcher searcher(caster, player, check);
         Cell::VisitWorldObjects(caster, searcher, range);
 
         CastSpellExtraArgs args;
@@ -434,7 +434,7 @@ struct at_volkaal_rapid_decay : AreaTriggerAI
         unit->CastSpell(unit, SPELL_TOXIC_POOL, TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR);
     }
 
-    void OnUnitExit(Unit* unit) override
+    void OnUnitExit(Unit* unit, AreaTriggerExitReason /*reason*/) override
     {
         unit->RemoveAurasDueToSpell(SPELL_TOXIC_POOL);
     }

@@ -1472,8 +1472,8 @@ void GameObject::Update(uint32 diff)
                     {
                         // Environmental trap: Any player
                         Player* player = nullptr;
-                        Trinity::AnyPlayerInObjectRangeCheck checker(this, radius);
-                        Trinity::PlayerSearcher<Trinity::AnyPlayerInObjectRangeCheck> searcher(this, player, checker);
+                        Trinity::AnyUnitInObjectRangeCheck checker(this, radius);
+                        Trinity::PlayerSearcher searcher(this, player, checker);
                         Cell::VisitWorldObjects(this, searcher, radius);
                         target = player;
                     }
@@ -1627,9 +1627,7 @@ void GameObject::Update(uint32 diff)
                     m_usetimes = 0;
                 }
 
-                // Only goobers with a lock id or a reset time may reset their go state
-                if (GetGOInfo()->GetLockId() || GetGOInfo()->GetAutoCloseTime())
-                    SetGoState(GO_STATE_READY);
+                SetGoState(GO_STATE_READY);
 
                 //any return here in case battleground traps
                 if (GameObjectOverride const* goOverride = GetGameObjectOverride())
@@ -1913,20 +1911,22 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
     stmt->setUInt16(index++, uint16(mapid));
     stmt->setString(index++, [&data]() -> std::string
     {
-        if (data.spawnDifficulties.empty())
-            return "";
-
         std::ostringstream os;
-        auto itr = data.spawnDifficulties.begin();
-        os << int32(*itr++);
+        if (!data.spawnDifficulties.empty())
+        {
+            auto itr = data.spawnDifficulties.begin();
+            os << int32(*itr++);
 
-        for (; itr != data.spawnDifficulties.end(); ++itr)
-            os << ',' << int32(*itr);
+            for (; itr != data.spawnDifficulties.end(); ++itr)
+                os << ',' << int32(*itr);
+        }
 
-        return os.str();
+        return std::move(os).str();
     }());
+    stmt->setUInt8(index++, data.phaseUseFlags);
     stmt->setUInt32(index++, data.phaseId);
     stmt->setUInt32(index++, data.phaseGroup);
+    stmt->setInt32(index++, data.terrainSwapMap);
     stmt->setFloat(index++, GetPositionX());
     stmt->setFloat(index++, GetPositionY());
     stmt->setFloat(index++, GetPositionZ());
@@ -1938,6 +1938,12 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
     stmt->setInt32(index++, int32(m_respawnDelayTime));
     stmt->setUInt8(index++, GetGoAnimProgress());
     stmt->setUInt8(index++, uint8(GetGoState()));
+    stmt->setString(index++, sObjectMgr->GetScriptName(data.scriptId));
+    if (std::string_view stringId = GetStringId(StringIdType::Spawn); !stringId.empty())
+        stmt->setString(index++, stringId);
+    else
+        stmt->setNull(index++);
+
     trans->Append(stmt);
 
     WorldDatabase.CommitTransaction(trans);
@@ -1967,7 +1973,9 @@ bool GameObject::LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap
     PhasingHandler::InitDbPhaseShift(GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
     PhasingHandler::InitDbVisibleMapId(GetPhaseShift(), data->terrainSwapMap);
 
-    SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::StateWorldEffectsQuestObjectiveID), data ? data->spawnTrackingQuestObjectiveId : 0);
+    // Set StateWorldEffectsQuestObjectiveID if there is only one linked objective for this gameobject
+    if (data && data->spawnTrackingQuestObjectives.size() == 1)
+        SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::StateWorldEffectsQuestObjectiveID), data->spawnTrackingQuestObjectives.front());
 
     if (data->spawntimesecs >= 0)
     {
@@ -2687,6 +2695,10 @@ void GameObject::Use(Unit* user, bool ignoreCastInProgress /*= false*/)
                 if (uint32 trapEntry = info->chest.linkedTrap)
                     TriggeringLinkedGameObject(trapEntry, player);
 
+                // Cast spell before sending loot
+                if (spellCaster && info->chest.spell)
+                    spellCaster->CastSpell(nullptr, info->chest.spell, spellArgs);
+
                 AddUniqueUse(player);
             }
 
@@ -2829,10 +2841,9 @@ void GameObject::Use(Unit* user, bool ignoreCastInProgress /*= false*/)
 
                 if (Group* group = player->GetGroup())
                 {
-                    for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
-                        if (Player* member = itr->GetSource())
-                            if (member->IsAtGroupRewardDistance(this))
-                                member->KillCreditGO(info->entry, GetGUID());
+                    for (GroupReference const& itr : group->GetMembers())
+                        if (itr.GetSource()->IsAtGroupRewardDistance(this))
+                            itr.GetSource()->KillCreditGO(info->entry, GetGUID());
                 }
                 else
                     player->KillCreditGO(info->entry, GetGUID());
@@ -3588,9 +3599,9 @@ SpawnTrackingStateData const* GameObject::GetSpawnTrackingStateDataForPlayer(Pla
 
     if (GameObjectData const* data = GetGameObjectData())
     {
-        if (data->spawnTrackingQuestObjectiveId && data->spawnTrackingData)
+        if (data->spawnTrackingData && !data->spawnTrackingQuestObjectives.empty())
         {
-            SpawnTrackingState state = player->GetSpawnTrackingStateByObjective(data->spawnTrackingData->SpawnTrackingId, data->spawnTrackingQuestObjectiveId);
+            SpawnTrackingState state = player->GetSpawnTrackingStateByObjectives(data->spawnTrackingData->SpawnTrackingId, data->spawnTrackingQuestObjectives);
             return &data->spawnTrackingStates[AsUnderlyingType(state)];
         }
     }
