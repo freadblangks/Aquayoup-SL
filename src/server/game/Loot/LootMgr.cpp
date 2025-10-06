@@ -238,11 +238,6 @@ void LootStore::ReportUnusedIds(LootIdSet const& lootIdSet) const
         TC_LOG_ERROR("sql.sql", "Table '{}' Entry {} isn't {} and not referenced from loot, and thus useless.", GetName(), lootId, GetEntryName());
 }
 
-void LootStore::ReportNonExistingId(uint32 lootId) const
-{
-    TC_LOG_ERROR("sql.sql", "Table '{}' Entry {} does not exist", GetName(), lootId);
-}
-
 void LootStore::ReportNonExistingId(uint32 lootId, char const* ownerType, uint32 ownerId) const
 {
     TC_LOG_ERROR("sql.sql", "Table '{}' Entry {} does not exist but it is used by {} {}", GetName(), lootId, ownerType, ownerId);
@@ -1129,7 +1124,7 @@ void LoadLootTemplates_Disenchant()
     {
         uint32 lootid = disenchant->ID;
         if (!lootIdSet.contains(lootid))
-            LootTemplates_Disenchant.ReportNonExistingId(lootid);
+            LootTemplates_Disenchant.ReportNonExistingId(lootid, "ItemDisenchantLoot", lootid);
         else
             lootIdSetUsed.insert(lootid);
     }
@@ -1141,7 +1136,7 @@ void LoadLootTemplates_Disenchant()
 
         uint32 lootid = itemBonus->Value[0];
         if (!lootIdSet.contains(lootid))
-            LootTemplates_Disenchant.ReportNonExistingId(lootid);
+            LootTemplates_Disenchant.ReportNonExistingId(lootid, "ItemBonusList", itemBonus->ParentItemBonusListID);
         else
             lootIdSetUsed.insert(lootid);
     }
@@ -1480,7 +1475,7 @@ void LoadLootTemplates_Scrapping()
     {
         uint32 lootid = itemScrappingLoot.Id;
         if (lootIdSet.find(lootid) == lootIdSet.end())
-            LootTemplates_Scrapping.ReportNonExistingId(lootid);
+            LootTemplates_Scrapping.ReportNonExistingId(lootid, "ItemScrappingLoot", lootid);
         else
             lootIdSetUsed.insert(lootid);
     }
@@ -1494,7 +1489,7 @@ void LoadLootTemplates_Scrapping()
     if (count)
         TC_LOG_INFO("server.loading", ">> Loaded {} scrapping loot templates in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     else
-        TC_LOG_ERROR("server.loading", ">> Loaded 0 scrapping loot templates. DB table `disenchant_loot_template` is empty");
+        TC_LOG_ERROR("server.loading", ">> Loaded 0 scrapping loot templates. DB table `scrapping_loot_template` is empty");
 }
 
 void LoadLootTables()

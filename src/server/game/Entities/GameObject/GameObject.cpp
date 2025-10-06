@@ -340,7 +340,7 @@ public:
 
             G3D::Quat rotation = next;
 
-            if (!prev.fuzzyEq(next))
+            if (prev != next)
             {
                 float animProgress = float(newProgress - oldRotation->TimeIndex) / float(newRotation->TimeIndex - oldRotation->TimeIndex);
 
@@ -487,7 +487,7 @@ public:
 
     int32 GetMapIdForSpawning() const override
     {
-        return _owner.GetGOInfo()->GetSpawnMap();
+        return _owner.GetGOInfo()->transport.SpawnMap;
     }
 
     void SetAutoCycleBetweenStopFrames(bool on)
