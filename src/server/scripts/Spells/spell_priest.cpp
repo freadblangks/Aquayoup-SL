@@ -52,7 +52,6 @@ enum PriestSpells
     SPELL_PRIEST_ATONEMENT_EFFECT                   = 194384,
     SPELL_PRIEST_ATONEMENT_HEAL                     = 81751,
     SPELL_PRIEST_BENEDICTION                        = 193157,
-    SPELL_PRIEST_BENEVOLENCE                        = 415416,
     SPELL_PRIEST_BLAZE_OF_LIGHT                     = 215768,
     SPELL_PRIEST_BLAZE_OF_LIGHT_INCREASE            = 355851,
     SPELL_PRIEST_BLAZE_OF_LIGHT_DECREASE            = 356084,
@@ -92,6 +91,7 @@ enum PriestSpells
     SPELL_PRIEST_ESSENCE_DEVOURER                   = 415479,
     SPELL_PRIEST_ESSENCE_DEVOURER_SHADOWFIEND_HEAL  = 415673,
     SPELL_PRIEST_ESSENCE_DEVOURER_MINDBENDER_HEAL   = 415676,
+    SPELL_PRIEST_ETERNAL_BARRIER                    = 238135,
     SPELL_PRIEST_FLASH_HEAL                         = 2061,
     SPELL_PRIEST_FROM_DARKNESS_COMES_LIGHT_AURA     = 390617,
     SPELL_PRIEST_GREATER_HEAL                       = 289666,
@@ -160,7 +160,6 @@ enum PriestSpells
     SPELL_PRIEST_PURGE_THE_WICKED                   = 204197,
     SPELL_PRIEST_PURGE_THE_WICKED_DUMMY             = 204215,
     SPELL_PRIEST_PURGE_THE_WICKED_PERIODIC          = 204213,
-    SPELL_PRIEST_RAPTURE                            = 47536,
     SPELL_PRIEST_RENEW                              = 139,
     SPELL_PRIEST_RENEWED_HOPE                       = 197469,
     SPELL_PRIEST_RENEWED_HOPE_EFFECT                = 197470,
@@ -193,7 +192,6 @@ enum PriestSpells
     SPELL_PRIEST_TRANQUIL_LIGHT                     = 196816,
     SPELL_PRIEST_THE_PENITENT_AURA                  = 200347,
     SPELL_PRIEST_TRAIL_OF_LIGHT_HEAL                = 234946,
-    SPELL_PRIEST_TRINITY                            = 214205,
     SPELL_PRIEST_ULTIMATE_PENITENCE                 = 421453,
     SPELL_PRIEST_ULTIMATE_PENITENCE_DAMAGE          = 421543,
     SPELL_PRIEST_ULTIMATE_PENITENCE_HEAL            = 421544,
@@ -542,7 +540,6 @@ class spell_pri_atonement_effect : public SpellScript
         ({
             SPELL_PRIEST_ATONEMENT,
             SPELL_PRIEST_ATONEMENT_EFFECT,
-            SPELL_PRIEST_TRINITY,
             SPELL_PRIEST_POWER_WORD_RADIANCE,
             SPELL_PRIEST_POWER_WORD_SHIELD
         }) && ValidateSpellEffect({
@@ -556,13 +553,6 @@ class spell_pri_atonement_effect : public SpellScript
         Unit* caster = GetCaster();
         if (!caster->HasAura(SPELL_PRIEST_ATONEMENT))
             return false;
-
-        // only apply Trinity if the Priest has both Trinity and Atonement and the triggering spell is Power Word: Shield.
-        if (caster->HasAura(SPELL_PRIEST_TRINITY))
-        {
-            if (GetSpellInfo()->Id != SPELL_PRIEST_POWER_WORD_SHIELD)
-                return false;
-        }
 
         return true;
     }
@@ -603,7 +593,7 @@ class spell_pri_atonement_effect : public SpellScript
     uint32 _effectSpellId = SPELL_PRIEST_ATONEMENT_EFFECT;
 };
 
-// 194384 - Atonement (Buff), 214206 - Atonement [Trinity] (Buff)
+// 194384 - Atonement (Buff)
 class spell_pri_atonement_effect_aura : public AuraScript
 {
     bool Validate(SpellInfo const* /*spellInfo*/) override
@@ -1251,7 +1241,6 @@ class spell_pri_evangelism : public SpellScript
     {
         return ValidateSpellInfo
         ({
-            SPELL_PRIEST_TRINITY,
             SPELL_PRIEST_ATONEMENT_EFFECT,
         });
     }
@@ -1862,7 +1851,6 @@ class spell_pri_pain_transformation : public SpellScript
         return ValidateSpellInfo
         ({
             SPELL_PRIEST_ATONEMENT_EFFECT,
-            SPELL_PRIEST_TRINITY,
             SPELL_PRIEST_PAIN_TRANSFORMATION,
             SPELL_PRIEST_PAIN_TRANSFORMATION_HEAL
         });
@@ -1870,7 +1858,7 @@ class spell_pri_pain_transformation : public SpellScript
 
     bool Load() override
     {
-        return GetCaster()->HasAura(SPELL_PRIEST_PAIN_TRANSFORMATION) && !GetCaster()->HasAura(SPELL_PRIEST_TRINITY);
+        return GetCaster()->HasAura(SPELL_PRIEST_PAIN_TRANSFORMATION);
     }
 
     void HandleHit(SpellEffIndex /*effIndex*/) const
@@ -2194,12 +2182,9 @@ class spell_pri_power_word_shield : public AuraScript
             SPELL_PRIEST_SHIELD_DISCIPLINE,
             SPELL_PRIEST_SHIELD_DISCIPLINE_EFFECT,
             SPELL_PVP_RULES_ENABLED_HARDCODED
-        }) && ValidateSpellEffect({
-            { SPELL_PRIEST_MASTERY_GRACE, EFFECT_0 },
-            { SPELL_PRIEST_RAPTURE, EFFECT_1 },
-            { SPELL_PRIEST_BENEVOLENCE, EFFECT_0 },
-            { SPELL_PRIEST_DIVINE_AEGIS, EFFECT_0 }
-        });
+            }) && ValidateSpellEffect({
+                { SPELL_PRIEST_MASTERY_GRACE, EFFECT_0 }
+                });
     }
 
     void CalculateAmount(AuraEffect const* auraEffect, int32& amount, bool& canBeRecalculated) const
@@ -2208,7 +2193,7 @@ class spell_pri_power_word_shield : public AuraScript
 
         if (Unit* caster = GetCaster())
         {
-            float modifiedAmount = caster->SpellBaseDamageBonusDone(GetSpellInfo()->GetSchoolMask()) * 4.638;
+            float modifiedAmount = caster->SpellBaseDamageBonusDone(GetSpellInfo()->GetSchoolMask()) * 4.638f;
 
             if (Player* player = caster->ToPlayer())
             {
@@ -2221,16 +2206,16 @@ class spell_pri_power_word_shield : public AuraScript
 
                 switch (player->GetPrimarySpecialization())
                 {
-                    case ChrSpecialization::PriestDiscipline:
-                        modifiedAmount *= 1.37f;
-                        break;
-                    case ChrSpecialization::PriestShadow:
-                        modifiedAmount *= 1.25f;
-                        if (caster->HasAura(SPELL_PVP_RULES_ENABLED_HARDCODED))
-                            modifiedAmount *= 0.8f;
-                        break;
-                    default:
-                        break;
+                case ChrSpecialization::PriestDiscipline:
+                    modifiedAmount *= 1.37f;
+                    break;
+                case ChrSpecialization::PriestShadow:
+                    modifiedAmount *= 1.25f;
+                    if (caster->HasAura(SPELL_PVP_RULES_ENABLED_HARDCODED))
+                        modifiedAmount *= 0.8f;
+                    break;
+                default:
+                    break;
                 }
             }
 
@@ -2238,21 +2223,7 @@ class spell_pri_power_word_shield : public AuraScript
             float critChanceTaken = GetUnitOwner()->SpellCritChanceTaken(caster, nullptr, auraEffect, GetSpellInfo()->GetSchoolMask(), critChanceDone, GetSpellInfo()->GetAttackType());
 
             if (roll_chance_f(critChanceTaken))
-            {
                 modifiedAmount *= 2;
-
-                // Divine Aegis
-                if (AuraEffect const* divineEff = caster->GetAuraEffect(SPELL_PRIEST_DIVINE_AEGIS, EFFECT_0))
-                    AddPct(modifiedAmount, divineEff->GetAmount());
-            }
-
-            // Rapture talent (TBD: move into DoEffectCalcDamageAndHealing hook).
-            if (AuraEffect const* raptureEffect = caster->GetAuraEffect(SPELL_PRIEST_RAPTURE, EFFECT_1))
-                AddPct(modifiedAmount, raptureEffect->GetAmount());
-
-            // Benevolence talent
-            if (AuraEffect const* benevolenceEffect = caster->GetAuraEffect(SPELL_PRIEST_BENEVOLENCE, EFFECT_0))
-                AddPct(modifiedAmount, benevolenceEffect->GetAmount());
 
             amount = modifiedAmount;
         }
@@ -3042,7 +3013,6 @@ class spell_pri_shadow_mend : public SpellScript
         ({
             SPELL_PRIEST_ATONEMENT,
             SPELL_PRIEST_ATONEMENT_EFFECT,
-            SPELL_PRIEST_TRINITY,
             SPELL_PRIEST_MASOCHISM_TALENT,
             SPELL_PRIEST_MASOCHISM_PERIODIC_HEAL,
             SPELL_PRIEST_SHADOW_MEND_PERIODIC_DUMMY
