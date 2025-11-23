@@ -146,8 +146,8 @@ DungeonRole DungeonScript::GetPlayerRole(::Player* player) const
         return DungeonRole::MELEE_DPS;
 
     // Determine role based on spec/class
-    uint8 playerClass = player->getClass();
-    uint32 spec = player->GetPrimaryTalentTree(player->GetActiveSpec());
+    uint8 playerClass = player->GetClass();
+    uint32 spec = player->GetPrimarySpecialization());
 
     // Tank specs
     if ((playerClass == CLASS_WARRIOR && spec == TALENT_TREE_WARRIOR_PROTECTION) ||
@@ -180,15 +180,15 @@ DungeonRole DungeonScript::GetPlayerRole(::Player* player) const
     return DungeonRole::MELEE_DPS;
 }
 
-std::vector<::Creature*> DungeonScript::GetAddsInCombat(::Player* player, ::Creature* boss) const
+::std::vector<::Creature*> DungeonScript::GetAddsInCombat(::Player* player, ::Creature* boss) const
 {
-    std::vector<::Creature*> adds;
+    ::std::vector<::Creature*> adds;
 
     if (!player || !boss)
         return adds;
 
     // Find all creatures in combat within 50 yards
-    std::list<::Creature*> creatures;
+    ::std::list<::Creature*> creatures;
     Trinity::AllWorldObjectsInRange check(player, 50.0f);
     Trinity::CreatureListSearcher<Trinity::AllWorldObjectsInRange> searcher(player, creatures, check);
     // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitGridObjects
@@ -206,9 +206,8 @@ std::vector<::Creature*> DungeonScript::GetAddsInCombat(::Player* player, ::Crea
     }
 
     // Query nearby GUIDs (lock-free!)
-    std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
+    ::std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
         player->GetPosition(), 50.0f);
-
     // Process results (replace old loop)
     for (ObjectGuid guid : nearbyGuids)
     {
@@ -218,7 +217,6 @@ std::vector<::Creature*> DungeonScript::GetAddsInCombat(::Player* player, ::Crea
         // Original filtering logic goes here
     }
     // End of spatial grid fix
-
     for (::Creature* creature : creatures)
     {
         if (creature != boss &&
@@ -248,7 +246,7 @@ bool DungeonScript::HasInterruptAvailable(::Player* player) const
 
     // Get class-specific interrupt spell
     uint32 interruptSpell = 0;
-    switch (player->getClass())
+    switch (player->GetClass())
     {
         case CLASS_WARRIOR: interruptSpell = 6552; break;  // Pummel
         case CLASS_PALADIN: interruptSpell = 96231; break; // Rebuke
@@ -269,7 +267,7 @@ bool DungeonScript::HasInterruptAvailable(::Player* player) const
     if (interruptSpell == 0)
         return false;
 
-    return !player->HasSpellCooldown(interruptSpell);
+    return !player->GetSpellHistory()->HasCooldown(interruptSpell);
 }
 
 bool DungeonScript::UseInterruptSpell(::Player* player, ::Creature* target) const
@@ -279,7 +277,7 @@ bool DungeonScript::UseInterruptSpell(::Player* player, ::Creature* target) cons
 
     // Get class-specific interrupt spell
     uint32 interruptSpell = 0;
-    switch (player->getClass())
+    switch (player->GetClass())
     {
         case CLASS_WARRIOR: interruptSpell = 6552; break;
         case CLASS_PALADIN: interruptSpell = 96231; break;
@@ -297,7 +295,7 @@ bool DungeonScript::UseInterruptSpell(::Player* player, ::Creature* target) cons
         default: return false;
     }
 
-    if (interruptSpell == 0 || player->HasSpellCooldown(interruptSpell))
+    if (interruptSpell == 0 || player->GetSpellHistory()->HasCooldown(interruptSpell))
         return false;
 
     // Full implementation: Cast interrupt spell
@@ -323,7 +321,6 @@ bool DungeonScript::IsDangerousGroundEffect(::DynamicObject* obj) const
            spellInfo->HasEffect(SPELL_EFFECT_APPLY_AURA) ||
            spellInfo->HasAura(SPELL_AURA_PERIODIC_DAMAGE);
 }
-
 void DungeonScript::MoveAwayFromGroundEffect(::Player* player, ::DynamicObject* obj) const
 {
     if (!player || !obj)
@@ -334,7 +331,6 @@ void DungeonScript::MoveAwayFromGroundEffect(::Player* player, ::DynamicObject* 
     float x = player->GetPositionX() + 15.0f * cos(angle);
     float y = player->GetPositionY() + 15.0f * sin(angle);
     float z = player->GetPositionZ();
-
     Position safePos(x, y, z, 0.0f);
     MoveTo(player, safePos);
 }

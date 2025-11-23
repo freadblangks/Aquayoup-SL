@@ -13,6 +13,7 @@
 #include "Define.h"
 #include "CombatStateAnalyzer.h"
 #include "SharedDefines.h"
+#include "AI/Decision/DecisionFusionSystem.h" // Full definition for DecisionVote and CombatContext
 #include <string>
 #include <vector>
 #include <map>
@@ -80,10 +81,10 @@ namespace Playerbot
     // Behavior profile for specific situations
     struct BehaviorProfile
     {
-        std::string name;                                                      // Profile name for logging
+        ::std::string name;                                                      // Profile name for logging
         BehaviorPriority priority;                                             // Priority level
-        std::function<bool(const CombatMetrics&, CombatSituation)> condition; // Activation condition
-        std::function<void(Player*, uint32)> applyFunction;                   // Apply behavior changes
+        ::std::function<bool(const CombatMetrics&, CombatSituation)> condition; // Activation condition
+        ::std::function<void(::Player*, uint32)> applyFunction;                 // Apply behavior changes
         uint32 strategyFlags;                                                  // Strategy flags to activate
         uint32 minDuration;                                                    // Minimum time to stay active (ms)
         uint32 maxDuration;                                                    // Maximum time to stay active (ms)
@@ -148,7 +149,7 @@ namespace Playerbot
     class AdaptiveBehaviorManager
     {
     public:
-        explicit AdaptiveBehaviorManager(Player* bot);
+        explicit AdaptiveBehaviorManager(::Player* bot);
         ~AdaptiveBehaviorManager();
 
         // Main update function
@@ -165,11 +166,11 @@ namespace Playerbot
 
         // Profile management
         void RegisterProfile(const BehaviorProfile& profile);
-        void ActivateProfile(const std::string& name);
-        void DeactivateProfile(const std::string& name);
-        bool IsProfileActive(const std::string& name) const;
+        void ActivateProfile(const ::std::string& name);
+        void DeactivateProfile(const ::std::string& name);
+        bool IsProfileActive(const ::std::string& name) const;
         const BehaviorProfile* GetActiveProfile() const;
-        std::vector<std::string> GetActiveProfileNames() const;
+        ::std::vector<::std::string> GetActiveProfileNames() const;
 
         // Role management
         BotRole GetPrimaryRole() const { return _roleAssignment.primaryRole; }
@@ -201,6 +202,23 @@ namespace Playerbot
         bool ShouldInterruptFocus() const { return IsStrategyActive(STRATEGY_INTERRUPT_FOCUS); }
         bool ShouldUseCrowdControl() const { return IsStrategyActive(STRATEGY_CROWD_CONTROL); }
 
+        /**
+         * @brief Get recommended action for DecisionFusion integration
+         * @param target Current combat target
+         * @param context Current combat context (dungeon, raid, PvP, etc.)
+         * @return DecisionVote with role-based action recommendation
+         *
+         * This method provides intelligent action recommendations based on:
+         * - Bot's primary and secondary roles (tank/healer/DPS)
+         * - Active behavior strategies (defensive, aggressive, AoE, etc.)
+         * - Group composition and role effectiveness
+         * - Emergency conditions (low health, emergency tanking/healing)
+         * - Combat context (boss fight, trash, arena, etc.)
+         *
+         * Integrates with Phase 5 DecisionFusion system for unified action arbitration.
+         */
+        Playerbot::bot::ai::DecisionVote GetRecommendedAction(Unit* target, Playerbot::bot::ai::CombatContext context) const;
+
         // Resource management
         bool ShouldConserveMana() const { return IsStrategyActive(STRATEGY_CONSERVE_MANA); }
         bool ShouldUseConsumables() const { return IsStrategyActive(STRATEGY_USE_CONSUMABLES); }
@@ -219,8 +237,8 @@ namespace Playerbot
         uint32 GetStrategySwitchCount() const { return _strategySwitchCount; }
 
         // Learning and adaptation
-        void RecordDecisionOutcome(const std::string& decision, bool success);
-        float GetDecisionSuccessRate(const std::string& decision) const;
+        void RecordDecisionOutcome(const ::std::string& decision, bool success);
+        float GetDecisionSuccessRate(const ::std::string& decision) const;
         void AdjustBehaviorWeights();
 
         // Reset and cleanup
@@ -267,13 +285,13 @@ namespace Playerbot
         float GetGearScore() const;
 
         // Member variables
-        Player* _bot;
+        ::Player* _bot;
         uint32 _activeStrategies;
         RoleAssignment _roleAssignment;
         GroupComposition _groupComposition;
 
         // Behavior profiles
-        std::vector<BehaviorProfile> _profiles;
+        ::std::vector<BehaviorProfile> _profiles;
         BehaviorProfile* _activeProfile;
         uint32 _lastProfileSwitch;
         uint32 _profileSwitchCount;
@@ -281,7 +299,7 @@ namespace Playerbot
         // Strategy tracking
         uint32 _lastStrategyUpdate;
         uint32 _strategySwitchCount;
-        std::map<uint32, uint32> _strategyActiveTimes;
+        ::std::map<uint32, uint32> _strategyActiveTimes;
 
         // Decision tracking for learning
         struct DecisionOutcome
@@ -290,7 +308,7 @@ namespace Playerbot
             uint32 failureCount;
             float successRate;
         };
-        std::map<std::string, DecisionOutcome> _decisionHistory;
+        ::std::map<::std::string, DecisionOutcome> _decisionHistory;
 
         // Performance tracking
         uint32 _updateTimer;

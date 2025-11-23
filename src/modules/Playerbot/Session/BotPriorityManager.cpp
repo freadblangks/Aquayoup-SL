@@ -9,6 +9,7 @@
 #include "Log.h"
 #include "Timer.h"
 #include <algorithm>
+#include "GameTime.h"
 
 namespace Playerbot {
 
@@ -81,7 +82,7 @@ void BotPriorityManager::SetPriority(ObjectGuid botGuid, BotPriority priority)
     if (metrics.currentPriority != priority)
     {
         // Track time spent in previous priority
-        uint32 currentTime = getMSTime();
+        uint32 currentTime = GameTime::GetGameTimeMS();
         if (metrics.priorityChangeTime > 0)
             metrics.timeInCurrentPriority = currentTime - metrics.priorityChangeTime;
 
@@ -118,7 +119,6 @@ void BotPriorityManager::AutoAdjustPriority(Player* bot, uint32 currentTime)
     ObjectGuid guid = bot->GetGUID();
     BotPriority currentPriority = GetPriority(guid);
     BotPriority newPriority = DeterminePriority(bot);
-
     // Only update if priority changed
     if (newPriority != currentPriority)
     {
@@ -136,7 +136,7 @@ void BotPriorityManager::AutoAdjustPriority(Player* bot, uint32 currentTime)
         bool isDowngrade = newPriority > currentPriority; // Lower priority = higher enum value
 
         // Only apply hysteresis to downgrades (prevent priority thrashing when leaving combat/activity)
-        if (isDowngrade && !isUpgradeToEmergency && !isUpgradeToHigh)
+    if (isDowngrade && !isUpgradeToEmergency && !isUpgradeToHigh)
         {
             // No lock needed - priority metrics are per-bot instance data
             auto& metrics = _botMetrics[guid];
@@ -152,7 +152,7 @@ void BotPriorityManager::AutoAdjustPriority(Player* bot, uint32 currentTime)
         SetPriority(guid, newPriority);
 
         // Optional: Log priority changes for debugging
-        if (newPriority == BotPriority::EMERGENCY || newPriority == BotPriority::HIGH)
+    if (newPriority == BotPriority::EMERGENCY || newPriority == BotPriority::HIGH)
         {
             TC_LOG_DEBUG("module.playerbot.priority", "Bot {} priority changed: {} -> {}",
                 bot->GetName(),
@@ -197,11 +197,9 @@ BotPriority BotPriorityManager::DeterminePriority(Player* bot) const
     // HIGH: Combat and group content
     if (IsInHighPriorityActivity(bot))
         return BotPriority::HIGH;
-
     // MEDIUM: Active but non-critical activities
     if (IsInMediumPriorityActivity(bot))
         return BotPriority::MEDIUM;
-
     // LOW: Idle, resting, background activities
     return BotPriority::LOW;
 }
@@ -234,12 +232,12 @@ bool BotPriorityManager::IsInHighPriorityActivity(Player* bot) const
     if (Group* group = bot->GetGroup())
     {
         // Higher priority if in instance (dungeons and raids require immediate response)
-        if (bot->GetMap()->IsDungeon() || bot->GetMap()->IsRaid())
+    if (bot->GetMap()->IsDungeon() || bot->GetMap()->IsRaid())
             return true;
 
         // If bot is in a group but not in instance, check group combat state
         // This covers outdoor group activities (world bosses, elite quests, etc.)
-        for (GroupReference const& ref : group->GetMembers())
+    for (GroupReference const& ref : group->GetMembers())
         {
             if (Player* member = ref.GetSource())
             {
@@ -283,7 +281,6 @@ bool BotPriorityManager::ShouldUpdateThisTick(ObjectGuid botGuid, uint32 current
 
     if (interval == 0)
         return false; // Suspended
-
     if (interval == 1)
         return true; // Every tick (EMERGENCY, HIGH)
 
@@ -411,7 +408,7 @@ uint32 BotPriorityManager::GetEstimatedBotsThisTick(uint32 currentTick) const
         {
             uint32 botsAtPriority = GetBotCountByPriority(priority);
             uint32 maxBots = _priorityConfigs[i].maxBotsPerTick;
-            total += std::min(botsAtPriority, maxBots);
+            total += ::std::min(botsAtPriority, maxBots);
         }
     }
 
@@ -438,7 +435,7 @@ void BotPriorityManager::SuspendLowPriorityBots(uint32 targetCount)
             break;
 
         // Suspend LOW priority bots first
-        if (metrics.currentPriority == BotPriority::LOW)
+    if (metrics.currentPriority == BotPriority::LOW)
         {
             metrics.currentPriority = BotPriority::SUSPENDED;
             suspended++;
@@ -459,7 +456,7 @@ void BotPriorityManager::ResumeSuspendedBots(uint32 targetCount)
             break;
 
         // Resume suspended bots
-        if (metrics.currentPriority == BotPriority::SUSPENDED)
+    if (metrics.currentPriority == BotPriority::SUSPENDED)
         {
             metrics.currentPriority = BotPriority::LOW; // Resume at LOW priority
             resumed++;
@@ -473,11 +470,10 @@ void BotPriorityManager::ResumeSuspendedBots(uint32 targetCount)
 void BotPriorityManager::DetectStalledBots(uint32 currentTime, uint32 stallThresholdMs)
 {
     // No lock needed - priority metrics are per-bot instance data
-
     for (auto& [guid, metrics] : _botMetrics)
     {
         // Skip suspended bots
-        if (metrics.currentPriority == BotPriority::SUSPENDED)
+    if (metrics.currentPriority == BotPriority::SUSPENDED)
             continue;
 
         // Check if bot hasn't updated recently
@@ -498,11 +494,11 @@ void BotPriorityManager::DetectStalledBots(uint32 currentTime, uint32 stallThres
     }
 }
 
-std::vector<ObjectGuid> BotPriorityManager::GetStalledBots() const
+::std::vector<ObjectGuid> BotPriorityManager::GetStalledBots() const
 {
     // No lock needed - priority metrics are per-bot instance data
 
-    std::vector<ObjectGuid> stalled;
+    ::std::vector<ObjectGuid> stalled;
     for (auto const& [guid, metrics] : _botMetrics)
     {
         if (metrics.isStalled)
@@ -562,7 +558,6 @@ void BotPriorityManager::LogPriorityDistribution() const
 void BotPriorityManager::LogPerformanceStatistics() const
 {
     // No lock needed - priority metrics are per-bot instance data
-
     if (_botMetrics.empty())
         return;
 
@@ -575,7 +570,7 @@ void BotPriorityManager::LogPerformanceStatistics() const
     for (auto const& [guid, metrics] : _botMetrics)
     {
         totalAvgUpdateTime += metrics.averageUpdateDuration;
-        totalMaxUpdateTime = std::max(totalMaxUpdateTime, metrics.maxUpdateDuration);
+        totalMaxUpdateTime = ::std::max(totalMaxUpdateTime, metrics.maxUpdateDuration);
         totalUpdateCount += metrics.updateCount;
         totalErrorCount += metrics.errorCount;
     }

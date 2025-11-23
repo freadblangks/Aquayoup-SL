@@ -56,7 +56,7 @@ ActionResult MoveToPositionAction::Execute(BotAI* ai, ActionContext const& conte
 
     _executionCount++;
     _successCount++;
-    _lastExecution = std::chrono::steady_clock::now();
+    _lastExecution = ::std::chrono::steady_clock::now();
 
     return ActionResult::SUCCESS;
 }
@@ -109,11 +109,10 @@ ActionResult FollowAction::Execute(BotAI* ai, ActionContext const& context)
 
     _executionCount++;
     _successCount++;
-    _lastExecution = std::chrono::steady_clock::now();
+    _lastExecution = ::std::chrono::steady_clock::now();
 
     return ActionResult::SUCCESS;
 }
-
 ::Unit* FollowAction::GetFollowTarget(BotAI* ai) const
 {
     if (!ai)
@@ -137,7 +136,6 @@ ActionResult FollowAction::Execute(BotAI* ai, ActionContext const& context)
     // Find nearest group member (using squared distance for comparison)
     ::Unit* nearestMember = nullptr;
     float nearestDistanceSq = 100.0f * 100.0f; // 10000.0f
-
     for (GroupReference const& ref : group->GetMembers())
     {
         if (Player* member = ref.GetSource())
@@ -189,7 +187,6 @@ bool AttackAction::IsUseful(BotAI* ai) const
     ::Unit* target = GetAttackTarget(ai);
     return target && target->IsAlive() && target->IsHostileTo(ai->GetBot());
 }
-
 ActionResult AttackAction::Execute(BotAI* ai, ActionContext const& context)
 {
     Player* bot = ai->GetBot();
@@ -217,7 +214,7 @@ ActionResult AttackAction::Execute(BotAI* ai, ActionContext const& context)
 
     _executionCount++;
     _successCount++;
-    _lastExecution = std::chrono::steady_clock::now();
+    _lastExecution = ::std::chrono::steady_clock::now();
 
     return ActionResult::SUCCESS;
 }
@@ -284,7 +281,7 @@ ActionResult HealAction::Execute(BotAI* ai, ActionContext const& context)
     {
         _executionCount++;
         _successCount++;
-        _lastExecution = std::chrono::steady_clock::now();
+        _lastExecution = ::std::chrono::steady_clock::now();
         return ActionResult::SUCCESS;
     }
 
@@ -370,7 +367,7 @@ ActionResult BuffAction::Execute(BotAI* ai, ActionContext const& context)
     {
         _executionCount++;
         _successCount++;
-        _lastExecution = std::chrono::steady_clock::now();
+        _lastExecution = ::std::chrono::steady_clock::now();
         return ActionResult::SUCCESS;
     }
 

@@ -15,6 +15,7 @@
 #include "Social/TradeManager.h"
 #include "Professions/GatheringManager.h"
 #include "Economy/AuctionManager.h"
+#include "Core/DI/Interfaces/IAuctionHouse.h"  // For AuctionItem definition
 
 namespace Playerbot
 {
@@ -119,7 +120,7 @@ void SoloStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     // This is the lowest-priority activity
     // ========================================================================
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastWanderTime > _wanderInterval)
     {
         // TODO: Implement proper wandering with pathfinding

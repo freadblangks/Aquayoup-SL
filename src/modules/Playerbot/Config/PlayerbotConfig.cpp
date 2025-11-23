@@ -71,7 +71,7 @@ bool PlayerbotConfig::Initialize()
 
 bool PlayerbotConfig::Reload()
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
     if (_configPath.empty())
     {
         _lastError = "Configuration not initialized";
@@ -102,7 +102,7 @@ bool PlayerbotConfig::Reload()
 
 bool PlayerbotConfig::GetBool(std::string const& key, bool defaultValue) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
     auto it = _configValues.find(key);
     if (it == _configValues.end())
         return defaultValue;
@@ -114,7 +114,7 @@ bool PlayerbotConfig::GetBool(std::string const& key, bool defaultValue) const
 
 int32 PlayerbotConfig::GetInt(std::string const& key, int32 defaultValue) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
     auto it = _configValues.find(key);
     if (it == _configValues.end())
         return defaultValue;
@@ -134,7 +134,7 @@ int32 PlayerbotConfig::GetInt(std::string const& key, int32 defaultValue) const
 
 uint32 PlayerbotConfig::GetUInt(std::string const& key, uint32 defaultValue) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
     auto it = _configValues.find(key);
     if (it == _configValues.end())
         return defaultValue;
@@ -154,7 +154,7 @@ uint32 PlayerbotConfig::GetUInt(std::string const& key, uint32 defaultValue) con
 
 float PlayerbotConfig::GetFloat(std::string const& key, float defaultValue) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
     auto it = _configValues.find(key);
     if (it == _configValues.end())
         return defaultValue;
@@ -174,7 +174,7 @@ float PlayerbotConfig::GetFloat(std::string const& key, float defaultValue) cons
 
 std::string PlayerbotConfig::GetString(std::string const& key, std::string const& defaultValue) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
     auto it = _configValues.find(key);
     if (it == _configValues.end())
         return defaultValue;
@@ -232,7 +232,7 @@ bool PlayerbotConfig::LoadConfigFile(const std::string& filePath)
             lineCount++;
 
             // Skip empty lines and comments
-            if (line.empty() || line[0] == '#')
+    if (line.empty() || line[0] == '#')
                 continue;
 
             // Find the = separator
@@ -255,7 +255,7 @@ bool PlayerbotConfig::LoadConfigFile(const std::string& filePath)
             value.erase(0, value.find_first_not_of(" \t"));
 
             // Validate key is not empty
-            if (key.empty())
+    if (key.empty())
             {
                 TC_LOG_WARN("server.loading", "PlayerbotConfig: Empty key on line {} in {}", lineCount, filePath);
                 continue;
@@ -414,11 +414,6 @@ void PlayerbotConfig::InitializeLogging()
 {
     // Check if ModuleLogManager singleton is available
     auto* mgr = sModuleLogManager;
-    if (!mgr)
-    {
-        TC_LOG_ERROR("server.loading", "PlayerbotConfig: ModuleLogManager singleton is NULL");
-        return;
-    }
 
     // Register Playerbot module with the new ModuleLogManager
     if (!mgr->RegisterModule("playerbot", 4, "Playerbot.log"))
@@ -474,7 +469,7 @@ void PlayerbotConfig::InitializeLogging()
 
 void PlayerbotConfig::RefreshCache()
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
 
     // Update cache with frequently accessed values - DIRECT ACCESS to avoid recursive mutex lock
     auto it = _configValues.find("Playerbot.MaxBotsPerAccount");
@@ -510,7 +505,7 @@ void PlayerbotConfig::RefreshCache()
 template<>
 uint32 PlayerbotConfig::GetCached(std::string const& key, uint32 defaultValue) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
     _metrics.configLookups++;
 
     if (!_cache.isValid)
@@ -537,7 +532,7 @@ uint32 PlayerbotConfig::GetCached(std::string const& key, uint32 defaultValue) c
 template<>
 std::string PlayerbotConfig::GetCached(std::string const& key, std::string defaultValue) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
 
     if (!_cache.isValid)
     {
@@ -551,6 +546,6 @@ std::string PlayerbotConfig::GetCached(std::string const& key, std::string defau
 
 PlayerbotConfig::PerformanceMetrics PlayerbotConfig::GetPerformanceMetrics() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_configMutex);
+    std::lock_guard lock(_configMutex);
     return _metrics;
 }

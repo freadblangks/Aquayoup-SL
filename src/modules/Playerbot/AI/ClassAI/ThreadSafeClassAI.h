@@ -40,13 +40,13 @@ public:
     template<typename T>
     struct alignas(64) AlignedAtomic
     {
-        std::atomic<T> value{0};
+        ::std::atomic<T> value{0};
 
-        T load() const { return value.load(std::memory_order_relaxed); }
-        void store(T val) { value.store(val, std::memory_order_relaxed); }
-        T fetch_add(T val) { return value.fetch_add(val, std::memory_order_relaxed); }
-        T fetch_sub(T val) { return value.fetch_sub(val, std::memory_order_relaxed); }
-        T exchange(T val) { return value.exchange(val, std::memory_order_relaxed); }
+        T load() const { return value.load(::std::memory_order_relaxed); }
+        void store(T val) { value.store(val, ::std::memory_order_relaxed); }
+        T fetch_add(T val) { return value.fetch_add(val, ::std::memory_order_relaxed); }
+        T fetch_sub(T val) { return value.fetch_sub(val, ::std::memory_order_relaxed); }
+        T exchange(T val) { return value.exchange(val, ::std::memory_order_relaxed); }
     };
 
     // Resource state (all atomic for lock-free access)
@@ -77,16 +77,16 @@ public:
     // Combat state (atomic flags for thread safety)
     struct CombatState
     {
-        std::atomic<bool> inCombat{false};
-        std::atomic<bool> isMoving{false};
-        std::atomic<bool> isCasting{false};
-        std::atomic<bool> isChanneling{false};
-        std::atomic<bool> hasTarget{false};
-        std::atomic<bool> targetInMelee{false};
-        std::atomic<bool> targetCasting{false};
-        std::atomic<uint32> targetGuid{0};
-        std::atomic<uint32> threatLevel{0};  // 0-100
-        std::atomic<uint32> incomingDamage{0};
+        ::std::atomic<bool> inCombat{false};
+        ::std::atomic<bool> isMoving{false};
+        ::std::atomic<bool> isCasting{false};
+        ::std::atomic<bool> isChanneling{false};
+        ::std::atomic<bool> hasTarget{false};
+        ::std::atomic<bool> targetInMelee{false};
+        ::std::atomic<bool> targetCasting{false};
+        ::std::atomic<uint32> targetGuid{0};
+        ::std::atomic<uint32> threatLevel{0};  // 0-100
+        ::std::atomic<uint32> incomingDamage{0};
         AlignedAtomic<uint64> lastCombatTime;
     };
 
@@ -96,7 +96,7 @@ public:
     public:
         bool IsOnCooldown(uint32 spellId) const
         {
-            uint64 currentTime = getMSTime();
+            uint64 currentTime = GameTime::GetGameTimeMS();
             typename CooldownMap::const_accessor accessor;
             if (_cooldowns.find(accessor, spellId))
             {
@@ -107,7 +107,7 @@ public:
 
         void SetCooldown(uint32 spellId, uint32 durationMs)
         {
-            uint64 endTime = getMSTime() + durationMs;
+            uint64 endTime = GameTime::GetGameTimeMS() + durationMs;
             typename CooldownMap::accessor accessor;
             _cooldowns.insert(accessor, spellId);
             accessor->second = endTime;
@@ -115,7 +115,7 @@ public:
 
         uint32 GetRemainingCooldown(uint32 spellId) const
         {
-            uint64 currentTime = getMSTime();
+            uint64 currentTime = GameTime::GetGameTimeMS();
             typename CooldownMap::const_accessor accessor;
             if (_cooldowns.find(accessor, spellId))
             {
@@ -127,7 +127,7 @@ public:
 
         void UpdateCooldowns()
         {
-            uint64 currentTime = getMSTime();
+            uint64 currentTime = GameTime::GetGameTimeMS();
             for (auto it = _cooldowns.begin(); it != _cooldowns.end(); )
             {
                 if (it->second <= currentTime)
@@ -268,13 +268,13 @@ protected:
     SpellQueue _spellQueue;
 
     // Update timing
-    std::atomic<uint64> _lastUpdateTime{0};
-    std::atomic<uint32> _updateCounter{0};
+    ::std::atomic<uint64> _lastUpdateTime{0};
+    ::std::atomic<uint32> _updateCounter{0};
 
     // Configuration flags (atomic for thread safety)
-    std::atomic<bool> _enabled{true};
-    std::atomic<bool> _debugMode{false};
-    std::atomic<bool> _performanceMode{false};
+    ::std::atomic<bool> _enabled{true};
+    ::std::atomic<bool> _debugMode{false};
+    ::std::atomic<bool> _performanceMode{false};
 
 private:
     // Internal helper methods
@@ -307,10 +307,10 @@ protected:
     // Cache frequently accessed data
     struct CachedData
     {
-        std::atomic<uint32> primaryResource{0};
-        std::atomic<uint32> secondaryResource{0};
-        std::atomic<bool> hasProcs{false};
-        std::atomic<bool> hasBurst{false};
+        ::std::atomic<uint32> primaryResource{0};
+        ::std::atomic<uint32> secondaryResource{0};
+        ::std::atomic<bool> hasProcs{false};
+        ::std::atomic<bool> hasBurst{false};
     };
 
     CachedData _cache;

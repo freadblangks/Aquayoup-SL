@@ -21,6 +21,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -44,13 +45,13 @@ struct BotSpellCastRequest
 {
     uint32 spellId;              // Spell to cast
     ::Unit* target;              // Target unit (can be nullptr for self-cast)
-    uint32 queuedAtTime;         // getMSTime() when queued (for diagnostics)
+    uint32 queuedAtTime;         // GameTime::GetGameTimeMS() when queued (for diagnostics)
     bool isSelfCast;             // True if self-targeted spell
 
     BotSpellCastRequest(uint32 spell, ::Unit* tgt = nullptr)
         : spellId(spell)
         , target(tgt)
-        , queuedAtTime(getMSTime())
+        , queuedAtTime(GameTime::GetGameTimeMS())
         , isSelfCast(tgt == nullptr)
     {}
 };
@@ -274,9 +275,8 @@ public:
     float GetSpellRange(uint32 spellId);
     uint32 GetSpellCooldown(uint32 spellId);
 
-    // Spell casting
-    bool CastSpell(::Unit* target, uint32 spellId);
-    bool CastSpell(uint32 spellId); // Self-cast
+    // Spell casting (overrides BotAI virtual method)
+    ::SpellCastResult CastSpell(uint32 spellId, ::Unit* target = nullptr) override;
 
     // Target selection helpers
     ::Unit* GetBestAttackTarget();
@@ -317,12 +317,12 @@ protected:
     // COMPONENT MANAGERS - Class-specific systems
     // ========================================================================
 
-    std::unique_ptr<ActionPriorityQueue> _actionQueue;
-    std::unique_ptr<CooldownManager> _cooldownManager;
-    std::unique_ptr<ResourceManager> _resourceManager;
+    ::std::unique_ptr<ActionPriorityQueue> _actionQueue;
+    ::std::unique_ptr<CooldownManager> _cooldownManager;
+    ::std::unique_ptr<ResourceManager> _resourceManager;
 
     // Combat Behavior Integration - Unified combat coordination system
-    std::unique_ptr<CombatBehaviorIntegration> _combatBehaviors;
+    ::std::unique_ptr<CombatBehaviorIntegration> _combatBehaviors;
 
     // ========================================================================
     // SPELL QUEUEING STATE - Pending spell cast request
@@ -330,7 +330,7 @@ protected:
 
     // Pending spell cast request (only one at a time, like players)
     // Mirrors Player::_pendingSpellCastRequest architecture
-    std::unique_ptr<BotSpellCastRequest> _pendingSpellCastRequest;
+    ::std::unique_ptr<BotSpellCastRequest> _pendingSpellCastRequest;
 
     // Spell queue window in milliseconds (matches TrinityCore player system)
     // Spells can be queued when GCD or current cast has ≤400ms remaining
@@ -381,7 +381,7 @@ private:
      * @param metric Metric name
      * @param value Metric value
      */
-    void RecordPerformanceMetric(std::string const& metric, uint32 value);
+    void RecordPerformanceMetric(::std::string const& metric, uint32 value);
 };
 
 } // namespace Playerbot

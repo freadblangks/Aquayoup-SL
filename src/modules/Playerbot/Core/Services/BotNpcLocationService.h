@@ -39,6 +39,7 @@
 #include "Define.h"
 #include "Position.h"
 #include "ObjectGuid.h"
+#include "Core/DI/Interfaces/IBotNpcLocationService.h"
 #include <unordered_map>
 #include <vector>
 #include <memory>
@@ -81,7 +82,7 @@ namespace Playerbot
         bool isValid = false;       // Whether location was found
         bool isLiveEntity = false;  // If found in spatial grid (spawned)
         uint8 qualityScore = 0;     // 0-100, higher = better (live > spawn > POI)
-        std::string sourceName;     // Debug: where location came from
+        ::std::string sourceName;     // Debug: where location came from
 
         NpcLocationResult() = default;
 
@@ -108,7 +109,7 @@ namespace Playerbot
      * - Typical query time: <0.1ms for cached lookups
      * - Memory usage: ~50-100MB for full spawn database cache
      */
-    class BotNpcLocationService
+    class BotNpcLocationService final : public IBotNpcLocationService
     {
     public:
         static BotNpcLocationService* instance();
@@ -120,12 +121,12 @@ namespace Playerbot
          * CALLED BY: sWorld->SetInitialWorldSettings()
          * TIMING: Server startup, after ObjectMgr initialization
          */
-        bool Initialize();
+        bool Initialize() override;
 
         /**
          * @brief Clear all caches (for reloading)
          */
-        void Shutdown();
+        void Shutdown() override;
 
         // ===== QUEST OBJECTIVE LOCATION QUERIES =====
 
@@ -146,7 +147,7 @@ namespace Playerbot
          *
          * PERFORMANCE: O(1) for cache lookup, O(n) for spatial grid (n = nearby entities)
          */
-        NpcLocationResult FindQuestObjectiveLocation(Player* bot, uint32 questId, uint32 objectiveIndex);
+        NpcLocationResult FindQuestObjectiveLocation(Player* bot, uint32 questId, uint32 objectiveIndex) override;
 
         // ===== TRAINER LOCATION QUERIES =====
 
@@ -165,7 +166,7 @@ namespace Playerbot
          * - SKILL_ENGINEERING = 202
          * - etc.
          */
-        NpcLocationResult FindNearestProfessionTrainer(Player* bot, uint32 skillId);
+        NpcLocationResult FindNearestProfessionTrainer(Player* bot, uint32 skillId) override;
 
         /**
          * @brief Find nearest class trainer
@@ -175,7 +176,7 @@ namespace Playerbot
          *
          * @return NpcLocationResult with nearest class trainer location
          */
-        NpcLocationResult FindNearestClassTrainer(Player* bot, uint8 classId);
+        NpcLocationResult FindNearestClassTrainer(Player* bot, uint8 classId) override;
 
         // ===== SERVICE NPC LOCATION QUERIES =====
 
@@ -192,7 +193,7 @@ namespace Playerbot
          * - FindNearestService(bot, NpcServiceType::VENDOR_REPAIR)
          * - FindNearestService(bot, NpcServiceType::BANKER)
          */
-        NpcLocationResult FindNearestService(Player* bot, NpcServiceType serviceType);
+        NpcLocationResult FindNearestService(Player* bot, NpcServiceType serviceType) override;
 
         /**
          * @brief Find specific creature spawn by entry ID
@@ -203,7 +204,7 @@ namespace Playerbot
          *
          * @return NpcLocationResult with nearest spawn of that creature type
          */
-        NpcLocationResult FindNearestCreatureSpawn(Player* bot, uint32 creatureEntry, float maxRange = 500.0f);
+        NpcLocationResult FindNearestCreatureSpawn(Player* bot, uint32 creatureEntry, float maxRange = 500.0f) override;
 
         /**
          * @brief Find specific GameObject spawn by entry ID
@@ -214,14 +215,14 @@ namespace Playerbot
          *
          * @return NpcLocationResult with nearest spawn of that object type
          */
-        NpcLocationResult FindNearestGameObjectSpawn(Player* bot, uint32 objectEntry, float maxRange = 500.0f);
+        NpcLocationResult FindNearestGameObjectSpawn(Player* bot, uint32 objectEntry, float maxRange = 500.0f) override;
 
         // ===== VALIDATION & DIAGNOSTICS =====
 
         /**
          * @brief Check if service has been initialized
          */
-        bool IsInitialized() const { return _initialized; }
+        bool IsInitialized() const override { return _initialized; }
 
         /**
          * @brief Get cache statistics for diagnostics
@@ -262,31 +263,31 @@ namespace Playerbot
         };
 
         // Map-indexed spawn caches (mapId → entry → vector<positions>)
-        std::unordered_map<uint32, std::unordered_map<uint32, std::vector<SpawnLocationData>>> _creatureSpawnCache;
-        std::unordered_map<uint32, std::unordered_map<uint32, std::vector<SpawnLocationData>>> _gameObjectSpawnCache;
+        ::std::unordered_map<uint32, ::std::unordered_map<uint32, ::std::vector<SpawnLocationData>>> _creatureSpawnCache;
+        ::std::unordered_map<uint32, ::std::unordered_map<uint32, ::std::vector<SpawnLocationData>>> _gameObjectSpawnCache;
 
         // Profession trainer cache (skillId → vector<locations>)
-        std::unordered_map<uint32, std::vector<SpawnLocationData>> _professionTrainerCache;
+        ::std::unordered_map<uint32, ::std::vector<SpawnLocationData>> _professionTrainerCache;
 
         // Class trainer cache (classId → vector<locations>)
-        std::unordered_map<uint8, std::vector<SpawnLocationData>> _classTrainerCache;
+        ::std::unordered_map<uint8, ::std::vector<SpawnLocationData>> _classTrainerCache;
 
         // Service NPC cache (serviceType → vector<locations>)
-        std::unordered_map<NpcServiceType, std::vector<SpawnLocationData>> _serviceNpcCache;
+        ::std::unordered_map<NpcServiceType, ::std::vector<SpawnLocationData>> _serviceNpcCache;
 
         // Quest POI cache (questId → objectiveIndex → position)
-        std::unordered_map<uint32, std::unordered_map<uint32, Position>> _questPOICache;
+        ::std::unordered_map<uint32, ::std::unordered_map<uint32, Position>> _questPOICache;
 
         bool _initialized = false;
 
         // ===== CACHE BUILDING METHODS (called during Initialize) =====
 
-        void BuildCreatureSpawnCache();
-        void BuildGameObjectSpawnCache();
-        void BuildProfessionTrainerCache();
-        void BuildClassTrainerCache();
-        void BuildServiceNpcCache();
-        void BuildQuestPOICache();
+        void BuildCreatureSpawnCache() override;
+        void BuildGameObjectSpawnCache() override;
+        void BuildProfessionTrainerCache() override;
+        void BuildClassTrainerCache() override;
+        void BuildServiceNpcCache() override;
+        void BuildQuestPOICache() override;
 
         // ===== HELPER METHODS =====
 
@@ -295,34 +296,34 @@ namespace Playerbot
          */
         NpcLocationResult FindNearestFromCache(
             Player* bot,
-            std::vector<SpawnLocationData> const& locations,
+            ::std::vector<SpawnLocationData> const& locations,
             float maxRange,
-            std::string const& sourceName);
+            ::std::string const& sourceName);
 
         /**
          * @brief Check if creature is a trainer for given skill
          */
-        bool IsTrainerForSkill(uint32 creatureEntry, uint32 skillId);
+        bool IsTrainerForSkill(uint32 creatureEntry, uint32 skillId) override;
 
         /**
          * @brief Check if creature is a class trainer
          */
-        bool IsClassTrainer(uint32 creatureEntry, uint8 classId);
+        bool IsClassTrainer(uint32 creatureEntry, uint8 classId) override;
 
         /**
          * @brief Check if creature provides service
          */
-        bool ProvidesService(uint32 creatureEntry, NpcServiceType serviceType);
+        bool ProvidesService(uint32 creatureEntry, NpcServiceType serviceType) override;
 
         /**
          * @brief Try to find live entity in spatial grid first
          */
-        NpcLocationResult TryFindLiveCreature(Player* bot, uint32 creatureEntry, float maxRange);
+        NpcLocationResult TryFindLiveCreature(Player* bot, uint32 creatureEntry, float maxRange) override;
 
         /**
          * @brief Try to find live GameObject in spatial grid first
          */
-        NpcLocationResult TryFindLiveGameObject(Player* bot, uint32 objectEntry, float maxRange);
+        NpcLocationResult TryFindLiveGameObject(Player* bot, uint32 objectEntry, float maxRange) override;
     };
 
 } // namespace Playerbot

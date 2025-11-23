@@ -41,11 +41,9 @@ ClassAI::ClassAI(Player* bot) : BotAI(bot),
     _lastTargetSwitch(0)
 {
     // Initialize component managers for class-specific mechanics
-    _actionQueue = std::make_unique<ActionPriorityQueue>();
-    _cooldownManager = std::make_unique<CooldownManager>();
-    _resourceManager = std::make_unique<ResourceManager>(bot);
-
-    TC_LOG_DEBUG("playerbot.classai", "ClassAI created for bot {}",
+    _actionQueue = ::std::make_unique<ActionPriorityQueue>();
+    _cooldownManager = ::std::make_unique<CooldownManager>();
+    _resourceManager = ::std::make_unique<ResourceManager>(bot);    TC_LOG_DEBUG("playerbot.classai", "ClassAI created for bot {}",
                  bot ? bot->GetName() : "null");
 }
 
@@ -59,7 +57,6 @@ void ClassAI::OnCombatUpdate(uint32 diff)
 {
     // CRITICAL: This method is called BY BotAI::UpdateAI() when in combat
     // It does NOT replace UpdateAI(), it extends it for combat only
-
     if (!GetBot() || !GetBot()->IsAlive())
         return;
 
@@ -90,7 +87,7 @@ void ClassAI::OnCombatUpdate(uint32 diff)
 
     // Performance logging (throttled)
     static uint32 lastLogTime = 0;
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - lastLogTime > 5000) // Every 5 seconds
     {
         TC_LOG_DEBUG("playerbot.combat",
@@ -106,14 +103,11 @@ void ClassAI::OnCombatUpdate(uint32 diff)
 // COMBAT STATE MANAGEMENT
 // ============================================================================
 
-void ClassAI::OnCombatStart(::Unit* target)
-{
+void ClassAI::OnCombatStart(::Unit* target){
     // Called by BotAI when entering combat
     _inCombat = true;
     _combatTime = 0;
-    _currentCombatTarget = target;
-
-    TC_LOG_DEBUG("playerbot.classai", "Bot {} entering combat with {}",
+    _currentCombatTarget = target;    TC_LOG_DEBUG("playerbot.classai", "Bot {} entering combat with {}",
                  GetBot()->GetName(), target ? target->GetName() : "unknown");
 
     // Let BotAI handle base combat start logic
@@ -199,7 +193,7 @@ void ClassAI::UpdateTargeting()
     float nearestDistanceSq = maxRange * maxRange; // Use squared distance for comparison
 
     // Find nearest enemy within range
-    std::list<::Unit*> targets;
+    ::std::list<::Unit*> targets;
     Trinity::AnyUnfriendlyUnitInObjectRangeCheck u_check(GetBot(), GetBot(), maxRange);
     Trinity::UnitListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> searcher(GetBot(), targets, u_check);
     // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitGridObjects
@@ -217,7 +211,7 @@ void ClassAI::UpdateTargeting()
     }
 
     // Query nearby GUIDs (lock-free!)
-    std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
+    ::std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
         GetBot()->GetPosition(), maxRange);
 
     // Process results (replace old searcher logic)
@@ -228,13 +222,21 @@ void ClassAI::UpdateTargeting()
         Creature* entity = nullptr;
         if (snapshot_entity)
         {
+            // CRITICAL FIX: Actually assign the entity pointer!
+            // BUG: Previous code retrieved snapshot but never assigned entity variable
+            entity = ObjectAccessor::GetCreature(*GetBot(), guid);
         }
         if (!entity)
             continue;
-        // Original filtering logic from searcher goes here
+
+        // Apply original filtering logic: check if valid attack target
+    if (!GetBot()->IsValidAttackTarget(entity))
+            continue;
+
+        // Add to targets list for distance sorting
+        targets.push_back(entity);
     }
     // End of spatial grid fix
-
     for (::Unit* target : targets)
     {
         if (!target || !GetBot()->IsValidAttackTarget(target))
@@ -244,8 +246,7 @@ void ClassAI::UpdateTargeting()
         if (distanceSq < nearestDistanceSq)
         {
             nearestDistanceSq = distanceSq;
-            nearestEnemy = target;
-        }
+            nearestEnemy = target;        }
     }
 
     return nearestEnemy;
@@ -267,8 +268,7 @@ void ClassAI::UpdateTargeting()
     Group* group = GetBot()->GetGroup();
     for (GroupReference* itr : *group)
     {
-        if (Player* member = itr->GetSource())
-        {
+        if (Player* member = itr->GetSource())        {
             if (!member->IsAlive() || !member->IsWithinDistInMap(GetBot(), 40.0f))
                 continue;
 
@@ -393,36 +393,33 @@ uint32 ClassAI::GetSpellCooldown(uint32 spellId)
 // SPELL CASTING
 // ============================================================================
 
-bool ClassAI::CastSpell(::Unit* target, uint32 spellId)
+::SpellCastResult ClassAI::CastSpell(uint32 spellId, ::Unit* target /*= nullptr*/)
 {
+    // If no target specified, self-cast
+    if (!target)
+        target = GetBot();
+
     if (!target || !spellId || !GetBot())
-        return false;
+        return SPELL_FAILED_ERROR;
 
     if (!IsSpellUsable(spellId))
-        return false;
+        return SPELL_FAILED_NOT_READY;
 
     if (!IsInRange(target, spellId))
-        return false;
+        return SPELL_FAILED_OUT_OF_RANGE;
 
     if (!HasLineOfSight(target))
-        return false;
+        return SPELL_FAILED_LINE_OF_SIGHT;
 
     // Cast the spell
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE);
     if (!spellInfo)
-        return false;
+        return SPELL_FAILED_SPELL_UNAVAILABLE;
 
-    GetBot()->CastSpell(target, spellId, false);
+    GetBot()->CastSpell(spellId, false, target);
     ConsumeResource(spellId);
     _cooldownManager->StartCooldown(spellId, spellInfo->RecoveryTime);
-
-    return true;
-}
-
-bool ClassAI::CastSpell(uint32 spellId)
-{
-    // Self-cast version
-    return CastSpell(GetBot(), spellId);
+    return SPELL_CAST_OK;
 }
 
 // ============================================================================
@@ -444,8 +441,7 @@ uint32 ClassAI::GetAuraStacks(uint32 spellId, ::Unit* target)
     if (!checkTarget)
         return 0;
 
-    if (Aura* aura = checkTarget->GetAura(spellId))
-        return aura->GetStackAmount();
+    if (Aura* aura = checkTarget->GetAura(spellId))        return aura->GetStackAmount();
 
     return 0;
 }
@@ -456,8 +452,7 @@ uint32 ClassAI::GetAuraRemainingTime(uint32 spellId, ::Unit* target)
     if (!checkTarget)
         return 0;
 
-    if (Aura* aura = checkTarget->GetAura(spellId))
-        return aura->GetDuration();
+    if (Aura* aura = checkTarget->GetAura(spellId))        return aura->GetDuration();
 
     return 0;
 }
@@ -468,7 +463,7 @@ uint32 ClassAI::GetAuraRemainingTime(uint32 spellId, ::Unit* target)
 
 bool ClassAI::IsMoving() const
 {
-    return GetBot() && GetBot()->IsMoving();
+    return GetBot() && GetBot()->isMoving();
 }
 
 bool ClassAI::IsInMeleeRange(::Unit* target) const
@@ -487,7 +482,7 @@ bool ClassAI::ShouldMoveToTarget(::Unit* target) const
     // ClassAI doesn't control movement, just provides information
     // Actual movement is handled by BotAI strategies
     float optimalRange = const_cast<ClassAI*>(this)->GetOptimalRange(target);
-    float currentDistance = std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
+    float currentDistance = ::std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
 
     return currentDistance > optimalRange;
 }
@@ -497,7 +492,7 @@ float ClassAI::GetDistanceToTarget(::Unit* target) const
     if (!target || !GetBot())
         return 0.0f;
 
-    return std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
+    return ::std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
 }
 
 // ============================================================================
@@ -514,8 +509,8 @@ Position ClassAI::GetOptimalPosition(::Unit* target)
     float angle = GetBot()->GetAngle(target);
 
     Position pos;
-    pos.m_positionX = target->GetPositionX() - optimalRange * std::cos(angle);
-    pos.m_positionY = target->GetPositionY() - optimalRange * std::sin(angle);
+    pos.m_positionX = target->GetPositionX() - optimalRange * ::std::cos(angle);
+    pos.m_positionY = target->GetPositionY() - optimalRange * ::std::sin(angle);
     pos.m_positionZ = target->GetPositionZ();
     pos.SetOrientation(target->GetOrientation());
 
@@ -526,7 +521,7 @@ Position ClassAI::GetOptimalPosition(::Unit* target)
 // PERFORMANCE METRICS
 // ============================================================================
 
-void ClassAI::RecordPerformanceMetric(std::string const& metric, uint32 value)
+void ClassAI::RecordPerformanceMetric(::std::string const& metric, uint32 value)
 {
     // Record class-specific performance metrics
     TC_LOG_TRACE("playerbot.performance", "ClassAI metric {} = {} for bot {}",

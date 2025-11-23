@@ -10,11 +10,13 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "Unit.h"
 #include <queue>
 #include <mutex>
 #include <memory>
 #include <vector>
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -44,7 +46,7 @@ struct PrioritizedAction
     PrioritizedAction() : spellId(0), priority(ActionPriority::IDLE), score(0.0f), target(nullptr), timestamp(0) {}
 
     PrioritizedAction(uint32 spell, ActionPriority prio, float sc, ::Unit* tgt = nullptr)
-        : spellId(spell), priority(prio), score(sc), target(tgt), timestamp(getMSTime()) {}
+        : spellId(spell), priority(prio), score(sc), target(tgt), timestamp(GameTime::GetGameTimeMS()) {}
 
     // Comparison operator for priority queue (higher priority = lower enum value)
     bool operator<(const PrioritizedAction& other) const
@@ -62,7 +64,7 @@ struct PrioritizedAction
     // Check if this action is still valid (not too old)
     bool IsValid(uint32 maxAgeMs = 5000) const
     {
-        return (getMSTime() - timestamp) <= maxAgeMs;
+        return (GameTime::GetGameTimeMS() - timestamp) <= maxAgeMs;
     }
 };
 
@@ -95,18 +97,18 @@ public:
     void CleanupOldActions(uint32 maxAgeMs = 5000);
 
     // Add multiple actions at once (more efficient)
-    void AddActions(const std::vector<PrioritizedAction>& actions);
+    void AddActions(const ::std::vector<PrioritizedAction>& actions);
 
     // Get all actions of a specific priority level
-    std::vector<PrioritizedAction> GetActionsByPriority(ActionPriority priority) const;
+    ::std::vector<PrioritizedAction> GetActionsByPriority(ActionPriority priority) const;
 
     // Check if queue contains action for specific spell
     bool ContainsSpell(uint32 spellId) const;
 
 private:
-    mutable std::priority_queue<PrioritizedAction> _queue;
-    mutable std::recursive_mutex _queueMutex;
-    mutable std::atomic<size_t> _size{0};
+    mutable ::std::priority_queue<PrioritizedAction> _queue;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _queueMutex;
+    mutable ::std::atomic<size_t> _size{0};
 
     // Internal helper to validate action
     bool IsActionValid(const PrioritizedAction& action) const;
@@ -150,10 +152,10 @@ public:
     static ActionPool& Instance();
 
     // Get a reusable action object
-    std::unique_ptr<PrioritizedAction> Acquire();
+    ::std::unique_ptr<PrioritizedAction> Acquire();
 
     // Return an action object to the pool
-    void Release(std::unique_ptr<PrioritizedAction> action);
+    void Release(::std::unique_ptr<PrioritizedAction> action);
 
     // Cleanup unused objects
     void Cleanup();
@@ -162,8 +164,8 @@ private:
     ActionPool() = default;
     ~ActionPool() = default;
 
-    std::vector<std::unique_ptr<PrioritizedAction>> _pool;
-    std::recursive_mutex _poolMutex;
+    ::std::vector<::std::unique_ptr<PrioritizedAction>> _pool;
+    Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _poolMutex;
     static constexpr size_t MAX_POOL_SIZE = 1000;
 };
 

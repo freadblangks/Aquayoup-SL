@@ -8,6 +8,8 @@
  */
 
 #include "CombatBehaviorIntegration.h"
+#include "BotThreatManager.h"      // Core threat management infrastructure
+#include "PositionManager.h"       // Enterprise-grade positioning algorithms
 #include "CombatStateAnalyzer.h"
 #include "AdaptiveBehaviorManager.h"
 #include "TargetManager.h"
@@ -46,6 +48,10 @@ CombatBehaviorIntegration::CombatBehaviorIntegration(Player* bot) :
     _successfulActions(0),
     _failedActions(0)
 {
+    // Initialize core infrastructure first (dependencies for other managers)
+    _threatManager = std::make_unique<BotThreatManager>(bot);
+    _positionManager = std::make_unique<PositionManager>(bot, _threatManager.get());
+
     // Initialize all manager components
     _stateAnalyzer = std::make_unique<CombatStateAnalyzer>(bot);
     _behaviorManager = std::make_unique<AdaptiveBehaviorManager>(bot);
@@ -53,23 +59,21 @@ CombatBehaviorIntegration::CombatBehaviorIntegration(Player* bot) :
     _interruptManager = std::make_unique<InterruptManager>(bot);
     _crowdControlManager = std::make_unique<CrowdControlManager>(bot);
     _defensiveManager = std::make_unique<DefensiveManager>(bot);
-    _movementIntegration = std::make_unique<MovementIntegration>(bot);
-
-    TC_LOG_DEBUG("bot.playerbot", "CombatBehaviorIntegration initialized for bot {}", bot->GetName());
+    _movementIntegration = std::make_unique<MovementIntegration>(bot, _positionManager.get());
+    TC_LOG_DEBUG("bot.playerbot", "CombatBehaviorIntegration initialized for bot {} with ThreatManager and PositionManager", bot->GetName());
 }
 
 CombatBehaviorIntegration::~CombatBehaviorIntegration() = default;
 
 void CombatBehaviorIntegration::Update(uint32 diff)
 {
-    uint32 startTime = getMSTime();
+    uint32 startTime = GameTime::GetGameTimeMS();
 
     _updateTimer += diff;
 
     // Check combat state
     bool wasInCombat = _inCombat;
     _inCombat = _bot->IsInCombat();
-
     if (_inCombat && !wasInCombat)
     {
         OnCombatStart();
@@ -102,9 +106,8 @@ void CombatBehaviorIntegration::Update(uint32 diff)
 
         _updateTimer = 0;
     }
-
     // Track performance
-    _lastUpdateTime = getMSTime() - startTime;
+    _lastUpdateTime = GameTime::GetGameTimeMS() - startTime;
     _totalUpdateTime += _lastUpdateTime;
     _updateCount++;
 
@@ -154,11 +157,11 @@ void CombatBehaviorIntegration::UpdateManagers(uint32 diff)
 
 void CombatBehaviorIntegration::UpdatePriorities()
 {
-    std::lock_guard<std::mutex> lock(_actionQueueMutex);
+    std::lock_guard<OrderedMutex<LockOrder::BOT_AI_STATE>> lock(_actionQueueMutex);
         const CombatMetrics& metrics = _stateAnalyzer->GetCurrentMetrics();
 
     // Clear old actions
-    if (getMSTime() - _lastActionTime > 1000)
+    if (GameTime::GetGameTimeMS() - _lastActionTime > 1000)
     {
         _actionQueue.clear();
     }
@@ -170,7 +173,7 @@ void CombatBehaviorIntegration::UpdatePriorities()
         emergency.type = CombatActionType::EMERGENCY;
         emergency.urgency = ActionUrgency::EMERGENCY;
         emergency.reason = "Emergency mode active";
-        emergency.timestamp = getMSTime();
+        emergency.timestamp = GameTime::GetGameTimeMS();
         _actionQueue.push_back(emergency);
     }
 
@@ -185,7 +188,7 @@ void CombatBehaviorIntegration::UpdatePriorities()
             interrupt.urgency = EvaluateInterruptPriority(target);
             interrupt.target = target;
             interrupt.reason = "Urgent interrupt needed";
-            interrupt.timestamp = getMSTime();
+            interrupt.timestamp = GameTime::GetGameTimeMS();
             _actionQueue.push_back(interrupt);
         }
     }
@@ -198,7 +201,7 @@ void CombatBehaviorIntegration::UpdatePriorities()
         defensive.urgency = EvaluateDefensivePriority();
         defensive.spellId = _defensiveManager->GetRecommendedDefensive();
         defensive.reason = "Defensive ability needed";
-        defensive.timestamp = getMSTime();
+        defensive.timestamp = GameTime::GetGameTimeMS();
         _actionQueue.push_back(defensive);
     }
 
@@ -210,7 +213,7 @@ void CombatBehaviorIntegration::UpdatePriorities()
         movement.urgency = EvaluateMovementPriority();
         movement.position = _movementIntegration->GetTargetPosition();
         movement.reason = "Movement required";
-        movement.timestamp = getMSTime();
+        movement.timestamp = GameTime::GetGameTimeMS();
         _actionQueue.push_back(movement);
     }
 
@@ -226,7 +229,7 @@ void CombatBehaviorIntegration::UpdatePriorities()
             targetSwitch.urgency = EvaluateTargetSwitchPriority();
             targetSwitch.target = newTarget;
             targetSwitch.reason = "Priority target available";
-            targetSwitch.timestamp = getMSTime();
+            targetSwitch.timestamp = GameTime::GetGameTimeMS();
             _actionQueue.push_back(targetSwitch);
         }
     }
@@ -245,7 +248,7 @@ void CombatBehaviorIntegration::GenerateRecommendations()
         consumable.urgency = metrics.personalHealthPercent < 40.0f ?
                               ActionUrgency::HIGH : ActionUrgency::NORMAL;
         consumable.reason = "Consumable usage recommended";
-        consumable.timestamp = getMSTime();
+        consumable.timestamp = GameTime::GetGameTimeMS();
         _actionQueue.push_back(consumable);
     }
 
@@ -257,7 +260,7 @@ void CombatBehaviorIntegration::GenerateRecommendations()
         cooldown.urgency = _stateAnalyzer->NeedsBurst() ?
                             ActionUrgency::HIGH : ActionUrgency::NORMAL;
         cooldown.reason = "Offensive cooldowns recommended";
-        cooldown.timestamp = getMSTime();
+        cooldown.timestamp = GameTime::GetGameTimeMS();
         _actionQueue.push_back(cooldown);
     }
 
@@ -273,7 +276,7 @@ void CombatBehaviorIntegration::GenerateRecommendations()
             cc.target = ccTarget;
             cc.spellId = _crowdControlManager->GetRecommendedSpell(ccTarget);
             cc.reason = "Crowd control opportunity";
-            cc.timestamp = getMSTime();
+            cc.timestamp = GameTime::GetGameTimeMS();
             _actionQueue.push_back(cc);
         }
     }
@@ -281,7 +284,7 @@ void CombatBehaviorIntegration::GenerateRecommendations()
 
 void CombatBehaviorIntegration::PrioritizeActions()
 {
-    std::lock_guard<std::mutex> lock(_actionQueueMutex);
+    std::lock_guard<OrderedMutex<LockOrder::BOT_AI_STATE>> lock(_actionQueueMutex);
         // Sort actions by priority and score
     std::sort(_actionQueue.begin(), _actionQueue.end(),
         [this](const RecommendedAction& a, const RecommendedAction& b)
@@ -301,7 +304,6 @@ bool CombatBehaviorIntegration::HandleEmergencies()
     // Check for emergency conditions
     if (!_emergencyMode && !_survivalMode)
         return false;
-
     const CombatMetrics& metrics = _stateAnalyzer->GetCurrentMetrics();
 
     // Use defensive cooldowns
@@ -542,27 +544,27 @@ void CombatBehaviorIntegration::DeactivateStrategy(uint32 flags)
 
 RecommendedAction CombatBehaviorIntegration::GetNextAction()
 {
-    std::lock_guard<std::mutex> lock(_actionQueueMutex);
+    std::lock_guard<OrderedMutex<LockOrder::BOT_AI_STATE>> lock(_actionQueueMutex);
         if (_actionQueue.empty())
         return RecommendedAction();
 
     RecommendedAction action = _actionQueue.front();
     _actionQueue.erase(_actionQueue.begin());
     _currentAction = action;
-    _lastActionTime = getMSTime();
+    _lastActionTime = GameTime::GetGameTimeMS();
 
     return action;
 }
 
 bool CombatBehaviorIntegration::HasPendingAction() const
 {
-    std::lock_guard<std::mutex> lock(_actionQueueMutex);
+    std::lock_guard<OrderedMutex<LockOrder::BOT_AI_STATE>> lock(_actionQueueMutex);
         return !_actionQueue.empty();
 }
 
 void CombatBehaviorIntegration::ClearPendingActions()
 {
-    std::lock_guard<std::mutex> lock(_actionQueueMutex);
+    std::lock_guard<OrderedMutex<LockOrder::BOT_AI_STATE>> lock(_actionQueueMutex);
         _actionQueue.clear();
 }
 
@@ -605,7 +607,7 @@ void CombatBehaviorIntegration::DumpState() const
     TC_LOG_INFO("bot.playerbot", "Emergency Mode: {}", _emergencyMode);
     TC_LOG_INFO("bot.playerbot", "Survival Mode: {}", _survivalMode);
     TC_LOG_INFO("bot.playerbot", "Active Strategies: 0x{:08X}", GetActiveStrategies());
-{ std::lock_guard<std::mutex> lock(_actionQueueMutex);     TC_LOG_INFO("bot.playerbot", "Pending Actions: {}", _actionQueue.size()); }
+{ std::lock_guard<OrderedMutex<LockOrder::BOT_AI_STATE>> lock(_actionQueueMutex);     TC_LOG_INFO("bot.playerbot", "Pending Actions: {}", _actionQueue.size()); }
     TC_LOG_INFO("bot.playerbot", "Success Rate: {}/{}",
         _successfulActions, _successfulActions + _failedActions);
 
@@ -618,7 +620,7 @@ void CombatBehaviorIntegration::DumpState() const
 
 void CombatBehaviorIntegration::Reset()
 {
-    { std::lock_guard<std::mutex> lock(_actionQueueMutex); _actionQueue.clear(); }
+    { std::lock_guard<OrderedMutex<LockOrder::BOT_AI_STATE>> lock(_actionQueueMutex); _actionQueue.clear(); }
     _currentAction = RecommendedAction();
     _lastActionTime = 0;
     _inCombat = false;
@@ -646,10 +648,9 @@ void CombatBehaviorIntegration::Reset()
 void CombatBehaviorIntegration::OnCombatStart()
 {
     _inCombat = true;
-    _combatStartTime = getMSTime();
+    _combatStartTime = GameTime::GetGameTimeMS();
     _emergencyMode = false;
     _survivalMode = false;
-
     TC_LOG_DEBUG("bot.playerbot", "Bot {} entering combat", _bot->GetName());
 
     // Initialize managers for combat
@@ -661,7 +662,7 @@ void CombatBehaviorIntegration::OnCombatEnd()
     _inCombat = false;
 
     TC_LOG_DEBUG("bot.playerbot", "Bot {} leaving combat - Duration: {}ms, Success rate: {:.1f}%",
-        _bot->GetName(), getMSTime() - _combatStartTime,
+        _bot->GetName(), GameTime::GetGameTimeMS() - _combatStartTime,
         _successfulActions > 0 ? (float)_successfulActions / (_successfulActions + _failedActions) * 100.0f : 0.0f);
 
     // Learn from combat
@@ -675,7 +676,6 @@ ActionUrgency CombatBehaviorIntegration::EvaluateInterruptPriority(Unit* target)
 {
     if (!target || !target->HasUnitState(UNIT_STATE_CASTING))
         return ActionUrgency::LOW;
-
     // Check if cast is dangerous
     if (_interruptManager->IsCastDangerous(target))
         return ActionUrgency::EMERGENCY;
@@ -696,7 +696,6 @@ ActionUrgency CombatBehaviorIntegration::EvaluateDefensivePriority()
 
     if (metrics.personalHealthPercent < 40.0f)
         return ActionUrgency::CRITICAL;
-
     if (_defensiveManager->NeedsDefensive())
         return ActionUrgency::HIGH;
 
@@ -773,7 +772,7 @@ float CombatBehaviorIntegration::CalculateActionScore(const RecommendedAction& a
     }
 
     // Freshness weight (newer actions score higher)
-    uint32 age = getMSTime() - action.timestamp;
+    uint32 age = GameTime::GetGameTimeMS() - action.timestamp;
     if (age > 1000)
         score *= 0.8f;
 

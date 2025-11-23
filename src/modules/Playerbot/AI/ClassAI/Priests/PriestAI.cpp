@@ -22,10 +22,11 @@
 #include "../../Combat/CombatBehaviorIntegration.h"
 #include <algorithm>
 #include "../../../Spatial/SpatialGridQueryHelpers.h"  // PHASE 5F: Thread-safe queries
-#include "../../../Movement/Arbiter/MovementArbiter.h"
+#include "Movement/UnifiedMovementCoordinator.h"
 #include "../../../Movement/Arbiter/MovementPriorityMapper.h"
 #include "../../BotAI.h"
 #include "UnitAI.h"
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -54,8 +55,7 @@ enum PriestTalents
 // CONSTRUCTOR/DESTRUCTOR
 // ============================================================================
 
-PriestAI::PriestAI(Player* bot) : ClassAI(bot),
-    _manaSpent(0),
+PriestAI::PriestAI(Player* bot) : ClassAI(bot),    _manaSpent(0),
     _healingDone(0),
     _damageDealt(0),
     _playersHealed(0),
@@ -70,6 +70,7 @@ PriestAI::PriestAI(Player* bot) : ClassAI(bot),
     _lastFade(0)
 {
     TC_LOG_DEBUG("module.playerbot.ai", "PriestAI created for player {}",
+
                  bot ? bot->GetName() : "null");
 }
 
@@ -91,14 +92,19 @@ void PriestAI::UpdateRotation(::Unit* target)
         baselineManager.HandleAutoSpecialization(GetBot());
 
         if (baselineManager.ExecuteBaselineRotation(GetBot(), target))
+
             return;
 
         // Fallback: basic ranged attack
-        if (!GetBot()->IsNonMeleeSpellCast(false))
+    if (!GetBot()->IsNonMeleeSpellCast(false))
         {
+
             if (target && GetBot()->GetDistance(target) <= 35.0f)
+
             {
+
                 GetBot()->AttackerStateUpdate(target);
+
             }
         }
         return;
@@ -163,12 +169,12 @@ bool PriestAI::CanUseAbility(uint32 spellId)
     return true;
 }
 
-void PriestAI::OnCombatStart(::Unit* target)
-{
+void PriestAI::OnCombatStart(::Unit* target){
     if (!GetBot() || !target)
         return;
 
     TC_LOG_DEBUG("module.playerbot.ai", "Priest {} entering combat with {}",
+
                  GetBot()->GetName(), target->GetName());
 
     // Initialize combat tracking
@@ -184,6 +190,7 @@ void PriestAI::OnCombatEnd()
         return;
 
     TC_LOG_DEBUG("module.playerbot.ai", "Priest {} leaving combat. Metrics - Healing: {}, Damage: {}, Mana Used: {}, Players Healed: {}",
+
                  GetBot()->GetName(), _healingDone, _damageDealt, _manaSpent, _playersHealed);
 
     // Post-combat healing
@@ -210,6 +217,7 @@ bool PriestAI::HasEnoughResource(uint32 spellId)
     for (auto const& cost : powerCosts)
     {
         if (cost.Power == POWER_MANA && GetBot()->GetPower(POWER_MANA) < int32(cost.Amount))
+
             return false;
     }
 
@@ -218,6 +226,7 @@ bool PriestAI::HasEnoughResource(uint32 spellId)
     {
         float manaPercent = GetManaPercent();
         if (manaPercent < MANA_CONSERVATION_THRESHOLD * 100.0f)
+
             return false;
     }
 
@@ -238,6 +247,7 @@ void PriestAI::ConsumeResource(uint32 spellId)
     for (auto const& cost : powerCosts)
     {
         if (cost.Power == POWER_MANA)
+
             _manaSpent += cost.Amount;
     }
 
@@ -252,8 +262,7 @@ void PriestAI::ConsumeResource(uint32 spellId)
     }
 }
 
-Position PriestAI::GetOptimalPosition(::Unit* target)
-{
+Position PriestAI::GetOptimalPosition(::Unit* target){
     if (!GetBot() || !target)
         return Position();
 
@@ -264,11 +273,7 @@ Position PriestAI::GetOptimalPosition(::Unit* target)
     // Position behind and to the side for safety
     angle += M_PI / 4; // 45 degrees offset
 
-    float x = target->GetPositionX() - optimalRange * std::cos(angle);
-    float y = target->GetPositionY() - optimalRange * std::sin(angle);
-    float z = target->GetPositionZ();
-
-    return Position(x, y, z);
+    float x = target->GetPositionX() - optimalRange * ::std::cos(angle);    float y = target->GetPositionY() - optimalRange * ::std::sin(angle);    float z = target->GetPositionZ();    return Position(x, y, z);
 }
 
 float PriestAI::GetOptimalRange(::Unit* target)
@@ -359,20 +364,30 @@ bool PriestAI::HandleInterruptPriority(::Unit* target)
     {
         Unit* interruptTarget = behaviors->GetInterruptTarget();
         if (!interruptTarget)
+
             interruptTarget = target;
 
         if (interruptTarget && interruptTarget->IsNonMeleeSpellCast(false))
         {
             // Use Silence
-            if (this->IsSpellReady(SILENCE) && getMSTime() - _lastSilence > 45000)
+    if (this->IsSpellReady(SILENCE) && GameTime::GetGameTimeMS() - _lastSilence > 45000)
+
             {
-                if (this->CastSpell(interruptTarget, SILENCE))
+
+                if (this->CastSpell(SILENCE, interruptTarget))
+
                 {
-                    _lastSilence = getMSTime();
+
+                    _lastSilence = GameTime::GetGameTimeMS();
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Priest {} silenced {}",
+
                                  GetBot()->GetName(), interruptTarget->GetName());
+
                     return true;
+
                 }
+
             }
         }
     }
@@ -397,24 +412,35 @@ bool PriestAI::HandleDefensivePriority()
     {
         if (this->IsSpellReady(DISPERSION))
         {
-            if (this->CastSpell(GetBot(), DISPERSION))
+
+            if (this->CastSpell(DISPERSION, GetBot()))
+
             {
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Priest {} used Dispersion (emergency)", GetBot()->GetName());
+
                 return true;
+
             }
         }
     }
 
     // Desperate Prayer (self-heal + damage reduction)
-    if (healthPct < 30.0f && getMSTime() - _lastDesperatePrayer > 90000)
+    if (healthPct < 30.0f && GameTime::GetGameTimeMS() - _lastDesperatePrayer > 90000)
     {
         if (this->IsSpellReady(DESPERATE_PRAYER))
         {
-            if (this->CastSpell(GetBot(), DESPERATE_PRAYER))
+
+            if (this->CastSpell(DESPERATE_PRAYER, GetBot()))
+
             {
-                _lastDesperatePrayer = getMSTime();
+
+                _lastDesperatePrayer = GameTime::GetGameTimeMS();
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Priest {} used Desperate Prayer", GetBot()->GetName());
+
                 return true;
+
             }
         }
     }
@@ -422,9 +448,11 @@ bool PriestAI::HandleDefensivePriority()
     // Fade (threat reduction)
     if (healthPct < 50.0f && GetBot()->GetThreatManager().GetThreatListSize() > 0)
     {
-        if (getMSTime() - _lastFade > 30000)
+        if (GameTime::GetGameTimeMS() - _lastFade > 30000)
         {
+
             CastFade();
+
             return true;
         }
     }
@@ -445,7 +473,7 @@ bool PriestAI::HandlePositioningPriority(::Unit* target)
     float optimalRange = GetOptimalRange(target);
 
     // Use Psychic Scream if enemies are too close
-    if (currentDistance < 8.0f && getMSTime() - _lastPsychicScream > PSYCHIC_SCREAM_COOLDOWN)
+    if (currentDistance < 8.0f && GameTime::GetGameTimeMS() - _lastPsychicScream > PSYCHIC_SCREAM_COOLDOWN)
     {
         CastPsychicScream();
         return true;
@@ -458,20 +486,34 @@ bool PriestAI::HandlePositioningPriority(::Unit* target)
         if (optimalPos.IsPositionValid())
         {
             // PHASE 6C: Use Movement Arbiter with ROLE_POSITIONING priority (170)
+
             BotAI* botAI = dynamic_cast<BotAI*>(GetBot()->GetAI());
-            if (botAI && botAI->GetMovementArbiter())
+
+            if (botAI && botAI->GetUnifiedMovementCoordinator())
+
             {
+
                 botAI->RequestPointMovement(
+
                     PlayerBotMovementPriority::ROLE_POSITIONING,
+
                     optimalPos,
+
                     "Priest optimal range positioning",
+
                     "PriestAI");
+
             }
+
             else
+
             {
                 // FALLBACK: Direct MotionMaster if arbiter not available
+
                 GetBot()->GetMotionMaster()->MovePoint(0, optimalPos);
+
             }
+
             return true;
         }
     }
@@ -485,10 +527,8 @@ bool PriestAI::HandleDispelPriority()
         return false;
 
     // Check cooldown
-    if (getMSTime() - _lastDispel < DISPEL_COOLDOWN)
-        return false;
-
-    // Check if there are dispellable debuffs in the group
+    if (GameTime::GetGameTimeMS() - _lastDispel < DISPEL_COOLDOWN)
+        return false;    // Check if there are dispellable debuffs in the group
     ::Unit* dispelTarget = GetBestDispelTarget();
     if (dispelTarget)
     {
@@ -511,8 +551,8 @@ bool PriestAI::HandleTargetSwitchPriority(::Unit*& target)
     ::Unit* priorityTarget = behaviors->GetPriorityTarget();
     if (priorityTarget && priorityTarget != target)
     {
-        target = priorityTarget;
-        TC_LOG_DEBUG("module.playerbot.ai", "Priest {} switching to priority target {}",
+        target = priorityTarget;        TC_LOG_DEBUG("module.playerbot.ai", "Priest {} switching to priority target {}",
+
                      GetBot()->GetName(), target->GetName());
         return true;
     }
@@ -530,7 +570,7 @@ bool PriestAI::HandleCrowdControlPriority(::Unit* target)
         return false;
 
     // Use Psychic Scream for emergency crowd control
-    if (GetBot()->GetHealthPct() < 40.0f && getMSTime() - _lastPsychicScream > PSYCHIC_SCREAM_COOLDOWN)
+    if (GetBot()->GetHealthPct() < 40.0f && GameTime::GetGameTimeMS() - _lastPsychicScream > PSYCHIC_SCREAM_COOLDOWN)
     {
         CastPsychicScream();
         return true;
@@ -601,7 +641,7 @@ void PriestAI::UpdatePriestBuffs()
         return;
 
     // Maintain Inner Fire
-    if (!GetBot()->HasAura(INNER_FIRE) || (getMSTime() - _lastInnerFire > INNER_FIRE_DURATION))
+    if (!GetBot()->HasAura(INNER_FIRE) || (GameTime::GetGameTimeMS() - _lastInnerFire > INNER_FIRE_DURATION))
     {
         CastInnerFire();
     }
@@ -615,7 +655,7 @@ void PriestAI::UpdatePriestBuffs()
     // Maintain Divine Spirit if available
     if (GetBot()->HasSpell(DIVINE_SPIRIT) && !GetBot()->HasAura(DIVINE_SPIRIT))
     {
-        this->CastSpell(GetBot(), DIVINE_SPIRIT);
+        this->CastSpell(DIVINE_SPIRIT, GetBot());
     }
 }
 
@@ -624,9 +664,9 @@ void PriestAI::CastInnerFire()
     if (!GetBot() || !this->IsSpellReady(INNER_FIRE))
         return;
 
-    if (this->CastSpell(GetBot(), INNER_FIRE))
+    if (this->CastSpell(INNER_FIRE, GetBot()))
     {
-        _lastInnerFire = getMSTime();
+        _lastInnerFire = GameTime::GetGameTimeMS();
     }
 }
 
@@ -641,6 +681,7 @@ void PriestAI::UpdateFortitudeBuffs()
         uint32 unbuffedCount = CountUnbuffedGroupMembers(POWER_WORD_FORTITUDE);
         if (unbuffedCount > 0)
         {
+
             CastPowerWordFortitude();
         }
     }
@@ -651,7 +692,7 @@ void PriestAI::CastPowerWordFortitude()
     if (!GetBot() || !this->IsSpellReady(POWER_WORD_FORTITUDE))
         return;
 
-    this->CastSpell(GetBot(), POWER_WORD_FORTITUDE);
+    this->CastSpell(POWER_WORD_FORTITUDE, GetBot());
 }
 
 bool PriestAI::HasEnoughMana(uint32 amount)
@@ -702,7 +743,7 @@ void PriestAI::UseManaRegeneration()
     // Use Hymn of Hope if available
     if (this->IsSpellReady(HYMN_OF_HOPE))
     {
-        this->CastSpell(GetBot(), HYMN_OF_HOPE);
+        this->CastSpell(HYMN_OF_HOPE, GetBot());
     }
 }
 
@@ -711,12 +752,12 @@ void PriestAI::CastPsychicScream()
     if (!GetBot() || !this->IsSpellReady(PSYCHIC_SCREAM))
         return;
 
-    if (getMSTime() - _lastPsychicScream < PSYCHIC_SCREAM_COOLDOWN)
+    if (GameTime::GetGameTimeMS() - _lastPsychicScream < PSYCHIC_SCREAM_COOLDOWN)
         return;
 
-    if (this->CastSpell(GetBot(), PSYCHIC_SCREAM))
+    if (this->CastSpell(PSYCHIC_SCREAM, GetBot()))
     {
-        _lastPsychicScream = getMSTime();
+        _lastPsychicScream = GameTime::GetGameTimeMS();
     }
 }
 
@@ -725,9 +766,9 @@ void PriestAI::CastFade()
     if (!GetBot() || !this->IsSpellReady(FADE))
         return;
 
-    if (this->CastSpell(GetBot(), FADE))
+    if (this->CastSpell(FADE, GetBot()))
     {
-        _lastFade = getMSTime();
+        _lastFade = GameTime::GetGameTimeMS();
     }
 }
 
@@ -739,11 +780,15 @@ void PriestAI::CastDispelMagic()
     ::Unit* target = GetBestDispelTarget();
     if (target && this->IsSpellReady(DISPEL_MAGIC))
     {
-        if (getMSTime() - _lastDispel > DISPEL_COOLDOWN)
+        if (GameTime::GetGameTimeMS() - _lastDispel > DISPEL_COOLDOWN)
         {
-            if (this->CastSpell(target, DISPEL_MAGIC))
+
+            if (this->CastSpell(DISPEL_MAGIC, target))
+
             {
-                _lastDispel = getMSTime();
+
+                _lastDispel = GameTime::GetGameTimeMS();
+
             }
         }
     }
@@ -754,7 +799,7 @@ void PriestAI::CastFearWard()
     if (!GetBot() || !this->IsSpellReady(FEAR_WARD))
         return;
 
-    if (getMSTime() - _lastFearWard < FEAR_WARD_COOLDOWN)
+    if (GameTime::GetGameTimeMS() - _lastFearWard < FEAR_WARD_COOLDOWN)
         return;
 
     // Find best target for Fear Ward
@@ -767,20 +812,18 @@ void PriestAI::CastFearWard()
     if (!target)
         target = GetBot();
 
-    if (this->CastSpell(target, FEAR_WARD))
+    if (this->CastSpell(FEAR_WARD, target))
     {
-        _lastFearWard = getMSTime();
+        _lastFearWard = GameTime::GetGameTimeMS();
     }
-}
-
-void PriestAI::CastDesperatePrayer()
+}void PriestAI::CastDesperatePrayer()
 {
     if (!GetBot() || !this->IsSpellReady(DESPERATE_PRAYER))
         return;
 
-    if (this->CastSpell(GetBot(), DESPERATE_PRAYER))
+    if (this->CastSpell(DESPERATE_PRAYER, GetBot()))
     {
-        _lastDesperatePrayer = getMSTime();
+        _lastDesperatePrayer = GameTime::GetGameTimeMS();
     }
 }
 
@@ -801,15 +844,23 @@ void PriestAI::CastDesperatePrayer()
     {
         for (GroupReference const& ref : group->GetMembers())
         {
+
             Player* player = ref.GetSource();
             if (!player || !player->IsAlive())
+
                 continue;
 
+
             float healthPct = player->GetHealthPct();
+
             if (healthPct < lowestHealthPct && GetBot()->GetDistance(player) <= OPTIMAL_HEALING_RANGE)
+
             {
+
                 lowestHealthPct = healthPct;
+
                 lowestHealthTarget = player;
+
             }
         }
     }
@@ -836,26 +887,34 @@ void PriestAI::CastDesperatePrayer()
     if (Group* group = GetBot()->GetGroup())
     {
         // First pass - tanks
-        for (GroupReference const& ref : group->GetMembers())
+    for (GroupReference const& ref : group->GetMembers())
         {
+
             Player* player = ref.GetSource();
+
             if (player && IsTank(player) && HasDispellableDebuff(player))
+
                 return player;
         }
 
         // Second pass - healers
-        for (GroupReference const& ref : group->GetMembers())
+    for (GroupReference const& ref : group->GetMembers())
         {
+
             Player* player = ref.GetSource();
+
             if (player && IsHealer(player) && HasDispellableDebuff(player))
+
                 return player;
         }
 
         // Third pass - any member
-        for (GroupReference const& ref : group->GetMembers())
+    for (GroupReference const& ref : group->GetMembers())
         {
+
             Player* player = ref.GetSource();
             if (player && HasDispellableDebuff(player))
+
                 return player;
         }
     }
@@ -872,8 +931,11 @@ void PriestAI::CastDesperatePrayer()
     {
         for (GroupReference const& ref : group->GetMembers())
         {
+
             Player* player = ref.GetSource();
+
             if (player && IsTank(player))
+
                 return player;
         }
     }
@@ -898,16 +960,21 @@ void PriestAI::CastDesperatePrayer()
     {
         for (GroupReference const& ref : group->GetMembers())
         {
+
             Player* player = ref.GetSource();
             if (!player || !player->IsAlive())
-                continue;
+            continue;
+
 
             float healthPct = player->GetHealthPct();
             if (healthPct < lowestHealthPct && GetBot()->GetDistance(player) <= maxRange)
+
             {
+
                 lowestHealthPct = healthPct;
+
                 lowestHealthTarget = player;
-            }
+                }
         }
     }
 
@@ -929,6 +996,7 @@ bool PriestAI::HasDispellableDebuff(::Unit* unit)
     {
         Aura const* aura = itr.second->GetBase();
         if (aura && aura->GetSpellInfo()->Dispel == DISPEL_MAGIC && !itr.second->IsPositive())
+
             return true;
     }
 
@@ -940,10 +1008,8 @@ bool PriestAI::IsTank(::Unit* unit)
     if (!unit)
         return false;
 
-    if (Player* player = unit->ToPlayer())
-    {
-        uint8 playerClass = player->GetClass();
-        return (playerClass == CLASS_WARRIOR || playerClass == CLASS_PALADIN || playerClass == CLASS_DEATH_KNIGHT);
+    if (Player* player = unit->ToPlayer())    {
+        uint8 playerClass = player->GetClass();        return (playerClass == CLASS_WARRIOR || playerClass == CLASS_PALADIN || playerClass == CLASS_DEATH_KNIGHT);
     }
 
     return false;
@@ -956,8 +1022,8 @@ bool PriestAI::IsHealer(::Unit* unit)
 
     if (Player* player = unit->ToPlayer())
     {
-        uint8 playerClass = player->GetClass();
-        return (playerClass == CLASS_PRIEST || playerClass == CLASS_DRUID ||
+        uint8 playerClass = player->GetClass();        return (playerClass == CLASS_PRIEST || playerClass == CLASS_DRUID ||
+
                 playerClass == CLASS_SHAMAN || playerClass == CLASS_PALADIN);
     }
 
@@ -974,8 +1040,11 @@ uint32 PriestAI::CountUnbuffedGroupMembers(uint32 spellId)
     {
         for (GroupReference const& ref : group->GetMembers())
         {
+
             Player* player = ref.GetSource();
+
             if (player && !player->HasAura(spellId))
+
                 count++;
         }
     }
@@ -987,7 +1056,9 @@ bool PriestAI::IsHealingSpell(uint32 spellId)
 {
     // Common healing spell IDs
     return (spellId == 2050 || spellId == 2060 || spellId == 2061 ||
+
             spellId == 139 || spellId == 596 || spellId == 33076 ||
+
             spellId == 47540 || spellId == 186263); // Heal, Greater Heal, Flash Heal, Renew, PoH, PoM, Penance, Shadow Mend
 }
 
@@ -995,6 +1066,7 @@ bool PriestAI::IsDamageSpell(uint32 spellId)
 {
     // Common damage spell IDs
     return (spellId == 589 || spellId == 8092 || spellId == 15407 ||
+
             spellId == 34914 || spellId == 585 || spellId == 14914); // SWP, Mind Blast, Mind Flay, VT, Smite, Holy Fire
 }
 

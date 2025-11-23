@@ -83,7 +83,6 @@ void ParseTypedAuctionListItemsResult(WorldSession* session, WorldPackets::Aucti
     );
 
     AuctionEventBus::instance()->PublishEvent(event);
-
     TC_LOG_TRACE("playerbot.packets", "Bot {} received AUCTION_LIST_ITEMS_RESULT (typed): {} items",
         bot->GetName(), packet.Items.size());
 }

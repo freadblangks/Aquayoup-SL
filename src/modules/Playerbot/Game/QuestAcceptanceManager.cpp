@@ -12,6 +12,7 @@
 #include "Log.h"
 #include "World.h"
 #include "ItemTemplate.h"
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -43,8 +44,7 @@ void QuestAcceptanceManager::ProcessQuestGiver(Creature* questGiver)
 
     // Get all available quests from this NPC
     QuestRelationResult objectQR = sObjectMgr->GetCreatureQuestRelations(questGiver->GetEntry());
-
-    std::vector<std::pair<Quest const*, float>> eligibleQuests;
+    ::std::vector<::std::pair<Quest const*, float>> eligibleQuests;
 
     // Filter and score quests
     for (uint32 questId : objectQR)
@@ -54,9 +54,8 @@ void QuestAcceptanceManager::ProcessQuestGiver(Creature* questGiver)
             continue;
 
         // Check if quest is eligible
-        if (!IsQuestEligible(questTemplate))
+    if (!IsQuestEligible(questTemplate))
             continue;
-
         // Calculate priority score
         float priority = CalculateQuestPriority(questTemplate);
         if (priority >= MIN_QUEST_PRIORITY)
@@ -73,7 +72,7 @@ void QuestAcceptanceManager::ProcessQuestGiver(Creature* questGiver)
     }
 
     // Sort by priority (highest first)
-    std::sort(eligibleQuests.begin(), eligibleQuests.end(),
+    ::std::sort(eligibleQuests.begin(), eligibleQuests.end(),
         [](const auto& a, const auto& b) { return a.second > b.second; });
 
     TC_LOG_INFO("module.playerbot.quest", "Bot {} found {} eligible quests from {} (highest priority: {:.1f})",
@@ -83,7 +82,7 @@ void QuestAcceptanceManager::ProcessQuestGiver(Creature* questGiver)
     for (auto const& [quest, priority] : eligibleQuests)
     {
         // Check if we need to make space
-        if (!HasQuestLogSpace())
+    if (!HasQuestLogSpace())
         {
             if (priority > 50.0f) // Only drop quests for high-priority new quests
             {
@@ -101,7 +100,7 @@ void QuestAcceptanceManager::ProcessQuestGiver(Creature* questGiver)
         AcceptQuest(questGiver, quest);
 
         // Cooldown between accepts
-        uint32 currentTime = getMSTime();
+        uint32 currentTime = GameTime::GetGameTimeMS();
         if (currentTime - _lastAcceptTime < QUEST_ACCEPT_COOLDOWN)
         {
             break; // Don't spam quest accepts
@@ -188,7 +187,6 @@ bool QuestAcceptanceManager::MeetsLevelRequirement(Quest const* quest) const
         return false;
 
     uint32 botLevel = _bot->GetLevel();
-
     // Quest max level check (quest becomes unavailable above this level)
     if (quest->GetMaxLevel() > 0 && botLevel > quest->GetMaxLevel())
         return false;
@@ -226,7 +224,6 @@ bool QuestAcceptanceManager::MeetsRaceRequirement(Quest const* quest) const
 
     return allowableRaces.HasRace(_bot->GetRace());
 }
-
 bool QuestAcceptanceManager::MeetsSkillRequirement(Quest const* quest) const
 {
     if (!quest || !_bot)
@@ -274,9 +271,8 @@ bool QuestAcceptanceManager::HasPrerequisites(Quest const* quest) const
 {
     if (!quest || !_bot)
         return false;
-
     // CRITICAL DEBUG: Log prerequisite check for all quests
-    TC_LOG_ERROR("module.playerbot.quest", "🔍 HasPrerequisites: Quest {} '{}' - GetPrevQuestId()={}, GetNextQuestInChain()={}",
+    TC_LOG_ERROR("module.playerbot.quest", " HasPrerequisites: Quest {} '{}' - GetPrevQuestId()={}, GetNextQuestInChain()={}",
                  quest->GetQuestId(), quest->GetLogTitle(), quest->GetPrevQuestId(), quest->GetNextQuestInChain());
 
     // Check previous quest in chain
@@ -285,18 +281,18 @@ bool QuestAcceptanceManager::HasPrerequisites(Quest const* quest) const
         // Positive = must complete, Negative = must NOT complete
         int32 prevQuestId = quest->GetPrevQuestId();
 
-        TC_LOG_ERROR("module.playerbot.quest", "🔒 HasPrerequisites: Quest {} requires PrevQuestID={}, checking if bot has rewarded it...",
+        TC_LOG_ERROR("module.playerbot.quest", " HasPrerequisites: Quest {} requires PrevQuestID={}, checking if bot has rewarded it...",
                      quest->GetQuestId(), prevQuestId);
 
         if (prevQuestId > 0)
         {
             bool hasRewarded = _bot->GetQuestRewardStatus(prevQuestId);
-            TC_LOG_ERROR("module.playerbot.quest", "🎯 HasPrerequisites: Bot {} GetQuestRewardStatus({})={}, quest {} prerequisite check={}",
+            TC_LOG_ERROR("module.playerbot.quest", " HasPrerequisites: Bot {} GetQuestRewardStatus({})={}, quest {} prerequisite check={}",
                          _bot->GetName(), prevQuestId, hasRewarded, quest->GetQuestId(), hasRewarded ? "PASS" : "FAIL");
 
             if (!hasRewarded)
             {
-                TC_LOG_ERROR("module.playerbot.quest", "❌ HasPrerequisites: Quest {} REJECTED - prerequisite quest {} not completed",
+                TC_LOG_ERROR("module.playerbot.quest", " HasPrerequisites: Quest {} REJECTED - prerequisite quest {} not completed",
                              quest->GetQuestId(), prevQuestId);
                 return false; // Previous quest not completed
             }
@@ -305,7 +301,7 @@ bool QuestAcceptanceManager::HasPrerequisites(Quest const* quest) const
         {
             if (_bot->GetQuestRewardStatus(-prevQuestId))
             {
-                TC_LOG_ERROR("module.playerbot.quest", "❌ HasPrerequisites: Quest {} REJECTED - must NOT have completed quest {}",
+                TC_LOG_ERROR("module.playerbot.quest", " HasPrerequisites: Quest {} REJECTED - must NOT have completed quest {}",
                              quest->GetQuestId(), -prevQuestId);
                 return false; // Must NOT have completed this quest
             }
@@ -316,7 +312,7 @@ bool QuestAcceptanceManager::HasPrerequisites(Quest const* quest) const
     if (quest->GetNextQuestInChain() != 0)
     {
         // If bot already has the next quest, don't accept breadcrumb
-        if (_bot->GetQuestStatus(quest->GetNextQuestInChain()) != QUEST_STATUS_NONE)
+    if (_bot->GetQuestStatus(quest->GetNextQuestInChain()) != QUEST_STATUS_NONE)
             return false;
     }
 
@@ -336,7 +332,7 @@ void QuestAcceptanceManager::AcceptQuest(Creature* questGiver, Quest const* ques
     _bot->AddQuestAndCheckCompletion(quest, questGiver);
 
     _questsAccepted++;
-    _lastAcceptTime = getMSTime();
+    _lastAcceptTime = GameTime::GetGameTimeMS();
 
     TC_LOG_INFO("module.playerbot.quest",
         "Bot {} AUTO-ACCEPTED quest {} '{}' (Priority: {:.1f}, Quests: {}/{})",
@@ -419,7 +415,7 @@ float QuestAcceptanceManager::GetXPPriority(Quest const* quest) const
 
     // Higher XP = higher priority
     // Scale: 1000 XP = 10 priority points
-    return std::min(50.0f, xp / 100.0f);
+    return ::std::min(50.0f, xp / 100.0f);
 }
 
 float QuestAcceptanceManager::GetGoldPriority(Quest const* quest) const
@@ -432,7 +428,7 @@ float QuestAcceptanceManager::GetGoldPriority(Quest const* quest) const
         return 0.0f;
 
     // Scale: 1 gold = 1 priority point
-    return std::min(20.0f, gold / 10000.0f);
+    return ::std::min(20.0f, gold / 10000.0f);
 }
 
 float QuestAcceptanceManager::GetReputationPriority(Quest const* quest) const
@@ -450,7 +446,7 @@ float QuestAcceptanceManager::GetReputationPriority(Quest const* quest) const
         }
     }
 
-    return std::min(15.0f, repPriority);
+    return ::std::min(15.0f, repPriority);
 }
 
 float QuestAcceptanceManager::GetItemRewardPriority(Quest const* quest) const
@@ -469,7 +465,7 @@ float QuestAcceptanceManager::GetItemRewardPriority(Quest const* quest) const
             if (itemTemplate)
             {
                 // Higher quality = higher priority
-                if (itemTemplate->GetQuality() >= ITEM_QUALITY_RARE)
+    if (itemTemplate->GetQuality() >= ITEM_QUALITY_RARE)
                     itemPriority += 10.0f;
                 else if (itemTemplate->GetQuality() >= ITEM_QUALITY_UNCOMMON)
                     itemPriority += 5.0f;
@@ -488,7 +484,7 @@ float QuestAcceptanceManager::GetItemRewardPriority(Quest const* quest) const
         }
     }
 
-    return std::min(25.0f, itemPriority);
+    return ::std::min(25.0f, itemPriority);
 }
 
 float QuestAcceptanceManager::GetZonePriority(Quest const* quest) const

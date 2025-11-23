@@ -142,7 +142,7 @@ InterruptRotationManager::~InterruptRotationManager()
 
 void InterruptRotationManager::Update(uint32 diff)
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Process delayed interrupts
     ProcessDelayedInterrupts();
@@ -191,7 +191,7 @@ void InterruptRotationManager::RegisterCast(Unit* caster, uint32 spellId, uint32
             return;
 
         // Skip instant casts and non-interruptible spells
-        if (!spellInfo->CastTimeEntry || spellInfo->HasAttribute(SPELL_ATTR7_NO_UI_NOT_INTERRUPTIBLE))
+    if (!spellInfo->CastTimeEntry || spellInfo->HasAttribute(SPELL_ATTR7_NO_UI_NOT_INTERRUPTIBLE))
             return;
     }
 
@@ -199,7 +199,7 @@ void InterruptRotationManager::RegisterCast(Unit* caster, uint32 spellId, uint32
     if (IsTrackingCast(caster->GetGUID(), spellId))
         return;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Calculate cast end time
     if (castTime == 0 && it != s_interruptDatabase.end())
@@ -276,7 +276,7 @@ ObjectGuid InterruptRotationManager::SelectInterrupter(Unit* caster, uint32 spel
         activeCast->assignedInterrupter = bestInterrupter;
 
         // Mark interrupter as assigned
-        for (auto& interrupter : _interrupters)
+    for (auto& interrupter : _interrupters)
         {
             if (interrupter.botGuid == bestInterrupter)
             {
@@ -300,7 +300,7 @@ ObjectGuid InterruptRotationManager::FindBestInterrupter(const ActiveCast& cast)
     for (const auto& interrupter : _interrupters)
     {
         // Skip if already assigned or on cooldown
-        if (interrupter.isAssigned || interrupter.cooldownRemaining > 0)
+    if (interrupter.isAssigned || interrupter.cooldownRemaining > 0)
             continue;
 
         // Calculate score
@@ -319,7 +319,7 @@ ObjectGuid InterruptRotationManager::FindBestInterrupter(const ActiveCast& cast)
         ObjectGuid nextInRotation = GetNextInRotation();
 
         // Check if next in rotation has acceptable score
-        for (const auto& interrupter : _interrupters)
+    for (const auto& interrupter : _interrupters)
         {
             if (interrupter.botGuid == nextInRotation)
             {
@@ -406,7 +406,7 @@ float InterruptRotationManager::CalculateInterrupterScore(const InterrupterBot& 
         score += 5.0f;
     }
 
-    return std::max(0.0f, score);
+    return ::std::max(0.0f, score);
 }
 
 ObjectGuid InterruptRotationManager::GetNextInRotation() const
@@ -420,7 +420,7 @@ ObjectGuid InterruptRotationManager::GetNextInRotation() const
 
 void InterruptRotationManager::MarkInterruptUsed(ObjectGuid bot, uint32 timeMs)
 {
-    uint32 currentTime = timeMs ? timeMs : getMSTime();
+    uint32 currentTime = timeMs ? timeMs : GameTime::GetGameTimeMS();
 
     for (auto& interrupter : _interrupters)
     {
@@ -431,7 +431,7 @@ void InterruptRotationManager::MarkInterruptUsed(ObjectGuid bot, uint32 timeMs)
             interrupter.isAssigned = false;
 
             // Set cooldown based on spell (typical interrupt CDs)
-            if (interrupter.interruptSpellId == SPELL_KICK)
+    if (interrupter.interruptSpellId == SPELL_KICK)
                 interrupter.cooldownRemaining = 15000; // 15 seconds
             else if (interrupter.interruptSpellId == SPELL_COUNTERSPELL)
                 interrupter.cooldownRemaining = 24000; // 24 seconds
@@ -555,7 +555,7 @@ InterruptRotationManager::FallbackMethod InterruptRotationManager::SelectFallbac
         const InterruptableSpell& spell = it->second;
 
         // High priority spells need immediate action
-        if (spell.priority >= InterruptPriority::PRIORITY_HIGH)
+    if (spell.priority >= InterruptPriority::PRIORITY_HIGH)
         {
             if (spell.isHeal)
                 return FallbackMethod::FALLBACK_STUN; // Stun stops heals
@@ -568,7 +568,7 @@ InterruptRotationManager::FallbackMethod InterruptRotationManager::SelectFallbac
         }
 
         // Medium priority - try LOS
-        if (spell.priority == InterruptPriority::PRIORITY_MEDIUM)
+    if (spell.priority == InterruptPriority::PRIORITY_MEDIUM)
         {
             return FallbackMethod::FALLBACK_LOS;
         }
@@ -589,7 +589,7 @@ bool InterruptRotationManager::ExecuteFallback(FallbackMethod method, Unit* cast
 
         case FallbackMethod::FALLBACK_SILENCE:
             // Try silence abilities based on class
-            if (_bot->GetClass() == CLASS_PRIEST)
+    if (_bot->GetClass() == CLASS_PRIEST)
             {
                 if (!_bot->GetSpellHistory()->HasCooldown(SPELL_SILENCE))
                 {
@@ -670,7 +670,7 @@ bool InterruptRotationManager::TryAlternativeInterrupt(Unit* target)
         if (interrupter.botGuid == _bot->GetGUID())
         {
             // Try alternative interrupts
-            for (uint32 spellId : interrupter.alternativeInterrupts)
+    for (uint32 spellId : interrupter.alternativeInterrupts)
             {
                 if (!_bot->GetSpellHistory()->HasCooldown(spellId))
                 {
@@ -710,14 +710,14 @@ void InterruptRotationManager::ScheduleDelayedInterrupt(ObjectGuid bot, ObjectGu
     delayed.interrupter = bot;
     delayed.target = target;
     delayed.spellId = spellId;
-    delayed.executeTime = getMSTime() + delayMs;
+    delayed.executeTime = GameTime::GetGameTimeMS() + delayMs;
 
     _delayedInterrupts.push_back(delayed);
 }
 
 void InterruptRotationManager::ProcessDelayedInterrupts()
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     auto it = _delayedInterrupts.begin();
     while (it != _delayedInterrupts.end())
@@ -750,7 +750,6 @@ void InterruptRotationManager::ProcessDelayedInterrupts()
 
                 auto result = SpellPacketBuilder::BuildCastSpellPacket(
                     dynamic_cast<Player*>(interrupter), it->spellId, target, options);
-
                 if (result.result == SpellPacketBuilder::ValidationResult::SUCCESS)
                 {
                     TC_LOG_DEBUG("playerbot.interrupt.delayed",
@@ -769,13 +768,13 @@ void InterruptRotationManager::ProcessDelayedInterrupts()
     }
 }
 
-void InterruptRotationManager::CoordinateGroupInterrupts(const std::vector<Unit*>& casters)
+void InterruptRotationManager::CoordinateGroupInterrupts(const ::std::vector<Unit*>& casters)
 {
     if (casters.empty())
         return;
 
     // Sort casters by threat/priority
-    std::vector<std::pair<Unit*, float>> prioritizedCasters;
+    ::std::vector<::std::pair<Unit*, float>> prioritizedCasters;
 
     for (Unit* caster : casters)
     {
@@ -793,7 +792,7 @@ void InterruptRotationManager::CoordinateGroupInterrupts(const std::vector<Unit*
     }
 
     // Sort by priority
-    std::sort(prioritizedCasters.begin(), prioritizedCasters.end(),
+    ::std::sort(prioritizedCasters.begin(), prioritizedCasters.end(),
         [](const auto& a, const auto& b) { return a.second > b.second; });
 
     // Assign interrupters with coordination delay
@@ -806,7 +805,6 @@ void InterruptRotationManager::CoordinateGroupInterrupts(const std::vector<Unit*
 
         uint32 spellId = spell->m_spellInfo->Id;
         ObjectGuid interrupter = SelectInterrupter(caster, spellId);
-
         if (!interrupter.IsEmpty())
         {
             if (delay > 0)
@@ -868,7 +866,7 @@ void InterruptRotationManager::RecordInterruptAttempt(uint32 spellId, bool succe
 
 uint32 InterruptRotationManager::GetTimeToComplete(const ActiveCast& cast) const
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     if (cast.castEndTime > currentTime)
         return cast.castEndTime - currentTime;
@@ -893,11 +891,11 @@ void InterruptRotationManager::Reset()
 
 void InterruptRotationManager::CleanupExpiredData()
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Remove completed or expired casts
     _activeCasts.erase(
-        std::remove_if(_activeCasts.begin(), _activeCasts.end(),
+        ::std::remove_if(_activeCasts.begin(), _activeCasts.end(),
             [currentTime](const ActiveCast& cast) {
                 return cast.castEndTime < currentTime || cast.interrupted;
             }),
@@ -939,7 +937,7 @@ bool InterruptRotationManager::CanReachInTime(const InterrupterBot& bot, Unit* t
     if (!botUnit)
         return false;
 
-    float distance = std::sqrt(botUnit->GetExactDistSq(target)); // Calculate once from squared distance
+    float distance = ::std::sqrt(botUnit->GetExactDistSq(target)); // Calculate once from squared distance
     float range = bot.range + _config.interruptRangeBuffer;
 
     if (distance <= range)
@@ -968,7 +966,7 @@ void InterruptRotationManager::UpdateRangeStatus(Unit* target)
             continue;
 
         // Use snapshot position for distance calculation (lock-free)
-        float distance = std::sqrt(_bot->GetExactDistSq(snapshot->position)); // Calculate once from squared distance
+        float distance = ::std::sqrt(_bot->GetExactDistSq(snapshot->position)); // Calculate once from squared distance
         interrupter.isInRange = (distance <= interrupter.range + _config.interruptRangeBuffer);
     }
 }
@@ -1031,9 +1029,9 @@ void InterruptRotationManager::InitializeGlobalDatabase()
     s_databaseInitialized = true;
 }
 
-std::vector<uint32> InterruptRotationManager::GetClassInterrupts(uint8 classId)
+::std::vector<uint32> InterruptRotationManager::GetClassInterrupts(uint8 classId)
 {
-    std::vector<uint32> interrupts;
+    ::std::vector<uint32> interrupts;
 
     switch (classId)
     {

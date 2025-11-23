@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Group.h"
+#include "Threading/LockHierarchy.h"
 #include "PlayerbotGroupManager.h"
 #include "Player.h"
 
@@ -68,7 +69,7 @@ public:
 
         Type scenarioType;
         Group* coreGroup;
-        std::vector<uint32> objectives;
+        ::std::vector<uint32> objectives;
         Position meetingPoint;
         uint32 estimatedDuration;
         bool requiresCoordination;
@@ -85,9 +86,9 @@ public:
 
 private:
     // Integration data
-    static std::unordered_map<uint32, uint32> _groupToPlayerbotGroup; // core group id -> playerbot group id
-    static std::unordered_map<uint32, RegularGroupScenario> _groupScenarios;
-    static std::recursive_mutex _integrationMutex;
+    static ::std::unordered_map<uint32, uint32> _groupToPlayerbotGroup; // core group id -> playerbot group id
+    static ::std::unordered_map<uint32, RegularGroupScenario> _groupScenarios;
+    static Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::GROUP_MANAGER> _integrationMutex;
 
     // Helper functions
     static uint32 CreatePlayerbotGroupForCoreGroup(Group* coreGroup);
@@ -146,7 +147,7 @@ public:
     static void AdaptToEliteQuestChallenges(Group* group);
 
     // Smart member recruitment for quest groups
-    static std::vector<Player*> FindSuitableMembersForQuest(uint32 questId, uint32 requesterLevel);
+    static ::std::vector<Player*> FindSuitableMembersForQuest(uint32 questId, uint32 requesterLevel);
     static bool InviteBotForQuest(Group* group, uint32 questId, GroupRole neededRole);
 
 private:
@@ -154,9 +155,9 @@ private:
     {
         uint32 questId;
         Group* group;
-        std::vector<Position> questObjectiveLocations;
-        std::vector<uint32> requiredKills;
-        std::vector<uint32> requiredItems;
+        ::std::vector<Position> questObjectiveLocations;
+        ::std::vector<uint32> requiredKills;
+        ::std::vector<uint32> requiredItems;
         uint32 estimatedCompletionTime;
         bool isEliteQuest;
         bool requiresSpecificRoles;
@@ -165,8 +166,8 @@ private:
             , isEliteQuest(false), requiresSpecificRoles(false) {}
     };
 
-    static std::unordered_map<uint32, QuestGroupData> _activeQuestGroups; // questId -> data
-    static std::recursive_mutex _questGroupMutex;
+    static ::std::unordered_map<uint32, QuestGroupData> _activeQuestGroups; // questId -> data
+    static Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::GROUP_MANAGER> _questGroupMutex;
 };
 
 } // namespace Playerbot

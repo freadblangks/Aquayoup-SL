@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "Player.h"
 #include "Group.h"
 #include <unordered_map>
@@ -20,6 +21,9 @@
 
 namespace Playerbot
 {
+    // Interface
+    #include "Core/DI/Interfaces/IPerformanceBenchmark.h"
+
 
 enum class BenchmarkType : uint8
 {
@@ -57,13 +61,13 @@ struct BenchmarkResult
     size_t memoryUsage; // bytes
     uint32 errorCount;
     bool passedTargets;
-    std::vector<std::string> bottlenecks;
-    std::chrono::steady_clock::time_point timestamp;
+    ::std::vector<::std::string> bottlenecks;
+    ::std::chrono::steady_clock::time_point timestamp;
 
     BenchmarkResult() : type(BenchmarkType::AI_DECISION_SPEED), loadLevel(LoadLevel::LIGHT)
         , botCount(0), duration(0), operationsPerSecond(0), averageResponseTime(0.0f)
         , cpuUsage(0.0f), memoryUsage(0), errorCount(0), passedTargets(false)
-        , timestamp(std::chrono::steady_clock::now()) {}
+        , timestamp(::std::chrono::steady_clock::now()) {}
 };
 
 /**
@@ -72,39 +76,39 @@ struct BenchmarkResult
  * This system provides detailed performance analysis, stress testing, and optimization
  * insights for all playerbot systems under various load conditions.
  */
-class TC_GAME_API PerformanceBenchmark
+class TC_GAME_API PerformanceBenchmark final : public IPerformanceBenchmark
 {
 public:
     static PerformanceBenchmark* instance();
 
     // Core benchmarking framework
-    BenchmarkResult RunBenchmark(BenchmarkType type, LoadLevel loadLevel, uint32 duration = 60000);
-    std::vector<BenchmarkResult> RunBenchmarkSuite(LoadLevel loadLevel);
-    void RunContinuousBenchmarking(uint32 intervalMs);
-    void StopContinuousBenchmarking();
+    BenchmarkResult RunBenchmark(BenchmarkType type, LoadLevel loadLevel, uint32 duration = 60000) override;
+    ::std::vector<BenchmarkResult> RunBenchmarkSuite(LoadLevel loadLevel) override;
+    void RunContinuousBenchmarking(uint32 intervalMs) override;
+    void StopContinuousBenchmarking() override;
 
     // AI performance benchmarks
-    BenchmarkResult BenchmarkAIDecisionSpeed(uint32 botCount, uint32 duration);
-    BenchmarkResult BenchmarkCombatAI(uint32 botCount, uint32 duration);
-    BenchmarkResult BenchmarkStrategyExecution(uint32 botCount, uint32 duration);
-    BenchmarkResult BenchmarkActionSelection(uint32 botCount, uint32 duration);
+    BenchmarkResult BenchmarkAIDecisionSpeed(uint32 botCount, uint32 duration) override;
+    BenchmarkResult BenchmarkCombatAI(uint32 botCount, uint32 duration) override;
+    BenchmarkResult BenchmarkStrategyExecution(uint32 botCount, uint32 duration) override;
+    BenchmarkResult BenchmarkActionSelection(uint32 botCount, uint32 duration) override;
 
     // System-specific benchmarks
-    BenchmarkResult BenchmarkGroupCoordination(uint32 groupCount, uint32 duration);
-    BenchmarkResult BenchmarkQuestExecution(uint32 botCount, uint32 duration);
-    BenchmarkResult BenchmarkLootProcessing(uint32 botCount, uint32 duration);
-    BenchmarkResult BenchmarkTradeOperations(uint32 botCount, uint32 duration);
-    BenchmarkResult BenchmarkAuctionAnalysis(uint32 botCount, uint32 duration);
-    BenchmarkResult BenchmarkGuildInteractions(uint32 botCount, uint32 duration);
+    BenchmarkResult BenchmarkGroupCoordination(uint32 groupCount, uint32 duration) override;
+    BenchmarkResult BenchmarkQuestExecution(uint32 botCount, uint32 duration) override;
+    BenchmarkResult BenchmarkLootProcessing(uint32 botCount, uint32 duration) override;
+    BenchmarkResult BenchmarkTradeOperations(uint32 botCount, uint32 duration) override;
+    BenchmarkResult BenchmarkAuctionAnalysis(uint32 botCount, uint32 duration) override;
+    BenchmarkResult BenchmarkGuildInteractions(uint32 botCount, uint32 duration) override;
 
     // Scalability testing
     struct ScalabilityTest
     {
-        std::string testName;
+        ::std::string testName;
         BenchmarkType benchmarkType;
-        std::vector<uint32> botCounts; // Test at different bot counts
+        ::std::vector<uint32> botCounts; // Test at different bot counts
         uint32 duration;
-        std::vector<BenchmarkResult> results;
+        ::std::vector<BenchmarkResult> results;
         uint32 optimalBotCount;
         uint32 maximumBotCount;
         bool foundScalabilityLimit;
@@ -114,10 +118,10 @@ public:
             , foundScalabilityLimit(false) {}
     };
 
-    ScalabilityTest RunScalabilityTest(BenchmarkType type);
-    void FindPerformanceBreakpoints();
-    uint32 DetermineOptimalBotCount();
-    void AnalyzeScalingCharacteristics();
+    ScalabilityTest RunScalabilityTest(BenchmarkType type) override;
+    void FindPerformanceBreakpoints() override;
+    uint32 DetermineOptimalBotCount() override;
+    void AnalyzeScalingCharacteristics() override;
 
     // Resource utilization analysis
     struct ResourceAnalysis
@@ -128,52 +132,52 @@ public:
         size_t memoryUsagePerBot;
         uint32 databaseQueriesPerSecond;
         uint32 networkOperationsPerSecond;
-        std::vector<std::string> resourceBottlenecks;
+        ::std::vector<::std::string> resourceBottlenecks;
 
         ResourceAnalysis() : cpuUsageBaseline(0.0f), cpuUsagePerBot(0.0f)
             , memoryUsageBaseline(0), memoryUsagePerBot(0)
             , databaseQueriesPerSecond(0), networkOperationsPerSecond(0) {}
     };
 
-    ResourceAnalysis AnalyzeResourceUtilization(LoadLevel loadLevel);
-    void ProfileMemoryUsagePatterns();
-    void AnalyzeCPUHotspots();
-    void MeasureDatabasePerformance();
+    ResourceAnalysis AnalyzeResourceUtilization(LoadLevel loadLevel) override;
+    void ProfileMemoryUsagePatterns() override;
+    void AnalyzeCPUHotspots() override;
+    void MeasureDatabasePerformance() override;
 
     // Performance regression testing
-    bool RunRegressionBenchmarks();
-    void EstablishPerformanceBaseline();
-    bool DetectPerformanceRegression();
-    void CompareWithBaseline(const std::vector<BenchmarkResult>& currentResults);
+    bool RunRegressionBenchmarks() override;
+    void EstablishPerformanceBaseline() override;
+    bool DetectPerformanceRegression() override;
+    void CompareWithBaseline(const ::std::vector<BenchmarkResult>& currentResults) override;
 
     // Stress testing
     struct StressTest
     {
-        std::string testName;
+        ::std::string testName;
         uint32 maxBotCount;
         uint32 rampUpTime;
         uint32 sustainedLoadTime;
         uint32 rampDownTime;
-        std::vector<BenchmarkResult> progressResults;
+        ::std::vector<BenchmarkResult> progressResults;
         bool systemStable;
         uint32 failurePoint;
-        std::vector<std::string> failureReasons;
+        ::std::vector<::std::string> failureReasons;
 
         StressTest() : maxBotCount(1000), rampUpTime(300000), sustainedLoadTime(600000)
             , rampDownTime(300000), systemStable(true), failurePoint(0) {}
     };
 
-    StressTest RunStressTest(const StressTest& testConfig);
-    void TestSystemLimits();
-    void MeasureRecoveryTime();
-    bool ValidateSystemStability(uint32 duration);
+    StressTest RunStressTest(const StressTest& testConfig) override;
+    void TestSystemLimits() override;
+    void MeasureRecoveryTime() override;
+    bool ValidateSystemStability(uint32 duration) override;
 
     // Performance optimization insights
     struct OptimizationRecommendation
     {
-        std::string area;
-        std::string issue;
-        std::string recommendation;
+        ::std::string area;
+        ::std::string issue;
+        ::std::string recommendation;
         float expectedImprovement; // Performance improvement percentage
         uint32 implementationComplexity; // 1-10 scale
         bool isHighPriority;
@@ -182,20 +186,20 @@ public:
             , implementationComplexity(5), isHighPriority(false) {}
     };
 
-    std::vector<OptimizationRecommendation> GenerateOptimizationRecommendations();
-    void AnalyzePerformancePatterns();
-    void IdentifyBottlenecks();
-    void SuggestConfigurationTuning();
+    ::std::vector<OptimizationRecommendation> GenerateOptimizationRecommendations() override;
+    void AnalyzePerformancePatterns() override;
+    void IdentifyBottlenecks() override;
+    void SuggestConfigurationTuning() override;
 
     // Comparative benchmarking
-    void CompareBenchmarkResults(const BenchmarkResult& baseline, const BenchmarkResult& current);
-    void GeneratePerformanceReport();
-    void TrackPerformanceTrends();
-    void BenchmarkAgainstTargets();
+    void CompareBenchmarkResults(const BenchmarkResult& baseline, const BenchmarkResult& current) override;
+    void GeneratePerformanceReport() override;
+    void TrackPerformanceTrends() override;
+    void BenchmarkAgainstTargets() override;
 
     // Real-time monitoring
-    void StartPerformanceMonitoring();
-    void StopPerformanceMonitoring();
+    void StartPerformanceMonitoring() override;
+    void StopPerformanceMonitoring() override;
     struct PerformanceSnapshot
     {
         uint32 activeBotCount;
@@ -204,37 +208,37 @@ public:
         uint32 operationsPerSecond;
         uint32 averageResponseTime;
         uint32 errorRate;
-        std::chrono::steady_clock::time_point timestamp;
+        ::std::chrono::steady_clock::time_point timestamp;
 
         PerformanceSnapshot() : activeBotCount(0), currentCpuUsage(0.0f)
             , currentMemoryUsage(0), operationsPerSecond(0)
             , averageResponseTime(0), errorRate(0)
-            , timestamp(std::chrono::steady_clock::now()) {}
+            , timestamp(::std::chrono::steady_clock::now()) {}
     };
 
-    PerformanceSnapshot GetCurrentPerformanceSnapshot();
-    std::vector<PerformanceSnapshot> GetPerformanceHistory(uint32 durationMs);
+    PerformanceSnapshot GetCurrentPerformanceSnapshot() override;
+    ::std::vector<PerformanceSnapshot> GetPerformanceHistory(uint32 durationMs) override;
 
     // Configuration and settings
-    void SetPerformanceTargets(BenchmarkType type, uint32 targetOps, float targetResponseTime);
-    void SetBenchmarkTimeout(uint32 timeoutMs);
-    void EnableDetailedProfiling(bool enable);
-    void SetBenchmarkReportLevel(uint32 level);
+    void SetPerformanceTargets(BenchmarkType type, uint32 targetOps, float targetResponseTime) override;
+    void SetBenchmarkTimeout(uint32 timeoutMs) override;
+    void EnableDetailedProfiling(bool enable) override;
+    void SetBenchmarkReportLevel(uint32 level) override;
 
     // Update and maintenance
-    void Update(uint32 diff);
-    void ProcessBenchmarkQueue();
-    void CleanupBenchmarkData();
+    void Update(uint32 diff) override;
+    void ProcessBenchmarkQueue() override;
+    void CleanupBenchmarkData() override;
 
 private:
     PerformanceBenchmark();
     ~PerformanceBenchmark() = default;
 
     // Core benchmark data
-    std::unordered_map<BenchmarkType, std::vector<BenchmarkResult>> _benchmarkHistory;
-    std::unordered_map<BenchmarkType, BenchmarkResult> _performanceBaseline;
-    std::queue<PerformanceSnapshot> _performanceHistory;
-    mutable std::recursive_mutex _benchmarkMutex;
+    ::std::unordered_map<BenchmarkType, ::std::vector<BenchmarkResult>> _benchmarkHistory;
+    ::std::unordered_map<BenchmarkType, BenchmarkResult> _performanceBaseline;
+    ::std::queue<PerformanceSnapshot> _performanceHistory;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BEHAVIOR_MANAGER> _benchmarkMutex;
 
     // Performance targets
     struct PerformanceTargets
@@ -251,29 +255,29 @@ private:
             , targetMemoryUsageMB(512), targetErrorRate(0) {}
     };
 
-    std::unordered_map<BenchmarkType, PerformanceTargets> _performanceTargets;
+    ::std::unordered_map<BenchmarkType, PerformanceTargets> _performanceTargets;
 
     // Monitoring state
-    std::atomic<bool> _continuousBenchmarking{false};
-    std::atomic<bool> _performanceMonitoring{false};
-    std::atomic<uint32> _monitoringInterval{5000};
+    ::std::atomic<bool> _continuousBenchmarking{false};
+    ::std::atomic<bool> _performanceMonitoring{false};
+    ::std::atomic<uint32> _monitoringInterval{5000};
     uint32 _lastMonitoringTime{0};
 
     // Configuration
-    std::atomic<uint32> _benchmarkTimeout{300000}; // 5 minutes
-    std::atomic<bool> _detailedProfiling{false};
-    std::atomic<uint32> _reportLevel{2}; // 0-3 verbosity
+    ::std::atomic<uint32> _benchmarkTimeout{300000}; // 5 minutes
+    ::std::atomic<bool> _detailedProfiling{false};
+    ::std::atomic<uint32> _reportLevel{2}; // 0-3 verbosity
 
     // Helper functions
     void InitializePerformanceTargets();
     void SetupBenchmarkEnvironment(uint32 botCount);
     void CleanupBenchmarkEnvironment();
-    Player* CreateBenchmarkBot(const std::string& name);
+    Player* CreateBenchmarkBot(const ::std::string& name);
 
     // Measurement implementations
     void MeasureCPUUsage(BenchmarkResult& result, uint32 duration);
     void MeasureMemoryUsage(BenchmarkResult& result);
-    void MeasureResponseTimes(BenchmarkResult& result, const std::vector<uint32>& responseTimes);
+    void MeasureResponseTimes(BenchmarkResult& result, const ::std::vector<uint32>& responseTimes);
     void MeasureOperationThroughput(BenchmarkResult& result, uint32 operations, uint32 duration);
 
     // Benchmark implementations

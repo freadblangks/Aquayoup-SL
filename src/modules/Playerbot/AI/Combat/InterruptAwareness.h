@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "ObjectGuid.h"
 #include "Position.h"
 #include "SharedDefines.h"
@@ -53,8 +54,8 @@ struct DetectedSpellCast
 {
     ObjectGuid casterGuid;
     uint32 spellId;
-    std::chrono::steady_clock::time_point detectionTime;
-    std::chrono::steady_clock::time_point estimatedCastEnd;
+    ::std::chrono::steady_clock::time_point detectionTime;
+    ::std::chrono::steady_clock::time_point estimatedCastEnd;
     Position casterPosition;
     uint32 castTimeMs;
     uint32 remainingTimeMs;
@@ -68,7 +69,7 @@ struct DetectedSpellCast
 
     bool IsExpired() const
     {
-        return std::chrono::steady_clock::now() >= estimatedCastEnd;
+        return ::std::chrono::steady_clock::now() >= estimatedCastEnd;
     }
 
     bool IsValid() const
@@ -78,10 +79,10 @@ struct DetectedSpellCast
 
     uint32 GetRemainingTime() const
     {
-        auto now = std::chrono::steady_clock::now();
+        auto now = ::std::chrono::steady_clock::now();
         if (now >= estimatedCastEnd)
             return 0;
-        return static_cast<uint32>(std::chrono::duration_cast<std::chrono::milliseconds>(estimatedCastEnd - now).count());
+        return static_cast<uint32>(::std::chrono::duration_cast<::std::chrono::milliseconds>(estimatedCastEnd - now).count());
     }
 
     float GetCastProgress() const
@@ -89,33 +90,33 @@ struct DetectedSpellCast
         if (castTimeMs == 0)
             return 1.0f;
 
-        auto now = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - detectionTime);
-        return std::min(1.0f, static_cast<float>(elapsed.count()) / castTimeMs);
+        auto now = ::std::chrono::steady_clock::now();
+        auto elapsed = ::std::chrono::duration_cast<::std::chrono::milliseconds>(now - detectionTime);
+        return ::std::min(1.0f, static_cast<float>(elapsed.count()) / castTimeMs);
     }
 };
 
 // Spell scanning result
 struct SpellScanResult
 {
-    std::vector<DetectedSpellCast> newCasts;
-    std::vector<ObjectGuid> completedCasts;
-    std::vector<ObjectGuid> interruptedCasts;
+    ::std::vector<DetectedSpellCast> newCasts;
+    ::std::vector<ObjectGuid> completedCasts;
+    ::std::vector<ObjectGuid> interruptedCasts;
     uint32 totalUnitsScanned = 0;
     uint32 totalSpellsDetected = 0;
-    std::chrono::microseconds scanTime{0};
+    ::std::chrono::microseconds scanTime{0};
 };
 
 // Performance metrics for spell detection
 struct DetectionMetrics
 {
-    std::atomic<uint32> totalScans{0};
-    std::atomic<uint32> unitsScanned{0};
-    std::atomic<uint32> spellsDetected{0};
-    std::atomic<uint32> interruptibleSpells{0};
-    std::atomic<uint32> hostileSpells{0};
-    std::chrono::microseconds averageScanTime{0};
-    std::chrono::microseconds maxScanTime{0};
+    ::std::atomic<uint32> totalScans{0};
+    ::std::atomic<uint32> unitsScanned{0};
+    ::std::atomic<uint32> spellsDetected{0};
+    ::std::atomic<uint32> interruptibleSpells{0};
+    ::std::atomic<uint32> hostileSpells{0};
+    ::std::chrono::microseconds averageScanTime{0};
+    ::std::chrono::microseconds maxScanTime{0};
 
     float GetDetectionRate() const
     {
@@ -166,16 +167,16 @@ public:
     // === Spell Query Interface ===
 
     // Get all currently detected spell casts
-    std::vector<DetectedSpellCast> GetActiveCasts() const;
+    ::std::vector<DetectedSpellCast> GetActiveCasts() const;
 
     // Get spell casts from specific caster
-    std::vector<DetectedSpellCast> GetCastsFromUnit(ObjectGuid casterGuid) const;
+    ::std::vector<DetectedSpellCast> GetCastsFromUnit(ObjectGuid casterGuid) const;
 
     // Get interruptible spell casts within range
-    std::vector<DetectedSpellCast> GetInterruptibleCasts(float maxRange = 0.0f) const;
+    ::std::vector<DetectedSpellCast> GetInterruptibleCasts(float maxRange = 0.0f) const;
 
     // Get hostile spell casts targeting friendly units
-    std::vector<DetectedSpellCast> GetHostileCasts() const;
+    ::std::vector<DetectedSpellCast> GetHostileCasts() const;
 
     // Check if specific unit is currently casting
     bool IsUnitCasting(ObjectGuid unitGuid) const;
@@ -186,13 +187,13 @@ public:
     // === Integration Interface ===
 
     // Set interrupt coordinator for automatic spell reporting
-    void SetInterruptCoordinator(std::shared_ptr<InterruptCoordinator> coordinator);
+    void SetInterruptCoordinator(::std::shared_ptr<InterruptCoordinator> coordinator);
 
     // Register for spell cast notifications
-    void RegisterSpellCastCallback(std::function<void(DetectedSpellCast const&)> callback);
+    void RegisterSpellCastCallback(::std::function<void(DetectedSpellCast const&)> callback);
 
     // Register for spell completion notifications
-    void RegisterSpellCompleteCallback(std::function<void(ObjectGuid, uint32, bool)> callback);
+    void RegisterSpellCompleteCallback(::std::function<void(ObjectGuid, uint32, bool)> callback);
 
     // === Status and Metrics ===
 
@@ -211,7 +212,7 @@ public:
 
     // Pattern recognition for encounter-specific spell sequences
     void EnablePatternRecognition(bool enabled) { _enablePatterns = enabled; }
-    void AddSpellPattern(uint32 npcId, std::vector<uint32> const& spellSequence);
+    void AddSpellPattern(uint32 npcId, ::std::vector<uint32> const& spellSequence);
     void ClearSpellPatterns();
 
     // Priority-based scanning (focus on specific unit types)
@@ -219,7 +220,7 @@ public:
     void SetScanPriority(uint32 npcId, uint32 priority);
 
     // Predictive detection (anticipate spell casts based on patterns)
-    std::vector<uint32> PredictUpcomingSpells(ObjectGuid casterGuid) const;
+    ::std::vector<uint32> PredictUpcomingSpells(ObjectGuid casterGuid) const;
 
 private:
     // === Internal Detection Methods ===
@@ -241,7 +242,7 @@ private:
     void ProcessCompletedCasts(SpellScanResult& result);
 
     // Unit filtering and prioritization
-    std::vector<Unit*> GetNearbyUnits() const;
+    ::std::vector<Unit*> GetNearbyUnits() const;
     bool ShouldScanUnit(Unit* unit) const;
     uint32 GetUnitScanPriority(Unit* unit) const;
 
@@ -260,48 +261,48 @@ private:
 private:
     // Observer (bot performing the detection)
     Player* _observer = nullptr;
-    std::atomic<bool> _active{true};
+    ::std::atomic<bool> _active{true};
 
     // Configuration
     SpellDetectionConfig _config;
 
     // Active spell tracking
-    std::unordered_map<ObjectGuid, std::vector<DetectedSpellCast>> _activeCasts; // casterGuid -> casts
-    mutable std::recursive_mutex _castMutex;
+    ::std::unordered_map<ObjectGuid, ::std::vector<DetectedSpellCast>> _activeCasts; // casterGuid -> casts
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _castMutex;
 
     // Update tracking
-    std::chrono::steady_clock::time_point _lastUpdate;
+    ::std::chrono::steady_clock::time_point _lastUpdate;
     uint32 _lastScanTimeMs = 0;
     uint32 _scanCount = 0;
 
     // Performance metrics
     mutable DetectionMetrics _metrics;
     // DEADLOCK FIX: Changed to recursive_mutex
-    mutable std::recursive_mutex _metricsMutex;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _metricsMutex;
 
     // Integration components
-    std::weak_ptr<InterruptCoordinator> _coordinator;
-    std::vector<std::function<void(DetectedSpellCast const&)>> _spellCastCallbacks;
-    std::vector<std::function<void(ObjectGuid, uint32, bool)>> _spellCompleteCallbacks;
+    ::std::weak_ptr<InterruptCoordinator> _coordinator;
+    ::std::vector<::std::function<void(DetectedSpellCast const&)>> _spellCastCallbacks;
+    ::std::vector<::std::function<void(ObjectGuid, uint32, bool)>> _spellCompleteCallbacks;
     // DEADLOCK FIX: Changed to recursive_mutex
-    mutable std::recursive_mutex _callbackMutex;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _callbackMutex;
 
     // Priority scanning
-    std::unordered_map<CreatureType, uint32> _creatureTypePriorities;
-    std::unordered_map<uint32, uint32> _npcPriorities; // npcId -> priority
-    mutable std::recursive_mutex _priorityMutex;
+    ::std::unordered_map<CreatureType, uint32> _creatureTypePriorities;
+    ::std::unordered_map<uint32, uint32> _npcPriorities; // npcId -> priority
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _priorityMutex;
 
     // Pattern recognition
     bool _enablePatterns = false;
     struct SpellPattern
     {
         uint32 npcId;
-        std::vector<uint32> spellSequence;
-        std::chrono::steady_clock::time_point lastMatch;
+        ::std::vector<uint32> spellSequence;
+        ::std::chrono::steady_clock::time_point lastMatch;
         uint32 currentIndex = 0;
     };
-    std::unordered_map<uint32, SpellPattern> _spellPatterns; // npcId -> pattern
-    mutable std::recursive_mutex _patternMutex;
+    ::std::unordered_map<uint32, SpellPattern> _spellPatterns; // npcId -> pattern
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _patternMutex;
 
     // Performance optimization
     static constexpr uint32 MAX_SCAN_UNITS = 50;        // Maximum units to scan per update
@@ -310,7 +311,7 @@ private:
     static constexpr uint32 MAX_ACTIVE_CASTS = 100;     // Maximum tracked active casts
 
     // Thread safety
-    mutable std::recursive_mutex _observerMutex;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _observerMutex;
 
     // Deleted operations
     InterruptAwareness(InterruptAwareness const&) = delete;

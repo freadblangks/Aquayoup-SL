@@ -23,12 +23,13 @@
 #include "Log.h"
 #include "World.h"
 #include "AI/BotAI.h"
-#include "Movement/Arbiter/MovementArbiter.h"
+#include "Movement/UnifiedMovementCoordinator.h"
 #include "Movement/Arbiter/MovementRequest.h"
 #include "Movement/Arbiter/MovementPriorityMapper.h"
 #include <algorithm>
 #include <execution>
 #include <cmath>
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -50,13 +51,13 @@ bool AOEZone::IsPointInZone(const Position& point, uint32 currentTime) const
     else
     {
         // Cone AOE
-        if (distance > currentRadius)
+    if (distance > currentRadius)
             return false;
 
         // Check angle
-        float pointAngle = std::atan2(point.m_positionY - center.m_positionY,
+        float pointAngle = ::std::atan2(point.m_positionY - center.m_positionY,
                                       point.m_positionX - center.m_positionX);
-        float angleDiff = std::abs(Position::NormalizeOrientation(pointAngle - orientation));
+        float angleDiff = ::std::abs(Position::NormalizeOrientation(pointAngle - orientation));
 
         return angleDiff <= (angle * M_PI / 360.0f);  // Convert to radians and check half angle
     }
@@ -123,8 +124,8 @@ bool ProjectileInfo::WillHitPosition(const Position& pos, float tolerance) const
         float B = origin.m_positionX - destination.m_positionX;
         float C = destination.m_positionX * origin.m_positionY - origin.m_positionX * destination.m_positionY;
 
-        float perpDistance = std::abs(A * pos.m_positionX + B * pos.m_positionY + C) /
-                            std::sqrt(A * A + B * B);
+        float perpDistance = ::std::abs(A * pos.m_positionX + B * pos.m_positionY + C) /
+                            ::std::sqrt(A * A + B * B);
 
         return perpDistance <= radius + tolerance;
     }
@@ -153,7 +154,7 @@ bool CleaveMechanic::IsPositionSafe(const Position& pos) const
     // Check angle
     float targetAngle = source->GetRelativeAngle(&pos);
     float sourceface = source->GetOrientation();
-    float angleDiff = std::abs(Position::NormalizeOrientation(targetAngle - sourceface));
+    float angleDiff = ::std::abs(Position::NormalizeOrientation(targetAngle - sourceface));
 
     return angleDiff > (angle / 2.0f * M_PI / 180.0f);
 }
@@ -165,25 +166,24 @@ float CleaveMechanic::GetSafeAngle(bool preferLeft) const
 
     float safeAngle = angle / 2.0f * M_PI / 180.0f + 0.1f;  // Add small buffer
     float baseAngle = source->GetOrientation();
-
     return Position::NormalizeOrientation(baseAngle + (preferLeft ? -safeAngle : safeAngle));
 }
 
 // MechanicAwareness implementation
 MechanicAwareness::MechanicAwareness()
 {
-    _metrics.lastUpdate = std::chrono::steady_clock::now();
+    _metrics.lastUpdate = ::std::chrono::steady_clock::now();
 }
 
-std::vector<MechanicInfo> MechanicAwareness::DetectMechanics(Player* bot, Unit* target)
+::std::vector<MechanicInfo> MechanicAwareness::DetectMechanics(Player* bot, Unit* target)
 {
-    std::vector<MechanicInfo> detectedMechanics;
+    ::std::vector<MechanicInfo> detectedMechanics;
 
     if (!bot)
         return detectedMechanics;
 
     // Scan for various mechanics
-    std::vector<MechanicInfo> threats = ScanForThreats(bot);
+    ::std::vector<MechanicInfo> threats = ScanForThreats(bot);
     detectedMechanics.insert(detectedMechanics.end(), threats.begin(), threats.end());
 
     // Check casting mechanics
@@ -193,7 +193,6 @@ std::vector<MechanicInfo> MechanicAwareness::DetectMechanics(Player* bot, Unit* 
         if (castMechanic.type != MechanicType::NONE)
             detectedMechanics.push_back(castMechanic);
     }
-
     // Check debuff mechanics
     MechanicInfo debuffMechanic = DetectDebuffMechanic(bot);
     if (debuffMechanic.type != MechanicType::NONE)
@@ -218,7 +217,6 @@ MechanicInfo MechanicAwareness::AnalyzeSpellMechanic(uint32 spellId, Unit* caste
 
     if (target)
         mechanic.targetGuid = target->GetGUID();
-
     // Get spell info
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE);
     if (!spellInfo)
@@ -249,19 +247,17 @@ MechanicInfo MechanicAwareness::AnalyzeSpellMechanic(uint32 spellId, Unit* caste
         mechanic.response = MechanicResponse::SPREAD_OUT;
     else if (EnumFlag<MechanicType>(mechanic.type).HasFlag(MechanicType::STACK_REQUIRED))
         mechanic.response = MechanicResponse::STACK_UP;
-
     // Get danger radius
     mechanic.dangerRadius = GetSpellDangerRadius(spellId);
     mechanic.safeDistance = mechanic.dangerRadius + _safeDistanceBuffer;
 
     // Set timing
-    mechanic.triggerTime = getMSTime() + castTime;
+    mechanic.triggerTime = GameTime::GetGameTimeMS() + castTime;
     mechanic.duration = spellInfo->GetDuration();
 
     // Estimate damage
     if (caster && target)
         mechanic.damageEstimate = EstimateSpellDamage(spellId, caster, target);
-
     mechanic.isActive = true;
     mechanic.description = (*spellInfo->SpellName)[sWorld->GetDefaultDbcLocale()];
 
@@ -275,7 +271,6 @@ bool MechanicAwareness::DetectAOECast(Unit* caster, float& radius, Position& cen
 
     Spell const* spell = caster->GetCurrentSpell(CURRENT_GENERIC_SPELL);
     SpellInfo const* spellInfo = spell->GetSpellInfo();
-
     if (!spellInfo)
         return false;
 
@@ -288,7 +283,7 @@ bool MechanicAwareness::DetectAOECast(Unit* caster, float& radius, Position& cen
             center = caster->GetPosition();
 
             // Check if target location is specified
-            if (spell->m_targets.HasDst())
+    if (spell->m_targets.HasDst())
             {
                 WorldLocation const* loc = spell->m_targets.GetDstPos();
                 if (loc)
@@ -348,7 +343,7 @@ void MechanicAwareness::HandleCleaveMechanic(Unit* target, float cleaveAngle, fl
     cleave.range = cleaveRange;
     cleave.isActive = true;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     _cleaveMechanics[target->GetGUID()] = cleave;
 }
 
@@ -358,11 +353,10 @@ void MechanicAwareness::HandleAOEMechanic(const AOEZone& zone, Player* bot)
         return;
 
     // Check if bot is in danger zone
-    if (zone.IsPointInZone(bot->GetPosition(), getMSTime()))
+    if (zone.IsPointInZone(bot->GetPosition(), GameTime::GetGameTimeMS()))
     {
         // Find safe position
         Position safePos = FindSafeSpot(bot, zone);
-
         // Move to safe position
         ExecuteMovementResponse(bot, safePos, MechanicUrgency::URGENT);
 
@@ -380,9 +374,8 @@ void MechanicAwareness::HandleProjectile(const ProjectileInfo& projectile, Playe
     {
         // Calculate dodge position
         Position dodgePos = bot->GetPosition();
-
         // Simple dodge: move perpendicular to projectile path
-        float projectileAngle = std::atan2(projectile.destination.m_positionY - projectile.origin.m_positionY,
+        float projectileAngle = ::std::atan2(projectile.destination.m_positionY - projectile.origin.m_positionY,
                                           projectile.destination.m_positionX - projectile.origin.m_positionX);
         float dodgeAngle = Position::NormalizeOrientation(projectileAngle + M_PI/2);
 
@@ -407,12 +400,11 @@ void MechanicAwareness::HandleGroundEffect(const Position& center, float radius,
         safePos.m_positionX = center.m_positionX + (radius + _safeDistanceBuffer) * cos(angle);
         safePos.m_positionY = center.m_positionY + (radius + _safeDistanceBuffer) * sin(angle);
         safePos.m_positionZ = bot->GetPositionZ();
-
         ExecuteMovementResponse(bot, safePos, MechanicUrgency::URGENT);
     }
 }
 
-SafePositionResult MechanicAwareness::CalculateSafePosition(Player* bot, const std::vector<MechanicInfo>& threats)
+SafePositionResult MechanicAwareness::CalculateSafePosition(Player* bot, const ::std::vector<MechanicInfo>& threats)
 {
     SafePositionResult result;
 
@@ -424,7 +416,7 @@ SafePositionResult MechanicAwareness::CalculateSafePosition(Player* bot, const s
     }
 
     Position currentPos = bot->GetPosition();
-    std::vector<Position> candidates = GenerateSafePositions(currentPos);
+    ::std::vector<Position> candidates = GenerateSafePositions(currentPos);
 
     float bestScore = -1.0f;
     Position bestPos = currentPos;
@@ -488,9 +480,9 @@ Position MechanicAwareness::FindSafeSpot(Player* bot, const AOEZone& danger, flo
     return safePos;
 }
 
-std::vector<Position> MechanicAwareness::GenerateSafePositions(const Position& currentPos, float searchRadius)
+::std::vector<Position> MechanicAwareness::GenerateSafePositions(const Position& currentPos, float searchRadius)
 {
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
 
     // Generate positions in a circle around current position
     for (int angle = 0; angle < 360; angle += 30)
@@ -503,7 +495,6 @@ std::vector<Position> MechanicAwareness::GenerateSafePositions(const Position& c
             candidate.m_positionX = currentPos.m_positionX + distance * cos(radians);
             candidate.m_positionY = currentPos.m_positionY + distance * sin(radians);
             candidate.m_positionZ = currentPos.m_positionZ;
-
             positions.push_back(candidate);
         }
     }
@@ -511,7 +502,7 @@ std::vector<Position> MechanicAwareness::GenerateSafePositions(const Position& c
     return positions;
 }
 
-bool MechanicAwareness::IsPositionSafe(const Position& pos, const std::vector<AOEZone>& dangers, uint32 currentTime)
+bool MechanicAwareness::IsPositionSafe(const Position& pos, const ::std::vector<AOEZone>& dangers, uint32 currentTime)
 {
     for (const AOEZone& zone : dangers)
     {
@@ -589,7 +580,7 @@ bool MechanicAwareness::ShouldDispel(Unit* target, uint32 spellId)
 
 void MechanicAwareness::RegisterAOEZone(const AOEZone& zone)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     _activeAOEZones.push_back(zone);
 
     // Merge overlapping zones
@@ -598,11 +589,11 @@ void MechanicAwareness::RegisterAOEZone(const AOEZone& zone)
 
 void MechanicAwareness::UpdateAOEZones(uint32 currentTime)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
 
     // Remove expired zones
     _activeAOEZones.erase(
-        std::remove_if(_activeAOEZones.begin(), _activeAOEZones.end(),
+        ::std::remove_if(_activeAOEZones.begin(), _activeAOEZones.end(),
             [currentTime](const AOEZone& zone) {
                 return !zone.IsActive(currentTime);
             }),
@@ -615,17 +606,17 @@ void MechanicAwareness::RemoveExpiredZones(uint32 currentTime)
     UpdateAOEZones(currentTime);
 }
 
-std::vector<AOEZone> MechanicAwareness::GetActiveAOEZones() const
+::std::vector<AOEZone> MechanicAwareness::GetActiveAOEZones() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     return _activeAOEZones;
 }
 
-std::vector<AOEZone> MechanicAwareness::GetUpcomingAOEZones(uint32 timeWindow) const
+::std::vector<AOEZone> MechanicAwareness::GetUpcomingAOEZones(uint32 timeWindow) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-    std::vector<AOEZone> upcoming;
-    uint32 currentTime = getMSTime();
+    ::std::lock_guard lock(_mutex);
+    ::std::vector<AOEZone> upcoming;
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     for (const AOEZone& zone : _activeAOEZones)
     {
@@ -638,17 +629,17 @@ std::vector<AOEZone> MechanicAwareness::GetUpcomingAOEZones(uint32 timeWindow) c
 
 void MechanicAwareness::TrackProjectile(const ProjectileInfo& projectile)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     _trackedProjectiles.push_back(projectile);
 }
 
 void MechanicAwareness::UpdateProjectiles(uint32 currentTime)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
 
     // Remove projectiles that have impacted
     _trackedProjectiles.erase(
-        std::remove_if(_trackedProjectiles.begin(), _trackedProjectiles.end(),
+        ::std::remove_if(_trackedProjectiles.begin(), _trackedProjectiles.end(),
             [currentTime](const ProjectileInfo& proj) {
                 return currentTime >= proj.impactTime;
             }),
@@ -662,14 +653,13 @@ void MechanicAwareness::UpdateProjectiles(uint32 currentTime)
     }
 }
 
-std::vector<ProjectileInfo> MechanicAwareness::GetIncomingProjectiles(Player* target) const
+::std::vector<ProjectileInfo> MechanicAwareness::GetIncomingProjectiles(Player* target) const
 {
     if (!target)
         return {};
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-    std::vector<ProjectileInfo> incoming;
-
+    ::std::lock_guard lock(_mutex);
+    ::std::vector<ProjectileInfo> incoming;
     for (const ProjectileInfo& proj : _trackedProjectiles)
     {
         if (proj.targetGuid == target->GetGUID() ||
@@ -696,14 +686,14 @@ void MechanicAwareness::RegisterCleaveMechanic(Unit* source, const CleaveMechani
     if (!source)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     _cleaveMechanics[source->GetGUID()] = cleave;
 }
 
 void MechanicAwareness::UpdateCleaveMechanics()
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-    uint32 currentTime = getMSTime();
+    ::std::lock_guard lock(_mutex);
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Update cleave states
     for (auto& [guid, cleave] : _cleaveMechanics)
@@ -722,7 +712,7 @@ bool MechanicAwareness::IsInCleaveZone(Player* bot, Unit* source)
     if (!bot || !source)
         return false;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     auto it = _cleaveMechanics.find(source->GetGUID());
 
     if (it == _cleaveMechanics.end())
@@ -736,7 +726,7 @@ Position MechanicAwareness::GetCleaveAvoidancePosition(Player* bot, Unit* source
     if (!bot || !source)
         return bot ? bot->GetPosition() : Position();
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     auto it = _cleaveMechanics.find(source->GetGUID());
 
     if (it == _cleaveMechanics.end())
@@ -744,26 +734,24 @@ Position MechanicAwareness::GetCleaveAvoidancePosition(Player* bot, Unit* source
 
     // Calculate safe position to side of cleave
     float safeAngle = it->second.GetSafeAngle(true);
-    float distance = std::sqrt(bot->GetExactDistSq(source)); // Calculate once from squared distance
+    float distance = ::std::sqrt(bot->GetExactDistSq(source)); // Calculate once from squared distance
 
     Position safePos;
     safePos.m_positionX = source->GetPositionX() + distance * cos(safeAngle);
     safePos.m_positionY = source->GetPositionY() + distance * sin(safeAngle);
     safePos.m_positionZ = bot->GetPositionZ();
-
     return safePos;
 }
 
-std::vector<MechanicPrediction> MechanicAwareness::PredictMechanics(Unit* target, uint32 timeAhead)
+::std::vector<MechanicPrediction> MechanicAwareness::PredictMechanics(Unit* target, uint32 timeAhead)
 {
-    std::vector<MechanicPrediction> predictions;
+    ::std::vector<MechanicPrediction> predictions;
 
     if (!target)
         return predictions;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     auto it = _mechanicHistory.find(target->GetGUID());
-
     if (it == _mechanicHistory.end())
         return predictions;
 
@@ -776,7 +764,7 @@ std::vector<MechanicPrediction> MechanicAwareness::PredictMechanics(Unit* target
 
         if (prediction.confidence > 0.5f)
         {
-            prediction.predictedTime = getMSTime() + timeAhead;
+            prediction.predictedTime = GameTime::GetGameTimeMS() + timeAhead;
             prediction.predictedLocation = target->GetPosition();
             prediction.predictedRadius = historic.dangerRadius;
             prediction.basis = "Pattern analysis";
@@ -794,7 +782,7 @@ MechanicPrediction MechanicAwareness::PredictNextMechanic(Unit* target)
     if (!predictions.empty())
     {
         // Return most confident prediction
-        return *std::max_element(predictions.begin(), predictions.end(),
+        return *::std::max_element(predictions.begin(), predictions.end(),
             [](const MechanicPrediction& a, const MechanicPrediction& b) {
                 return a.confidence < b.confidence;
             });
@@ -811,7 +799,7 @@ float MechanicAwareness::CalculateMechanicProbability(Unit* target, MechanicType
     return AnalyzeMechanicPattern(target, type);
 }
 
-void MechanicAwareness::CoordinateGroupResponse(const MechanicInfo& mechanic, std::vector<Player*> group)
+void MechanicAwareness::CoordinateGroupResponse(const MechanicInfo& mechanic, ::std::vector<Player*> group)
 {
     if (group.empty())
         return;
@@ -846,10 +834,10 @@ void MechanicAwareness::CoordinateGroupResponse(const MechanicInfo& mechanic, st
     }
 }
 
-std::unordered_map<ObjectGuid, Position> MechanicAwareness::CalculateSpreadPositions(
-    const std::vector<Player*>& group, float minDistance)
+::std::unordered_map<ObjectGuid, Position> MechanicAwareness::CalculateSpreadPositions(
+    const ::std::vector<Player*>& group, float minDistance)
 {
-    std::unordered_map<ObjectGuid, Position> positions;
+    ::std::unordered_map<ObjectGuid, Position> positions;
 
     if (group.empty())
         return positions;
@@ -885,7 +873,7 @@ std::unordered_map<ObjectGuid, Position> MechanicAwareness::CalculateSpreadPosit
     return positions;
 }
 
-Position MechanicAwareness::CalculateStackPosition(const std::vector<Player*>& group)
+Position MechanicAwareness::CalculateStackPosition(const ::std::vector<Player*>& group)
 {
     Position stackPos;
 
@@ -955,7 +943,7 @@ void MechanicAwareness::RegisterEnvironmentalHazard(const Position& location, fl
     AOEZone hazard;
     hazard.center = location;
     hazard.radius = radius;
-    hazard.startTime = getMSTime();
+    hazard.startTime = GameTime::GetGameTimeMS();
     hazard.duration = duration;
     hazard.type = MechanicType::ENVIRONMENTAL;
     hazard.isPersistent = false;
@@ -965,8 +953,8 @@ void MechanicAwareness::RegisterEnvironmentalHazard(const Position& location, fl
 
 bool MechanicAwareness::IsEnvironmentalHazard(const Position& pos)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-    uint32 currentTime = getMSTime();
+    ::std::lock_guard lock(_mutex);
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     for (const AOEZone& zone : _activeAOEZones)
     {
@@ -977,10 +965,10 @@ bool MechanicAwareness::IsEnvironmentalHazard(const Position& pos)
     return false;
 }
 
-std::vector<Position> MechanicAwareness::GetEnvironmentalHazards() const
+::std::vector<Position> MechanicAwareness::GetEnvironmentalHazards() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-    std::vector<Position> hazards;
+    ::std::lock_guard lock(_mutex);
+    ::std::vector<Position> hazards;
 
     for (const AOEZone& zone : _activeAOEZones)
     {
@@ -1062,8 +1050,9 @@ float MechanicAwareness::EstimateSpellDamage(uint32 spellId, Unit* caster, Unit*
 bool MechanicAwareness::RequiresPositioning(uint32 spellId)
 {
     MechanicType type = GetSpellMechanicType(spellId);
-    return (type & (MechanicType::FRONTAL_CLEAVE | MechanicType::TAIL_SWIPE |
-                   MechanicType::POSITIONAL | MechanicType::AOE_DAMAGE)) != MechanicType::NONE;
+    using T = std::underlying_type_t<MechanicType>;
+    return (static_cast<T>(type) & (static_cast<T>(MechanicType::FRONTAL_CLEAVE) | static_cast<T>(MechanicType::TAIL_SWIPE) |
+                   static_cast<T>(MechanicType::POSITIONAL) | static_cast<T>(MechanicType::AOE_DAMAGE))) != 0;
 }
 
 MechanicType MechanicAwareness::GetSpellMechanicType(uint32 spellId)
@@ -1136,7 +1125,7 @@ MechanicInfo MechanicAwareness::DetectDebuffMechanic(Player* bot)
         */
 
         // Check for dispel requirements
-        if (IsDispellableDebuff(spellId))
+    if (IsDispellableDebuff(spellId))
         {
             mechanic.type = MechanicType::DISPEL_REQUIRED;
             mechanic.spellId = spellId;
@@ -1149,15 +1138,15 @@ MechanicInfo MechanicAwareness::DetectDebuffMechanic(Player* bot)
     return mechanic;
 }
 
-std::vector<MechanicInfo> MechanicAwareness::ScanForThreats(Player* bot, float scanRadius)
+::std::vector<MechanicInfo> MechanicAwareness::ScanForThreats(Player* bot, float scanRadius)
 {
-    std::vector<MechanicInfo> threats;
+    ::std::vector<MechanicInfo> threats;
 
     if (!bot)
         return threats;
 
     // Scan for active AOE zones
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     for (const AOEZone& zone : _activeAOEZones)
     {
         if (zone.IsActive(currentTime) && bot->GetExactDistSq(zone.center) <= (scanRadius * scanRadius))
@@ -1193,14 +1182,13 @@ std::vector<MechanicInfo> MechanicAwareness::ScanForThreats(Player* bot, float s
     return threats;
 }
 
-float MechanicAwareness::EvaluatePositionSafety(const Position& pos, const std::vector<MechanicInfo>& threats)
+float MechanicAwareness::EvaluatePositionSafety(const Position& pos, const ::std::vector<MechanicInfo>& threats)
 {
     float safety = 100.0f;
 
     for (const MechanicInfo& threat : threats)
     {
         float distance = pos.GetExactDist(threat.sourcePosition);
-
         if (distance <= threat.dangerRadius)
         {
             safety -= 50.0f;  // In danger zone
@@ -1213,7 +1201,7 @@ float MechanicAwareness::EvaluatePositionSafety(const Position& pos, const std::
         }
 
         // Urgency modifier
-        switch (threat.urgency)
+    switch (threat.urgency)
         {
             case MechanicUrgency::IMMEDIATE:
                 safety *= 0.5f;
@@ -1229,7 +1217,7 @@ float MechanicAwareness::EvaluatePositionSafety(const Position& pos, const std::
         }
     }
 
-    return std::max(0.0f, safety);
+    return ::std::max(0.0f, safety);
 }
 
 float MechanicAwareness::CalculateDangerScore(const Position& pos, const AOEZone& zone, uint32 currentTime)
@@ -1243,12 +1231,12 @@ float MechanicAwareness::CalculateDangerScore(const Position& pos, const AOEZone
     float danger = 100.0f;
 
     // Calculate expected damage
-    uint32 timeInZone = zone.duration > 0 ? std::min(1000u, zone.duration) : 1000u;
+    uint32 timeInZone = zone.duration > 0 ? ::std::min(1000u, zone.duration) : 1000u;
     float expectedDamage = zone.EstimateDamage(timeInZone);
 
     // Scale danger by damage
     if (expectedDamage > 0)
-        danger = std::min(100.0f, expectedDamage / 1000.0f * 10.0f);
+        danger = ::std::min(100.0f, expectedDamage / 1000.0f * 10.0f);
 
     return danger;
 }
@@ -1298,7 +1286,7 @@ void MechanicAwareness::ExecuteMovementResponse(Player* bot, const Position& saf
     // PHASE 3 MIGRATION: Use Movement Arbiter with CRITICAL priority
     // This ensures boss mechanics ALWAYS override combat positioning, following, etc.
     BotAI* botAI = dynamic_cast<BotAI*>(bot->GetAI());
-    if (botAI && botAI->GetMovementArbiter())
+    if (botAI && botAI->GetUnifiedMovementCoordinator())
     {
         // Use Movement Arbiter for priority-based arbitration
         bool accepted = botAI->RequestPointMovement(
@@ -1349,12 +1337,12 @@ void MechanicAwareness::ExecuteDefensiveResponse(Player* bot, const MechanicInfo
                  bot->GetName(), uint32(mechanic.type));
 }
 
-void MechanicAwareness::ExecuteGroupResponse(const std::vector<Player*>& group, MechanicResponse response)
+void MechanicAwareness::ExecuteGroupResponse(const ::std::vector<Player*>& group, MechanicResponse response)
 {
     for (Player* member : group)
     {
         // Execute response for each group member
-        switch (response)
+    switch (response)
         {
             case MechanicResponse::USE_DEFENSIVE:
                 ExecuteDefensiveResponse(member, {});
@@ -1370,9 +1358,8 @@ void MechanicAwareness::UpdateMechanicHistory(Unit* target, const MechanicInfo& 
     if (!target)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     auto& history = _mechanicHistory[target->GetGUID()];
-
     history.push_back(mechanic);
 
     // Limit history size
@@ -1385,7 +1372,7 @@ float MechanicAwareness::AnalyzeMechanicPattern(Unit* target, MechanicType type)
     if (!target)
         return 0.0f;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     auto it = _mechanicHistory.find(target->GetGUID());
 
     if (it == _mechanicHistory.end())
@@ -1409,11 +1396,11 @@ void MechanicAwareness::CleanupOldData(uint32 currentTime)
     UpdateProjectiles(currentTime);
 
     // Cleanup mechanic history
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     for (auto& [guid, history] : _mechanicHistory)
     {
         history.erase(
-            std::remove_if(history.begin(), history.end(),
+            ::std::remove_if(history.begin(), history.end(),
                 [currentTime](const MechanicInfo& info) {
                     return info.IsExpired(currentTime);
                 }),
@@ -1437,7 +1424,7 @@ MechanicDatabase& MechanicDatabase::Instance()
 
 void MechanicDatabase::RegisterSpellMechanic(uint32 spellId, MechanicType type, float radius, float angle)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     SpellMechanicData& data = _spellMechanics[spellId];
     data.type = type;
     data.radius = radius;
@@ -1446,21 +1433,21 @@ void MechanicDatabase::RegisterSpellMechanic(uint32 spellId, MechanicType type, 
 
 MechanicType MechanicDatabase::GetSpellMechanicType(uint32 spellId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     auto it = _spellMechanics.find(spellId);
     return it != _spellMechanics.end() ? it->second.type : MechanicType::NONE;
 }
 
 float MechanicDatabase::GetSpellRadius(uint32 spellId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     auto it = _spellMechanics.find(spellId);
     return it != _spellMechanics.end() ? it->second.radius : 0.0f;
 }
 
 float MechanicDatabase::GetSpellAngle(uint32 spellId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     auto it = _spellMechanics.find(spellId);
     return it != _spellMechanics.end() ? it->second.angle : 0.0f;
 }

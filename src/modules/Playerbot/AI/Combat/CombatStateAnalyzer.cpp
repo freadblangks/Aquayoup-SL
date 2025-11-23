@@ -16,6 +16,7 @@
 #include "SpellAuras.h"
 #include "SpellAuraEffects.h"
 #include "Timer.h"
+#include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
@@ -58,7 +59,7 @@ CombatStateAnalyzer::~CombatStateAnalyzer() = default;
 
 void CombatStateAnalyzer::Update(uint32 diff)
 {
-    uint32 startTime = getMSTime();
+    uint32 startTime = GameTime::GetGameTimeMS();
 
     _updateTimer += diff;
     _timeSinceSituationChange += diff;
@@ -70,10 +71,10 @@ void CombatStateAnalyzer::Update(uint32 diff)
         _updateTimer = 0;
 
         // Record snapshot every 500ms for trend analysis
-        if (getMSTime() - _lastSnapshotTime >= 500)
+    if (GameTime::GetGameTimeMS() - _lastSnapshotTime >= 500)
         {
             RecordSnapshot();
-            _lastSnapshotTime = getMSTime();
+            _lastSnapshotTime = GameTime::GetGameTimeMS();
         }
 
         // Analyze situation
@@ -87,7 +88,7 @@ void CombatStateAnalyzer::Update(uint32 diff)
 
             if (_detailedLogging)
                 TC_LOG_DEBUG("bot.playerbot", "Combat situation changed from {} to {} for bot {}",
-                    static_cast<uint32>(_previousSituation), static_cast<uint32>(_currentSituation), _bot->GetName());
+                                                            static_cast<uint32>(_previousSituation), static_cast<uint32>(_currentSituation), _bot->GetName());
         }
         else
         {
@@ -103,18 +104,18 @@ void CombatStateAnalyzer::Update(uint32 diff)
     }
 
     // Track performance
-    _lastUpdateTime = getMSTime() - startTime;
+    _lastUpdateTime = GameTime::GetGameTimeMS() - startTime;
     _totalUpdateTime += _lastUpdateTime;
     _updateCount++;
 
     // Prune old data periodically
     if (_updateCount % 100 == 0)
-        PruneOldData();
+                PruneOldData();
 }
 
 void CombatStateAnalyzer::UpdateMetrics(uint32 diff)
 {
-    if (!_bot || !_bot->IsInCombat())
+        if (!_bot || !_bot->IsInCombat())
     {
         _currentMetrics.Reset();
         return;
@@ -135,8 +136,7 @@ void CombatStateAnalyzer::UpdateMetrics(uint32 diff)
     _currentMetrics.isStunned = _bot->HasUnitState(UNIT_STATE_STUNNED);
     _currentMetrics.isSilenced = _bot->IsSilenced(SPELL_SCHOOL_MASK_MAGIC);
     _currentMetrics.isRooted = _bot->HasUnitState(UNIT_STATE_ROOT);
-
-    // Update group metrics
+        // Update group metrics
     UpdateGroupMetrics();
 
     // Update enemy metrics
@@ -149,7 +149,7 @@ void CombatStateAnalyzer::UpdateMetrics(uint32 diff)
     UpdateThreatData();
 
     // Calculate DPS metrics (simplified for now)
-    if (_history[0].timestamp > 0 && getMSTime() - _history[0].timestamp >= 1000)
+    if (_history[0].timestamp > 0 && GameTime::GetGameTimeMS() - _history[0].timestamp >= 1000)
     {
         // This would need actual damage tracking in production
         _currentMetrics.personalDPS = 0.0f; // Placeholder
@@ -161,10 +161,10 @@ void CombatStateAnalyzer::UpdateMetrics(uint32 diff)
 void CombatStateAnalyzer::UpdateGroupMetrics()
 {
     Group* group = _bot->GetGroup();
-    if (!group)
+        if (!group)
     {
         _currentMetrics.averageGroupHealth = _currentMetrics.personalHealthPercent;
-        _currentMetrics.lowestGroupHealth = _currentMetrics.personalHealthPercent;
+                _currentMetrics.lowestGroupHealth = _currentMetrics.personalHealthPercent;
         _currentMetrics.tankAlive = true;
         _currentMetrics.healerAlive = true;
         return;
@@ -173,23 +173,23 @@ void CombatStateAnalyzer::UpdateGroupMetrics()
     float totalHealth = 0.0f;
     float lowestHealth = 100.0f;
     uint32 memberCount = 0;
-    bool hasTank = false;
+        bool hasTank = false;
     bool hasHealer = false;
 
     for (GroupReference const& groupRef : group->GetMembers())
     {
         Player* member = groupRef.GetSource();
-        if (!member || !member->IsAlive())
+                if (!member || !member->IsAlive())
             continue;
 
         float healthPct = member->GetHealthPct();
         totalHealth += healthPct;
-        lowestHealth = std::min(lowestHealth, healthPct);
+        lowestHealth = ::std::min(lowestHealth, healthPct);
         memberCount++;
 
         // Simple role detection based on class
         Classes memberClass = static_cast<Classes>(member->GetClass());
-        switch (memberClass)
+                switch (memberClass)
         {
             case CLASS_WARRIOR:
             case CLASS_DEATH_KNIGHT:
@@ -213,7 +213,7 @@ void CombatStateAnalyzer::UpdateGroupMetrics()
     {
         _currentMetrics.averageGroupHealth = totalHealth / memberCount;
         _currentMetrics.lowestGroupHealth = lowestHealth;
-    }
+        }
 
     _currentMetrics.tankAlive = hasTank;
     _currentMetrics.healerAlive = hasHealer;
@@ -232,34 +232,33 @@ void CombatStateAnalyzer::UpdateEnemyMetrics()
     _currentMetrics.hasRangedEnemies = false;
 
     // Clear enemy cache if too old
-    if (getMSTime() - _enemyCacheTime > 500)
+    if (GameTime::GetGameTimeMS() - _enemyCacheTime > 500)
     {
         _enemyCache.clear();
-        _enemyCacheTime = getMSTime();
-
-        // Lock-free spatial grid query
+        _enemyCacheTime = GameTime::GetGameTimeMS();
+                            // Lock-free spatial grid query
         Map* map = _bot->GetMap();
-        if (map)
-        {
+                                    if (map)
+                {
             DoubleBufferedSpatialGrid* spatialGrid = sSpatialGridManager.GetGrid(map);
-            if (!spatialGrid)
+                        if (!spatialGrid)
             {
                 // Create grid on demand
                 sSpatialGridManager.CreateGrid(map);
                 spatialGrid = sSpatialGridManager.GetGrid(map);
-            }
+                        }
 
             if (spatialGrid)
             {
                 // Query nearby creature GUIDs (lock-free!)
-                std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
+                ::std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
                     _bot->GetPosition(), 50.0f);
 
                 // Resolve GUIDs to Unit pointers and apply filtering logic
-                for (ObjectGuid guid : nearbyGuids)
+    for (ObjectGuid guid : nearbyGuids)
                 {
                     /* MIGRATION TODO: Convert to BotActionQueue or spatial grid */ Unit* enemy = ObjectAccessor::GetUnit(*_bot, guid);
-                    if (!enemy || !enemy->IsAlive() || !enemy->IsInCombatWith(_bot))
+                                                            if (!enemy || !enemy->IsAlive() || !enemy->IsInCombatWith(_bot))
                         continue;
 
                     if (!_bot->IsHostileTo(enemy))
@@ -268,21 +267,21 @@ void CombatStateAnalyzer::UpdateEnemyMetrics()
                     _enemyCache.push_back(enemy);
                     _currentMetrics.enemyCount++;
 
-                    float distance = std::sqrt(_bot->GetExactDistSq(enemy)); // Calculate once from squared distance
-                    _currentMetrics.nearestEnemyDistance = std::min(_currentMetrics.nearestEnemyDistance, distance);
-                    _currentMetrics.furthestEnemyDistance = std::max(_currentMetrics.furthestEnemyDistance, distance);
+                    float distance = ::std::sqrt(_bot->GetExactDistSq(enemy)); // Calculate once from squared distance
+                    _currentMetrics.nearestEnemyDistance = ::std::min(_currentMetrics.nearestEnemyDistance, distance);
+                    _currentMetrics.furthestEnemyDistance = ::std::max(_currentMetrics.furthestEnemyDistance, distance);
 
                     if (enemy->GetTypeId() == TYPEID_UNIT)
-                    {
+                                        {
                         Creature* creature = enemy->ToCreature();
-                        if (creature->IsElite())
+                                                                                                                        if (creature->IsElite())
                             _currentMetrics.eliteCount++;
                         if (creature->IsDungeonBoss())
                             _currentMetrics.bossCount++;
                     }
 
                     // Check if enemy is ranged (simplified check)
-                    if (distance > 10.0f && enemy->IsInCombatWith(_bot))
+    if (distance > 10.0f && enemy->IsInCombatWith(_bot))
                         _currentMetrics.hasRangedEnemies = true;
                 }
             }
@@ -293,13 +292,13 @@ void CombatStateAnalyzer::UpdateEnemyMetrics()
         // Use cached data
         _currentMetrics.enemyCount = _enemyCache.size();
         for (Unit* enemy : _enemyCache)
-        {
+                    {
             if (!enemy || !enemy->IsAlive())
                 continue;
 
-            float distance = std::sqrt(_bot->GetExactDistSq(enemy)); // Calculate once from squared distance
-            _currentMetrics.nearestEnemyDistance = std::min(_currentMetrics.nearestEnemyDistance, distance);
-            _currentMetrics.furthestEnemyDistance = std::max(_currentMetrics.furthestEnemyDistance, distance);
+            float distance = ::std::sqrt(_bot->GetExactDistSq(enemy)); // Calculate once from squared distance
+            _currentMetrics.nearestEnemyDistance = ::std::min(_currentMetrics.nearestEnemyDistance, distance);
+            _currentMetrics.furthestEnemyDistance = ::std::max(_currentMetrics.furthestEnemyDistance, distance);
         }
     }
 
@@ -313,12 +312,12 @@ void CombatStateAnalyzer::UpdatePositioningMetrics()
     Player* healer = GetMainHealer();
 
     if (tank && tank != _bot)
-        _currentMetrics.distanceToTank = std::sqrt(_bot->GetExactDistSq(tank)); // Calculate once from squared distance
+        _currentMetrics.distanceToTank = ::std::sqrt(_bot->GetExactDistSq(tank)); // Calculate once from squared distance
     else
         _currentMetrics.distanceToTank = 0.0f;
 
     if (healer && healer != _bot)
-        _currentMetrics.distanceToHealer = std::sqrt(_bot->GetExactDistSq(healer)); // Calculate once from squared distance
+        _currentMetrics.distanceToHealer = ::std::sqrt(_bot->GetExactDistSq(healer)); // Calculate once from squared distance
     else
         _currentMetrics.distanceToHealer = 0.0f;
 
@@ -332,12 +331,12 @@ void CombatStateAnalyzer::UpdateThreatData()
 
     // Check threat on all enemies
     for (Unit* enemy : _enemyCache)
-    {
+            {
         if (!enemy || !enemy->IsAlive())
             continue;
 
         if (enemy->GetTarget() == _bot->GetGUID())
-        {
+                {
             _currentMetrics.hasAggro = true;
             break;
         }
@@ -349,7 +348,7 @@ void CombatStateAnalyzer::UpdateBossTimers(uint32 diff)
     // Update known mechanic cooldowns
     for (BossMechanic& mechanic : _knownMechanics)
     {
-        if (mechanic.lastSeen > 0 && getMSTime() - mechanic.lastSeen < mechanic.cooldown)
+        if (mechanic.lastSeen > 0 && GameTime::GetGameTimeMS() - mechanic.lastSeen < mechanic.cooldown)
         {
             // Mechanic is on cooldown
             continue;
@@ -359,9 +358,9 @@ void CombatStateAnalyzer::UpdateBossTimers(uint32 diff)
     // Simple enrage timer estimation (would need actual boss data)
     if (_currentMetrics.bossCount > 0 && _currentMetrics.combatDuration > 0)
     {
-        // Assume 10 minute enrage timer for bosses
+                // Assume 10 minute enrage timer for bosses
         uint32 typicalEnrageTime = 10 * 60 * 1000; // 10 minutes in ms
-        if (_currentMetrics.combatDuration < typicalEnrageTime)
+    if (_currentMetrics.combatDuration < typicalEnrageTime)
             _currentMetrics.enrageTimer = typicalEnrageTime - _currentMetrics.combatDuration;
         else
             _currentMetrics.enrageTimer = 0;
@@ -378,10 +377,10 @@ void CombatStateAnalyzer::AnalyzeCombatTrends()
 {
     // Analyze health trend over last 5 seconds
     if (_historyIndex < 5)
-        return; // Not enough data
+                return; // Not enough data
 
-    float healthTrend = 0.0f;
-    float dpsTrend = 0.0f;
+        float healthTrend = 0.0f;
+        float dpsTrend = 0.0f;
 
     for (uint32 i = 0; i < 5; ++i)
     {
@@ -440,7 +439,7 @@ bool CombatStateAnalyzer::CheckForAOESituation() const
     for (Unit* enemy : _enemyCache)
     {
         if (enemy && enemy->IsAlive() && _bot->GetExactDistSq(enemy) <= (8.0f * 8.0f)) // 64.0f
-            meleeCount++;
+                    meleeCount++;
     }
 
     return meleeCount >= 3;
@@ -454,7 +453,7 @@ bool CombatStateAnalyzer::CheckForBurstNeed() const
 
     // Need burst if boss is below 30% (execute phase)
     for (Unit* enemy : _enemyCache)
-    {
+            {
         if (!enemy || !enemy->IsAlive())
             continue;
 
@@ -514,7 +513,7 @@ bool CombatStateAnalyzer::CheckForKiteNeed() const
 {
     // Kite if we have aggro and shouldn't tank
     Classes botClass = static_cast<Classes>(_bot->GetClass());
-    bool canTank = (botClass == CLASS_WARRIOR || botClass == CLASS_PALADIN ||
+        bool canTank = (botClass == CLASS_WARRIOR || botClass == CLASS_PALADIN ||
                     botClass == CLASS_DEATH_KNIGHT || botClass == CLASS_DRUID);
 
     if (!canTank && _currentMetrics.hasAggro && _currentMetrics.enemyCount > 0)
@@ -553,7 +552,7 @@ bool CombatStateAnalyzer::CheckForWipe() const
             if (enemy && enemy->GetTypeId() == TYPEID_UNIT)
             {
                 Creature* creature = enemy->ToCreature();
-                if (creature->IsDungeonBoss() && creature->GetHealthPct() > 50.0f)
+                if (creature && creature->IsDungeonBoss() && creature->GetHealthPct() > 50.0f)
                     return true;
             }
         }
@@ -596,7 +595,7 @@ bool CombatStateAnalyzer::ShouldUseConsumables() const
 {
     // Use consumables in critical situations or boss fights
     return IsWipeImminent() || NeedsBurst() ||
-           (_currentMetrics.bossCount > 0 && _currentMetrics.averageGroupHealth < 50.0f);
+                      (_currentMetrics.bossCount > 0 && _currentMetrics.averageGroupHealth < 50.0f);
 }
 
 bool CombatStateAnalyzer::NeedsToSpread() const
@@ -624,14 +623,12 @@ float CombatStateAnalyzer::GetSafeDistance() const
 {
     if (NeedsToSpread())
         return 10.0f; // Spread distance
-
     if (NeedsToStack())
         return 3.0f; // Stack distance
-
     if (NeedsToKite())
         return 20.0f; // Kite distance
 
-    return 5.0f; // Default safe distance
+        return 5.0f; // Default safe distance
 }
 
 Position CombatStateAnalyzer::GetSafePosition() const
@@ -643,8 +640,8 @@ Position CombatStateAnalyzer::GetSafePosition() const
     if (NeedsToSpread())
     {
         // Move away from group center
-        if (Group* group = _bot->GetGroup())
-        {
+    if (Group* group = _bot->GetGroup())
+                {
             float centerX = 0, centerY = 0, centerZ = 0;
             uint32 count = 0;
 
@@ -653,12 +650,12 @@ Position CombatStateAnalyzer::GetSafePosition() const
                 if (Player* member = groupRef.GetSource())
                 {
                     if (member != _bot && member->IsAlive())
-                    {
+                                        {
                         Position memberPos = member->GetPosition();
-                        centerX += memberPos.GetPositionX();
+                                                centerX += memberPos.GetPositionX();
                         centerY += memberPos.GetPositionY();
                         centerZ += memberPos.GetPositionZ();
-                        count++;
+                                        count++;
                     }
                 }
             }
@@ -672,24 +669,24 @@ Position CombatStateAnalyzer::GetSafePosition() const
                 // Move away from center
                 float angle = _bot->GetRelativeAngle(centerX, centerY);
                 float newX = _bot->GetPositionX() + cos(angle + M_PI) * 10.0f;
-                float newY = _bot->GetPositionY() + sin(angle + M_PI) * 10.0f;
-                pos.Relocate(newX, newY, _bot->GetPositionZ());
+                                float newY = _bot->GetPositionY() + sin(angle + M_PI) * 10.0f;
+                                                            pos.Relocate(newX, newY, _bot->GetPositionZ());
             }
         }
     }
     else if (NeedsToStack())
     {
         // Move to tank position
-        if (Player* tank = GetMainTank())
-        {
+    if (Player* tank = GetMainTank())
+                            {
             pos.Relocate(tank->GetPositionX(), tank->GetPositionY(), tank->GetPositionZ());
         }
-    }
+        }
 
     return pos;
 }
 
-float CombatStateAnalyzer::GetMetricTrend(std::function<float(const CombatMetrics&)> selector) const
+float CombatStateAnalyzer::GetMetricTrend(::std::function<float(const CombatMetrics&)> selector) const
 {
     if (_historyIndex < 2)
         return 0.0f;
@@ -700,13 +697,13 @@ float CombatStateAnalyzer::GetMetricTrend(std::function<float(const CombatMetric
     return recent - previous;
 }
 
-bool CombatStateAnalyzer::IsMetricDeclining(std::function<float(const CombatMetrics&)> selector, float threshold) const
+bool CombatStateAnalyzer::IsMetricDeclining(::std::function<float(const CombatMetrics&)> selector, float threshold) const
 {
     float trend = GetMetricTrend(selector);
     return trend < -threshold;
 }
 
-bool CombatStateAnalyzer::IsMetricImproving(std::function<float(const CombatMetrics&)> selector, float threshold) const
+bool CombatStateAnalyzer::IsMetricImproving(::std::function<float(const CombatMetrics&)> selector, float threshold) const
 {
     float trend = GetMetricTrend(selector);
     return trend > threshold;
@@ -721,7 +718,7 @@ uint32 CombatStateAnalyzer::GetPriorityTargetCount() const
             continue;
 
         // Priority targets are elites, bosses, or low health enemies
-        if (enemy->GetTypeId() == TYPEID_UNIT)
+    if (enemy->GetTypeId() == TYPEID_UNIT)
         {
             Creature* creature = enemy->ToCreature();
             if (creature->IsElite() || creature->IsDungeonBoss() || creature->GetHealthPct() < 30.0f)
@@ -731,14 +728,14 @@ uint32 CombatStateAnalyzer::GetPriorityTargetCount() const
     return count;
 }
 
-std::vector<Unit*> CombatStateAnalyzer::GetNearbyEnemies(float range) const
+::std::vector<Unit*> CombatStateAnalyzer::GetNearbyEnemies(float range) const
 {
-    std::vector<Unit*> result;
+    ::std::vector<Unit*> result;
     float rangeSq = range * range;
     for (Unit* enemy : _enemyCache)
     {
         if (enemy && enemy->IsAlive() && _bot->GetExactDistSq(enemy) <= rangeSq)
-            result.push_back(enemy);
+                    result.push_back(enemy);
     }
     return result;
 }
@@ -749,33 +746,33 @@ Unit* CombatStateAnalyzer::GetMostDangerousEnemy() const
     float highestDanger = 0.0f;
 
     for (Unit* enemy : _enemyCache)
-    {
+            {
         if (!enemy || !enemy->IsAlive())
             continue;
 
         float danger = 1.0f;
 
         // Bosses are most dangerous
-        if (enemy->GetTypeId() == TYPEID_UNIT)
-        {
+    if (enemy->GetTypeId() == TYPEID_UNIT)
+                {
             Creature* creature = enemy->ToCreature();
-            if (creature->IsDungeonBoss())
+                                                                                    if (creature->IsDungeonBoss())
                 danger *= 10.0f;
             else if (creature->IsElite())
                 danger *= 5.0f;
         }
 
         // Enemies targeting us are dangerous
-        if (enemy->GetTarget() == _bot->GetGUID())
-            danger *= 3.0f;
+    if (enemy->GetTarget() == _bot->GetGUID())
+                            danger *= 3.0f;
 
         // Close enemies are dangerous
-        float distance = std::sqrt(_bot->GetExactDistSq(enemy)); // Calculate once from squared distance
-        if (distance < 5.0f)
+        float distance = ::std::sqrt(_bot->GetExactDistSq(enemy)); // Calculate once from squared distance
+    if (distance < 5.0f)
             danger *= 2.0f;
 
         // Low health enemies are priority targets
-        if (enemy->GetHealthPct() < 30.0f)
+    if (enemy->GetHealthPct() < 30.0f)
             danger *= 1.5f;
 
         if (danger > highestDanger)
@@ -795,7 +792,7 @@ bool CombatStateAnalyzer::HasCleaveTargets() const
     for (Unit* enemy : _enemyCache)
     {
         if (enemy && enemy->IsAlive() && _bot->GetExactDistSq(enemy) <= (8.0f * 8.0f)) // 64.0f
-            cleaveCount++;
+                    cleaveCount++;
     }
     return cleaveCount >= 2;
 }
@@ -813,11 +810,11 @@ Player* CombatStateAnalyzer::GetLowestHealthAlly() const
     float lowestHealth = _bot->GetHealthPct();
 
     if (Group* group = _bot->GetGroup())
-    {
+        {
         for (GroupReference const& groupRef : group->GetMembers())
         {
             Player* member = groupRef.GetSource();
-            if (!member || !member->IsAlive())
+                        if (!member || !member->IsAlive())
                 continue;
 
             float health = member->GetHealthPct();
@@ -835,22 +832,22 @@ Player* CombatStateAnalyzer::GetLowestHealthAlly() const
 Player* CombatStateAnalyzer::GetMainTank() const
 {
     // Cache for performance
-    if (_mainTankCache && getMSTime() - _roleCacheTime < 1000)
+    if (_mainTankCache && GameTime::GetGameTimeMS() - _roleCacheTime < 1000)
         return _mainTankCache;
 
     _mainTankCache = nullptr;
-    _roleCacheTime = getMSTime();
+    _roleCacheTime = GameTime::GetGameTimeMS();
 
     if (Group* group = _bot->GetGroup())
-    {
+        {
         for (GroupReference const& groupRef : group->GetMembers())
         {
             Player* member = groupRef.GetSource();
-            if (!member || !member->IsAlive())
+                        if (!member || !member->IsAlive())
                 continue;
 
             Classes memberClass = static_cast<Classes>(member->GetClass());
-            if (memberClass == CLASS_WARRIOR || memberClass == CLASS_PALADIN ||
+                        if (memberClass == CLASS_WARRIOR || memberClass == CLASS_PALADIN ||
                 memberClass == CLASS_DEATH_KNIGHT)
             {
                 // Simple tank detection - would need role assignment in production
@@ -866,7 +863,7 @@ Player* CombatStateAnalyzer::GetMainTank() const
 Player* CombatStateAnalyzer::GetMainHealer() const
 {
     // Cache for performance
-    if (_mainHealerCache && getMSTime() - _roleCacheTime < 1000)
+    if (_mainHealerCache && GameTime::GetGameTimeMS() - _roleCacheTime < 1000)
         return _mainHealerCache;
 
     _mainHealerCache = nullptr;
@@ -880,12 +877,12 @@ Player* CombatStateAnalyzer::GetMainHealer() const
                 continue;
 
             Classes memberClass = static_cast<Classes>(member->GetClass());
-            if (memberClass == CLASS_PRIEST || memberClass == CLASS_DRUID ||
+                        if (memberClass == CLASS_PRIEST || memberClass == CLASS_DRUID ||
                 memberClass == CLASS_SHAMAN || memberClass == CLASS_PALADIN)
             {
                 // Simple healer detection - would need role assignment in production
                 _mainHealerCache = member;
-                break;
+                                break;
             }
         }
     }
@@ -901,14 +898,14 @@ bool CombatStateAnalyzer::IsGroupHealthCritical() const
 bool CombatStateAnalyzer::IsGroupManaLow() const
 {
     if (Group* group = _bot->GetGroup())
-    {
+        {
         uint32 lowManaCount = 0;
         uint32 manaUsers = 0;
 
         for (GroupReference const& groupRef : group->GetMembers())
         {
             Player* member = groupRef.GetSource();
-            if (!member || !member->IsAlive())
+                        if (!member || !member->IsAlive())
                 continue;
 
             if (member->GetMaxPower(POWER_MANA) > 0)
@@ -916,11 +913,11 @@ bool CombatStateAnalyzer::IsGroupManaLow() const
                 manaUsers++;
                 if (member->GetPowerPct(POWER_MANA) < 30.0f)
                     lowManaCount++;
-            }
+                        }
         }
 
-        return manaUsers > 0 && lowManaCount >= manaUsers / 2;
-    }
+                return manaUsers > 0 && lowManaCount >= manaUsers / 2;
+        }
 
     return _currentMetrics.manaPercent < 30.0f;
 }
@@ -938,7 +935,7 @@ float CombatStateAnalyzer::GetGroupSurvivabilityScore() const
     if (!_currentMetrics.healerAlive)
         score *= 0.6f;
 
-    // Enemy danger factor
+        // Enemy danger factor
     if (_currentMetrics.bossCount > 0)
         score *= 0.8f;
     if (_currentMetrics.eliteCount > 2)
@@ -948,24 +945,24 @@ float CombatStateAnalyzer::GetGroupSurvivabilityScore() const
     if (!_currentMetrics.isPositioningSafe)
         score *= 0.9f;
 
-    return std::max(0.0f, score);
+        return ::std::max(0.0f, score);
 }
 
-std::vector<ThreatData> CombatStateAnalyzer::GetThreatList() const
+::std::vector<ThreatData> CombatStateAnalyzer::GetThreatList() const
 {
-    std::vector<ThreatData> threatList;
+    ::std::vector<ThreatData> threatList;
 
     // Would need actual threat API access here
     // This is a simplified version
     for (Unit* enemy : _enemyCache)
-    {
+            {
         if (!enemy || !enemy->IsAlive())
             continue;
 
         ThreatData data;
         data.targetGuid = enemy->GetGUID();
-        data.isTanking = (enemy->GetTarget() == _bot->GetGUID());
-        data.threatValue = data.isTanking ? 100.0f : 0.0f;
+                data.isTanking = (enemy->GetTarget() == _bot->GetGUID());
+                data.threatValue = data.isTanking ? 100.0f : 0.0f;
         data.position = data.isTanking ? 1 : 2;
 
         threatList.push_back(data);
@@ -984,10 +981,10 @@ bool CombatStateAnalyzer::ShouldDropThreat() const
 {
     // Drop threat if we're not a tank and have aggro on dangerous enemies
     Classes botClass = static_cast<Classes>(_bot->GetClass());
-    bool canTank = (botClass == CLASS_WARRIOR || botClass == CLASS_PALADIN ||
+        bool canTank = (botClass == CLASS_WARRIOR || botClass == CLASS_PALADIN ||
                     botClass == CLASS_DEATH_KNIGHT || botClass == CLASS_DRUID);
 
-    return !canTank && _currentMetrics.hasAggro &&
+return !canTank && _currentMetrics.hasAggro &&
            (_currentMetrics.eliteCount > 0 || _currentMetrics.bossCount > 0);
 }
 
@@ -998,7 +995,7 @@ float CombatStateAnalyzer::GetThreatPercentage(Unit* target) const
 
     // Would need actual threat API
     return target->GetTarget() == _bot->GetGUID() ? 100.0f : 50.0f;
-}
+    }
 
 void CombatStateAnalyzer::RegisterBossMechanic(const BossMechanic& mechanic)
 {
@@ -1012,10 +1009,10 @@ bool CombatStateAnalyzer::IsBossMechanicIncoming(uint32& spellId, uint32& timeUn
         if (mechanic.lastSeen > 0)
         {
             uint32 nextCast = mechanic.lastSeen + mechanic.cooldown;
-            if (getMSTime() < nextCast)
+            if (GameTime::GetGameTimeMS() < nextCast)
             {
                 spellId = mechanic.spellId;
-                timeUntil = nextCast - getMSTime();
+                timeUntil = nextCast - GameTime::GetGameTimeMS();
                 return timeUntil < 3000; // Mechanic incoming in next 3 seconds
             }
         }
@@ -1039,11 +1036,11 @@ bool CombatStateAnalyzer::ShouldInterruptCast(Unit* caster, uint32 spellId) cons
     if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE))
     {
         // Interrupt heals on enemies
-        if (spellInfo->HasEffect(SPELL_EFFECT_HEAL))
+    if (spellInfo->HasEffect(SPELL_EFFECT_HEAL))
             return true;
 
         // Interrupt crowd control
-        if (spellInfo->HasAura(SPELL_AURA_MOD_STUN) ||
+    if (spellInfo->HasAura(SPELL_AURA_MOD_STUN) ||
             spellInfo->HasAura(SPELL_AURA_MOD_FEAR))
             return true;
     }
@@ -1072,7 +1069,7 @@ CombatMetrics CombatStateAnalyzer::GetAverageMetrics(uint32 periodMs) const
 {
     CombatMetrics average;
     uint32 count = 0;
-    uint32 now = getMSTime();
+    uint32 now = GameTime::GetGameTimeMS();
 
     for (const MetricsSnapshot& snapshot : _history)
     {
@@ -1129,14 +1126,14 @@ bool CombatStateAnalyzer::IsBeingKited() const
         return false;
 
     for (Unit* enemy : _enemyCache)
-    {
+            {
         if (!enemy || !enemy->IsAlive())
             continue;
 
         if (enemy->GetTarget() == _bot->GetGUID())
-        {
-            float distance = std::sqrt(_bot->GetExactDistSq(enemy)); // Calculate once from squared distance
-            if (distance > 15.0f && distance < 40.0f)
+                {
+            float distance = ::std::sqrt(_bot->GetExactDistSq(enemy)); // Calculate once from squared distance
+    if (distance > 15.0f && distance < 40.0f)
                 return true;
         }
     }
@@ -1151,7 +1148,7 @@ bool CombatStateAnalyzer::IsBeingFocused() const
     for (Unit* enemy : _enemyCache)
     {
         if (enemy && enemy->IsAlive() && enemy->GetTarget() == _bot->GetGUID())
-            targetingUs++;
+                    targetingUs++;
     }
 
     return targetingUs >= 2;
@@ -1179,7 +1176,7 @@ bool CombatStateAnalyzer::HasDebuffRequiringDispel() const
             continue;
 
         // Check if it's a debuff that can be dispelled
-        if (!spellInfo->IsPositive() && spellInfo->Dispel != DISPEL_NONE)
+    if (!spellInfo->IsPositive() && spellInfo->Dispel != DISPEL_NONE)
             return true;
     }
 
@@ -1192,16 +1189,16 @@ bool CombatStateAnalyzer::IsPhaseTransition() const
     for (Unit* enemy : _enemyCache)
     {
         if (!enemy || enemy->GetTypeId() != TYPEID_UNIT)
-            continue;
+                    continue;
 
         Creature* creature = enemy->ToCreature();
-        if (creature->IsDungeonBoss())
+                        if (creature->IsDungeonBoss())
         {
             // Common phase transition health percentages
             float health = creature->GetHealthPct();
-            if (std::abs(health - 75.0f) < 2.0f ||
-                std::abs(health - 50.0f) < 2.0f ||
-                std::abs(health - 25.0f) < 2.0f)
+            if (::std::abs(health - 75.0f) < 2.0f ||
+                ::std::abs(health - 50.0f) < 2.0f ||
+                ::std::abs(health - 25.0f) < 2.0f)
             {
                 return true;
             }
@@ -1214,12 +1211,12 @@ bool CombatStateAnalyzer::IsPhaseTransition() const
 float CombatStateAnalyzer::CalculateGroupSpread() const
 {
     if (Group* group = _bot->GetGroup())
-    {
-        std::vector<Position> positions;
+        {
+        ::std::vector<Position> positions;
         for (GroupReference const& groupRef : group->GetMembers())
         {
             if (Player* member = groupRef.GetSource())
-            {
+                                                    {
                 if (member->IsAlive())
                 {
                     Position memberPos;
@@ -1283,7 +1280,7 @@ bool CombatStateAnalyzer::IsUnitDangerous(Unit* unit) const
     if (unit->GetTypeId() == TYPEID_UNIT)
     {
         Creature* creature = unit->ToCreature();
-        if (creature->IsDungeonBoss())
+                        if (creature->IsDungeonBoss())
             return true;
         if (creature->IsElite())
             return true;
@@ -1291,7 +1288,7 @@ bool CombatStateAnalyzer::IsUnitDangerous(Unit* unit) const
 
     // Unit is dangerous if it can kill us quickly
     if (unit->GetTarget() == _bot->GetGUID())
-        return true;
+            return true;
 
     return false;
 }
@@ -1300,7 +1297,7 @@ void CombatStateAnalyzer::RecordSnapshot()
 {
     MetricsSnapshot snapshot;
     snapshot.metrics = _currentMetrics;
-    snapshot.timestamp = getMSTime();
+    snapshot.timestamp = GameTime::GetGameTimeMS();
     snapshot.situation = _currentSituation;
 
     _history[_historyIndex % 10] = snapshot;
@@ -1310,9 +1307,9 @@ void CombatStateAnalyzer::RecordSnapshot()
 void CombatStateAnalyzer::PruneOldData()
 {
     // Clean up old mechanic casts
-    uint32 now = getMSTime();
+    uint32 now = GameTime::GetGameTimeMS();
     _recentMechanicCasts.erase(
-        std::remove_if(_recentMechanicCasts.begin(), _recentMechanicCasts.end(),
+        ::std::remove_if(_recentMechanicCasts.begin(), _recentMechanicCasts.end(),
             [now](uint32 castTime) { return now - castTime > 30000; }),
         _recentMechanicCasts.end()
     );

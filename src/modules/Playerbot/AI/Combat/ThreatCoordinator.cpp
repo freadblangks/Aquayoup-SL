@@ -31,19 +31,19 @@ namespace Playerbot
 ThreatCoordinator::ThreatCoordinator(Group* group)
     : _group(group)
 {
-    _lastUpdate = std::chrono::steady_clock::now();
-    _lastEmergencyCheck = std::chrono::steady_clock::now();
+    _lastUpdate = ::std::chrono::steady_clock::now();
+    _lastEmergencyCheck = ::std::chrono::steady_clock::now();
 
     TC_LOG_DEBUG("playerbots", "ThreatCoordinator: Initialized for group");
 }
 
 void ThreatCoordinator::Update(uint32 diff)
 {
-    auto startTime = std::chrono::high_resolution_clock::now();
+    auto startTime = ::std::chrono::high_resolution_clock::now();
 
     // Check if it's time for standard update
-    auto now = std::chrono::steady_clock::now();
-    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - _lastUpdate).count();
+    auto now = ::std::chrono::steady_clock::now();
+    auto elapsedMs = ::std::chrono::duration_cast<::std::chrono::milliseconds>(now - _lastUpdate).count();
 
     if (elapsedMs >= _updateInterval)
     {
@@ -59,7 +59,7 @@ void ThreatCoordinator::Update(uint32 diff)
     }
 
     // Emergency checks run more frequently
-    auto emergencyElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - _lastEmergencyCheck).count();
+    auto emergencyElapsed = ::std::chrono::duration_cast<::std::chrono::milliseconds>(now - _lastEmergencyCheck).count();
     if (_emergencyResponseEnabled && emergencyElapsed >= _emergencyCheckInterval)
     {
         _lastEmergencyCheck = now;
@@ -72,8 +72,8 @@ void ThreatCoordinator::Update(uint32 diff)
     // Cleanup
     CleanupExpiredResponses();
 
-    auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+    auto endTime = ::std::chrono::high_resolution_clock::now();
+    auto duration = ::std::chrono::duration_cast<::std::chrono::microseconds>(endTime - startTime);
     TrackPerformance(duration, "Update");
 }
 
@@ -82,12 +82,11 @@ void ThreatCoordinator::RegisterBot(Player* bot, BotAI* ai)
     if (!bot || !ai)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
 
     ObjectGuid botGuid = bot->GetGUID();
-
     // Create threat manager for the bot
-    _botThreatManagers[botGuid] = std::make_unique<BotThreatManager>(bot);
+    _botThreatManagers[botGuid] = ::std::make_unique<BotThreatManager>(bot);
 
     // Store AI reference
     _botAIs[botGuid] = ai;
@@ -97,7 +96,6 @@ void ThreatCoordinator::RegisterBot(Player* bot, BotAI* ai)
     assignment.botGuid = botGuid;
     assignment.assignedRole = DetermineRole(bot);
     assignment.targetThreatPercent = CalculateOptimalThreatPercent(botGuid, assignment.assignedRole);
-
     // Load available threat abilities for this bot
     auto& db = ThreatAbilitiesDB::Instance();
     auto abilities = db.GetClassAbilities(static_cast<Classes>(bot->GetClass()));
@@ -110,7 +108,6 @@ void ThreatCoordinator::RegisterBot(Player* bot, BotAI* ai)
     }
 
     _botAssignments[botGuid] = assignment;
-
     // Auto-assign tanks
     if (assignment.assignedRole == ThreatRole::TANK)
     {
@@ -134,7 +131,7 @@ void ThreatCoordinator::RegisterBot(Player* bot, BotAI* ai)
 
 void ThreatCoordinator::UnregisterBot(ObjectGuid botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
 
     _botThreatManagers.erase(botGuid);
     _botAssignments.erase(botGuid);
@@ -166,7 +163,7 @@ void ThreatCoordinator::UnregisterBot(ObjectGuid botGuid)
     }
     else
     {
-        auto it = std::find(_backupTanks.begin(), _backupTanks.end(), botGuid);
+        auto it = ::std::find(_backupTanks.begin(), _backupTanks.end(), botGuid);
         if (it != _backupTanks.end())
             _backupTanks.erase(it);
     }
@@ -176,7 +173,7 @@ void ThreatCoordinator::UnregisterBot(ObjectGuid botGuid)
 
 void ThreatCoordinator::UpdateBotRole(ObjectGuid botGuid, ThreatRole role)
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
 
     auto it = _botAssignments.find(botGuid);
     if (it != _botAssignments.end())
@@ -191,7 +188,7 @@ void ThreatCoordinator::UpdateBotRole(ObjectGuid botGuid, ThreatRole role)
 
 bool ThreatCoordinator::AssignPrimaryTank(ObjectGuid botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
 
     auto it = _botAssignments.find(botGuid);
     if (it == _botAssignments.end())
@@ -208,7 +205,7 @@ bool ThreatCoordinator::AssignPrimaryTank(ObjectGuid botGuid)
 
 bool ThreatCoordinator::AssignOffTank(ObjectGuid botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
 
     auto it = _botAssignments.find(botGuid);
     if (it == _botAssignments.end())
@@ -225,7 +222,7 @@ bool ThreatCoordinator::AssignOffTank(ObjectGuid botGuid)
 
 void ThreatCoordinator::InitiateTankSwap(ObjectGuid fromTank, ObjectGuid toTank)
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
 
     // Queue taunt from new tank
     for (const auto& targetGuid : _groupStatus.activeTargets)
@@ -239,7 +236,7 @@ void ThreatCoordinator::InitiateTankSwap(ObjectGuid fromTank, ObjectGuid toTank)
         action.targetUnit = targetGuid;
         action.abilitySpellId = GetTauntSpellForBot(toTank);
         action.abilityType = ThreatAbilityType::TAUNT;
-        action.executeTime = std::chrono::steady_clock::now();
+        action.executeTime = ::std::chrono::steady_clock::now();
         action.priority = 1; // Highest priority
 
         _queuedResponses.push_back(action);
@@ -249,7 +246,7 @@ void ThreatCoordinator::InitiateTankSwap(ObjectGuid fromTank, ObjectGuid toTank)
     ThreatResponseAction reduction;
     reduction.executorBot = fromTank;
     reduction.abilityType = ThreatAbilityType::THREAT_REDUCTION;
-    reduction.executeTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+    reduction.executeTime = ::std::chrono::steady_clock::now() + ::std::chrono::milliseconds(500);
     reduction.priority = 2;
 
     _queuedResponses.push_back(reduction);
@@ -302,17 +299,12 @@ bool ThreatCoordinator::ExecuteTaunt(ObjectGuid tankGuid, Unit* target)
         options.skipRangeCheck = false;
 
         options.logFailures = true;
-
-
         auto result = SpellPacketBuilder::BuildCastSpellPacket(
 
             dynamic_cast<Player*>(tank), tauntSpell, target, options);
-
-
         if (result.result == SpellPacketBuilder::ValidationResult::SUCCESS)
 
         {
-
             TC_LOG_DEBUG("playerbot.threat.taunt",
 
                          "Bot {} queued taunt spell {} (target: {})",
@@ -344,7 +336,6 @@ bool ThreatCoordinator::ExecuteThreatReduction(ObjectGuid botGuid, float reducti
     // Find appropriate threat reduction ability
     auto& db = ThreatAbilitiesDB::Instance();
     auto abilities = db.GetClassAbilities(static_cast<Classes>(bot->GetClass()));
-
     for (const auto& ability : abilities)
     {
         if (ability.type == ThreatAbilityType::THREAT_REDUCTION ||
@@ -372,8 +363,6 @@ bool ThreatCoordinator::ExecuteThreatReduction(ObjectGuid botGuid, float reducti
                 auto result = SpellPacketBuilder::BuildCastSpellPacket(
 
                     dynamic_cast<Player*>(bot), ability.spellId, bot, options);
-
-
                 if (result.result == SpellPacketBuilder::ValidationResult::SUCCESS)
 
                 {
@@ -411,7 +400,6 @@ bool ThreatCoordinator::ExecuteThreatTransfer(ObjectGuid fromBot, ObjectGuid toB
     // Check for threat transfer abilities (Misdirection, Tricks of the Trade)
     auto& db = ThreatAbilitiesDB::Instance();
     auto abilities = db.GetClassAbilities(static_cast<Classes>(from->GetClass()));
-
     for (const auto& ability : abilities)
     {
         if (ability.type == ThreatAbilityType::THREAT_TRANSFER)
@@ -438,8 +426,6 @@ bool ThreatCoordinator::ExecuteThreatTransfer(ObjectGuid fromBot, ObjectGuid toB
                 auto result = SpellPacketBuilder::BuildCastSpellPacket(
 
                     dynamic_cast<Player*>(from), ability.spellId, to, options);
-
-
                 if (result.result == SpellPacketBuilder::ValidationResult::SUCCESS)
 
                 {
@@ -467,7 +453,7 @@ void ThreatCoordinator::HandleEmergencyThreat(Unit* looseTarget)
     if (!looseTarget)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
 
     // Find available tank for emergency taunt
     ObjectGuid emergencyTank;
@@ -499,7 +485,7 @@ void ThreatCoordinator::HandleEmergencyThreat(Unit* looseTarget)
         action.targetUnit = looseTarget->GetGUID();
         action.abilitySpellId = GetTauntSpellForBot(emergencyTank);
         action.abilityType = ThreatAbilityType::TAUNT;
-        action.executeTime = std::chrono::steady_clock::now();
+        action.executeTime = ::std::chrono::steady_clock::now();
         action.priority = 0; // Maximum priority
 
         _queuedResponses.push_back(action);
@@ -516,7 +502,7 @@ void ThreatCoordinator::ProtectHealer(ObjectGuid healerGuid, Unit* attacker)
     if (!attacker)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
 
     // Priority 1: Tank taunt
     HandleEmergencyThreat(attacker);
@@ -528,7 +514,7 @@ void ThreatCoordinator::ProtectHealer(ObjectGuid healerGuid, Unit* attacker)
         ThreatResponseAction action;
         action.executorBot = healerGuid;
         action.abilityType = ThreatAbilityType::THREAT_REDUCTION;
-        action.executeTime = std::chrono::steady_clock::now();
+        action.executeTime = ::std::chrono::steady_clock::now();
         action.priority = 1;
 
         _queuedResponses.push_back(action);
@@ -540,19 +526,18 @@ void ThreatCoordinator::ProtectHealer(ObjectGuid healerGuid, Unit* attacker)
 
 GroupThreatStatus ThreatCoordinator::GetGroupThreatStatus() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
     return _groupStatus;
 }
-
 bool ThreatCoordinator::IsGroupThreatStable() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
     return _groupStatus.state == ThreatState::STABLE;
 }
 
 float ThreatCoordinator::GetGroupThreatStability() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinatorMutex);
+    ::std::lock_guard lock(_coordinatorMutex);
 
     if (_groupStatus.activeTargets.empty())
         return 1.0f;
@@ -574,10 +559,10 @@ void ThreatCoordinator::UpdateGroupThreatStatus()
     _groupStatus = GroupThreatStatus();
     _groupStatus.primaryTank = _primaryTank;
     _groupStatus.offTank = _offTank;
-    _groupStatus.lastUpdate = std::chrono::steady_clock::now();
+    _groupStatus.lastUpdate = ::std::chrono::steady_clock::now();
 
     // Collect all active combat targets
-    std::unordered_set<ObjectGuid> allTargets;
+    ::std::unordered_set<ObjectGuid> allTargets;
 
     for (const auto& [botGuid, threatMgr] : _botThreatManagers)
     {
@@ -619,7 +604,6 @@ void ThreatCoordinator::UpdateGroupThreatStatus()
 
         Player* victimPlayer = victim->ToPlayer();
         ObjectGuid victimGuid = victimPlayer->GetGUID();
-
         // Check if target is on appropriate tank
         bool onTank = (victimGuid == _primaryTank || victimGuid == _offTank);
         if (!onTank)
@@ -669,7 +653,7 @@ void ThreatCoordinator::UpdateBotAssignments()
             continue;
 
         // Update current threat levels
-        for (const auto& targetGuid : _groupStatus.activeTargets)
+    for (const auto& targetGuid : _groupStatus.activeTargets)
         {
             /* MIGRATION TODO: Convert to BotActionQueue or spatial grid */ Unit* target = ObjectAccessor::GetUnit(*ObjectAccessor::FindPlayer(botGuid), targetGuid);
             if (!target)
@@ -706,7 +690,7 @@ void ThreatCoordinator::GenerateThreatResponses()
             continue;
 
         // Tank: Generate taunt if needed
-        if (assignment.assignedRole == ThreatRole::TANK)
+    if (assignment.assignedRole == ThreatRole::TANK)
         {
             if (assignment.currentThreatPercent < 100.0f && _groupStatus.requiresTaunt)
             {
@@ -718,7 +702,7 @@ void ThreatCoordinator::GenerateThreatResponses()
                     action.targetUnit = assignment.targetGuid;
                     action.abilitySpellId = GetTauntSpellForBot(botGuid);
                     action.abilityType = ThreatAbilityType::TAUNT;
-                    action.executeTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+                    action.executeTime = ::std::chrono::steady_clock::now() + ::std::chrono::milliseconds(100);
                     action.priority = 2;
 
                     QueueThreatResponse(action);
@@ -731,7 +715,7 @@ void ThreatCoordinator::GenerateThreatResponses()
             ThreatResponseAction action;
             action.executorBot = botGuid;
             action.abilityType = ThreatAbilityType::THREAT_REDUCTION;
-            action.executeTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+            action.executeTime = ::std::chrono::steady_clock::now() + ::std::chrono::milliseconds(200);
             action.priority = 3;
 
             QueueThreatResponse(action);
@@ -744,7 +728,7 @@ void ThreatCoordinator::QueueThreatResponse(ThreatResponseAction const& action)
     if (_queuedResponses.size() >= MAX_RESPONSE_QUEUE_SIZE)
     {
         // Remove lowest priority action
-        auto it = std::max_element(_queuedResponses.begin(), _queuedResponses.end(),
+        auto it = ::std::max_element(_queuedResponses.begin(), _queuedResponses.end(),
             [](const ThreatResponseAction& a, const ThreatResponseAction& b) {
                 return a.priority < b.priority;
             });
@@ -755,7 +739,7 @@ void ThreatCoordinator::QueueThreatResponse(ThreatResponseAction const& action)
     _queuedResponses.push_back(action);
 
     // Sort by priority and execution time
-    std::sort(_queuedResponses.begin(), _queuedResponses.end(),
+    ::std::sort(_queuedResponses.begin(), _queuedResponses.end(),
         [](const ThreatResponseAction& a, const ThreatResponseAction& b) {
             if (a.priority != b.priority)
                 return a.priority < b.priority;
@@ -765,7 +749,7 @@ void ThreatCoordinator::QueueThreatResponse(ThreatResponseAction const& action)
 
 void ThreatCoordinator::ExecuteQueuedResponses()
 {
-    auto now = std::chrono::steady_clock::now();
+    auto now = ::std::chrono::steady_clock::now();
 
     for (auto& action : _queuedResponses)
     {
@@ -829,9 +813,8 @@ void ThreatCoordinator::InitiateEmergencyProtocol()
             continue;
 
         ObjectGuid victimGuid = victim->ToPlayer()->GetGUID();
-
         // If not on tank, execute emergency taunt
-        if (victimGuid != _primaryTank && victimGuid != _offTank)
+    if (victimGuid != _primaryTank && victimGuid != _offTank)
         {
             ExecuteEmergencyTaunt(target);
         }
@@ -897,7 +880,7 @@ void ThreatCoordinator::ExecuteMassTheatReduction()
 void ThreatCoordinator::CleanupExpiredResponses()
 {
     _queuedResponses.erase(
-        std::remove_if(_queuedResponses.begin(), _queuedResponses.end(),
+        ::std::remove_if(_queuedResponses.begin(), _queuedResponses.end(),
             [](const ThreatResponseAction& action) {
                 return action.executed;
             }),
@@ -941,12 +924,12 @@ bool ThreatCoordinator::ShouldUseThreatAbility(BotThreatAssignment const& assign
     return false;
 }
 
-void ThreatCoordinator::TrackPerformance(std::chrono::microseconds duration, std::string const& operation)
+void ThreatCoordinator::TrackPerformance(::std::chrono::microseconds duration, ::std::string const& operation)
 {
-    _metrics.maxUpdateTime = std::max(_metrics.maxUpdateTime, duration);
+    _metrics.maxUpdateTime = ::std::max(_metrics.maxUpdateTime, duration);
 
     // Update moving average
-    static std::chrono::microseconds totalTime{0};
+    static ::std::chrono::microseconds totalTime{0};
     static uint32 samples = 0;
 
     totalTime += duration;
@@ -955,7 +938,7 @@ void ThreatCoordinator::TrackPerformance(std::chrono::microseconds duration, std
     if (samples >= 100) // Reset every 100 samples
     {
         _metrics.averageUpdateTime = totalTime / samples;
-        totalTime = std::chrono::microseconds{0};
+        totalTime = ::std::chrono::microseconds{0};
         samples = 0;
     }
 }
@@ -1005,7 +988,6 @@ ThreatRole ThreatCoordinator::DetermineRole(Player* bot) const
         return ThreatRole::UNDEFINED;
 
     uint8 classId = bot->GetClass();
-
     // Check specialization for hybrid classes
     // This is simplified - in production, check actual spec
     switch (classId)
@@ -1081,7 +1063,7 @@ bool ThreatCoordinator::CanBotTaunt(ObjectGuid botGuid) const
 
 void ThreatCoordinator::LogThreatStatus() const
 {
-    std::stringstream ss;
+    ::std::stringstream ss;
     ss << "=== Threat Status Report ===\n";
     ss << "State: " << static_cast<uint32>(_groupStatus.state) << "\n";
     ss << "Active Targets: " << _groupStatus.activeTargets.size() << "\n";
@@ -1093,9 +1075,9 @@ void ThreatCoordinator::LogThreatStatus() const
     TC_LOG_INFO("playerbots", "{}", ss.str());
 }
 
-std::string ThreatCoordinator::GetThreatReport() const
+::std::string ThreatCoordinator::GetThreatReport() const
 {
-    std::stringstream report;
+    ::std::stringstream report;
 
     report << "Threat Coordination Report:\n";
     report << "- Updates: " << _metrics.threatUpdates << "\n";

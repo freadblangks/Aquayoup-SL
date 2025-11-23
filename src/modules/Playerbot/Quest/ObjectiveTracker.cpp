@@ -26,20 +26,16 @@
 #include "Core/Services/BotNpcLocationService.h"
 #include <algorithm>
 #include <cmath>
+#include "GameTime.h"
 
 namespace Playerbot
 {
 
-ObjectiveTracker* ObjectiveTracker::instance()
-{
-    static ObjectiveTracker instance;
-    return &instance;
+ObjectiveTracker::ObjectiveTracker(Player* bot) : _bot(bot) {
+    if (!_bot) TC_LOG_ERROR("playerbot.quest", "ObjectiveTracker: null bot!");
 }
 
-ObjectiveTracker::ObjectiveTracker()
-{
-    _globalAnalytics.Reset();
-}
+ObjectiveTracker::~ObjectiveTracker() {}
 
 void ObjectiveTracker::StartTrackingObjective(Player* bot, const QuestObjectiveData& objective)
 {
@@ -47,7 +43,6 @@ void ObjectiveTracker::StartTrackingObjective(Player* bot, const QuestObjectiveD
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
     ObjectiveState state(objective.questId, objective.objectiveIndex);
     state.status = ObjectiveStatus::IN_PROGRESS;
     state.requiredProgress = objective.requiredCount;
@@ -84,7 +79,6 @@ void ObjectiveTracker::StartTrackingObjective(Player* bot, const QuestObjectiveD
 
     size_t objectiveCount = 0;
     {
-        std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
         _botObjectiveStates[botGuid].push_back(state);
         objectiveCount = _botObjectiveStates[botGuid].size();
     }
@@ -102,8 +96,6 @@ void ObjectiveTracker::StopTrackingObjective(Player* bot, uint32 questId, uint32
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
     auto statesIt = _botObjectiveStates.find(botGuid);
     if (statesIt == _botObjectiveStates.end())
         return;
@@ -127,8 +119,6 @@ void ObjectiveTracker::UpdateObjectiveTracking(Player* bot, uint32 diff)
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
     auto statesIt = _botObjectiveStates.find(botGuid);
     if (statesIt == _botObjectiveStates.end())
         return;
@@ -138,7 +128,7 @@ void ObjectiveTracker::UpdateObjectiveTracking(Player* bot, uint32 diff)
         UpdateObjectiveProgress(bot, state);
 
         // Check for stuck state (check directly on state to avoid recursive lock)
-        uint32 currentTime = getMSTime();
+        uint32 currentTime = GameTime::GetGameTimeMS();
         bool isStalled = (currentTime - state.lastUpdateTime > STUCK_DETECTION_TIME) &&
                         (state.completionVelocity < STALLED_PROGRESS_THRESHOLD);
         if (isStalled)
@@ -160,8 +150,6 @@ void ObjectiveTracker::RefreshObjectiveStates(Player* bot)
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
     auto statesIt = _botObjectiveStates.find(botGuid);
     if (statesIt == _botObjectiveStates.end())
         return;
@@ -199,7 +187,6 @@ void ObjectiveTracker::UpdateProgressMetrics(Player* bot, const QuestObjectiveDa
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
     // Update bot-specific analytics
     auto& analytics = _botAnalytics[botGuid];
     analytics.lastAnalyticsUpdate = std::chrono::steady_clock::now();
@@ -221,7 +208,7 @@ bool ObjectiveTracker::HasProgressStalled(Player* bot, uint32 questId, uint32 ob
     if (state.questId == 0)
         return false;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Check if no progress has been made recently
     return (currentTime - state.lastUpdateTime > STUCK_DETECTION_TIME) &&
@@ -325,7 +312,6 @@ std::vector<uint32> ObjectiveTracker::ScanForGameObjects(Player* bot, uint32 obj
 
     if (!bot)
         return targets;
-
     TC_LOG_ERROR("module.playerbot.quest", "🔍 ScanForGameObjects: Bot {} searching for entry {} within {:.1f}yd radius",
                  bot->GetName(), objectId, radius);
     TC_LOG_ERROR("module.playerbot.quest", "  Bot position: ({:.1f}, {:.1f}, {:.1f}) Map: {}",
@@ -386,14 +372,12 @@ std::vector<uint32> ObjectiveTracker::ScanForGameObjects(Player* bot, uint32 obj
     return targets;
 }
 
-ObjectiveTracker::ObjectiveState ObjectiveTracker::GetObjectiveState(Player* bot, uint32 questId, uint32 objectiveIndex)
+ObjectiveState ObjectiveTracker::GetObjectiveState(Player* bot, uint32 questId, uint32 objectiveIndex)
 {
     if (!bot)
         return ObjectiveState(0, 0);
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
     auto statesIt = _botObjectiveStates.find(botGuid);
     if (statesIt == _botObjectiveStates.end())
         return ObjectiveState(0, 0);
@@ -413,8 +397,6 @@ void ObjectiveTracker::UpdateObjectiveState(Player* bot, const ObjectiveState& s
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
     auto statesIt = _botObjectiveStates.find(botGuid);
     if (statesIt == _botObjectiveStates.end())
         return;
@@ -430,7 +412,7 @@ void ObjectiveTracker::UpdateObjectiveState(Player* bot, const ObjectiveState& s
     }
 }
 
-std::vector<ObjectiveTracker::ObjectiveState> ObjectiveTracker::GetActiveObjectives(Player* bot)
+std::vector<ObjectiveState> ObjectiveTracker::GetActiveObjectives(Player* bot)
 {
     std::vector<ObjectiveState> activeObjectives;
 
@@ -438,8 +420,6 @@ std::vector<ObjectiveTracker::ObjectiveState> ObjectiveTracker::GetActiveObjecti
         return activeObjectives;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
     auto statesIt = _botObjectiveStates.find(botGuid);
     if (statesIt != _botObjectiveStates.end())
         return statesIt->second;
@@ -447,7 +427,7 @@ std::vector<ObjectiveTracker::ObjectiveState> ObjectiveTracker::GetActiveObjecti
     return activeObjectives;
 }
 
-std::vector<ObjectiveTracker::ObjectivePriority> ObjectiveTracker::CalculateObjectivePriorities(Player* bot)
+std::vector<ObjectivePriority> ObjectiveTracker::CalculateObjectivePriorities(Player* bot)
 {
     std::vector<ObjectivePriority> priorities;
 
@@ -455,7 +435,6 @@ std::vector<ObjectiveTracker::ObjectivePriority> ObjectiveTracker::CalculateObje
         return priorities;
 
     std::vector<ObjectiveState> activeObjectives = GetActiveObjectives(bot);
-
     TC_LOG_ERROR("module.playerbot.quest", "🔢 CalculateObjectivePriorities: Bot {} has {} active objectives",
                 bot->GetName(), activeObjectives.size());
 
@@ -486,7 +465,7 @@ std::vector<ObjectiveTracker::ObjectivePriority> ObjectiveTracker::CalculateObje
     return priorities;
 }
 
-ObjectiveTracker::ObjectivePriority ObjectiveTracker::GetHighestPriorityObjective(Player* bot)
+ObjectivePriority ObjectiveTracker::GetHighestPriorityObjective(Player* bot)
 {
     std::vector<ObjectivePriority> priorities = CalculateObjectivePriorities(bot);
 
@@ -520,12 +499,9 @@ void ObjectiveTracker::TrackTargetAvailability(Player* bot, uint32 questId, uint
 {
     if (!bot)
         return;
-
-    std::lock_guard<std::recursive_mutex> lock(_targetMutex);
-
     auto& trackingData = _targetTracking[targetId];
     trackingData.targetId = targetId;
-    trackingData.lastSeenTime = getMSTime();
+    trackingData.lastSeenTime = GameTime::GetGameTimeMS();
     trackingData.isAvailable = true;
 
     // Add current location to known locations
@@ -540,8 +516,6 @@ void ObjectiveTracker::TrackTargetAvailability(Player* bot, uint32 questId, uint
 
 bool ObjectiveTracker::IsTargetAvailable(uint32 targetId, const Position& location, float radius)
 {
-    std::lock_guard<std::recursive_mutex> lock(_targetMutex);
-
     auto trackingIt = _targetTracking.find(targetId);
     if (trackingIt == _targetTracking.end())
         return false;
@@ -549,10 +523,9 @@ bool ObjectiveTracker::IsTargetAvailable(uint32 targetId, const Position& locati
     const TargetTrackingData& data = trackingIt->second;
 
     // Check if target was recently seen
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - data.lastSeenTime > TARGET_CACHE_DURATION)
         return false;
-
     // Check if any known location is within radius
     for (const Position& knownPos : data.knownLocations)
     {
@@ -572,8 +545,6 @@ uint32 ObjectiveTracker::GetTargetRespawnTime(uint32 targetId)
 
 Position ObjectiveTracker::GetOptimalTargetLocation(uint32 targetId, const Position& playerPosition)
 {
-    std::lock_guard<std::recursive_mutex> lock(_targetMutex);
-
     auto trackingIt = _targetTracking.find(targetId);
     if (trackingIt == _targetTracking.end())
         return playerPosition;
@@ -596,7 +567,6 @@ Position ObjectiveTracker::GetOptimalTargetLocation(uint32 targetId, const Posit
             closestDist = dist;
         }
     }
-
     return closest;
 }
 
@@ -604,9 +574,6 @@ void ObjectiveTracker::MonitorTargetCompetition(Player* bot, uint32 targetId)
 {
     if (!bot)
         return;
-
-    std::lock_guard<std::recursive_mutex> lock(_targetMutex);
-
     auto& trackingData = _targetTracking[targetId];
 
     // Scan for other players in the area competing for the same target
@@ -629,8 +596,6 @@ void ObjectiveTracker::MonitorTargetCompetition(Player* bot, uint32 targetId)
 
 bool ObjectiveTracker::IsTargetContested(uint32 targetId, float radius)
 {
-    std::lock_guard<std::recursive_mutex> lock(_targetMutex);
-
     auto trackingIt = _targetTracking.find(targetId);
     if (trackingIt == _targetTracking.end())
         return false;
@@ -645,7 +610,6 @@ void ObjectiveTracker::HandleTargetCompetition(Player* bot, uint32 targetId)
 
     // Find alternative locations for this target
     std::vector<Position> alternatives = FindAlternativeTargetLocations(targetId, bot->GetPosition());
-
     if (!alternatives.empty())
     {
         // Move to less contested area
@@ -658,8 +622,6 @@ void ObjectiveTracker::HandleTargetCompetition(Player* bot, uint32 targetId)
 std::vector<Position> ObjectiveTracker::FindAlternativeTargetLocations(uint32 targetId, const Position& currentLocation)
 {
     std::vector<Position> alternatives;
-
-    std::lock_guard<std::recursive_mutex> lock(_targetMutex);
 
     auto trackingIt = _targetTracking.find(targetId);
     if (trackingIt == _targetTracking.end())
@@ -704,10 +666,8 @@ void ObjectiveTracker::DistributeObjectiveTargets(Group* group, uint32 questId, 
 {
     if (!group)
         return;
-
     // Distribute targets among group members to avoid competition
     std::vector<Player*> botMembers;
-
     for (GroupReference const& itr : group->GetMembers())
     {
         Player* member = itr.GetSource();
@@ -736,8 +696,7 @@ void ObjectiveTracker::SynchronizeObjectiveProgress(Group* group, uint32 questId
     // Synchronize progress updates among group members
     uint32 groupId = group->GetDbStoreId();
 
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
-    _groupObjectiveSyncTime[groupId] = getMSTime();
+    _groupObjectiveSyncTime[groupId] = GameTime::GetGameTimeMS();
 
     // Share progress information among group members
     for (GroupReference const& itr : group->GetMembers())
@@ -759,9 +718,8 @@ void ObjectiveTracker::HandleObjectiveConflicts(Group* group, uint32 questId, ui
     ResolveObjectiveConflicts(group, questId, objectiveIndex);
 }
 
-const ObjectiveTracker::ObjectiveAnalytics& ObjectiveTracker::GetBotObjectiveAnalytics(uint32 botGuid)
+const ObjectiveAnalytics& ObjectiveTracker::GetBotObjectiveAnalytics(uint32 botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
     auto it = _botAnalytics.find(botGuid);
     if (it != _botAnalytics.end())
         return it->second;
@@ -771,7 +729,7 @@ const ObjectiveTracker::ObjectiveAnalytics& ObjectiveTracker::GetBotObjectiveAna
     return _botAnalytics[botGuid];
 }
 
-const ObjectiveTracker::ObjectiveAnalytics& ObjectiveTracker::GetGlobalObjectiveAnalytics()
+const ObjectiveAnalytics& ObjectiveTracker::GetGlobalObjectiveAnalytics()
 {
     return _globalAnalytics;
 }
@@ -827,7 +785,6 @@ void ObjectiveTracker::OptimizeTrackingPerformance(Player* bot)
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
     // Optimize tracking performance for this bot
     // Reduce scan frequency for low-priority objectives
     // Increase focus on high-priority objectives
@@ -841,7 +798,6 @@ void ObjectiveTracker::DetectTrackingErrors(Player* bot)
         return;
 
     std::vector<ObjectiveState> activeObjectives = GetActiveObjectives(bot);
-
     for (const auto& state : activeObjectives)
     {
         if (!ValidateObjectiveState(bot, state))
@@ -885,7 +841,6 @@ void ObjectiveTracker::ValidateObjectiveConsistency(Player* bot)
         return;
 
     std::vector<ObjectiveState> activeObjectives = GetActiveObjectives(bot);
-
     for (const auto& state : activeObjectives)
     {
         if (!ValidateObjectiveState(bot, state))
@@ -927,7 +882,7 @@ void ObjectiveTracker::UpdateObjectiveProgress(Player* bot, ObjectiveState& stat
     if (currentProgress != state.currentProgress)
     {
         state.currentProgress = currentProgress;
-        state.lastUpdateTime = getMSTime();
+        state.lastUpdateTime = GameTime::GetGameTimeMS();
 
         // Recalculate velocity
         CalculateObjectiveVelocity(state);
@@ -936,7 +891,7 @@ void ObjectiveTracker::UpdateObjectiveProgress(Player* bot, ObjectiveState& stat
 
 void ObjectiveTracker::CalculateObjectiveVelocity(ObjectiveState& state)
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     uint32 timeDiff = currentTime - state.timeStarted;
 
     if (timeDiff > 0)
@@ -1011,7 +966,7 @@ float ObjectiveTracker::CalculateUrgencyFactor(Player* bot, const ObjectiveState
         urgency += 0.3f;
 
     // Higher urgency for quests that have been active longer
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     uint32 activeTime = currentTime - state.timeStarted;
     if (activeTime > 1800000) // 30 minutes
         urgency += 0.2f;
@@ -1085,7 +1040,7 @@ void ObjectiveTracker::RefreshObjectiveState(Player* bot, ObjectiveState& state)
 
     uint32 currentProgress = GetCurrentObjectiveProgress(bot, quest, state.objectiveIndex);
     state.currentProgress = currentProgress;
-    state.lastUpdateTime = getMSTime();
+    state.lastUpdateTime = GameTime::GetGameTimeMS();
 
     // CRITICAL FIX: Do NOT update position here!
     // lastKnownPosition stores the QUEST TARGET spawn location (set in StartTrackingObjective),
@@ -1135,7 +1090,7 @@ void ObjectiveTracker::HandleStuckObjective(Player* bot, ObjectiveState& state)
     if (!state.isStuck)
     {
         state.isStuck = true;
-        state.stuckTime = getMSTime();
+        state.stuckTime = GameTime::GetGameTimeMS();
     }
 
     state.failureCount++;
@@ -1219,8 +1174,6 @@ void ObjectiveTracker::ResolveObjectiveConflicts(Group* group, uint32 questId, u
 
 void ObjectiveTracker::UpdateTrackingAnalytics(uint32 botGuid, const ObjectiveState& state, bool wasSuccessful)
 {
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
-
     auto& analytics = _botAnalytics[botGuid];
 
     if (wasSuccessful)
@@ -1241,7 +1194,7 @@ void ObjectiveTracker::UpdateTrackingAnalytics(uint32 botGuid, const ObjectiveSt
 void ObjectiveTracker::Update(uint32 diff)
 {
     static uint32 lastUpdate = 0;
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     if (currentTime - lastUpdate < TRACKING_UPDATE_INTERVAL)
         return;
@@ -1265,9 +1218,7 @@ void ObjectiveTracker::UpdateBotTracking(Player* bot, uint32 diff)
 
 void ObjectiveTracker::CleanupInactiveTracking()
 {
-    std::lock_guard<std::recursive_mutex> lock(_trackingMutex);
-
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Clean up old objective states
     for (auto it = _botObjectiveStates.begin(); it != _botObjectiveStates.end();)
@@ -1288,7 +1239,6 @@ void ObjectiveTracker::CleanupInactiveTracking()
     }
 
     // Clean up old target tracking data
-    std::lock_guard<std::recursive_mutex> targetLock(_targetMutex);
     for (auto it = _targetTracking.begin(); it != _targetTracking.end();)
     {
         if (currentTime - it->second.lastSeenTime > TARGET_CACHE_DURATION)

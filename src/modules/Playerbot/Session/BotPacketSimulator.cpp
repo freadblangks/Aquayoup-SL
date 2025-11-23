@@ -20,6 +20,7 @@
 #include "AuthenticationPackets.h"
 #include "MovementPackets.h"
 #include "MiscPackets.h"
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -28,23 +29,13 @@ BotPacketSimulator::BotPacketSimulator(BotSession* session)
     : _session(session)
 {
     // Initialize simulated client time with current server time
-    _simulatedClientTime = getMSTime();
+    _simulatedClientTime = GameTime::GetGameTimeMS();
 }
 
 void BotPacketSimulator::SimulateQueuedMessagesEnd()
 {
-    if (!_session)
-    {
-        TC_LOG_ERROR("module.playerbot.packet", "BotPacketSimulator: null session in SimulateQueuedMessagesEnd");
-        return;
-    }
 
     Player* bot = _session->GetPlayer();
-    if (!bot)
-    {
-        TC_LOG_ERROR("module.playerbot.packet", "BotPacketSimulator: null player in SimulateQueuedMessagesEnd");
-        return;
-    }
 
     // CRITICAL: This packet is sent by real clients after receiving SMSG_RESUME_COMMS
     // It triggers time synchronization via HandleTimeSync with SPECIAL_RESUME_COMMS_TIME_SYNC_COUNTER
@@ -56,33 +47,21 @@ void BotPacketSimulator::SimulateQueuedMessagesEnd()
     // Create WorldPacket with CMSG_QUEUED_MESSAGES_END opcode
     WorldPacket packet(CMSG_QUEUED_MESSAGES_END);
     packet << _simulatedClientTime;  // Write timestamp
-
     // Construct packet structure from WorldPacket
-    WorldPackets::Auth::QueuedMessagesEnd queuedMessagesEnd(std::move(packet));
+    WorldPackets::Auth::QueuedMessagesEnd queuedMessagesEnd(::std::move(packet));
     queuedMessagesEnd.Read();  // Extract data from WorldPacket
-
     // Call the handler directly (packet forging)
     _session->HandleQueuedMessagesEnd(queuedMessagesEnd);
 
     TC_LOG_INFO("module.playerbot.packet",
-        "✅ Bot {} successfully simulated CMSG_QUEUED_MESSAGES_END - time sync initialized",
+        " Bot {} successfully simulated CMSG_QUEUED_MESSAGES_END - time sync initialized",
         bot->GetName());
 }
 
 void BotPacketSimulator::SimulateMoveInitActiveMoverComplete()
 {
-    if (!_session)
-    {
-        TC_LOG_ERROR("module.playerbot.packet", "BotPacketSimulator: null session in SimulateMoveInitActiveMoverComplete");
-        return;
-    }
 
     Player* bot = _session->GetPlayer();
-    if (!bot)
-    {
-        TC_LOG_ERROR("module.playerbot.packet", "BotPacketSimulator: null player in SimulateMoveInitActiveMoverComplete");
-        return;
-    }
 
     // CRITICAL: This packet is sent by real clients after receiving SMSG_MOVE_INIT_ACTIVE_MOVER
     // It triggers:
@@ -100,16 +79,14 @@ void BotPacketSimulator::SimulateMoveInitActiveMoverComplete()
     // Create WorldPacket with CMSG_MOVE_INIT_ACTIVE_MOVER_COMPLETE opcode
     WorldPacket packet(CMSG_MOVE_INIT_ACTIVE_MOVER_COMPLETE);
     packet << _simulatedClientTime;  // Write ticks
-
     // Construct packet structure from WorldPacket
-    WorldPackets::Movement::MoveInitActiveMoverComplete moveInitComplete(std::move(packet));
+    WorldPackets::Movement::MoveInitActiveMoverComplete moveInitComplete(::std::move(packet));
     moveInitComplete.Read();  // Extract data from WorldPacket
-
     // Call the handler directly (packet forging)
     _session->HandleMoveInitActiveMoverComplete(moveInitComplete);
 
     TC_LOG_INFO("module.playerbot.packet",
-        "✅ Bot {} successfully simulated CMSG_MOVE_INIT_ACTIVE_MOVER_COMPLETE - visibility enabled, flag set automatically",
+        " Bot {} successfully simulated CMSG_MOVE_INIT_ACTIVE_MOVER_COMPLETE - visibility enabled, flag set automatically",
         bot->GetName());
 }
 
@@ -128,12 +105,11 @@ void BotPacketSimulator::SimulateTimeSyncResponse(uint32 counter)
     packet << _simulatedClientTime;  // Write ClientTime (second)
 
     // Construct packet structure from WorldPacket
-    WorldPackets::Misc::TimeSyncResponse timeSyncResponse(std::move(packet));
+    WorldPackets::Misc::TimeSyncResponse timeSyncResponse(::std::move(packet));
     timeSyncResponse.Read();  // Extract data from WorldPacket
 
     // Call the handler directly
     _session->HandleTimeSyncResponse(timeSyncResponse);
-
     TC_LOG_TRACE("module.playerbot.packet",
         "Bot {} simulated CMSG_TIME_SYNC_RESPONSE (counter: {}, clientTime: {})",
         bot->GetName(), counter, _simulatedClientTime);

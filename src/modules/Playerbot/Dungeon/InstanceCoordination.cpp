@@ -55,7 +55,7 @@ void InstanceCoordination::InitializeInstanceCoordination(Group* group, Map* ins
         return;
     }
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
     uint32 instanceId = instanceMap->GetInstanceId();
@@ -86,7 +86,7 @@ void InstanceCoordination::InitializeInstanceCoordination(Group* group, Map* ins
     _groupMetrics[groupId] = metrics;
 
     // Plan initial route through instance
-    std::vector<uint32> encounterIds;
+    ::std::vector<uint32> encounterIds;
     DungeonData dungeonData = DungeonBehavior::instance()->GetDungeonData(mapId);
     for (auto const& encounter : dungeonData.encounters)
         encounterIds.push_back(encounter.encounterId);
@@ -122,7 +122,7 @@ void InstanceCoordination::HandleInstanceCompletion(Group* group)
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -135,7 +135,7 @@ void InstanceCoordination::HandleInstanceCompletion(Group* group)
         progress.isOnTrack = true;
         progress.progressNotes.push_back("Instance completed successfully");
 
-        uint32 totalTime = getMSTime() - progress.startTime;
+        uint32 totalTime = GameTime::GetGameTimeMS() - progress.startTime;
         TC_LOG_INFO("module.playerbot", "InstanceCoordination::HandleInstanceCompletion - Group {} completed instance in {} ms",
             groupId, totalTime);
     }
@@ -157,7 +157,7 @@ void InstanceCoordination::HandleInstanceFailure(Group* group)
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -194,7 +194,7 @@ void InstanceCoordination::CoordinateGroupMovement(Group* group, const Position&
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -218,7 +218,7 @@ void InstanceCoordination::MaintainDungeonFormation(Group* group)
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -229,10 +229,10 @@ void InstanceCoordination::MaintainDungeonFormation(Group* group)
     FormationData& formation = formationItr->second;
 
     // Check if formation update is needed
-    if (getMSTime() - formation.lastUpdateTime < FORMATION_UPDATE_INTERVAL)
+    if (GameTime::GetGameTimeMS() - formation.lastUpdateTime < FORMATION_UPDATE_INTERVAL)
         return;
 
-    formation.lastUpdateTime = getMSTime();
+    formation.lastUpdateTime = GameTime::GetGameTimeMS();
 
     // Update group center point
     formation.centerPoint = CalculateGroupCenterPoint(group);
@@ -256,7 +256,6 @@ void InstanceCoordination::HandleFormationBreaks(Group* group)
         return;
 
     FormationData const& formation = formationItr->second;
-
     // Check each member's distance from formation center
     for (auto const& member : group->GetMemberSlots())
     {
@@ -287,7 +286,7 @@ void InstanceCoordination::AdaptFormationToTerrain(Group* group, const Position&
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -345,7 +344,7 @@ void InstanceCoordination::PrepareForEncounter(Group* group, uint32 encounterId)
     CoordinateGroupMovement(group, encounter.encounterLocation);
 
     // Broadcast encounter information
-    std::string encounterInfo = "Preparing for encounter: ";
+    ::std::string encounterInfo = "Preparing for encounter: ";
     encounterInfo += encounter.encounterName;
     BroadcastInstanceInformation(group, encounterInfo);
 
@@ -441,7 +440,7 @@ void InstanceCoordination::CoordinateResourceUsage(Group* group)
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -456,10 +455,10 @@ void InstanceCoordination::CoordinateResourceUsage(Group* group)
     ResourceCoordination& resources = resourceItr->second;
 
     // Check if resource check is needed
-    if (getMSTime() - resources.lastResourceCheck < RESOURCE_CHECK_INTERVAL)
+    if (GameTime::GetGameTimeMS() - resources.lastResourceCheck < RESOURCE_CHECK_INTERVAL)
         return;
 
-    resources.lastResourceCheck = getMSTime();
+    resources.lastResourceCheck = GameTime::GetGameTimeMS();
 
     // Check group resources
     CheckGroupResources(group);
@@ -495,7 +494,7 @@ void InstanceCoordination::ManageGroupMana(Group* group)
             continue;
 
         // Check if player uses mana
-        if (player->GetMaxPower(POWER_MANA) > 0)
+    if (player->GetMaxPower(POWER_MANA) > 0)
         {
             float manaPercent = player->GetMaxPower(POWER_MANA) > 0 ?
                 static_cast<float>(player->GetPower(POWER_MANA)) / player->GetMaxPower(POWER_MANA) : 1.0f;
@@ -578,7 +577,7 @@ void InstanceCoordination::OptimizeGroupEfficiency(Group* group)
 // Communication and Coordination
 // ============================================================================
 
-void InstanceCoordination::BroadcastInstanceInformation(Group* group, const std::string& message)
+void InstanceCoordination::BroadcastInstanceInformation(Group* group, const ::std::string& message)
 {
     if (!group || message.empty())
         return;
@@ -598,7 +597,7 @@ void InstanceCoordination::BroadcastInstanceInformation(Group* group, const std:
         state.recentCommunications.push_back(message);
 
         // Keep only last 20 communications
-        if (state.recentCommunications.size() > 20)
+    if (state.recentCommunications.size() > 20)
             state.recentCommunications.erase(state.recentCommunications.begin());
     }
 
@@ -606,7 +605,7 @@ void InstanceCoordination::BroadcastInstanceInformation(Group* group, const std:
         groupId, message);
 }
 
-void InstanceCoordination::CoordinateGroupActions(Group* group, const std::string& action)
+void InstanceCoordination::CoordinateGroupActions(Group* group, const ::std::string& action)
 {
     if (!group || action.empty())
         return;
@@ -629,13 +628,12 @@ void InstanceCoordination::CoordinateGroupActions(Group* group, const std::strin
     ProcessPendingActions(group);
 }
 
-void InstanceCoordination::HandleGroupDecisionMaking(Group* group, const std::string& decision)
+void InstanceCoordination::HandleGroupDecisionMaking(Group* group, const ::std::string& decision)
 {
     if (!group || decision.empty())
         return;
 
     uint32 groupId = group->GetGUID().GetCounter();
-
     auto stateItr = _coordinationStates.find(groupId);
     if (stateItr == _coordinationStates.end())
         return;
@@ -665,7 +663,6 @@ void InstanceCoordination::SynchronizeGroupStates(Group* group)
         return;
 
     uint32 groupId = group->GetGUID().GetCounter();
-
     // Ensure all members are in sync
     bool allReady = true;
 
@@ -695,7 +692,7 @@ void InstanceCoordination::SynchronizeGroupStates(Group* group)
 // Loot Coordination and Distribution
 // ============================================================================
 
-void InstanceCoordination::CoordinateLootDistribution(Group* group, const std::vector<uint32>& lootItems)
+void InstanceCoordination::CoordinateLootDistribution(Group* group, const ::std::vector<uint32>& lootItems)
 {
     if (!group || lootItems.empty())
         return;
@@ -768,8 +765,8 @@ void InstanceCoordination::ResolveeLootConflicts(Group* group, uint32 itemId)
         groupId, itemId);
 
     // Use decision-making system to resolve conflicts
-    std::string decision = "loot_priority_";
-    decision += std::to_string(itemId);
+    ::std::string decision = "loot_priority_";
+    decision += ::std::to_string(itemId);
     HandleGroupDecisionMaking(group, decision);
 }
 
@@ -779,7 +776,7 @@ void InstanceCoordination::ResolveeLootConflicts(Group* group, uint32 itemId)
 
 InstanceCoordination::InstanceProgress InstanceCoordination::GetInstanceProgress(uint32 groupId)
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     auto progressItr = _instanceProgress.find(groupId);
     if (progressItr != _instanceProgress.end())
@@ -794,7 +791,7 @@ void InstanceCoordination::UpdateInstanceProgress(Group* group)
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -816,7 +813,7 @@ void InstanceCoordination::UpdateInstanceProgress(Group* group)
     progress.completedEncounters = dungeonState.completedEncounters;
 
     // Calculate estimated completion time
-    uint32 elapsedTime = getMSTime() - progress.startTime;
+    uint32 elapsedTime = GameTime::GetGameTimeMS() - progress.startTime;
     if (progress.progressPercentage > 0.0f)
     {
         uint32 estimatedTotal = static_cast<uint32>((elapsedTime / progress.progressPercentage) * 100.0f);
@@ -844,7 +841,7 @@ void InstanceCoordination::AnalyzeProgressEfficiency(Group* group)
     InstanceProgress const& progress = progressItr->second;
 
     // Calculate efficiency metrics
-    uint32 elapsedTime = getMSTime() - progress.startTime;
+    uint32 elapsedTime = GameTime::GetGameTimeMS() - progress.startTime;
     float progressRate = progress.progressPercentage > 0.0f ?
         progress.progressPercentage / (elapsedTime / 60000.0f) : 0.0f; // Progress per minute
 
@@ -855,7 +852,7 @@ void InstanceCoordination::AnalyzeProgressEfficiency(Group* group)
     if (_groupMetrics.find(groupId) != _groupMetrics.end())
     {
         CoordinationMetrics& metrics = _groupMetrics[groupId];
-        float newEfficiency = std::min(1.0f, progressRate / 10.0f); // Normalize to 0-1
+        float newEfficiency = ::std::min(1.0f, progressRate / 10.0f); // Normalize to 0-1
         metrics.movementEfficiency = newEfficiency;
     }
 }
@@ -864,17 +861,17 @@ void InstanceCoordination::AnalyzeProgressEfficiency(Group* group)
 // Route Planning and Navigation
 // ============================================================================
 
-void InstanceCoordination::PlanInstanceRoute(Group* group, const std::vector<uint32>& objectiveIds)
+void InstanceCoordination::PlanInstanceRoute(Group* group, const ::std::vector<uint32>& objectiveIds)
 {
     if (!group || objectiveIds.empty())
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
     // Build waypoint list from objectives
-    std::vector<Position> waypoints;
+    ::std::vector<Position> waypoints;
 
     for (uint32 objectiveId : objectiveIds)
     {
@@ -883,7 +880,7 @@ void InstanceCoordination::PlanInstanceRoute(Group* group, const std::vector<uin
     }
 
     // Calculate optimal route
-    std::vector<Position> optimalRoute = CalculateOptimalRoute(group, waypoints);
+    ::std::vector<Position> optimalRoute = CalculateOptimalRoute(group, waypoints);
     _groupRoutes[groupId] = optimalRoute;
 
     TC_LOG_INFO("module.playerbot", "InstanceCoordination::PlanInstanceRoute - Group {} route planned with {} waypoints",
@@ -895,7 +892,7 @@ void InstanceCoordination::UpdateNavigationRoute(Group* group, const Position& c
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -903,7 +900,7 @@ void InstanceCoordination::UpdateNavigationRoute(Group* group, const Position& c
     if (routeItr == _groupRoutes.end() || routeItr->second.empty())
         return;
 
-    std::vector<Position>& route = routeItr->second;
+    ::std::vector<Position>& route = routeItr->second;
 
     // Check if reached current waypoint
     if (!route.empty())
@@ -925,11 +922,10 @@ void InstanceCoordination::UpdateNavigationRoute(Group* group, const Position& c
     UpdateRouteProgress(group);
 }
 
-void InstanceCoordination::HandleNavigationObstacles(Group* group, const std::vector<Position>& obstacles)
+void InstanceCoordination::HandleNavigationObstacles(Group* group, const ::std::vector<Position>& obstacles)
 {
     if (!group || obstacles.empty())
         return;
-
     uint32 groupId = group->GetGUID().GetCounter();
 
     TC_LOG_DEBUG("module.playerbot", "InstanceCoordination::HandleNavigationObstacles - Group {} handling {} obstacles",
@@ -949,7 +945,7 @@ Position InstanceCoordination::GetNextWaypoint(Group* group)
     if (!group)
         return Position();
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -970,11 +966,9 @@ void InstanceCoordination::MonitorGroupSafety(Group* group)
         return;
 
     uint32 groupId = group->GetGUID().GetCounter();
-
     // Check group health status
     float totalHealth = 0.0f;
     uint32 aliveMembers = 0;
-
     for (auto const& member : group->GetMemberSlots())
     {
         Player* player = ObjectAccessor::FindPlayer(member.guid);
@@ -1019,7 +1013,7 @@ void InstanceCoordination::MonitorGroupSafety(Group* group)
     }
 }
 
-void InstanceCoordination::HandleEmergencySituations(Group* group, const std::string& emergency)
+void InstanceCoordination::HandleEmergencySituations(Group* group, const ::std::string& emergency)
 {
     if (!group || emergency.empty())
         return;
@@ -1103,7 +1097,7 @@ void InstanceCoordination::HandlePlayerIncapacitation(Group* group, Player* inca
 
 InstanceCoordination::CoordinationMetrics InstanceCoordination::GetGroupCoordinationMetrics(uint32 groupId)
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     auto metricsItr = _groupMetrics.find(groupId);
     if (metricsItr != _groupMetrics.end())
@@ -1228,7 +1222,7 @@ void InstanceCoordination::ApplyInstanceSpecificStrategy(Group* group, uint32 in
     // For now, we use default strategies
 }
 
-void InstanceCoordination::HandleInstanceMechanics(Group* group, const std::string& mechanic)
+void InstanceCoordination::HandleInstanceMechanics(Group* group, const ::std::string& mechanic)
 {
     if (!group || mechanic.empty())
         return;
@@ -1264,7 +1258,7 @@ void InstanceCoordination::AdaptToInstanceDifficulty(Group* group, float difficu
 void InstanceCoordination::SetCoordinationPrecision(uint32 groupId, float precision)
 {
     // Clamp precision to 0.0-1.0 range
-    precision = std::max(0.0f, std::min(1.0f, precision));
+    precision = ::std::max(0.0f, ::std::min(1.0f, precision));
 
     TC_LOG_DEBUG("module.playerbot", "InstanceCoordination::SetCoordinationPrecision - Group {} precision set to {:.2f}",
         groupId, precision);
@@ -1272,9 +1266,9 @@ void InstanceCoordination::SetCoordinationPrecision(uint32 groupId, float precis
     // In a full implementation, this would adjust coordination algorithms
 }
 
-void InstanceCoordination::SetFormationStyle(uint32 groupId, const std::string& formationStyle)
+void InstanceCoordination::SetFormationStyle(uint32 groupId, const ::std::string& formationStyle)
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     auto formationItr = _groupFormations.find(groupId);
     if (formationItr != _groupFormations.end())
@@ -1297,7 +1291,7 @@ void InstanceCoordination::EnableAdvancedCoordination(uint32 groupId, bool enabl
 
 void InstanceCoordination::SetCommunicationLevel(uint32 groupId, uint32 level)
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     auto stateItr = _coordinationStates.find(groupId);
     if (stateItr != _coordinationStates.end())
@@ -1314,7 +1308,7 @@ void InstanceCoordination::SetCommunicationLevel(uint32 groupId, uint32 level)
 // Error Handling and Recovery
 // ============================================================================
 
-void InstanceCoordination::HandleCoordinationError(Group* group, const std::string& error)
+void InstanceCoordination::HandleCoordinationError(Group* group, const ::std::string& error)
 {
     if (!group || error.empty())
         return;
@@ -1380,7 +1374,7 @@ void InstanceCoordination::DiagnoseCoordinationIssues(Group* group)
             groupId, successRate * 100.0f, syncRate * 100.0f, efficiency * 100.0f);
 
         // Identify issues
-        if (successRate < COORDINATION_SUCCESS_THRESHOLD)
+    if (successRate < COORDINATION_SUCCESS_THRESHOLD)
             TC_LOG_WARN("module.playerbot", "InstanceCoordination::DiagnoseCoordinationIssues - Group {} low success rate", groupId);
 
         if (syncRate < 0.7f)
@@ -1396,7 +1390,7 @@ void InstanceCoordination::ResetCoordinationState(Group* group)
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
 
@@ -1407,11 +1401,11 @@ void InstanceCoordination::ResetCoordinationState(Group* group)
         CoordinationState& state = stateItr->second;
 
         // Clear queues and reset timers
-        while (!state.pendingActions.empty())
+    while (!state.pendingActions.empty())
             state.pendingActions.pop();
 
         state.decisionVotes.clear();
-        state.lastCoordinationTime = getMSTime();
+        state.lastCoordinationTime = GameTime::GetGameTimeMS();
 
         TC_LOG_INFO("module.playerbot", "InstanceCoordination::ResetCoordinationState - Group {} state reset",
             groupId);
@@ -1442,10 +1436,10 @@ void InstanceCoordination::UpdateGroupCoordination(Group* group, uint32 diff)
 
     CoordinationState& state = stateItr->second;
 
-    if (getMSTime() - state.lastCoordinationTime < COORDINATION_UPDATE_INTERVAL)
+    if (GameTime::GetGameTimeMS() - state.lastCoordinationTime < COORDINATION_UPDATE_INTERVAL)
         return;
 
-    state.lastCoordinationTime = getMSTime();
+    state.lastCoordinationTime = GameTime::GetGameTimeMS();
 
     // Process pending actions
     ProcessPendingActions(group);
@@ -1459,20 +1453,19 @@ void InstanceCoordination::UpdateGroupCoordination(Group* group, uint32 diff)
 
 void InstanceCoordination::CleanupInactiveCoordinations()
 {
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     // Remove coordination data for inactive groups
-    std::vector<uint32> inactiveGroups;
+    ::std::vector<uint32> inactiveGroups;
 
     for (auto const& [groupId, progress] : _instanceProgress)
     {
-        uint32 timeSinceStart = getMSTime() - progress.startTime;
+        uint32 timeSinceStart = GameTime::GetGameTimeMS() - progress.startTime;
 
         // Consider coordination inactive if no update for 1 hour
-        if (timeSinceStart > 3600000)
+    if (timeSinceStart > 3600000)
             inactiveGroups.push_back(groupId);
     }
-
     // Clean up inactive coordination data
     for (uint32 groupId : inactiveGroups)
     {
@@ -1496,7 +1489,6 @@ void InstanceCoordination::UpdateGroupFormation(Group* group)
 {
     if (!group)
         return;
-
     uint32 groupId = group->GetGUID().GetCounter();
 
     auto formationItr = _groupFormations.find(groupId);
@@ -1504,7 +1496,6 @@ void InstanceCoordination::UpdateGroupFormation(Group* group)
         return;
 
     FormationData& formation = formationItr->second;
-
     // Calculate formation positions for each member
     // This would integrate with GroupFormation system in a full implementation
 
@@ -1587,11 +1578,9 @@ void InstanceCoordination::ProcessPendingActions(Group* group)
 {
     if (!group)
         return;
-
-    std::lock_guard<std::recursive_mutex> lock(_coordinationMutex);
+    ::std::lock_guard lock(_coordinationMutex);
 
     uint32 groupId = group->GetGUID().GetCounter();
-
     auto stateItr = _coordinationStates.find(groupId);
     if (stateItr == _coordinationStates.end())
         return;
@@ -1601,7 +1590,7 @@ void InstanceCoordination::ProcessPendingActions(Group* group)
     // Process all pending actions
     while (!state.pendingActions.empty())
     {
-        std::string action = state.pendingActions.front();
+        ::std::string action = state.pendingActions.front();
         state.pendingActions.pop();
 
         // Execute action
@@ -1613,7 +1602,7 @@ void InstanceCoordination::ProcessPendingActions(Group* group)
     }
 }
 
-void InstanceCoordination::BroadcastCoordinationMessage(Group* group, const std::string& message)
+void InstanceCoordination::BroadcastCoordinationMessage(Group* group, const ::std::string& message)
 {
     if (!group || message.empty())
         return;
@@ -1621,7 +1610,7 @@ void InstanceCoordination::BroadcastCoordinationMessage(Group* group, const std:
     BroadcastInstanceInformation(group, message);
 }
 
-void InstanceCoordination::GatherGroupInput(Group* group, const std::string& question)
+void InstanceCoordination::GatherGroupInput(Group* group, const ::std::string& question)
 {
     if (!group || question.empty())
         return;
@@ -1635,7 +1624,7 @@ void InstanceCoordination::GatherGroupInput(Group* group, const std::string& que
     BroadcastInstanceInformation(group, "Decision needed: " + question);
 }
 
-void InstanceCoordination::ResolveGroupDecision(Group* group, const std::string& decision)
+void InstanceCoordination::ResolveGroupDecision(Group* group, const ::std::string& decision)
 {
     if (!group || decision.empty())
         return;
@@ -1677,7 +1666,6 @@ void InstanceCoordination::CheckGroupResources(Group* group)
     // Check health
     float totalHealth = 0.0f;
     uint32 memberCount = 0;
-
     for (auto const& member : group->GetMemberSlots())
     {
         Player* player = ObjectAccessor::FindPlayer(member.guid);
@@ -1747,7 +1735,6 @@ bool InstanceCoordination::ShouldTakeRestBreak(Group* group)
     // Take rest break if group readiness below 60%
     return resources.groupReadiness < 60;
 }
-
 // ============================================================================
 // Helper Functions - Loot Coordination
 // ============================================================================
@@ -1800,7 +1787,7 @@ void InstanceCoordination::UpdateLootHistory(Group* group, uint32 itemId, Player
 // Helper Functions - Navigation and Pathfinding
 // ============================================================================
 
-std::vector<Position> InstanceCoordination::CalculateOptimalRoute(Group* group, const std::vector<Position>& objectives)
+::std::vector<Position> InstanceCoordination::CalculateOptimalRoute(Group* group, const ::std::vector<Position>& objectives)
 {
     if (!group || objectives.empty())
         return {};
@@ -1854,7 +1841,6 @@ Position InstanceCoordination::CalculateGroupCenterPoint(Group* group)
 
     float totalX = 0.0f, totalY = 0.0f, totalZ = 0.0f;
     uint32 memberCount = 0;
-
     for (auto const& member : group->GetMemberSlots())
     {
         Player* player = ObjectAccessor::FindPlayer(member.guid);

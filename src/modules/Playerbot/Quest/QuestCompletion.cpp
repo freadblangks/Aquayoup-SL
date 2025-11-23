@@ -8,6 +8,7 @@
  */
 
 #include "QuestCompletion.h"
+#include "Core/PlayerBotHelpers.h"  // GetBotAI, GetGameSystems
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "World.h"
@@ -39,21 +40,17 @@ namespace Playerbot
 constexpr float QUEST_GIVER_INTERACTION_RANGE = 5.0f;
 
 /**
- * @brief Singleton instance implementation
- */
-QuestCompletion* QuestCompletion::instance()
-{
-    static QuestCompletion instance;
-    return &instance;
-}
-
-/**
  * @brief Constructor
  */
-QuestCompletion::QuestCompletion()
+QuestCompletion::QuestCompletion(Player* bot)
+    : _bot(bot)
 {
+    if (!_bot)
+        TC_LOG_ERROR("playerbot.quest", "QuestCompletion: null bot!");
     _globalMetrics.Reset();
 }
+
+QuestCompletion::~QuestCompletion() {}
 
 /**
  * @brief Start tracking quest completion for a bot
@@ -67,11 +64,6 @@ bool QuestCompletion::StartQuestCompletion(uint32 questId, Player* bot)
         return false;
 
     Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
-    if (!quest)
-    {
-        TC_LOG_ERROR("playerbot", "QuestCompletion::StartQuestCompletion - Quest %u not found", questId);
-        return false;
-    }
 
     // Check if bot has the quest
     if (bot->GetQuestStatus(questId) == QUEST_STATUS_NONE)
@@ -81,15 +73,11 @@ bool QuestCompletion::StartQuestCompletion(uint32 questId, Player* bot)
         return false;
     }
 
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
-
     // Initialize quest progress tracking
     QuestProgressData progress(questId, bot->GetGUID().GetCounter());
     progress.questGiverGuid = 0; // Will be populated when quest giver is found
-
     // Parse quest objectives
     ParseQuestObjectives(progress, quest);
-
     // Set appropriate completion strategy based on bot configuration
     if (bot->GetGroup())
         progress.strategy = QuestCompletionStrategy::GROUP_COORDINATION;
@@ -118,8 +106,6 @@ void QuestCompletion::UpdateQuestProgress(Player* bot)
 {
     if (!bot)
         return;
-
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
 
     auto it = _botQuestProgress.find(bot->GetGUID().GetCounter());
     if (it == _botQuestProgress.end())
@@ -164,11 +150,10 @@ void QuestCompletion::UpdateQuestProgress(Player* bot)
         {
             progress.completionPercentage = (totalProgress / progress.objectives.size()) * 100.0f;
         }
-
         // Check for stuck state
         if (!anyProgress)
         {
-            uint32 currentTime = getMSTime();
+            uint32 currentTime = GameTime::GetGameTimeMS();
             if (currentTime - progress.lastUpdateTime > STUCK_DETECTION_TIME)
             {
                 progress.isStuck = true;
@@ -180,7 +165,7 @@ void QuestCompletion::UpdateQuestProgress(Player* bot)
         {
             progress.isStuck = false;
             progress.stuckTime = 0;
-            progress.lastUpdateTime = getMSTime();
+            progress.lastUpdateTime = GameTime::GetGameTimeMS();
         }
 
         // Check if quest is ready for turn-in
@@ -212,8 +197,6 @@ void QuestCompletion::CompleteQuest(uint32 questId, Player* bot)
     // Mark quest as complete
     bot->CompleteQuest(questId);
 
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
-
     // Update progress tracking
     auto it = _botQuestProgress.find(bot->GetGUID().GetCounter());
     if (it != _botQuestProgress.end())
@@ -227,7 +210,7 @@ void QuestCompletion::CompleteQuest(uint32 questId, Player* bot)
             questIt->requiresTurnIn = true;
 
             // Add completion log entry
-            questIt->completionLog.push_back("Quest completed at " + std::to_string(getMSTime()));
+            questIt->completionLog.push_back("Quest completed at " + std::to_string(GameTime::GetGameTimeMS()));
         }
     }
 
@@ -238,8 +221,9 @@ void QuestCompletion::CompleteQuest(uint32 questId, Player* bot)
     TC_LOG_DEBUG("playerbot", "QuestCompletion::CompleteQuest - Bot %s completed quest %u",
         bot->GetName().c_str(), questId);
 
-    // Schedule turn-in through QuestTurnIn system
-    QuestTurnIn::instance()->ScheduleQuestTurnIn(bot, questId);
+    // Schedule turn-in through QuestTurnIn system (per-bot)
+    if (IGameSystemsManager* systems = GetGameSystems(bot))
+        systems->GetQuestTurnIn()->ScheduleQuestTurnIn(bot, questId);
 }
 
 /**
@@ -253,8 +237,10 @@ bool QuestCompletion::TurnInQuest(uint32 questId, Player* bot)
     if (!bot || !questId)
         return false;
 
-    // Delegate to QuestTurnIn system
-    return QuestTurnIn::instance()->TurnInQuest(questId, bot);
+    // Delegate to QuestTurnIn system (per-bot)
+    if (IGameSystemsManager* systems = GetGameSystems(bot))
+        return systems->GetQuestTurnIn()->TurnInQuest(questId, bot);
+    return false;
 }
 
 /**
@@ -265,8 +251,6 @@ void QuestCompletion::TrackQuestObjectives(Player* bot)
 {
     if (!bot)
         return;
-
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
 
     auto it = _botQuestProgress.find(bot->GetGUID().GetCounter());
     if (it == _botQuestProgress.end())
@@ -359,8 +343,8 @@ void QuestCompletion::ExecuteObjective(Player* bot, QuestObjectiveData& objectiv
     }
 
     // Update time spent
-    objective.timeSpent += getMSTime() - objective.lastUpdateTime;
-    objective.lastUpdateTime = getMSTime();
+    objective.timeSpent += GameTime::GetGameTimeMS() - objective.lastUpdateTime;
+    objective.lastUpdateTime = GameTime::GetGameTimeMS();
 }
 
 /**
@@ -373,8 +357,6 @@ void QuestCompletion::UpdateObjectiveProgress(Player* bot, uint32 questId, uint3
 {
     if (!bot)
         return;
-
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
 
     auto it = _botQuestProgress.find(bot->GetGUID().GetCounter());
     if (it == _botQuestProgress.end())
@@ -401,7 +383,6 @@ void QuestCompletion::UpdateObjectiveProgress(Player* bot, uint32 questId, uint3
 
     // Update objective count using Player::GetQuestObjectiveData
     objective.currentCount = bot->GetQuestObjectiveData(questObj);
-
     if (objective.currentCount >= objective.requiredCount)
     {
         objective.status = ObjectiveStatus::COMPLETED;
@@ -572,13 +553,11 @@ void QuestCompletion::HandleTalkToNpcObjective(Player* bot, QuestObjectiveData& 
                 sSpatialGridManager.CreateGrid(map);
                 spatialGrid = sSpatialGridManager.GetGrid(map);
             }
-
             if (spatialGrid)
             {
                 // DEADLOCK FIX: Use snapshot-based query (thread-safe, lock-free)
                 std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
                     spatialGrid->QueryNearbyCreatures(bot->GetPosition(), objective.searchRadius);
-
                 ObjectGuid npcGuid;
                 float minDistance = objective.searchRadius;
 
@@ -589,7 +568,6 @@ void QuestCompletion::HandleTalkToNpcObjective(Player* bot, QuestObjectiveData& 
                         continue;
                     if (snapshot.entry != objective.targetId)
                         continue;
-
                     float distance = bot->GetExactDist(snapshot.position);
                     if (distance < minDistance)
                     {
@@ -663,7 +641,6 @@ void QuestCompletion::HandleLocationObjective(Player* bot, QuestObjectiveData& o
         NavigateToObjective(bot, objective);
     }
 }
-
 /**
  * @brief Handle game object objectives
  * @param bot Bot player
@@ -694,7 +671,6 @@ void QuestCompletion::HandleGameObjectObjective(Player* bot, QuestObjectiveData&
         // Query nearby GameObjects (lock-free!)
         std::vector<DoubleBufferedSpatialGrid::GameObjectSnapshot> nearbyObjects =
             spatialGrid->QueryNearbyGameObjects(bot->GetPosition(), objective.searchRadius);
-
         // Find matching GameObject using snapshots
         ObjectGuid targetGuid;
         for (auto const& snapshot : nearbyObjects)
@@ -783,7 +759,6 @@ void QuestCompletion::HandleSpellCastObjective(Player* bot, QuestObjectiveData& 
         {
             objective.status = ObjectiveStatus::COMPLETED;
         }
-
         TC_LOG_DEBUG("playerbot", "QuestCompletion::HandleSpellCastObjective - Bot %s cast spell %u for quest %u",
             bot->GetName().c_str(), objective.targetId, objective.questId);
     }
@@ -888,7 +863,6 @@ void QuestCompletion::HandleEscortObjective(Player* bot, QuestObjectiveData& obj
             if (!spatialGrid)
                 return;
         }
-
         // Use snapshot-based query (thread-safe, lock-free)
         std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
             spatialGrid->QueryNearbyCreatures(bot->GetPosition(), objective.searchRadius);
@@ -948,7 +922,6 @@ void QuestCompletion::NavigateToObjective(Player* bot, const QuestObjectiveData&
 
     // Get optimal position for objective
     Position targetPos = GetOptimalObjectivePosition(bot, objective);
-
     // Use movement utility to navigate
     BotMovementUtil::MoveToPosition(bot, targetPos);
 
@@ -966,7 +939,6 @@ bool QuestCompletion::FindKillTarget(Player* bot, QuestObjectiveData& objective)
 {
     if (!bot)
         return false;
-
     // DEADLOCK FIX: Use lock-free spatial grid with snapshots
     Map* map = bot->GetMap();
     if (!map)
@@ -1352,7 +1324,6 @@ void QuestCompletion::ExecuteGroupStrategy(Player* bot, QuestProgressData& progr
 
     // Coordinate with group members
     Group* group = bot->GetGroup();
-
     // Share objective progress
     ShareObjectiveProgress(group, progress.questId);
 
@@ -1398,11 +1369,9 @@ void QuestCompletion::ShareObjectiveProgress(Group* group, uint32 questId)
     if (!group)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_groupMutex);
-
     // Update group quest sharing data
     _groupQuestSharing[group->GetGUID().GetCounter()].push_back(questId);
-    _groupObjectiveSync[group->GetGUID().GetCounter()][questId] = getMSTime();
+    _groupObjectiveSync[group->GetGUID().GetCounter()][questId] = GameTime::GetGameTimeMS();
 }
 
 /**
@@ -1418,8 +1387,6 @@ void QuestCompletion::DetectStuckState(Player* bot, uint32 questId)
     TC_LOG_DEBUG("playerbot", "QuestCompletion::DetectStuckState - Bot %s stuck on quest %u",
         bot->GetName().c_str(), questId);
 
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
-
     auto it = _botQuestProgress.find(bot->GetGUID().GetCounter());
     if (it == _botQuestProgress.end())
         return;
@@ -1430,7 +1397,7 @@ void QuestCompletion::DetectStuckState(Player* bot, uint32 questId)
     if (questIt != it->second.end())
     {
         questIt->isStuck = true;
-        questIt->stuckTime = getMSTime();
+        questIt->stuckTime = GameTime::GetGameTimeMS();
         questIt->consecutiveFailures++;
 
         // Update metrics
@@ -1456,8 +1423,6 @@ void QuestCompletion::RecoverFromStuckState(Player* bot, uint32 questId)
         bot->GetName().c_str(), questId);
 
     // Try different recovery strategies
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
-
     auto it = _botQuestProgress.find(bot->GetGUID().GetCounter());
     if (it == _botQuestProgress.end())
         return;
@@ -1492,25 +1457,46 @@ void QuestCompletion::RecoverFromStuckState(Player* bot, uint32 questId)
  * @param botGuid Bot GUID
  * @return Completion metrics
  */
-QuestCompletion::QuestCompletionMetrics::Snapshot QuestCompletion::GetBotCompletionMetrics(uint32 botGuid)
+IQuestCompletion::QuestCompletionMetricsSnapshot QuestCompletion::GetBotCompletionMetrics(uint32 botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
-
     auto it = _botMetrics.find(botGuid);
-    if (it != _botMetrics.end())
-        return it->second.CreateSnapshot();
+    IQuestCompletion::QuestCompletionMetricsSnapshot result{};
 
-    QuestCompletionMetrics defaultMetrics;
-    return defaultMetrics.CreateSnapshot();
+    if (it != _botMetrics.end())
+    {
+        auto snapshot = it->second.CreateSnapshot();
+        result.questsStarted = snapshot.questsStarted;
+        result.questsCompleted = snapshot.questsCompleted;
+        result.questsFailed = snapshot.questsFailed;
+        result.objectivesCompleted = snapshot.objectivesCompleted;
+        result.stuckInstances = snapshot.stuckInstances;
+        result.averageCompletionTime = snapshot.averageCompletionTime;
+        result.completionSuccessRate = snapshot.completionSuccessRate;
+        result.objectiveEfficiency = snapshot.objectiveEfficiency;
+        result.totalDistanceTraveled = snapshot.totalDistanceTraveled;
+    }
+
+    return result;
 }
 
 /**
  * @brief Get global completion metrics
  * @return Global completion metrics
  */
-QuestCompletion::QuestCompletionMetrics::Snapshot QuestCompletion::GetGlobalCompletionMetrics()
+IQuestCompletion::QuestCompletionMetricsSnapshot QuestCompletion::GetGlobalCompletionMetrics()
 {
-    return _globalMetrics.CreateSnapshot();
+    auto snapshot = _globalMetrics.CreateSnapshot();
+    IQuestCompletion::QuestCompletionMetricsSnapshot result{};
+    result.questsStarted = snapshot.questsStarted;
+    result.questsCompleted = snapshot.questsCompleted;
+    result.questsFailed = snapshot.questsFailed;
+    result.objectivesCompleted = snapshot.objectivesCompleted;
+    result.stuckInstances = snapshot.stuckInstances;
+    result.averageCompletionTime = snapshot.averageCompletionTime;
+    result.completionSuccessRate = snapshot.completionSuccessRate;
+    result.objectiveEfficiency = snapshot.objectiveEfficiency;
+    result.totalDistanceTraveled = snapshot.totalDistanceTraveled;
+    return result;
 }
 
 /**
@@ -1520,7 +1506,6 @@ QuestCompletion::QuestCompletionMetrics::Snapshot QuestCompletion::GetGlobalComp
  */
 void QuestCompletion::SetQuestCompletionStrategy(uint32 botGuid, QuestCompletionStrategy strategy)
 {
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
     _botStrategies[botGuid] = strategy;
 }
 
@@ -1531,8 +1516,6 @@ void QuestCompletion::SetQuestCompletionStrategy(uint32 botGuid, QuestCompletion
  */
 QuestCompletionStrategy QuestCompletion::GetQuestCompletionStrategy(uint32 botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
-
     auto it = _botStrategies.find(botGuid);
     if (it != _botStrategies.end())
         return it->second;
@@ -1564,9 +1547,7 @@ void QuestCompletion::Update(uint32 diff)
  */
 void QuestCompletion::CleanupCompletedQuests()
 {
-    std::lock_guard<std::recursive_mutex> lock(_completionMutex);
-
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     for (auto& [botGuid, progressList] : _botQuestProgress)
     {

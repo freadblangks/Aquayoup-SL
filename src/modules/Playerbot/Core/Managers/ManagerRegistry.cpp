@@ -43,18 +43,12 @@ ManagerRegistry::~ManagerRegistry()
         _managers.size());
 }
 
-bool ManagerRegistry::RegisterManager(std::unique_ptr<IManagerBase> manager)
+bool ManagerRegistry::RegisterManager(::std::unique_ptr<IManagerBase> manager)
 {
-    if (!manager)
-    {
-        TC_LOG_ERROR("module.playerbot.managers",
-            "Attempted to register null manager");
-        return false;
-    }
 
-    std::string managerId = manager->GetManagerId();
+    ::std::string managerId = manager->GetManagerId();
 
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
 
     // Check if manager ID already exists
     if (_managers.find(managerId) != _managers.end())
@@ -66,13 +60,13 @@ bool ManagerRegistry::RegisterManager(std::unique_ptr<IManagerBase> manager)
 
     // Create entry and transfer ownership
     ManagerEntry entry;
-    entry.manager = std::move(manager);
+    entry.manager = ::std::move(manager);
     entry.initialized = false;
     entry.lastUpdateTime = 0;
     entry.totalUpdates = 0;
     entry.totalUpdateTimeMs = 0;
 
-    _managers[managerId] = std::move(entry);
+    _managers[managerId] = ::std::move(entry);
     _initializationOrder.push_back(managerId);
 
     TC_LOG_INFO("module.playerbot.managers",
@@ -83,9 +77,9 @@ bool ManagerRegistry::RegisterManager(std::unique_ptr<IManagerBase> manager)
     return true;
 }
 
-bool ManagerRegistry::UnregisterManager(std::string const& managerId)
+bool ManagerRegistry::UnregisterManager(::std::string const& managerId)
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
 
     auto it = _managers.find(managerId);
     if (it == _managers.end())
@@ -102,7 +96,7 @@ bool ManagerRegistry::UnregisterManager(std::string const& managerId)
         {
             it->second.manager->Shutdown();
         }
-        catch (std::exception const& ex)
+        catch (::std::exception const& ex)
         {
             TC_LOG_ERROR("module.playerbot.managers",
                 "Exception during shutdown of manager '{}': {}",
@@ -111,7 +105,7 @@ bool ManagerRegistry::UnregisterManager(std::string const& managerId)
     }
 
     // Remove from initialization order
-    auto orderIt = std::find(_initializationOrder.begin(), _initializationOrder.end(), managerId);
+    auto orderIt = ::std::find(_initializationOrder.begin(), _initializationOrder.end(), managerId);
     if (orderIt != _initializationOrder.end())
     {
         _initializationOrder.erase(orderIt);
@@ -128,9 +122,9 @@ bool ManagerRegistry::UnregisterManager(std::string const& managerId)
     return true;
 }
 
-IManagerBase* ManagerRegistry::GetManager(std::string const& managerId) const
+IManagerBase* ManagerRegistry::GetManager(::std::string const& managerId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
 
     auto it = _managers.find(managerId);
     if (it == _managers.end())
@@ -139,18 +133,18 @@ IManagerBase* ManagerRegistry::GetManager(std::string const& managerId) const
     return it->second.manager.get();
 }
 
-bool ManagerRegistry::HasManager(std::string const& managerId) const
+bool ManagerRegistry::HasManager(::std::string const& managerId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
     return _managers.find(managerId) != _managers.end();
 }
 
 uint32 ManagerRegistry::InitializeAll()
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
 
     uint32 successCount = 0;
-    uint64 startTime = getMSTime();
+    uint64 startTime = GameTime::GetGameTimeMS();
 
     TC_LOG_INFO("module.playerbot.managers",
         "Initializing {} managers...", _managers.size());
@@ -172,14 +166,14 @@ uint32 ManagerRegistry::InitializeAll()
 
         try
         {
-            uint64 managerStartTime = getMSTime();
+            uint64 managerStartTime = GameTime::GetGameTimeMS();
 
             if (entry.manager->Initialize())
             {
                 entry.initialized = true;
                 ++successCount;
 
-                uint64 initTime = getMSTimeDiff(managerStartTime, getMSTime());
+                uint64 initTime = getMSTimeDiff(managerStartTime, GameTime::GetGameTimeMS());
                 TC_LOG_DEBUG("module.playerbot.managers",
                     "Manager '{}' initialized in {}ms", managerId, initTime);
 
@@ -196,14 +190,14 @@ uint32 ManagerRegistry::InitializeAll()
                     "Manager '{}' failed to initialize", managerId);
             }
         }
-        catch (std::exception const& ex)
+        catch (::std::exception const& ex)
         {
             TC_LOG_ERROR("module.playerbot.managers",
                 "Exception initializing manager '{}': {}", managerId, ex.what());
         }
     }
 
-    uint64 totalTime = getMSTimeDiff(startTime, getMSTime());
+    uint64 totalTime = getMSTimeDiff(startTime, GameTime::GetGameTimeMS());
     _initialized = true;
 
     TC_LOG_INFO("module.playerbot.managers",
@@ -215,9 +209,9 @@ uint32 ManagerRegistry::InitializeAll()
 
 void ManagerRegistry::ShutdownAll()
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
 
-    uint64 startTime = getMSTime();
+    uint64 startTime = GameTime::GetGameTimeMS();
 
     TC_LOG_INFO("module.playerbot.managers",
         "Shutting down {} managers...", _managers.size());
@@ -225,7 +219,7 @@ void ManagerRegistry::ShutdownAll()
     // Shutdown in reverse order (to respect dependencies)
     for (auto it = _initializationOrder.rbegin(); it != _initializationOrder.rend(); ++it)
     {
-        std::string const& managerId = *it;
+        ::std::string const& managerId = *it;
         auto managerIt = _managers.find(managerId);
 
         if (managerIt == _managers.end())
@@ -237,12 +231,12 @@ void ManagerRegistry::ShutdownAll()
 
         try
         {
-            uint64 managerStartTime = getMSTime();
+            uint64 managerStartTime = GameTime::GetGameTimeMS();
 
             entry.manager->Shutdown();
             entry.initialized = false;
 
-            uint64 shutdownTime = getMSTimeDiff(managerStartTime, getMSTime());
+            uint64 shutdownTime = getMSTimeDiff(managerStartTime, GameTime::GetGameTimeMS());
             TC_LOG_DEBUG("module.playerbot.managers",
                 "Manager '{}' shut down in {}ms", managerId, shutdownTime);
 
@@ -253,14 +247,14 @@ void ManagerRegistry::ShutdownAll()
                     managerId, shutdownTime);
             }
         }
-        catch (std::exception const& ex)
+        catch (::std::exception const& ex)
         {
             TC_LOG_ERROR("module.playerbot.managers",
                 "Exception shutting down manager '{}': {}", managerId, ex.what());
         }
     }
 
-    uint64 totalTime = getMSTimeDiff(startTime, getMSTime());
+    uint64 totalTime = getMSTimeDiff(startTime, GameTime::GetGameTimeMS());
     _initialized = false;
 
     TC_LOG_INFO("module.playerbot.managers",
@@ -273,12 +267,11 @@ uint32 ManagerRegistry::UpdateAll(uint32 diff)
     // Each bot has its own ManagerRegistry instance, so _managers is per-bot data
     // No cross-bot access means no lock needed for UpdateAll()
     // See: CORRECTED_RUNTIME_BOTTLENECK_ANALYSIS.md for details
-
     if (!_initialized)
         return 0;
 
     uint32 updateCount = 0;
-    uint64 currentTime = getMSTime();
+    uint64 currentTime = GameTime::GetGameTimeMS();
 
     // Update managers that are due for update
     for (auto& [managerId, entry] : _managers)
@@ -287,7 +280,7 @@ uint32 ManagerRegistry::UpdateAll(uint32 diff)
             continue;
 
         // Skip inactive managers
-        if (!entry.manager->IsActive())
+    if (!entry.manager->IsActive())
             continue;
 
         // Check if manager is due for update
@@ -300,25 +293,25 @@ uint32 ManagerRegistry::UpdateAll(uint32 diff)
         // Update manager
         try
         {
-            uint64 updateStartTime = getMSTime();
+            uint64 updateStartTime = GameTime::GetGameTimeMS();
 
             entry.manager->Update(diff);
 
-            uint64 updateTime = getMSTimeDiff(updateStartTime, getMSTime());
+            uint64 updateTime = getMSTimeDiff(updateStartTime, GameTime::GetGameTimeMS());
             entry.lastUpdateTime = currentTime;
             entry.totalUpdates++;
             entry.totalUpdateTimeMs += updateTime;
             ++updateCount;
 
             // Warn if update took too long
-            if (updateTime > 1) // >1ms is concerning
+    if (updateTime > 1) // >1ms is concerning
             {
                 TC_LOG_WARN("module.playerbot.managers",
                     "Manager '{}' update took {}ms (expected <1ms)",
                     managerId, updateTime);
             }
         }
-        catch (std::exception const& ex)
+        catch (::std::exception const& ex)
         {
             TC_LOG_ERROR("module.playerbot.managers",
                 "Exception updating manager '{}': {}", managerId, ex.what());
@@ -330,15 +323,15 @@ uint32 ManagerRegistry::UpdateAll(uint32 diff)
 
 size_t ManagerRegistry::GetManagerCount() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
     return _managers.size();
 }
 
-std::vector<std::string> ManagerRegistry::GetManagerIds() const
+::std::vector<::std::string> ManagerRegistry::GetManagerIds() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
 
-    std::vector<std::string> ids;
+    ::std::vector<::std::string> ids;
     ids.reserve(_managers.size());
 
     for (auto const& [managerId, entry] : _managers)
@@ -349,9 +342,9 @@ std::vector<std::string> ManagerRegistry::GetManagerIds() const
     return ids;
 }
 
-bool ManagerRegistry::SetManagerActive(std::string const& managerId, bool active)
+bool ManagerRegistry::SetManagerActive(::std::string const& managerId, bool active)
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
 
     auto it = _managers.find(managerId);
     if (it == _managers.end())
@@ -368,11 +361,11 @@ bool ManagerRegistry::SetManagerActive(std::string const& managerId, bool active
     return true;
 }
 
-std::vector<ManagerRegistry::ManagerMetrics> ManagerRegistry::GetMetrics() const
+::std::vector<ManagerRegistry::ManagerMetrics> ManagerRegistry::GetMetrics() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
 
-    std::vector<ManagerMetrics> metrics;
+    ::std::vector<ManagerMetrics> metrics;
     metrics.reserve(_managers.size());
 
     for (auto const& [managerId, entry] : _managers)
@@ -406,7 +399,7 @@ std::vector<ManagerRegistry::ManagerMetrics> ManagerRegistry::GetMetrics() const
 
 void ManagerRegistry::ResetMetrics()
 {
-    std::lock_guard<std::recursive_mutex> lock(_managerMutex);
+    ::std::lock_guard lock(_managerMutex);
 
     for (auto& [managerId, entry] : _managers)
     {

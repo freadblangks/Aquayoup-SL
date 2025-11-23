@@ -47,18 +47,18 @@ static constexpr uint8 RUNE_DEATH = 3;
 // Performance metrics structure
 struct DeathKnightMetrics
 {
-    std::atomic<uint32> totalRunicPowerGenerated{0};
-    std::atomic<uint32> totalRunicPowerSpent{0};
-    std::atomic<uint32> totalRunesUsed{0};
-    std::atomic<uint32> diseasesApplied{0};
-    std::atomic<uint32> deathStrikesUsed{0};
-    std::atomic<uint32> deathGripsUsed{0};
-    std::atomic<uint32> interruptsExecuted{0};
-    std::atomic<uint32> cooldownsUsed{0};
-    std::atomic<float> averageReactionTime{0};
-    std::atomic<float> runeEfficiency{0};
-    std::atomic<float> diseaseUptime{0};
-    std::chrono::steady_clock::time_point lastUpdate;
+    ::std::atomic<uint32> totalRunicPowerGenerated{0};
+    ::std::atomic<uint32> totalRunicPowerSpent{0};
+    ::std::atomic<uint32> totalRunesUsed{0};
+    ::std::atomic<uint32> diseasesApplied{0};
+    ::std::atomic<uint32> deathStrikesUsed{0};
+    ::std::atomic<uint32> deathGripsUsed{0};
+    ::std::atomic<uint32> interruptsExecuted{0};
+    ::std::atomic<uint32> cooldownsUsed{0};
+    ::std::atomic<float> averageReactionTime{0};
+    ::std::atomic<float> runeEfficiency{0};
+    ::std::atomic<float> diseaseUptime{0};
+    ::std::chrono::steady_clock::time_point lastUpdate;
 
     void Reset()
     {
@@ -73,7 +73,7 @@ struct DeathKnightMetrics
         averageReactionTime = 0;
         runeEfficiency = 0;
         diseaseUptime = 0;
-        lastUpdate = std::chrono::steady_clock::now();
+        lastUpdate = ::std::chrono::steady_clock::now();
     }
 
     void UpdateReactionTime(float deltaMs)
@@ -86,8 +86,11 @@ struct DeathKnightMetrics
     {
         if (runesUsed > 0)
         {
+
             float efficiency = static_cast<float>(powerGenerated) / runesUsed;
+
             float current = runeEfficiency.load();
+
             runeEfficiency = (current * 0.8f) + (efficiency * 0.2f);
         }
     }
@@ -103,53 +106,91 @@ struct DeathKnightMetrics
 enum DeathKnightSpells : uint32
 {
     // Diseases
-    FROST_FEVER             = 55095,
-    BLOOD_PLAGUE            = 55078,
-    EPIDEMIC                = 207317, // AoE disease spread
+
+    FROST_FEVER
+    = 55095,
+
+    BLOOD_PLAGUE
+    = 55078,
+
+    EPIDEMIC
+    = 207317, // AoE disease spread
 
     // Blood Abilities
-    BLOOD_STRIKE            = 49930,
-    HEART_STRIKE            = 55050,
-    BLOOD_BOIL              = 48721,
-    RUNE_TAP                = 48982,
+
+    BLOOD_STRIKE
+    = 49930,
+
+    HEART_STRIKE
+    = 55050,
+
+    BLOOD_BOIL
+    = 48721,
+
+    RUNE_TAP
+    = 48982,
     VAMPIRIC_BLOOD          = 55233,
     DANCING_RUNE_WEAPON     = 49028,
     MARK_OF_BLOOD           = 49005,
 
     // Frost Abilities
-    ICY_TOUCH               = 45477,
-    OBLITERATE              = 49020,
-    FROST_STRIKE            = 49143,
+
+    ICY_TOUCH
+    = 45477,
+
+    OBLITERATE
+    = 49020,
+
+    FROST_STRIKE
+    = 49143,
     HOWLING_BLAST           = 51411,
     CHAINS_OF_ICE           = 45524,
     UNBREAKABLE_ARMOR       = 51271,
-    DEATHCHILL              = 49796,
+
+    DEATHCHILL
+    = 49796,
     PILLAR_OF_FROST         = 51271, // Major frost DPS cooldown
 
     // Unholy Abilities
     PLAGUE_STRIKE           = 45462,
     SCOURGE_STRIKE          = 55090,
-    DEATH_COIL              = 47541,
+
+    DEATH_COIL
+    = 47541,
     DEATH_AND_DECAY         = 43265,
     CORPSE_EXPLOSION        = 51328,
-    BONE_SHIELD             = 195181, // Updated for WoW 11.2
+
+    BONE_SHIELD
+    = 195181, // Updated for WoW 11.2
     SUMMON_GARGOYLE         = 49206,
     UNHOLY_FRENZY           = 49016,
 
     // Universal Abilities
-    DEATH_STRIKE            = 49998,
-    DEATH_GRIP              = 49576,
+
+    DEATH_STRIKE
+    = 49998,
+
+    DEATH_GRIP
+    = 49576,
     ANTI_MAGIC_SHELL        = 48707,
     ANTI_MAGIC_ZONE         = 51052,
     ICEBOUND_FORTITUDE      = 48792,
-    MIND_FREEZE             = 47528,
-    STRANGULATE             = 47476,
+
+    MIND_FREEZE
+    = 47528,
+
+    STRANGULATE
+    = 47476,
     EMPOWER_RUNE_WEAPON     = 47568,
     ARMY_OF_THE_DEAD        = 42650,
-    RAISE_DEAD              = 46584,
+
+    RAISE_DEAD
+    = 46584,
     HORN_OF_WINTER          = 57330,
     PATH_OF_FROST           = 3714,
-    DARK_COMMAND            = 56222, // Taunt
+
+    DARK_COMMAND
+    = 56222, // Taunt
 
     // Presences
     BLOOD_PRESENCE          = 48266,
@@ -157,8 +198,12 @@ enum DeathKnightSpells : uint32
     UNHOLY_PRESENCE         = 48265,
 
     // Runic Power Abilities
-    RUNE_STRIKE             = 56815,
-    DEATH_PACT              = 48743
+
+    RUNE_STRIKE
+    = 56815,
+
+    DEATH_PACT
+    = 48743
 };
 
 // Death Knight constants
@@ -183,16 +228,20 @@ class DeathKnightCombatMetrics
 public:
     void RecordAbilityUsage(uint32 spellId, bool success, uint32 runesUsed = 0, uint32 powerCost = 0)
     {
-        auto now = std::chrono::steady_clock::now();
+        auto now = ::std::chrono::steady_clock::now();
         _abilityTimings[spellId] = now;
 
         if (success)
         {
+
             _successfulCasts[spellId]++;
+
             _totalRunesUsed += runesUsed;
+
             _totalRunicPowerUsed += powerCost;
         }
         else
+
             _failedCasts[spellId]++;
 
         _lastGCD = now;
@@ -213,11 +262,14 @@ public:
 
         if (successful != _successfulCasts.end())
         {
+
             success = successful->second;
+
             total += success;
         }
 
         if (failed != _failedCasts.end())
+
             total += failed->second;
 
         return total > 0 ? (float)success / total : 0.0f;
@@ -225,16 +277,16 @@ public:
 
     bool IsOnGlobalCooldown() const
     {
-        auto now = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - _lastGCD);
+        auto now = ::std::chrono::steady_clock::now();
+        auto elapsed = ::std::chrono::duration_cast<::std::chrono::milliseconds>(now - _lastGCD);
         return elapsed.count() < 1500; // 1.5 second GCD
     }
 
 private:
-    std::unordered_map<uint32, std::chrono::steady_clock::time_point> _abilityTimings;
-    std::unordered_map<uint32, uint32> _successfulCasts;
-    std::unordered_map<uint32, uint32> _failedCasts;
-    std::chrono::steady_clock::time_point _lastGCD;
+    ::std::unordered_map<uint32, ::std::chrono::steady_clock::time_point> _abilityTimings;
+    ::std::unordered_map<uint32, uint32> _successfulCasts;
+    ::std::unordered_map<uint32, uint32> _failedCasts;
+    ::std::chrono::steady_clock::time_point _lastGCD;
     uint32 _totalRunesUsed = 0;
     uint32 _totalRunicPowerUsed = 0;
     uint32 _totalRunicPowerGenerated = 0;
@@ -244,58 +296,72 @@ private:
 class DeathKnightCombatPositioning
 {
 public:
-    explicit DeathKnightCombatPositioning(Player* bot) : _bot(bot) {}
-
-    Position CalculateOptimalPosition(Unit* target, DeathKnightSpec detectedSpec)
+    explicit DeathKnightCombatPositioning(Player* bot) : _bot(bot) {}    Position CalculateOptimalPosition(Unit* target, DeathKnightSpec detectedSpec)
     {
         if (!target || !_bot)
+
             return _bot->GetPosition();
 
         Position optimalPos = _bot->GetPosition();
-        float currentDistance = std::sqrt(_bot->GetExactDistSq(target)); // Calculate once from squared distance
-
-        switch (detectedSpec)
+        float currentDistance = ::std::sqrt(_bot->GetExactDistSq(target)); // Calculate once from squared distance
+    switch (detectedSpec)
         {
+
             case DeathKnightSpec::BLOOD:
                 // Tank positioning - in front of target
-                if (currentDistance > 5.0f)
+    if (currentDistance > 5.0f)
+
                 {
+
                     float angle = target->GetOrientation();
                     optimalPos.m_positionX = target->GetPositionX() + cos(angle) * 3.0f;
                     optimalPos.m_positionY = target->GetPositionY() + sin(angle) * 3.0f;
                     optimalPos.m_positionZ = target->GetPositionZ();
-                }
+                    }
+
                 break;
+
 
             case DeathKnightSpec::FROST:
                 // Melee DPS positioning - behind or to the side
-                if (currentDistance > 5.0f)
+    if (currentDistance > 5.0f)
+
                 {
+
                     float angle = target->GetOrientation() + M_PI; // Behind target
                     optimalPos.m_positionX = target->GetPositionX() + cos(angle) * 3.0f;
                     optimalPos.m_positionY = target->GetPositionY() + sin(angle) * 3.0f;
                     optimalPos.m_positionZ = target->GetPositionZ();
-                }
+                    }
+
                 break;
+
 
             case DeathKnightSpec::UNHOLY:
                 // Flexible positioning with pet management
-                if (currentDistance > 5.0f && currentDistance < 30.0f)
+    if (currentDistance > 5.0f && currentDistance < 30.0f)
+
                 {
                     // Stay at mid-range for Death Coil
+
                     float angle = target->GetRelativeAngle(_bot);
                     optimalPos.m_positionX = target->GetPositionX() + cos(angle) * 10.0f;
                     optimalPos.m_positionY = target->GetPositionY() + sin(angle) * 10.0f;
                     optimalPos.m_positionZ = target->GetPositionZ();
-                }
+                    }
+
                 else if (currentDistance > 30.0f)
+
                 {
                     // Use Death Grip range
+
                     float angle = target->GetRelativeAngle(_bot);
+
                     optimalPos.m_positionX = target->GetPositionX() + cos(angle) * 25.0f;
                     optimalPos.m_positionY = target->GetPositionY() + sin(angle) * 25.0f;
                     optimalPos.m_positionZ = target->GetPositionZ();
-                }
+                    }
+
                 break;
         }
 
@@ -306,13 +372,21 @@ public:
     {
         switch (detectedSpec)
         {
+
             case DeathKnightSpec::BLOOD:
+
                 return 5.0f; // Tank in melee
+
             case DeathKnightSpec::FROST:
+
                 return 5.0f; // Melee DPS
+
             case DeathKnightSpec::UNHOLY:
+
                 return 10.0f; // Flexible range
+
             default:
+
                 return 5.0f;
         }
     }
@@ -340,24 +414,23 @@ DeathKnightAI::DeathKnightAI(Player* bot) :
     DetectSpecialization();
 
     // Initialize performance tracking
-    _metrics = std::make_unique<DeathKnightMetrics>();
-    _combatMetrics = std::make_unique<DeathKnightCombatMetrics>();
-    _runeManager = std::make_unique<RuneManager>(bot);
-    _diseaseManager = std::make_unique<DiseaseManager>(bot);
-    _positioning = std::make_unique<DeathKnightCombatPositioning>(bot);
+    _metrics = ::std::make_unique<DeathKnightMetrics>();
+    _combatMetrics = ::std::make_unique<DeathKnightCombatMetrics>();
+    _runeManager = ::std::make_unique<RuneManager>(bot);
+    _diseaseManager = ::std::make_unique<DiseaseManager>(bot);
+    _positioning = ::std::make_unique<DeathKnightCombatPositioning>(bot);    TC_LOG_DEBUG("playerbot", "DeathKnightAI initialized for {} with specialization {}",
 
-    TC_LOG_DEBUG("playerbot", "DeathKnightAI initialized for {} with specialization {}",
                  bot->GetName(), static_cast<uint32>(_detectedSpec));
 }
 
 void DeathKnightAI::InitializeCombatSystems()
 {
     // Initialize advanced combat system components
-    _threatManager = std::make_unique<BotThreatManager>(GetBot());
-    _targetSelector = std::make_unique<TargetSelector>(GetBot(), _threatManager.get());
-    _positionManager = std::make_unique<PositionManager>(GetBot(), _threatManager.get());
-    _interruptManager = std::make_unique<InterruptManager>(GetBot());
-    _cooldownManager = std::make_unique<CooldownManager>();
+    _threatManager = ::std::make_unique<BotThreatManager>(GetBot());
+    _targetSelector = ::std::make_unique<TargetSelector>(GetBot(), _threatManager.get());
+    _positionManager = ::std::make_unique<PositionManager>(GetBot(), _threatManager.get());
+    _interruptManager = ::std::make_unique<InterruptManager>(GetBot());
+    _cooldownManager = ::std::make_unique<CooldownManager>();
 
     TC_LOG_DEBUG("playerbot", "DeathKnightAI combat systems initialized for {}", GetBot()->GetName());
 }
@@ -408,6 +481,7 @@ void DeathKnightAI::DetectSpecialization()
         _detectedSpec = DeathKnightSpec::UNHOLY;
 
     TC_LOG_DEBUG("playerbot", "DeathKnightAI detected specialization: {} (B:{}, F:{}, U:{})",
+
                  static_cast<uint32>(_detectedSpec), bloodPoints, frostPoints, unholyPoints);
 }
 
@@ -423,16 +497,22 @@ void DeathKnightAI::UpdateRotation(Unit* target)
         baselineManager.HandleAutoSpecialization(GetBot());
 
         if (baselineManager.ExecuteBaselineRotation(GetBot(), target))
+
             return;
 
         // Fallback: Use Death Grip if available for ranged pull
         float rangeCheckSq = OPTIMAL_MELEE_RANGE * OPTIMAL_MELEE_RANGE; // 25.0f
-        if (GetBot()->GetExactDistSq(target) > rangeCheckSq && ShouldUseDeathGrip(target))
+    if (GetBot()->GetExactDistSq(target) > rangeCheckSq && ShouldUseDeathGrip(target))
         {
+
             if (CanUseAbility(DEATH_GRIP))
+
             {
-                CastSpell(target, DEATH_GRIP);
+
+                CastSpell(DEATH_GRIP, target);
+
                 return;
+
             }
         }
         return;
@@ -447,6 +527,7 @@ void DeathKnightAI::UpdateRotation(Unit* target)
     if (behaviors && behaviors->ShouldInterrupt(target))
     {
         if (HandleInterrupts(target))
+
             return;
     }
 
@@ -454,6 +535,7 @@ void DeathKnightAI::UpdateRotation(Unit* target)
     if (behaviors && behaviors->NeedsDefensive())
     {
         if (HandleDefensives())
+
             return;
     }
 
@@ -461,6 +543,7 @@ void DeathKnightAI::UpdateRotation(Unit* target)
     if (behaviors && behaviors->ShouldSwitchTarget())
     {
         if (HandleTargetSwitching(target))
+
             return;
     }
 
@@ -468,6 +551,7 @@ void DeathKnightAI::UpdateRotation(Unit* target)
     if (behaviors && behaviors->ShouldAOE())
     {
         if (HandleAoERotation(target))
+
             return;
     }
 
@@ -475,6 +559,7 @@ void DeathKnightAI::UpdateRotation(Unit* target)
     if (behaviors && behaviors->ShouldUseCooldowns())
     {
         if (HandleOffensiveCooldowns(target))
+
             return;
     }
 
@@ -486,10 +571,10 @@ void DeathKnightAI::UpdateRotation(Unit* target)
     ExecuteSpecializationRotation(target);
 
     // Update performance metrics
-    auto startTime = std::chrono::steady_clock::now();
+    auto startTime = ::std::chrono::steady_clock::now();
     _diseaseManager->UpdateDiseases(target);
-    auto endTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+    auto endTime = ::std::chrono::steady_clock::now();
+    auto duration = ::std::chrono::duration_cast<::std::chrono::microseconds>(endTime - startTime);
     _metrics->UpdateReactionTime(duration.count() / 1000.0f);
     _metrics->UpdateDiseaseUptime(_diseaseManager->GetDiseaseUptime());
 }
@@ -499,7 +584,7 @@ void DeathKnightAI::ExecuteFallbackRotation(Unit* target)
     if (!target || !GetBot())
         return;
 
-    float distance = std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
+    float distance = ::std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
     uint32 runicPower = GetBot()->GetPower(POWER_RUNIC_POWER);
 
     // Apply diseases first
@@ -507,10 +592,15 @@ void DeathKnightAI::ExecuteFallbackRotation(Unit* target)
     {
         if (CanUseAbility(ICY_TOUCH) && _runeManager->HasRunes(0u, 1u, 0u))
         {
-            CastSpell(target, ICY_TOUCH);
+
+            CastSpell(ICY_TOUCH, target);
+
             _runeManager->ConsumeRunes(0, 1, 0);
+
             _metrics->diseasesApplied++;
+
             _diseasesApplied++;
+
             return;
         }
     }
@@ -519,10 +609,15 @@ void DeathKnightAI::ExecuteFallbackRotation(Unit* target)
     {
         if (CanUseAbility(PLAGUE_STRIKE) && _runeManager->HasRunes(0u, 0u, 1u))
         {
-            CastSpell(target, PLAGUE_STRIKE);
+
+            CastSpell(PLAGUE_STRIKE, target);
+
             _runeManager->ConsumeRunes(0, 0, 1);
+
             _metrics->diseasesApplied++;
+
             _diseasesApplied++;
+
             return;
         }
     }
@@ -532,9 +627,13 @@ void DeathKnightAI::ExecuteFallbackRotation(Unit* target)
     {
         if (CanUseAbility(DEATH_STRIKE) && _runeManager->HasRunes(0u, 1u, 1u))
         {
-            CastSpell(target, DEATH_STRIKE);
+
+            CastSpell(DEATH_STRIKE, target);
+
             _runeManager->ConsumeRunes(0, 1, 1);
+
             _metrics->deathStrikesUsed++;
+
             return;
         }
     }
@@ -543,75 +642,119 @@ void DeathKnightAI::ExecuteFallbackRotation(Unit* target)
     if (distance <= 5.0f)
     {
         // Melee range abilities
-        if (_diseaseManager->HasBothDiseases(target))
+    if (_diseaseManager->HasBothDiseases(target))
         {
             // Spread diseases with Blood Boil for AoE
-            if (CanUseAbility(BLOOD_BOIL) && _runeManager->HasRunes(1u, 0u, 0u))
+    if (CanUseAbility(BLOOD_BOIL) && _runeManager->HasRunes(1u, 0u, 0u))
+
             {
+
                 CastSpell(BLOOD_BOIL);
+
                 _runeManager->ConsumeRunes(1, 0, 0);
+
                 return;
+
             }
 
             // Use spec-specific strike
-            switch (_detectedSpec)
+    switch (_detectedSpec)
+
             {
+
                 case DeathKnightSpec::BLOOD:
+
                     if (CanUseAbility(HEART_STRIKE) && _runeManager->HasRunes(1u, 0u, 0u))
+
                     {
-                        CastSpell(target, HEART_STRIKE);
+
+                        CastSpell(HEART_STRIKE, target);
+
                         _runeManager->ConsumeRunes(1, 0, 0);
+
                         _combatMetrics->RecordRunicPowerGeneration(15);
+
                         return;
+
                     }
+
                     break;
+
 
                 case DeathKnightSpec::FROST:
+
                     if (CanUseAbility(OBLITERATE) && _runeManager->HasRunes(0u, 1u, 1u))
+
                     {
-                        CastSpell(target, OBLITERATE);
+
+                        CastSpell(OBLITERATE, target);
+
                         _runeManager->ConsumeRunes(0, 1, 1);
+
                         _combatMetrics->RecordRunicPowerGeneration(25);
+
                         return;
+
                     }
+
                     break;
 
+
                 case DeathKnightSpec::UNHOLY:
+
                     if (CanUseAbility(SCOURGE_STRIKE) && _runeManager->HasRunes(0u, 0u, 1u))
+
                     {
-                        CastSpell(target, SCOURGE_STRIKE);
+
+                        CastSpell(SCOURGE_STRIKE, target);
+
                         _runeManager->ConsumeRunes(0, 0, 1);
+
                         _combatMetrics->RecordRunicPowerGeneration(15);
+
                         return;
+
                     }
+
                     break;
+
             }
         }
 
         // Use Blood Strike as fallback
-        if (CanUseAbility(BLOOD_STRIKE) && _runeManager->HasRunes(1u, 0u, 0u))
+    if (CanUseAbility(BLOOD_STRIKE) && _runeManager->HasRunes(1u, 0u, 0u))
         {
-            CastSpell(target, BLOOD_STRIKE);
+
+            CastSpell(BLOOD_STRIKE, target);
+
             _runeManager->ConsumeRunes(1, 0, 0);
+
             return;
         }
     }
     else if (distance > 5.0f && distance <= 30.0f)
     {
         // Death Grip to pull target
-        if (distance > 10.0f && CanUseAbility(DEATH_GRIP))
+    if (distance > 10.0f && CanUseAbility(DEATH_GRIP))
         {
-            CastSpell(target, DEATH_GRIP);
+
+            CastSpell(DEATH_GRIP, target);
+
             _metrics->deathGripsUsed++;
+
             return;
         }
 
         // Death Coil for ranged damage
-        if (runicPower >= 40 && CanUseAbility(DEATH_COIL))
+    if (runicPower >= 40 && CanUseAbility(DEATH_COIL))
         {
-            CastSpell(target, DEATH_COIL);
+
+            CastSpell(DEATH_COIL, target);
+
             _metrics->totalRunicPowerSpent += 40;
+
             _runicPowerSpent += 40;
+
             return;
         }
     }
@@ -621,34 +764,61 @@ void DeathKnightAI::ExecuteFallbackRotation(Unit* target)
     {
         switch (_detectedSpec)
         {
+
             case DeathKnightSpec::FROST:
+
                 if (CanUseAbility(FROST_STRIKE))
+
                 {
-                    CastSpell(target, FROST_STRIKE);
+
+                    CastSpell(FROST_STRIKE, target);
+
                     _metrics->totalRunicPowerSpent += 40;
+
                     _runicPowerSpent += 40;
+
                     return;
+
                 }
+
                 break;
+
 
             case DeathKnightSpec::BLOOD:
+
                 if (CanUseAbility(RUNE_STRIKE))
+
                 {
-                    CastSpell(target, RUNE_STRIKE);
+
+                    CastSpell(RUNE_STRIKE, target);
+
                     _metrics->totalRunicPowerSpent += 20;
+
                     _runicPowerSpent += 20;
+
                     return;
+
                 }
+
                 break;
 
+
             case DeathKnightSpec::UNHOLY:
+
                 if (CanUseAbility(DEATH_COIL))
+
                 {
-                    CastSpell(target, DEATH_COIL);
+
+                    CastSpell(DEATH_COIL, target);
+
                     _metrics->totalRunicPowerSpent += 40;
+
                     _runicPowerSpent += 40;
+
                     return;
+
                 }
+
                 break;
         }
     }
@@ -658,17 +828,29 @@ void DeathKnightAI::ExecuteFallbackRotation(Unit* target)
     {
         if (_interruptManager->IsSpellInterruptWorthy(target->GetCurrentSpell(CURRENT_GENERIC_SPELL) ? target->GetCurrentSpell(CURRENT_GENERIC_SPELL)->GetSpellInfo()->Id : 0, target))
         {
+
             if (distance <= 5.0f && CanUseAbility(MIND_FREEZE))
+
             {
-                CastSpell(target, MIND_FREEZE);
+
+                CastSpell(MIND_FREEZE, target);
+
                 _metrics->interruptsExecuted++;
+
                 return;
+
             }
+
             else if (distance <= 30.0f && CanUseAbility(STRANGULATE))
+
             {
-                CastSpell(target, STRANGULATE);
+
+                CastSpell(STRANGULATE, target);
+
                 _metrics->interruptsExecuted++;
+
                 return;
+
             }
         }
     }
@@ -679,7 +861,7 @@ void DeathKnightAI::UpdateBuffs()
     if (!GetBot())
         return;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Maintain presence
     if (currentTime - _lastPresence > 5000) // Check every 5 seconds
@@ -687,20 +869,31 @@ void DeathKnightAI::UpdateBuffs()
         uint32 presenceSpell = 0;
         switch (_detectedSpec)
         {
+
             case DeathKnightSpec::BLOOD:
+
                 presenceSpell = BLOOD_PRESENCE;
+
                 break;
+
             case DeathKnightSpec::FROST:
+
                 presenceSpell = FROST_PRESENCE;
+
                 break;
+
             case DeathKnightSpec::UNHOLY:
+
                 presenceSpell = UNHOLY_PRESENCE;
+
                 break;
         }
 
         if (presenceSpell && !HasAura(presenceSpell) && CanUseAbility(presenceSpell))
         {
-            CastSpell(presenceSpell);
+
+            CastSpell(presenceSpell, GetBot());
+
             _lastPresence = currentTime;
         }
     }
@@ -710,7 +903,9 @@ void DeathKnightAI::UpdateBuffs()
     {
         if (CanUseAbility(HORN_OF_WINTER))
         {
+
             CastSpell(HORN_OF_WINTER);
+
             _lastHorn = currentTime;
         }
     }
@@ -769,8 +964,11 @@ bool DeathKnightAI::HasEnoughResource(uint32 spellId)
     {
         if (cost.Power == POWER_RUNIC_POWER)
         {
+
             uint32 currentPower = GetBot()->GetPower(POWER_RUNIC_POWER);
+
             if (currentPower < cost.Amount)
+
                 return false;
         }
     }
@@ -779,19 +977,25 @@ bool DeathKnightAI::HasEnoughResource(uint32 spellId)
     switch (spellId)
     {
         case ICY_TOUCH:
+
             return _runeManager->HasRunes(0u, 1u, 0u);
         case PLAGUE_STRIKE:
+
             return _runeManager->HasRunes(0u, 0u, 1u);
         case BLOOD_STRIKE:
         case HEART_STRIKE:
+
         case BLOOD_BOIL:
-            return _runeManager->HasRunes(1u, 0u, 0u);
+        return _runeManager->HasRunes(1u, 0u, 0u);
         case DEATH_STRIKE:
         case OBLITERATE:
+
             return _runeManager->HasRunes(0u, 1u, 1u);
         case SCOURGE_STRIKE:
+
             return _runeManager->HasRunes(0u, 0u, 1u);
         default:
+
             break;
     }
 
@@ -814,6 +1018,7 @@ void DeathKnightAI::ConsumeResource(uint32 spellId)
         if (cost.Power == POWER_RUNIC_POWER)
         {
             _metrics->totalRunicPowerSpent += cost.Amount;
+
             _runicPowerSpent += cost.Amount;
         }
     }
@@ -828,13 +1033,18 @@ void DeathKnightAI::ConsumeResource(uint32 spellId)
         case HEART_STRIKE:
         case BLOOD_BOIL:
         case SCOURGE_STRIKE:
+
             runesUsed = 1;
+
             break;
         case DEATH_STRIKE:
         case OBLITERATE:
+
             runesUsed = 2;
+
             break;
         default:
+
             break;
     }
 
@@ -860,7 +1070,7 @@ void DeathKnightAI::OnCombatStart(Unit* target)
     // Apply diseases immediately
     if (CanUseAbility(ICY_TOUCH))
     {
-        CastSpell(target, ICY_TOUCH);
+        CastSpell(ICY_TOUCH, target);
         _diseaseManager->UpdateDiseases(target);
     }
 
@@ -873,6 +1083,7 @@ void DeathKnightAI::OnCombatStart(Unit* target)
         if (CanUseAbility(ARMY_OF_THE_DEAD))
         {
             CastSpell(ARMY_OF_THE_DEAD);
+
             TC_LOG_DEBUG("playerbot", "DeathKnightAI: Summoned Army of the Dead for boss");
         }
     }
@@ -881,17 +1092,28 @@ void DeathKnightAI::OnCombatStart(Unit* target)
     if (target->GetTypeId() == TYPEID_UNIT)
     {
         Creature* creature = target->ToCreature();
+        if (!creature)
+        {
+            return;
+        }
+
         if (creature && creature->GetCreatureTemplate()->unit_class == UNIT_CLASS_MAGE)
         {
+
             if (CanUseAbility(ANTI_MAGIC_SHELL))
+
             {
+
                 CastSpell(ANTI_MAGIC_SHELL);
+
                 TC_LOG_DEBUG("playerbot", "DeathKnightAI: Activated Anti-Magic Shell");
+
             }
         }
     }
 
     TC_LOG_DEBUG("playerbot", "DeathKnightAI: Combat started against {} with spec {}",
+
                  target->GetName(), static_cast<uint32>(_detectedSpec));
 }
 
@@ -909,6 +1131,7 @@ void DeathKnightAI::OnCombatEnd()
     _runeManager->ResetRunes();
 
     TC_LOG_DEBUG("playerbot", "DeathKnightAI: Combat ended. RP spent: {}, Runes used: {}, Diseases: {}",
+
                  _runicPowerSpent, _runesUsed, _diseasesApplied);
 }
 
@@ -920,47 +1143,85 @@ void DeathKnightAI::ActivateBurstCooldowns(Unit* target)
     switch (_detectedSpec)
     {
         case DeathKnightSpec::BLOOD:
+
             if (CanUseAbility(VAMPIRIC_BLOOD))
+
             {
-                CastSpell(VAMPIRIC_BLOOD);
+
+                CastSpell(VAMPIRIC_BLOOD, GetBot());
+
                 _metrics->cooldownsUsed++;
+
             }
+
             if (CanUseAbility(DANCING_RUNE_WEAPON))
+
             {
+
                 CastSpell(DANCING_RUNE_WEAPON);
+
                 _metrics->cooldownsUsed++;
+
             }
+
             break;
 
         case DeathKnightSpec::FROST:
+
             if (CanUseAbility(UNBREAKABLE_ARMOR))
+
             {
+
                 CastSpell(UNBREAKABLE_ARMOR);
+
                 _metrics->cooldownsUsed++;
+
             }
+
             if (CanUseAbility(DEATHCHILL))
+
             {
+
                 CastSpell(DEATHCHILL);
+
                 _metrics->cooldownsUsed++;
+
             }
+
             if (CanUseAbility(EMPOWER_RUNE_WEAPON))
+
             {
+
                 CastSpell(EMPOWER_RUNE_WEAPON);
+
                 _metrics->cooldownsUsed++;
+
             }
+
             break;
 
         case DeathKnightSpec::UNHOLY:
+
             if (CanUseAbility(SUMMON_GARGOYLE))
+
             {
+
                 CastSpell(SUMMON_GARGOYLE);
+
                 _metrics->cooldownsUsed++;
+
             }
+
             if (CanUseAbility(UNHOLY_FRENZY))
+
             {
-                CastSpell(target, UNHOLY_FRENZY);
+
+                CastSpell(UNHOLY_FRENZY, target);
+
                 _metrics->cooldownsUsed++;
+
             }
+
             break;
     }
 }
@@ -1015,26 +1276,34 @@ bool DeathKnightAI::HandleInterrupts(Unit* target)
     if (!interruptTarget || !interruptTarget->HasUnitState(UNIT_STATE_CASTING))
         return false;
 
-    float distance = std::sqrt(GetBot()->GetExactDistSq(interruptTarget)); // Calculate once from squared distance
+    float distance = ::std::sqrt(GetBot()->GetExactDistSq(interruptTarget)); // Calculate once from squared distance
 
     // Priority: Mind Freeze for melee range, Strangulate for ranged
     if (distance <= OPTIMAL_MELEE_RANGE && CanUseAbility(MIND_FREEZE))
     {
-        if (CastSpell(interruptTarget, MIND_FREEZE))
+        if (CastSpell(MIND_FREEZE, interruptTarget))
         {
+
             RecordInterruptAttempt(interruptTarget, MIND_FREEZE, true);
+
             TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} interrupted {} with Mind Freeze",
+
                          GetBot()->GetName(), interruptTarget->GetName());
+
             return true;
         }
     }
     else if (distance <= DEATH_GRIP_MAX_RANGE && CanUseAbility(STRANGULATE))
     {
-        if (CastSpell(interruptTarget, STRANGULATE))
+        if (CastSpell(STRANGULATE, interruptTarget))
         {
+
             RecordInterruptAttempt(interruptTarget, STRANGULATE, true);
+
             TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} interrupted {} with Strangulate",
+
                          GetBot()->GetName(), interruptTarget->GetName());
+
             return true;
         }
     }
@@ -1055,9 +1324,13 @@ bool DeathKnightAI::HandleDefensives()
     {
         if (CastSpell(ICEBOUND_FORTITUDE))
         {
+
             RecordAbilityUsage(ICEBOUND_FORTITUDE);
+
             TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} activated Icebound Fortitude",
+
                          GetBot()->GetName());
+
             actionTaken = true;
         }
     }
@@ -1068,12 +1341,19 @@ bool DeathKnightAI::HandleDefensives()
     {
         if (CanUseAbility(ANTI_MAGIC_SHELL))
         {
+
             if (CastSpell(ANTI_MAGIC_SHELL))
+
             {
+
                 RecordAbilityUsage(ANTI_MAGIC_SHELL);
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} activated Anti-Magic Shell",
+
                              GetBot()->GetName());
+
                 actionTaken = true;
+
             }
         }
     }
@@ -1083,51 +1363,86 @@ bool DeathKnightAI::HandleDefensives()
     {
         case DeathKnightSpec::BLOOD:
             // Vampiric Blood for blood DKs
-            if (healthPct < DEFENSIVE_COOLDOWN_THRESHOLD && CanUseAbility(VAMPIRIC_BLOOD))
+    if (healthPct < DEFENSIVE_COOLDOWN_THRESHOLD && CanUseAbility(VAMPIRIC_BLOOD))
+
             {
+
                 if (CastSpell(VAMPIRIC_BLOOD))
+
                 {
+
                     RecordAbilityUsage(VAMPIRIC_BLOOD);
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Blood Death Knight {} activated Vampiric Blood",
+
                                  GetBot()->GetName());
+
                     actionTaken = true;
+
                 }
+
             }
             // Rune Tap for quick heal
-            if (healthPct < 60.0f && CanUseAbility(RUNE_TAP))
+    if (healthPct < 60.0f && CanUseAbility(RUNE_TAP))
+
             {
+
                 if (CastSpell(RUNE_TAP))
+
                 {
+
                     RecordAbilityUsage(RUNE_TAP);
+
                     actionTaken = true;
+
                 }
+
             }
+
             break;
 
         case DeathKnightSpec::FROST:
             // Unbreakable Armor for frost DKs
-            if (healthPct < 50.0f && CanUseAbility(UNBREAKABLE_ARMOR))
+    if (healthPct < 50.0f && CanUseAbility(UNBREAKABLE_ARMOR))
+
             {
+
                 if (CastSpell(UNBREAKABLE_ARMOR))
+
                 {
+
                     RecordAbilityUsage(UNBREAKABLE_ARMOR);
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Frost Death Knight {} activated Unbreakable Armor",
+
                                  GetBot()->GetName());
+
                     actionTaken = true;
+
                 }
+
             }
+
             break;
 
         case DeathKnightSpec::UNHOLY:
             // Bone Shield maintenance
-            if (!HasAura(BONE_SHIELD) && CanUseAbility(BONE_SHIELD))
+    if (!HasAura(BONE_SHIELD) && CanUseAbility(BONE_SHIELD))
+
             {
+
                 if (CastSpell(BONE_SHIELD))
+
                 {
+
                     RecordAbilityUsage(BONE_SHIELD);
+
                     actionTaken = true;
+
                 }
+
             }
+
             break;
     }
 
@@ -1137,12 +1452,19 @@ bool DeathKnightAI::HandleDefensives()
         Unit* target = GetBot()->GetSelectedUnit();
         if (target && IsInMeleeRange(target))
         {
-            if (CastSpell(target, DEATH_STRIKE))
+
+            if (CastSpell(DEATH_STRIKE, target))
+
             {
+
                 _runeManager->ConsumeRunes(0, 1, 1);
+
                 RecordAbilityUsage(DEATH_STRIKE);
+
                 _metrics->deathStrikesUsed++;
+
                 actionTaken = true;
+
             }
         }
     }
@@ -1163,21 +1485,34 @@ bool DeathKnightAI::HandleTargetSwitching(Unit*& target)
     OnTargetChanged(priorityTarget);
     target = priorityTarget;
 
+    if (!priorityTarget)
+    {
+        return false;
+    }
+
     TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} switching target to {}",
+
                  GetBot()->GetName(), priorityTarget->GetName());
 
     // Use Death Grip on new target if needed
-    float distance = std::sqrt(GetBot()->GetExactDistSq(priorityTarget)); // Calculate once from squared distance
+    float distance = ::std::sqrt(GetBot()->GetExactDistSq(priorityTarget)); // Calculate once from squared distance
     if (distance > DEATH_GRIP_MIN_RANGE && distance <= DEATH_GRIP_MAX_RANGE)
     {
         if (ShouldUseDeathGrip(priorityTarget) && CanUseAbility(DEATH_GRIP))
         {
-            if (CastSpell(priorityTarget, DEATH_GRIP))
+
+            if (CastSpell(DEATH_GRIP, priorityTarget))
+
             {
-                _lastDeathGrip = getMSTime();
+
+                _lastDeathGrip = GameTime::GetGameTimeMS();
+
                 RecordAbilityUsage(DEATH_GRIP);
+
                 _metrics->deathGripsUsed++;
+
                 return true;
+
             }
         }
     }
@@ -1187,11 +1522,17 @@ bool DeathKnightAI::HandleTargetSwitching(Unit*& target)
     {
         if (CanUseAbility(DARK_COMMAND))
         {
-            if (CastSpell(priorityTarget, DARK_COMMAND))
+
+            if (CastSpell(DARK_COMMAND, priorityTarget))
+
             {
-                _lastDarkCommand = getMSTime();
+
+                _lastDarkCommand = GameTime::GetGameTimeMS();
+
                 RecordAbilityUsage(DARK_COMMAND);
+
                 return true;
+
             }
         }
     }
@@ -1213,10 +1554,15 @@ bool DeathKnightAI::HandleAoERotation(Unit* target)
     {
         if (CastSpell(DEATH_AND_DECAY))
         {
+
             _runeManager->ConsumeRunes(1, 1, 1);
+
             RecordAbilityUsage(DEATH_AND_DECAY);
+
             TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} using Death and Decay for AoE",
+
                          GetBot()->GetName());
+
             return true;
         }
     }
@@ -1226,10 +1572,14 @@ bool DeathKnightAI::HandleAoERotation(Unit* target)
     {
         if (CastSpell(BLOOD_BOIL))
         {
+
             _runeManager->ConsumeRunes(1, 0, 0);
+
             RecordAbilityUsage(BLOOD_BOIL);
             TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} using Blood Boil to spread diseases",
+
                          GetBot()->GetName());
+
             return true;
         }
     }
@@ -1239,9 +1589,13 @@ bool DeathKnightAI::HandleAoERotation(Unit* target)
     {
         if (CastSpell(EPIDEMIC))
         {
+
             RecordAbilityUsage(EPIDEMIC);
+
             TC_LOG_DEBUG("module.playerbot.ai", "Unholy Death Knight {} using Epidemic for AoE",
+
                          GetBot()->GetName());
+
             return true;
         }
     }
@@ -1249,12 +1603,17 @@ bool DeathKnightAI::HandleAoERotation(Unit* target)
     // Howling Blast for Frost
     if (_detectedSpec == DeathKnightSpec::FROST && CanUseAbility(HOWLING_BLAST) && _runeManager->HasRunes(0u, 1u, 0u))
     {
-        if (CastSpell(target, HOWLING_BLAST))
+        if (CastSpell(HOWLING_BLAST, target))
         {
+
             _runeManager->ConsumeRunes(0, 1, 0);
+
             RecordAbilityUsage(HOWLING_BLAST);
+
             TC_LOG_DEBUG("module.playerbot.ai", "Frost Death Knight {} using Howling Blast for AoE",
+
                          GetBot()->GetName());
+
             return true;
         }
     }
@@ -1273,67 +1632,116 @@ bool DeathKnightAI::HandleOffensiveCooldowns(Unit* target)
     {
         case DeathKnightSpec::BLOOD:
             // Dancing Rune Weapon for Blood
-            if (CanUseAbility(DANCING_RUNE_WEAPON))
+    if (CanUseAbility(DANCING_RUNE_WEAPON))
+
             {
+
                 if (CastSpell(DANCING_RUNE_WEAPON))
+
                 {
+
                     RecordAbilityUsage(DANCING_RUNE_WEAPON);
+
                     _metrics->cooldownsUsed++;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Blood Death Knight {} activated Dancing Rune Weapon",
+
                                  GetBot()->GetName());
+
                     actionTaken = true;
+
                 }
+
             }
+
             break;
 
         case DeathKnightSpec::FROST:
             // Pillar of Frost for massive damage boost
-            if (CanUseAbility(PILLAR_OF_FROST))
+    if (CanUseAbility(PILLAR_OF_FROST))
+
             {
+
                 if (CastSpell(PILLAR_OF_FROST))
+
                 {
+
                     RecordAbilityUsage(PILLAR_OF_FROST);
+
                     _metrics->cooldownsUsed++;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Frost Death Knight {} activated Pillar of Frost",
+
                                  GetBot()->GetName());
+
                     actionTaken = true;
+
                 }
+
             }
             // Empower Rune Weapon for rune regeneration
-            if (CanUseAbility(EMPOWER_RUNE_WEAPON))
+    if (CanUseAbility(EMPOWER_RUNE_WEAPON))
+
             {
+
                 if (CastSpell(EMPOWER_RUNE_WEAPON))
+
                 {
+
                     RecordAbilityUsage(EMPOWER_RUNE_WEAPON);
+
                     _metrics->cooldownsUsed++;
+
                     actionTaken = true;
+
                 }
+
             }
+
             break;
 
         case DeathKnightSpec::UNHOLY:
             // Summon Gargoyle for burst damage
-            if (CanUseAbility(SUMMON_GARGOYLE))
+    if (CanUseAbility(SUMMON_GARGOYLE))
+
             {
+
                 if (CastSpell(SUMMON_GARGOYLE))
+
                 {
+
                     RecordAbilityUsage(SUMMON_GARGOYLE);
+
                     _metrics->cooldownsUsed++;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Unholy Death Knight {} summoned Gargoyle",
+
                                  GetBot()->GetName());
+
                     actionTaken = true;
+
                 }
+
             }
             // Unholy Frenzy for attack speed
-            if (CanUseAbility(UNHOLY_FRENZY))
+    if (CanUseAbility(UNHOLY_FRENZY))
+
             {
-                if (CastSpell(target, UNHOLY_FRENZY))
+
+                if (CastSpell(UNHOLY_FRENZY, target))
+
                 {
+
                     RecordAbilityUsage(UNHOLY_FRENZY);
+
                     _metrics->cooldownsUsed++;
+
                     actionTaken = true;
+
                 }
+
             }
+
             break;
     }
 
@@ -1342,13 +1750,21 @@ bool DeathKnightAI::HandleOffensiveCooldowns(Unit* target)
     {
         if (CanUseAbility(ARMY_OF_THE_DEAD))
         {
+
             if (CastSpell(ARMY_OF_THE_DEAD))
+
             {
+
                 RecordAbilityUsage(ARMY_OF_THE_DEAD);
+
                 _metrics->cooldownsUsed++;
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} summoned Army of the Dead",
+
                              GetBot()->GetName());
+
                 actionTaken = true;
+
             }
         }
     }
@@ -1368,43 +1784,75 @@ bool DeathKnightAI::HandleRuneAndPowerManagement(Unit* target)
     {
         switch (_detectedSpec)
         {
+
             case DeathKnightSpec::FROST:
+
                 if (CanUseAbility(FROST_STRIKE))
+
                 {
-                    if (CastSpell(target, FROST_STRIKE))
+
+                    if (CastSpell(FROST_STRIKE, target))
+
                     {
+
                         _metrics->totalRunicPowerSpent += 40;
+
                         _runicPowerSpent += 40;
+
                         RecordAbilityUsage(FROST_STRIKE);
+
                         return true;
+
                     }
+
                 }
+
                 break;
+
 
             case DeathKnightSpec::BLOOD:
+
                 if (CanUseAbility(RUNE_STRIKE))
+
                 {
-                    if (CastSpell(target, RUNE_STRIKE))
+
+                    if (CastSpell(RUNE_STRIKE, target))
+
                     {
+
                         _metrics->totalRunicPowerSpent += 20;
+
                         _runicPowerSpent += 20;
+
                         RecordAbilityUsage(RUNE_STRIKE);
+
                         return true;
+
                     }
+
                 }
                 break;
-
-            case DeathKnightSpec::UNHOLY:
+                case DeathKnightSpec::UNHOLY:
                 if (CanUseAbility(DEATH_COIL))
+
                 {
-                    if (CastSpell(target, DEATH_COIL))
+
+                    if (CastSpell(DEATH_COIL, target))
+
                     {
+
                         _metrics->totalRunicPowerSpent += 40;
+
                         _runicPowerSpent += 40;
+
                         RecordAbilityUsage(DEATH_COIL);
+
                         return true;
+
                     }
+
                 }
+
                 break;
         }
     }
@@ -1414,9 +1862,13 @@ bool DeathKnightAI::HandleRuneAndPowerManagement(Unit* target)
     {
         if (CastSpell(EMPOWER_RUNE_WEAPON))
         {
+
             RecordAbilityUsage(EMPOWER_RUNE_WEAPON);
+
             TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} used Empower Rune Weapon for rune regeneration",
+
                          GetBot()->GetName());
+
             return true;
         }
     }
@@ -1442,7 +1894,7 @@ void DeathKnightAI::ExecuteSpecializationRotation(Unit* target)
 
 void DeathKnightAI::UpdatePresenceIfNeeded()
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastPresence < PRESENCE_CHECK_INTERVAL)
         return;
 
@@ -1450,19 +1902,25 @@ void DeathKnightAI::UpdatePresenceIfNeeded()
     switch (_detectedSpec)
     {
         case DeathKnightSpec::BLOOD:
+
             presenceSpell = BLOOD_PRESENCE;
+
             break;
         case DeathKnightSpec::FROST:
+
             presenceSpell = FROST_PRESENCE;
+
             break;
         case DeathKnightSpec::UNHOLY:
+
             presenceSpell = UNHOLY_PRESENCE;
+
             break;
     }
 
     if (presenceSpell && !HasAura(presenceSpell) && CanUseAbility(presenceSpell))
     {
-        CastSpell(presenceSpell);
+        CastSpell(presenceSpell, GetBot());
         _lastPresence = currentTime;
     }
 }
@@ -1498,11 +1956,11 @@ bool DeathKnightAI::ShouldUseDeathGrip(Unit* target) const
     if (!target || !GetBot())
         return false;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastDeathGrip < DEATH_GRIP_COOLDOWN)
         return false;
 
-    float distance = std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
+    float distance = ::std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
     if (distance < DEATH_GRIP_MIN_RANGE || distance > DEATH_GRIP_MAX_RANGE)
         return false;
 
@@ -1510,6 +1968,11 @@ bool DeathKnightAI::ShouldUseDeathGrip(Unit* target) const
     if (target->GetTypeId() == TYPEID_UNIT)
     {
         Creature* creature = target->ToCreature();
+        if (!creature)
+        {
+            return false;
+        }
+
         if (creature && creature->GetCreatureTemplate()->unit_class == UNIT_CLASS_MAGE)
             return true;
     }
@@ -1530,7 +1993,7 @@ bool DeathKnightAI::ShouldUseDarkCommand(Unit* target) const
     if (_detectedSpec != DeathKnightSpec::BLOOD)
         return false;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastDarkCommand < DARK_COMMAND_COOLDOWN)
         return false;
 
@@ -1543,7 +2006,12 @@ bool DeathKnightAI::ShouldUseDarkCommand(Unit* target) const
     if (currentVictim->GetTypeId() == TYPEID_PLAYER)
     {
         Player* player = currentVictim->ToPlayer();
-        if (player && (player->GetClass() == CLASS_PRIEST || player->GetClass() == CLASS_MAGE))
+        if (!player)
+        {
+            return false;
+        }
+
+        if (player->GetClass() == CLASS_PRIEST || player->GetClass() == CLASS_MAGE)
             return true;
     }
 
@@ -1556,13 +2024,13 @@ uint32 DeathKnightAI::GetNearbyEnemyCount(float range) const
         return 0;
 
     uint32 count = 0;
-    std::list<Unit*> targets;
+    ::std::list<Unit*> targets;
     Trinity::AnyUnfriendlyUnitInObjectRangeCheck u_check(GetBot(), GetBot(), range);
     Trinity::UnitListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> searcher(GetBot(), targets, u_check);
     // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitGridObjects
     Map* map = GetBot()->GetMap();
     if (!map)
-        return false;
+        return 0;
 
     DoubleBufferedSpatialGrid* spatialGrid = sSpatialGridManager.GetGrid(map);
     if (!spatialGrid)
@@ -1570,11 +2038,11 @@ uint32 DeathKnightAI::GetNearbyEnemyCount(float range) const
         sSpatialGridManager.CreateGrid(map);
         spatialGrid = sSpatialGridManager.GetGrid(map);
         if (!spatialGrid)
-            return false;
+            return 0;
     }
 
     // Query nearby GUIDs (lock-free!)
-    std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
+    ::std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
         GetBot()->GetPosition(), range);
 
     // Process results (replace old searcher logic)
@@ -1586,21 +2054,20 @@ uint32 DeathKnightAI::GetNearbyEnemyCount(float range) const
         Creature* entity = nullptr;
         if (snapshot_entity)
         {
+            // FIXED: CreatureSnapshot to Creature conversion via ObjectAccessor
+            entity = ObjectAccessor::GetCreature(*GetBot(), snapshot_entity->guid);
+        }
 
-        } snapshot_entity = SpatialGridQueryHelpers::FindCreatureByGuid(GetBot(), guid);
- entity = nullptr;
- if (snapshot_entity)
- {
- }
         if (!entity)
             continue;
+
         // Original filtering logic from searcher goes here
     }
     // End of spatial grid fix
-
     for (auto& unit : targets)
     {
         if (GetBot()->IsValidAttackTarget(unit))
+
             count++;
     }
 
@@ -1621,21 +2088,28 @@ bool DeathKnightAI::HasRunesForSpell(uint32 spellId) const
     switch (spellId)
     {
         case ICY_TOUCH:
+
             return _runeManager->HasRunes(0u, 1u, 0u);
         case PLAGUE_STRIKE:
+
             return _runeManager->HasRunes(0u, 0u, 1u);
         case BLOOD_STRIKE:
         case HEART_STRIKE:
         case BLOOD_BOIL:
+
             return _runeManager->HasRunes(1u, 0u, 0u);
         case DEATH_STRIKE:
         case OBLITERATE:
+
             return _runeManager->HasRunes(0u, 1u, 1u);
         case SCOURGE_STRIKE:
+
             return _runeManager->HasRunes(0u, 0u, 1u);
         case DEATH_AND_DECAY:
+
             return _runeManager->HasRunes(1u, 1u, 1u);
         default:
+
             return true;
     }
 }
@@ -1650,6 +2124,7 @@ uint32 DeathKnightAI::GetRunicPowerCost(uint32 spellId) const
     for (auto const& cost : powerCosts)
     {
         if (cost.Power == POWER_RUNIC_POWER)
+
             return cost.Amount;
     }
 
@@ -1663,6 +2138,7 @@ void DeathKnightAI::RecordInterruptAttempt(Unit* target, uint32 spellId, bool su
         _successfulInterrupts++;
         _metrics->interruptsExecuted++;
         TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} successfully interrupted with spell {}",
+
                      GetBot()->GetName(), spellId);
     }
 }
@@ -1679,6 +2155,7 @@ void DeathKnightAI::OnTargetChanged(Unit* newTarget)
         return;
 
     TC_LOG_DEBUG("module.playerbot.ai", "Death Knight {} changed target to {}",
+
                  GetBot()->GetName(), newTarget->GetName());
 
     // Reset disease tracking for new target

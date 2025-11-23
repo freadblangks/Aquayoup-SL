@@ -55,9 +55,8 @@ public:
         if (!target || !_bot)
             return false;
 
-        float targetFacing = target->GetOrientation();
-        float angleToMe = target->GetAbsoluteAngle(_bot);
-        float diff = std::abs(targetFacing - angleToMe);
+        float targetFacing = target->GetOrientation();        float angleToMe = target->GetAbsoluteAngle(_bot);
+        float diff = ::std::abs(targetFacing - angleToMe);
 
         if (diff > M_PI)
             diff = 2 * M_PI - diff;
@@ -109,11 +108,11 @@ private:
     bool IsFinisher(uint32 spellId) const;
 
     // Combat systems
-    std::unique_ptr<BotThreatManager> _threatManager;
-    std::unique_ptr<TargetSelector> _targetSelector;
-    std::unique_ptr<PositionManager> _positionManager;
-    std::unique_ptr<InterruptManager> _interruptManager;
-    std::unique_ptr<CooldownManager> _cooldownManager;
+    ::std::unique_ptr<BotThreatManager> _threatManager;
+    ::std::unique_ptr<TargetSelector> _targetSelector;
+    ::std::unique_ptr<PositionManager> _positionManager;
+    ::std::unique_ptr<InterruptManager> _interruptManager;
+    ::std::unique_ptr<CooldownManager> _cooldownManager;
 
     // Rogue-specific systems
     RogueMetrics* _metrics;

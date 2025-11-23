@@ -22,6 +22,7 @@
 #include "Object.h"
 #include "ObjectAccessor.h"
 #include "Timer.h"
+#include "GameTime.h"
 #include "Log.h"
 #include <atomic>
 #include <memory>
@@ -71,7 +72,7 @@ namespace Playerbot::References {
  */
 template<typename T>
 class SafeObjectReference {
-    static_assert(std::is_base_of_v<WorldObject, T> || std::is_same_v<T, Player>,
+    static_assert(::std::is_base_of_v<WorldObject, T> || ::std::is_same_v<T, Player>,
                   "T must derive from WorldObject or be Player");
 
 public:
@@ -121,7 +122,7 @@ public:
 
     // Move constructor
     SafeObjectReference(SafeObjectReference&& other) noexcept
-        : m_guid(std::move(other.m_guid))
+        : m_guid(::std::move(other.m_guid))
         , m_cachedObject(other.m_cachedObject)
         , m_lastCheckTime(other.m_lastCheckTime)
         , m_accessCount(other.m_accessCount.load())
@@ -147,7 +148,7 @@ public:
     // Move assignment
     SafeObjectReference& operator=(SafeObjectReference&& other) noexcept {
         if (this != &other) {
-            m_guid = std::move(other.m_guid);
+            m_guid = ::std::move(other.m_guid);
             m_cachedObject = other.m_cachedObject;
             m_lastCheckTime = other.m_lastCheckTime;
             m_accessCount.store(other.m_accessCount.load());
@@ -183,17 +184,17 @@ public:
             return nullptr;
         }
 
-        m_accessCount.fetch_add(1, std::memory_order_relaxed);
-        uint32 now = getMSTime();
+        m_accessCount.fetch_add(1, ::std::memory_order_relaxed);
+        uint32 now = GameTime::GetGameTimeMS();
 
         // Check cache validity
         if (m_cachedObject && (now - m_lastCheckTime) < CACHE_DURATION_MS) {
-            m_cacheHits.fetch_add(1, std::memory_order_relaxed);
+            m_cacheHits.fetch_add(1, ::std::memory_order_relaxed);
             return m_cachedObject;
         }
 
         // Cache miss - fetch from ObjectAccessor
-        m_cacheMisses.fetch_add(1, std::memory_order_relaxed);
+        m_cacheMisses.fetch_add(1, ::std::memory_order_relaxed);
         m_cachedObject = FetchObjectFromAccessor();
         m_lastCheckTime = now;
 
@@ -214,7 +215,7 @@ public:
         if (object) {
             m_guid = object->GetGUID();
             m_cachedObject = object;
-            m_lastCheckTime = getMSTime();
+            m_lastCheckTime = GameTime::GetGameTimeMS();
         } else {
             Clear();
         }
@@ -280,7 +281,7 @@ public:
      * @return true if cached pointer is fresh
      */
     bool IsCacheValid() const {
-        return m_cachedObject && (getMSTime() - m_lastCheckTime) < CACHE_DURATION_MS;
+        return m_cachedObject && (GameTime::GetGameTimeMS() - m_lastCheckTime) < CACHE_DURATION_MS;
     }
 
     // ========================================================================
@@ -335,10 +336,10 @@ public:
      * @return Percentage of cache hits (0.0 - 1.0)
      */
     float GetCacheHitRate() const {
-        uint64 total = m_accessCount.load(std::memory_order_relaxed);
+        uint64 total = m_accessCount.load(::std::memory_order_relaxed);
         if (total == 0) return 0.0f;
 
-        uint64 hits = m_cacheHits.load(std::memory_order_relaxed);
+        uint64 hits = m_cacheHits.load(::std::memory_order_relaxed);
         return static_cast<float>(hits) / static_cast<float>(total);
     }
 
@@ -347,16 +348,16 @@ public:
      * @return Number of times Get() was called
      */
     uint64 GetAccessCount() const {
-        return m_accessCount.load(std::memory_order_relaxed);
+        return m_accessCount.load(::std::memory_order_relaxed);
     }
 
     /**
      * @brief Reset performance metrics
      */
     void ResetMetrics() {
-        m_accessCount.store(0, std::memory_order_relaxed);
-        m_cacheHits.store(0, std::memory_order_relaxed);
-        m_cacheMisses.store(0, std::memory_order_relaxed);
+        m_accessCount.store(0, ::std::memory_order_relaxed);
+        m_cacheHits.store(0, ::std::memory_order_relaxed);
+        m_cacheMisses.store(0, ::std::memory_order_relaxed);
     }
 
     // ========================================================================
@@ -367,15 +368,15 @@ public:
      * @brief Get debug string representation
      * @return String with GUID and cache status
      */
-    std::string ToString() const {
-        std::stringstream ss;
+    ::std::string ToString() const {
+        ::std::stringstream ss;
         ss << "SafeObjectReference<" << typeid(T).name() << ">[";
         ss << "guid=" << m_guid.ToString();
         ss << ", cached=" << (m_cachedObject ? "yes" : "no");
         ss << ", valid=" << (IsCacheValid() ? "yes" : "no");
         ss << ", hits=" << m_cacheHits.load();
         ss << ", misses=" << m_cacheMisses.load();
-        ss << ", rate=" << std::fixed << std::setprecision(2) << (GetCacheHitRate() * 100.0f) << "%";
+        ss << ", rate=" << ::std::fixed << ::std::setprecision(2) << (GetCacheHitRate() * 100.0f) << "%";
         ss << "]";
         return ss.str();
     }
@@ -390,9 +391,9 @@ private:
     mutable uint32 m_lastCheckTime;         // Last validation time (getMSTime)
 
     // Performance metrics (atomic for thread safety)
-    mutable std::atomic<uint64> m_accessCount{0};   // Total Get() calls
-    mutable std::atomic<uint64> m_cacheHits{0};     // Cache hits
-    mutable std::atomic<uint64> m_cacheMisses{0};   // Cache misses
+    mutable ::std::atomic<uint64> m_accessCount{0};   // Total Get() calls
+    mutable ::std::atomic<uint64> m_cacheHits{0};     // Cache hits
+    mutable ::std::atomic<uint64> m_cacheMisses{0};   // Cache misses
 
     /**
      * @brief Fetch object from ObjectAccessor based on type
@@ -400,7 +401,7 @@ private:
      */
     T* FetchObjectFromAccessor() const {
         // Handle Player specially as it needs different accessor
-        if constexpr (std::is_same_v<T, Player>) {
+        if constexpr (::std::is_same_v<T, Player>) {
             return ObjectAccessor::FindPlayer(m_guid);
         }
         // For other types, use the HashMapHolder::Find
@@ -431,8 +432,8 @@ using SafeWorldObjectReference = SafeObjectReference<WorldObject>;
  * @return Vector of valid pointers
  */
 template<typename T>
-std::vector<T*> ValidateReferences(const std::vector<SafeObjectReference<T>>& refs) {
-    std::vector<T*> valid;
+::std::vector<T*> ValidateReferences(const ::std::vector<SafeObjectReference<T>>& refs) {
+    ::std::vector<T*> valid;
     valid.reserve(refs.size());
 
     for (const auto& ref : refs) {
@@ -451,11 +452,11 @@ std::vector<T*> ValidateReferences(const std::vector<SafeObjectReference<T>>& re
  * @return Number of invalid references removed
  */
 template<typename T>
-size_t CleanupInvalidReferences(std::vector<SafeObjectReference<T>>& refs) {
+size_t CleanupInvalidReferences(::std::vector<SafeObjectReference<T>>& refs) {
     auto initialSize = refs.size();
 
     refs.erase(
-        std::remove_if(refs.begin(), refs.end(),
+        ::std::remove_if(refs.begin(), refs.end(),
             [](const SafeObjectReference<T>& ref) {
                 return !ref.IsValid();
             }),
@@ -471,7 +472,7 @@ size_t CleanupInvalidReferences(std::vector<SafeObjectReference<T>>& refs) {
  * @param refs Vector of references to refresh
  */
 template<typename T>
-void InvalidateAllCaches(std::vector<SafeObjectReference<T>>& refs) {
+void InvalidateAllCaches(::std::vector<SafeObjectReference<T>>& refs) {
     for (auto& ref : refs) {
         ref.InvalidateCache();
     }

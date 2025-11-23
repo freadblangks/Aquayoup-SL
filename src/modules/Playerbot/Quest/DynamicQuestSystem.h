@@ -10,9 +10,12 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "Player.h"
 #include "QuestDef.h"
 #include "Position.h"
+#include "../Core/DI/Interfaces/IUnifiedQuestManager.h"  // For QuestSelectionStrategy enum
+#include "../Core/DI/Interfaces/IDynamicQuestSystem.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -20,6 +23,7 @@
 #include <atomic>
 #include <mutex>
 #include <chrono>
+#include "GameTime.h"
 
 class Player;
 class Quest;
@@ -52,17 +56,7 @@ enum class QuestType : uint8
     PVP             = 9   // Player vs Player objectives
 };
 
-enum class QuestStrategy : uint8
-{
-    SOLO_FOCUSED        = 0,  // Complete quests independently
-    GROUP_PREFERRED     = 1,  // Try to group for efficiency
-    ZONE_OPTIMIZATION   = 2,  // Complete all quests in current zone
-    LEVEL_PROGRESSION   = 3,  // Focus on experience gain
-    GEAR_PROGRESSION    = 4,  // Focus on equipment upgrades
-    STORY_PROGRESSION   = 5,  // Follow main storylines
-    REPUTATION_FOCUSED  = 6,  // Build faction reputation
-    PROFESSION_FOCUSED  = 7   // Complete profession quests
-};
+// QuestSelectionStrategy enum defined in IUnifiedQuestManager.h interface
 
 struct QuestMetadata
 {
@@ -118,165 +112,94 @@ struct QuestProgress
     uint32 retryCount;
 
     QuestProgress(uint32 qId, uint32 guid) : questId(qId), botGuid(guid)
-        , startTime(getMSTime()), lastUpdateTime(getMSTime())
+        , startTime(GameTime::GetGameTimeMS()), lastUpdateTime(GameTime::GetGameTimeMS())
         , completionPercentage(0.0f), isStuck(false), stuckTime(0), retryCount(0) {}
 };
 
-class TC_GAME_API DynamicQuestSystem
+class TC_GAME_API DynamicQuestSystem final : public IDynamicQuestSystem
 {
 public:
-    static DynamicQuestSystem* instance();
+    explicit DynamicQuestSystem(Player* bot);
+    ~DynamicQuestSystem();
+    DynamicQuestSystem(DynamicQuestSystem const&) = delete;
+    DynamicQuestSystem& operator=(DynamicQuestSystem const&) = delete;
 
     // Quest discovery and assignment
-    std::vector<uint32> DiscoverAvailableQuests(Player* bot);
-    std::vector<uint32> GetRecommendedQuests(Player* bot, QuestStrategy strategy = QuestStrategy::LEVEL_PROGRESSION);
-    bool AssignQuestToBot(uint32 questId, Player* bot);
-    void AutoAssignQuests(Player* bot, uint32 maxQuests = 10);
+    std::vector<uint32> DiscoverAvailableQuests(Player* bot) override;
+    std::vector<uint32> GetRecommendedQuests(Player* bot, QuestSelectionStrategy strategy = QuestSelectionStrategy::LEVEL_PROGRESSION) override;
+    bool AssignQuestToBot(uint32 questId, Player* bot) override;
+    void AutoAssignQuests(Player* bot, uint32 maxQuests = 10) override;
 
     // Quest prioritization
-    QuestPriority CalculateQuestPriority(uint32 questId, Player* bot);
-    std::vector<uint32> SortQuestsByPriority(const std::vector<uint32>& questIds, Player* bot);
-    bool ShouldAbandonQuest(uint32 questId, Player* bot);
+    QuestPriority CalculateQuestPriority(uint32 questId, Player* bot) override;
+    std::vector<uint32> SortQuestsByPriority(const std::vector<uint32>& questIds, Player* bot) override;
+    bool ShouldAbandonQuest(uint32 questId, Player* bot) override;
 
     // Quest execution and coordination
-    void UpdateQuestProgress(Player* bot);
-    void ExecuteQuestObjective(Player* bot, uint32 questId, uint32 objectiveIndex);
-    bool CanCompleteQuestObjective(Player* bot, uint32 questId, uint32 objectiveIndex);
-    void HandleQuestCompletion(Player* bot, uint32 questId);
+    void UpdateQuestProgress(Player* bot) override;
+    void ExecuteQuestObjective(Player* bot, uint32 questId, uint32 objectiveIndex) override;
+    bool CanCompleteQuestObjective(Player* bot, uint32 questId, uint32 objectiveIndex) override;
+    void HandleQuestCompletion(Player* bot, uint32 questId) override;
 
     // Group quest coordination
-    bool FormQuestGroup(uint32 questId, Player* initiator);
-    void CoordinateGroupQuest(Group* group, uint32 questId);
-    void ShareQuestProgress(Group* group, uint32 questId);
-    bool CanShareQuest(uint32 questId, Player* from, Player* to);
+    bool FormQuestGroup(uint32 questId, Player* initiator) override;
+    void CoordinateGroupQuest(Group* group, uint32 questId) override;
+    void ShareQuestProgress(Group* group, uint32 questId) override;
+    bool CanShareQuest(uint32 questId, Player* from, Player* to) override;
 
     // Quest pathfinding and navigation
-    Position GetNextQuestLocation(Player* bot, uint32 questId);
-    std::vector<Position> GenerateQuestPath(Player* bot, uint32 questId);
-    void HandleQuestNavigation(Player* bot, uint32 questId);
-    bool IsQuestLocationReachable(Player* bot, const Position& location);
+    Position GetNextQuestLocation(Player* bot, uint32 questId) override;
+    std::vector<Position> GenerateQuestPath(Player* bot, uint32 questId) override;
+    void HandleQuestNavigation(Player* bot, uint32 questId) override;
+    bool IsQuestLocationReachable(Player* bot, const Position& location) override;
 
     // Dynamic quest adaptation
-    void AdaptQuestDifficulty(uint32 questId, Player* bot);
-    void HandleQuestStuckState(Player* bot, uint32 questId);
-    void RetryFailedObjective(Player* bot, uint32 questId, uint32 objectiveIndex);
-    void OptimizeQuestOrder(Player* bot);
+    void AdaptQuestDifficulty(uint32 questId, Player* bot) override;
+    void HandleQuestStuckState(Player* bot, uint32 questId) override;
+    void RetryFailedObjective(Player* bot, uint32 questId, uint32 objectiveIndex) override;
+    void OptimizeQuestOrder(Player* bot) override;
 
     // Quest chain management
-    void TrackQuestChains(Player* bot);
-    std::vector<uint32> GetQuestChain(uint32 questId);
-    uint32 GetNextQuestInChain(uint32 completedQuestId);
-    void AdvanceQuestChain(Player* bot, uint32 completedQuestId);
+    void TrackQuestChains(Player* bot) override;
+    std::vector<uint32> GetQuestChain(uint32 questId) override;
+    uint32 GetNextQuestInChain(uint32 completedQuestId) override;
+    void AdvanceQuestChain(Player* bot, uint32 completedQuestId) override;
 
     // Zone-based quest optimization
-    void OptimizeZoneQuests(Player* bot);
-    std::vector<uint32> GetZoneQuests(uint32 zoneId, Player* bot);
-    void PlanZoneCompletion(Player* bot, uint32 zoneId);
-    bool ShouldMoveToNewZone(Player* bot);
+    void OptimizeZoneQuests(Player* bot) override;
+    std::vector<uint32> GetZoneQuests(uint32 zoneId, Player* bot) override;
+    void PlanZoneCompletion(Player* bot, uint32 zoneId) override;
+    bool ShouldMoveToNewZone(Player* bot) override;
 
-    // Quest reward analysis
-    struct QuestReward
-    {
-        uint32 experience;
-        uint32 gold;
-        std::vector<uint32> items;
-        std::vector<std::pair<uint32, uint32>> reputation; // factionId, amount
-        uint32 talentPoints;
-        float gearScore;
-        float rewardValue;
+    // Quest reward analysis (QuestReward defined in IDynamicQuestSystem.h interface)
+    QuestReward AnalyzeQuestReward(uint32 questId, Player* bot) override;
+    float CalculateQuestValue(uint32 questId, Player* bot) override;
+    bool IsQuestWorthwhile(uint32 questId, Player* bot) override;
 
-        QuestReward() : experience(0), gold(0), talentPoints(0), gearScore(0.0f), rewardValue(0.0f) {}
-    };
-
-    QuestReward AnalyzeQuestReward(uint32 questId, Player* bot);
-    float CalculateQuestValue(uint32 questId, Player* bot);
-    bool IsQuestWorthwhile(uint32 questId, Player* bot);
-
-    // Performance monitoring
-    struct QuestMetrics
-    {
-        std::atomic<uint32> questsStarted{0};
-        std::atomic<uint32> questsCompleted{0};
-        std::atomic<uint32> questsAbandoned{0};
-        std::atomic<uint32> questsFailed{0};
-        std::atomic<float> averageCompletionTime{1200.0f}; // 20 minutes
-        std::atomic<float> successRate{0.85f};
-        std::atomic<float> efficiencyRating{1.0f};
-        std::atomic<uint32> experienceGained{0};
-        std::atomic<uint32> goldEarned{0};
-        std::chrono::steady_clock::time_point lastUpdate;
-
-        // Default constructor
-        QuestMetrics() : lastUpdate(std::chrono::steady_clock::now()) {}
-
-        void Reset() {
-            questsStarted = 0; questsCompleted = 0; questsAbandoned = 0; questsFailed = 0;
-            averageCompletionTime = 1200.0f; successRate = 0.85f; efficiencyRating = 1.0f;
-            experienceGained = 0; goldEarned = 0;
-            lastUpdate = std::chrono::steady_clock::now();
-        }
-
-        float GetCompletionRate() const {
-            uint32 started = questsStarted.load();
-            uint32 completed = questsCompleted.load();
-            return started > 0 ? (float)completed / started : 0.0f;
-        }
-
-        // Copy constructor for atomic members
-        QuestMetrics(const QuestMetrics& other)
-            : questsStarted(other.questsStarted.load()),
-              questsCompleted(other.questsCompleted.load()),
-              questsAbandoned(other.questsAbandoned.load()),
-              questsFailed(other.questsFailed.load()),
-              averageCompletionTime(other.averageCompletionTime.load()),
-              successRate(other.successRate.load()),
-              efficiencyRating(other.efficiencyRating.load()),
-              experienceGained(other.experienceGained.load()),
-              goldEarned(other.goldEarned.load()),
-              lastUpdate(other.lastUpdate) {}
-
-        // Assignment operator for atomic members
-        QuestMetrics& operator=(const QuestMetrics& other) {
-            if (this != &other) {
-                questsStarted = other.questsStarted.load();
-                questsCompleted = other.questsCompleted.load();
-                questsAbandoned = other.questsAbandoned.load();
-                questsFailed = other.questsFailed.load();
-                averageCompletionTime = other.averageCompletionTime.load();
-                successRate = other.successRate.load();
-                efficiencyRating = other.efficiencyRating.load();
-                experienceGained = other.experienceGained.load();
-                goldEarned = other.goldEarned.load();
-                lastUpdate = other.lastUpdate;
-            }
-            return *this;
-        }
-    };
-
-    QuestMetrics GetBotQuestMetrics(uint32 botGuid);
-    QuestMetrics GetGlobalQuestMetrics();
+    // Performance monitoring (QuestMetrics defined in IDynamicQuestSystem.h interface)
+    QuestMetrics GetBotQuestMetrics(uint32 botGuid) override;
+    QuestMetrics GetGlobalQuestMetrics() override;
 
     // Configuration and settings
-    void SetQuestStrategy(uint32 botGuid, QuestStrategy strategy);
-    QuestStrategy GetQuestStrategy(uint32 botGuid);
-    void SetMaxConcurrentQuests(uint32 botGuid, uint32 maxQuests);
-    void EnableQuestGrouping(uint32 botGuid, bool enable);
+    void SetQuestStrategy(uint32 botGuid, QuestSelectionStrategy strategy) override;
+    QuestSelectionStrategy GetQuestStrategy(uint32 botGuid) override;
+    void SetMaxConcurrentQuests(uint32 botGuid, uint32 maxQuests) override;
+    void EnableQuestGrouping(uint32 botGuid, bool enable) override;
 
     // Update and maintenance
-    void Update(uint32 diff);
-    void CleanupCompletedQuests();
-    void ValidateQuestStates();
+    void Update(uint32 diff) override;
+    void CleanupCompletedQuests() override;
+    void ValidateQuestStates() override;
 
 private:
-    DynamicQuestSystem();
-    ~DynamicQuestSystem() = default;
+    Player* _bot;
 
     // Core data structures
     std::unordered_map<uint32, QuestMetadata> _questMetadata;
     std::unordered_map<uint32, std::vector<QuestProgress>> _botQuestProgress; // botGuid -> quests
-    std::unordered_map<uint32, QuestStrategy> _botStrategies;
+    std::unordered_map<uint32, QuestSelectionStrategy> _botStrategies;
     std::unordered_map<uint32, QuestMetrics> _botMetrics;
-    mutable std::recursive_mutex _questMutex;
+    
 
     // Quest chains and dependencies
     std::unordered_map<uint32, std::vector<uint32>> _questChains; // questId -> chain
@@ -290,7 +213,7 @@ private:
     // Group quest coordination
     std::unordered_map<uint32, std::vector<uint32>> _questGroups; // questId -> botGuids
     std::queue<std::pair<uint32, uint32>> _groupQuestRequests; // <questId, requesterGuid>
-    mutable std::recursive_mutex _groupQuestMutex;
+    
 
     // Helper functions
     void LoadQuestMetadata();

@@ -12,6 +12,7 @@
 #include "Unit.h"
 #include "SpellAuras.h"
 #include "../../../Spatial/SpatialGridQueryHelpers.h"  // PHASE 5F: Thread-safe queries
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -21,10 +22,8 @@ void DiseaseManager::UpdateDiseases(Unit* target)
     if (!target)
         return;
 
-    uint32 currentTime = getMSTime();
-    ObjectGuid targetGuid = target->GetGUID();
-
-    // Clean up expired diseases
+    uint32 currentTime = GameTime::GetGameTimeMS();
+    ObjectGuid targetGuid = target->GetGUID();    // Clean up expired diseases
     CleanupExpiredDiseases();
 
     // Check current diseases on target
@@ -41,17 +40,15 @@ void DiseaseManager::UpdateDiseases(Unit* target)
     }
 }
 
-bool DiseaseManager::HasDisease(Unit* target, DiseaseType type)
-{
+bool DiseaseManager::HasDisease(Unit* target, DiseaseType type){
     if (!target)
         return false;
 
-    ObjectGuid targetGuid = target->GetGUID();
-    auto it = _activeDiseases.find(targetGuid);
+    ObjectGuid targetGuid = target->GetGUID();    auto it = _activeDiseases.find(targetGuid);
     if (it == _activeDiseases.end())
         return false;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     for (const auto& disease : it->second)
     {
         if (disease.type == type && currentTime < disease.expirationTime)
@@ -61,8 +58,7 @@ bool DiseaseManager::HasDisease(Unit* target, DiseaseType type)
     return false;
 }
 
-bool DiseaseManager::ShouldApplyDisease(Unit* target, DiseaseType type)
-{
+bool DiseaseManager::ShouldApplyDisease(Unit* target, DiseaseType type){
     if (!target)
         return false;
 
@@ -74,8 +70,7 @@ void DiseaseManager::ApplyDisease(Unit* target, DiseaseType type, uint32 spellId
     if (!target)
         return;
 
-    ObjectGuid targetGuid = target->GetGUID();
-    DiseaseInfo disease(type, spellId, DISEASE_DURATION);
+    ObjectGuid targetGuid = target->GetGUID();    DiseaseInfo disease(type, spellId, DISEASE_DURATION);
 
     _activeDiseases[targetGuid].push_back(disease);
 }
@@ -85,12 +80,11 @@ uint32 DiseaseManager::GetDiseaseTimeRemaining(Unit* target, DiseaseType type)
     if (!target)
         return 0;
 
-    ObjectGuid targetGuid = target->GetGUID();
-    auto it = _activeDiseases.find(targetGuid);
+    ObjectGuid targetGuid = target->GetGUID();    auto it = _activeDiseases.find(targetGuid);
     if (it == _activeDiseases.end())
         return 0;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     for (const auto& disease : it->second)
     {
         if (disease.type == type && currentTime < disease.expirationTime)
@@ -102,13 +96,13 @@ uint32 DiseaseManager::GetDiseaseTimeRemaining(Unit* target, DiseaseType type)
 
 void DiseaseManager::CleanupExpiredDiseases()
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     for (auto it = _activeDiseases.begin(); it != _activeDiseases.end();)
     {
         auto& diseases = it->second;
         diseases.erase(
-            std::remove_if(diseases.begin(), diseases.end(),
+            ::std::remove_if(diseases.begin(), diseases.end(),
                 [currentTime](const DiseaseInfo& disease) {
                     return currentTime >= disease.expirationTime;
                 }),

@@ -47,13 +47,18 @@ void ParseTypedHealthUpdate(WorldSession* session, WorldPackets::Combat::HealthU
     event.amount = static_cast<int32>(packet.Health);
     event.maxAmount = static_cast<int32>(unit->GetMaxHealth());
     event.isRegen = false;
-    event.timestamp = std::chrono::steady_clock::now();
-    event.expiryTime = event.timestamp + std::chrono::seconds(5);
+    event.timestamp = ::std::chrono::steady_clock::now();
+    event.expiryTime = event.timestamp + ::std::chrono::seconds(5);
 
     ResourceEventBus::instance()->PublishEvent(event);
 
     // Calculate health percent for logging
     float healthPercent = unit->GetMaxHealth() > 0 ? (static_cast<float>(packet.Health) / unit->GetMaxHealth() * 100.0f) : 0.0f;
+        if (!unit)
+        {
+            TC_LOG_ERROR("playerbot.nullcheck", "Null pointer: unit in method GetMaxHealth");
+            return;
+        }
 
     TC_LOG_TRACE("playerbot.packets", "Bot {} received HEALTH_UPDATE (typed): Unit {} health={}/{} ({:.1f}%)",
         bot->GetName(),
@@ -88,12 +93,12 @@ void ParseTypedPowerUpdate(WorldSession* session, WorldPackets::Combat::PowerUpd
     {
         // Map TrinityCore Powers enum to Playerbot Powers enum
         // TrinityCore::Powers is int8, packet has uint8
-        ::Powers tcPowerType = static_cast<::Powers>(powerInfo.PowerType);
+        ::Powers tcPowerType = static_cast<::Powers>(powerInfo.Power);
         int32 maxPower = unit->GetMaxPower(tcPowerType);
 
         // Map to Playerbot::Powers enum (WoW 11.2: limited subset)
         Powers botPowerType = Powers::POWER_MANA;  // Default
-        switch (powerInfo.PowerType)
+    switch (powerInfo.Power)
         {
             case 0: botPowerType = Powers::POWER_MANA; break;
             case 1: botPowerType = Powers::POWER_RAGE; break;
@@ -112,8 +117,8 @@ void ParseTypedPowerUpdate(WorldSession* session, WorldPackets::Combat::PowerUpd
         event.amount = powerInfo.Power;
         event.maxAmount = maxPower;
         event.isRegen = false;
-        event.timestamp = std::chrono::steady_clock::now();
-        event.expiryTime = event.timestamp + std::chrono::seconds(5);
+        event.timestamp = ::std::chrono::steady_clock::now();
+        event.expiryTime = event.timestamp + ::std::chrono::seconds(5);
 
         ResourceEventBus::instance()->PublishEvent(event);
 
@@ -123,7 +128,7 @@ void ParseTypedPowerUpdate(WorldSession* session, WorldPackets::Combat::PowerUpd
         TC_LOG_TRACE("playerbot.packets", "Bot {} received POWER_UPDATE (typed): Unit {} powerType={} power={}/{} ({:.1f}%)",
             bot->GetName(),
             packet.Guid.ToString(),
-            uint32(powerInfo.PowerType),
+            uint32(powerInfo.Power),
             powerInfo.Power,
             maxPower,
             powerPercent);
@@ -154,8 +159,8 @@ void ParseTypedBreakTarget(WorldSession* session, WorldPackets::Combat::BreakTar
     event.amount = 0;
     event.maxAmount = 0;
     event.isRegen = false;
-    event.timestamp = std::chrono::steady_clock::now();
-    event.expiryTime = event.timestamp + std::chrono::seconds(5);
+    event.timestamp = ::std::chrono::steady_clock::now();
+    event.expiryTime = event.timestamp + ::std::chrono::seconds(5);
 
     ResourceEventBus::instance()->PublishEvent(event);
 

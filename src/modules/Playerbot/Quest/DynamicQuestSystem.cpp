@@ -27,23 +27,24 @@
 #include <algorithm>
 #include <random>
 #include <cmath>
+#include "GameTime.h"
 
 namespace Playerbot
 {
 
-DynamicQuestSystem* DynamicQuestSystem::instance()
+DynamicQuestSystem::DynamicQuestSystem(Player* bot)
+    : _bot(bot)
 {
-    static DynamicQuestSystem instance;
-    return &instance;
-}
+    if (!_bot)
+        TC_LOG_ERROR("playerbot.quest", "DynamicQuestSystem: null bot!");
 
-DynamicQuestSystem::DynamicQuestSystem()
-{
     LoadQuestMetadata();
     AnalyzeQuestDependencies();
     BuildQuestChains();
     OptimizeQuestRoutes();
 }
+
+DynamicQuestSystem::~DynamicQuestSystem() {}
 
 std::vector<uint32> DynamicQuestSystem::DiscoverAvailableQuests(Player* bot)
 {
@@ -54,7 +55,6 @@ std::vector<uint32> DynamicQuestSystem::DiscoverAvailableQuests(Player* bot)
 
     uint32 botLevel = bot->GetLevel();
     uint32 botGuid = bot->GetGUID().GetCounter();
-
     // Scan through all quest templates
     for (auto const& questPair : sObjectMgr->GetQuestTemplates())
     {
@@ -75,7 +75,7 @@ std::vector<uint32> DynamicQuestSystem::DiscoverAvailableQuests(Player* bot)
     return availableQuests;
 }
 
-std::vector<uint32> DynamicQuestSystem::GetRecommendedQuests(Player* bot, QuestStrategy strategy)
+std::vector<uint32> DynamicQuestSystem::GetRecommendedQuests(Player* bot, QuestSelectionStrategy strategy)
 {
     std::vector<uint32> recommendedQuests;
 
@@ -87,25 +87,25 @@ std::vector<uint32> DynamicQuestSystem::GetRecommendedQuests(Player* bot, QuestS
     // Apply strategy-specific filtering and sorting
     switch (strategy)
     {
-        case QuestStrategy::SOLO_FOCUSED:
+        case QuestSelectionStrategy::SOLO_FOCUSED:
             ExecuteSoloStrategy(bot);
             break;
-        case QuestStrategy::GROUP_PREFERRED:
+        case QuestSelectionStrategy::GROUP_PREFERRED:
             ExecuteGroupStrategy(bot);
             break;
-        case QuestStrategy::ZONE_OPTIMIZATION:
+        case QuestSelectionStrategy::ZONE_OPTIMIZATION:
             ExecuteZoneStrategy(bot);
             break;
-        case QuestStrategy::LEVEL_PROGRESSION:
+        case QuestSelectionStrategy::LEVEL_PROGRESSION:
             ExecuteLevelStrategy(bot);
             break;
-        case QuestStrategy::GEAR_PROGRESSION:
+        case QuestSelectionStrategy::GEAR_PROGRESSION:
             ExecuteGearStrategy(bot);
             break;
-        case QuestStrategy::STORY_PROGRESSION:
+        case QuestSelectionStrategy::STORY_PROGRESSION:
             ExecuteStoryStrategy(bot);
             break;
-        case QuestStrategy::REPUTATION_FOCUSED:
+        case QuestSelectionStrategy::REPUTATION_FOCUSED:
             ExecuteReputationStrategy(bot);
             break;
         default:
@@ -147,7 +147,6 @@ bool DynamicQuestSystem::AssignQuestToBot(uint32 questId, Player* bot)
         return false;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
     // Create quest progress tracking
     QuestProgress progress(questId, botGuid);
 
@@ -161,7 +160,6 @@ bool DynamicQuestSystem::AssignQuestToBot(uint32 questId, Player* bot)
 
     // Add to bot's quest progress
     {
-        std::lock_guard<std::recursive_mutex> lock(_questMutex);
         _botQuestProgress[botGuid].push_back(progress);
     }
 
@@ -179,12 +177,11 @@ void DynamicQuestSystem::AutoAssignQuests(Player* bot, uint32 maxQuests)
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-    QuestStrategy strategy = GetQuestStrategy(botGuid);
+    QuestSelectionStrategy strategy = GetQuestStrategy(botGuid);
 
     // Get current quest count
     uint32 currentQuests = 0;
     {
-        std::lock_guard<std::recursive_mutex> lock(_questMutex);
         auto it = _botQuestProgress.find(botGuid);
         if (it != _botQuestProgress.end())
             currentQuests = static_cast<uint32>(it->second.size());
@@ -279,9 +276,7 @@ bool DynamicQuestSystem::ShouldAbandonQuest(uint32 questId, Player* bot)
         return true;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
     // Find quest progress
-    std::lock_guard<std::recursive_mutex> lock(_questMutex);
     auto progressIt = _botQuestProgress.find(botGuid);
     if (progressIt == _botQuestProgress.end())
         return false;
@@ -299,7 +294,7 @@ bool DynamicQuestSystem::ShouldAbandonQuest(uint32 questId, Player* bot)
         return true;
 
     // Check if quest is taking too long
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - questProgress->startTime > 3600000) // 1 hour
         return true;
 
@@ -318,8 +313,6 @@ void DynamicQuestSystem::UpdateQuestProgress(Player* bot)
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
-    std::lock_guard<std::recursive_mutex> lock(_questMutex);
     auto progressIt = _botQuestProgress.find(botGuid);
     if (progressIt == _botQuestProgress.end())
         return;
@@ -373,12 +366,10 @@ void DynamicQuestSystem::HandleQuestCompletion(Player* bot, uint32 questId)
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
     TC_LOG_INFO("playerbot.quest", "Bot {} completed quest {}", bot->GetName(), questId);
 
     // Remove from active quests
     {
-        std::lock_guard<std::recursive_mutex> lock(_questMutex);
         auto progressIt = _botQuestProgress.find(botGuid);
         if (progressIt != _botQuestProgress.end())
         {
@@ -403,7 +394,6 @@ void DynamicQuestSystem::HandleQuestCompletion(Player* bot, uint32 questId)
         AssignQuestToBot(nextQuest, bot);
     }
 }
-
 bool DynamicQuestSystem::FormQuestGroup(uint32 questId, Player* initiator)
 {
     if (!initiator)
@@ -538,7 +528,6 @@ void DynamicQuestSystem::HandleQuestNavigation(Player* bot, uint32 questId)
 
     // Handle navigation to quest objectives
     std::vector<Position> questPath = GenerateQuestPath(bot, questId);
-
     if (!questPath.empty())
     {
         // Move bot to the next waypoint
@@ -579,8 +568,6 @@ void DynamicQuestSystem::HandleQuestStuckState(Player* bot, uint32 questId)
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
-    std::lock_guard<std::recursive_mutex> lock(_questMutex);
     auto progressIt = _botQuestProgress.find(botGuid);
     if (progressIt == _botQuestProgress.end())
         return;
@@ -593,7 +580,7 @@ void DynamicQuestSystem::HandleQuestStuckState(Player* bot, uint32 questId)
     if (questProgress != progressIt->second.end())
     {
         questProgress->isStuck = true;
-        questProgress->stuckTime = getMSTime();
+        questProgress->stuckTime = GameTime::GetGameTimeMS();
         questProgress->retryCount++;
 
         TC_LOG_WARN("playerbot.quest", "Bot {} is stuck on quest {}, retry count: {}",
@@ -616,8 +603,6 @@ void DynamicQuestSystem::OptimizeQuestOrder(Player* bot)
         return;
 
     uint32 botGuid = bot->GetGUID().GetCounter();
-
-    std::lock_guard<std::recursive_mutex> lock(_questMutex);
     auto progressIt = _botQuestProgress.find(botGuid);
     if (progressIt == _botQuestProgress.end())
         return;
@@ -737,7 +722,7 @@ bool DynamicQuestSystem::ShouldMoveToNewZone(Player* bot)
     return valuableQuests < ZONE_OPTIMIZATION_THRESHOLD;
 }
 
-DynamicQuestSystem::QuestReward DynamicQuestSystem::AnalyzeQuestReward(uint32 questId, Player* bot)
+QuestReward DynamicQuestSystem::AnalyzeQuestReward(uint32 questId, Player* bot)
 {
     QuestReward reward;
 
@@ -797,9 +782,8 @@ bool DynamicQuestSystem::IsQuestWorthwhile(uint32 questId, Player* bot)
     return value >= MIN_QUEST_VALUE_THRESHOLD;
 }
 
-DynamicQuestSystem::QuestMetrics DynamicQuestSystem::GetBotQuestMetrics(uint32 botGuid)
+QuestMetrics DynamicQuestSystem::GetBotQuestMetrics(uint32 botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_questMutex);
     auto it = _botMetrics.find(botGuid);
     if (it != _botMetrics.end())
         return it->second;
@@ -809,12 +793,10 @@ DynamicQuestSystem::QuestMetrics DynamicQuestSystem::GetBotQuestMetrics(uint32 b
     return metrics;
 }
 
-DynamicQuestSystem::QuestMetrics DynamicQuestSystem::GetGlobalQuestMetrics()
+QuestMetrics DynamicQuestSystem::GetGlobalQuestMetrics()
 {
     QuestMetrics globalMetrics;
     globalMetrics.Reset();
-
-    std::lock_guard<std::recursive_mutex> lock(_questMutex);
 
     // Aggregate all bot metrics
     for (const auto& metricsPair : _botMetrics)
@@ -831,20 +813,18 @@ DynamicQuestSystem::QuestMetrics DynamicQuestSystem::GetGlobalQuestMetrics()
     return globalMetrics;
 }
 
-void DynamicQuestSystem::SetQuestStrategy(uint32 botGuid, QuestStrategy strategy)
+void DynamicQuestSystem::SetQuestStrategy(uint32 botGuid, QuestSelectionStrategy strategy)
 {
-    std::lock_guard<std::recursive_mutex> lock(_questMutex);
     _botStrategies[botGuid] = strategy;
 }
 
-QuestStrategy DynamicQuestSystem::GetQuestStrategy(uint32 botGuid)
+QuestSelectionStrategy DynamicQuestSystem::GetQuestStrategy(uint32 botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_questMutex);
     auto it = _botStrategies.find(botGuid);
     if (it != _botStrategies.end())
         return it->second;
 
-    return QuestStrategy::LEVEL_PROGRESSION;
+    return QuestSelectionStrategy::LEVEL_PROGRESSION;
 }
 
 void DynamicQuestSystem::SetMaxConcurrentQuests(uint32 botGuid, uint32 maxQuests)
@@ -885,7 +865,6 @@ void DynamicQuestSystem::AnalyzeQuestDependencies()
         Quest const* quest = questPair.second.get();
         if (!quest)
             continue;
-
         uint32 questId = quest->GetQuestId();
 
         // Check for prerequisite quests
@@ -1060,7 +1039,7 @@ void DynamicQuestSystem::UpdateQuestObjectiveProgress(QuestProgress& progress, c
         progress.completionPercentage = (float(completedObjectives) / float(totalObjectives)) * 100.0f;
     }
 
-    progress.lastUpdateTime = getMSTime();
+    progress.lastUpdateTime = GameTime::GetGameTimeMS();
 }
 
 bool DynamicQuestSystem::IsQuestObjectiveComplete(const QuestProgress& progress, uint32 objectiveIndex)
@@ -1201,7 +1180,7 @@ void DynamicQuestSystem::ScaleQuestForBot(QuestMetadata& metadata, Player* bot)
 void DynamicQuestSystem::Update(uint32 diff)
 {
     static uint32 lastUpdate = 0;
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     if (currentTime - lastUpdate < QUEST_UPDATE_INTERVAL)
         return;
@@ -1217,9 +1196,7 @@ void DynamicQuestSystem::Update(uint32 diff)
 
 void DynamicQuestSystem::CleanupCompletedQuests()
 {
-    std::lock_guard<std::recursive_mutex> lock(_questMutex);
-
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Clean up old quest progress data
     for (auto it = _botQuestProgress.begin(); it != _botQuestProgress.end(); ++it)

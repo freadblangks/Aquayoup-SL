@@ -35,9 +35,9 @@ BotGearFactory::BotGearFactory()
 
 void BotGearFactory::Initialize()
 {
-    std::lock_guard<std::mutex> lock(_initMutex);
+    ::std::lock_guard lock(_initMutex);
 
-    if (_cacheReady.load(std::memory_order_acquire))
+    if (_cacheReady.load(::std::memory_order_acquire))
     {
         TC_LOG_WARN("playerbot.gear", "BotGearFactory: Already initialized");
         return;
@@ -48,10 +48,10 @@ void BotGearFactory::Initialize()
     InitializeQualityDistributions();
     BuildGearCache();
 
-    _cacheReady.store(true, std::memory_order_release);
+    _cacheReady.store(true, ::std::memory_order_release);
 
     TC_LOG_INFO("playerbot.gear", "BotGearFactory: Initialization complete. Cache size: {} items",
-                _stats.cacheSize.load(std::memory_order_relaxed));
+                _stats.cacheSize.load(::std::memory_order_relaxed));
 }
 
 void BotGearFactory::InitializeQualityDistributions()
@@ -100,7 +100,7 @@ void BotGearFactory::LoadItemsFromDatabase()
         ++totalItems;
 
         // Filter: Quality >= 2 (Uncommon+), ItemLevel >= 5, InventoryType > 0 (equippable only)
-        if (itemTemplate.GetQuality() < 2)
+    if (itemTemplate.GetQuality() < 2)
             continue;
         if (itemTemplate.GetBaseItemLevel() < 5)
             continue;
@@ -208,30 +208,139 @@ GearSet BotGearFactory::BuildGearSet(uint8 cls, uint32 specId, uint32 level, Tea
 
 bool BotGearFactory::ApplyGearSet(Player* player, GearSet const& gearSet)
 {
-    if (!player)
-        return false;
 
-    TC_LOG_DEBUG("playerbot.gear", "BotGearFactory: Applying gear set to player {}", player->GetName());
+    TC_LOG_DEBUG("playerbot.gear", "BotGearFactory: Applying gear set to player {} (class {} level {})",
+                 player->GetName(), player->GetClass(), player->GetLevel());
 
-    // Equip items
+    uint32 itemsEquipped = 0;
+    uint32 itemsFailed = 0;
+
+    // Phase 1: Equip main gear (armor, weapons, trinkets)
     for (auto const& [slot, itemEntry] : gearSet.items)
     {
-        if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemEntry))
+        ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemEntry);
+        if (!proto)
         {
-            // TODO: Create item with proper CanStoreNewItem + StoreNewItem API
-            TC_LOG_WARN("playerbot.gear", "BotGearFactory: Gear application for slot {} not yet implemented", slot);
+            TC_LOG_ERROR("playerbot.gear", "BotGearFactory: Invalid item entry {} for slot {}", itemEntry, slot);
+            ++itemsFailed;
+            continue;
+        }
+
+        // Use EquipNewItem for direct equipping (most efficient for bot initialization)
+        // This creates the item and equips it in one operation
+        uint16 equipDest = 0;
+        InventoryResult equipResult = player->CanEquipNewItem(slot, equipDest, itemEntry, false);
+
+        if (equipResult != EQUIP_ERR_OK)
+        {
+            TC_LOG_WARN("playerbot.gear", "BotGearFactory: Cannot equip item {} (entry {}) in slot {} for player {}: error {}",
+                        proto->GetDefaultLocaleName(), itemEntry, slot, player->GetName(), uint32(equipResult));
+            ++itemsFailed;
+            continue;
+        }
+
+        // Create and equip item with WoW 11.2 ItemContext system
+        // Use ITEM_CONTEXT_NONE for standard bot gear (not from dungeons/raids)
+        Item* newItem = player->EquipNewItem(equipDest, itemEntry, ItemContext::NONE, true);
+
+        if (newItem)
+        {
+            TC_LOG_DEBUG("playerbot.gear", "BotGearFactory: Equipped {} (entry {}, ilvl {}) in slot {} for player {}",
+                         proto->GetDefaultLocaleName(), itemEntry, proto->GetBaseItemLevel(), slot, player->GetName());
+            ++itemsEquipped;
+        }
+        else
+        {
+            TC_LOG_ERROR("playerbot.gear", "BotGearFactory: EquipNewItem failed for item {} in slot {} for player {}",
+                         itemEntry, slot, player->GetName());
+            ++itemsFailed;
         }
     }
 
-    // TODO: Add bags to inventory
-    // TODO: Add consumables
+    // Phase 2: Add bags to inventory
+    uint32 bagsAdded = 0;
+    uint8 bagSlot = INVENTORY_SLOT_BAG_START;
 
+    for (uint32 bagEntry : gearSet.bags)
+    {
+        if (bagSlot >= INVENTORY_SLOT_BAG_END)
+        {
+            TC_LOG_WARN("playerbot.gear", "BotGearFactory: No more bag slots available for player {}", player->GetName());
+            break;
+        }
+
+        ItemTemplate const* bagProto = sObjectMgr->GetItemTemplate(bagEntry);
+        if (!bagProto)
+        {
+            TC_LOG_ERROR("playerbot.gear", "BotGearFactory: Invalid bag entry {}", bagEntry);
+            continue;
+        }
+
+        // Check if bag can be equipped
+        uint16 bagDest = 0;
+        InventoryResult bagResult = player->CanEquipNewItem(bagSlot, bagDest, bagEntry, false);
+
+        if (bagResult == EQUIP_ERR_OK)
+        {
+            Item* newBag = player->EquipNewItem(bagDest, bagEntry, ItemContext::NONE, true);
+            if (newBag)
+            {
+                TC_LOG_DEBUG("playerbot.gear", "BotGearFactory: Equipped bag {} (entry {}, {} slots) in slot {} for player {}",
+                             bagProto->GetDefaultLocaleName(), bagEntry, bagProto->GetContainerSlots(), bagSlot, player->GetName());
+                ++bagsAdded;
+            }
+        }
+
+        ++bagSlot;
+    }
+
+    // Phase 3: Add consumables to inventory (food, water, reagents)
+    uint32 consumablesAdded = 0;
+
+    for (auto const& [consumableEntry, quantity] : gearSet.consumables)
+    {
+        ItemTemplate const* consumableProto = sObjectMgr->GetItemTemplate(consumableEntry);
+        if (!consumableProto)
+        {
+            TC_LOG_ERROR("playerbot.gear", "BotGearFactory: Invalid consumable entry {}", consumableEntry);
+            continue;
+        }
+
+        // Find empty bag slots for consumables
+        ItemPosCountVec dest;
+        InventoryResult storeResult = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, consumableEntry, quantity);
+
+        if (storeResult == EQUIP_ERR_OK)
+        {
+            // Create and store consumable items
+            Item* newConsumable = player->StoreNewItem(dest, consumableEntry, true, ItemRandomBonusListId(), GuidSet(), ItemContext::NONE, nullptr, false);
+
+            if (newConsumable)
+            {
+                TC_LOG_DEBUG("playerbot.gear", "BotGearFactory: Added {} x{} (entry {}) to inventory of player {}",
+                             consumableProto->GetDefaultLocaleName(), quantity, consumableEntry, player->GetName());
+                ++consumablesAdded;
+            }
+        }
+        else
+        {
+            TC_LOG_WARN("playerbot.gear", "BotGearFactory: Cannot store consumable {} x{} for player {}: error {}",
+                        consumableEntry, quantity, player->GetName(), uint32(storeResult));
+        }
+    }
+
+    // Phase 4: Save to database
     player->SaveToDB();
 
-    TC_LOG_INFO("playerbot.gear", "BotGearFactory: Applied gear set to player {} (class {} level {})",
-                player->GetName(), player->GetClass(), player->GetLevel());
+    // Log summary
+    TC_LOG_INFO("playerbot.gear", "BotGearFactory: Applied gear set to player {} (class {} level {}): {} items equipped, {} bags, {} consumables ({}failed)",
+                player->GetName(), player->GetClass(), player->GetLevel(),
+                itemsEquipped, bagsAdded, consumablesAdded, itemsFailed);
 
-    return true;
+    // Update statistics
+    _stats.itemsApplied.fetch_add(itemsEquipped, ::std::memory_order_relaxed);
+
+    return itemsFailed == 0;
 }
 
 uint32 BotGearFactory::GetItemLevelForCharLevel(uint32 charLevel)
@@ -246,9 +355,9 @@ uint32 BotGearFactory::GetItemLevelForCharLevel(uint32 charLevel)
     return 5 + ((charLevel - 1) * (593 - 5)) / (80 - 1);
 }
 
-std::vector<uint32> BotGearFactory::GetBagItemsForLevel(uint32 level)
+::std::vector<uint32> BotGearFactory::GetBagItemsForLevel(uint32 level)
 {
-    std::vector<uint32> bags;
+    ::std::vector<uint32> bags;
 
     // Simple bag progression
     if (level < 10)
@@ -275,9 +384,9 @@ std::vector<uint32> BotGearFactory::GetBagItemsForLevel(uint32 level)
     return bags;
 }
 
-std::map<uint32, uint32> BotGearFactory::GetConsumablesForClass(uint8 cls, uint32 level)
+::std::map<uint32, uint32> BotGearFactory::GetConsumablesForClass(uint8 cls, uint32 level)
 {
-    std::map<uint32, uint32> consumables;
+    ::std::map<uint32, uint32> consumables;
 
     // Food (all classes)
     if (level < 25)
@@ -347,7 +456,6 @@ uint32 BotGearFactory::SelectQuality(uint32 level, uint8 slot)
     cumulative += dist->bluePercent;
     if (roll < cumulative && dist->bluePercent > 0.0f)
         return 3;  // ITEM_QUALITY_RARE (Blue)
-
     if (dist->purplePercent > 0.0f)
         return 4;  // ITEM_QUALITY_EPIC (Purple)
 
@@ -380,7 +488,7 @@ uint32 BotGearFactory::SelectBestItem(uint8 cls, uint32 specId, uint32 level, ui
     // Select highest scored item
     if (!qualityFiltered.empty())
     {
-        auto best = std::max_element(qualityFiltered.begin(), qualityFiltered.end(),
+        auto best = ::std::max_element(qualityFiltered.begin(), qualityFiltered.end(),
             [](CachedItem const& a, CachedItem const& b)
             {
                 return a.statScore < b.statScore;
@@ -392,7 +500,7 @@ uint32 BotGearFactory::SelectBestItem(uint8 cls, uint32 specId, uint32 level, ui
     return 0;
 }
 
-std::vector<CachedItem> const* BotGearFactory::GetItemsForSlot(uint8 cls, uint32 specId, uint32 level, uint8 slot) const
+::std::vector<CachedItem> const* BotGearFactory::GetItemsForSlot(uint8 cls, uint32 specId, uint32 level, uint8 slot) const
 {
     // Lookup in cache: _gearCache[cls][specId][level][slot]
     auto clsIt = _gearCache.find(cls);
@@ -419,11 +527,10 @@ std::vector<CachedItem> const* BotGearFactory::GetItemsForSlot(uint8 cls, uint32
     return &slotIt->second;
 }
 
-std::vector<CachedItem> BotGearFactory::FilterByQuality(std::vector<CachedItem> const& items, uint32 quality) const
+::std::vector<CachedItem> BotGearFactory::FilterByQuality(::std::vector<CachedItem> const& items, uint32 quality) const
 {
-    std::vector<CachedItem> filtered;
+    ::std::vector<CachedItem> filtered;
     filtered.reserve(items.size() / 3);  // Estimate
-
     for (auto const& item : items)
     {
         if (item.quality == quality)
@@ -433,7 +540,7 @@ std::vector<CachedItem> BotGearFactory::FilterByQuality(std::vector<CachedItem> 
     return filtered;
 }
 
-std::vector<uint8> BotGearFactory::GetAllowedArmorTypes(uint8 cls) const
+::std::vector<uint8> BotGearFactory::GetAllowedArmorTypes(uint8 cls) const
 {
     switch (cls)
     {

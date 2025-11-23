@@ -11,11 +11,12 @@
  * @file BotAI_EventHandlers.cpp
  * @brief Default implementations of event handlers for BotAI
  *
- * This file contains the default event handler implementations for all 11 event buses.
+ * This file contains the default event handler implementations for all 12 event buses.
  * ClassAI implementations can override these virtual methods for specialized behavior.
  *
  * Phase 4: Event Bus Integration
- * - 11 event handlers fully implemented
+ * Phase 5: Template Migration (ProfessionEventBus added)
+ * - 12 event handlers fully implemented
  * - Delegates to managers where appropriate
  * - Provides sensible defaults for autonomous behavior
  */
@@ -32,6 +33,7 @@
 #include "Auction/AuctionEventBus.h"
 #include "NPC/NPCEventBus.h"
 #include "Instance/InstanceEventBus.h"
+#include "Professions/ProfessionEventBus.h"
 #include "Game/QuestManager.h"
 #include "Social/TradeManager.h"
 #include "Economy/AuctionManager.h"
@@ -69,8 +71,9 @@ void BotAI::SubscribeToEventBuses()
     AuctionEventBus::instance()->SubscribeAll(this);
     NPCEventBus::instance()->SubscribeAll(this);
     InstanceEventBus::instance()->SubscribeAll(this);
+    ProfessionEventBus::instance()->SubscribeAll(this);
 
-    TC_LOG_DEBUG("playerbot.events", "Bot {} subscribed to all 11 event buses",
+    TC_LOG_DEBUG("playerbot.events", "Bot {} subscribed to all 12 event buses",
         _bot->GetName());
 }
 
@@ -91,6 +94,7 @@ void BotAI::UnsubscribeFromEventBuses()
     AuctionEventBus::instance()->Unsubscribe(this);
     NPCEventBus::instance()->Unsubscribe(this);
     InstanceEventBus::instance()->Unsubscribe(this);
+    ProfessionEventBus::instance()->Unsubscribe(this);
 
     TC_LOG_DEBUG("playerbot.events", "Bot {} unsubscribed from all event buses",
         _bot->GetName());
@@ -112,13 +116,13 @@ void BotAI::OnGroupEvent(GroupEvent const& event)
             break;
 
         case GroupEventType::TARGET_ICON_CHANGED:
-            if (_groupCoordinator)
-                _groupCoordinator->OnTargetIconChanged(event);
+            if (GetGameSystems()->GetGroupCoordinator())
+                GetGameSystems()->GetGroupCoordinator()->OnTargetIconChanged(event);
             break;
 
         case GroupEventType::LEADER_CHANGED:
             // Update following target if we were following old leader
-            if (_aiState == BotAIState::FOLLOWING)
+    if (_aiState == BotAIState::FOLLOWING)
                 HandleGroupChange();
             break;
 
@@ -128,8 +132,8 @@ void BotAI::OnGroupEvent(GroupEvent const& event)
 
         case GroupEventType::MEMBER_JOINED:
         case GroupEventType::MEMBER_LEFT:
-            if (_groupCoordinator)
-                _groupCoordinator->OnGroupCompositionChanged(event);
+            if (GetGameSystems()->GetGroupCoordinator())
+                GetGameSystems()->GetGroupCoordinator()->OnGroupCompositionChanged(event);
             break;
 
         case GroupEventType::LOOT_METHOD_CHANGED:
@@ -181,7 +185,7 @@ void BotAI::OnCombatEvent(CombatEvent const& event)
             ProcessCombatInterrupt(event);
 
             // NEUTRAL MOB DETECTION: Bot is being targeted by hostile spell
-            if (event.targetGuid == botGuid && !_bot->IsInCombat())
+    if (event.targetGuid == botGuid && !_bot->IsInCombat())
             {
                 // PHASE 2: Thread-safe spatial grid verification (no Map access from worker thread)
                 auto casterSnapshot = SpatialGridQueryHelpers::FindCreatureByGuid(_bot, event.casterGuid);
@@ -195,7 +199,7 @@ void BotAI::OnCombatEvent(CombatEvent const& event)
                             _bot->GetName(), event.casterGuid.ToString(), event.spellId);
 
                         // Queue BotAction for main thread execution (CRITICAL: no Map access from worker threads!)
-                        BotAction action = BotAction::AttackTarget(_bot->GetGUID(), event.casterGuid, getMSTime());
+                        BotAction action = BotAction::AttackTarget(_bot->GetGUID(), event.casterGuid, GameTime::GetGameTimeMS());
                         sBotActionMgr->QueueAction(action);
                     }
                 }
@@ -204,14 +208,14 @@ void BotAI::OnCombatEvent(CombatEvent const& event)
 
         case CombatEventType::ATTACK_START:
             // Track when bot initiates combat
-            if (event.casterGuid == botGuid)
+    if (event.casterGuid == botGuid)
             {
                 if (_aiState != BotAIState::COMBAT)
                     SetAIState(BotAIState::COMBAT);
             }
 
             // NEUTRAL MOB DETECTION: Bot is being attacked
-            if (event.victimGuid == botGuid && !_bot->IsInCombat())
+    if (event.victimGuid == botGuid && !_bot->IsInCombat())
             {
                 // PHASE 2: Thread-safe spatial grid verification (no Map access from worker thread)
                 auto attackerSnapshot = SpatialGridQueryHelpers::FindCreatureByGuid(_bot, event.casterGuid);
@@ -222,7 +226,7 @@ void BotAI::OnCombatEvent(CombatEvent const& event)
                         _bot->GetName(), event.casterGuid.ToString());
 
                     // Queue BotAction for main thread execution (CRITICAL: no Map access from worker threads!)
-                    BotAction action = BotAction::AttackTarget(_bot->GetGUID(), event.casterGuid, getMSTime());
+                    BotAction action = BotAction::AttackTarget(_bot->GetGUID(), event.casterGuid, GameTime::GetGameTimeMS());
                     sBotActionMgr->QueueAction(action);
                 }
             }
@@ -230,7 +234,7 @@ void BotAI::OnCombatEvent(CombatEvent const& event)
 
         case CombatEventType::ATTACK_STOP:
             // Track when combat ends
-            if (event.casterGuid == botGuid)
+    if (event.casterGuid == botGuid)
             {
                 if (_aiState == BotAIState::COMBAT && !_bot->IsInCombat())
                     SetAIState(BotAIState::SOLO);
@@ -239,7 +243,7 @@ void BotAI::OnCombatEvent(CombatEvent const& event)
 
         case CombatEventType::AI_REACTION:
             // NEUTRAL MOB DETECTION: NPC became hostile and is targeting bot
-            if (event.amount > 0)  // Positive reaction = hostile
+    if (event.amount > 0)  // Positive reaction = hostile
             {
                 // PHASE 2: Thread-safe spatial grid verification (no Map access from worker thread)
                 auto mobSnapshot = SpatialGridQueryHelpers::FindCreatureByGuid(_bot, event.casterGuid);
@@ -251,7 +255,7 @@ void BotAI::OnCombatEvent(CombatEvent const& event)
                         _bot->GetName(), event.casterGuid.ToString());
 
                     // Queue BotAction for main thread execution (CRITICAL: no Map access from worker threads!)
-                    BotAction action = BotAction::AttackTarget(_bot->GetGUID(), event.casterGuid, getMSTime());
+                    BotAction action = BotAction::AttackTarget(_bot->GetGUID(), event.casterGuid, GameTime::GetGameTimeMS());
                     sBotActionMgr->QueueAction(action);
                 }
             }
@@ -259,7 +263,7 @@ void BotAI::OnCombatEvent(CombatEvent const& event)
 
         case CombatEventType::SPELL_DAMAGE_TAKEN:
             // NEUTRAL MOB DETECTION: Catch-all for damage received
-            if (event.victimGuid == botGuid && !_bot->IsInCombat())
+    if (event.victimGuid == botGuid && !_bot->IsInCombat())
             {
                 // PHASE 2: Thread-safe spatial grid verification (no Map access from worker thread)
                 auto attackerSnapshot = SpatialGridQueryHelpers::FindCreatureByGuid(_bot, event.casterGuid);
@@ -270,7 +274,7 @@ void BotAI::OnCombatEvent(CombatEvent const& event)
                         _bot->GetName(), event.casterGuid.ToString());
 
                     // Queue BotAction for main thread execution (CRITICAL: no Map access from worker threads!)
-                    BotAction action = BotAction::AttackTarget(_bot->GetGUID(), event.casterGuid, getMSTime());
+                    BotAction action = BotAction::AttackTarget(_bot->GetGUID(), event.casterGuid, GameTime::GetGameTimeMS());
                     sBotActionMgr->QueueAction(action);
                 }
             }
@@ -366,7 +370,7 @@ void BotAI::OnAuraEvent(AuraEvent const& event)
     {
         case AuraEventType::AURA_APPLIED:
             // Check if we need to dispel harmful debuffs
-            if (event.isHarmful && event.targetGuid == _bot->GetGUID())
+    if (event.isHarmful && event.targetGuid == _bot->GetGUID())
             {
                 ProcessAuraDispel(event);
             }
@@ -459,7 +463,7 @@ void BotAI::OnQuestEvent(QuestEvent const& event)
         return;
 
     // Delegate all quest events to QuestManager
-    if (_questManager)
+    if (GetGameSystems()->GetQuestManager())
     {
         // QuestManager will handle quest acceptance, completion, and progress tracking
         TC_LOG_TRACE("playerbot.events.quest", "Bot {}: Quest event {} for quest {}",
@@ -471,7 +475,7 @@ void BotAI::OnQuestEvent(QuestEvent const& event)
 
 void BotAI::ProcessQuestProgress(QuestEvent const& event)
 {
-    if (!_bot || !_questManager)
+    if (!_bot || !GetGameSystems()->GetQuestManager())
         return;
 
     switch (event.type)
@@ -523,7 +527,7 @@ void BotAI::OnResourceEvent(ResourceEvent const& event)
 
         case ResourceEventType::BREAK_TARGET:
             // Target selection broken, need new target
-            if (event.playerGuid == _bot->GetGUID())
+    if (event.playerGuid == _bot->GetGUID())
             {
                 TC_LOG_DEBUG("playerbot.events.resource", "Bot {}: Target broken",
                     _bot->GetName());
@@ -579,7 +583,7 @@ void BotAI::OnSocialEvent(SocialEvent const& event)
     {
         case SocialEventType::MESSAGE_CHAT:
             // Process chat messages for commands
-            if (event.chatType == ChatMsg::CHAT_MSG_WHISPER && event.targetGuid == _bot->GetGUID())
+    if (event.chatType == ChatMsg::CHAT_MSG_WHISPER && event.targetGuid == _bot->GetGUID())
             {
                 TC_LOG_DEBUG("playerbot.events.social", "Bot {}: Whisper from {}: {}",
                     _bot->GetName(), event.playerGuid.ToString(), event.message);
@@ -595,7 +599,7 @@ void BotAI::OnSocialEvent(SocialEvent const& event)
             break;
 
         case SocialEventType::TRADE_STATUS_CHANGED:
-            if (_tradeManager)
+            if (GetGameSystems()->GetTradeManager())
             {
                 // Delegate to TradeManager
                 TC_LOG_TRACE("playerbot.events.social", "Bot {}: Trade status changed",
@@ -618,7 +622,7 @@ void BotAI::OnAuctionEvent(AuctionEvent const& event)
         return;
 
     // Delegate all auction events to AuctionManager
-    if (_auctionManager)
+    if (GetGameSystems()->GetAuctionManager())
     {
         TC_LOG_TRACE("playerbot.events.auction", "Bot {}: Auction event type {}",
             _bot->GetName(), static_cast<uint32>(event.type));
@@ -703,6 +707,88 @@ void BotAI::OnInstanceEvent(InstanceEvent const& event)
             // Instance warnings (lockout warnings, reset notifications)
             TC_LOG_INFO("playerbot.events.instance", "Bot {}: Instance message: {}",
                 _bot->GetName(), event.message);
+            break;
+
+        default:
+            break;
+    }
+}
+
+// ============================================================================
+// PROFESSION EVENT HANDLER
+// ============================================================================
+
+void BotAI::OnProfessionEvent(ProfessionEvent const& event)
+{
+    if (!_bot)
+        return;
+
+    switch (event.type)
+    {
+        case ProfessionEventType::RECIPE_LEARNED:
+            TC_LOG_DEBUG("playerbot.events.profession", "Bot {}: Learned recipe {} for {}",
+                _bot->GetName(), event.recipeId, static_cast<uint32>(event.profession));
+            // Trigger profession system update to evaluate new crafting options
+            break;
+
+        case ProfessionEventType::SKILL_UP:
+            TC_LOG_DEBUG("playerbot.events.profession", "Bot {}: Profession {} skill increased from {} to {}",
+                _bot->GetName(), static_cast<uint32>(event.profession),
+                event.skillBefore, event.skillAfter);
+            break;
+
+        case ProfessionEventType::CRAFTING_STARTED:
+            TC_LOG_TRACE("playerbot.events.profession", "Bot {}: Started crafting recipe {} (item {})",
+                _bot->GetName(), event.recipeId, event.itemId);
+            break;
+
+        case ProfessionEventType::CRAFTING_COMPLETED:
+            TC_LOG_DEBUG("playerbot.events.profession", "Bot {}: Completed crafting item {} x{} from recipe {}",
+                _bot->GetName(), event.itemId, event.quantity, event.recipeId);
+            // Track successful crafts for profession progression
+            break;
+
+        case ProfessionEventType::CRAFTING_FAILED:
+            TC_LOG_WARN("playerbot.events.profession", "Bot {}: Crafting failed for recipe {} - {}",
+                _bot->GetName(), event.recipeId, event.reason);
+            // Profession system should handle retry logic or material acquisition
+            break;
+
+        case ProfessionEventType::MATERIALS_NEEDED:
+            TC_LOG_DEBUG("playerbot.events.profession", "Bot {}: Materials needed for recipe {} ({})",
+                _bot->GetName(), event.recipeId, static_cast<uint32>(event.profession));
+            // Trigger material acquisition (gathering, AH purchase, or bank withdrawal)
+            break;
+
+        case ProfessionEventType::MATERIAL_GATHERED:
+            TC_LOG_TRACE("playerbot.events.profession", "Bot {}: Gathered material {} x{} for {}",
+                _bot->GetName(), event.itemId, event.quantity,
+                static_cast<uint32>(event.profession));
+            break;
+
+        case ProfessionEventType::MATERIAL_PURCHASED:
+            TC_LOG_DEBUG("playerbot.events.profession", "Bot {}: Purchased material {} x{} for {} gold",
+                _bot->GetName(), event.itemId, event.quantity, event.goldAmount);
+            break;
+
+        case ProfessionEventType::ITEM_BANKED:
+            TC_LOG_TRACE("playerbot.events.profession", "Bot {}: Banked item {} x{}",
+                _bot->GetName(), event.itemId, event.quantity);
+            break;
+
+        case ProfessionEventType::ITEM_WITHDRAWN:
+            TC_LOG_DEBUG("playerbot.events.profession", "Bot {}: Withdrew item {} x{} from bank",
+                _bot->GetName(), event.itemId, event.quantity);
+            break;
+
+        case ProfessionEventType::GOLD_BANKED:
+            TC_LOG_TRACE("playerbot.events.profession", "Bot {}: Banked {} gold",
+                _bot->GetName(), event.goldAmount);
+            break;
+
+        case ProfessionEventType::GOLD_WITHDRAWN:
+            TC_LOG_DEBUG("playerbot.events.profession", "Bot {}: Withdrew {} gold from bank",
+                _bot->GetName(), event.goldAmount);
             break;
 
         default:

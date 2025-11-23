@@ -16,13 +16,16 @@
  */
 
 #include "PlayerbotCommands.h"
-#include "Movement/GroupFormationManager.h"
+#include "Movement/UnifiedMovementCoordinator.h"
+#include "AI/BotAI.h"
 #include "Config/ConfigManager.h"
 #include "Monitoring/BotMonitor.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "Unit.h"
+#include "UnitAI.h"
 #include "World.h"
 #include "WorldSession.h"
 #include "DB2Stores.h"
@@ -41,52 +44,101 @@ namespace Playerbot
     {
         static ChatCommandTable botFormationCommandTable =
         {
-            { "list",    HandleBotFormationListCommand, rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "",        HandleBotFormationCommand,     rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
+
+            { "list",
+            HandleBotFormationListCommand, rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
+            { "",
+            HandleBotFormationCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
         };
 
         static ChatCommandTable botConfigCommandTable =
         {
-            { "show",    HandleBotConfigShowCommand, rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "",        HandleBotConfigCommand,     rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
+
+            { "show",
+            HandleBotConfigShowCommand, rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
+            { "",
+            HandleBotConfigCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
         };
 
         static ChatCommandTable botSummonCommandTable =
         {
-            { "all",     HandleBotSummonAllCommand, rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "",        HandleBotSummonCommand,    rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
+
+            { "all",
+            HandleBotSummonAllCommand, rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
+            { "",
+            HandleBotSummonCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
         };
 
         static ChatCommandTable botMonitorCommandTable =
         {
+
             { "trends",  HandleBotMonitorTrendsCommand, rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "",        HandleBotMonitorCommand,       rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
+
+            { "",
+            HandleBotMonitorCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
         };
 
         static ChatCommandTable botAlertsCommandTable =
         {
+
             { "history", HandleBotAlertsHistoryCommand, rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
             { "clear",   HandleBotAlertsClearCommand,   rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "",        HandleBotAlertsCommand,        rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
+
+            { "",
+            HandleBotAlertsCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No }
         };
 
         static ChatCommandTable botCommandTable =
         {
-            { "spawn",     HandleBotSpawnCommand,     rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "delete",    HandleBotDeleteCommand,    rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "list",      HandleBotListCommand,      rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
+            { "spawn",
+            HandleBotSpawnCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
+            { "delete",
+            HandleBotDeleteCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
+            { "list",
+            HandleBotListCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
             { "teleport",  HandleBotTeleportCommand,  rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "summon",    botSummonCommandTable },
+
+            { "summon",
+            botSummonCommandTable },
+
             { "formation", botFormationCommandTable },
-            { "stats",     HandleBotStatsCommand,     rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "info",      HandleBotInfoCommand,      rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
-            { "config",    botConfigCommandTable },
+
+            { "stats",
+            HandleBotStatsCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
+            { "info",
+            HandleBotInfoCommand,
+            rbac::RBAC_PERM_COMMAND_GMNOTIFY, Console::No },
+
+            { "config",
+            botConfigCommandTable },
+
             { "monitor",   botMonitorCommandTable },
-            { "alerts",    botAlertsCommandTable }
+
+            { "alerts",
+            botAlertsCommandTable }
         };
 
         static ChatCommandTable commandTable =
         {
+
             { "bot", botCommandTable }
         };
 
@@ -98,24 +150,28 @@ namespace Playerbot
     // =====================================================================
 
     bool PlayerbotCommandScript::HandleBotSpawnCommand(ChatHandler* handler, std::string name,
+
                                                        Optional<uint8> race, Optional<uint8> classId)
     {
         Player* player = handler->GetSession()->GetPlayer();
         if (!player)
+
             return false;
 
         // Default to player's race/class if not specified
         uint8 botRace = race ? *race : player->GetRace();
         uint8 botClass = classId ? *classId : player->GetClass();
-
         // Validate race/class combination
         if (!ValidateRaceClass(botRace, botClass, handler))
+
             return false;
 
         // Check if bot name already exists
         if (sCharacterCache->GetCharacterGuidByName(name).IsPlayer())
         {
+
             handler->PSendSysMessage("Bot name '%s' is already taken.", name.c_str());
+
             return false;
         }
 
@@ -127,6 +183,7 @@ namespace Playerbot
         // 4. Adding bot to player's group
 
         handler->PSendSysMessage("Bot '%s' created successfully (Race: %u, Class: %u).",
+
                                 name.c_str(), botRace, botClass);
         handler->PSendSysMessage("Note: Full bot spawning implementation requires BotManager integration.");
 
@@ -138,7 +195,9 @@ namespace Playerbot
         Player* bot = FindBotByName(name);
         if (!bot)
         {
+
             handler->PSendSysMessage("Bot '%s' not found.", name.c_str());
+
             return false;
         }
 
@@ -146,7 +205,9 @@ namespace Playerbot
         WorldSession* session = bot->GetSession();
         if (!session)
         {
+
             handler->PSendSysMessage("'%s' has no session.", name.c_str());
+
             return false;
         }
 
@@ -171,17 +232,23 @@ namespace Playerbot
         SessionMap const& sessions = sWorld->GetAllSessions();
         for (auto const& [accountId, session] : sessions)
         {
+
             if (Player* player = session->GetPlayer())
+
             {
                 // Check if this is a bot (implement proper bot detection)
                 // For now, check if session has special bot flag
+
                 bots.push_back(player);
+
             }
         }
 
         if (bots.empty())
         {
+
             handler->SendSysMessage("No active bots found.");
+
             return true;
         }
 
@@ -197,22 +264,25 @@ namespace Playerbot
     // =====================================================================
     // BOT TELEPORTATION COMMANDS
     // =====================================================================
-
     bool PlayerbotCommandScript::HandleBotTeleportCommand(ChatHandler* handler, std::string name)
     {
         Player* player = handler->GetSession()->GetPlayer();
         if (!player)
+
             return false;
 
         Player* bot = FindBotByName(name);
         if (!bot)
         {
+
             handler->PSendSysMessage("Bot '%s' not found.", name.c_str());
+
             return false;
         }
 
         // Teleport player to bot's location
         player->TeleportTo(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(),
+
                           bot->GetPositionZ(), bot->GetOrientation());
 
         handler->PSendSysMessage("Teleported to bot '%s'.", name.c_str());
@@ -223,17 +293,21 @@ namespace Playerbot
     {
         Player* player = handler->GetSession()->GetPlayer();
         if (!player)
+
             return false;
 
         Player* bot = FindBotByName(name);
         if (!bot)
         {
+
             handler->PSendSysMessage("Bot '%s' not found.", name.c_str());
+
             return false;
         }
 
         // Teleport bot to player's location
         bot->TeleportTo(player->GetMapId(), player->GetPositionX(), player->GetPositionY(),
+
                        player->GetPositionZ(), player->GetOrientation());
 
         handler->PSendSysMessage("Bot '%s' summoned to your location.", name.c_str());
@@ -244,12 +318,15 @@ namespace Playerbot
     {
         Player* player = handler->GetSession()->GetPlayer();
         if (!player)
+
             return false;
 
         Group* group = player->GetGroup();
         if (!group)
         {
+
             handler->SendSysMessage("You must be in a group to summon all bots.");
+
             return false;
         }
 
@@ -258,13 +335,19 @@ namespace Playerbot
         // Summon all bots in group
         for (GroupReference const& itr : group->GetMembers())
         {
+
             Player* member = itr.GetSource();
+
             if (!member || member == player)
+
                 continue;
 
             // Check if member is a bot (implement proper bot detection)
+
             member->TeleportTo(player->GetMapId(), player->GetPositionX(), player->GetPositionY(),
+
                               player->GetPositionZ(), player->GetOrientation());
+
             summonedCount++;
         }
 
@@ -289,24 +372,28 @@ namespace Playerbot
             return false;
         }
 
-        // Convert formation type string to enum
+        // Map formation type string to FormationType enum (from FormationManager)
         FormationType type;
         if (formationType == "wedge")
             type = FormationType::WEDGE;
         else if (formationType == "diamond")
             type = FormationType::DIAMOND;
         else if (formationType == "square" || formationType == "defensive")
-            type = FormationType::DEFENSIVE_SQUARE;
+            type = FormationType::BOX;  // BOX is the defensive square formation
         else if (formationType == "arrow")
-            type = FormationType::ARROW;
+            type = FormationType::WEDGE;  // Arrow formation maps to wedge (similar tactical purpose)
         else if (formationType == "line")
             type = FormationType::LINE;
         else if (formationType == "column")
             type = FormationType::COLUMN;
         else if (formationType == "scatter")
-            type = FormationType::SCATTER;
+            type = FormationType::SPREAD;  // Spread is the scattered formation
         else if (formationType == "circle")
             type = FormationType::CIRCLE;
+        else if (formationType == "dungeon")
+            type = FormationType::DUNGEON;
+        else if (formationType == "raid")
+            type = FormationType::RAID;
         else
         {
             handler->PSendSysMessage("Unknown formation type '%s'. Use .bot formation list to see available formations.",
@@ -314,7 +401,7 @@ namespace Playerbot
             return false;
         }
 
-        // Collect group members
+        // Collect all group members
         std::vector<Player*> groupMembers;
         for (GroupReference const& itr : group->GetMembers())
         {
@@ -322,33 +409,51 @@ namespace Playerbot
                 groupMembers.push_back(member);
         }
 
-        // Create formation
-        FormationLayout formation = GroupFormationManager::CreateFormation(type,
-                                                                           static_cast<uint32>(groupMembers.size()));
-
-        // Assign bots to formation
-        std::vector<Player*> bots;
+        // Set player as formation leader and have all bots join the formation
+        uint32 botsJoined = 0;
         for (Player* member : groupMembers)
         {
-            if (member != player) // Exclude leader
-                bots.push_back(member);
+            // Skip the player issuing the command (they become the leader)
+            if (member == player)
+                continue;
+
+            // Get bot's AI and UnifiedMovementCoordinator
+            BotAI* botAI = dynamic_cast<BotAI*>(member->GetAI());
+            if (!botAI)
+                continue;
+
+            UnifiedMovementCoordinator* coordinator = botAI->GetUnifiedMovementCoordinator();
+            if (!coordinator)
+                continue;
+
+            // Set the player as formation leader
+            coordinator->SetFormationLeader(player);
+
+            // Join the formation with all group members
+            if (coordinator->JoinFormation(groupMembers, type))
+            {
+                ++botsJoined;
+                TC_LOG_DEBUG("playerbot", "Bot {} joined formation {} with leader {}",
+                    member->GetName(), static_cast<uint32>(type), player->GetName());
+            }
         }
 
-        std::vector<BotFormationAssignment> assignments =
-            GroupFormationManager::AssignBotsToFormation(player, bots, formation);
-
-        // Move bots to formation positions
-        for (auto const& assignment : assignments)
+        // Update formations to calculate positions
+        for (Player* member : groupMembers)
         {
-            assignment.bot->GetMotionMaster()->MovePoint(0, assignment.position.position);
+            if (member == player)
+                continue;
+
+            BotAI* botAI = dynamic_cast<BotAI*>(member->GetAI());
+            if (botAI && botAI->GetUnifiedMovementCoordinator())
+                botAI->GetUnifiedMovementCoordinator()->UpdateFormation(0);
         }
 
-        handler->PSendSysMessage("Formation '%s' applied to %u group members.",
-                                formationType.c_str(), static_cast<uint32>(assignments.size()));
+        handler->PSendSysMessage("Formation '%s' applied: %u bots joined formation around %s.",
+                                formationType.c_str(), botsJoined, player->GetName().c_str());
 
         return true;
     }
-
     bool PlayerbotCommandScript::HandleBotFormationListCommand(ChatHandler* handler)
     {
         handler->SendSysMessage("Available Bot Formations:");
@@ -380,7 +485,9 @@ namespace Playerbot
         Player* bot = FindBotByName(name);
         if (!bot)
         {
+
             handler->PSendSysMessage("Bot '%s' not found.", name.c_str());
+
             return false;
         }
 
@@ -393,17 +500,22 @@ namespace Playerbot
         handler->PSendSysMessage("Health: %u/%u", bot->GetHealth(), bot->GetMaxHealth());
         handler->PSendSysMessage("Mana: %u/%u", bot->GetPower(POWER_MANA), bot->GetMaxPower(POWER_MANA));
         handler->PSendSysMessage("Position: Map %u, X: %.2f, Y: %.2f, Z: %.2f",
+
                                 bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ());
         handler->PSendSysMessage("Zone: %u | Area: %u", bot->GetZoneId(), bot->GetAreaId());
 
         if (Group* group = bot->GetGroup())
         {
+
             handler->PSendSysMessage("Group: %s (%u members)",
+
                                     group->GetLeaderGUID().ToString().c_str(),
+
                                     group->GetMembersCount());
         }
         else
         {
+
             handler->SendSysMessage("Group: None");
         }
 
@@ -421,8 +533,11 @@ namespace Playerbot
         // Check if key exists
         if (!config->HasKey(key))
         {
+
             handler->PSendSysMessage("Unknown configuration key: '%s'", key.c_str());
+
             handler->SendSysMessage("Use .bot config show to see all available configuration keys.");
+
             return false;
         }
 
@@ -430,7 +545,9 @@ namespace Playerbot
         auto entry = config->GetEntry(key);
         if (!entry)
         {
+
             handler->PSendSysMessage("Failed to get configuration entry for: '%s'", key.c_str());
+
             return false;
         }
 
@@ -439,53 +556,92 @@ namespace Playerbot
         std::string errorMsg;
 
         std::visit([&](auto&& defaultValue) {
+
             using T = std::decay_t<decltype(defaultValue)>;
+
             try
+
             {
+
                 ConfigManager::ConfigValue newValue;
 
+
                 if constexpr (std::is_same_v<T, bool>)
+
                 {
+
                     newValue = (value == "1" || value == "true" || value == "True" || value == "TRUE");
-                }
-                else if constexpr (std::is_same_v<T, int32>)
-                {
-                    newValue = static_cast<int32>(std::stoi(value));
-                }
-                else if constexpr (std::is_same_v<T, uint32>)
-                {
-                    newValue = static_cast<uint32>(std::stoul(value));
-                }
-                else if constexpr (std::is_same_v<T, float>)
-                {
-                    newValue = std::stof(value);
-                }
-                else if constexpr (std::is_same_v<T, std::string>)
-                {
-                    newValue = value;
+
                 }
 
-                success = config->SetValue(key, newValue);
-                if (!success)
+                else if constexpr (std::is_same_v<T, int32>)
+
                 {
-                    errorMsg = config->GetLastError();
+
+                    newValue = static_cast<int32>(std::stoi(value));
+
                 }
+
+                else if constexpr (std::is_same_v<T, uint32>)
+
+                {
+
+                    newValue = static_cast<uint32>(std::stoul(value));
+
+                }
+
+                else if constexpr (std::is_same_v<T, float>)
+
+                {
+
+                    newValue = std::stof(value);
+
+                }
+
+                else if constexpr (std::is_same_v<T, std::string>)
+
+                {
+
+                    newValue = value;
+
+                }
+
+
+                success = config->SetValue(key, newValue);
+
+                if (!success)
+
+                {
+
+                    errorMsg = config->GetLastError();
+
+                }
+
             }
+
             catch (std::exception const& ex)
+
             {
+
                 errorMsg = "Invalid value format: ";
+
                 errorMsg += ex.what();
+
             }
         }, entry->defaultValue);
 
         if (success)
         {
+
             handler->PSendSysMessage("Configuration updated: %s = %s", key.c_str(), value.c_str());
+
             return true;
         }
         else
         {
+
             handler->PSendSysMessage("Failed to set configuration: %s", errorMsg.c_str());
+
             return false;
         }
     }
@@ -504,22 +660,38 @@ namespace Playerbot
 
         for (auto const& [key, entry] : entries)
         {
+
             std::string category;
 
+
             if (key.find("Max") == 0 || key.find("Global") == 0)
+
                 category = "Bot Limits";
+
             else if (key.find("AI") != std::string::npos || key.find("Enable") == 0)
+
                 category = "AI Behavior";
+
             else if (key.find("Log") == 0)
+
                 category = "Logging";
+
             else if (key.find("Formation") != std::string::npos)
+
                 category = "Formations";
+
             else if (key.find("Database") != std::string::npos || key.find("Connection") == 0)
+
                 category = "Database";
+
             else if (key.find("Bot") == 0 || key.find("Decision") != std::string::npos)
+
                 category = "Performance";
+
             else
+
                 category = "General";
+
 
             categorized[category].push_back({key, entry});
         }
@@ -527,31 +699,52 @@ namespace Playerbot
         // Display categorized configuration
         for (auto const& [category, items] : categorized)
         {
+
             handler->PSendSysMessage("\n[%s]", category.c_str());
+
             handler->SendSysMessage("----------------------------------------");
 
+
             for (auto const& [key, entry] : items)
+
             {
+
                 std::ostringstream oss;
+
                 oss << "  " << std::left << std::setw(25) << key << " = ";
 
+
                 std::visit([&oss](auto&& value) {
+
                     using T = std::decay_t<decltype(value)>;
+
                     if constexpr (std::is_same_v<T, bool>)
+
                         oss << (value ? "true" : "false");
+
                     else if constexpr (std::is_same_v<T, std::string>)
+
                         oss << "\"" << value << "\"";
+
                     else
+
                         oss << value;
+
                 }, entry.value);
+
 
                 handler->SendSysMessage(oss.str().c_str());
 
                 // Show description if available
+
                 if (!entry.description.empty())
+
                 {
-                    handler->PSendSysMessage("     # %s", entry.description.c_str());
+
+                    handler->PSendSysMessage("# %s", entry.description.c_str());
+
                 }
+
             }
         }
 
@@ -575,14 +768,18 @@ namespace Playerbot
         // Validate race
         if (race == 0 || race > MAX_RACES)
         {
+
             handler->PSendSysMessage("Invalid race: %u (must be 1-%u)", race, MAX_RACES);
+
             return false;
         }
 
         // Validate class
         if (classId == 0 || classId > MAX_CLASSES)
         {
+
             handler->PSendSysMessage("Invalid class: %u (must be 1-%u)", classId, MAX_CLASSES);
+
             return false;
         }
 
@@ -590,14 +787,18 @@ namespace Playerbot
         ChrClassesEntry const* classEntry = sChrClassesStore.LookupEntry(classId);
         if (!classEntry)
         {
+
             handler->PSendSysMessage("Class %u does not exist in database.", classId);
+
             return false;
         }
 
         ChrRacesEntry const* raceEntry = sChrRacesStore.LookupEntry(race);
         if (!raceEntry)
         {
+
             handler->PSendSysMessage("Race %u does not exist in database.", race);
+
             return false;
         }
 
@@ -612,21 +813,32 @@ namespace Playerbot
         std::ostringstream oss;
 
         oss << std::left << std::setw(20) << "Name"
+
             << std::setw(8) << "Level"
+
             << std::setw(12) << "Class"
+
             << std::setw(12) << "Zone"
+
             << std::setw(10) << "Health"
+
             << "\n";
 
         oss << "--------------------------------------------------------------------------------\n";
 
         for (Player* bot : bots)
         {
+
             oss << std::left << std::setw(20) << bot->GetName()
+
                 << std::setw(8) << static_cast<uint32>(bot->GetLevel())
+
                 << std::setw(12) << static_cast<uint32>(bot->GetClass())
+
                 << std::setw(12) << bot->GetZoneId()
+
                 << std::setw(10) << bot->GetHealth()
+
                 << "\n";
         }
 
@@ -662,17 +874,18 @@ namespace Playerbot
     {
         std::ostringstream oss;
 
-        oss << "1. wedge     - V-shaped penetration formation (30� angle)\n";
-        oss << "2. diamond   - Balanced 4-point diamond with interior fill\n";
-        oss << "3. square    - Defensive square (tanks corners, healers center)\n";
-        oss << "4. arrow     - Tight arrowhead assault formation (20� angle)\n";
-        oss << "5. line      - Horizontal line for maximum width coverage\n";
-        oss << "6. column    - Vertical single-file march formation\n";
-        oss << "7. scatter   - Random dispersal for anti-AoE tactics\n";
-        oss << "8. circle    - 360� perimeter coverage formation\n";
+        oss << "1. wedge      - V-shaped penetration formation (tank at point)\n";
+        oss << "2. diamond    - Balanced 4-point diamond with interior fill\n";
+        oss << "3. square     - Defensive box (tanks corners, healers center)\n";
+        oss << "4. line       - Horizontal line for maximum width coverage\n";
+        oss << "5. column     - Vertical single-file march formation\n";
+        oss << "6. scatter    - Spread formation for anti-AoE tactics\n";
+        oss << "7. circle     - 360° perimeter coverage formation\n";
+        oss << "8. dungeon    - Optimized dungeon formation (tank/healer/dps roles)\n";
+        oss << "9. raid       - Raid formation with 5-person groups\n";
         oss << "\n";
         oss << "Usage: .bot formation <type>\n";
-        oss << "Example: .bot formation wedge";
+        oss << "Example: .bot formation dungeon";
 
         return oss.str();
     }
@@ -687,7 +900,9 @@ namespace Playerbot
 
         if (!monitor)
         {
+
             handler->SendSysMessage("Bot monitor not available");
+
             return false;
         }
 
@@ -703,7 +918,9 @@ namespace Playerbot
 
         if (!monitor)
         {
+
             handler->SendSysMessage("Bot monitor not available");
+
             return false;
         }
 
@@ -722,13 +939,18 @@ namespace Playerbot
         oss << "[CPU Usage]\n";
         if (!cpuTrend.values.empty())
         {
+
             oss << "  Current:  " << cpuTrend.values.back() << "%\n";
+
             oss << "  Average:  " << cpuTrend.GetAverage() << "%\n";
-            oss << "  Min:      " << cpuTrend.GetMin() << "%\n";
-            oss << "  Max:      " << cpuTrend.GetMax() << "%\n";
+
+            oss << "  Min: " << cpuTrend.GetMin() << "%\n";
+
+            oss << "  Max: " << cpuTrend.GetMax() << "%\n";
         }
         else
         {
+
             oss << "  No data available\n";
         }
 
@@ -736,13 +958,18 @@ namespace Playerbot
         oss << "\n[Memory Usage]\n";
         if (!memoryTrend.values.empty())
         {
+
             oss << "  Current:  " << memoryTrend.values.back() << " MB\n";
+
             oss << "  Average:  " << memoryTrend.GetAverage() << " MB\n";
-            oss << "  Min:      " << memoryTrend.GetMin() << " MB\n";
-            oss << "  Max:      " << memoryTrend.GetMax() << " MB\n";
+
+            oss << "  Min: " << memoryTrend.GetMin() << " MB\n";
+
+            oss << "  Max: " << memoryTrend.GetMax() << " MB\n";
         }
         else
         {
+
             oss << "  No data available\n";
         }
 
@@ -750,13 +977,18 @@ namespace Playerbot
         oss << "\n[Active Bot Count]\n";
         if (!botCountTrend.values.empty())
         {
+
             oss << "  Current:  " << static_cast<uint32>(botCountTrend.values.back()) << "\n";
+
             oss << "  Average:  " << static_cast<uint32>(botCountTrend.GetAverage()) << "\n";
-            oss << "  Min:      " << static_cast<uint32>(botCountTrend.GetMin()) << "\n";
-            oss << "  Max:      " << static_cast<uint32>(botCountTrend.GetMax()) << "\n";
+
+            oss << "  Min: " << static_cast<uint32>(botCountTrend.GetMin()) << "\n";
+
+            oss << "  Max: " << static_cast<uint32>(botCountTrend.GetMax()) << "\n";
         }
         else
         {
+
             oss << "  No data available\n";
         }
 
@@ -764,13 +996,18 @@ namespace Playerbot
         oss << "\n[Database Query Time]\n";
         if (!queryTimeTrend.values.empty())
         {
+
             oss << "  Current:  " << queryTimeTrend.values.back() << " ms\n";
+
             oss << "  Average:  " << queryTimeTrend.GetAverage() << " ms\n";
-            oss << "  Min:      " << queryTimeTrend.GetMin() << " ms\n";
-            oss << "  Max:      " << queryTimeTrend.GetMax() << " ms\n";
+
+            oss << "  Min: " << queryTimeTrend.GetMin() << " ms\n";
+
+            oss << "  Max: " << queryTimeTrend.GetMax() << " ms\n";
         }
         else
         {
+
             oss << "  No data available\n";
         }
 
@@ -787,7 +1024,9 @@ namespace Playerbot
 
         if (!monitor)
         {
+
             handler->SendSysMessage("Bot monitor not available");
+
             return false;
         }
 
@@ -795,7 +1034,9 @@ namespace Playerbot
 
         if (alerts.empty())
         {
+
             handler->SendSysMessage("No active alerts");
+
             return true;
         }
 
@@ -805,17 +1046,30 @@ namespace Playerbot
 
         for (auto const& alert : alerts)
         {
+
             char const* levelStr = "";
+
             switch (alert.level)
+
             {
-                case AlertLevel::INFO:     levelStr = "INFO"; break;
+
+                case AlertLevel::INFO:
+                levelStr = "INFO"; break;
+
                 case AlertLevel::WARNING:  levelStr = "WARNING"; break;
+
                 case AlertLevel::CRITICAL: levelStr = "CRITICAL"; break;
-                default:                   levelStr = "UNKNOWN"; break;
+
+                default:
+                levelStr = "UNKNOWN"; break;
+
             }
 
+
             oss << "[" << levelStr << "] " << alert.category << ": " << alert.message << "\n";
+
             oss << "  Current: " << std::fixed << std::setprecision(2) << alert.currentValue;
+
             oss << " | Threshold: " << alert.thresholdValue << "\n\n";
         }
 
@@ -833,7 +1087,9 @@ namespace Playerbot
 
         if (!monitor)
         {
+
             handler->SendSysMessage("Bot monitor not available");
+
             return false;
         }
 
@@ -841,7 +1097,9 @@ namespace Playerbot
 
         if (history.empty())
         {
+
             handler->SendSysMessage("No alert history");
+
             return true;
         }
 
@@ -851,25 +1109,41 @@ namespace Playerbot
 
         for (auto const& alert : history)
         {
+
             char const* levelStr = "";
+
             switch (alert.level)
+
             {
-                case AlertLevel::INFO:     levelStr = "INFO"; break;
+
+                case AlertLevel::INFO:
+                levelStr = "INFO"; break;
+
                 case AlertLevel::WARNING:  levelStr = "WARNING"; break;
+
                 case AlertLevel::CRITICAL: levelStr = "CRITICAL"; break;
-                default:                   levelStr = "UNKNOWN"; break;
+
+                default:
+                levelStr = "UNKNOWN"; break;
+
             }
 
             // Format timestamp
+
             auto timeT = std::chrono::system_clock::to_time_t(alert.timestamp);
+
             std::tm tm;
 #ifdef _WIN32
+
             localtime_s(&tm, &timeT);
 #else
+
             localtime_r(&timeT, &tm);
 #endif
 
+
             oss << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] ";
+
             oss << "[" << levelStr << "] " << alert.category << ": " << alert.message << "\n";
         }
 
@@ -887,7 +1161,9 @@ namespace Playerbot
 
         if (!monitor)
         {
+
             handler->SendSysMessage("Bot monitor not available");
+
             return false;
         }
 

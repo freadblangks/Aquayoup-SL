@@ -31,11 +31,6 @@ namespace Playerbot
         public:
             static void RunAllTests(Player* testBot)
             {
-                if (!testBot)
-                {
-                    TC_LOG_ERROR("playerbot.test", "TargetScannerTest: No test bot provided");
-                    return;
-                }
 
                 TC_LOG_INFO("playerbot.test", "=== Starting TargetScanner Tests ===");
 
@@ -60,13 +55,13 @@ namespace Playerbot
                 if (nearestHostile)
                 {
                     TC_LOG_INFO("playerbot.test",
-                        "✅ Found hostile: {} at distance {:.1f}",
+                        " Found hostile: {} at distance {:.1f}",
                         nearestHostile->GetName(),
                         bot->GetDistance(nearestHostile));
                 }
                 else
                 {
-                    TC_LOG_INFO("playerbot.test", "❌ No hostile found within scan range");
+                    TC_LOG_INFO("playerbot.test", " No hostile found within scan range");
                 }
 
                 // Test with custom range
@@ -74,7 +69,7 @@ namespace Playerbot
                 if (closeHostile)
                 {
                     TC_LOG_INFO("playerbot.test",
-                        "✅ Found close hostile within 10 yards: {}",
+                        " Found close hostile within 10 yards: {}",
                         closeHostile->GetName());
                 }
 
@@ -83,7 +78,7 @@ namespace Playerbot
                 if (bestTarget)
                 {
                     TC_LOG_INFO("playerbot.test",
-                        "✅ Best target selected: {} (priority: {})",
+                        " Best target selected: {} (priority: {})",
                         bestTarget->GetName(),
                         scanner.GetTargetPriority(bestTarget));
                 }
@@ -123,11 +118,11 @@ namespace Playerbot
 
                 if (rangeCorrect)
                 {
-                    TC_LOG_INFO("playerbot.test", "✅ Class ranges configured correctly");
+                    TC_LOG_INFO("playerbot.test", " Class ranges configured correctly");
                 }
                 else
                 {
-                    TC_LOG_ERROR("playerbot.test", "❌ Class ranges seem incorrect");
+                    TC_LOG_ERROR("playerbot.test", " Class ranges seem incorrect");
                 }
             }
 
@@ -136,12 +131,12 @@ namespace Playerbot
                 TC_LOG_INFO("playerbot.test", "Test 3: Target Priority System");
 
                 TargetScanner scanner(bot);
-                std::vector<Unit*> allHostiles = scanner.FindAllHostiles();
+                ::std::vector<Unit*> allHostiles = scanner.FindAllHostiles();
 
                 TC_LOG_INFO("playerbot.test", "Found {} hostile targets", allHostiles.size());
 
                 // Check priority for each target
-                for (Unit* hostile : allHostiles)
+    for (Unit* hostile : allHostiles)
                 {
                     uint8 priority = scanner.GetTargetPriority(hostile);
                     float threat = scanner.GetThreatValue(hostile);
@@ -157,7 +152,7 @@ namespace Playerbot
 
                 if (!allHostiles.empty())
                 {
-                    TC_LOG_INFO("playerbot.test", "✅ Priority system evaluated {} targets",
+                    TC_LOG_INFO("playerbot.test", " Priority system evaluated {} targets",
                         allHostiles.size());
                 }
             }
@@ -173,18 +168,17 @@ namespace Playerbot
                 if (target)
                 {
                     ObjectGuid guid = target->GetGUID();
-
                     // Add to blacklist
                     scanner.AddToBlacklist(guid, 5000); // 5 second blacklist
 
                     // Verify it's blacklisted
-                    if (scanner.IsBlacklisted(guid))
+    if (scanner.IsBlacklisted(guid))
                     {
-                        TC_LOG_INFO("playerbot.test", "✅ Target successfully blacklisted");
+                        TC_LOG_INFO("playerbot.test", " Target successfully blacklisted");
                     }
                     else
                     {
-                        TC_LOG_ERROR("playerbot.test", "❌ Blacklist add failed");
+                        TC_LOG_ERROR("playerbot.test", " Blacklist add failed");
                     }
 
                     // Verify blacklisted target is not returned
@@ -192,7 +186,7 @@ namespace Playerbot
                     if (newTarget && newTarget->GetGUID() != guid)
                     {
                         TC_LOG_INFO("playerbot.test",
-                            "✅ Blacklisted target ignored, found alternative: {}",
+                            " Blacklisted target ignored, found alternative: {}",
                             newTarget->GetName());
                     }
 
@@ -200,7 +194,7 @@ namespace Playerbot
                     scanner.RemoveFromBlacklist(guid);
                     if (!scanner.IsBlacklisted(guid))
                     {
-                        TC_LOG_INFO("playerbot.test", "✅ Target removed from blacklist");
+                        TC_LOG_INFO("playerbot.test", " Target removed from blacklist");
                     }
                 }
             }
@@ -216,11 +210,11 @@ namespace Playerbot
                 Unit* passiveTarget = scanner.FindNearestHostile();
                 if (!passiveTarget)
                 {
-                    TC_LOG_INFO("playerbot.test", "✅ Passive mode correctly returns no targets");
+                    TC_LOG_INFO("playerbot.test", " Passive mode correctly returns no targets");
                 }
                 else
                 {
-                    TC_LOG_ERROR("playerbot.test", "❌ Passive mode returned target when it shouldn't");
+                    TC_LOG_ERROR("playerbot.test", " Passive mode returned target when it shouldn't");
                 }
 
                 // Test defensive mode
@@ -237,7 +231,7 @@ namespace Playerbot
                     "Aggressive mode: {} targets",
                     aggressiveTarget ? "found" : "no");
 
-                TC_LOG_INFO("playerbot.test", "✅ Scan modes tested");
+                TC_LOG_INFO("playerbot.test", " Scan modes tested");
             }
         };
     }

@@ -18,7 +18,7 @@
 namespace Playerbot
 {
 
-TargetAssistAction::TargetAssistAction(std::string const& name)
+TargetAssistAction::TargetAssistAction(::std::string const& name)
     : CombatAction(name)
 {
     // SIMPLIFIED IMPLEMENTATION - TECHNICAL DEBT DOCUMENTED
@@ -35,10 +35,8 @@ ActionResult TargetAssistAction::Execute(BotAI* ai, ActionContext const& context
     Player* bot = ai->GetBot();
     if (!bot || !bot->IsAlive())
         return ActionResult::FAILED;
-
     // CRITICAL FIX: Implement actual target assistance logic
     TC_LOG_INFO("module.playerbot.combat", "TargetAssistAction::Execute for bot {}", bot->GetName());
-
     // Check if we have a target from context
     Unit* targetFromContext = dynamic_cast<Unit*>(context.target);
     if (targetFromContext)
@@ -47,14 +45,13 @@ ActionResult TargetAssistAction::Execute(BotAI* ai, ActionContext const& context
                     targetFromContext->GetName(), bot->GetName());
 
         // Engage the target
-        if (EngageTarget(bot, targetFromContext))
+    if (EngageTarget(bot, targetFromContext))
         {
             TC_LOG_INFO("module.playerbot.combat", "SUCCESS: Bot {} now attacking {}",
                         bot->GetName(), targetFromContext->GetName());
             return ActionResult::SUCCESS;
         }
     }
-
     // Get group
     Group* group = bot->GetGroup();
     if (!group)
@@ -85,11 +82,9 @@ ActionResult TargetAssistAction::Execute(BotAI* ai, ActionContext const& context
                     bot->GetName(), bestTarget->GetName());
         return ActionResult::SUCCESS;
     }
-
     TC_LOG_DEBUG("module.playerbot.combat", "Failed to engage target for bot {}", bot->GetName());
     return ActionResult::FAILED;
 }
-
 bool TargetAssistAction::IsPossible(BotAI* ai) const
 {
     if (!ai)
@@ -101,7 +96,6 @@ bool TargetAssistAction::IsPossible(BotAI* ai) const
 
     return true;
 }
-
 bool TargetAssistAction::IsUseful(BotAI* ai) const
 {
     if (!ai)
@@ -205,7 +199,6 @@ bool TargetAssistAction::ShouldSwitchTarget(Player* bot, Unit* newTarget) const
     Unit* currentTarget = bot->GetVictim();
     if (!currentTarget)
         return true; // No current target, switch
-
     if (currentTarget == newTarget)
         return false; // Already targeting
 
@@ -270,8 +263,8 @@ float TargetAssistAction::CalculateAssistPriority(Player* bot, Unit* target, Gro
     priority += attackers * 5.0f;
 
     // Distance factor (closer = higher priority)
-    float distance = std::sqrt(bot->GetExactDistSq(target)); // Calculate once from squared distance
-    priority += std::max(0.0f, 30.0f - distance);
+    float distance = ::std::sqrt(bot->GetExactDistSq(target)); // Calculate once from squared distance
+    priority += ::std::max(0.0f, 30.0f - distance);
 
     // Health factor (lower health = higher priority)
     float healthPct = target->GetHealthPct();

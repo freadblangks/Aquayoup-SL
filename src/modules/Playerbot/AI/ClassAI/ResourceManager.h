@@ -10,11 +10,14 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "Player.h"
 #include <unordered_map>
 #include <memory>
 #include <atomic>
 #include <mutex>
+#include <vector>
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -58,7 +61,7 @@ struct ResourceInfo
 
     ResourceInfo(ResourceType t, uint32 cur, uint32 max, float regen = 0.0f)
         : type(t), current(cur), maximum(max), regenRate(regen),
-          lastUpdate(getMSTime()), isRegenerated(regen > 0.0f) {}
+          lastUpdate(GameTime::GetGameTimeMS()), isRegenerated(regen > 0.0f) {}
 
     // Get resource as percentage (0.0 to 1.0)
     float GetPercent() const
@@ -75,7 +78,7 @@ struct ResourceInfo
     // Consume resource (returns actual amount consumed)
     uint32 Consume(uint32 amount)
     {
-        uint32 consumed = std::min(amount, current);
+        uint32 consumed = ::std::min(amount, current);
         current -= consumed;
         return consumed;
     }
@@ -84,7 +87,7 @@ struct ResourceInfo
     uint32 Add(uint32 amount)
     {
         uint32 maxAddable = maximum - current;
-        uint32 added = std::min(amount, maxAddable);
+        uint32 added = ::std::min(amount, maxAddable);
         current += added;
         return added;
     }
@@ -141,7 +144,7 @@ public:
         uint8 type; // 0=Blood, 1=Frost, 2=Unholy, 3=Death
     };
 
-    std::vector<RuneInfo> GetRunes();
+    ::std::vector<RuneInfo> GetRunes();
     uint32 GetAvailableRunes(uint8 runeType = 255); // 255 = any type
     bool HasRunesAvailable(uint32 bloodRunes, uint32 frostRunes, uint32 unholyRunes);
     void ConsumeRunes(uint32 bloodRunes, uint32 frostRunes, uint32 unholyRunes);
@@ -152,14 +155,14 @@ public:
     float GetSpellResourceEfficiency(uint32 spellId);
 
     // Optimization and planning
-    bool CanAffordSpellSequence(const std::vector<uint32>& spellIds);
+    bool CanAffordSpellSequence(const ::std::vector<uint32>& spellIds);
     uint32 GetOptimalResourceThreshold(ResourceType type);
     bool ShouldConserveResource(ResourceType type);
 
     // Emergency resource management
     bool IsResourceCritical(ResourceType type);
     bool NeedsResourceEmergency();
-    std::vector<uint32> GetResourceEmergencySpells();
+    ::std::vector<uint32> GetResourceEmergencySpells();
 
     // Statistics and monitoring
     uint32 GetTotalResourceGenerated(ResourceType type);
@@ -172,13 +175,13 @@ public:
 
 private:
     Player* _bot;
-    std::unordered_map<ResourceType, ResourceInfo> _resources;
+    ::std::unordered_map<ResourceType, ResourceInfo> _resources;
 
     // Tracking data
-    std::unordered_map<ResourceType, uint32> _totalGenerated;
-    std::unordered_map<ResourceType, uint32> _totalConsumed;
-    std::unordered_map<uint32, uint32> _spellResourceCost; // spellId -> resource cost
-    std::unordered_map<uint32, uint32> _spellUsageCount;   // spellId -> usage count
+    ::std::unordered_map<ResourceType, uint32> _totalGenerated;
+    ::std::unordered_map<ResourceType, uint32> _totalConsumed;
+    ::std::unordered_map<uint32, uint32> _spellResourceCost; // spellId -> resource cost
+    ::std::unordered_map<uint32, uint32> _spellUsageCount;   // spellId -> usage count
 
     // Rune tracking (Death Knight specific)
     #define MAX_RUNES 6
@@ -186,7 +189,7 @@ private:
     uint32 _runicPower;
 
     // Performance tracking
-    std::atomic<uint32> _updateCount{0};
+    ::std::atomic<uint32> _updateCount{0};
     uint32 _lastPerformanceCheck{0};
 
     // Internal methods
@@ -239,10 +242,10 @@ public:
 
 private:
     // Meyer's singleton accessors for DLL-safe static data
-    static std::unordered_map<uint32, uint32>& GetManaCostCache();
-    static std::unordered_map<uint32, uint32>& GetRageCostCache();
-    static std::unordered_map<uint32, uint32>& GetEnergyCostCache();
-    static std::recursive_mutex& GetCacheMutex();
+    static ::std::unordered_map<uint32, uint32>& GetManaCostCache();
+    static ::std::unordered_map<uint32, uint32>& GetRageCostCache();
+    static ::std::unordered_map<uint32, uint32>& GetEnergyCostCache();
+    static ::std::recursive_mutex& GetCacheMutex();
 
     static void CacheSpellResourceCost(uint32 spellId);
 };
@@ -263,7 +266,7 @@ public:
     uint32 GetResourceStarvationTime(ResourceType type);
 
     // Optimization suggestions
-    std::vector<std::string> GetResourceOptimizationSuggestions(uint32 botGuid);
+    ::std::vector<::std::string> GetResourceOptimizationSuggestions(uint32 botGuid);
 
 private:
     ResourceMonitor() = default;
@@ -277,8 +280,8 @@ private:
         uint32 sampleCount;
     };
 
-    std::unordered_map<uint32, std::unordered_map<ResourceType, ResourceUsageData>> _botResourceData;
-    std::recursive_mutex _dataMutex;
+    ::std::unordered_map<uint32, ::std::unordered_map<ResourceType, ResourceUsageData>> _botResourceData;
+    Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _dataMutex;
 };
 
 } // namespace Playerbot

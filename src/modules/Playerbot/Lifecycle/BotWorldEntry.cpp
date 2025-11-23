@@ -26,10 +26,23 @@
 #include "CharacterPackets.h"
 #include "MiscPackets.h"
 #include <thread>
+#include <fstream>
+
+// Platform-specific includes for memory tracking
+#ifdef _WIN32
+    #include <windows.h>
+    #include <psapi.h>
+#elif defined(__linux__)
+    #include <unistd.h>
+    #include <fstream>
+#elif defined(__APPLE__)
+    #include <mach/mach.h>
+    #include <mach/task.h>
+#endif
 
 namespace Playerbot {
 
-BotWorldEntry::BotWorldEntry(std::shared_ptr<BotSession> session, ObjectGuid characterGuid)
+BotWorldEntry::BotWorldEntry(::std::shared_ptr<BotSession> session, ObjectGuid characterGuid)
     : _session(session)
     , _characterGuid(characterGuid)
     , _player(nullptr)
@@ -37,8 +50,58 @@ BotWorldEntry::BotWorldEntry(std::shared_ptr<BotSession> session, ObjectGuid cha
     , _processing(false)
     , _retryCount(0)
 {
-    _metrics.startTime = std::chrono::steady_clock::now();
-    _metrics.memoryBeforeEntry = 0; // TODO: Implement memory tracking
+    _metrics.startTime = ::std::chrono::steady_clock::now();
+
+    // ========================================================================
+    // HIGH PRIORITY TODO FIXED: Implement memory tracking
+    // ========================================================================
+    // Platform-specific memory tracking implementation
+    _metrics.memoryBeforeEntry = GetCurrentMemoryUsage();
+}
+
+// Helper function to get current process memory usage (in bytes)
+size_t BotWorldEntry::GetCurrentMemoryUsage() const
+{
+#ifdef _WIN32
+    // Windows: Use GetProcessMemoryInfo
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc)))
+    {
+        return static_cast<size_t>(pmc.WorkingSetSize); // Physical memory usage
+    }
+    return 0;
+#elif defined(__linux__)
+    // Linux: Read /proc/self/statm
+    // Fields: size resident shared text lib data dt
+    // We want resident set size (RSS) in bytes
+    ::std::ifstream statm("/proc/self/statm");
+    if (statm.is_open())
+    {
+        unsigned long size = 0;
+        unsigned long resident = 0;
+        statm >> size >> resident;
+        statm.close();
+
+        // Convert pages to bytes (typically 4096 bytes per page)
+        long pageSize = sysconf(_SC_PAGESIZE);
+        if (pageSize > 0)
+            return static_cast<size_t>(resident * pageSize);
+    }
+    return 0;
+#elif defined(__APPLE__)
+    // macOS: Use task_info
+    struct task_basic_info t_info;
+    mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
+
+    if (task_info(mach_task_self(), TASK_BASIC_INFO, (task_info_t)&t_info, &t_info_count) == KERN_SUCCESS)
+    {
+        return static_cast<size_t>(t_info.resident_size);
+    }
+    return 0;
+#else
+    // Unsupported platform
+    return 0;
+#endif
 }
 
 BotWorldEntry::~BotWorldEntry()
@@ -59,7 +122,7 @@ bool BotWorldEntry::BeginWorldEntry(EntryCallback callback)
     }
 
     {
-        std::lock_guard<std::recursive_mutex> lock(_callbackMutex);
+        ::std::lock_guard lock(_callbackMutex);
         _callback = callback;
     }
 
@@ -83,7 +146,7 @@ bool BotWorldEntry::ProcessWorldEntry(uint32 diff)
         return false;
 
     // Check for phase timeout
-    auto now = std::chrono::steady_clock::now();
+    auto now = ::std::chrono::steady_clock::now();
     if (now - _phaseStartTime > PHASE_TIMEOUT)
     {
         HandleWorldEntryFailure("Phase timeout exceeded");
@@ -117,9 +180,9 @@ bool BotWorldEntry::ProcessWorldEntry(uint32 diff)
         case BotWorldEntryState::FULLY_ACTIVE:
         {
             // Calculate final metrics
-            _metrics.endTime = std::chrono::steady_clock::now();
+            _metrics.endTime = ::std::chrono::steady_clock::now();
             _metrics.totalTime = static_cast<uint32>(
-                std::chrono::duration_cast<std::chrono::microseconds>(
+                ::std::chrono::duration_cast<::std::chrono::microseconds>(
                     _metrics.endTime - _metrics.startTime).count());
 
             TC_LOG_INFO("module.playerbot.worldentry",
@@ -129,7 +192,7 @@ bool BotWorldEntry::ProcessWorldEntry(uint32 diff)
 
             // Invoke callback if set
             {
-                std::lock_guard<std::recursive_mutex> lock(_callbackMutex);
+                ::std::lock_guard lock(_callbackMutex);
                 if (_callback)
                 {
                     _callback(true, _metrics);
@@ -182,12 +245,12 @@ bool BotWorldEntry::EnterWorldSync(uint32 timeoutMs)
     if (!BeginWorldEntry())
         return false;
 
-    auto startTime = std::chrono::steady_clock::now();
-    auto timeout = std::chrono::milliseconds(timeoutMs);
+    auto startTime = ::std::chrono::steady_clock::now();
+    auto timeout = ::std::chrono::milliseconds(timeoutMs);
 
     while (_processing.load())
     {
-        if (std::chrono::steady_clock::now() - startTime > timeout)
+        if (::std::chrono::steady_clock::now() - startTime > timeout)
         {
             TC_LOG_ERROR("module.playerbot.worldentry",
                         "Bot {} world entry sync timeout after {} ms",
@@ -201,7 +264,7 @@ bool BotWorldEntry::EnterWorldSync(uint32 timeoutMs)
         ProcessWorldEntry(100);
 
         // Small sleep to prevent CPU spinning
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        ::std::this_thread::sleep_for(::std::chrono::milliseconds(10));
     }
 
     return _state == BotWorldEntryState::FULLY_ACTIVE;
@@ -218,13 +281,13 @@ bool BotWorldEntry::IsProcessing() const
 
 uint32 BotWorldEntry::GetElapsedTime() const
 {
-    auto now = std::chrono::steady_clock::now();
+    auto now = ::std::chrono::steady_clock::now();
     return static_cast<uint32>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        ::std::chrono::duration_cast<::std::chrono::milliseconds>(
             now - _metrics.startTime).count());
 }
 
-void BotWorldEntry::SetError(std::string const& error)
+void BotWorldEntry::SetError(::std::string const& error)
 {
     _metrics.lastError = error;
     _metrics.failedState = _state.load();
@@ -232,10 +295,10 @@ void BotWorldEntry::SetError(std::string const& error)
 
 bool BotWorldEntry::TransitionToState(BotWorldEntryState newState)
 {
-    std::lock_guard<std::recursive_mutex> lock(_stateMutex);
+    ::std::lock_guard lock(_stateMutex);
 
     BotWorldEntryState oldState = _state.exchange(newState);
-    _phaseStartTime = std::chrono::steady_clock::now();
+    _phaseStartTime = ::std::chrono::steady_clock::now();
 
     RecordStateTransition(oldState, newState);
 
@@ -250,9 +313,9 @@ bool BotWorldEntry::TransitionToState(BotWorldEntryState newState)
 
 void BotWorldEntry::RecordStateTransition(BotWorldEntryState oldState, BotWorldEntryState newState)
 {
-    auto now = std::chrono::steady_clock::now();
+    auto now = ::std::chrono::steady_clock::now();
     uint32 phaseDuration = static_cast<uint32>(
-        std::chrono::duration_cast<std::chrono::microseconds>(
+        ::std::chrono::duration_cast<::std::chrono::microseconds>(
             now - _phaseStartTime).count());
 
     switch (oldState)
@@ -577,11 +640,28 @@ bool BotWorldEntry::FinalizeBotActivation()
                    _player->GetName());
 
         // Get AI and call OnGroupJoined to activate follow
-        if (BotAI* botAI = dynamic_cast<BotAI*>(_player->GetAI()))
+    if (BotAI* botAI = dynamic_cast<BotAI*>(_player->GetAI()))
         {
             botAI->OnGroupJoined(group);
         }
     }
+
+    // Record memory usage after successful world entry
+    _metrics.memoryAfterEntry = GetCurrentMemoryUsage();
+
+    // Calculate total time
+    _metrics.endTime = ::std::chrono::steady_clock::now();
+    _metrics.totalTime = static_cast<uint32>(
+        ::std::chrono::duration_cast<::std::chrono::microseconds>(
+            _metrics.endTime - _metrics.startTime
+        ).count()
+    );
+
+    TC_LOG_DEBUG("module.playerbot.worldentry",
+                "Bot {} world entry complete: Total time: {} ms, Memory delta: {} KB",
+                _player->GetName(),
+                _metrics.totalTime / 1000,
+                (_metrics.memoryAfterEntry - _metrics.memoryBeforeEntry) / 1024);
 
     TransitionToState(BotWorldEntryState::FULLY_ACTIVE);
     return true;
@@ -705,7 +785,7 @@ void BotWorldEntry::InitializeBotAppearance()
     _player->SetVisibility(VISIBILITY_ON);
 }
 
-void BotWorldEntry::HandleWorldEntryFailure(std::string const& reason)
+void BotWorldEntry::HandleWorldEntryFailure(::std::string const& reason)
 {
     TC_LOG_ERROR("module.playerbot.worldentry",
                 "Bot {} world entry failed: {}",
@@ -717,7 +797,7 @@ void BotWorldEntry::HandleWorldEntryFailure(std::string const& reason)
 
     // Invoke callback with failure
     {
-        std::lock_guard<std::recursive_mutex> lock(_callbackMutex);
+        ::std::lock_guard lock(_callbackMutex);
         if (_callback)
         {
             _callback(false, _metrics);
@@ -746,7 +826,6 @@ void BotWorldEntry::Cleanup()
     // Flow: Cleanup() → KickPlayer() (sets forceExit) → _session.reset() (releases our reference)
     //       → Update() returns false → _botSessions.erase() (last reference gone)
     //       → ~WorldSession() → LogoutPlayer() on main thread during next UpdateSessions() = SAFE!
-
     if (_session && _player)
     {
         // Signal session termination - BotSession::Update() will return false next cycle
@@ -767,12 +846,12 @@ BotWorldEntryQueue* BotWorldEntryQueue::instance()
     return &instance;
 }
 
-uint32 BotWorldEntryQueue::QueueEntry(std::shared_ptr<BotWorldEntry> entry)
+uint32 BotWorldEntryQueue::QueueEntry(::std::shared_ptr<BotWorldEntry> entry)
 {
     if (!entry)
         return 0;
 
-    std::lock_guard<std::recursive_mutex> lock(_queueMutex);
+    ::std::lock_guard lock(_queueMutex);
 
     _pendingQueue.push(entry);
     return static_cast<uint32>(_pendingQueue.size());
@@ -780,12 +859,12 @@ uint32 BotWorldEntryQueue::QueueEntry(std::shared_ptr<BotWorldEntry> entry)
 
 void BotWorldEntryQueue::ProcessQueue(uint32 maxConcurrent)
 {
-    std::lock_guard<std::recursive_mutex> lock(_queueMutex);
+    ::std::lock_guard lock(_queueMutex);
 
     // Remove completed entries
     _activeEntries.erase(
-        std::remove_if(_activeEntries.begin(), _activeEntries.end(),
-            [this](std::shared_ptr<BotWorldEntry> const& entry)
+        ::std::remove_if(_activeEntries.begin(), _activeEntries.end(),
+            [this](::std::shared_ptr<BotWorldEntry> const& entry)
             {
                 if (!entry->IsProcessing())
                 {
@@ -826,7 +905,7 @@ void BotWorldEntryQueue::ProcessQueue(uint32 maxConcurrent)
 
 BotWorldEntryQueue::QueueStats BotWorldEntryQueue::GetStats() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_queueMutex);
+    ::std::lock_guard lock(_queueMutex);
 
     QueueStats stats;
     stats.queuedEntries = static_cast<uint32>(_pendingQueue.size());
@@ -849,7 +928,7 @@ BotWorldEntryQueue::QueueStats BotWorldEntryQueue::GetStats() const
 
 void BotWorldEntryQueue::ClearQueue()
 {
-    std::lock_guard<std::recursive_mutex> lock(_queueMutex);
+    ::std::lock_guard lock(_queueMutex);
 
     while (!_pendingQueue.empty())
     {

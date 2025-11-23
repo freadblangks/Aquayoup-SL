@@ -18,6 +18,7 @@
 #include "Spell.h"
 #include "SpellMgr.h"
 #include "Log.h"
+#include "GameTime.h"
 #include "ReputationMgr.h"
 #include <sstream>
 #include <iomanip>
@@ -25,32 +26,22 @@
 namespace Playerbot
 {
 
-QuestValidation* QuestValidation::instance()
-{
-    static QuestValidation instance;
-    return &instance;
+QuestValidation::QuestValidation(Player* bot) : _bot(bot) {
+    if (!_bot) TC_LOG_ERROR("playerbot.quest", "QuestValidation: null bot!");
 }
+
+QuestValidation::~QuestValidation() {}
 
 bool QuestValidation::ValidateQuestAcceptance(uint32 questId, Player* bot)
 {
-    if (!bot)
-    {
-        TC_LOG_ERROR("module.playerbot", "QuestValidation::ValidateQuestAcceptance - Null bot pointer");
-        return false;
-    }
 
     Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
-    if (!quest)
-    {
-        TC_LOG_ERROR("module.playerbot", "QuestValidation::ValidateQuestAcceptance - Quest {} not found", questId);
-        return false;
-    }
 
     // Check cached validation first
     if (_enableCaching)
     {
         ValidationResult cached = GetCachedValidation(questId, bot->GetGUID().GetCounter());
-        if (cached.cacheExpiry > getMSTime())
+        if (cached.cacheExpiry > GameTime::GetGameTimeMS())
         {
             _metrics.cacheHits++;
             return cached.isValid;
@@ -160,7 +151,6 @@ bool QuestValidation::ValidateQuestAcceptance(uint32 questId, Player* bot)
     // Cache result
     if (_enableCaching)
         CacheValidationResult(questId, bot->GetGUID().GetCounter(), result);
-
     // Update metrics
     auto endTime = std::chrono::high_resolution_clock::now();
     float duration = std::chrono::duration<float, std::milli>(endTime - startTime).count();
@@ -211,7 +201,6 @@ QuestEligibility QuestValidation::GetDetailedEligibility(uint32 questId, Player*
 
     if (IsQuestInProgress(questId, bot))
         return QuestEligibility::ALREADY_HAVE;
-
     if (IsQuestLogFull(bot))
         return QuestEligibility::QUEST_LOG_FULL;
 
@@ -298,7 +287,6 @@ std::vector<std::string> QuestValidation::GetValidationErrors(uint32 questId, Pl
 
     if (!ValidateSkillRequirements(questId, bot))
         errors.push_back("Skill requirement not met");
-
     if (IsQuestLogFull(bot))
         errors.push_back("Quest log is full");
 
@@ -770,7 +758,6 @@ bool QuestValidation::ValidateZoneRequirements(uint32 questId, Player* bot)
 {
     if (!bot)
         return false;
-
     Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
     if (!quest)
         return false;
@@ -937,14 +924,12 @@ bool QuestValidation::ValidateQuestDifficulty(uint32 questId, Player* bot)
 
 // ========== Validation Caching and Optimization ==========
 
-QuestValidation::ValidationResult QuestValidation::GetCachedValidation(uint32 questId, uint32 botGuid)
+ValidationResult QuestValidation::GetCachedValidation(uint32 questId, uint32 botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_cacheMutex);
-
     uint64_t key = ((uint64_t)questId << 32) | botGuid;
     auto it = _validationCache.find(key);
 
-    if (it != _validationCache.end() && it->second.cacheExpiry > getMSTime())
+    if (it != _validationCache.end() && it->second.cacheExpiry > GameTime::GetGameTimeMS())
     {
         return it->second;
     }
@@ -954,18 +939,14 @@ QuestValidation::ValidationResult QuestValidation::GetCachedValidation(uint32 qu
 
 void QuestValidation::CacheValidationResult(uint32 questId, uint32 botGuid, const ValidationResult& result)
 {
-    std::lock_guard<std::recursive_mutex> lock(_cacheMutex);
-
     uint64_t key = ((uint64_t)questId << 32) | botGuid;
     ValidationResult cached = result;
-    cached.cacheExpiry = getMSTime() + _cacheTimeoutMs;
+    cached.cacheExpiry = GameTime::GetGameTimeMS() + _cacheTimeoutMs;
     _validationCache[key] = cached;
 }
 
 void QuestValidation::InvalidateValidationCache(uint32 botGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_cacheMutex);
-
     // Remove all entries for this bot
     auto it = _validationCache.begin();
     while (it != _validationCache.end())
@@ -980,9 +961,7 @@ void QuestValidation::InvalidateValidationCache(uint32 botGuid)
 
 void QuestValidation::CleanupExpiredCache()
 {
-    std::lock_guard<std::recursive_mutex> lock(_cacheMutex);
-
-    uint32 now = getMSTime();
+    uint32 now = GameTime::GetGameTimeMS();
     auto it = _validationCache.begin();
     while (it != _validationCache.end())
     {
@@ -995,7 +974,7 @@ void QuestValidation::CleanupExpiredCache()
 
 // ========== Batch Validation ==========
 
-std::unordered_map<uint32, QuestValidation::ValidationResult> QuestValidation::ValidateMultipleQuests(
+std::unordered_map<uint32, ValidationResult> QuestValidation::ValidateMultipleQuests(
     const std::vector<uint32>& questIds, Player* bot)
 {
     std::unordered_map<uint32, ValidationResult> results;

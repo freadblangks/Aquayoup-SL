@@ -48,6 +48,7 @@
 #define PLAYERBOT_MOVEMENT_ARBITER_H
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "MovementRequest.h"
 #include "MovementPriorityMapper.h"
 #include <memory>
@@ -72,35 +73,35 @@ namespace Playerbot
 struct MovementArbiterStatistics
 {
     // Request counters
-    std::atomic<uint64> totalRequests{0};          // Total requests submitted
-    std::atomic<uint64> executedRequests{0};       // Requests that won arbitration
-    std::atomic<uint64> duplicateRequests{0};      // Duplicates filtered out
-    std::atomic<uint64> lowPriorityFiltered{0};    // Filtered by priority
-    std::atomic<uint64> interruptedRequests{0};    // Interrupted by higher priority
+    ::std::atomic<uint64> totalRequests{0};          // Total requests submitted
+    ::std::atomic<uint64> executedRequests{0};       // Requests that won arbitration
+    ::std::atomic<uint64> duplicateRequests{0};      // Duplicates filtered out
+    ::std::atomic<uint64> lowPriorityFiltered{0};    // Filtered by priority
+    ::std::atomic<uint64> interruptedRequests{0};    // Interrupted by higher priority
 
     // Priority distribution
-    std::atomic<uint64> criticalRequests{0};       // CRITICAL (240+)
-    std::atomic<uint64> veryHighRequests{0};       // VERY_HIGH (200-239)
-    std::atomic<uint64> highRequests{0};           // HIGH (150-199)
-    std::atomic<uint64> mediumRequests{0};         // MEDIUM (100-149)
-    std::atomic<uint64> lowRequests{0};            // LOW (50-99)
-    std::atomic<uint64> minimalRequests{0};        // MINIMAL (0-49)
+    ::std::atomic<uint64> criticalRequests{0};       // CRITICAL (240+)
+    ::std::atomic<uint64> veryHighRequests{0};       // VERY_HIGH (200-239)
+    ::std::atomic<uint64> highRequests{0};           // HIGH (150-199)
+    ::std::atomic<uint64> mediumRequests{0};         // MEDIUM (100-149)
+    ::std::atomic<uint64> lowRequests{0};            // LOW (50-99)
+    ::std::atomic<uint64> minimalRequests{0};        // MINIMAL (0-49)
 
     // Performance metrics
-    std::atomic<uint64> totalArbitrationTimeUs{0}; // Total arbitration time (microseconds)
-    std::atomic<uint32> maxArbitrationTimeUs{0};   // Max single arbitration time
+    ::std::atomic<uint64> totalArbitrationTimeUs{0}; // Total arbitration time (microseconds)
+    ::std::atomic<uint32> maxArbitrationTimeUs{0};   // Max single arbitration time
 
     // System health
-    std::atomic<uint32> currentQueueSize{0};       // Pending requests in queue
-    std::atomic<uint32> maxQueueSize{0};           // Peak queue size
+    ::std::atomic<uint32> currentQueueSize{0};       // Pending requests in queue
+    ::std::atomic<uint32> maxQueueSize{0};           // Peak queue size
 
     /**
      * Get average arbitration time in microseconds
      */
     double GetAverageArbitrationTimeUs() const
     {
-        uint64 total = totalArbitrationTimeUs.load(std::memory_order_relaxed);
-        uint64 executed = executedRequests.load(std::memory_order_relaxed);
+        uint64 total = totalArbitrationTimeUs.load(::std::memory_order_relaxed);
+        uint64 executed = executedRequests.load(::std::memory_order_relaxed);
         return executed > 0 ? static_cast<double>(total) / executed : 0.0;
     }
 
@@ -109,8 +110,8 @@ struct MovementArbiterStatistics
      */
     double GetAcceptanceRate() const
     {
-        uint64 total = totalRequests.load(std::memory_order_relaxed);
-        uint64 executed = executedRequests.load(std::memory_order_relaxed);
+        uint64 total = totalRequests.load(::std::memory_order_relaxed);
+        uint64 executed = executedRequests.load(::std::memory_order_relaxed);
         return total > 0 ? static_cast<double>(executed) / total : 0.0;
     }
 
@@ -119,8 +120,8 @@ struct MovementArbiterStatistics
      */
     double GetDuplicateRate() const
     {
-        uint64 total = totalRequests.load(std::memory_order_relaxed);
-        uint64 duplicates = duplicateRequests.load(std::memory_order_relaxed);
+        uint64 total = totalRequests.load(::std::memory_order_relaxed);
+        uint64 duplicates = duplicateRequests.load(::std::memory_order_relaxed);
         return total > 0 ? static_cast<double>(duplicates) / total : 0.0;
     }
 
@@ -132,7 +133,7 @@ struct MovementArbiterStatistics
     /**
      * Get formatted statistics string for logging
      */
-    std::string ToString() const;
+    ::std::string ToString() const;
 };
 
 /**
@@ -161,6 +162,21 @@ struct MovementArbiterConfig
 
 /**
  * Movement Arbiter
+ *
+ * @deprecated This class is being migrated to UnifiedMovementCoordinator.
+ *             Direct usage of MovementArbiter will be removed in Week 3 of Phase 2 migration.
+ *             Use UnifiedMovementCoordinator instead, which consolidates MovementArbiter,
+ *             CombatMovementStrategy, GroupFormationManager, and MovementIntegration
+ *             into a single unified movement system.
+ *
+ *             Migration: See docs/playerbot/MOVEMENT_MIGRATION_GUIDE.md
+ *             New API:   bot->GetBotAI()->GetUnifiedMovementCoordinator()->RequestMovement(...)
+ *             Old API:   bot->GetBotAI()->GetMovementArbiter()->RequestMovement(...)
+ *
+ *             Timeline:
+ *             - Week 1: Both systems coexist (compatibility mode)
+ *             - Week 2: Primary systems migrated
+ *             - Week 3: MovementArbiter removed completely
  *
  * Central coordinator for all PlayerBot movement requests.
  * Implements priority-based arbitration with deduplication.
@@ -346,7 +362,7 @@ public:
      *
      * Thread-Safe: Yes
      */
-    std::string GetDiagnosticString() const;
+    ::std::string GetDiagnosticString() const;
 
     /**
      * Log current statistics to server log
@@ -436,7 +452,7 @@ private:
      *
      * Removes expired entries (older than deduplication window).
      *
-     * @param currentTime Current time (getMSTime())
+     * @param currentTime Current time (GameTime::GetGameTimeMS())
      */
     void UpdateDeduplicationCache(uint32 currentTime);
 
@@ -446,7 +462,7 @@ private:
      * @param request Request to log
      * @param action Action taken ("ACCEPTED", "DUPLICATE", "FILTERED", "EXECUTED")
      */
-    void LogRequest(MovementRequest const& request, std::string const& action) const;
+    void LogRequest(MovementRequest const& request, ::std::string const& action) const;
 
     /**
      * Update statistics for priority category
@@ -463,31 +479,31 @@ private:
     Player* _bot;                                   // Owning bot (never null)
 
     // Request queue (protected by mutex)
-    mutable std::mutex _queueMutex;
-    std::deque<MovementRequest> _pendingRequests;
+    mutable Playerbot::OrderedMutex<Playerbot::LockOrder::MOVEMENT_ARBITER> _queueMutex;
+    ::std::deque<MovementRequest> _pendingRequests;
 
     // Current active request (protected by mutex)
-    mutable std::mutex _currentRequestMutex;
+    mutable Playerbot::OrderedMutex<Playerbot::LockOrder::MOVEMENT_ARBITER> _currentRequestMutex;
     Optional<MovementRequest> _currentRequest;
 
     // Deduplication cache
     // Key: Spatial-temporal hash
     // Value: Timestamp of last request with this hash
-    mutable std::mutex _deduplicationMutex;
-    std::unordered_map<uint64, uint32> _recentRequests;
+    mutable Playerbot::OrderedMutex<Playerbot::LockOrder::MOVEMENT_ARBITER> _deduplicationMutex;
+    ::std::unordered_map<uint64, uint32> _recentRequests;
 
     // Statistics (atomic for thread-safe reads)
     MovementArbiterStatistics _statistics;
 
     // Configuration (protected by mutex)
-    mutable std::mutex _configMutex;
+    mutable Playerbot::OrderedMutex<Playerbot::LockOrder::MOVEMENT_ARBITER> _configMutex;
     MovementArbiterConfig _config;
 
     // Performance tracking
     uint32 _lastUpdateTime;                         // Last Update() call time
 
     // Diagnostic state
-    std::atomic<bool> _diagnosticLogging{false};
+    ::std::atomic<bool> _diagnosticLogging{false};
 };
 
 } // namespace Playerbot

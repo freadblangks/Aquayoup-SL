@@ -19,6 +19,7 @@
 
 #include "Define.h"
 #include "SharedDefines.h"
+#include "Core/DI/Interfaces/IBotLevelDistribution.h"
 #include <atomic>
 #include <vector>
 #include <map>
@@ -43,7 +44,7 @@ struct LevelBracket
     TeamId faction;
 
     // Thread-safe counter (relaxed memory order)
-    mutable std::atomic<uint32> currentCount{0};
+    mutable ::std::atomic<uint32> currentCount{0};
 
     // Copy constructor - manually copy atomic value
     LevelBracket(LevelBracket const& other)
@@ -51,7 +52,7 @@ struct LevelBracket
         , maxLevel(other.maxLevel)
         , targetPercentage(other.targetPercentage)
         , faction(other.faction)
-        , currentCount(other.currentCount.load(std::memory_order_relaxed))
+        , currentCount(other.currentCount.load(::std::memory_order_relaxed))
     {
     }
 
@@ -67,7 +68,7 @@ struct LevelBracket
             maxLevel = other.maxLevel;
             targetPercentage = other.targetPercentage;
             faction = other.faction;
-            currentCount.store(other.currentCount.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            currentCount.store(other.currentCount.load(::std::memory_order_relaxed), ::std::memory_order_relaxed);
         }
         return *this;
     }
@@ -75,23 +76,23 @@ struct LevelBracket
     // Thread-safe operations
     void IncrementCount() const
     {
-        currentCount.fetch_add(1, std::memory_order_relaxed);
+        currentCount.fetch_add(1, ::std::memory_order_relaxed);
     }
 
     void DecrementCount() const
     {
-        if (currentCount.load(std::memory_order_relaxed) > 0)
-            currentCount.fetch_sub(1, std::memory_order_relaxed);
+        if (currentCount.load(::std::memory_order_relaxed) > 0)
+            currentCount.fetch_sub(1, ::std::memory_order_relaxed);
     }
 
     uint32 GetCount() const
     {
-        return currentCount.load(std::memory_order_relaxed);
+        return currentCount.load(::std::memory_order_relaxed);
     }
 
     void SetCount(uint32 count) const
     {
-        currentCount.store(count, std::memory_order_relaxed);
+        currentCount.store(count, ::std::memory_order_relaxed);
     }
 
     // Behavior flags
@@ -116,8 +117,8 @@ struct LevelBracket
         if (minLevel == maxLevel)
             return minLevel;
 
-        thread_local std::mt19937 generator(std::random_device{}());
-        std::uniform_int_distribution<uint32> distribution(minLevel, maxLevel);
+        thread_local ::std::mt19937 generator(::std::random_device{}());
+        ::std::uniform_int_distribution<uint32> distribution(minLevel, maxLevel);
         return distribution(generator);
     }
 
@@ -169,8 +170,8 @@ struct DistributionStats
     uint32 totalBrackets;
     float averageDeviation;
     float maxDeviation;
-    std::string mostUnderpopulatedBracket;
-    std::string mostOverpopulatedBracket;
+    ::std::string mostUnderpopulatedBracket;
+    ::std::string mostOverpopulatedBracket;
 };
 
 /**
@@ -198,40 +199,42 @@ struct DistributionStats
  * - Lock-free counter updates
  * - Minimal contention
  */
-class TC_GAME_API BotLevelDistribution
+class TC_GAME_API BotLevelDistribution final : public IBotLevelDistribution
 {
 public:
     static BotLevelDistribution* instance();
 
+    // IBotLevelDistribution interface implementation
+
     // Initialization
-    bool LoadConfig();
-    void ReloadConfig();
+    bool LoadConfig() override;
+    void ReloadConfig() override;
 
     // Bracket selection
-    LevelBracket const* SelectBracket(TeamId faction) const;
+    LevelBracket const* SelectBracket(TeamId faction) const override;
     LevelBracket const* SelectBracketWeighted(TeamId faction) const;
-    LevelBracket const* GetBracketForLevel(uint32 level, TeamId faction) const;
+    LevelBracket const* GetBracketForLevel(uint32 level, TeamId faction) const override;
 
     // Distribution analysis
     DistributionStats GetDistributionStats() const;
-    std::vector<LevelBracket const*> GetUnderpopulatedBrackets(TeamId faction) const;
-    std::vector<LevelBracket const*> GetOverpopulatedBrackets(TeamId faction) const;
-    bool IsDistributionBalanced(TeamId faction) const;
+    ::std::vector<LevelBracket const*> GetUnderpopulatedBrackets(TeamId faction) const;
+    ::std::vector<LevelBracket const*> GetOverpopulatedBrackets(TeamId faction) const;
+    bool IsDistributionBalanced(TeamId faction) const override;
 
     // Counter updates
-    void IncrementBracket(uint32 level, TeamId faction);
-    void DecrementBracket(uint32 level, TeamId faction);
-    void RecalculateDistribution();
+    void IncrementBracket(uint32 level, TeamId faction) override;
+    void DecrementBracket(uint32 level, TeamId faction) override;
+    void RecalculateDistribution() override;
 
     // Configuration queries
-    uint32 GetNumBrackets() const { return m_numBrackets; }
+    uint32 GetNumBrackets() const override { return m_numBrackets; }
     float GetTolerancePercent() const { return 15.0f; }  // ±15% tolerance
-    bool IsEnabled() const { return m_enabled; }
-    bool IsDynamicDistribution() const { return m_dynamicDistribution; }
+    bool IsEnabled() const override { return m_enabled; }
+    bool IsDynamicDistribution() const override { return m_dynamicDistribution; }
 
     // Debugging
-    void PrintDistributionReport() const;
-    std::string GetDistributionSummary() const;
+    void PrintDistributionReport() const override;
+    ::std::string GetDistributionSummary() const;
 
 private:
     BotLevelDistribution() = default;
@@ -240,13 +243,13 @@ private:
     BotLevelDistribution& operator=(BotLevelDistribution const&) = delete;
 
     // Config loading helpers
-    void LoadBrackets(TeamId faction, std::string const& prefix);
+    void LoadBrackets(TeamId faction, ::std::string const& prefix);
     bool ValidateConfig() const;
     void NormalizeBracketPercentages();
 
     // Selection helpers
-    LevelBracket const* SelectByPriority(std::vector<LevelBracket> const& brackets) const;
-    float CalculateTotalPriority(std::vector<LevelBracket> const& brackets) const;
+    LevelBracket const* SelectByPriority(::std::vector<LevelBracket> const& brackets) const;
+    float CalculateTotalPriority(::std::vector<LevelBracket> const& brackets) const;
 
 private:
     // Configuration (immutable after load)
@@ -257,15 +260,15 @@ private:
     bool m_syncFactions = false;
 
     // Bracket storage (immutable after load)
-    std::vector<LevelBracket> m_allianceBrackets;
-    std::vector<LevelBracket> m_hordeBrackets;
+    ::std::vector<LevelBracket> m_allianceBrackets;
+    ::std::vector<LevelBracket> m_hordeBrackets;
 
     // Fast lookup map: level -> bracket index
-    std::map<uint32, size_t> m_allianceLevelMap;
-    std::map<uint32, size_t> m_hordeLevelMap;
+    ::std::map<uint32, size_t> m_allianceLevelMap;
+    ::std::map<uint32, size_t> m_hordeLevelMap;
 
     // RNG (thread-local for thread safety)
-    mutable std::mt19937 m_generator{std::random_device{}()};
+    mutable ::std::mt19937 m_generator{::std::random_device{}()};
 
     // Status
     bool m_loaded = false;

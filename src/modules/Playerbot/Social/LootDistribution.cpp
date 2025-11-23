@@ -24,20 +24,16 @@
 #include "Spatial/SpatialGridQueryHelpers.h"
 #include <algorithm>
 #include <random>
+#include "GameTime.h"
 
 namespace Playerbot
 {
 
-LootDistribution* LootDistribution::instance()
-{
-    static LootDistribution instance;
-    return &instance;
+LootDistribution::LootDistribution(Player* bot) : _bot(bot) {
+    if (!_bot) TC_LOG_ERROR("playerbot", "LootDistribution: null bot!");
 }
 
-LootDistribution::LootDistribution()
-{
-    _globalMetrics.Reset();
-}
+LootDistribution::~LootDistribution() {}
 
 void LootDistribution::HandleGroupLoot(Group* group, Loot* loot)
 {
@@ -88,8 +84,9 @@ void LootDistribution::InitiateLootRoll(Group* group, const LootItem& item)
 
         // Fallback to ObjectAccessor for full validation
         Player* member = ObjectAccessor::FindConnectedPlayer(slot.guid);
-        if (member && CanParticipateInRoll(member, item))
+        if (member)
         {
+            // Add member to eligible players for this roll
             roll.eligiblePlayers.insert(member->GetGUID().GetCounter());
         }
     }
@@ -99,9 +96,8 @@ void LootDistribution::InitiateLootRoll(Group* group, const LootItem& item)
 
     // Store the roll
     {
-        std::lock_guard<std::recursive_mutex> lock(_lootMutex);
         _activeLootRolls[rollId] = roll;
-        _rollTimeouts[rollId] = getMSTime() + LOOT_ROLL_TIMEOUT;
+        _rollTimeouts[rollId] = GameTime::GetGameTimeMS() + LOOT_ROLL_TIMEOUT;
     }
 
     // Broadcast roll to group members
@@ -116,23 +112,19 @@ void LootDistribution::InitiateLootRoll(Group* group, const LootItem& item)
         auto memberSnapshot = SpatialGridQueryHelpers::FindPlayerByGuid(nullptr, guid);
         if (!memberSnapshot)
             continue;
-
         // Fallback to ObjectAccessor for full validation
         Player* member = ObjectAccessor::FindConnectedPlayer(guid);
         if (member && dynamic_cast<BotSession*>(member->GetSession()))
         {
-            LootRollType decision = DetermineLootDecision(member, item);
-            ProcessPlayerLootDecision(member, rollId, decision);
+            LootRollType decision = DetermineLootDecision(item);
+            ProcessPlayerLootDecision(rollId, decision);
         }
     }
 }
-
-void LootDistribution::ProcessPlayerLootDecision(Player* player, uint32 rollId, LootRollType rollType)
+void LootDistribution::ProcessPlayerLootDecision(uint32 rollId, LootRollType rollType)
 {
-    if (!player)
+    if (!_bot)
         return;
-
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
 
     auto rollIt = _activeLootRolls.find(rollId);
     if (rollIt == _activeLootRolls.end())
@@ -141,19 +133,18 @@ void LootDistribution::ProcessPlayerLootDecision(Player* player, uint32 rollId, 
     LootRoll& roll = rollIt->second;
 
     // Check if player is eligible
-    if (roll.eligiblePlayers.find(player->GetGUID().GetCounter()) == roll.eligiblePlayers.end())
+    if (roll.eligiblePlayers.find(_bot->GetGUID().GetCounter()) == roll.eligiblePlayers.end())
         return;
 
     // Record the player's decision
-    roll.playerRolls[player->GetGUID().GetCounter()] = rollType;
-
+    roll.playerRolls[_bot->GetGUID().GetCounter()] = rollType;
     // Generate roll value if not passing
     if (rollType != LootRollType::PASS)
     {
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<uint32> dis(1, 100);
-        roll.rollValues[player->GetGUID().GetCounter()] = dis(gen);
+        roll.rollValues[_bot->GetGUID().GetCounter()] = dis(gen);
     }
 
     // Check if all players have rolled
@@ -165,8 +156,6 @@ void LootDistribution::ProcessPlayerLootDecision(Player* player, uint32 rollId, 
 
 void LootDistribution::CompleteLootRoll(uint32 rollId)
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
-
     auto rollIt = _activeLootRolls.find(rollId);
     if (rollIt == _activeLootRolls.end())
         return;
@@ -192,7 +181,6 @@ void LootDistribution::CompleteLootRoll(uint32 rollId)
 
     // Notify group of results
     NotifyRollResult(roll);
-
     // Clean up
     _activeLootRolls.erase(rollIt);
     _rollTimeouts.erase(rollId);
@@ -201,30 +189,28 @@ void LootDistribution::CompleteLootRoll(uint32 rollId)
     _globalMetrics.totalRollsCompleted++;
 }
 
-LootRollType LootDistribution::DetermineLootDecision(Player* player, const LootItem& item)
+LootRollType LootDistribution::DetermineLootDecision(const LootItem& item)
 {
-    if (!player)
+    if (!_bot)
         return LootRollType::PASS;
 
-    uint32 playerGuid = player->GetGUID().GetCounter();
-
     // Get player's loot profile
-    PlayerLootProfile profile = GetPlayerLootProfile(playerGuid);
+    PlayerLootProfile profile = GetPlayerLootProfile();
 
     // Execute the player's strategy
-    return ExecuteStrategy(player, item, profile.strategy);
+    return ExecuteStrategy(item, profile.strategy);
 }
 
-LootPriority LootDistribution::AnalyzeItemPriority(Player* player, const LootItem& item)
+LootPriority LootDistribution::AnalyzeItemPriority(const LootItem& item)
 {
-    if (!player)
+    if (!_bot)
         return LootPriority::NOT_USEFUL;
 
     // Check if item is an upgrade
-    if (IsItemUpgrade(player, item))
+    if (IsItemUpgrade(item))
     {
         // Determine upgrade significance
-        float upgradeValue = CalculateUpgradeValue(player, item);
+        float upgradeValue = CalculateUpgradeValue(item);
 
         if (upgradeValue > 0.3f)
             return LootPriority::CRITICAL_UPGRADE;
@@ -237,79 +223,76 @@ LootPriority LootDistribution::AnalyzeItemPriority(Player* player, const LootIte
     }
 
     // Check if useful for off-spec
-    if (IsItemUsefulForOffSpec(player, item))
+    if (IsItemUsefulForOffSpec(item))
         return LootPriority::OFF_SPEC_UPGRADE;
 
     // Check vendor value
     if (item.vendorValue > 1000) // Arbitrary threshold
         return LootPriority::VENDOR_ITEM;
-
     return LootPriority::NOT_USEFUL;
 }
 
-bool LootDistribution::IsItemUpgrade(Player* player, const LootItem& item)
+bool LootDistribution::IsItemUpgrade(const LootItem& item)
 {
-    if (!player || !item.itemTemplate)
+    if (!_bot || !item.itemTemplate)
         return false;
 
     // Check if item can be equipped by player
-    if (!player->CanUseItem(item.itemTemplate))
+    if (!_bot->CanUseItem(item.itemTemplate))
         return false;
 
     // Compare with currently equipped item
     uint8 slot = item.itemTemplate->GetInventoryType();
-    Item* equippedItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
-
+    Item* equippedItem = _bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
     if (!equippedItem)
         return true; // No item equipped, so this is an upgrade
 
     // Compare item levels and stats
-    float currentScore = CalculateItemScore(player, equippedItem);
-    float newScore = CalculateItemScore(player, item);
+    float currentScore = CalculateItemScore(equippedItem);
+    float newScore = CalculateItemScore(item);
 
     return newScore > currentScore * (1.0f + UPGRADE_THRESHOLD);
 }
 
-bool LootDistribution::IsClassAppropriate(Player* player, const LootItem& item)
+bool LootDistribution::IsClassAppropriate(const LootItem& item)
 {
-    if (!player || !item.itemTemplate)
+    if (!_bot || !item.itemTemplate)
         return false;
 
     // Check class restrictions
     if (item.isClassRestricted)
     {
-        uint8 playerClass = player->GetClass();
+        uint8 playerClass = _bot->GetClass();
         return std::find(item.allowedClasses.begin(), item.allowedClasses.end(), playerClass) != item.allowedClasses.end();
     }
 
     // Check if item type is useful for class
-    return IsItemTypeUsefulForClass(player->GetClass(), item.itemTemplate);
+    return IsItemTypeUsefulForClass(_bot->GetClass(), item.itemTemplate);
 }
 
-bool LootDistribution::CanPlayerNeedItem(Player* player, const LootItem& item)
+bool LootDistribution::CanPlayerNeedItem(const LootItem& item)
 {
-    if (!player)
+    if (!_bot)
         return false;
 
     // Must be class appropriate
-    if (!IsClassAppropriate(player, item))
+    if (!IsClassAppropriate(item))
         return false;
 
     // Must be an upgrade for main spec
-    if (!IsItemUpgrade(player, item))
+    if (!IsItemUpgrade(item))
         return false;
 
     // Check if item is for main spec
-    return IsItemForMainSpec(player, item);
+    return IsItemForMainSpec(item);
 }
 
-bool LootDistribution::ShouldPlayerGreedItem(Player* player, const LootItem& item)
+bool LootDistribution::ShouldPlayerGreedItem(const LootItem& item)
 {
-    if (!player)
+    if (!_bot)
         return false;
 
-    PlayerLootProfile profile = GetPlayerLootProfile(player->GetGUID().GetCounter());
-
+    PlayerLootProfile profile = GetPlayerLootProfile();
     // Check greed threshold
     if (item.vendorValue < profile.greedThreshold * 10000) // Convert threshold to copper
         return false;
@@ -318,30 +301,30 @@ bool LootDistribution::ShouldPlayerGreedItem(Player* player, const LootItem& ite
     return true;
 }
 
-bool LootDistribution::ShouldPlayerPassItem(Player* player, const LootItem& item)
+bool LootDistribution::ShouldPlayerPassItem(const LootItem& item)
 {
-    if (!player)
+    if (!_bot)
         return true;
 
     // Pass if item is blacklisted
-    PlayerLootProfile profile = GetPlayerLootProfile(player->GetGUID().GetCounter());
+    PlayerLootProfile profile = GetPlayerLootProfile();
     if (profile.blacklistedItems.find(item.itemId) != profile.blacklistedItems.end())
         return true;
 
     // Pass if not useful and below greed threshold
-    if (!CanPlayerNeedItem(player, item) && !ShouldPlayerGreedItem(player, item))
+    if (!CanPlayerNeedItem(item) && !ShouldPlayerGreedItem(item))
         return true;
 
     return false;
 }
 
-bool LootDistribution::CanPlayerDisenchantItem(Player* player, const LootItem& item)
+bool LootDistribution::CanPlayerDisenchantItem(const LootItem& item)
 {
-    if (!player || !item.itemTemplate)
+    if (!_bot || !item.itemTemplate)
         return false;
 
     // Check if player has enchanting skill
-    if (player->GetSkillValue(SKILL_ENCHANTING) == 0)
+    if (_bot->GetSkillValue(SKILL_ENCHANTING) == 0)
         return false;
 
     // Check if item can be disenchanted
@@ -350,8 +333,6 @@ bool LootDistribution::CanPlayerDisenchantItem(Player* player, const LootItem& i
 
 void LootDistribution::ProcessLootRolls(uint32 rollId)
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
-
     auto rollIt = _activeLootRolls.find(rollId);
     if (rollIt == _activeLootRolls.end())
         return;
@@ -359,7 +340,7 @@ void LootDistribution::ProcessLootRolls(uint32 rollId)
     LootRoll& roll = rollIt->second;
 
     // Check for timeout
-    if (getMSTime() > roll.rollTimeout)
+    if (GameTime::GetGameTimeMS() > roll.rollTimeout)
     {
         HandleLootRollTimeout(rollId);
         return;
@@ -420,7 +401,7 @@ void LootDistribution::DistributeLootToWinner(uint32 rollId, uint32 winnerGuid)
             winner->SendNewItem(item, 1, false, false, true);
 
             // Update metrics
-            UpdateLootMetrics(winnerGuid, roll, true);
+            UpdateLootMetrics(roll, true);
         }
     }
     else
@@ -433,8 +414,6 @@ void LootDistribution::DistributeLootToWinner(uint32 rollId, uint32 winnerGuid)
 
 void LootDistribution::HandleLootRollTimeout(uint32 rollId)
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
-
     auto rollIt = _activeLootRolls.find(rollId);
     if (rollIt == _activeLootRolls.end())
         return;
@@ -457,13 +436,13 @@ void LootDistribution::HandleLootRollTimeout(uint32 rollId)
     _globalMetrics.rollTimeouts++;
 }
 
-void LootDistribution::ExecuteNeedBeforeGreedStrategy(Player* player, const LootItem& item, LootRollType& decision)
+void LootDistribution::ExecuteNeedBeforeGreedStrategy(const LootItem& item, LootRollType& decision)
 {
-    if (CanPlayerNeedItem(player, item))
+    if (CanPlayerNeedItem(item))
     {
         decision = LootRollType::NEED;
     }
-    else if (ShouldPlayerGreedItem(player, item))
+    else if (ShouldPlayerGreedItem(item))
     {
         decision = LootRollType::GREED;
     }
@@ -473,12 +452,12 @@ void LootDistribution::ExecuteNeedBeforeGreedStrategy(Player* player, const Loot
     }
 }
 
-void LootDistribution::ExecuteClassPriorityStrategy(Player* player, const LootItem& item, LootRollType& decision)
+void LootDistribution::ExecuteClassPriorityStrategy(const LootItem& item, LootRollType& decision)
 {
     // Prioritize items for appropriate classes
-    if (IsClassAppropriate(player, item))
+    if (IsClassAppropriate(item))
     {
-        if (IsItemUpgrade(player, item))
+        if (IsItemUpgrade(item))
             decision = LootRollType::NEED;
         else
             decision = LootRollType::GREED;
@@ -489,10 +468,9 @@ void LootDistribution::ExecuteClassPriorityStrategy(Player* player, const LootIt
     }
 }
 
-void LootDistribution::ExecuteUpgradePriorityStrategy(Player* player, const LootItem& item, LootRollType& decision)
+void LootDistribution::ExecuteUpgradePriorityStrategy(const LootItem& item, LootRollType& decision)
 {
-    LootPriority priority = AnalyzeItemPriority(player, item);
-
+    LootPriority priority = AnalyzeItemPriority(item);
     switch (priority)
     {
         case LootPriority::CRITICAL_UPGRADE:
@@ -504,7 +482,7 @@ void LootDistribution::ExecuteUpgradePriorityStrategy(Player* player, const Loot
             decision = LootRollType::GREED;
             break;
         case LootPriority::VENDOR_ITEM:
-            if (ShouldPlayerGreedItem(player, item))
+            if (ShouldPlayerGreedItem(item))
                 decision = LootRollType::GREED;
             else
                 decision = LootRollType::PASS;
@@ -515,25 +493,25 @@ void LootDistribution::ExecuteUpgradePriorityStrategy(Player* player, const Loot
     }
 }
 
-void LootDistribution::ExecuteFairDistributionStrategy(Player* player, const LootItem& item, LootRollType& decision)
+void LootDistribution::ExecuteFairDistributionStrategy( const LootItem& item, LootRollType& decision)
 {
     // Consider fairness in decision making
-    Group* group = player->GetGroup();
+    Group* group = _bot->GetGroup();
     if (!group)
     {
-        ExecuteNeedBeforeGreedStrategy(player, item, decision);
+        ExecuteNeedBeforeGreedStrategy(item, decision);
         return;
     }
 
     // Check if player has received items recently
-    bool shouldConsiderFairness = ShouldConsiderFairnessAdjustment(group, player);
+    bool shouldConsiderFairness = ShouldConsiderFairnessAdjustment(group);
 
     if (shouldConsiderFairness)
     {
         // Be more conservative with rolls
-        if (CanPlayerNeedItem(player, item))
+        if (CanPlayerNeedItem(item))
         {
-            LootPriority priority = AnalyzeItemPriority(player, item);
+            LootPriority priority = AnalyzeItemPriority(item);
             if (priority >= LootPriority::SIGNIFICANT_UPGRADE)
                 decision = LootRollType::NEED;
             else
@@ -546,24 +524,23 @@ void LootDistribution::ExecuteFairDistributionStrategy(Player* player, const Loo
     }
     else
     {
-        ExecuteNeedBeforeGreedStrategy(player, item, decision);
+        ExecuteNeedBeforeGreedStrategy(item, decision);
     }
 }
 
-void LootDistribution::ExecuteMainSpecPriorityStrategy(Player* player, const LootItem& item, LootRollType& decision)
+void LootDistribution::ExecuteMainSpecPriorityStrategy(const LootItem& item, LootRollType& decision)
 {
-    PlayerLootProfile profile = GetPlayerLootProfile(player->GetGUID().GetCounter());
-
-    if (IsItemForMainSpec(player, item))
+    PlayerLootProfile profile = GetPlayerLootProfile();
+    if (IsItemForMainSpec(item))
     {
-        if (IsItemUpgrade(player, item))
+        if (IsItemUpgrade(item))
             decision = LootRollType::NEED;
-        else if (ShouldPlayerGreedItem(player, item))
+        else if (ShouldPlayerGreedItem(item))
             decision = LootRollType::GREED;
         else
             decision = LootRollType::PASS;
     }
-    else if (profile.greedOffSpec && IsItemUsefulForOffSpec(player, item))
+    else if (profile.greedOffSpec && IsItemUsefulForOffSpec(item))
     {
         decision = LootRollType::GREED;
     }
@@ -573,9 +550,8 @@ void LootDistribution::ExecuteMainSpecPriorityStrategy(Player* player, const Loo
     }
 }
 
-LootDistribution::LootFairnessTracker LootDistribution::GetGroupLootFairness(uint32 groupId)
+LootFairnessTracker LootDistribution::GetGroupLootFairness(uint32 groupId)
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
     auto it = _groupFairnessTracking.find(groupId);
     if (it != _groupFairnessTracking.end())
         return it->second;
@@ -585,8 +561,6 @@ LootDistribution::LootFairnessTracker LootDistribution::GetGroupLootFairness(uin
 
 void LootDistribution::UpdateLootFairness(uint32 groupId, uint32 winnerGuid, const LootItem& item)
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
-
     auto& tracker = _groupFairnessTracking[groupId];
 
     tracker.playerLootCount[winnerGuid]++;
@@ -620,9 +594,12 @@ float LootDistribution::CalculateFairnessScore(const LootFairnessTracker& tracke
     return std::clamp(fairness, 0.0f, 1.0f);
 }
 
-LootDistribution::LootMetrics LootDistribution::GetPlayerLootMetrics(uint32 playerGuid)
+LootMetrics LootDistribution::GetPlayerLootMetrics()
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
+    if (!_bot)
+        return LootMetrics();
+
+    uint32 playerGuid = _bot->GetGUID().GetCounter();
     auto it = _playerMetrics.find(playerGuid);
     if (it != _playerMetrics.end())
         return it->second;
@@ -632,7 +609,7 @@ LootDistribution::LootMetrics LootDistribution::GetPlayerLootMetrics(uint32 play
     return metrics;
 }
 
-LootDistribution::LootMetrics LootDistribution::GetGroupLootMetrics(uint32 groupId)
+LootMetrics LootDistribution::GetGroupLootMetrics(uint32 groupId)
 {
     // Aggregate metrics from all group members
     LootMetrics groupMetrics;
@@ -644,20 +621,26 @@ LootDistribution::LootMetrics LootDistribution::GetGroupLootMetrics(uint32 group
     return groupMetrics;
 }
 
-LootDistribution::LootMetrics LootDistribution::GetGlobalLootMetrics()
+LootMetrics LootDistribution::GetGlobalLootMetrics()
 {
     return _globalMetrics;
 }
 
-void LootDistribution::SetPlayerLootStrategy(uint32 playerGuid, LootDecisionStrategy strategy)
+void LootDistribution::SetPlayerLootStrategy(LootDecisionStrategy strategy)
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
+    if (!_bot)
+        return;
+
+    uint32 playerGuid = _bot->GetGUID().GetCounter();
     _playerLootProfiles[playerGuid].strategy = strategy;
 }
 
-LootDecisionStrategy LootDistribution::GetPlayerLootStrategy(uint32 playerGuid)
+LootDecisionStrategy LootDistribution::GetPlayerLootStrategy()
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
+    if (!_bot)
+        return LootDecisionStrategy::NEED_BEFORE_GREED;
+
+    uint32 playerGuid = _bot->GetGUID().GetCounter();
     auto it = _playerLootProfiles.find(playerGuid);
     if (it != _playerLootProfiles.end())
         return it->second.strategy;
@@ -665,15 +648,21 @@ LootDecisionStrategy LootDistribution::GetPlayerLootStrategy(uint32 playerGuid)
     return LootDecisionStrategy::NEED_BEFORE_GREED;
 }
 
-void LootDistribution::SetPlayerLootPreferences(uint32 playerGuid, const PlayerLootProfile& profile)
+void LootDistribution::SetPlayerLootPreferences(const PlayerLootProfile& profile)
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
+    if (!_bot)
+        return;
+
+    uint32 playerGuid = _bot->GetGUID().GetCounter();
     _playerLootProfiles[playerGuid] = profile;
 }
 
-PlayerLootProfile LootDistribution::GetPlayerLootProfile(uint32 playerGuid)
+PlayerLootProfile LootDistribution::GetPlayerLootProfile()
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
+    if (!_bot)
+        return PlayerLootProfile();
+
+    uint32 playerGuid = _bot->GetGUID().GetCounter();
     auto it = _playerLootProfiles.find(playerGuid);
     if (it != _playerLootProfiles.end())
         return it->second;
@@ -732,29 +721,31 @@ bool LootDistribution::ShouldInitiateRoll(Group* group, const LootItem& item)
     if (item.itemQuality < group->GetLootThreshold())
         return false;
 
-    // Check if multiple players can use the item
-    uint32 interestedPlayers = 0;
+    // Check if bot can participate in roll
+    if (!CanParticipateInRoll(item))
+        return false;
+
+    // Check if there are at least 2 group members (potential interest)
+    uint32 groupMembers = 0;
     for (GroupReference const& itr : group->GetMembers())
     {
-        Player* member = itr.GetSource();
-        if (member && CanParticipateInRoll(member, item))
-        {
-            interestedPlayers++;
-            if (interestedPlayers >= 2)
-                return true;
-        }
+        if (itr.GetSource())
+            groupMembers++;
     }
+
+    if (groupMembers >= 2)
+        return true;
 
     return false;
 }
 
-bool LootDistribution::CanParticipateInRoll(Player* player, const LootItem& item)
+bool LootDistribution::CanParticipateInRoll(const LootItem& item)
 {
-    if (!player || !item.itemTemplate)
+    if (!_bot || !item.itemTemplate)
         return false;
 
     // Player must be able to use the item
-    if (!player->CanUseItem(item.itemTemplate))
+    if (!_bot->CanUseItem(item.itemTemplate))
         return false;
 
     // Player must be in range (simplified check)
@@ -769,13 +760,23 @@ void LootDistribution::HandleAutoLoot(Group* group, const LootItem& item)
     // Find a suitable recipient for auto-loot
     Player* recipient = nullptr;
 
-    for (GroupReference const& itr : group->GetMembers())
+    // Since CanParticipateInRoll is per-bot instance method, just check if _bot can participate
+    // and give to first eligible group member
+    if (_bot && CanParticipateInRoll(item))
     {
-        Player* member = itr.GetSource();
-        if (member && CanParticipateInRoll(member, item))
+        recipient = _bot;
+    }
+    else
+    {
+        // Fallback to first group member
+        for (GroupReference const& itr : group->GetMembers())
         {
-            recipient = member;
-            break;
+            Player* member = itr.GetSource();
+            if (member)
+            {
+                recipient = member;
+                break;
+            }
         }
     }
 
@@ -784,7 +785,6 @@ void LootDistribution::HandleAutoLoot(Group* group, const LootItem& item)
         // Give item to recipient
         ItemPosCountVec dest;
         InventoryResult msg = recipient->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, item.itemId, item.itemCount);
-
         if (msg == EQUIP_ERR_OK)
         {
             Item* newItem = recipient->StoreNewItem(dest, item.itemId, true);
@@ -796,26 +796,26 @@ void LootDistribution::HandleAutoLoot(Group* group, const LootItem& item)
     }
 }
 
-LootRollType LootDistribution::ExecuteStrategy(Player* player, const LootItem& item, LootDecisionStrategy strategy)
+LootRollType LootDistribution::ExecuteStrategy( const LootItem& item, LootDecisionStrategy strategy)
 {
     LootRollType decision = LootRollType::PASS;
 
     switch (strategy)
     {
         case LootDecisionStrategy::NEED_BEFORE_GREED:
-            ExecuteNeedBeforeGreedStrategy(player, item, decision);
+            ExecuteNeedBeforeGreedStrategy(item, decision);
             break;
         case LootDecisionStrategy::CLASS_PRIORITY:
-            ExecuteClassPriorityStrategy(player, item, decision);
+            ExecuteClassPriorityStrategy(item, decision);
             break;
         case LootDecisionStrategy::UPGRADE_PRIORITY:
-            ExecuteUpgradePriorityStrategy(player, item, decision);
+            ExecuteUpgradePriorityStrategy(item, decision);
             break;
         case LootDecisionStrategy::FAIR_DISTRIBUTION:
-            ExecuteFairDistributionStrategy(player, item, decision);
+            ExecuteFairDistributionStrategy(item, decision);
             break;
         case LootDecisionStrategy::MAINSPEC_PRIORITY:
-            ExecuteMainSpecPriorityStrategy(player, item, decision);
+            ExecuteMainSpecPriorityStrategy(item, decision);
             break;
         case LootDecisionStrategy::RANDOM_ROLLS:
             // Random decision
@@ -835,7 +835,7 @@ LootRollType LootDistribution::ExecuteStrategy(Player* player, const LootItem& i
         case LootDecisionStrategy::CONSERVATIVE:
             // Only roll on significant upgrades
             {
-                LootPriority priority = AnalyzeItemPriority(player, item);
+                LootPriority priority = AnalyzeItemPriority(item);
                 if (priority == LootPriority::CRITICAL_UPGRADE)
                     decision = LootRollType::NEED;
                 else
@@ -845,26 +845,26 @@ LootRollType LootDistribution::ExecuteStrategy(Player* player, const LootItem& i
     }
 
     // Apply strategy modifiers
-    ApplyStrategyModifiers(player, item, decision);
+    ApplyStrategyModifiers(item, decision);
 
     return decision;
 }
 
-void LootDistribution::ApplyStrategyModifiers(Player* player, const LootItem& item, LootRollType& decision)
+void LootDistribution::ApplyStrategyModifiers( const LootItem& item, LootRollType& decision)
 {
-    if (!player)
+    if (!_bot)
         return;
 
-    Group* group = player->GetGroup();
+    Group* group = _bot->GetGroup();
     if (group)
     {
-        ConsiderGroupComposition(group, player, item, decision);
+        ConsiderGroupComposition(group, item, decision);
     }
 }
 
-void LootDistribution::ConsiderGroupComposition(Group* group, Player* player, const LootItem& item, LootRollType& decision)
+void LootDistribution::ConsiderGroupComposition(Group* group, const LootItem& item, LootRollType& decision)
 {
-    if (!group || !player)
+    if (!group || !_bot)
         return;
 
     // Analyze group composition and adjust decision accordingly
@@ -872,9 +872,9 @@ void LootDistribution::ConsiderGroupComposition(Group* group, Player* player, co
     // be more conservative with rolling
 }
 
-float LootDistribution::CalculateItemScore(Player* player, const LootItem& item)
+float LootDistribution::CalculateItemScore( const LootItem& item)
 {
-    if (!player || !item.itemTemplate)
+    if (!_bot || !item.itemTemplate)
         return 0.0f;
 
     float score = 0.0f;
@@ -888,15 +888,15 @@ float LootDistribution::CalculateItemScore(Player* player, const LootItem& item)
     return score;
 }
 
-float LootDistribution::CalculateItemScore(Player* player, Item* item)
+float LootDistribution::CalculateItemScore( Item* item)
 {
-    if (!player || !item)
+    if (!_bot || !item)
         return 0.0f;
 
     float score = 0.0f;
 
     // Base score from item level
-    score += item->GetItemLevel(player) * 10.0f;
+    score += item->GetItemLevel(_bot) * 10.0f;
 
     // Add score for relevant stats
     // This would require detailed stat analysis
@@ -904,20 +904,19 @@ float LootDistribution::CalculateItemScore(Player* player, Item* item)
     return score;
 }
 
-float LootDistribution::CalculateUpgradeValue(Player* player, const LootItem& item)
+float LootDistribution::CalculateUpgradeValue( const LootItem& item)
 {
-    if (!player || !item.itemTemplate)
+    if (!_bot || !item.itemTemplate)
         return 0.0f;
 
     // Get current item in the same slot
     uint8 slot = item.itemTemplate->GetInventoryType();
-    Item* currentItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
-
+    Item* currentItem = _bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
     if (!currentItem)
         return 1.0f; // Maximum upgrade if no item equipped
 
-    float currentScore = CalculateItemScore(player, currentItem);
-    float newScore = CalculateItemScore(player, item);
+    float currentScore = CalculateItemScore(currentItem);
+    float newScore = CalculateItemScore(item);
 
     if (currentScore <= 0.0f)
         return 1.0f;
@@ -925,16 +924,16 @@ float LootDistribution::CalculateUpgradeValue(Player* player, const LootItem& it
     return (newScore - currentScore) / currentScore;
 }
 
-bool LootDistribution::IsItemForMainSpec(Player* player, const LootItem& item)
+bool LootDistribution::IsItemForMainSpec( const LootItem& item)
 {
-    if (!player || !item.itemTemplate)
+    if (!_bot || !item.itemTemplate)
         return false;
 
     // Simplified check based on item type and player spec
     // In a real implementation, this would be more sophisticated
 
-    uint8 playerClass = player->GetClass();
-    uint8 spec = AsUnderlyingType(player->GetPrimarySpecialization());
+    uint8 playerClass = _bot->GetClass();
+    uint8 spec = AsUnderlyingType(_bot->GetPrimarySpecialization());
 
     // Basic logic for different classes
     switch (playerClass)
@@ -963,15 +962,15 @@ bool LootDistribution::IsItemForMainSpec(Player* player, const LootItem& item)
     }
 }
 
-bool LootDistribution::IsItemUsefulForOffSpec(Player* player, const LootItem& item)
+bool LootDistribution::IsItemUsefulForOffSpec(const LootItem& item)
 {
-    if (!player || !item.itemTemplate)
+    if (!_bot || !item.itemTemplate)
         return false;
 
     // Check if item could be useful for an alternative specialization
     // This is a simplified implementation
 
-    return player->CanUseItem(item.itemTemplate);
+    return _bot->CanUseItem(item.itemTemplate);
 }
 
 bool LootDistribution::IsItemTypeUsefulForClass(uint8 playerClass, const ItemTemplate* itemTemplate)
@@ -1110,20 +1109,18 @@ void LootDistribution::NotifyRollResult(const LootRoll& roll)
                 roll.rollId, roll.winnerGuid, roll.itemId);
 }
 
-bool LootDistribution::ShouldConsiderFairnessAdjustment(Group* group, Player* player)
+bool LootDistribution::ShouldConsiderFairnessAdjustment(Group* group)
 {
-    if (!group || !player)
+    if (!group || !_bot)
         return false;
 
     LootFairnessTracker tracker = GetGroupLootFairness(group->GetGUID().GetCounter());
     return tracker.fairnessScore < FAIRNESS_ADJUSTMENT_THRESHOLD;
 }
 
-void LootDistribution::UpdateLootMetrics(uint32 playerGuid, const LootRoll& roll, bool wasWinner)
+void LootDistribution::UpdateLootMetrics(const LootRoll& roll, bool wasWinner)
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
-
-    auto& metrics = _playerMetrics[playerGuid];
+    auto& metrics = _playerMetrics[_bot->GetGUID().GetCounter()];
 
     if (wasWinner)
     {
@@ -1146,7 +1143,7 @@ void LootDistribution::UpdateLootMetrics(uint32 playerGuid, const LootRoll& roll
 void LootDistribution::Update(uint32 diff)
 {
     static uint32 lastUpdate = 0;
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     if (currentTime - lastUpdate < LOOT_UPDATE_INTERVAL)
         return;
@@ -1168,7 +1165,6 @@ void LootDistribution::ProcessActiveLootRolls()
     std::vector<uint32> rollsToProcess;
 
     {
-        std::lock_guard<std::recursive_mutex> lock(_lootMutex);
         for (const auto& rollPair : _activeLootRolls)
         {
             rollsToProcess.push_back(rollPair.first);
@@ -1183,9 +1179,7 @@ void LootDistribution::ProcessActiveLootRolls()
 
 void LootDistribution::CleanupExpiredRolls()
 {
-    std::lock_guard<std::recursive_mutex> lock(_lootMutex);
-
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     std::vector<uint32> expiredRolls;
 
     for (const auto& timeoutPair : _rollTimeouts)

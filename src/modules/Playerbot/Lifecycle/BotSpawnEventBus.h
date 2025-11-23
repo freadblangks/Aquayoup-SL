@@ -10,8 +10,10 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "ObjectGuid.h"
 #include "Lifecycle/SpawnRequest.h"
+#include "Core/DI/Interfaces/IBotSpawnEventBus.h"
 #include <functional>
 #include <memory>
 #include <vector>
@@ -45,11 +47,11 @@ enum class BotSpawnEventType : uint32
 struct BotSpawnEvent
 {
     BotSpawnEventType type;
-    std::chrono::steady_clock::time_point timestamp;
+    ::std::chrono::steady_clock::time_point timestamp;
     uint64 eventId;
 
     BotSpawnEvent(BotSpawnEventType eventType)
-        : type(eventType), timestamp(std::chrono::steady_clock::now()), eventId(0) {}
+        : type(eventType), timestamp(::std::chrono::steady_clock::now()), eventId(0) {}
 
     virtual ~BotSpawnEvent() = default;
 };
@@ -60,10 +62,10 @@ struct BotSpawnEvent
 struct SpawnRequestEvent : public BotSpawnEvent
 {
     SpawnRequest request;
-    std::function<void(bool, ObjectGuid)> callback;
+    ::std::function<void(bool, ObjectGuid)> callback;
 
-    SpawnRequestEvent(SpawnRequest req, std::function<void(bool, ObjectGuid)> cb)
-        : BotSpawnEvent(BotSpawnEventType::SPAWN_REQUESTED), request(std::move(req)), callback(std::move(cb)) {}
+    SpawnRequestEvent(SpawnRequest req, ::std::function<void(bool, ObjectGuid)> cb)
+        : BotSpawnEvent(BotSpawnEventType::SPAWN_REQUESTED), request(::std::move(req)), callback(::std::move(cb)) {}
 };
 
 struct CharacterSelectedEvent : public BotSpawnEvent
@@ -72,26 +74,26 @@ struct CharacterSelectedEvent : public BotSpawnEvent
     SpawnRequest originalRequest;
 
     CharacterSelectedEvent(ObjectGuid guid, SpawnRequest req)
-        : BotSpawnEvent(BotSpawnEventType::CHARACTER_SELECTED), characterGuid(guid), originalRequest(std::move(req)) {}
+        : BotSpawnEvent(BotSpawnEventType::CHARACTER_SELECTED), characterGuid(guid), originalRequest(::std::move(req)) {}
 };
 
 struct SessionCreatedEvent : public BotSpawnEvent
 {
-    std::shared_ptr<BotSession> session;
+    ::std::shared_ptr<BotSession> session;
     SpawnRequest originalRequest;
 
-    SessionCreatedEvent(std::shared_ptr<BotSession> sess, SpawnRequest req)
-        : BotSpawnEvent(BotSpawnEventType::SESSION_CREATED), session(std::move(sess)), originalRequest(std::move(req)) {}
+    SessionCreatedEvent(::std::shared_ptr<BotSession> sess, SpawnRequest req)
+        : BotSpawnEvent(BotSpawnEventType::SESSION_CREATED), session(::std::move(sess)), originalRequest(::std::move(req)) {}
 };
 
 struct SpawnCompletedEvent : public BotSpawnEvent
 {
     ObjectGuid botGuid;
     bool success;
-    std::string details;
+    ::std::string details;
 
-    SpawnCompletedEvent(ObjectGuid guid, bool succeeded, std::string info = "")
-        : BotSpawnEvent(BotSpawnEventType::SPAWN_COMPLETED), botGuid(guid), success(succeeded), details(std::move(info)) {}
+    SpawnCompletedEvent(ObjectGuid guid, bool succeeded, ::std::string info = "")
+        : BotSpawnEvent(BotSpawnEventType::SPAWN_COMPLETED), botGuid(guid), success(succeeded), details(::std::move(info)) {}
 };
 
 struct PopulationChangedEvent : public BotSpawnEvent
@@ -102,6 +104,26 @@ struct PopulationChangedEvent : public BotSpawnEvent
 
     PopulationChangedEvent(uint32 zone, uint32 oldCount, uint32 newCount)
         : BotSpawnEvent(BotSpawnEventType::POPULATION_CHANGED), zoneId(zone), oldBotCount(oldCount), newBotCount(newCount) {}
+};
+
+// Internal statistics with atomic members for thread-safe tracking
+struct InternalEventStats
+{
+    ::std::atomic<uint64> eventsPublished{0};
+    ::std::atomic<uint64> eventsProcessed{0};
+    ::std::atomic<uint64> eventsDropped{0};
+    ::std::atomic<uint64> totalProcessingTimeUs{0};
+    ::std::atomic<uint32> queuedEvents{0};
+
+    // Delete copy constructor and assignment operator for atomic members
+    InternalEventStats() = default;
+    InternalEventStats(InternalEventStats const&) = delete;
+    InternalEventStats& operator=(InternalEventStats const&) = delete;
+
+    float GetAverageProcessingTimeUs() const {
+        uint64 processed = eventsProcessed.load();
+        return processed > 0 ? static_cast<float>(totalProcessingTimeUs.load()) / processed : 0.0f;
+    }
 };
 
 /**
@@ -125,10 +147,10 @@ struct PopulationChangedEvent : public BotSpawnEvent
  * - Automatic event deduplication
  * - Memory-efficient event storage
  */
-class TC_GAME_API BotSpawnEventBus
+class TC_GAME_API BotSpawnEventBus final : public IBotSpawnEventBus
 {
 public:
-    using EventHandler = std::function<void(std::shared_ptr<BotSpawnEvent>)>;
+    using EventHandler = ::std::function<void(::std::shared_ptr<BotSpawnEvent>)>;
 
     BotSpawnEventBus();
     ~BotSpawnEventBus() = default;
@@ -137,73 +159,54 @@ public:
     static BotSpawnEventBus* instance();
 
     // Lifecycle
-    bool Initialize();
-    void Shutdown();
-    void Update(uint32 diff);
+    bool Initialize() override;
+    void Shutdown() override;
+    void Update(uint32 diff) override;
 
     // === EVENT PUBLISHING ===
-    void PublishEvent(std::shared_ptr<BotSpawnEvent> event);
+    void PublishEvent(::std::shared_ptr<BotSpawnEvent> event) override;
 
     // Convenience methods for common events
-    void PublishSpawnRequest(SpawnRequest const& request, std::function<void(bool, ObjectGuid)> callback);
-    void PublishCharacterSelected(ObjectGuid characterGuid, SpawnRequest const& request);
-    void PublishSessionCreated(std::shared_ptr<BotSession> session, SpawnRequest const& request);
-    void PublishSpawnCompleted(ObjectGuid botGuid, bool success, std::string const& details = "");
-    void PublishPopulationChanged(uint32 zoneId, uint32 oldCount, uint32 newCount);
+    void PublishSpawnRequest(SpawnRequest const& request, ::std::function<void(bool, ObjectGuid)> callback) override;
+    void PublishCharacterSelected(ObjectGuid characterGuid, SpawnRequest const& request) override;
+    void PublishSessionCreated(::std::shared_ptr<BotSession> session, SpawnRequest const& request) override;
+    void PublishSpawnCompleted(ObjectGuid botGuid, bool success, ::std::string const& details = "") override;
+    void PublishPopulationChanged(uint32 zoneId, uint32 oldCount, uint32 newCount) override;
 
     // === EVENT SUBSCRIPTION ===
     using HandlerId = uint64;
 
-    HandlerId Subscribe(BotSpawnEventType eventType, EventHandler handler);
-    HandlerId SubscribeToAll(EventHandler handler);
-    void Unsubscribe(HandlerId handlerId);
+    HandlerId Subscribe(BotSpawnEventType eventType, EventHandler handler) override;
+    HandlerId SubscribeToAll(EventHandler handler) override;
+    void Unsubscribe(HandlerId handlerId) override;
 
     // === EVENT PROCESSING ===
-    void ProcessEvents();
-    void ProcessEventsOfType(BotSpawnEventType eventType);
+    void ProcessEvents() override;
+    void ProcessEventsOfType(BotSpawnEventType eventType) override;
 
     // === PERFORMANCE AND MONITORING ===
-    struct EventStats
-    {
-        std::atomic<uint64> eventsPublished{0};
-        std::atomic<uint64> eventsProcessed{0};
-        std::atomic<uint64> eventsDropped{0};
-        std::atomic<uint64> totalProcessingTimeUs{0};
-        std::atomic<uint32> queuedEvents{0};
-
-        // Delete copy constructor and assignment operator for atomic members
-        EventStats() = default;
-        EventStats(EventStats const&) = delete;
-        EventStats& operator=(EventStats const&) = delete;
-
-        float GetAverageProcessingTimeUs() const {
-            uint64 processed = eventsProcessed.load();
-            return processed > 0 ? static_cast<float>(totalProcessingTimeUs.load()) / processed : 0.0f;
-        }
-    };
-
-    EventStats const& GetStats() const { return _stats; }
-    void ResetStats();
+    IBotSpawnEventBus::EventStats const& GetStats() const override;
+    void ResetStats() override;
 
     // === CONFIGURATION ===
-    void SetMaxQueueSize(uint32 maxSize) { _maxQueueSize = maxSize; }
-    void SetBatchSize(uint32 batchSize) { _batchSize = batchSize; }
-    void SetProcessingEnabled(bool enabled) { _processingEnabled = enabled; }
+    void SetMaxQueueSize(uint32 maxSize) override { _maxQueueSize = maxSize; }
+    void SetBatchSize(uint32 batchSize) override { _batchSize = batchSize; }
+    void SetProcessingEnabled(bool enabled) override { _processingEnabled = enabled; }
 
-    uint32 GetQueuedEventCount() const { return _stats.queuedEvents.load(); }
-    bool IsHealthy() const;
+    uint32 GetQueuedEventCount() const override { return _stats.queuedEvents.load(); }
+    bool IsHealthy() const override;
 
 private:
     // Event queue management
     struct QueuedEvent
     {
-        std::shared_ptr<BotSpawnEvent> event;
+        ::std::shared_ptr<BotSpawnEvent> event;
         uint32 priority = 0;
-        std::chrono::steady_clock::time_point queueTime;
+        ::std::chrono::steady_clock::time_point queueTime;
     };
 
-    std::queue<QueuedEvent> _eventQueue;
-    mutable std::recursive_mutex _queueMutex;
+    ::std::queue<QueuedEvent> _eventQueue;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_SPAWNER> _queueMutex;
 
     // Event handlers
     struct EventSubscription
@@ -214,37 +217,38 @@ private:
         bool isGlobal = false;
     };
 
-    std::vector<EventSubscription> _subscriptions;
-    mutable std::recursive_mutex _subscriptionMutex;
-    std::atomic<HandlerId> _nextHandlerId{1};
+    ::std::vector<EventSubscription> _subscriptions;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_SPAWNER> _subscriptionMutex;
+    ::std::atomic<HandlerId> _nextHandlerId{1};
 
     // Event processing
-    void ProcessEventInternal(std::shared_ptr<BotSpawnEvent> event);
-    void NotifySubscribers(std::shared_ptr<BotSpawnEvent> event);
+    void ProcessEventInternal(::std::shared_ptr<BotSpawnEvent> event);
+    void NotifySubscribers(::std::shared_ptr<BotSpawnEvent> event);
 
     uint32 GetEventPriority(BotSpawnEventType eventType) const;
-    bool ShouldDropEvent(std::shared_ptr<BotSpawnEvent> event) const;
+    bool ShouldDropEvent(::std::shared_ptr<BotSpawnEvent> event) const;
 
     // Performance tracking
-    mutable EventStats _stats;
+    mutable InternalEventStats _stats;
+    mutable IBotSpawnEventBus::EventStats _statsSnapshot;
     void RecordEventProcessing(uint64 processingTimeUs);
 
     // Configuration
     uint32 _maxQueueSize = 10000;
     uint32 _batchSize = 100;
-    std::atomic<bool> _processingEnabled{true};
+    ::std::atomic<bool> _processingEnabled{true};
 
     // Event ID generation
-    std::atomic<uint64> _nextEventId{1};
+    ::std::atomic<uint64> _nextEventId{1};
     uint64 GenerateEventId() { return _nextEventId.fetch_add(1); }
 
     // Timing
-    std::chrono::steady_clock::time_point _lastProcessing;
+    ::std::chrono::steady_clock::time_point _lastProcessing;
     static constexpr uint32 PROCESSING_INTERVAL_MS = 10; // 10ms
 
     // Singleton
-    inline static std::unique_ptr<BotSpawnEventBus> _instance;
-    inline static std::recursive_mutex _instanceMutex;
+    inline static ::std::unique_ptr<BotSpawnEventBus> _instance;
+    inline static Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_SPAWNER> _instanceMutex;
 
     // Non-copyable
     BotSpawnEventBus(BotSpawnEventBus const&) = delete;
@@ -252,7 +256,7 @@ private:
 };
 
 // Convenience macros for event publishing
-#define PUBLISH_SPAWN_EVENT(event) sBotSpawnEventBus->PublishEvent(std::make_shared<event>)
+#define PUBLISH_SPAWN_EVENT(event) sBotSpawnEventBus->PublishEvent(::std::make_shared<event>)
 #define SUBSCRIBE_SPAWN_EVENT(eventType, handler) sBotSpawnEventBus->Subscribe(eventType, handler)
 
 #define sBotSpawnEventBus BotSpawnEventBus::instance()

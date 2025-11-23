@@ -2,11 +2,13 @@
 #define PLAYERBOT_AUCTION_MANAGER_H
 
 #include "Common.h"
+#include "Threading/LockHierarchy.h"
 #include "AI/BehaviorManager.h"
 #include "ObjectGuid.h"
 #include "DatabaseEnv.h"
 #include "Duration.h"
 #include "Util.h"
+#include "Core/DI/Interfaces/IAuctionHouse.h"
 #include <unordered_map>
 #include <vector>
 #include <memory>
@@ -19,16 +21,7 @@ class AuctionHouseObject;
 
 namespace Playerbot
 {
-    // Auction strategy types for bot behavior
-    enum class AuctionStrategy : uint8
-    {
-        CONSERVATIVE = 0,      // Undercut by 1% - safe, slow profits
-        AGGRESSIVE = 1,        // Undercut by 5-10% - faster sales
-        PREMIUM = 2,           // List at market average - wait for buyers
-        QUICK_SALE = 3,        // Undercut by 20% - immediate sales
-        MARKET_MAKER = 4,      // Buy low, sell high - active trading
-        SMART_PRICING = 5      // AI-driven pricing based on trends
-    };
+    // AuctionStrategy enum defined in Core/DI/Interfaces/IAuctionHouse.h
 
     // Market condition assessment
     enum class MarketCondition : uint8
@@ -152,9 +145,9 @@ namespace Playerbot
         ~AuctionManager() override;
 
         // Fast atomic state queries (<0.001ms)
-        bool HasActiveAuctions() const { return _hasActiveAuctions.load(std::memory_order_acquire); }
-        bool IsAtAuctionHouse() const { return _isAtAuctionHouse.load(std::memory_order_acquire); }
-        uint32 GetActiveAuctionCount() const { return _activeAuctionCount.load(std::memory_order_acquire); }
+        bool HasActiveAuctions() const { return _hasActiveAuctions.load(::std::memory_order_acquire); }
+        bool IsAtAuctionHouse() const { return _isAtAuctionHouse.load(::std::memory_order_acquire); }
+        uint32 GetActiveAuctionCount() const { return _activeAuctionCount.load(::std::memory_order_acquire); }
 
         // Initialization and configuration
         void LoadConfiguration();
@@ -164,7 +157,7 @@ namespace Playerbot
         void AnalyzeMarketTrends(Player* bot);
         ItemPriceData GetItemPriceData(uint32 itemId) const;
         MarketCondition AssessMarketCondition(uint32 itemId) const;
-        std::vector<FlipOpportunity> FindFlipOpportunities(Player* bot, uint32 auctionHouseId);
+        ::std::vector<FlipOpportunity> FindFlipOpportunities(Player* bot, uint32 auctionHouseId);
 
         // Auction creation and management
         bool CreateAuction(Player* bot, Item* item, uint64 bidPrice, uint64 buyoutPrice,
@@ -189,7 +182,7 @@ namespace Playerbot
         // Bot auction tracking
         void RegisterBotAuction(Player* bot, uint32 auctionId, const BotAuctionData& data);
         void UnregisterBotAuction(Player* bot, uint32 auctionId);
-        std::vector<BotAuctionData> GetBotAuctions(Player* bot) const;
+        ::std::vector<BotAuctionData> GetBotAuctions(Player* bot) const;
         void UpdateBotAuctionStatus(Player* bot);
 
         // Statistics and reporting
@@ -237,12 +230,12 @@ namespace Playerbot
         uint64 CalculateDepositCost(Player* bot, Item* item, uint32 duration);
 
         // Atomic state flags for fast queries
-        std::atomic<bool> _hasActiveAuctions{false};
-        std::atomic<bool> _isAtAuctionHouse{false};
-        std::atomic<uint32> _activeAuctionCount{0};
+        ::std::atomic<bool> _hasActiveAuctions{false};
+        ::std::atomic<bool> _isAtAuctionHouse{false};
+        ::std::atomic<uint32> _activeAuctionCount{0};
 
         // Thread safety
-        mutable std::recursive_mutex _mutex;
+        mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::TRADE_MANAGER> _mutex;
 
         // Configuration
         uint32 _maxActiveAuctions;
@@ -256,12 +249,12 @@ namespace Playerbot
         uint32 _priceHistoryDays;
 
         // Market data cache
-        std::unordered_map<uint32, ItemPriceData> _priceCache;
-        std::unordered_map<uint32, std::vector<std::pair<TimePoint, uint64>>> _priceHistory;
+        ::std::unordered_map<uint32, ItemPriceData> _priceCache;
+        ::std::unordered_map<uint32, ::std::vector<::std::pair<TimePoint, uint64>>> _priceHistory;
 
         // Bot auction tracking
-        std::unordered_map<ObjectGuid, std::vector<BotAuctionData>> _botAuctions;
-        std::unordered_map<ObjectGuid, AuctionHouseStats> _botStats;
+        ::std::unordered_map<ObjectGuid, ::std::vector<BotAuctionData>> _botAuctions;
+        ::std::unordered_map<ObjectGuid, AuctionHouseStats> _botStats;
 
         // Update tracking
         uint32 _updateTimer;

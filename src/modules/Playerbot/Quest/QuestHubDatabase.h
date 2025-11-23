@@ -19,6 +19,7 @@
 #define _PLAYERBOT_QUEST_HUB_DATABASE_H
 
 #include "Common.h"
+#include "Threading/LockHierarchy.h"
 #include "ObjectGuid.h"
 #include "Position.h"
 #include "SharedDefines.h"
@@ -67,13 +68,13 @@ namespace Playerbot
         uint32 factionMask = 0;
 
         /// Human-readable name for debugging and logging
-        std::string name;
+        ::std::string name;
 
         /// List of quest IDs available at this hub (cached from database)
-        std::vector<uint32> questIds;
+        ::std::vector<uint32> questIds;
 
         /// List of creature entry IDs that give quests in this hub
-        std::vector<uint32> creatureIds;
+        ::std::vector<uint32> creatureIds;
 
         /// Radius in yards that defines the hub's geographic extent
         float radius = 50.0f;
@@ -219,7 +220,7 @@ namespace Playerbot
          *
          * @note Returned pointers are valid until next Reload() call
          */
-        [[nodiscard]] std::vector<QuestHub const*> GetQuestHubsForPlayer(
+        [[nodiscard]] ::std::vector<QuestHub const*> GetQuestHubsForPlayer(
             Player const* player,
             uint32 maxCount = 5) const;
 
@@ -256,7 +257,7 @@ namespace Playerbot
          *              Typical: < 0.2ms for 500 hubs
          * Thread-safety: Thread-safe (uses shared lock)
          */
-        [[nodiscard]] std::vector<QuestHub const*> GetQuestHubsInZone(uint32 zoneId) const;
+        [[nodiscard]] ::std::vector<QuestHub const*> GetQuestHubsInZone(uint32 zoneId) const;
 
         /**
          * @brief Gets the quest hub containing the specified position
@@ -271,7 +272,7 @@ namespace Playerbot
          */
         [[nodiscard]] QuestHub const* GetQuestHubAtPosition(
             Position const& pos,
-            std::optional<uint32> zoneId = std::nullopt) const;
+            ::std::optional<uint32> zoneId = ::std::nullopt) const;
 
         /**
          * @brief Gets total number of quest hubs in the database
@@ -367,19 +368,19 @@ namespace Playerbot
         struct QuestGiverData;
 
         /// All quest hubs (primary storage)
-        std::vector<QuestHub> _questHubs;
+        ::std::vector<QuestHub> _questHubs;
 
         /// Temporary storage for quest giver data during initialization
-        std::vector<QuestGiverData> _tempQuestGivers;
+        ::std::vector<QuestGiverData> _tempQuestGivers;
 
         /// Fast lookup by hub ID
-        std::unordered_map<uint32, size_t> _hubIdToIndex;
+        ::std::unordered_map<uint32, size_t> _hubIdToIndex;
 
         /// Spatial index: zone ID -> hub indices
-        std::unordered_map<uint32, std::vector<size_t>> _zoneIndex;
+        ::std::unordered_map<uint32, ::std::vector<size_t>> _zoneIndex;
 
         /// Reader-writer lock for thread-safe access
-        mutable std::shared_mutex _mutex;
+        mutable Playerbot::OrderedSharedMutex<Playerbot::LockOrder::QUEST_MANAGER> _mutex;
 
         /// Initialization flag
         bool _initialized = false;

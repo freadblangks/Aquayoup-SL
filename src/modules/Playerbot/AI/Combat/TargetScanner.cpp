@@ -23,6 +23,7 @@
 #include "ObjectAccessor.h"
 #include "Map.h"
 #include "Spatial/SpatialGridManager.h"
+#include "GameTime.h"
 #include <algorithm>
 
 namespace Playerbot
@@ -39,7 +40,7 @@ namespace Playerbot
         m_avoidElites(false)
     {
         // Configure based on class
-        switch (m_bot->GetClass())
+    switch (m_bot->GetClass())
         {
             case CLASS_HUNTER:
                 m_baseRange = 35.0f;
@@ -115,7 +116,7 @@ namespace Playerbot
         }
 
         // Adjust for low level (more cautious)
-        if (m_bot->GetLevel() < 20)
+    if (m_bot->GetLevel() < 20)
         {
             m_baseRange *= 0.75f;
             m_maxRange *= 0.75f;
@@ -124,7 +125,6 @@ namespace Playerbot
     }
 
     TargetScanner::~TargetScanner() = default;
-
     ObjectGuid TargetScanner::FindNearestHostile(float range)
     {
         if (m_scanMode == ScanMode::PASSIVE)
@@ -148,7 +148,7 @@ namespace Playerbot
         }
 
         // CRITICAL FIX: Use FindAllHostiles() which returns GUIDs
-        std::vector<ObjectGuid> hostileGuids = FindAllHostiles(range);
+        ::std::vector<ObjectGuid> hostileGuids = FindAllHostiles(range);
         if (hostileGuids.empty())
             return ObjectGuid::Empty;
 
@@ -156,13 +156,13 @@ namespace Playerbot
         ObjectGuid nearestGuid = ObjectGuid::Empty;
         float nearestDist = range + 1.0f;
 
-        std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
+        ::std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
             spatialGrid->QueryNearbyCreatures(m_bot->GetPosition(), range);
 
         for (ObjectGuid const& guid : hostileGuids)
         {
             // Find snapshot for this GUID
-            auto it = std::find_if(nearbyCreatures.begin(), nearbyCreatures.end(),
+            auto it = ::std::find_if(nearbyCreatures.begin(), nearbyCreatures.end(),
                 [&guid](DoubleBufferedSpatialGrid::CreatureSnapshot const& c) { return c.guid == guid; });
 
             if (it == nearbyCreatures.end())
@@ -198,7 +198,7 @@ namespace Playerbot
             return ObjectGuid::Empty;
 
         // CRITICAL FIX: FindAllHostiles() now returns GUIDs instead of Unit* pointers
-        std::vector<ObjectGuid> hostileGuids = FindAllHostiles(range);
+        ::std::vector<ObjectGuid> hostileGuids = FindAllHostiles(range);
         if (hostileGuids.empty())
             return ObjectGuid::Empty;
 
@@ -212,20 +212,20 @@ namespace Playerbot
             bool operator<(const PriorityTarget& other) const
             {
                 // Higher priority first, then closer distance
-                if (priority != other.priority)
+    if (priority != other.priority)
                     return priority > other.priority;
                 return distance < other.distance;
             }
         };
 
-        std::vector<PriorityTarget> priorityTargets;
-        std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
+        ::std::vector<PriorityTarget> priorityTargets;
+        ::std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
             spatialGrid->QueryNearbyCreatures(m_bot->GetPosition(), range);
 
         for (ObjectGuid const& guid : hostileGuids)
         {
             // Find snapshot for this GUID
-            auto it = std::find_if(nearbyCreatures.begin(), nearbyCreatures.end(),
+            auto it = ::std::find_if(nearbyCreatures.begin(), nearbyCreatures.end(),
                 [&guid](DoubleBufferedSpatialGrid::CreatureSnapshot const& c) { return c.guid == guid; });
 
             if (it == nearbyCreatures.end())
@@ -235,7 +235,7 @@ namespace Playerbot
             uint8 priority = PRIORITY_NORMAL;
 
             // Prioritize creatures attacking bot or group members
-            if (it->victim == m_bot->GetGUID())
+    if (it->victim == m_bot->GetGUID())
                 priority = PRIORITY_CRITICAL;
             else if (it->isInCombat)
                 priority = PRIORITY_NORMAL;
@@ -243,10 +243,10 @@ namespace Playerbot
                 priority = PRIORITY_TRIVIAL;
 
             // Prioritize elites and world bosses
-            if (it->isWorldBoss)
+    if (it->isWorldBoss)
                 priority = PRIORITY_CRITICAL;
             else if (it->isElite)
-                priority = std::min<uint8>(priority + 2, PRIORITY_ELITE);
+                priority = ::std::min<uint8>(priority + 2, PRIORITY_ELITE);
 
             PriorityTarget pt;
             pt.guid = guid;
@@ -259,15 +259,15 @@ namespace Playerbot
             return ObjectGuid::Empty;
 
         // Sort by priority and distance
-        std::sort(priorityTargets.begin(), priorityTargets.end());
+        ::std::sort(priorityTargets.begin(), priorityTargets.end());
 
         // Return best target GUID - main thread will validate hostility and queue action
         return priorityTargets.front().guid;
     }
 
-    std::vector<ObjectGuid> TargetScanner::FindAllHostiles(float range)
+    ::std::vector<ObjectGuid> TargetScanner::FindAllHostiles(float range)
     {
-        std::vector<ObjectGuid> hostileGuids;
+        ::std::vector<ObjectGuid> hostileGuids;
 
         if (m_scanMode == ScanMode::PASSIVE)
             return hostileGuids;
@@ -327,23 +327,20 @@ namespace Playerbot
         //                  → Main thread resolves GUID → Unit* and queues actions
         //                  → ZERO Map access from worker threads → NO DEADLOCKS!
         // ===========================================================================
-
         // Query nearby creature SNAPSHOTS (lock-free, thread-safe!)
-        std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
+        ::std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
             spatialGrid->QueryNearbyCreatures(m_bot->GetPosition(), range);
 
         TC_LOG_TRACE("playerbot.scanner",
             "Bot {} spatial query found {} candidate creatures within {}yd",
             m_bot->GetName(), nearbyCreatures.size(), range);
-
         // Process snapshots - validation done WITHOUT ObjectAccessor/Map calls!
         // Hostility check deferred to main thread (requires Map access)
-        for (DoubleBufferedSpatialGrid::CreatureSnapshot const& creature : nearbyCreatures)
+    for (DoubleBufferedSpatialGrid::CreatureSnapshot const& creature : nearbyCreatures)
         {
             // Validate using snapshot data only (distance, level, alive, blacklist, combat state)
-            if (!IsValidTargetSnapshot(creature))
+    if (!IsValidTargetSnapshot(creature))
                 continue;
-
             // Store GUID - main thread will validate hostility and queue attack action
             // NO ObjectAccessor::GetUnit() call → THREAD-SAFE!
             hostileGuids.push_back(creature.guid);
@@ -352,7 +349,6 @@ namespace Playerbot
         TC_LOG_TRACE("playerbot.scanner",
             "Bot {} found {} valid hostile candidate GUIDs after snapshot filtering",
             m_bot->GetName(), hostileGuids.size());
-
         return hostileGuids;
     }
 
@@ -365,11 +361,11 @@ namespace Playerbot
     bool TargetScanner::IsValidTargetSnapshot(DoubleBufferedSpatialGrid::CreatureSnapshot const& creature) const
     {
         // Basic validation
-        if (!creature.IsValid() || creature.isDead || creature.health == 0)
+    if (!creature.IsValid() || creature.isDead || creature.health == 0)
             return false;
 
         // Check if blacklisted (uses thread-safe GUID check)
-        if (this->IsBlacklisted(creature.guid))
+    if (this->IsBlacklisted(creature.guid))
             return false;
 
         // NOTE: Hostility check (IsHostileTo) requires Unit* pointer, so we defer it
@@ -378,12 +374,12 @@ namespace Playerbot
 
         // Don't attack creatures already in combat with someone else (unless we're in a group)
         // This prevents bots from "stealing" kills
-        if (creature.isInCombat && creature.victim != m_bot->GetGUID() &&
+    if (creature.isInCombat && creature.victim != m_bot->GetGUID() &&
             !m_bot->GetGroup())
             return false;
 
         // Level check - don't attack creatures too high level (10+ levels above)
-        if (creature.level > m_bot->GetLevel() + 10)
+    if (creature.level > m_bot->GetLevel() + 10)
             return false;
 
         // TODO: LOS check would require raycasting, which needs Map access
@@ -403,40 +399,96 @@ namespace Playerbot
         if (!target || !target->IsAlive())
             return false;
 
-        // Check if unit is attackable
-        if (!m_bot->IsValidAttackTarget(target))
+        float maxRange = GetMaxEngageRange();
+        float maxRangeSq = maxRange * maxRange;
+
+        // Too far away (using squared distance for comparison)
+    if (m_bot->GetExactDistSq(target) > maxRangeSq)
             return false;
+
+        // Check if path exists (basic check)
+    if (!m_bot->IsWithinLOSInMap(target))
+            return false;
+
+        float dist = m_bot->GetExactDist(target);
+
+        // For ranged classes, check if we're in range
+    if (m_preferRanged)
+        {
+            // Check if we have a ranged attack spell in range
+            // This is simplified - in production you'd check actual spell ranges
+    if (dist <= 36.0f)
+                return true;
+        }
+
+        // For melee, need to be able to get close
+    if (dist <= 5.0f || m_bot->IsWithinMeleeRange(target))
+            return true;
+
+        // Can we get there?
+        return dist <= 40.0f;  // Reasonable chase distance
+    }
+
+    uint8 TargetScanner::GetTargetPriority(Unit* target) const
+    {
+        if (!target || !target->IsAlive())
+            return PRIORITY_AVOID;
+
+        // Check if unit is attackable
+    if (!m_bot->IsValidAttackTarget(target))
+            return PRIORITY_AVOID;
 
         // Check if blacklisted
-        if (IsBlacklisted(target->GetGUID()))
-            return false;
+    if (IsBlacklisted(target->GetGUID()))
+            return PRIORITY_AVOID;
 
         // Don't attack friendly units
-        if (m_bot->IsFriendlyTo(target))
-            return false;
+    if (m_bot->IsFriendlyTo(target))
+            return PRIORITY_AVOID;
 
         // Don't attack units we can't see
-        if (!m_bot->IsWithinLOSInMap(target))
-            return false;
+    if (!m_bot->IsWithinLOSInMap(target))
+            return PRIORITY_AVOID;
 
         // Don't attack critters unless they're hostile
-        if (target->GetTypeId() == TYPEID_UNIT)
+    if (target->GetTypeId() == TYPEID_UNIT)
         {
             Creature* creature = target->ToCreature();
             if (creature->GetCreatureTemplate()->type == CREATURE_TYPE_CRITTER &&
                 !creature->IsHostileTo(m_bot))
-                return false;
+                return PRIORITY_AVOID;
         }
 
         // Don't attack units that are evading
-        if (target->HasUnitState(UNIT_STATE_EVADE))
-            return false;
+    if (target->HasUnitState(UNIT_STATE_EVADE))
+            return PRIORITY_AVOID;
 
         // Don't attack units that are immune
-        if (target->HasUnitState(UNIT_STATE_UNATTACKABLE))
-            return false;
+    if (target->HasUnitState(UNIT_STATE_UNATTACKABLE))
+            return PRIORITY_AVOID;
 
-        return true;
+        // Attacking bot or allies = highest priority
+    if (IsAttackingGroup(target))
+            return PRIORITY_CRITICAL;
+
+        // Casters and healers
+    if (IsCaster(target) || IsHealer(target))
+            return PRIORITY_CASTER;
+
+        // Elite mobs
+    if (target->GetTypeId() == TYPEID_UNIT)
+        {
+            Creature* creature = target->ToCreature();
+            if (creature->IsElite() || creature->IsDungeonBoss())
+                return PRIORITY_ELITE;
+        }
+
+        // Level difference
+        int32 levelDiff = int32(target->GetLevel()) - int32(m_bot->GetLevel());
+        if (levelDiff < -7)
+            return PRIORITY_TRIVIAL;
+
+        return PRIORITY_NORMAL;
     }
 
     bool TargetScanner::ShouldEngage(Unit* target) const
@@ -445,13 +497,13 @@ namespace Playerbot
             return false;
 
         // Check scan mode
-        if (m_scanMode == ScanMode::PASSIVE)
+    if (m_scanMode == ScanMode::PASSIVE)
             return false;
 
         if (m_scanMode == ScanMode::DEFENSIVE)
         {
             // Only engage if target is attacking us or our group
-            if (!IsAttackingGroup(target))
+    if (!IsAttackingGroup(target))
                 return false;
         }
 
@@ -461,56 +513,53 @@ namespace Playerbot
             return false;
 
         // Be more cautious at low health
-        if (healthPct < 50.0f && target->GetLevel() > m_bot->GetLevel())
+    if (healthPct < 50.0f && target->GetLevel() > m_bot->GetLevel())
             return false;
 
         // Level difference check
         int32 levelDiff = int32(target->GetLevel()) - int32(m_bot->GetLevel());
-
         // Don't attack targets too high level
-        if (levelDiff > 3)
+    if (levelDiff > 3)
             return false;
 
         // Grey level mobs (too low level)
-        if (levelDiff < -7 && m_bot->GetLevel() > 10)
+    if (levelDiff < -7 && m_bot->GetLevel() > 10)
         {
             // Only engage if they're attacking us
-            if (!IsAttackingGroup(target))
+    if (!IsAttackingGroup(target))
                 return false;
         }
-
         // Elite checks
-        if (target->GetTypeId() == TYPEID_UNIT)
+    if (target->GetTypeId() == TYPEID_UNIT)
         {
             Creature* creature = target->ToCreature();
             bool isElite = creature->IsElite() || creature->IsDungeonBoss();
-
             if (isElite)
             {
                 // Don't solo elites if configured to avoid them
-                if (m_avoidElites && !m_bot->GetGroup())
+    if (m_avoidElites && !m_bot->GetGroup())
                     return false;
 
                 // Don't solo elites more than 1 level higher
-                if (levelDiff > 1 && !m_bot->GetGroup())
+    if (levelDiff > 1 && !m_bot->GetGroup())
                     return false;
 
                 // Don't engage elite if low on resources
-                if (m_bot->GetPowerPct(m_bot->GetPowerType()) < 50.0f)
+    if (m_bot->GetPowerPct(m_bot->GetPowerType()) < 50.0f)
                     return false;
             }
         }
 
         // Don't engage if target is already fighting multiple players
-        if (IsTargetInCombatWithOthers(target))
+    if (IsTargetInCombatWithOthers(target))
         {
             // Unless it's attacking our group
-            if (!IsAttackingGroup(target))
+    if (!IsAttackingGroup(target))
                 return false;
         }
 
         // Check if we can actually reach the target
-        if (!CanReachTarget(target))
+    if (!CanReachTarget(target))
             return false;
 
         return true;
@@ -523,67 +572,32 @@ namespace Playerbot
 
         float maxRange = GetMaxEngageRange();
         float maxRangeSq = maxRange * maxRange;
-
         // Too far away (using squared distance for comparison)
-        if (m_bot->GetExactDistSq(target) > maxRangeSq)
+    if (m_bot->GetExactDistSq(target) > maxRangeSq)
             return false;
 
         // Check if path exists (basic check)
-        if (!m_bot->IsWithinLOSInMap(target))
+    if (!m_bot->IsWithinLOSInMap(target))
             return false;
 
+        // Calculate actual distance for range checks
+        float dist = m_bot->GetExactDist(target);
+
         // For ranged classes, check if we're in range
-        if (m_preferRanged)
+    if (m_preferRanged)
         {
             // Check if we have a ranged attack spell in range
             // This is simplified - in production you'd check actual spell ranges
-            if (dist <= 36.0f)
+    if (dist <= 36.0f)
                 return true;
         }
 
         // For melee, need to be able to get close
-        if (dist <= 5.0f || m_bot->IsWithinMeleeRange(target))
+    if (dist <= 5.0f || m_bot->IsWithinMeleeRange(target))
             return true;
 
         // Can we get there?
         return dist <= 40.0f;  // Reasonable chase distance
-    }
-
-    uint8 TargetScanner::GetTargetPriority(Unit* target) const
-    {
-        if (!target)
-            return PRIORITY_AVOID;
-
-        // Highest priority: attacking us or group
-        if (IsAttackingGroup(target))
-            return PRIORITY_CRITICAL;
-
-        // High priority: casters and healers
-        if (IsCaster(target) || IsHealer(target))
-            return PRIORITY_CASTER;
-
-        // Check creature rank
-        if (target->GetTypeId() == TYPEID_UNIT)
-        {
-            Creature* creature = target->ToCreature();
-
-            // Elite mobs
-            if (creature->IsElite() || creature->IsDungeonBoss())
-                return PRIORITY_ELITE;
-
-            // Check level difference
-            int32 levelDiff = int32(target->GetLevel()) - int32(m_bot->GetLevel());
-
-            // Grey mobs (trivial)
-            if (levelDiff < -7)
-                return PRIORITY_TRIVIAL;
-
-            // Red mobs (dangerous)
-            if (levelDiff > 3)
-                return PRIORITY_AVOID;
-        }
-
-        return PRIORITY_NORMAL;
     }
 
     float TargetScanner::GetThreatValue(Unit* target) const
@@ -598,7 +612,7 @@ namespace Playerbot
         threat = 100.0f + (levelDiff * 10.0f);
 
         // Increase threat for elites
-        if (target->GetTypeId() == TYPEID_UNIT)
+    if (target->GetTypeId() == TYPEID_UNIT)
         {
             Creature* creature = target->ToCreature();
             if (creature->IsElite())
@@ -608,27 +622,25 @@ namespace Playerbot
         }
 
         // Increase threat for casters
-        if (IsCaster(target))
+    if (IsCaster(target))
             threat *= 1.5f;
-
         // Increase threat if target is attacking us
-        if (target->GetVictim() == m_bot)
+    if (target->GetVictim() == m_bot)
             threat *= 3.0f;
 
         // Increase threat if attacking group member
-        if (IsAttackingGroup(target))
+    if (IsAttackingGroup(target))
             threat *= 2.0f;
 
         // Reduce threat based on health
         threat *= target->GetHealthPct() / 100.0f;
-
         return threat;
     }
 
     float TargetScanner::GetScanRadius() const
     {
         // In combat, scan closer
-        if (m_bot->IsInCombat())
+    if (m_bot->IsInCombat())
             return m_baseRange * 0.75f;
 
         // Use base range
@@ -648,7 +660,7 @@ namespace Playerbot
         uint32 interval = m_scanInterval;
 
         // Scan more frequently in combat
-        if (m_bot->IsInCombat())
+    if (m_bot->IsInCombat())
             interval = SCAN_INTERVAL_COMBAT;
         // Scan less frequently when idle
         else if (!m_bot->isMoving())
@@ -668,13 +680,12 @@ namespace Playerbot
             return false;
 
         Unit* victim = target->GetVictim();
-
         // Attacking bot
-        if (victim == m_bot)
+    if (victim == m_bot)
             return true;
 
         // Attacking group member
-        if (Group* group = m_bot->GetGroup())
+    if (Group* group = m_bot->GetGroup())
         {
             if (group->IsMember(victim->GetGUID()))
                 return true;
@@ -689,11 +700,11 @@ namespace Playerbot
             return false;
 
         // Check if currently casting
-        if (target->HasUnitState(UNIT_STATE_CASTING))
+    if (target->HasUnitState(UNIT_STATE_CASTING))
             return true;
 
         // Check creature type
-        if (target->GetTypeId() == TYPEID_UNIT)
+    if (target->GetTypeId() == TYPEID_UNIT)
         {
             Creature* creature = target->ToCreature();
             if (creature->GetCreatureTemplate()->unit_class == 2 || // Paladin
@@ -711,7 +722,7 @@ namespace Playerbot
             return false;
 
         // Simple check - priests and paladins are often healers
-        if (target->GetTypeId() == TYPEID_UNIT)
+    if (target->GetTypeId() == TYPEID_UNIT)
         {
             Creature* creature = target->ToCreature();
             if (creature->GetCreatureTemplate()->unit_class == 5 || // Priest
@@ -731,7 +742,7 @@ namespace Playerbot
             return false;
 
         // Elite or higher
-        if (target->GetTypeId() == TYPEID_UNIT)
+    if (target->GetTypeId() == TYPEID_UNIT)
         {
             Creature* creature = target->ToCreature();
             if (creature->IsElite() || creature->IsDungeonBoss())
@@ -739,7 +750,7 @@ namespace Playerbot
         }
 
         // Much higher level
-        if (target->GetLevel() > m_bot->GetLevel() + 2)
+    if (target->GetLevel() > m_bot->GetLevel() + 2)
             return true;
 
         // Multiple adds - simplified check without calling non-const method
@@ -751,10 +762,10 @@ namespace Playerbot
 
     void TargetScanner::AddToBlacklist(ObjectGuid guid, uint32 duration)
     {
-        uint32 expireTime = getMSTime() + duration;
+        uint32 expireTime = GameTime::GetGameTimeMS() + duration;
 
         // Check if already blacklisted
-        for (auto& entry : m_blacklist)
+    for (auto& entry : m_blacklist)
         {
             if (entry.guid == guid)
             {
@@ -806,16 +817,15 @@ namespace Playerbot
         float baseDistance = m_preferRanged ? 30.0f : 5.0f;
 
         // Adjust for target type
-        if (target->GetTypeId() == TYPEID_UNIT)
+    if (target->GetTypeId() == TYPEID_UNIT)
         {
             Creature* creature = target->ToCreature();
-
             // Stay further from elites
-            if (creature->IsElite())
+    if (creature->IsElite())
                 baseDistance += 5.0f;
 
             // Get closer to casters to interrupt
-            if (IsCaster(target) && !m_preferRanged)
+    if (IsCaster(target) && !m_preferRanged)
                 baseDistance = 5.0f;
         }
 
@@ -840,10 +850,10 @@ namespace Playerbot
         if (victim->GetTypeId() == TYPEID_PLAYER)
         {
             // Not us
-            if (victim != m_bot)
+    if (victim != m_bot)
             {
                 // Not in our group
-                if (!m_bot->GetGroup() || !m_bot->GetGroup()->IsMember(victim->GetGUID()))
+    if (!m_bot->GetGroup() || !m_bot->GetGroup()->IsMember(victim->GetGUID()))
                     return true;
             }
         }

@@ -31,6 +31,7 @@
 #include <algorithm>
 #include "../Spatial/SpatialGridManager.h"  // Lock-free spatial grid for deadlock fix
 #include "../Spatial/SpatialGridQueryHelpers.h"  // Thread-safe spatial queries
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -70,10 +71,10 @@ namespace Playerbot
         m_currentInteraction.timeout = INTERACTION_TIMEOUT;
 
         // Initialize vendor interaction manager
-        if (m_bot)
+    if (m_bot)
         {
-            m_vendorManager = std::make_unique<VendorInteractionManager>(m_bot);
-            m_flightMasterManager = std::make_unique<FlightMasterManager>(m_bot);
+            m_vendorManager = ::std::make_unique<VendorInteractionManager>(m_bot);
+            m_flightMasterManager = ::std::make_unique<FlightMasterManager>(m_bot);
         }
     }
 
@@ -96,10 +97,10 @@ namespace Playerbot
         StartPerformanceTimer();
 
         // Update NPC cache periodically
-        if (getMSTime() - m_lastNPCScan > m_npcScanInterval)
+    if (GameTime::GetGameTimeMS() - m_lastNPCScan > m_npcScanInterval)
         {
             UpdateNPCCache();
-            m_lastNPCScan = getMSTime();
+            m_lastNPCScan = GameTime::GetGameTimeMS();
         }
 
         // Update interaction phase
@@ -135,11 +136,11 @@ namespace Playerbot
         bool success = false;
 
         // Accept available quests
-        if (AcceptAvailableQuests(questGiver))
+    if (AcceptAvailableQuests(questGiver))
             success = true;
 
         // Turn in completed quests
-        if (TurnInCompletedQuests(questGiver))
+    if (TurnInCompletedQuests(questGiver))
             success = true;
 
         EndInteraction();
@@ -152,9 +153,8 @@ namespace Playerbot
             return false;
 
         bool acceptedAny = false;
-
         // Get available quests from this NPC
-        for (uint32 questId : sObjectMgr->GetCreatureQuestRelations(questGiver->GetEntry()))
+    for (uint32 questId : sObjectMgr->GetCreatureQuestRelations(questGiver->GetEntry()))
         {
             if (m_bot->CanAddQuest(sObjectMgr->GetQuestTemplate(questId), true))
             {
@@ -178,7 +178,7 @@ namespace Playerbot
         bool completedAny = false;
 
         // Check all active quests
-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
         {
             uint32 questId = m_bot->GetQuestSlotQuestId(slot);
             if (questId == 0)
@@ -202,7 +202,7 @@ namespace Playerbot
         bool turnedInAny = false;
 
         // Get quests this NPC can complete
-        for (uint32 questId : sObjectMgr->GetCreatureQuestInvolvedRelations(questGiver->GetEntry()))
+    for (uint32 questId : sObjectMgr->GetCreatureQuestInvolvedRelations(questGiver->GetEntry()))
         {
             Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
             if (!quest)
@@ -248,22 +248,21 @@ namespace Playerbot
         bool success = false;
 
         // Sell junk items if enabled
-        if (m_autoSellJunk && SellToVendor(vendor))
+    if (m_autoSellJunk && SellToVendor(vendor))
             success = true;
 
         // Repair if needed
-        if (m_autoRepair && RepairAtVendor(vendor))
+    if (m_autoRepair && RepairAtVendor(vendor))
             success = true;
-
         // Restock reagents if enabled
-        if (m_autoRestockReagents && RestockReagents(vendor))
+    if (m_autoRestockReagents && RestockReagents(vendor))
             success = true;
 
         EndInteraction();
         return success;
     }
 
-    bool NPCInteractionManager::BuyFromVendor(Creature* vendor, std::vector<uint32> const& itemsToBuy)
+    bool NPCInteractionManager::BuyFromVendor(Creature* vendor, ::std::vector<uint32> const& itemsToBuy)
     {
         if (!vendor || itemsToBuy.empty() || !m_vendorManager)
             return false;
@@ -292,7 +291,7 @@ namespace Playerbot
         if (!vendor)
             return false;
 
-        std::vector<Item*> junkItems = GetJunkItems();
+        ::std::vector<Item*> junkItems = GetJunkItems();
         if (junkItems.empty())
             return false;
 
@@ -330,7 +329,6 @@ namespace Playerbot
         uint32 repairCost = GetRepairCost();
         if (repairCost == 0 || repairCost > m_maxRepairCost)
             return false;
-
         if (m_bot->GetMoney() < repairCost)
             return false;
 
@@ -364,7 +362,6 @@ namespace Playerbot
 
         return false;
     }
-
     // Trainer Interactions
     bool NPCInteractionManager::InteractWithTrainer(Creature* trainer)
     {
@@ -373,7 +370,6 @@ namespace Playerbot
 
         if (!StartInteraction(trainer))
             return false;
-
         bool success = LearnAvailableSpells(trainer);
 
         EndInteraction();
@@ -388,7 +384,7 @@ namespace Playerbot
         if (!m_autoTrain || !CanAffordTraining())
             return false;
 
-        std::vector<TrainerSpellInfo> spells = EvaluateTrainerSpells(trainer);
+        ::std::vector<TrainerSpellInfo> spells = EvaluateTrainerSpells(trainer);
         if (spells.empty())
             return false;
 
@@ -398,7 +394,6 @@ namespace Playerbot
         {
             if (!spellInfo.canLearn)
                 continue;
-
             if (m_bot->GetMoney() < spellInfo.cost)
                 break;
 
@@ -415,17 +410,16 @@ namespace Playerbot
 
         return learnedAny;
     }
-
     bool NPCInteractionManager::CanAffordTraining() const
     {
         return m_bot->GetMoney() >= m_maxTrainingCost;
     }
 
-    std::vector<uint32> NPCInteractionManager::GetAffordableSpells(Creature* trainer) const
+    ::std::vector<uint32> NPCInteractionManager::GetAffordableSpells(Creature* trainer) const
     {
-        std::vector<uint32> affordable;
+        ::std::vector<uint32> affordable;
 
-        std::vector<TrainerSpellInfo> spells = EvaluateTrainerSpells(trainer);
+        ::std::vector<TrainerSpellInfo> spells = EvaluateTrainerSpells(trainer);
         for (auto const& spellInfo : spells)
         {
             if (spellInfo.canLearn && m_bot->GetMoney() >= spellInfo.cost)
@@ -460,7 +454,6 @@ namespace Playerbot
 
         return true;
     }
-
     bool NPCInteractionManager::InteractWithFlightMaster(Creature* flightMaster)
     {
         if (!flightMaster || !CanInteractWithNPC(flightMaster) || !m_flightMasterManager)
@@ -472,7 +465,7 @@ namespace Playerbot
         bool success = false;
 
         // Learn flight path at this location
-        if (m_flightMasterManager->LearnFlightPath(flightMaster))
+    if (m_flightMasterManager->LearnFlightPath(flightMaster))
         {
             TC_LOG_DEBUG("bot.playerbot", "Bot %s: Learned new flight path at flight master %u",
                 m_bot->GetName().c_str(), flightMaster->GetEntry());
@@ -480,7 +473,7 @@ namespace Playerbot
         }
 
         // Attempt smart flight to best destination
-        if (m_flightMasterManager->SmartFlight(flightMaster))
+    if (m_flightMasterManager->SmartFlight(flightMaster))
         {
             TC_LOG_DEBUG("bot.playerbot", "Bot %s: Successfully initiated smart flight from flight master %u",
                 m_bot->GetName().c_str(), flightMaster->GetEntry());
@@ -544,7 +537,7 @@ namespace Playerbot
     // NPC Discovery
     Creature* NPCInteractionManager::FindNearestQuestGiver() const
     {
-        float minDistance = std::numeric_limits<float>::max();
+        float minDistance = ::std::numeric_limits<float>::max();
         Creature* nearest = nullptr;
 
         for (auto const& npcInfo : m_nearbyNPCs)
@@ -577,7 +570,7 @@ namespace Playerbot
 
     Creature* NPCInteractionManager::FindNearestVendor() const
     {
-        float minDistance = std::numeric_limits<float>::max();
+        float minDistance = ::std::numeric_limits<float>::max();
         Creature* nearest = nullptr;
 
         for (auto const& npcInfo : m_nearbyNPCs)
@@ -610,7 +603,7 @@ namespace Playerbot
 
     Creature* NPCInteractionManager::FindNearestTrainer() const
     {
-        float minDistance = std::numeric_limits<float>::max();
+        float minDistance = ::std::numeric_limits<float>::max();
         Creature* nearest = nullptr;
 
         for (auto const& npcInfo : m_nearbyNPCs)
@@ -643,7 +636,7 @@ namespace Playerbot
 
     Creature* NPCInteractionManager::FindNearestRepairVendor() const
     {
-        float minDistance = std::numeric_limits<float>::max();
+        float minDistance = ::std::numeric_limits<float>::max();
         Creature* nearest = nullptr;
 
         for (auto const& npcInfo : m_nearbyNPCs)
@@ -676,7 +669,7 @@ namespace Playerbot
 
     Creature* NPCInteractionManager::FindNearestInnkeeper() const
     {
-        float minDistance = std::numeric_limits<float>::max();
+        float minDistance = ::std::numeric_limits<float>::max();
         Creature* nearest = nullptr;
 
         for (auto const& npcInfo : m_nearbyNPCs)
@@ -709,7 +702,7 @@ namespace Playerbot
 
     Creature* NPCInteractionManager::FindNearestFlightMaster() const
     {
-        float minDistance = std::numeric_limits<float>::max();
+        float minDistance = ::std::numeric_limits<float>::max();
         Creature* nearest = nullptr;
 
         for (auto const& npcInfo : m_nearbyNPCs)
@@ -742,7 +735,7 @@ namespace Playerbot
 
     Creature* NPCInteractionManager::FindNearestAuctioneer() const
     {
-        float minDistance = std::numeric_limits<float>::max();
+        float minDistance = ::std::numeric_limits<float>::max();
         Creature* nearest = nullptr;
 
         for (auto const& npcInfo : m_nearbyNPCs)
@@ -807,7 +800,7 @@ namespace Playerbot
         auto it = m_lastInteractionTime.find(npc->GetGUID());
         if (it != m_lastInteractionTime.end())
         {
-            if (getMSTime() - it->second < m_interactionCooldown)
+            if (GameTime::GetGameTimeMS() - it->second < m_interactionCooldown)
                 return false;
         }
 
@@ -846,7 +839,7 @@ namespace Playerbot
     bool NPCInteractionManager::NeedToBuyReagents() const
     {
         // Simplified - check if we have less than required amount
-        std::vector<uint32> requiredReagents = GetRequiredReagents();
+        ::std::vector<uint32> requiredReagents = GetRequiredReagents();
         return !requiredReagents.empty();
     }
 
@@ -885,7 +878,6 @@ namespace Playerbot
     {
         // Check if we're at a level where new spells are available
         uint32 botLevel = m_bot->GetLevel();
-
         // Every 2 levels, check for training
         return (botLevel % 2 == 0);
     }
@@ -895,7 +887,7 @@ namespace Playerbot
         if (!trainer)
             return 0;
 
-        std::vector<TrainerSpellInfo> spells = EvaluateTrainerSpells(trainer);
+        ::std::vector<TrainerSpellInfo> spells = EvaluateTrainerSpells(trainer);
 
         uint32 totalCost = 0;
         for (auto const& spellInfo : spells)
@@ -1025,7 +1017,6 @@ namespace Playerbot
 
         return NPCType::UNKNOWN;
     }
-
     bool NPCInteractionManager::IsQuestGiver(Creature* npc) const
     {
         return npc && npc->IsQuestGiver();
@@ -1062,9 +1053,9 @@ namespace Playerbot
     }
 
     // Vendor Logic
-    std::vector<NPCInteractionManager::VendorItemInfo> NPCInteractionManager::EvaluateVendorItems(Creature* vendor) const
+    ::std::vector<NPCInteractionManager::VendorItemInfo> NPCInteractionManager::EvaluateVendorItems(Creature* vendor) const
     {
-        std::vector<VendorItemInfo> items;
+        ::std::vector<VendorItemInfo> items;
 
         if (!vendor || !IsVendor(vendor))
             return items;
@@ -1075,12 +1066,11 @@ namespace Playerbot
         return items;
     }
 
-    std::vector<Item*> NPCInteractionManager::GetJunkItems() const
+    ::std::vector<Item*> NPCInteractionManager::GetJunkItems() const
     {
-        std::vector<Item*> junkItems;
-
+        ::std::vector<Item*> junkItems;
         // Check inventory
-        for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+    for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
         {
             Item* item = m_bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
             if (item && IsJunkItem(item))
@@ -1088,7 +1078,7 @@ namespace Playerbot
         }
 
         // Check bags
-        for (uint8 bag = INVENTORY_SLOT_BAG_START; bag < INVENTORY_SLOT_BAG_END; ++bag)
+    for (uint8 bag = INVENTORY_SLOT_BAG_START; bag < INVENTORY_SLOT_BAG_END; ++bag)
         {
             Bag* pBag = m_bot->GetBagByPos(bag);
             if (!pBag)
@@ -1105,9 +1095,9 @@ namespace Playerbot
         return junkItems;
     }
 
-    std::vector<uint32> NPCInteractionManager::GetRequiredReagents() const
+    ::std::vector<uint32> NPCInteractionManager::GetRequiredReagents() const
     {
-        std::vector<uint32> reagents;
+        ::std::vector<uint32> reagents;
 
         // This would check class-specific reagents
         // Simplified for now
@@ -1123,7 +1113,7 @@ namespace Playerbot
         float priority = 0.0f;
 
         // Base priority from quality
-        switch (itemTemplate->GetQuality())
+    switch (itemTemplate->GetQuality())
         {
             case ITEM_QUALITY_POOR:     priority = 1.0f; break;
             case ITEM_QUALITY_NORMAL:   priority = 5.0f; break;
@@ -1142,11 +1132,11 @@ namespace Playerbot
             return false;
 
         // Don't buy poor quality items
-        if (itemTemplate->GetQuality() < ITEM_QUALITY_NORMAL)
+    if (itemTemplate->GetQuality() < ITEM_QUALITY_NORMAL)
             return false;
 
         // Check if we can afford it
-        if (m_bot->GetMoney() < itemTemplate->GetBuyPrice())
+    if (m_bot->GetMoney() < itemTemplate->GetBuyPrice())
             return false;
 
         return true;
@@ -1162,14 +1152,14 @@ namespace Playerbot
             return false;
 
         // Poor quality items are junk
-        if (proto->GetQuality() == ITEM_QUALITY_POOR)
+    if (proto->GetQuality() == ITEM_QUALITY_POOR)
             return true;
 
         // Check if it's soulbound and we can't use it
-        if (item->IsSoulBound())
+    if (item->IsSoulBound())
         {
             // If it's not usable by our class, it's junk
-            if (proto->GetAllowableClass() && !(proto->GetAllowableClass() & m_bot->GetClassMask()))
+    if (proto->GetAllowableClass() && !(proto->GetAllowableClass() & m_bot->GetClassMask()))
                 return true;
         }
 
@@ -1177,9 +1167,9 @@ namespace Playerbot
     }
 
     // Trainer Logic
-    std::vector<NPCInteractionManager::TrainerSpellInfo> NPCInteractionManager::EvaluateTrainerSpells(Creature* trainer) const
+    ::std::vector<NPCInteractionManager::TrainerSpellInfo> NPCInteractionManager::EvaluateTrainerSpells(Creature* trainer) const
     {
-        std::vector<TrainerSpellInfo> spells;
+        ::std::vector<TrainerSpellInfo> spells;
 
         if (!trainer || !IsTrainer(trainer))
             return spells;
@@ -1199,7 +1189,7 @@ namespace Playerbot
     bool NPCInteractionManager::ShouldLearnSpell(uint32 spellId) const
     {
         // Check if we already know the spell
-        if (m_bot->HasSpell(spellId))
+    if (m_bot->HasSpell(spellId))
             return false;
 
         return true;
@@ -1226,10 +1216,9 @@ namespace Playerbot
 
         m_currentInteraction.npc = npc->GetGUID();
         m_currentInteraction.type = DetermineNPCType(npc);
-        m_currentInteraction.startTime = getMSTime();
+        m_currentInteraction.startTime = GameTime::GetGameTimeMS();
 
-        m_lastInteractionTime[npc->GetGUID()] = getMSTime();
-
+        m_lastInteractionTime[npc->GetGUID()] = GameTime::GetGameTimeMS();
         return true;
     }
 
@@ -1259,7 +1248,7 @@ namespace Playerbot
     {
         m_nearbyNPCs.clear();
 
-        std::list<Creature*> creatures;
+        ::std::list<Creature*> creatures;
         Trinity::AnyUnitInObjectRangeCheck checker(m_bot, NPC_SCAN_RANGE, true, true);
         Trinity::CreatureListSearcher searcher(m_bot, creatures, checker);
         // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitGridObjects
@@ -1277,7 +1266,7 @@ namespace Playerbot
     }
 
     // Query nearby GUIDs (lock-free!)
-    std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
+    ::std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
         m_bot->GetPosition(), NPC_SCAN_RANGE);
 
     // Process results (replace old loop)
@@ -1298,8 +1287,7 @@ namespace Playerbot
         // Original filtering logic goes here
     }
     // End of spatial grid fix
-
-        for (Creature* creature : creatures)
+    for (Creature* creature : creatures)
         {
             if (!creature)
                 continue;
@@ -1368,13 +1356,13 @@ namespace Playerbot
     // Performance Tracking
     void NPCInteractionManager::StartPerformanceTimer()
     {
-        m_performanceStart = std::chrono::high_resolution_clock::now();
+        m_performanceStart = ::std::chrono::high_resolution_clock::now();
     }
 
     void NPCInteractionManager::EndPerformanceTimer()
     {
-        auto end = std::chrono::high_resolution_clock::now();
-        m_lastUpdateDuration = std::chrono::duration_cast<std::chrono::microseconds>(end - m_performanceStart);
+        auto end = ::std::chrono::high_resolution_clock::now();
+        m_lastUpdateDuration = ::std::chrono::duration_cast<::std::chrono::microseconds>(end - m_performanceStart);
         m_totalUpdateTime += m_lastUpdateDuration;
         m_updateCount++;
     }
@@ -1397,7 +1385,7 @@ namespace Playerbot
     }
 
     // Flight Master Logic
-    std::vector<uint32> NPCInteractionManager::GetKnownFlightPaths() const
+    ::std::vector<uint32> NPCInteractionManager::GetKnownFlightPaths() const
     {
         if (!m_flightMasterManager)
             return {};
@@ -1421,7 +1409,7 @@ namespace Playerbot
             return 0;
 
         // Return first known reachable destination
-        for (auto const& dest : destinations)
+    for (auto const& dest : destinations)
         {
             if (dest.isKnown && dest.nodeId != currentNode)
                 return dest.nodeId;

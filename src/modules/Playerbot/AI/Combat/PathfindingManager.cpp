@@ -30,18 +30,13 @@ PathfindingManager::PathfindingManager(Player* bot)
       _pathfindingTimeout(DEFAULT_TIMEOUT), _cacheDuration(DEFAULT_CACHE_DURATION),
       _enableCaching(true), _enableDangerAvoidance(true), _lastDangerUpdate(0), _lastCacheCleanup(0)
 {
-    if (!_bot)
-    {
-        TC_LOG_ERROR("playerbot", "PathfindingManager: Bot player is null!");
-        return;
-    }
 
     TC_LOG_DEBUG("playerbot.pathfinding", "PathfindingManager initialized for bot {}", _bot->GetName());
 }
 
 PathResult PathfindingManager::FindPath(const PathRequest& request)
 {
-    auto startTime = std::chrono::steady_clock::now();
+    auto startTime = ::std::chrono::steady_clock::now();
     PathResult result;
 
     // No lock needed - pathfinding data is per-bot instance data
@@ -63,7 +58,7 @@ PathResult PathfindingManager::FindPath(const PathRequest& request)
         if (_enableCaching)
         {
             PathCacheEntry* cacheEntry = FindCacheEntry(request.startPos, request.goalPos);
-            if (cacheEntry && !cacheEntry->IsExpired(getMSTime()))
+            if (cacheEntry && !cacheEntry->IsExpired(GameTime::GetGameTimeMS()))
             {
                 _metrics.cacheHits++;
                 result.success = true;
@@ -73,8 +68,8 @@ PathResult PathfindingManager::FindPath(const PathRequest& request)
                 result.estimatedTime = result.totalDistance / _bot->GetSpeed(MOVE_RUN);
                 cacheEntry->accessCount++;
 
-                auto endTime = std::chrono::steady_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+                auto endTime = ::std::chrono::steady_clock::now();
+                auto duration = ::std::chrono::duration_cast<::std::chrono::microseconds>(endTime - startTime);
                 TrackPerformance(duration, true, true);
                 return result;
             }
@@ -82,7 +77,7 @@ PathResult PathfindingManager::FindPath(const PathRequest& request)
 
         _metrics.cacheMisses++;
 
-        UpdateDangerZones(getMSTime());
+        UpdateDangerZones(GameTime::GetGameTimeMS());
 
         if (IsDirectPathPossible(request.startPos, request.goalPos, request))
         {
@@ -110,12 +105,11 @@ PathResult PathfindingManager::FindPath(const PathRequest& request)
                 cacheEntry.goalPos = request.goalPos;
                 cacheEntry.waypoints = result.waypoints;
                 cacheEntry.quality = result.quality;
-                cacheEntry.timestamp = getMSTime();
+                cacheEntry.timestamp = GameTime::GetGameTimeMS();
                 cacheEntry.expirationTime = cacheEntry.timestamp + _cacheDuration;
                 cacheEntry.accessCount = 1;
                 AddCacheEntry(cacheEntry);
             }
-
             _metrics.successfulPaths++;
 
             TC_LOG_DEBUG("playerbot.pathfinding", "Path found for bot {} with {} waypoints, distance: {:.2f}",
@@ -128,15 +122,15 @@ PathResult PathfindingManager::FindPath(const PathRequest& request)
                        _bot->GetName(), result.failureReason);
         }
 
-        auto endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+        auto endTime = ::std::chrono::steady_clock::now();
+        auto duration = ::std::chrono::duration_cast<::std::chrono::microseconds>(endTime - startTime);
         result.calculationTime = static_cast<uint32>(duration.count());
         TrackPerformance(duration, result.success, false);
     }
-    catch (const std::exception& e)
+    catch (const ::std::exception& e)
     {
         result.success = false;
-        result.failureReason = "Exception during pathfinding: " + std::string(e.what());
+        result.failureReason = "Exception during pathfinding: " + ::std::string(e.what());
         TC_LOG_ERROR("playerbot.pathfinding", "Exception in FindPath for bot {}: {}", _bot->GetName(), e.what());
     }
 
@@ -173,14 +167,13 @@ PathResult PathfindingManager::FindPathToUnit(Unit* target, float range, PathFla
     {
         Position botPos = _bot->GetPosition();
         float currentDistance = botPos.GetExactDist(&goalPos);
-
         if (currentDistance > range)
         {
-            float angle = std::atan2(goalPos.GetPositionY() - botPos.GetPositionY(),
+            float angle = ::std::atan2(goalPos.GetPositionY() - botPos.GetPositionY(),
                                    goalPos.GetPositionX() - botPos.GetPositionX());
 
-            goalPos.m_positionX = goalPos.GetPositionX() - range * std::cos(angle);
-            goalPos.m_positionY = goalPos.GetPositionY() - range * std::sin(angle);
+            goalPos.m_positionX = goalPos.GetPositionX() - range * ::std::cos(angle);
+            goalPos.m_positionY = goalPos.GetPositionY() - range * ::std::sin(angle);
         }
     }
 
@@ -195,7 +188,7 @@ PathResult PathfindingManager::FindPathToUnit(Unit* target, float range, PathFla
     return FindPath(request);
 }
 
-PathResult PathfindingManager::FindEscapePath(const std::vector<Unit*>& threats, float minDistance)
+PathResult PathfindingManager::FindEscapePath(const ::std::vector<Unit*>& threats, float minDistance)
 {
     PathRequest request;
     request.botGuid = _bot->GetGUID();
@@ -212,14 +205,14 @@ PathResult PathfindingManager::FindEscapePath(const std::vector<Unit*>& threats,
             continue;
 
         Position threatPos = threat->GetPosition();
-        float angle = std::atan2(botPos.GetPositionY() - threatPos.GetPositionY(),
+        float angle = ::std::atan2(botPos.GetPositionY() - threatPos.GetPositionY(),
                                botPos.GetPositionX() - threatPos.GetPositionX());
 
-        escapeDirection.m_positionX += std::cos(angle);
-        escapeDirection.m_positionY += std::sin(angle);
+        escapeDirection.m_positionX += ::std::cos(angle);
+        escapeDirection.m_positionY += ::std::sin(angle);
     }
 
-    float length = std::sqrt(escapeDirection.m_positionX * escapeDirection.m_positionX +
+    float length = ::std::sqrt(escapeDirection.m_positionX * escapeDirection.m_positionX +
                            escapeDirection.m_positionY * escapeDirection.m_positionY);
 
     if (length > 0.0f)
@@ -245,11 +238,11 @@ PathResult PathfindingManager::CalculateAStarPath(const Position& start, const P
     PathResult result;
     result.usedPathType = PathType::GROUND_PATH;
 
-    auto startTime = std::chrono::steady_clock::now();
+    auto startTime = ::std::chrono::steady_clock::now();
 
-    std::priority_queue<PathNode> openSet;
-    std::vector<PathNode*> closedSet;
-    std::unordered_map<uint32, std::unique_ptr<PathNode>> allNodes;
+    ::std::priority_queue<PathNode> openSet;
+    ::std::vector<PathNode*> closedSet;
+    ::std::unordered_map<uint32, ::std::unique_ptr<PathNode>> allNodes;
 
     PathNode* startNode = CreateNode(start);
     startNode->gCost = 0.0f;
@@ -257,7 +250,7 @@ PathResult PathfindingManager::CalculateAStarPath(const Position& start, const P
     startNode->CalculateFCost();
 
     openSet.push(*startNode);
-    allNodes[startNode->nodeId] = std::unique_ptr<PathNode>(startNode);
+    allNodes[startNode->nodeId] = ::std::unique_ptr<PathNode>(startNode);
 
     uint32 nodesExpanded = 0;
     bool pathFound = false;
@@ -265,8 +258,8 @@ PathResult PathfindingManager::CalculateAStarPath(const Position& start, const P
 
     while (!openSet.empty() && nodesExpanded < request.maxNodes)
     {
-        auto currentTime = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
+        auto currentTime = ::std::chrono::steady_clock::now();
+        auto elapsed = ::std::chrono::duration_cast<::std::chrono::milliseconds>(currentTime - startTime);
         if (elapsed.count() > request.timeoutMs)
         {
             result.failureReason = "Pathfinding timeout exceeded";
@@ -285,7 +278,7 @@ PathResult PathfindingManager::CalculateAStarPath(const Position& start, const P
 
         closedSet.push_back(allNodes[currentNode.nodeId].get());
 
-        std::vector<Position> neighbors = GetNeighborNodes(currentNode.position, request.nodeSpacing);
+        ::std::vector<Position> neighbors = GetNeighborNodes(currentNode.position, request.nodeSpacing);
 
         for (const Position& neighborPos : neighbors)
         {
@@ -322,7 +315,7 @@ PathResult PathfindingManager::CalculateAStarPath(const Position& start, const P
                 neighborNode->CalculateFCost();
 
                 openSet.push(*neighborNode);
-                allNodes[neighborNode->nodeId] = std::unique_ptr<PathNode>(neighborNode);
+                allNodes[neighborNode->nodeId] = ::std::unique_ptr<PathNode>(neighborNode);
             }
         }
 
@@ -331,7 +324,7 @@ PathResult PathfindingManager::CalculateAStarPath(const Position& start, const P
 
     if (pathFound && goalNode)
     {
-        std::vector<PathNode*> pathNodes = ReconstructPath(goalNode);
+        ::std::vector<PathNode*> pathNodes = ReconstructPath(goalNode);
         result.waypoints.clear();
         result.waypoints.reserve(pathNodes.size());
 
@@ -358,7 +351,7 @@ PathResult PathfindingManager::CalculateAStarPath(const Position& start, const P
         }
 
         PathNode* closestNode = nullptr;
-        float closestDistance = std::numeric_limits<float>::max();
+        float closestDistance = ::std::numeric_limits<float>::max();
 
         for (PathNode* node : closedSet)
         {
@@ -372,7 +365,7 @@ PathResult PathfindingManager::CalculateAStarPath(const Position& start, const P
 
         if (closestNode && closestDistance < start.GetExactDist(&goal) * 0.8f)
         {
-            std::vector<PathNode*> partialPathNodes = ReconstructPath(closestNode);
+            ::std::vector<PathNode*> partialPathNodes = ReconstructPath(closestNode);
             result.waypoints.clear();
             result.waypoints.reserve(partialPathNodes.size());
 
@@ -387,16 +380,16 @@ PathResult PathfindingManager::CalculateAStarPath(const Position& start, const P
         }
     }
 
-    auto endTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+    auto endTime = ::std::chrono::steady_clock::now();
+    auto duration = ::std::chrono::duration_cast<::std::chrono::microseconds>(endTime - startTime);
     result.calculationTime = static_cast<uint32>(duration.count());
 
     return result;
 }
 
-std::vector<PathNode*> PathfindingManager::ReconstructPath(PathNode* goalNode)
+::std::vector<PathNode*> PathfindingManager::ReconstructPath(PathNode* goalNode)
 {
-    std::vector<PathNode*> path;
+    ::std::vector<PathNode*> path;
     PathNode* current = goalNode;
 
     while (current != nullptr)
@@ -405,7 +398,7 @@ std::vector<PathNode*> PathfindingManager::ReconstructPath(PathNode* goalNode)
         current = current->parent;
     }
 
-    std::reverse(path.begin(), path.end());
+    ::std::reverse(path.begin(), path.end());
     return path;
 }
 
@@ -414,7 +407,7 @@ float PathfindingManager::CalculateHeuristic(const Position& current, const Posi
     return PathfindingUtils::CalculateOctileDistance(current, goal);
 }
 
-bool PathfindingManager::IsPathValid(const std::vector<Position>& waypoints)
+bool PathfindingManager::IsPathValid(const ::std::vector<Position>& waypoints)
 {
     if (waypoints.size() < 2)
         return false;
@@ -432,25 +425,24 @@ bool PathfindingManager::IsPathValid(const std::vector<Position>& waypoints)
     return true;
 }
 
-std::vector<Position> PathfindingManager::OptimizePath(const std::vector<Position>& waypoints)
+::std::vector<Position> PathfindingManager::OptimizePath(const ::std::vector<Position>& waypoints)
 {
     if (waypoints.size() <= 2)
         return waypoints;
 
-    std::vector<Position> optimized = PathfindingUtils::RemoveRedundantWaypoints(waypoints);
+    ::std::vector<Position> optimized = PathfindingUtils::RemoveRedundantWaypoints(waypoints);
     optimized = SmoothPath(optimized);
 
     return optimized;
 }
 
-std::vector<Position> PathfindingManager::SmoothPath(const std::vector<Position>& waypoints)
+::std::vector<Position> PathfindingManager::SmoothPath(const ::std::vector<Position>& waypoints)
 {
     if (waypoints.size() <= 2)
         return waypoints;
 
-    std::vector<Position> smoothed;
+    ::std::vector<Position> smoothed;
     smoothed.push_back(waypoints[0]);
-
     for (size_t i = 1; i < waypoints.size() - 1; ++i)
     {
         const Position& prev = waypoints[i-1];
@@ -470,7 +462,7 @@ std::vector<Position> PathfindingManager::SmoothPath(const std::vector<Position>
     return smoothed;
 }
 
-PathQuality PathfindingManager::AssessPathQuality(const std::vector<Position>& waypoints, const PathRequest& request)
+PathQuality PathfindingManager::AssessPathQuality(const ::std::vector<Position>& waypoints, const PathRequest& request)
 {
     if (waypoints.empty())
         return PathQuality::BLOCKED;
@@ -537,7 +529,6 @@ float PathfindingManager::GetNodeCost(const Position& from, const Position& to, 
 
     float terrainCost = CalculateTerrainCost(to);
     totalCost += terrainCost;
-
     if (_enableDangerAvoidance && (request.flags & PathFlags::AVOID_AOE))
     {
         float dangerLevel = GetDangerAtPosition(to);
@@ -547,9 +538,9 @@ float PathfindingManager::GetNodeCost(const Position& from, const Position& to, 
     return totalCost;
 }
 
-std::vector<Position> PathfindingManager::GetNeighborNodes(const Position& center, float spacing)
+::std::vector<Position> PathfindingManager::GetNeighborNodes(const Position& center, float spacing)
 {
-    std::vector<Position> neighbors;
+    ::std::vector<Position> neighbors;
     neighbors.reserve(8);
 
     for (int dx = -1; dx <= 1; ++dx)
@@ -602,7 +593,7 @@ void PathfindingManager::UpdateDangerZones(uint32 currentTime)
 void PathfindingManager::ClearExpiredDangerZones(uint32 currentTime)
 {
     _dangerZones.erase(
-        std::remove_if(_dangerZones.begin(), _dangerZones.end(),
+        ::std::remove_if(_dangerZones.begin(), _dangerZones.end(),
             [currentTime](const DangerZone& zone) {
                 return !zone.isActive || currentTime > zone.startTime + zone.duration;
             }),
@@ -613,12 +604,12 @@ void PathfindingManager::ClearExpiredDangerZones(uint32 currentTime)
 float PathfindingManager::GetDangerAtPosition(const Position& pos)
 {
     float maxDanger = 0.0f;
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     for (const DangerZone& zone : _dangerZones)
     {
         float danger = zone.GetDangerAtPosition(pos, currentTime);
-        maxDanger = std::max(maxDanger, danger);
+        maxDanger = ::std::max(maxDanger, danger);
     }
 
     return maxDanger;
@@ -637,7 +628,7 @@ PathNode* PathfindingManager::CreateNode(const Position& pos)
     return node;
 }
 
-bool PathfindingManager::IsInClosedSet(const Position& pos, const std::vector<PathNode*>& closedSet)
+bool PathfindingManager::IsInClosedSet(const Position& pos, const ::std::vector<PathNode*>& closedSet)
 {
     for (PathNode* node : closedSet)
     {
@@ -680,7 +671,7 @@ bool PathfindingManager::RequiresJump(const Position& from, const Position& to)
 
 PathCacheEntry* PathfindingManager::FindCacheEntry(const Position& start, const Position& goal)
 {
-    std::string key = GenerateCacheKey(start, goal);
+    ::std::string key = GenerateCacheKey(start, goal);
     auto it = _pathCache.find(key);
 
     if (it != _pathCache.end() && it->second.IsValid(start, goal))
@@ -696,23 +687,23 @@ void PathfindingManager::AddCacheEntry(const PathCacheEntry& entry)
         ClearExpiredCacheEntries();
     }
 
-    std::string key = GenerateCacheKey(entry.startPos, entry.goalPos);
+    ::std::string key = GenerateCacheKey(entry.startPos, entry.goalPos);
     _pathCache[key] = entry;
 }
 
-std::string PathfindingManager::GenerateCacheKey(const Position& start, const Position& goal)
+::std::string PathfindingManager::GenerateCacheKey(const Position& start, const Position& goal)
 {
-    return std::to_string(static_cast<int>(start.GetPositionX())) + "_" +
-           std::to_string(static_cast<int>(start.GetPositionY())) + "_" +
-           std::to_string(static_cast<int>(goal.GetPositionX())) + "_" +
-           std::to_string(static_cast<int>(goal.GetPositionY()));
+    return ::std::to_string(static_cast<int>(start.GetPositionX())) + "_" +
+           ::std::to_string(static_cast<int>(start.GetPositionY())) + "_" +
+           ::std::to_string(static_cast<int>(goal.GetPositionX())) + "_" +
+           ::std::to_string(static_cast<int>(goal.GetPositionY()));
 }
 
 void PathfindingManager::ClearExpiredCacheEntries()
 {
     // No lock needed - pathfinding data is per-bot instance data
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastCacheCleanup < CACHE_CLEANUP_INTERVAL)
         return;
 
@@ -728,20 +719,20 @@ void PathfindingManager::ClearExpiredCacheEntries()
     _lastCacheCleanup = currentTime;
 }
 
-void PathfindingManager::TrackPerformance(std::chrono::microseconds duration, bool successful, bool cached)
+void PathfindingManager::TrackPerformance(::std::chrono::microseconds duration, bool successful, bool cached)
 {
     if (duration > _metrics.maxCalculationTime)
         _metrics.maxCalculationTime = duration;
 
-    auto currentTime = std::chrono::steady_clock::now();
-    auto timeSinceLastUpdate = std::chrono::duration_cast<std::chrono::seconds>(currentTime - _metrics.lastUpdate);
+    auto currentTime = ::std::chrono::steady_clock::now();
+    auto timeSinceLastUpdate = ::std::chrono::duration_cast<::std::chrono::seconds>(currentTime - _metrics.lastUpdate);
 
     if (timeSinceLastUpdate.count() >= 1)
     {
         uint32 totalRequests = _metrics.pathRequests.load();
         if (totalRequests > 0)
         {
-            _metrics.averageCalculationTime = std::chrono::microseconds(
+            _metrics.averageCalculationTime = ::std::chrono::microseconds(
                 static_cast<uint64_t>(_metrics.averageCalculationTime.count() * 0.9 + duration.count() * 0.1)
             );
         }
@@ -771,7 +762,7 @@ float PathfindingManager::GetTerrainSlope(const Position& pos)
     float currentZ = map->GetHeight(phaseShift, pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ());
     float forwardZ = map->GetHeight(phaseShift, pos.GetPositionX() + 1.0f, pos.GetPositionY(), pos.GetPositionZ());
 
-    return std::abs(forwardZ - currentZ);
+    return ::std::abs(forwardZ - currentZ);
 }
 
 // PathfindingUtils implementation
@@ -782,21 +773,21 @@ float PathfindingUtils::CalculateEuclideanDistance(const Position& a, const Posi
 
 float PathfindingUtils::CalculateManhattanDistance(const Position& a, const Position& b)
 {
-    return std::abs(a.GetPositionX() - b.GetPositionX()) +
-           std::abs(a.GetPositionY() - b.GetPositionY()) +
-           std::abs(a.GetPositionZ() - b.GetPositionZ());
+    return ::std::abs(a.GetPositionX() - b.GetPositionX()) +
+           ::std::abs(a.GetPositionY() - b.GetPositionY()) +
+           ::std::abs(a.GetPositionZ() - b.GetPositionZ());
 }
 
 float PathfindingUtils::CalculateOctileDistance(const Position& a, const Position& b)
 {
-    float dx = std::abs(a.GetPositionX() - b.GetPositionX());
-    float dy = std::abs(a.GetPositionY() - b.GetPositionY());
-    float dz = std::abs(a.GetPositionZ() - b.GetPositionZ());
+    float dx = ::std::abs(a.GetPositionX() - b.GetPositionX());
+    float dy = ::std::abs(a.GetPositionY() - b.GetPositionY());
+    float dz = ::std::abs(a.GetPositionZ() - b.GetPositionZ());
 
-    return 0.414f * std::min(dx, dy) + std::max(dx, dy) + dz;
+    return 0.414f * ::std::min(dx, dy) + ::std::max(dx, dy) + dz;
 }
 
-float PathfindingUtils::CalculatePathLength(const std::vector<Position>& waypoints)
+float PathfindingUtils::CalculatePathLength(const ::std::vector<Position>& waypoints)
 {
     if (waypoints.size() < 2)
         return 0.0f;
@@ -818,7 +809,7 @@ bool PathfindingUtils::IsPositionOnGround(const Position& pos, Map* map)
     // FIX #4: PHASESHIFT API CORRECTIONS - Use empty PhaseShift for static utility
     float groundZ = map->GetHeight(PhasingHandler::GetEmptyPhaseShift(),
                                     pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ());
-    return std::abs(pos.GetPositionZ() - groundZ) <= 2.0f;
+    return ::std::abs(pos.GetPositionZ() - groundZ) <= 2.0f;
 }
 
 bool PathfindingUtils::CanWalkBetween(const Position& a, const Position& b, Map* map)
@@ -833,12 +824,12 @@ bool PathfindingUtils::CanWalkBetween(const Position& a, const Position& b, Map*
                               LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing);
 }
 
-std::vector<Position> PathfindingUtils::RemoveRedundantWaypoints(const std::vector<Position>& waypoints)
+::std::vector<Position> PathfindingUtils::RemoveRedundantWaypoints(const ::std::vector<Position>& waypoints)
 {
     if (waypoints.size() <= 2)
         return waypoints;
 
-    std::vector<Position> optimized;
+    ::std::vector<Position> optimized;
     optimized.push_back(waypoints[0]);
 
     for (size_t i = 1; i < waypoints.size() - 1; ++i)
@@ -847,12 +838,12 @@ std::vector<Position> PathfindingUtils::RemoveRedundantWaypoints(const std::vect
         const Position& current = waypoints[i];
         const Position& next = waypoints[i+1];
 
-        float angle1 = std::atan2(current.GetPositionY() - prev.GetPositionY(),
+        float angle1 = ::std::atan2(current.GetPositionY() - prev.GetPositionY(),
                                 current.GetPositionX() - prev.GetPositionX());
-        float angle2 = std::atan2(next.GetPositionY() - current.GetPositionY(),
+        float angle2 = ::std::atan2(next.GetPositionY() - current.GetPositionY(),
                                 next.GetPositionX() - current.GetPositionX());
 
-        float angleDiff = std::abs(angle2 - angle1);
+        float angleDiff = ::std::abs(angle2 - angle1);
         if (angleDiff > M_PI)
             angleDiff = 2.0f * M_PI - angleDiff;
 
@@ -869,15 +860,15 @@ std::vector<Position> PathfindingUtils::RemoveRedundantWaypoints(const std::vect
 Position PathfindingUtils::CalculateFormationPosition(const Position& leaderPos, float angle, float distance)
 {
     Position formationPos;
-    formationPos.m_positionX = leaderPos.GetPositionX() + distance * std::cos(angle);
-    formationPos.m_positionY = leaderPos.GetPositionY() + distance * std::sin(angle);
+    formationPos.m_positionX = leaderPos.GetPositionX() + distance * ::std::cos(angle);
+    formationPos.m_positionY = leaderPos.GetPositionY() + distance * ::std::sin(angle);
     formationPos.m_positionZ = leaderPos.GetPositionZ();
     return formationPos;
 }
 
-std::vector<Position> PathfindingUtils::GenerateFormationPositions(const Position& center, uint32 memberCount, float spacing)
+::std::vector<Position> PathfindingUtils::GenerateFormationPositions(const Position& center, uint32 memberCount, float spacing)
 {
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
     positions.reserve(memberCount);
 
     for (uint32 i = 0; i < memberCount; ++i)

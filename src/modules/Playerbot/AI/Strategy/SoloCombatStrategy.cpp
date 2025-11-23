@@ -60,7 +60,6 @@ bool SoloCombatStrategy::IsActive(BotAI* ai) const
         return false;
 
     Player* bot = ai->GetBot();
-
     // NOT active if bot is in a group
     // Grouped bots use GroupCombatStrategy instead
     if (bot->GetGroup())
@@ -72,7 +71,6 @@ bool SoloCombatStrategy::IsActive(BotAI* ai) const
     // 3. Bot is in combat (bot->IsInCombat() = true)
     bool active = _active.load();
     bool inCombat = bot->IsInCombat();
-
     // Diagnostic logging (throttled via static counter)
     static uint32 logCounter = 0;
     if ((++logCounter % 100) == 0)  // Every 100 calls (~5 seconds)
@@ -92,7 +90,6 @@ float SoloCombatStrategy::GetRelevance(BotAI* ai) const
         return 0.0f;
 
     Player* bot = ai->GetBot();
-
     // Not relevant if in a group (GroupCombatStrategy handles that)
     if (bot->GetGroup())
         return 0.0f;
@@ -122,7 +119,6 @@ void SoloCombatStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
         return;
 
     Player* bot = ai->GetBot();
-
     // Validate combat state
     if (!bot->IsInCombat())
     {
@@ -134,7 +130,6 @@ void SoloCombatStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
 
     // Get current combat target
     Unit* target = bot->GetVictim();
-
     if (!target)
     {
         TC_LOG_DEBUG("module.playerbot.strategy",
@@ -172,12 +167,10 @@ void SoloCombatStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
 
     // Get optimal range for this bot's class/spec
     float optimalRange = GetOptimalCombatRange(ai, target);
-    float currentDistance = std::sqrt(bot->GetExactDistSq(target)); // Calculate once from squared distance
-
+    float currentDistance = ::std::sqrt(bot->GetExactDistSq(target)); // Calculate once from squared distance
     // Diagnostic logging (throttled)
     static uint32 updateCounter = 0;
     bool shouldLog = ((++updateCounter % 50) == 0);  // Every 50 calls (~2.5 seconds)
-
     if (shouldLog)
     {
         TC_LOG_DEBUG("module.playerbot.strategy",
@@ -199,7 +192,7 @@ void SoloCombatStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
 
     // DIAGNOSTIC: Log current motion type every time to detect conflicts
     TC_LOG_ERROR("module.playerbot.strategy",
-        "🔍 SoloCombatStrategy: Bot {} motion check - currentMotion={} ({}), distance={:.1f}yd, optimal={:.1f}yd",
+        " SoloCombatStrategy: Bot {} motion check - currentMotion={} ({}), distance={:.1f}yd, optimal={:.1f}yd",
         bot->GetName(),
         static_cast<uint32>(currentMotion),
         currentMotion == CHASE_MOTION_TYPE ? "CHASE" :
@@ -223,7 +216,7 @@ void SoloCombatStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
         mm->MoveChase(target, optimalRange);
 
         TC_LOG_ERROR("module.playerbot.strategy",
-            "⚔️ SoloCombatStrategy: Bot {} STARTED CHASING {} at {:.1f}yd range (was motion type {})",
+            " SoloCombatStrategy: Bot {} STARTED CHASING {} at {:.1f}yd range (was motion type {})",
             bot->GetName(), target->GetName(), optimalRange, static_cast<uint32>(currentMotion));
     }
     else
@@ -231,7 +224,7 @@ void SoloCombatStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
         // Already chasing - DON'T interfere! Let MotionMaster handle it.
         // ChaseMovementGenerator will automatically adjust position as the bot/target moves.
         TC_LOG_TRACE("module.playerbot.strategy",
-            "✅ SoloCombatStrategy: Bot {} ALREADY CHASING {} (distance {:.1f}/{:.1f}yd) - letting MotionMaster handle positioning",
+            " SoloCombatStrategy: Bot {} ALREADY CHASING {} (distance {:.1f}/{:.1f}yd) - letting MotionMaster handle positioning",
             bot->GetName(), target->GetName(), currentDistance, optimalRange);
     }
 
@@ -253,7 +246,6 @@ float SoloCombatStrategy::GetOptimalCombatRange(BotAI* ai, Unit* target) const
         return 5.0f;  // Default to melee range
 
     Player* bot = ai->GetBot();
-
     // PREFERRED: Get optimal range from ClassAI if available
     // ClassAI knows the bot's spec and can provide spec-specific ranges
     // Example: Feral Druid = melee, Balance Druid = ranged

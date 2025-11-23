@@ -18,8 +18,10 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "SharedDefines.h"
 #include "ObjectGuid.h"
+#include "Core/DI/Interfaces/IBotLevelManager.h"
 #include "../Equipment/BotGearFactory.h"  // Need full definition for std::unique_ptr<GearSet>
 #include <atomic>
 #include <vector>
@@ -51,7 +53,7 @@ struct BotCreationTask
     // Bot identity
     ObjectGuid botGuid;
     uint32 accountId;
-    std::string botName;
+    ::std::string botName;
 
     // Character data (prepared in worker thread)
     uint8 race;
@@ -69,22 +71,22 @@ struct BotCreationTask
     bool useDualSpec;
 
     // Gear data (prepared in worker thread)
-    std::unique_ptr<GearSet> gearSet;
+    ::std::unique_ptr<GearSet> gearSet;
 
     // Zone data (prepared in worker thread)
     ZonePlacement const* zonePlacement;
 
     // Task metadata
     uint64 taskId;
-    std::chrono::steady_clock::time_point createdAt;
-    std::chrono::steady_clock::time_point preparedAt;
+    ::std::chrono::steady_clock::time_point createdAt;
+    ::std::chrono::steady_clock::time_point preparedAt;
 
     BotCreationTask()
         : accountId(0), race(0), cls(0), gender(0), faction(TEAM_ALLIANCE)
         , targetLevel(0), levelBracket(nullptr), primarySpec(0), secondarySpec(0)
         , useDualSpec(false), zonePlacement(nullptr), taskId(0)
     {
-        createdAt = std::chrono::steady_clock::now();
+        createdAt = ::std::chrono::steady_clock::now();
     }
 };
 
@@ -137,34 +139,32 @@ struct BotCreationTask
  * - Automatic rebalancing (future enhancement)
  * - Statistics reporting
  */
-class TC_GAME_API BotLevelManager
+class TC_GAME_API BotLevelManager final : public IBotLevelManager
 {
 public:
     static BotLevelManager* instance();
 
-    // ====================================================================
-    // INITIALIZATION (Called once at server startup)
-    // ====================================================================
+    // IBotLevelManager interface implementation
 
     /**
      * Initialize all subsystems
      * MUST be called before any bot operations
      * Single-threaded execution required
      */
-    bool Initialize();
+    bool Initialize() override;
 
     /**
      * Shutdown all subsystems
      * Called during server shutdown
      */
-    void Shutdown();
+    void Shutdown() override;
 
     /**
      * Check if manager is ready
      */
-    bool IsReady() const
+    bool IsReady() const override
     {
-        return _initialized.load(std::memory_order_acquire);
+        return _initialized.load(::std::memory_order_acquire);
     }
 
     // ====================================================================
@@ -184,7 +184,7 @@ public:
      * @param bot           Bot player object
      * @return              Task ID (0 if failed)
      */
-    uint64 CreateBotAsync(Player* bot);
+    uint64 CreateBotAsync(Player* bot) override;
 
     /**
      * Create multiple bots in batch (async)
@@ -193,7 +193,7 @@ public:
      * @param bots          Vector of bot player objects
      * @return              Number of tasks submitted
      */
-    uint32 CreateBotsAsync(std::vector<Player*> const& bots);
+    uint32 CreateBotsAsync(::std::vector<Player*> const& bots) override;
 
     /**
      * Process queued bot creation tasks (main thread only)
@@ -204,7 +204,7 @@ public:
      * @param maxBots       Maximum bots to process (default: 10)
      * @return              Number of bots processed
      */
-    uint32 ProcessBotCreationQueue(uint32 maxBots = 10);
+    uint32 ProcessBotCreationQueue(uint32 maxBots = 10) override;
 
     // ====================================================================
     // DISTRIBUTION MANAGEMENT
@@ -217,63 +217,35 @@ public:
      * @param faction       TEAM_ALLIANCE or TEAM_HORDE
      * @return              Level bracket, or nullptr if none available
      */
-    LevelBracket const* SelectLevelBracket(TeamId faction);
+    LevelBracket const* SelectLevelBracket(TeamId faction) override;
 
     /**
      * Check distribution balance
      * Returns true if all brackets within tolerance (±15%)
      */
-    bool IsDistributionBalanced() const;
+    bool IsDistributionBalanced() const override;
 
     /**
      * Get distribution deviation percentage
      * 0% = perfect balance, >15% = needs rebalancing
      */
-    float GetDistributionDeviation() const;
+    float GetDistributionDeviation() const override;
 
     /**
      * Force rebalance distribution (future enhancement)
      * Redistributes bots to match target percentages
      */
-    void RebalanceDistribution();
+    void RebalanceDistribution() override;
 
     // ====================================================================
     // STATISTICS & MONITORING
     // ====================================================================
 
-    struct LevelManagerStats
-    {
-        // Creation statistics
-        uint64 totalTasksSubmitted{0};
-        uint64 totalTasksCompleted{0};
-        uint64 totalTasksFailed{0};
+    using LevelManagerStats = Playerbot::LevelManagerStats;
 
-        // Queue statistics
-        uint32 currentQueueSize{0};
-        uint32 peakQueueSize{0};
-
-        // Performance statistics
-        uint64 totalPrepTimeMs{0};     // Worker thread time
-        uint64 totalApplyTimeMs{0};    // Main thread time
-        uint32 averagePrepTimeMs{0};   // Per bot
-        uint32 averageApplyTimeMs{0};  // Per bot
-
-        // System statistics
-        uint64 totalLevelUps{0};
-        uint64 totalGearApplications{0};
-        uint64 totalTalentApplications{0};
-        uint64 totalTeleports{0};
-
-        // Error statistics
-        uint32 levelUpFailures{0};
-        uint32 gearFailures{0};
-        uint32 talentFailures{0};
-        uint32 teleportFailures{0};
-    };
-
-    LevelManagerStats GetStats() const { return _stats; }
-    void PrintReport() const;
-    std::string GetSummary() const;
+    LevelManagerStats GetStats() const override { return _stats; }
+    void PrintReport() const override;
+    ::std::string GetSummary() const override;
 
     // ====================================================================
     // CONFIGURATION
@@ -283,22 +255,22 @@ public:
      * Set maximum bots to process per update
      * Default: 10
      */
-    void SetMaxBotsPerUpdate(uint32 maxBots)
+    void SetMaxBotsPerUpdate(uint32 maxBots) override
     {
-        _maxBotsPerUpdate.store(maxBots, std::memory_order_release);
+        _maxBotsPerUpdate.store(maxBots, ::std::memory_order_release);
     }
 
-    uint32 GetMaxBotsPerUpdate() const
+    uint32 GetMaxBotsPerUpdate() const override
     {
-        return _maxBotsPerUpdate.load(std::memory_order_acquire);
+        return _maxBotsPerUpdate.load(::std::memory_order_acquire);
     }
 
     /**
      * Enable/disable verbose logging
      */
-    void SetVerboseLogging(bool enabled)
+    void SetVerboseLogging(bool enabled) override
     {
-        _verboseLogging.store(enabled, std::memory_order_release);
+        _verboseLogging.store(enabled, ::std::memory_order_release);
     }
 
 private:
@@ -315,7 +287,7 @@ private:
      * Prepare bot creation data (worker thread)
      * NO Player API calls allowed
      */
-    void PrepareBot_WorkerThread(std::shared_ptr<BotCreationTask> task);
+    void PrepareBot_WorkerThread(::std::shared_ptr<BotCreationTask> task);
 
     /**
      * Generate bot character data
@@ -379,12 +351,12 @@ private:
     /**
      * Queue task for main thread processing
      */
-    void QueueMainThreadTask(std::shared_ptr<BotCreationTask> task);
+    void QueueMainThreadTask(::std::shared_ptr<BotCreationTask> task);
 
     /**
      * Get next task from queue (main thread only)
      */
-    std::shared_ptr<BotCreationTask> DequeueTask();
+    ::std::shared_ptr<BotCreationTask> DequeueTask();
 
     // ====================================================================
     // SUBSYSTEM REFERENCES
@@ -399,23 +371,23 @@ private:
     // TASK QUEUE
     // ====================================================================
 
-    std::queue<std::shared_ptr<BotCreationTask>> _mainThreadQueue;
-    std::mutex _queueMutex;
+    ::std::queue<::std::shared_ptr<BotCreationTask>> _mainThreadQueue;
+    Playerbot::OrderedMutex<Playerbot::LockOrder::BEHAVIOR_MANAGER> _queueMutex;
 
     // ====================================================================
     // STATISTICS
     // ====================================================================
 
     LevelManagerStats _stats;
-    std::atomic<uint64> _nextTaskId{1};
+    ::std::atomic<uint64> _nextTaskId{1};
 
     // ====================================================================
     // CONFIGURATION
     // ====================================================================
 
-    std::atomic<uint32> _maxBotsPerUpdate{10};
-    std::atomic<bool> _verboseLogging{false};
-    std::atomic<bool> _initialized{false};
+    ::std::atomic<uint32> _maxBotsPerUpdate{10};
+    ::std::atomic<bool> _verboseLogging{false};
+    ::std::atomic<bool> _initialized{false};
 };
 
 } // namespace Playerbot

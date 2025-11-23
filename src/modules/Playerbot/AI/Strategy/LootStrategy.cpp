@@ -25,10 +25,11 @@
 #include "MotionMaster.h"
 #include "../../Spatial/SpatialGridManager.h"  // Lock-free spatial grid for deadlock fix
 #include "../../Spatial/SpatialGridQueryHelpers.h"  // Thread-safe spatial queries
-#include "../../Movement/Arbiter/MovementArbiter.h"
+#include "Movement/UnifiedMovementCoordinator.h"
 #include "../../Movement/Arbiter/MovementPriorityMapper.h"
 #include "UnitAI.h"
 #include <unordered_map>  // For distance map in PrioritizeLootTargets
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -85,7 +86,6 @@ bool LootStrategy::IsActive(BotAI* ai) const
         return false;
 
     Player* bot = ai->GetBot();
-
     // NOT active during combat
     if (bot->IsInCombat())
         return false;
@@ -100,7 +100,6 @@ float LootStrategy::GetRelevance(BotAI* ai) const
         return 0.0f;
 
     Player* bot = ai->GetBot();
-
     // Don't loot during combat
     if (bot->IsInCombat())
         return 0.0f;
@@ -110,7 +109,7 @@ float LootStrategy::GetRelevance(BotAI* ai) const
         return 0.0f;
 
     // Check if there are nearby lootable targets
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastLootScan < _lootScanInterval)
     {
         // Return cached relevance
@@ -118,20 +117,18 @@ float LootStrategy::GetRelevance(BotAI* ai) const
     }
 
     // Scan for loot
-    std::vector<ObjectGuid> corpses = FindLootableCorpses(ai);
-    std::vector<ObjectGuid> objects = FindLootableObjects(ai);
+    ::std::vector<ObjectGuid> corpses = FindLootableCorpses(ai);
+    ::std::vector<ObjectGuid> objects = FindLootableObjects(ai);
 
     // Medium-high relevance if loot available (lower than quest=70, higher than solo=10)
     return (!corpses.empty() || !objects.empty()) ? 60.0f : 0.0f;
 }
-
 void LootStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
 {
     if (!ai || !ai->GetBot())
         return;
 
     Player* bot = ai->GetBot();
-
     // Don't loot during combat
     if (bot->IsInCombat())
         return;
@@ -147,7 +144,7 @@ void LootStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy::UpdateBehavior: Bot {} searching for loot",
                  bot->GetName());
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Throttle loot scanning
     if (currentTime - _lastLootScan < _lootScanInterval)
@@ -156,14 +153,14 @@ void LootStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     _lastLootScan = currentTime;
 
     // Find lootable targets
-    std::vector<ObjectGuid> corpses = FindLootableCorpses(ai);
-    std::vector<ObjectGuid> objects = FindLootableObjects(ai);
+    ::std::vector<ObjectGuid> corpses = FindLootableCorpses(ai);
+    ::std::vector<ObjectGuid> objects = FindLootableObjects(ai);
 
     TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} found {} corpses and {} objects",
                  bot->GetName(), corpses.size(), objects.size());
 
     // Combine and prioritize targets
-    std::vector<ObjectGuid> allTargets;
+    ::std::vector<ObjectGuid> allTargets;
     allTargets.insert(allTargets.end(), corpses.begin(), corpses.end());
     allTargets.insert(allTargets.end(), objects.begin(), objects.end());
 
@@ -199,17 +196,15 @@ void LootStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     }
 }
 
-std::vector<ObjectGuid> LootStrategy::FindLootableCorpses(BotAI* ai, float maxDistance) const
+::std::vector<ObjectGuid> LootStrategy::FindLootableCorpses(BotAI* ai, float maxDistance) const
 {
-    std::vector<ObjectGuid> lootableCorpses;
-
+    ::std::vector<ObjectGuid> lootableCorpses;
     if (!ai || !ai->GetBot())
         return lootableCorpses;
 
     Player* bot = ai->GetBot();
-
     // Find all creatures in range
-    std::list<Creature*> nearbyCreatures;
+    ::std::list<Creature*> nearbyCreatures;
     bot->GetCreatureListWithEntryInGrid(nearbyCreatures, 0, maxDistance);
 
     // Filter for dead creatures with loot
@@ -219,7 +214,7 @@ std::vector<ObjectGuid> LootStrategy::FindLootableCorpses(BotAI* ai, float maxDi
             continue;
 
         // Check if creature has loot
-        if (!creature->CanHaveLoot() || !creature->hasLootRecipient())
+    if (!creature->CanHaveLoot() || !creature->hasLootRecipient())
             continue;
 
         // Add to lootable list
@@ -229,9 +224,9 @@ std::vector<ObjectGuid> LootStrategy::FindLootableCorpses(BotAI* ai, float maxDi
     return lootableCorpses;
 }
 
-std::vector<ObjectGuid> LootStrategy::FindLootableObjects(BotAI* ai, float maxDistance) const
+::std::vector<ObjectGuid> LootStrategy::FindLootableObjects(BotAI* ai, float maxDistance) const
 {
-    std::vector<ObjectGuid> lootableObjects;
+    ::std::vector<ObjectGuid> lootableObjects;
 
     if (!ai || !ai->GetBot())
         return lootableObjects;
@@ -253,7 +248,7 @@ std::vector<ObjectGuid> LootStrategy::FindLootableObjects(BotAI* ai, float maxDi
     }
 
     // Query nearby GameObjects (lock-free!)
-    std::vector<DoubleBufferedSpatialGrid::GameObjectSnapshot> nearbyObjects =
+    ::std::vector<DoubleBufferedSpatialGrid::GameObjectSnapshot> nearbyObjects =
         spatialGrid->QueryNearbyGameObjects(bot->GetPosition(), maxDistance);
 
     // Filter lootable objects using snapshot data
@@ -263,7 +258,7 @@ std::vector<ObjectGuid> LootStrategy::FindLootableObjects(BotAI* ai, float maxDi
             continue;
 
         // Check if object is lootable container (chest)
-        if (snapshot.goType != GAMEOBJECT_TYPE_CHEST)
+    if (snapshot.goType != GAMEOBJECT_TYPE_CHEST)
             continue;
 
         // Add to lootable list
@@ -289,7 +284,7 @@ bool LootStrategy::LootCorpse(BotAI* ai, ObjectGuid corpseGuid)
         return false;
 
     // Query nearby creatures to find our target
-    std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
+    ::std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
         spatialGrid->QueryNearbyCreatures(bot->GetPosition(), 50.0f);
 
     // Find the corpse in snapshots
@@ -317,7 +312,7 @@ bool LootStrategy::LootCorpse(BotAI* ai, ObjectGuid corpseGuid)
 
         // PHASE 5 MIGRATION: Use Movement Arbiter with LOOT priority (40)
         BotAI* botAI = dynamic_cast<BotAI*>(bot->GetAI());
-        if (botAI && botAI->GetMovementArbiter())
+        if (botAI && botAI->GetUnifiedMovementCoordinator())
         {
             bool accepted = botAI->RequestPointMovement(
                 PlayerBotMovementPriority::LOOT,  // Priority 40 - MINIMAL tier
@@ -363,7 +358,6 @@ bool LootStrategy::LootCorpse(BotAI* ai, ObjectGuid corpseGuid)
     if (creature->m_loot)
     {
         bot->SendLoot(*creature->m_loot, false);
-
         TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} looting corpse {}",
                      bot->GetName(), corpseSnapshot->entry);
         return true;
@@ -388,7 +382,7 @@ bool LootStrategy::LootObject(BotAI* ai, ObjectGuid objectGuid)
         return false;
 
     // Query nearby game objects to find our target
-    std::vector<DoubleBufferedSpatialGrid::GameObjectSnapshot> nearbyObjects =
+    ::std::vector<DoubleBufferedSpatialGrid::GameObjectSnapshot> nearbyObjects =
         spatialGrid->QueryNearbyGameObjects(bot->GetPosition(), 50.0f);
 
     // Find the object in snapshots
@@ -416,7 +410,7 @@ bool LootStrategy::LootObject(BotAI* ai, ObjectGuid objectGuid)
 
         // PHASE 5 MIGRATION: Use Movement Arbiter with LOOT priority (40)
         BotAI* botAI = dynamic_cast<BotAI*>(bot->GetAI());
-        if (botAI && botAI->GetMovementArbiter())
+        if (botAI && botAI->GetUnifiedMovementCoordinator())
         {
             bool accepted = botAI->RequestPointMovement(
                 PlayerBotMovementPriority::LOOT,  // Priority 40 - MINIMAL tier
@@ -494,7 +488,7 @@ bool LootStrategy::HasInventorySpace(BotAI* ai) const
     return freeSlots >= 5;
 }
 
-std::vector<ObjectGuid> LootStrategy::PrioritizeLootTargets(BotAI* ai, std::vector<ObjectGuid> const& targets) const
+::std::vector<ObjectGuid> LootStrategy::PrioritizeLootTargets(BotAI* ai, ::std::vector<ObjectGuid> const& targets) const
 {
     if (!ai || !ai->GetBot())
         return targets;
@@ -510,13 +504,13 @@ std::vector<ObjectGuid> LootStrategy::PrioritizeLootTargets(BotAI* ai, std::vect
         return targets;
 
     // Query all nearby entities once (lock-free!)
-    std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
+    ::std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
         spatialGrid->QueryNearbyCreatures(bot->GetPosition(), 50.0f);
-    std::vector<DoubleBufferedSpatialGrid::GameObjectSnapshot> nearbyObjects =
+    ::std::vector<DoubleBufferedSpatialGrid::GameObjectSnapshot> nearbyObjects =
         spatialGrid->QueryNearbyGameObjects(bot->GetPosition(), 50.0f);
 
     // Build distance map using snapshot positions
-    std::unordered_map<ObjectGuid, float> distanceMap;
+    ::std::unordered_map<ObjectGuid, float> distanceMap;
 
     for (auto const& snapshot : nearbyCreatures)
     {
@@ -531,15 +525,15 @@ std::vector<ObjectGuid> LootStrategy::PrioritizeLootTargets(BotAI* ai, std::vect
     }
 
     // Sort targets by distance (closest first) using pre-computed distances
-    std::vector<ObjectGuid> prioritized = targets;
-    std::sort(prioritized.begin(), prioritized.end(),
+    ::std::vector<ObjectGuid> prioritized = targets;
+    ::std::sort(prioritized.begin(), prioritized.end(),
         [&distanceMap](ObjectGuid const& a, ObjectGuid const& b) -> bool
         {
             auto itA = distanceMap.find(a);
             auto itB = distanceMap.find(b);
 
             // If either GUID not found in distance map, deprioritize it
-            if (itA == distanceMap.end())
+    if (itA == distanceMap.end())
                 return false;
             if (itB == distanceMap.end())
                 return true;

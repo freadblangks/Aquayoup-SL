@@ -6,7 +6,9 @@
 #define BOT_PERFORMANCE_MONITOR_H
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "BotPriorityManager.h"
+#include "Core/DI/Interfaces/IBotPerformanceMonitor.h"
 #include <array>
 #include <vector>
 #include <mutex>
@@ -81,15 +83,15 @@ public:
     uint32 GetPercentile(uint8 percentile) const; // 0-100
 
     // Get distribution
-    std::vector<uint32> GetBuckets() const;
+    ::std::vector<uint32> GetBuckets() const;
 
 private:
     static constexpr uint32 BUCKET_COUNT = 100;
     static constexpr uint32 BUCKET_SIZE_MICROS = 100; // 0.1ms per bucket
 
-    std::array<uint32, BUCKET_COUNT> _buckets;
+    ::std::array<uint32, BUCKET_COUNT> _buckets;
     uint32 _totalCount{0};
-    mutable std::recursive_mutex _mutex;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::SESSION_MANAGER> _mutex;
 };
 
 /**
@@ -103,7 +105,7 @@ private:
  * - Log performance warnings and alerts
  * - Provide performance statistics
  */
-class TC_GAME_API BotPerformanceMonitor final
+class TC_GAME_API BotPerformanceMonitor final : public IBotPerformanceMonitor
 {
 public:
     static BotPerformanceMonitor* instance()
@@ -113,44 +115,44 @@ public:
     }
 
     // Initialization
-    bool Initialize();
-    void Shutdown();
+    bool Initialize() override;
+    void Shutdown() override;
 
     // Tick monitoring
-    void BeginTick(uint32 currentTime);
-    void EndTick(uint32 currentTime, uint32 botsUpdated, uint32 botsSkipped);
+    void BeginTick(uint32 currentTime) override;
+    void EndTick(uint32 currentTime, uint32 botsUpdated, uint32 botsSkipped) override;
 
     // Performance metrics
-    void RecordBotUpdateTime(uint32 microseconds);
-    SystemPerformanceMetrics const& GetMetrics() const { return _metrics; }
+    void RecordBotUpdateTime(uint32 microseconds) override;
+    SystemPerformanceMetrics const& GetMetrics() const override { return _metrics; }
 
     // Auto-scaling
-    void CheckPerformanceThresholds();
-    void TriggerLoadShedding(uint32 targetReduction);
-    void TriggerLoadRecovery(uint32 targetIncrease);
+    void CheckPerformanceThresholds() override;
+    void TriggerLoadShedding(uint32 targetReduction) override;
+    void TriggerLoadRecovery(uint32 targetIncrease) override;
 
     // Degradation detection
-    bool IsPerformanceDegraded() const;
-    bool IsSystemOverloaded() const { return _metrics.isOverloaded; }
-    float GetCurrentLoad() const { return _metrics.cpuLoadPercent; }
+    bool IsPerformanceDegraded() const override;
+    bool IsSystemOverloaded() const override { return _metrics.isOverloaded; }
+    float GetCurrentLoad() const override { return _metrics.cpuLoadPercent; }
 
     // Configuration
-    void SetTargetTickTime(uint32 microseconds) { _targetTickTimeMicros = microseconds; }
-    void SetMaxTickTime(uint32 microseconds) { _maxTickTimeMicros = microseconds; }
-    void SetLoadShedThreshold(uint32 microseconds) { _loadShedThresholdMicros = microseconds; }
-    void SetAutoScalingEnabled(bool enabled) { _autoScalingEnabled.store(enabled); }
+    void SetTargetTickTime(uint32 microseconds) override { _targetTickTimeMicros = microseconds; }
+    void SetMaxTickTime(uint32 microseconds) override { _maxTickTimeMicros = microseconds; }
+    void SetLoadShedThreshold(uint32 microseconds) override { _loadShedThresholdMicros = microseconds; }
+    void SetAutoScalingEnabled(bool enabled) override { _autoScalingEnabled.store(enabled); }
 
-    uint32 GetTargetTickTime() const { return _targetTickTimeMicros; }
-    uint32 GetMaxTickTime() const { return _maxTickTimeMicros; }
-    bool IsAutoScalingEnabled() const { return _autoScalingEnabled.load(); }
+    uint32 GetTargetTickTime() const override { return _targetTickTimeMicros; }
+    uint32 GetMaxTickTime() const override { return _maxTickTimeMicros; }
+    bool IsAutoScalingEnabled() const override { return _autoScalingEnabled.load(); }
 
     // Histogram access
-    UpdateTimeHistogram const& GetHistogram() const { return _histogram; }
+    UpdateTimeHistogram const& GetHistogram() const override { return _histogram; }
 
     // Statistics and logging
-    void LogPerformanceReport() const;
-    void LogDetailedStatistics() const;
-    void ResetStatistics();
+    void LogPerformanceReport() const override;
+    void LogDetailedStatistics() const override;
+    void ResetStatistics() override;
 
 private:
     BotPerformanceMonitor() = default;
@@ -167,14 +169,14 @@ private:
     uint32 _loadShedThresholdMicros{250000};    // 250ms triggers load shedding
 
     // Auto-scaling state
-    std::atomic<bool> _autoScalingEnabled{true};
+    ::std::atomic<bool> _autoScalingEnabled{true};
     uint32 _lastLoadShedTime{0};
     uint32 _lastLoadRecoveryTime{0};
     static constexpr uint32 LOAD_ADJUST_COOLDOWN_MS = 5000; // 5 seconds between adjustments
 
     // Current metrics
     SystemPerformanceMetrics _metrics;
-    mutable std::recursive_mutex _metricsMutex;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::SESSION_MANAGER> _metricsMutex;
 
     // Histogram
     UpdateTimeHistogram _histogram;
@@ -184,11 +186,11 @@ private:
     uint32 _tickNumber{0};
 
     // IMPROVEMENT #9: High-resolution timer for sub-millisecond precision
-    std::chrono::steady_clock::time_point _tickStartTimeHighRes;
+    ::std::chrono::steady_clock::time_point _tickStartTimeHighRes;
 
     // Moving average for smoothing
     static constexpr uint32 MOVING_AVG_WINDOW = 10;
-    std::array<uint32, MOVING_AVG_WINDOW> _recentTickTimes{};
+    ::std::array<uint32, MOVING_AVG_WINDOW> _recentTickTimes{};
     uint32 _movingAvgIndex{0};
 
     // Performance degradation tracking
@@ -197,7 +199,7 @@ private:
     static constexpr uint32 DEGRADATION_THRESHOLD = 5; // 5 consecutive slow ticks
 
     // Initialization state
-    std::atomic<bool> _initialized{false};
+    ::std::atomic<bool> _initialized{false};
 };
 
 // Global instance accessor

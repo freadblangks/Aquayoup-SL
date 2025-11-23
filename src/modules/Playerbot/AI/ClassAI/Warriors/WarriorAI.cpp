@@ -8,9 +8,9 @@
  */
 
 #include "WarriorAI.h"
-#include "ArmsWarriorRefactored.h"
-#include "FuryWarriorRefactored.h"
-#include "ProtectionWarriorRefactored.h"
+#include "ArmsWarrior.h"
+#include "FuryWarrior.h"
+#include "ProtectionWarrior.h"
 #include "../BaselineRotationManager.h"
 #include "../../Combat/CombatBehaviorIntegration.h"
 #include "Player.h"
@@ -25,8 +25,7 @@
 namespace Playerbot
 {
 
-WarriorAI::WarriorAI(Player* bot) : ClassAI(bot)
-{
+WarriorAI::WarriorAI(Player* bot) : ClassAI(bot){
     _lastStanceChange = 0;
     _lastBattleShout = 0;
     _lastCommandingShout = 0;
@@ -54,7 +53,7 @@ void WarriorAI::UpdateRotation(::Unit* target)
         baselineManager.HandleAutoSpecialization(GetBot());
 
         // Execute baseline rotation
-        if (baselineManager.ExecuteBaselineRotation(GetBot(), target))
+    if (baselineManager.ExecuteBaselineRotation(GetBot(), target))
             return;
 
         // Fallback to charge if nothing else worked
@@ -71,10 +70,14 @@ void WarriorAI::UpdateRotation(::Unit* target)
     if (behaviors && behaviors->ShouldInterrupt(target))
     {
         Unit* interruptTarget = behaviors->GetInterruptTarget();
+        if (!interruptTarget)
+        {
+            return;
+        }
         if (interruptTarget && CanUseAbility(PUMMEL))
         {
             // Cast Pummel on the interrupt target
-            if (CastSpell(interruptTarget, PUMMEL))
+    if (CastSpell(PUMMEL, interruptTarget))
             {
                 RecordInterruptAttempt(interruptTarget, PUMMEL, true);
                 TC_LOG_DEBUG("module.playerbot.ai", "Warrior {} interrupted {} with Pummel",
@@ -110,7 +113,7 @@ void WarriorAI::UpdateRotation(::Unit* target)
     if (behaviors && behaviors->ShouldAOE())
     {
         // Whirlwind for AoE damage
-        if (CanUseAbility(WHIRLWIND))
+    if (CanUseAbility(WHIRLWIND))
         {
             if (CastSpell(WHIRLWIND))
             {
@@ -122,7 +125,7 @@ void WarriorAI::UpdateRotation(::Unit* target)
         }
 
         // Thunder Clap for threat and slow
-        if (CanUseAbility(THUNDER_CLAP))
+    if (CanUseAbility(THUNDER_CLAP))
         {
             if (CastSpell(THUNDER_CLAP))
             {
@@ -134,7 +137,7 @@ void WarriorAI::UpdateRotation(::Unit* target)
         }
 
         // Bladestorm for massive AoE
-        if (CanUseAbility(BLADESTORM))
+    if (CanUseAbility(BLADESTORM))
         {
             if (CastSpell(BLADESTORM))
             {
@@ -150,7 +153,7 @@ void WarriorAI::UpdateRotation(::Unit* target)
     if (behaviors && behaviors->ShouldUseCooldowns())
     {
         // Recklessness for damage boost
-        if (CanUseAbility(RECKLESSNESS))
+    if (CanUseAbility(RECKLESSNESS))
         {
             if (CastSpell(RECKLESSNESS))
             {
@@ -161,7 +164,7 @@ void WarriorAI::UpdateRotation(::Unit* target)
         }
 
         // Avatar for overall boost
-        if (CanUseAbility(AVATAR))
+    if (CanUseAbility(AVATAR))
         {
             if (CastSpell(AVATAR))
             {
@@ -236,7 +239,7 @@ bool WarriorAI::CanUseAbility(uint32 spellId)
 
 void WarriorAI::OnCombatStart(::Unit* target)
 {
-    _warriorMetrics.combatStartTime = std::chrono::steady_clock::now();
+    _warriorMetrics.combatStartTime = ::std::chrono::steady_clock::now();
 
     // Combat start logic is handled by specialization templates
     // No polymorphic delegation needed
@@ -314,7 +317,7 @@ void WarriorAI::UpdateWarriorBuffs()
 
 void WarriorAI::CastBattleShout()
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastBattleShout > BATTLE_SHOUT_DURATION)
     {
         // Cast Battle Shout if available
@@ -324,7 +327,7 @@ void WarriorAI::CastBattleShout()
 
 void WarriorAI::CastCommandingShout()
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastCommandingShout > COMMANDING_SHOUT_DURATION)
     {
         // Cast Commanding Shout if available
@@ -358,7 +361,7 @@ bool WarriorAI::CanCharge(::Unit* target) const
     if (!target || !GetBot())
         return false;
 
-    float distance = std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
+    float distance = ::std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
     return distance >= CHARGE_MIN_RANGE && distance <= CHARGE_MAX_RANGE;
 }
 
@@ -392,7 +395,7 @@ void WarriorAI::AnalyzeCombatEffectiveness()
 
 void WarriorAI::UpdateMetrics(uint32 diff)
 {
-    _warriorMetrics.lastMetricsUpdate = std::chrono::steady_clock::now();
+    _warriorMetrics.lastMetricsUpdate = ::std::chrono::steady_clock::now();
 }
 
 float WarriorAI::CalculateRageEfficiency()
@@ -408,8 +411,7 @@ Position WarriorAI::CalculateOptimalChargePosition(::Unit* target)
     return GetBot()->GetPosition();
 }
 
-void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target)
-{
+void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target){
     if (!target || !GetBot())
         return;
 
@@ -419,7 +421,7 @@ void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target)
     // Apply Sunder Armor for armor reduction
     if (CanUseAbility(SUNDER_ARMOR))
     {
-        if (CastSpell(target, SUNDER_ARMOR))
+        if (CastSpell(SUNDER_ARMOR, target))
         {
             RecordAbilityUsage(SUNDER_ARMOR);
             return;
@@ -427,11 +429,10 @@ void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target)
     }
 
     // Apply Rend for bleed damage
-    if (CanUseAbility(REND))
-    {
+    if (CanUseAbility(REND))    {
         if (!target->HasAura(REND, GetBot()->GetGUID()))
         {
-            if (CastSpell(target, REND))
+            if (CastSpell(REND, target))
             {
                 RecordAbilityUsage(REND);
                 return;
@@ -442,7 +443,7 @@ void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target)
     // Use Execute if target is low health
     if (target->GetHealthPct() < 20.0f && CanUseAbility(EXECUTE))
     {
-        if (CastSpell(target, EXECUTE))
+        if (CastSpell(EXECUTE, target))
         {
             RecordAbilityUsage(EXECUTE);
             return;
@@ -452,7 +453,7 @@ void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target)
     // Use Overpower if available
     if (CanUseAbility(OVERPOWER))
     {
-        if (CastSpell(target, OVERPOWER))
+        if (CastSpell(OVERPOWER, target))
         {
             RecordAbilityUsage(OVERPOWER);
             return;
@@ -462,7 +463,7 @@ void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target)
     // Use Mortal Strike or Bloodthirst if available
     if (CanUseAbility(MORTAL_STRIKE))
     {
-        if (CastSpell(target, MORTAL_STRIKE))
+        if (CastSpell(MORTAL_STRIKE, target))
         {
             RecordAbilityUsage(MORTAL_STRIKE);
             return;
@@ -471,7 +472,7 @@ void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target)
 
     if (CanUseAbility(BLOODTHIRST))
     {
-        if (CastSpell(target, BLOODTHIRST))
+        if (CastSpell(BLOODTHIRST, target))
         {
             RecordAbilityUsage(BLOODTHIRST);
             return;
@@ -482,9 +483,9 @@ void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target)
     if (GetBot()->GetPower(POWER_RAGE) > RAGE_DUMP_THRESHOLD)
     {
         // Use Cleave if multiple enemies
-        if (GetNearbyEnemyCount(8.0f) > 1 && CanUseAbility(CLEAVE))
+    if (GetNearbyEnemyCount(8.0f) > 1 && CanUseAbility(CLEAVE))
         {
-            if (CastSpell(CLEAVE))
+            if (CastSpell(CLEAVE, target))
             {
                 RecordAbilityUsage(CLEAVE);
                 return;
@@ -492,9 +493,9 @@ void WarriorAI::ExecuteBasicWarriorRotation(::Unit* target)
         }
 
         // Otherwise use Heroic Strike
-        if (CanUseAbility(HEROIC_STRIKE))
+    if (CanUseAbility(HEROIC_STRIKE))
         {
-            if (CastSpell(HEROIC_STRIKE))
+            if (CastSpell(HEROIC_STRIKE, target))
             {
                 RecordAbilityUsage(HEROIC_STRIKE);
                 return;
@@ -557,8 +558,8 @@ void WarriorAI::UseDefensiveCooldowns()
     }
 
     // Spell Reflection against casters
-    Unit* target = GetBot()->GetSelectedUnit();
-    if (target && target->HasUnitState(UNIT_STATE_CASTING) && CanUseAbility(SPELL_REFLECTION))
+    Unit* reflectionTarget = GetBot()->GetSelectedUnit();
+    if (reflectionTarget && reflectionTarget->HasUnitState(UNIT_STATE_CASTING) && CanUseAbility(SPELL_REFLECTION))
     {
         if (CastSpell(SPELL_REFLECTION))
         {
@@ -576,13 +577,13 @@ uint32 WarriorAI::GetNearbyEnemyCount(float range) const
         return 0;
 
     uint32 count = 0;
-    std::list<Unit*> targets;
+    ::std::list<Unit*> targets;
     Trinity::AnyUnfriendlyUnitInObjectRangeCheck u_check(GetBot(), GetBot(), range);
     Trinity::UnitListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> searcher(GetBot(), targets, u_check);
     // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitGridObjects
     Map* map = GetBot()->GetMap();
     if (!map)
-        return false;
+        return 0;
 
     DoubleBufferedSpatialGrid* spatialGrid = sSpatialGridManager.GetGrid(map);
     if (!spatialGrid)
@@ -590,11 +591,11 @@ uint32 WarriorAI::GetNearbyEnemyCount(float range) const
         sSpatialGridManager.CreateGrid(map);
         spatialGrid = sSpatialGridManager.GetGrid(map);
         if (!spatialGrid)
-            return false;
+            return 0;
     }
 
     // Query nearby GUIDs (lock-free!)
-    std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
+    ::std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
         GetBot()->GetPosition(), range);
 
     // Process results (replace old searcher logic)
@@ -606,18 +607,14 @@ uint32 WarriorAI::GetNearbyEnemyCount(float range) const
         Creature* entity = nullptr;
         if (snapshot_entity)
         {
-
-        } snapshot_entity = SpatialGridQueryHelpers::FindCreatureByGuid(GetBot(), guid);
- entity = nullptr;
- if (snapshot_entity)
- {
- }
+            // FIXED: CreatureSnapshot to Creature conversion via ObjectAccessor
+            entity = ObjectAccessor::GetCreature(*GetBot(), snapshot_entity->guid);
+        }
         if (!entity)
             continue;
         // Original filtering logic from searcher goes here
     }
     // End of spatial grid fix
-
     for (auto& target : targets)
     {
         if (GetBot()->IsValidAttackTarget(target))
@@ -627,8 +624,7 @@ uint32 WarriorAI::GetNearbyEnemyCount(float range) const
     return count;
 }
 
-bool WarriorAI::IsValidTarget(::Unit* target)
-{
+bool WarriorAI::IsValidTarget(::Unit* target){
     return target && target->IsAlive() && GetBot()->IsValidAttackTarget(target);
 }
 

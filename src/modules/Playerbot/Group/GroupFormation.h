@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "Position.h"
 #include <vector>
 #include <unordered_map>
@@ -57,21 +58,21 @@ struct FormationMember
 
     FormationMember(uint32 guid, const Position& assigned, float maxDev = 3.0f, float prio = 1.0f)
         : memberGuid(guid), assignedPosition(assigned), maxDeviationDistance(maxDev)
-        , priority(prio), isFlexible(true), isLeader(false), lastPositionUpdate(getMSTime()) {}
+        , priority(prio), isFlexible(true), isLeader(false), lastPositionUpdate(GameTime::GetGameTimeMS()) {}
 };
 
 struct FormationTemplate
 {
     FormationType type;
-    std::string name;
-    std::string description;
-    std::vector<Position> relativePositions;
+    ::std::string name;
+    ::std::string description;
+    ::std::vector<Position> relativePositions;
     float optimalSpacing;
     float maxFormationSize;
     FormationBehavior defaultBehavior;
     bool supportsDynamicSize;
 
-    FormationTemplate(FormationType t, const std::string& n, float spacing = 5.0f)
+    FormationTemplate(FormationType t, const ::std::string& n, float spacing = 5.0f)
         : type(t), name(n), optimalSpacing(spacing), maxFormationSize(25.0f)
         , defaultBehavior(FormationBehavior::FLEXIBLE), supportsDynamicSize(true) {}
 };
@@ -85,13 +86,13 @@ public:
     // Formation setup
     void SetFormationType(FormationType type);
     void SetFormationBehavior(FormationBehavior behavior);
-    void SetCustomFormation(const std::vector<Position>& positions);
+    void SetCustomFormation(const ::std::vector<Position>& positions);
     void AddMember(uint32 memberGuid, const Position& preferredPosition = Position());
     void RemoveMember(uint32 memberGuid);
 
     // Formation management
     void UpdateFormation(const Position& centerPosition, float direction = 0.0f);
-    void AdjustForTerrain(const std::vector<Position>& obstacles);
+    void AdjustForTerrain(const ::std::vector<Position>& obstacles);
     void OptimizeSpacing(float minDistance, float maxDistance);
     void RotateFormation(float angle);
     void ScaleFormation(float scaleFactor);
@@ -101,13 +102,13 @@ public:
     Position GetFormationCenter() const;
     float GetFormationRadius() const;
     bool IsInFormation(uint32 memberGuid, float tolerance = 2.0f) const;
-    std::vector<uint32> GetMembersOutOfPosition(float tolerance = 3.0f) const;
+    ::std::vector<uint32> GetMembersOutOfPosition(float tolerance = 3.0f) const;
 
     // Dynamic adjustments
     void HandleMemberMovement(uint32 memberGuid, const Position& newPosition);
     void AdaptToMovement(const Position& leaderPosition, float leaderDirection);
-    void HandleCombatFormation(const std::vector<Position>& enemyPositions);
-    void HandleObstacleAvoidance(const std::vector<Position>& obstacles);
+    void HandleCombatFormation(const ::std::vector<Position>& enemyPositions);
+    void HandleObstacleAvoidance(const ::std::vector<Position>& obstacles);
 
     // Formation validation
     bool IsFormationValid() const;
@@ -117,7 +118,7 @@ public:
 
     // Formation templates
     static FormationTemplate GetFormationTemplate(FormationType type);
-    static std::vector<FormationType> GetAvailableFormations();
+    static ::std::vector<FormationType> GetAvailableFormations();
     void ApplyFormationTemplate(const FormationTemplate& formationTemplate);
 
     // Member management
@@ -129,18 +130,18 @@ public:
     // Performance monitoring
     struct FormationMetrics
     {
-        std::atomic<float> averageDeviation{0.0f};
-        std::atomic<float> formationStability{1.0f};
-        std::atomic<float> movementEfficiency{1.0f};
-        std::atomic<uint32> positionAdjustments{0};
-        std::atomic<uint32> formationBreaks{0};
-        std::atomic<uint32> terrainCollisions{0};
-        std::chrono::steady_clock::time_point lastUpdate;
+        ::std::atomic<float> averageDeviation{0.0f};
+        ::std::atomic<float> formationStability{1.0f};
+        ::std::atomic<float> movementEfficiency{1.0f};
+        ::std::atomic<uint32> positionAdjustments{0};
+        ::std::atomic<uint32> formationBreaks{0};
+        ::std::atomic<uint32> terrainCollisions{0};
+        ::std::chrono::steady_clock::time_point lastUpdate;
 
         void Reset() {
             averageDeviation = 0.0f; formationStability = 1.0f; movementEfficiency = 1.0f;
             positionAdjustments = 0; formationBreaks = 0; terrainCollisions = 0;
-            lastUpdate = std::chrono::steady_clock::now();
+            lastUpdate = ::std::chrono::steady_clock::now();
         }
     };
 
@@ -161,32 +162,32 @@ private:
     FormationType _formationType;
     FormationBehavior _behavior;
     uint32 _leaderGuid;
-    std::atomic<bool> _isActive{true};
+    ::std::atomic<bool> _isActive{true};
 
     // Formation data
-    std::vector<FormationMember> _members;
+    ::std::vector<FormationMember> _members;
     Position _formationCenter;
     float _formationDirection;
     float _formationSpacing;
     float _formationRadius;
-    mutable std::recursive_mutex _formationMutex;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::GROUP_MANAGER> _formationMutex;
 
     // Movement tracking
     Position _lastCenterPosition;
     float _lastDirection;
     uint32 _lastUpdateTime;
-    std::vector<Position> _recentPositions;
+    ::std::vector<Position> _recentPositions;
 
     // Terrain and obstacle data
-    std::vector<Position> _knownObstacles;
-    std::unordered_map<uint32, Position> _terrainAdjustments;
-    mutable std::recursive_mutex _terrainMutex;
+    ::std::vector<Position> _knownObstacles;
+    ::std::unordered_map<uint32, Position> _terrainAdjustments;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::GROUP_MANAGER> _terrainMutex;
 
     // Performance tracking
     FormationMetrics _metrics;
 
     // Formation templates
-    static std::unordered_map<FormationType, FormationTemplate> _formationTemplates;
+    static ::std::unordered_map<FormationType, FormationTemplate> _formationTemplates;
     static void InitializeFormationTemplates();
 
     // Helper functions
@@ -197,17 +198,17 @@ private:
     void UpdateMemberPositions();
     bool ValidateTerrainAtPosition(const Position& pos) const;
     Position AdjustPositionForTerrain(const Position& originalPos) const;
-    void OptimizeFormationForCombat(const std::vector<Position>& threats);
+    void OptimizeFormationForCombat(const ::std::vector<Position>& threats);
     void SmoothFormationTransition(const Position& newCenter, float newDirection);
 
     // Formation algorithms
-    std::vector<Position> GenerateLineFormation(uint32 memberCount, float spacing) const;
-    std::vector<Position> GenerateWedgeFormation(uint32 memberCount, float spacing) const;
-    std::vector<Position> GenerateCircleFormation(uint32 memberCount, float spacing) const;
-    std::vector<Position> GenerateDiamondFormation(uint32 memberCount, float spacing) const;
-    std::vector<Position> GenerateDefensiveSquare(uint32 memberCount, float spacing) const;
-    std::vector<Position> GenerateArrowFormation(uint32 memberCount, float spacing) const;
-    std::vector<Position> GenerateLooseFormation(uint32 memberCount, float spacing) const;
+    ::std::vector<Position> GenerateLineFormation(uint32 memberCount, float spacing) const;
+    ::std::vector<Position> GenerateWedgeFormation(uint32 memberCount, float spacing) const;
+    ::std::vector<Position> GenerateCircleFormation(uint32 memberCount, float spacing) const;
+    ::std::vector<Position> GenerateDiamondFormation(uint32 memberCount, float spacing) const;
+    ::std::vector<Position> GenerateDefensiveSquare(uint32 memberCount, float spacing) const;
+    ::std::vector<Position> GenerateArrowFormation(uint32 memberCount, float spacing) const;
+    ::std::vector<Position> GenerateLooseFormation(uint32 memberCount, float spacing) const;
 
     // Dynamic adjustment algorithms
     void PerformFormationSmoothing();
@@ -218,7 +219,7 @@ private:
     // Pathfinding integration
     bool IsPathClearBetweenPositions(const Position& start, const Position& end) const;
     Position FindNearestValidPosition(const Position& desired) const;
-    std::vector<Position> GenerateFormationPath(const Position& destination) const;
+    ::std::vector<Position> GenerateFormationPath(const Position& destination) const;
 
     // Constants
     static constexpr float MIN_FORMATION_SPACING = 1.5f;

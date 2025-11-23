@@ -22,7 +22,7 @@
 #include "SpellInfo.h"
 #include "../../Spatial/SpatialGridManager.h"
 #include "../../Spatial/SpatialGridQueryHelpers.h"  // PHASE 5B: Thread-safe helpers
-#include "../../Movement/Arbiter/MovementArbiter.h"
+#include "Movement/UnifiedMovementCoordinator.h"
 #include "../../Movement/Arbiter/MovementRequest.h"
 #include "../../Movement/Arbiter/MovementPriorityMapper.h"
 #include "../BotAI.h"
@@ -40,30 +40,25 @@ ObstacleAvoidanceManager::ObstacleAvoidanceManager(Player* bot)
       _collisionTolerance(DEFAULT_COLLISION_TOLERANCE), _predictiveAvoidance(true),
       _emergencyMode(false), _lastCleanup(0), _lastCacheCleanup(0)
 {
-    if (!_bot)
-    {
-        TC_LOG_ERROR("playerbot", "ObstacleAvoidanceManager: Bot player is null!");
-        return;
-    }
 
     TC_LOG_DEBUG("playerbot.obstacle", "ObstacleAvoidanceManager initialized for bot {}", _bot->GetName());
 }
 
 void ObstacleAvoidanceManager::UpdateObstacleDetection(const DetectionContext& context)
 {
-    auto startTime = std::chrono::steady_clock::now();
+    auto startTime = ::std::chrono::steady_clock::now();
 
     // No lock needed - obstacle detection is per-bot instance data
 
     try
     {
-        uint32 currentTime = getMSTime();
+        uint32 currentTime = GameTime::GetGameTimeMS();
         if (currentTime - _lastUpdate < _updateInterval && !context.emergencyMode)
             return;
 
         _lastUpdate = currentTime;
 
-        std::vector<ObstacleInfo> detectedObstacles = ScanForObstacles(context);
+        ::std::vector<ObstacleInfo> detectedObstacles = ScanForObstacles(context);
 
         for (const ObstacleInfo& obstacle : detectedObstacles)
         {
@@ -86,27 +81,24 @@ void ObstacleAvoidanceManager::UpdateObstacleDetection(const DetectionContext& c
         }
 
         _metrics.obstaclesDetected += static_cast<uint32>(detectedObstacles.size());
-
-        auto endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+        auto endTime = ::std::chrono::steady_clock::now();
+        auto duration = ::std::chrono::duration_cast<::std::chrono::microseconds>(endTime - startTime);
         TrackPerformance(duration, "UpdateObstacleDetection");
-
         TC_LOG_TRACE("playerbot.obstacle", "Bot {} detected {} obstacles in {}μs",
                    _bot->GetName(), detectedObstacles.size(), duration.count());
     }
-    catch (const std::exception& e)
+    catch (const ::std::exception& e)
     {
         TC_LOG_ERROR("playerbot.obstacle", "Exception in UpdateObstacleDetection for bot {}: {}", _bot->GetName(), e.what());
     }
 }
 
-std::vector<CollisionPrediction> ObstacleAvoidanceManager::PredictCollisions(const DetectionContext& context)
+::std::vector<CollisionPrediction> ObstacleAvoidanceManager::PredictCollisions(const DetectionContext& context)
 {
-    std::vector<CollisionPrediction> predictions;
+    ::std::vector<CollisionPrediction> predictions;
     predictions.reserve(_obstacles.size());
 
     // No lock needed - obstacle detection is per-bot instance data
-
     for (const auto& [guid, obstacle] : _obstacles)
     {
         if (ShouldIgnoreObstacle(obstacle, context))
@@ -119,7 +111,7 @@ std::vector<CollisionPrediction> ObstacleAvoidanceManager::PredictCollisions(con
         }
     }
 
-    std::sort(predictions.begin(), predictions.end(),
+    ::std::sort(predictions.begin(), predictions.end(),
         [](const CollisionPrediction& a, const CollisionPrediction& b) {
             return a.timeToCollision < b.timeToCollision;
         });
@@ -127,9 +119,9 @@ std::vector<CollisionPrediction> ObstacleAvoidanceManager::PredictCollisions(con
     return predictions;
 }
 
-std::vector<AvoidanceManeuver> ObstacleAvoidanceManager::GenerateAvoidanceManeuvers(const CollisionPrediction& collision)
+::std::vector<AvoidanceManeuver> ObstacleAvoidanceManager::GenerateAvoidanceManeuvers(const CollisionPrediction& collision)
 {
-    std::vector<AvoidanceManeuver> maneuvers;
+    ::std::vector<AvoidanceManeuver> maneuvers;
 
     if (!collision.willCollide || !collision.obstacle)
         return maneuvers;
@@ -174,14 +166,13 @@ std::vector<AvoidanceManeuver> ObstacleAvoidanceManager::GenerateAvoidanceManeuv
             maneuvers.push_back(GenerateDirectAvoidance(collision));
             break;
     }
-
     if (!maneuvers.empty() && !_bot->GetGroup())
     {
-        std::vector<AvoidanceManeuver> formationManeuvers = GenerateFormationAwareAvoidance(collision);
+        ::std::vector<AvoidanceManeuver> formationManeuvers = GenerateFormationAwareAvoidance(collision);
         maneuvers.insert(maneuvers.end(), formationManeuvers.begin(), formationManeuvers.end());
     }
 
-    std::sort(maneuvers.begin(), maneuvers.end());
+    ::std::sort(maneuvers.begin(), maneuvers.end());
 
     return maneuvers;
 }
@@ -199,7 +190,6 @@ bool ObstacleAvoidanceManager::ExecuteAvoidanceManeuver(const AvoidanceManeuver&
                 ExecuteEmergencyStop();
                 _metrics.emergencyStops++;
                 break;
-
             case AvoidanceBehavior::DIRECT_AVOIDANCE:
             case AvoidanceBehavior::CIRCUMNAVIGATE:
             case AvoidanceBehavior::FIND_ALTERNATIVE:
@@ -208,7 +198,7 @@ bool ObstacleAvoidanceManager::ExecuteAvoidanceManeuver(const AvoidanceManeuver&
 
                     // PHASE 3 MIGRATION (MISSED): Use Movement Arbiter with OBSTACLE_AVOIDANCE_EMERGENCY priority (245)
                     BotAI* botAI = dynamic_cast<BotAI*>(_bot->GetAI());
-                    if (botAI && botAI->GetMovementArbiter())
+                    if (botAI && botAI->GetUnifiedMovementCoordinator())
                     {
                         bool accepted = botAI->RequestPointMovement(
                             PlayerBotMovementPriority::OBSTACLE_AVOIDANCE_EMERGENCY,  // Priority 245 - CRITICAL tier
@@ -234,7 +224,6 @@ bool ObstacleAvoidanceManager::ExecuteAvoidanceManeuver(const AvoidanceManeuver&
             case AvoidanceBehavior::WAIT_AND_PASS:
                 _bot->GetMotionMaster()->Clear();
                 break;
-
             case AvoidanceBehavior::JUMP_OVER:
                 if (maneuver.requiresJump)
                 {
@@ -242,7 +231,7 @@ bool ObstacleAvoidanceManager::ExecuteAvoidanceManeuver(const AvoidanceManeuver&
 
                     // PHASE 6A: Use Movement Arbiter with OBSTACLE_AVOIDANCE_EMERGENCY priority (245)
                     BotAI* botAI = dynamic_cast<BotAI*>(_bot->GetAI());
-                    if (botAI && botAI->GetMovementArbiter())
+                    if (botAI && botAI->GetUnifiedMovementCoordinator())
                     {
                         MovementRequest req = MovementRequest::MakeJumpMovement(
                             PlayerBotMovementPriority::OBSTACLE_AVOIDANCE_EMERGENCY,  // Priority 245 - CRITICAL tier
@@ -253,8 +242,7 @@ bool ObstacleAvoidanceManager::ExecuteAvoidanceManeuver(const AvoidanceManeuver&
                             "Jumping over obstacle",
                             "ObstacleAvoidanceManager");
 
-                        bool accepted = botAI->GetMovementArbiter()->RequestMovement(req);
-
+                        bool accepted = botAI->GetUnifiedMovementCoordinator()->RequestMovement(req);
                         if (!accepted)
                         {
                             TC_LOG_TRACE("playerbot.movement.arbiter",
@@ -277,7 +265,7 @@ bool ObstacleAvoidanceManager::ExecuteAvoidanceManeuver(const AvoidanceManeuver&
 
                     // PHASE 3 MIGRATION (MISSED): Use Movement Arbiter with OBSTACLE_AVOIDANCE_EMERGENCY priority (245)
                     BotAI* botAI = dynamic_cast<BotAI*>(_bot->GetAI());
-                    if (botAI && botAI->GetMovementArbiter())
+                    if (botAI && botAI->GetUnifiedMovementCoordinator())
                     {
                         bool accepted = botAI->RequestPointMovement(
                             PlayerBotMovementPriority::OBSTACLE_AVOIDANCE_EMERGENCY,  // Priority 245 - CRITICAL tier
@@ -312,16 +300,15 @@ bool ObstacleAvoidanceManager::ExecuteAvoidanceManeuver(const AvoidanceManeuver&
 
         return true;
     }
-    catch (const std::exception& e)
+    catch (const ::std::exception& e)
     {
         TC_LOG_ERROR("playerbot.obstacle", "Exception executing avoidance maneuver for bot {}: {}", _bot->GetName(), e.what());
         return false;
     }
 }
-
-std::vector<ObstacleInfo> ObstacleAvoidanceManager::ScanForObstacles(const DetectionContext& context)
+::std::vector<ObstacleInfo> ObstacleAvoidanceManager::ScanForObstacles(const DetectionContext& context)
 {
-    std::vector<ObstacleInfo> obstacles;
+    ::std::vector<ObstacleInfo> obstacles;
 
     if (context.flags & DetectionFlags::TERRAIN)
         ScanTerrain(context, obstacles);
@@ -337,10 +324,9 @@ std::vector<ObstacleInfo> ObstacleAvoidanceManager::ScanForObstacles(const Detec
 
     return obstacles;
 }
-
-std::vector<ObstacleInfo> ObstacleAvoidanceManager::DetectUnitObstacles(const DetectionContext& context)
+::std::vector<ObstacleInfo> ObstacleAvoidanceManager::DetectUnitObstacles(const DetectionContext& context)
 {
-    std::vector<ObstacleInfo> unitObstacles;
+    ::std::vector<ObstacleInfo> unitObstacles;
 
     // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitGridObjects
     Map* map = _bot->GetMap();
@@ -381,16 +367,16 @@ std::vector<ObstacleInfo> ObstacleAvoidanceManager::DetectUnitObstacles(const De
             obstacle.type = ObstacleType::UNIT_OBSTACLE;
             obstacle.radius = CalculateObstacleRadius(unit, ObstacleType::UNIT_OBSTACLE);
             obstacle.height = unit->GetCollisionHeight();
-            obstacle.isMoving = unit->IsMoving();
+            obstacle.isMoving = unit->isMoving();
             obstacle.priority = AssessObstaclePriority(obstacle, context);
             obstacle.name = unit->GetName();
-            obstacle.firstDetected = getMSTime();
+            obstacle.firstDetected = GameTime::GetGameTimeMS();
             obstacle.lastSeen = obstacle.firstDetected;
 
             if (obstacle.isMoving)
             {
-                obstacle.velocity.m_positionX = unit->GetSpeedXY() * std::cos(unit->GetOrientation());
-                obstacle.velocity.m_positionY = unit->GetSpeedXY() * std::sin(unit->GetOrientation());
+                obstacle.velocity.m_positionX = unit->GetSpeedXY() * ::std::cos(unit->GetOrientation());
+                obstacle.velocity.m_positionY = unit->GetSpeedXY() * ::std::sin(unit->GetOrientation());
                 obstacle.velocity.m_positionZ = 0.0f;
             }
 
@@ -422,7 +408,6 @@ CollisionPrediction ObstacleAvoidanceManager::PredictCollisionWithObstacle(const
             prediction.willCollide = true;
             prediction.timeToCollision = timeToCollision;
             prediction.collisionPoint = ObstacleUtils::PredictPosition(botPos, botVel, timeToCollision);
-
             if (timeToCollision <= 1.0f)
                 prediction.collisionType = CollisionType::IMMINENT;
             else if (timeToCollision <= 3.0f)
@@ -453,7 +438,7 @@ CollisionPrediction ObstacleAvoidanceManager::PredictCollisionWithObstacle(const
             direction.m_positionY -= botPos.GetPositionY();
             direction.m_positionZ -= botPos.GetPositionZ();
 
-            float length = std::sqrt(direction.m_positionX * direction.m_positionX +
+            float length = ::std::sqrt(direction.m_positionX * direction.m_positionX +
                                    direction.m_positionY * direction.m_positionY +
                                    direction.m_positionZ * direction.m_positionZ);
 
@@ -511,20 +496,20 @@ AvoidanceManeuver ObstacleAvoidanceManager::GenerateDirectAvoidance(const Collis
     Position obstaclePos = collision.obstacle->position;
     float avoidanceRadius = collision.obstacle->avoidanceRadius;
 
-    float angle = std::atan2(obstaclePos.GetPositionY() - botPos.GetPositionY(),
+    float angle = ::std::atan2(obstaclePos.GetPositionY() - botPos.GetPositionY(),
                            obstaclePos.GetPositionX() - botPos.GetPositionX());
 
     float leftAngle = angle + M_PI/2;
     float rightAngle = angle - M_PI/2;
 
     Position leftAvoidance;
-    leftAvoidance.m_positionX = obstaclePos.GetPositionX() + avoidanceRadius * std::cos(leftAngle);
-    leftAvoidance.m_positionY = obstaclePos.GetPositionY() + avoidanceRadius * std::sin(leftAngle);
+    leftAvoidance.m_positionX = obstaclePos.GetPositionX() + avoidanceRadius * ::std::cos(leftAngle);
+    leftAvoidance.m_positionY = obstaclePos.GetPositionY() + avoidanceRadius * ::std::sin(leftAngle);
     leftAvoidance.m_positionZ = obstaclePos.GetPositionZ();
 
     Position rightAvoidance;
-    rightAvoidance.m_positionX = obstaclePos.GetPositionX() + avoidanceRadius * std::cos(rightAngle);
-    rightAvoidance.m_positionY = obstaclePos.GetPositionY() + avoidanceRadius * std::sin(rightAngle);
+    rightAvoidance.m_positionX = obstaclePos.GetPositionX() + avoidanceRadius * ::std::cos(rightAngle);
+    rightAvoidance.m_positionY = obstaclePos.GetPositionY() + avoidanceRadius * ::std::sin(rightAngle);
     rightAvoidance.m_positionZ = obstaclePos.GetPositionZ();
 
     float leftDistance = botPos.GetExactDist(&leftAvoidance);
@@ -552,15 +537,15 @@ AvoidanceManeuver ObstacleAvoidanceManager::GenerateCircumnavigation(const Colli
     Position obstaclePos = collision.obstacle->position;
     float radius = collision.obstacle->avoidanceRadius * 1.5f;
 
-    std::vector<Position> circumWaypoints;
+    ::std::vector<Position> circumWaypoints;
     circumWaypoints.push_back(botPos);
 
     for (int i = 1; i <= 4; ++i)
     {
         float angle = (2.0f * M_PI * i) / 4.0f;
         Position waypoint;
-        waypoint.m_positionX = obstaclePos.GetPositionX() + radius * std::cos(angle);
-        waypoint.m_positionY = obstaclePos.GetPositionY() + radius * std::sin(angle);
+        waypoint.m_positionX = obstaclePos.GetPositionX() + radius * ::std::cos(angle);
+        waypoint.m_positionY = obstaclePos.GetPositionY() + radius * ::std::sin(angle);
         waypoint.m_positionZ = obstaclePos.GetPositionZ();
         circumWaypoints.push_back(waypoint);
     }
@@ -573,7 +558,6 @@ AvoidanceManeuver ObstacleAvoidanceManager::GenerateCircumnavigation(const Colli
 
     return maneuver;
 }
-
 AvoidanceManeuver ObstacleAvoidanceManager::GenerateWaitAndPass(const CollisionPrediction& collision)
 {
     AvoidanceManeuver maneuver;
@@ -581,7 +565,6 @@ AvoidanceManeuver ObstacleAvoidanceManager::GenerateWaitAndPass(const CollisionP
     maneuver.priority = static_cast<uint32>(collision.obstacle->priority) + 2;
 
     float estimatedClearanceTime = EstimateObstacleClearanceTime(*collision.obstacle);
-
     maneuver.waypoints.push_back(_bot->GetPosition());
     maneuver.executionTime = estimatedClearanceTime;
     maneuver.successProbability = collision.obstacle->isMoving ? 0.7f : 0.3f;
@@ -602,17 +585,16 @@ AvoidanceManeuver ObstacleAvoidanceManager::GenerateJumpOver(const CollisionPred
         maneuver.successProbability = 0.0f;
         return maneuver;
     }
-
     Position botPos = _bot->GetPosition();
     Position obstaclePos = collision.obstacle->position;
 
     float jumpDistance = collision.obstacle->radius * 2.0f + 2.0f;
-    float angle = std::atan2(obstaclePos.GetPositionY() - botPos.GetPositionY(),
+    float angle = ::std::atan2(obstaclePos.GetPositionY() - botPos.GetPositionY(),
                            obstaclePos.GetPositionX() - botPos.GetPositionX());
 
     Position jumpTarget;
-    jumpTarget.m_positionX = obstaclePos.GetPositionX() + jumpDistance * std::cos(angle);
-    jumpTarget.m_positionY = obstaclePos.GetPositionY() + jumpDistance * std::sin(angle);
+    jumpTarget.m_positionX = obstaclePos.GetPositionX() + jumpDistance * ::std::cos(angle);
+    jumpTarget.m_positionY = obstaclePos.GetPositionY() + jumpDistance * ::std::sin(angle);
     jumpTarget.m_positionZ = obstaclePos.GetPositionZ();
 
     maneuver.waypoints.push_back(botPos);
@@ -636,7 +618,7 @@ bool ObstacleAvoidanceManager::RequiresImmediateAvoidance()
     context.flags = DetectionFlags::BASIC;
     context.emergencyMode = true;
 
-    std::vector<CollisionPrediction> predictions = PredictCollisions(context);
+    ::std::vector<CollisionPrediction> predictions = PredictCollisions(context);
 
     for (const CollisionPrediction& prediction : predictions)
     {
@@ -653,21 +635,18 @@ void ObstacleAvoidanceManager::ExecuteEmergencyStop()
 {
     _bot->GetMotionMaster()->Clear();
     _bot->StopMoving();
-
     TC_LOG_DEBUG("playerbot.obstacle", "Bot {} executed emergency stop", _bot->GetName());
 }
 
 bool ObstacleAvoidanceManager::CanSafelyProceed(const Position& nextPosition)
 {
     // No lock needed - obstacle detection is per-bot instance data
-
     for (const auto& [guid, obstacle] : _obstacles)
     {
         if (obstacle.priority == ObstaclePriority::CRITICAL)
         {
             float distance = nextPosition.GetExactDist(&obstacle.position);
             float safeDistance = obstacle.radius + GetBotRadius() + _collisionTolerance;
-
             if (distance <= safeDistance)
                 return false;
         }
@@ -742,7 +721,7 @@ float ObstacleAvoidanceManager::CalculateObstacleRadius(WorldObject* object, Obs
     }
     else if (GameObject* gameObj = object->ToGameObject())
     {
-        return std::max(gameObj->GetDisplayScale(), 1.0f);
+        return ::std::max(gameObj->GetDisplayScale(), 1.0f);
     }
 
     return 1.0f;
@@ -768,14 +747,13 @@ void ObstacleAvoidanceManager::UpdateObstacle(const ObstacleInfo& obstacle)
     {
         it->second.position = obstacle.position;
         it->second.velocity = obstacle.velocity;
-        it->second.lastSeen = getMSTime();
+        it->second.lastSeen = GameTime::GetGameTimeMS();
         it->second.predictedPosition = PredictObstaclePosition(it->second, _lookaheadTime);
     }
 }
-
 void ObstacleAvoidanceManager::CleanupExpiredObstacles()
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastCleanup < CLEANUP_INTERVAL)
         return;
 
@@ -798,7 +776,6 @@ void ObstacleAvoidanceManager::CleanupExpiredObstacles()
 
     _lastCleanup = currentTime;
 }
-
 float ObstacleAvoidanceManager::CalculateTimeToCollision(const ObstacleInfo& obstacle, const DetectionContext& context)
 {
     if (!obstacle.isMoving)
@@ -817,7 +794,6 @@ float ObstacleAvoidanceManager::CalculateTimeToCollision(const ObstacleInfo& obs
     float a = relativeVel.m_positionX * relativeVel.m_positionX +
               relativeVel.m_positionY * relativeVel.m_positionY +
               relativeVel.m_positionZ * relativeVel.m_positionZ;
-
     float b = 2.0f * (relativePos.m_positionX * relativeVel.m_positionX +
                       relativePos.m_positionY * relativeVel.m_positionY +
                       relativePos.m_positionZ * relativeVel.m_positionZ);
@@ -827,13 +803,12 @@ float ObstacleAvoidanceManager::CalculateTimeToCollision(const ObstacleInfo& obs
               relativePos.m_positionY * relativePos.m_positionY +
               relativePos.m_positionZ * relativePos.m_positionZ -
               combinedRadius * combinedRadius;
-
     float discriminant = b * b - 4.0f * a * c;
     if (discriminant < 0.0f || a == 0.0f)
         return -1.0f;
 
-    float t1 = (-b - std::sqrt(discriminant)) / (2.0f * a);
-    float t2 = (-b + std::sqrt(discriminant)) / (2.0f * a);
+    float t1 = (-b - ::std::sqrt(discriminant)) / (2.0f * a);
+    float t2 = (-b + ::std::sqrt(discriminant)) / (2.0f * a);
 
     if (t1 > 0.0f)
         return t1;
@@ -857,19 +832,19 @@ Position ObstacleAvoidanceManager::PredictObstaclePosition(const ObstacleInfo& o
     return predicted;
 }
 
-void ObstacleAvoidanceManager::ScanTerrain(const DetectionContext& context, std::vector<ObstacleInfo>& obstacles)
+void ObstacleAvoidanceManager::ScanTerrain(const DetectionContext& context, ::std::vector<ObstacleInfo>& obstacles)
 {
     // Terrain obstacles are typically handled by the pathfinding system
     // This method could scan for specific terrain features if needed
 }
 
-void ObstacleAvoidanceManager::ScanUnits(const DetectionContext& context, std::vector<ObstacleInfo>& obstacles)
+void ObstacleAvoidanceManager::ScanUnits(const DetectionContext& context, ::std::vector<ObstacleInfo>& obstacles)
 {
-    std::vector<ObstacleInfo> unitObstacles = DetectUnitObstacles(context);
+    ::std::vector<ObstacleInfo> unitObstacles = DetectUnitObstacles(context);
     obstacles.insert(obstacles.end(), unitObstacles.begin(), unitObstacles.end());
 }
 
-void ObstacleAvoidanceManager::ScanGameObjects(const DetectionContext& context, std::vector<ObstacleInfo>& obstacles)
+void ObstacleAvoidanceManager::ScanGameObjects(const DetectionContext& context, ::std::vector<ObstacleInfo>& obstacles)
 {
     // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitGridObjects
     Map* map = _bot->GetMap();
@@ -887,7 +862,7 @@ void ObstacleAvoidanceManager::ScanGameObjects(const DetectionContext& context, 
     }
 
     // Query nearby GameObject GUIDs (lock-free!)
-    std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyGameObjectGuids(
+    ::std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyGameObjectGuids(
         _bot->GetPosition(), context.scanRadius);
 
     // Resolve GUIDs to GameObject pointers
@@ -907,22 +882,19 @@ void ObstacleAvoidanceManager::ScanGameObjects(const DetectionContext& context, 
         obstacle.isMoving = false;
         obstacle.priority = AssessObstaclePriority(obstacle, context);
         obstacle.name = obj->GetName();
-        obstacle.firstDetected = getMSTime();
+        obstacle.firstDetected = GameTime::GetGameTimeMS();
         obstacle.lastSeen = obstacle.firstDetected;
         obstacle.avoidanceRadius = ObstacleUtils::CalculateAvoidanceRadius(obstacle.radius, GetBotRadius());
-
         obstacles.push_back(obstacle);
     }
 }
 
-void ObstacleAvoidanceManager::ScanEnvironmentalHazards(const DetectionContext& context, std::vector<ObstacleInfo>& obstacles)
+void ObstacleAvoidanceManager::ScanEnvironmentalHazards(const DetectionContext& context, ::std::vector<ObstacleInfo>& obstacles)
 {
     if (!_bot || !_bot->IsInWorld())
         return;
 
     // Scan for area triggers and persistent area auras (fire, poison, etc.)
-    
-
     // TODO: DEADLOCK RISK - DynamicObjects not yet supported by SpatialGridManager
     // This is low-risk as DynamicObjects are rare and short-lived
     // Future: Add QueryNearbyDynamicObjects() to SpatialGridManager
@@ -931,7 +903,6 @@ void ObstacleAvoidanceManager::ScanEnvironmentalHazards(const DetectionContext& 
         Map* cellVisitMap = _bot->GetMap();
         if (!cellVisitMap)
             return;
-
         DoubleBufferedSpatialGrid* spatialGrid = sSpatialGridManager.GetGrid(cellVisitMap);
         if (!spatialGrid)
         {
@@ -1000,9 +971,9 @@ void ObstacleAvoidanceManager::ScanEnvironmentalHazards(const DetectionContext& 
         hazard.isTemporary = true;
         hazard.priority = ObstaclePriority::HIGH;  // Damaging effects are high priority
         hazard.name = spellInfo->SpellName[0];
-        hazard.firstDetected = getMSTime();
+        hazard.firstDetected = GameTime::GetGameTimeMS();
         hazard.lastSeen = hazard.firstDetected;
-        hazard.expirationTime = dynObj->GetDuration() > 0 ? getMSTime() + dynObj->GetDuration() : getMSTime() + 60000;
+        hazard.expirationTime = dynObj->GetDuration() > 0 ? GameTime::GetGameTimeMS() + dynObj->GetDuration() : GameTime::GetGameTimeMS() + 60000;
         hazard.avoidanceRadius = ObstacleUtils::CalculateAvoidanceRadius(hazard.radius, GetBotRadius(), 2.0f);  // Extra safety margin
         hazard.recommendedBehavior = AvoidanceBehavior::DIRECT_AVOIDANCE;
 
@@ -1029,11 +1000,11 @@ void ObstacleAvoidanceManager::ScanEnvironmentalHazards(const DetectionContext& 
         if (spatialGrid)
         {
             // Query nearby GameObject GUIDs (lock-free!)
-            std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyGameObjectGuids(
+            ::std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyGameObjectGuids(
                 _bot->GetPosition(), context.scanRadius);
 
             // Resolve GUIDs to GameObject pointers
-            for (ObjectGuid guid : nearbyGuids)
+    for (ObjectGuid guid : nearbyGuids)
             {
                 GameObject* obj = _bot->GetMap()->GetGameObject(guid);
                 if (!obj || !obj->IsInWorld())
@@ -1066,13 +1037,13 @@ void ObstacleAvoidanceManager::ScanEnvironmentalHazards(const DetectionContext& 
                 hazard.object = obj;
                 hazard.position = obj->GetPosition();
                 hazard.type = ObstacleType::TEMPORARY_HAZARD;
-                hazard.radius = std::max(obj->GetDisplayScale() * 2.0f, 3.0f);  // Minimum 3 yard radius
+                hazard.radius = ::std::max(obj->GetDisplayScale() * 2.0f, 3.0f);  // Minimum 3 yard radius
                 hazard.height = obj->GetDisplayScale() * 2.0f;
                 hazard.isMoving = false;
                 hazard.isTemporary = false;  // GameObjects persist until despawned
                 hazard.priority = ObstaclePriority::HIGH;
                 hazard.name = obj->GetName();
-                hazard.firstDetected = getMSTime();
+                hazard.firstDetected = GameTime::GetGameTimeMS();
                 hazard.lastSeen = hazard.firstDetected;
                 hazard.avoidanceRadius = ObstacleUtils::CalculateAvoidanceRadius(hazard.radius, GetBotRadius(), 2.0f);
                 hazard.recommendedBehavior = AvoidanceBehavior::DIRECT_AVOIDANCE;
@@ -1092,7 +1063,7 @@ float ObstacleAvoidanceManager::EstimateObstacleClearanceTime(const ObstacleInfo
     if (!obstacle.isMoving)
         return 10.0f;
 
-    float speed = std::sqrt(obstacle.velocity.m_positionX * obstacle.velocity.m_positionX +
+    float speed = ::std::sqrt(obstacle.velocity.m_positionX * obstacle.velocity.m_positionX +
                           obstacle.velocity.m_positionY * obstacle.velocity.m_positionY);
 
     if (speed <= 0.1f)
@@ -1109,7 +1080,7 @@ bool ObstacleAvoidanceManager::ShouldIgnoreObstacle(const ObstacleInfo& obstacle
     if (!IsInScanRange(obstacle.position, context))
         return true;
 
-    if (obstacle.isTemporary && getMSTime() > obstacle.expirationTime)
+    if (obstacle.isTemporary && GameTime::GetGameTimeMS() > obstacle.expirationTime)
         return true;
 
     return false;
@@ -1130,17 +1101,17 @@ bool ObstacleAvoidanceManager::IsInScanRange(const Position& pos, const Detectio
     return context.currentPosition.GetExactDist(&pos) <= context.scanRadius;
 }
 
-void ObstacleAvoidanceManager::TrackPerformance(std::chrono::microseconds duration, const std::string& operation)
+void ObstacleAvoidanceManager::TrackPerformance(::std::chrono::microseconds duration, const ::std::string& operation)
 {
     if (duration > _metrics.maxDetectionTime)
         _metrics.maxDetectionTime = duration;
 
-    auto currentTime = std::chrono::steady_clock::now();
-    auto timeSinceLastUpdate = std::chrono::duration_cast<std::chrono::seconds>(currentTime - _metrics.lastUpdate);
+    auto currentTime = ::std::chrono::steady_clock::now();
+    auto timeSinceLastUpdate = ::std::chrono::duration_cast<::std::chrono::seconds>(currentTime - _metrics.lastUpdate);
 
     if (timeSinceLastUpdate.count() >= 1)
     {
-        _metrics.averageDetectionTime = std::chrono::microseconds(
+        _metrics.averageDetectionTime = ::std::chrono::microseconds(
             static_cast<uint64_t>(_metrics.averageDetectionTime.count() * 0.9 + duration.count() * 0.1)
         );
         _metrics.lastUpdate = currentTime;
@@ -1189,7 +1160,7 @@ float ObstacleUtils::DistancePointToLine(const Position& point, const Position& 
     float dx = point.GetPositionX() - xx;
     float dy = point.GetPositionY() - yy;
 
-    return std::sqrt(dx * dx + dy * dy);
+    return ::std::sqrt(dx * dx + dy * dy);
 }
 
 Position ObstacleUtils::ClosestPointOnLine(const Position& point, const Position& lineStart, const Position& lineEnd)
@@ -1205,7 +1176,7 @@ Position ObstacleUtils::ClosestPointOnLine(const Position& point, const Position
     if (lenSq == 0.0f)
         return lineStart;
 
-    float param = std::max(0.0f, std::min(1.0f, dot / lenSq));
+    float param = ::std::max(0.0f, ::std::min(1.0f, dot / lenSq));
 
     Position closest;
     closest.m_positionX = lineStart.GetPositionX() + param * C;

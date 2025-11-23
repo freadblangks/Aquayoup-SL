@@ -10,6 +10,8 @@
 #pragma once
 
 #include "Define.h"
+#include "Core/DI/Interfaces/IMountManager.h"
+#include "Threading/LockHierarchy.h"
 #include "Player.h"
 #include "ObjectGuid.h"
 #include <unordered_map>
@@ -37,7 +39,7 @@ enum class MountType : uint8
 /**
  * @brief Mount speed categories
  */
-enum class MountSpeed : uint8
+enum class MountSpeed : uint16
 {
     SLOW = 60,           // 60% ground speed
     NORMAL = 100,        // 100% ground speed
@@ -93,6 +95,8 @@ struct MountAutomationProfile
 /**
  * @brief Mount Manager - Complete mount automation for bots
  *
+ * **Phase 6.2: Per-Bot Instance Pattern (25th Manager)**
+ *
  * Features:
  * - Auto-mount for long-distance travel
  * - Flying mount support with zone detection
@@ -102,12 +106,22 @@ struct MountAutomationProfile
  * - Mount collection tracking
  * - Riding skill management
  * - Zone-based mount selection
- * - Performance optimized
+ * - Performance optimized (per-bot isolation, zero mutex)
+ *
+ * **Ownership:**
+ * - Owned by GameSystemsManager (25th manager)
+ * - Each bot has independent mount state
+ * - Shared mount database across all bots (static)
  */
-class TC_GAME_API MountManager
+class TC_GAME_API MountManager final : public IMountManager
 {
 public:
-    static MountManager* instance();
+    /**
+     * @brief Construct mount manager for specific bot
+     * @param bot The bot player this manager serves
+     */
+    explicit MountManager(Player* bot);
+    ~MountManager();
 
     // ============================================================================
     // CORE MOUNT MANAGEMENT
@@ -116,32 +130,32 @@ public:
     /**
      * Initialize mount system on server startup
      */
-    void Initialize();
+    void Initialize() override;
 
     /**
      * Update mount automation for player (called periodically)
      */
-    void Update(::Player* player, uint32 diff);
+    void Update(uint32 diff) override;
 
     /**
      * Mount player with best available mount
      */
-    bool MountPlayer(::Player* player);
+    bool MountPlayer() override;
 
     /**
      * Dismount player
      */
-    bool DismountPlayer(::Player* player);
+    bool DismountPlayer() override;
 
     /**
      * Check if player is mounted
      */
-    bool IsMounted(::Player* player) const;
+    bool IsMounted() const override;
 
     /**
      * Check if player should auto-mount (distance check)
      */
-    bool ShouldAutoMount(::Player* player, Position const& destination) const;
+    bool ShouldAutoMount(Position const& destination) const override;
 
     // ============================================================================
     // MOUNT SELECTION
@@ -150,42 +164,42 @@ public:
     /**
      * Get best mount for current zone and player state
      */
-    MountInfo const* GetBestMount(::Player* player) const;
+    MountInfo const* GetBestMount() const override;
 
     /**
      * Get flying mount if zone allows flying
      */
-    MountInfo const* GetFlyingMount(::Player* player) const;
+    MountInfo const* GetFlyingMount() const override;
 
     /**
      * Get ground mount
      */
-    MountInfo const* GetGroundMount(::Player* player) const;
+    MountInfo const* GetGroundMount() const override;
 
     /**
      * Get aquatic mount for underwater travel
      */
-    MountInfo const* GetAquaticMount(::Player* player) const;
+    MountInfo const* GetAquaticMount() const override;
 
     /**
      * Get dragonriding mount
      */
-    MountInfo const* GetDragonridingMount(::Player* player) const;
+    MountInfo const* GetDragonridingMount() const override;
 
     /**
      * Check if player can use flying mount in current zone
      */
-    bool CanUseFlyingMount(::Player* player) const;
+    bool CanUseFlyingMount() const override;
 
     /**
      * Check if player is underwater
      */
-    bool IsPlayerUnderwater(::Player* player) const;
+    bool IsPlayerUnderwater() const override;
 
     /**
      * Check if zone allows dragonriding
      */
-    bool CanUseDragonriding(::Player* player) const;
+    bool CanUseDragonriding() const override;
 
     // ============================================================================
     // MOUNT COLLECTION
@@ -194,27 +208,27 @@ public:
     /**
      * Get all mounts player knows
      */
-    std::vector<MountInfo> GetPlayerMounts(::Player* player) const;
+    std::vector<MountInfo> GetPlayerMounts() const override;
 
     /**
      * Check if player knows mount
      */
-    bool KnowsMount(::Player* player, uint32 spellId) const;
+    bool KnowsMount(uint32 spellId) const override;
 
     /**
      * Learn mount spell
      */
-    bool LearnMount(::Player* player, uint32 spellId);
+    bool LearnMount(uint32 spellId) override;
 
     /**
      * Get mount count for player
      */
-    uint32 GetMountCount(::Player* player) const;
+    uint32 GetMountCount() const override;
 
     /**
      * Check if mount is usable by player (level, skill, class restrictions)
      */
-    bool CanUseMount(::Player* player, MountInfo const& mount) const;
+    bool CanUseMount(MountInfo const& mount) const override;
 
     // ============================================================================
     // RIDING SKILL
@@ -223,22 +237,22 @@ public:
     /**
      * Get player riding skill level
      */
-    uint32 GetRidingSkill(::Player* player) const;
+    uint32 GetRidingSkill() const override;
 
     /**
      * Check if player has riding skill
      */
-    bool HasRidingSkill(::Player* player) const;
+    bool HasRidingSkill() const override;
 
     /**
      * Learn riding skill (apprentice, journeyman, expert, artisan, master)
      */
-    bool LearnRidingSkill(::Player* player, uint32 skillLevel);
+    bool LearnRidingSkill(uint32 skillLevel) override;
 
     /**
      * Get max mount speed based on riding skill
      */
-    MountSpeed GetMaxMountSpeed(::Player* player) const;
+    MountSpeed GetMaxMountSpeed() const override;
 
     // ============================================================================
     // MULTI-PASSENGER MOUNTS
@@ -247,29 +261,29 @@ public:
     /**
      * Check if mount is multi-passenger
      */
-    bool IsMultiPassengerMount(MountInfo const& mount) const;
+    bool IsMultiPassengerMount(MountInfo const& mount) const override;
 
     /**
      * Get available passenger seats
      */
-    uint32 GetAvailablePassengerSeats(::Player* player) const;
+    uint32 GetAvailablePassengerSeats() const override;
 
     /**
      * Add passenger to mount
      */
-    bool AddPassenger(::Player* mountedPlayer, ::Player* passenger);
+    bool AddPassenger(::Player* passenger) override;
 
     /**
      * Remove passenger from mount
      */
-    bool RemovePassenger(::Player* passenger);
+    bool RemovePassenger(::Player* passenger) override;
 
     // ============================================================================
     // AUTOMATION PROFILES
     // ============================================================================
 
-    void SetAutomationProfile(uint32 playerGuid, MountAutomationProfile const& profile);
-    MountAutomationProfile GetAutomationProfile(uint32 playerGuid) const;
+    void SetAutomationProfile(MountAutomationProfile const& profile) override;
+    MountAutomationProfile GetAutomationProfile() const override;
 
     // ============================================================================
     // METRICS
@@ -295,84 +309,79 @@ public:
         }
     };
 
-    MountMetrics const& GetPlayerMetrics(uint32 playerGuid) const;
+    MountMetrics const& GetMetrics() const;
     MountMetrics const& GetGlobalMetrics() const;
 
 private:
-    MountManager();
-    ~MountManager() = default;
+    // Non-copyable
+    MountManager(MountManager const&) = delete;
+    MountManager& operator=(MountManager const&) = delete;
 
     // ============================================================================
     // INITIALIZATION HELPERS
     // ============================================================================
 
-    void LoadMountDatabase();
-    void InitializeVanillaMounts();
-    void InitializeTBCMounts();
-    void InitializeWrathMounts();
-    void InitializeCataclysmMounts();
-    void InitializePandariaMounts();
-    void InitializeDraenorMounts();
-    void InitializeLegionMounts();
-    void InitializeBfAMounts();
-    void InitializeShadowlandsMounts();
-    void InitializeDragonflightMounts();
+    void LoadMountDatabase() override;
+    void InitializeVanillaMounts() override;
+    void InitializeTBCMounts() override;
+    void InitializeWrathMounts() override;
+    void InitializeCataclysmMounts() override;
+    void InitializePandariaMounts() override;
+    void InitializeDraenorMounts() override;
+    void InitializeLegionMounts() override;
+    void InitializeBfAMounts() override;
+    void InitializeShadowlandsMounts() override;
+    void InitializeDragonflightMounts() override;
     void InitializeWarWithinMounts();
 
     // ============================================================================
     // MOUNT CASTING HELPERS
     // ============================================================================
 
-    bool CastMountSpell(::Player* player, uint32 spellId);
-    bool CanCastMountSpell(::Player* player, uint32 spellId) const;
-    void HandleMountCastResult(::Player* player, uint32 spellId, bool success);
+    bool CastMountSpell(uint32 spellId);
+    bool CanCastMountSpell(uint32 spellId) const;
+    void HandleMountCastResult(uint32 spellId, bool success);
 
     // ============================================================================
     // ZONE DETECTION HELPERS
     // ============================================================================
 
-    bool IsInNoFlyZone(::Player* player) const;
-    bool IsInDragonridingZone(::Player* player) const;
-    bool IsInAquaticZone(::Player* player) const;
-    uint32 GetCurrentZoneId(::Player* player) const;
+    bool IsInNoFlyZone() const;
+    bool IsInDragonridingZone() const;
+    bool IsInAquaticZone() const;
+    uint32 GetCurrentZoneId() const;
 
     // ============================================================================
     // VALIDATION HELPERS
     // ============================================================================
 
-    bool ValidateMountUsage(::Player* player) const;
-    bool IsInCombat(::Player* player) const;
-    bool IsIndoors(::Player* player) const;
-    bool IsInInstance(::Player* player) const;
+    bool ValidateMountUsage() const;
+    bool IsInCombat() const;
+    bool IsIndoors() const;
+    bool IsInInstance() const;
 
     // ============================================================================
     // DATA STRUCTURES
     // ============================================================================
 
-    // Mount database (spellId -> MountInfo)
-    std::unordered_map<uint32, MountInfo> _mountDatabase;
+    // Bot reference (non-owning)
+    Player* _bot;
 
-    // Player automation profiles
-    std::unordered_map<uint32, MountAutomationProfile> _playerProfiles;
+    // Per-bot instance data
+    MountAutomationProfile _profile;
+    std::unordered_set<uint32> _knownMounts;
+    uint32 _currentMount{0};
+    uint32 _mountTimestamp{0};
+    MountMetrics _metrics;
+    uint32 _lastUpdateTime{0};
 
-    // Player mount tracking (playerGuid -> known mount spell IDs)
-    std::unordered_map<uint32, std::unordered_set<uint32>> _playerMounts;
-
-    // Mount state tracking (playerGuid -> current mount spell ID)
-    std::unordered_map<uint32, uint32> _activeMounts;
-
-    // Mount timestamps (playerGuid -> mount timestamp)
-    std::unordered_map<uint32, uint32> _mountTimestamps;
-
-    // Metrics
-    std::unordered_map<uint32, MountMetrics> _playerMetrics;
-    MountMetrics _globalMetrics;
-
-    mutable std::recursive_mutex _mutex;
+    // Shared static data (all bots)
+    static std::unordered_map<uint32, MountInfo> _mountDatabase;
+    static bool _mountDatabaseInitialized;
+    static MountMetrics _globalMetrics;
 
     // Update intervals
     static constexpr uint32 MOUNT_UPDATE_INTERVAL = 5000;  // 5 seconds
-    std::unordered_map<uint32, uint32> _lastUpdateTimes;
 
     // Mount spell IDs (examples - full list loaded from DB/DBC)
     static constexpr uint32 SPELL_MOUNT_RIDING_APPRENTICE = 33388;

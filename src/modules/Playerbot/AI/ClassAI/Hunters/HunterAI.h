@@ -11,6 +11,7 @@
 #define TRINITY_HUNTERPLAYERAI_H
 
 #include "../ClassAI.h"
+#include "../../Combat/CombatBehaviorIntegration.h"
 #include "Position.h"
 #include "ObjectGuid.h"
 #include "PetDefines.h"
@@ -18,15 +19,13 @@
 #include <atomic>
 #include <unordered_set>
 #include <vector>
+#include "GameTime.h"
 
 class Player;
 class Pet;
 
 namespace Playerbot
 {
-
-// Forward declarations
-class CombatBehaviorIntegration;
 
 enum class HunterSpec : uint8
 {
@@ -46,8 +45,8 @@ struct TrapInfo
     TrapInfo(uint32 spell = 0, uint32 last = 0, Position pos = Position(), uint32 dur = 30000)
         : spellId(spell), lastUsed(last), position(pos), duration(dur) {}
 
-    bool IsReady() const { return (getMSTime() - lastUsed) >= 30000; } // 30sec trap cooldown
-    bool IsActive() const { return (getMSTime() - lastUsed) < duration; }
+    bool IsReady() const { return (GameTime::GetGameTimeMS() - lastUsed) >= 30000; } // 30sec trap cooldown
+    bool IsActive() const { return (GameTime::GetGameTimeMS() - lastUsed) < duration; }
 };
 
 // Pet information tracking
@@ -76,16 +75,16 @@ struct PetInfo
 // Combat metrics structure for performance tracking
 struct HunterCombatMetrics
 {
-    std::atomic<uint32> shotsLanded{0};
-    std::atomic<uint32> shotsMissed{0};
-    std::atomic<uint32> criticalStrikes{0};
-    std::atomic<uint32> interrupts{0};
-    std::atomic<uint32> trapsTriggered{0};
-    std::atomic<uint32> petCommands{0};
-    std::atomic<uint32> focusSpent{0};
-    std::atomic<uint32> damageDealt{0};
-    std::atomic<float> timeAtRange{0.0f};
-    std::atomic<float> timeInDeadZone{0.0f};
+    ::std::atomic<uint32> shotsLanded{0};
+    ::std::atomic<uint32> shotsMissed{0};
+    ::std::atomic<uint32> criticalStrikes{0};
+    ::std::atomic<uint32> interrupts{0};
+    ::std::atomic<uint32> trapsTriggered{0};
+    ::std::atomic<uint32> petCommands{0};
+    ::std::atomic<uint32> focusSpent{0};
+    ::std::atomic<uint32> damageDealt{0};
+    ::std::atomic<float> timeAtRange{0.0f};
+    ::std::atomic<float> timeInDeadZone{0.0f};
 
     void Reset()
     {
@@ -201,7 +200,7 @@ private:
     void RecordTrapPlacement(uint32 trapSpell);
 
     // Member variables
-    std::unique_ptr<CombatBehaviorIntegration> _combatBehaviors;
+    ::std::unique_ptr<CombatBehaviorIntegration> _combatBehaviors;
 
     // Combat state tracking
     HunterCombatMetrics _combatMetrics;
@@ -222,7 +221,7 @@ private:
     uint32 _petTargetSwitch;
 
     // Trap management
-    std::unordered_set<ObjectGuid> _frozenTargets;
+    ::std::unordered_set<ObjectGuid> _frozenTargets;
     Position _lastTrapPosition;
     uint32 _activeTrapType;
 
@@ -296,7 +295,17 @@ public:
         BESTIAL_WRATH = 19574,
         TRUESHOT = 288613,
         BARRAGE = 120360,
-        VOLLEY = 260243
+        VOLLEY = 260243,
+
+        // Tracking Abilities (WoW 11.2)
+        TRACK_BEASTS = 1494,
+        TRACK_DEMONS = 19878,
+        TRACK_DRAGONKIN = 19879,
+        TRACK_ELEMENTALS = 19880,
+        TRACK_GIANTS = 19882,
+        TRACK_HUMANOIDS = 19883,
+        TRACK_UNDEAD = 19884,
+        TRACK_HIDDEN = 19885
     };
 };
 

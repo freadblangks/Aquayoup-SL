@@ -10,11 +10,13 @@
 #pragma once
 
 #include "../ClassAI.h"
+#include "Threading/LockHierarchy.h"
 #include "Position.h"
 #include <unordered_map>
 #include <queue>
 #include <vector>
 #include <array>
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -63,7 +65,7 @@ struct EssenceInfo
 
     bool HasEssence(uint32 required = 1) const { return current >= required; }
     void SpendEssence(uint32 amount) { current = current >= amount ? current - amount : 0; }
-    void GenerateEssence(uint32 amount) { current = std::min(current + amount, maximum); generation += amount; }
+    void GenerateEssence(uint32 amount) { current = ::std::min(current + amount, maximum); generation += amount; }
 };
 
 // Empowered spell tracking
@@ -82,9 +84,9 @@ struct EmpoweredSpell
 
     EmpoweredSpell(uint32 spell, EmpowermentLevel level, ::Unit* tgt)
         : spellId(spell), currentLevel(EmpowermentLevel::NONE), targetLevel(level),
-          channelStart(getMSTime()), channelDuration(0), isChanneling(true), target(tgt) {}
+          channelStart(GameTime::GetGameTimeMS()), channelDuration(0), isChanneling(true), target(tgt) {}
 
-    uint32 GetChannelTime() const { return getMSTime() - channelStart; }
+    uint32 GetChannelTime() const { return GameTime::GetGameTimeMS() - channelStart; }
     bool ShouldRelease() const { return GetChannelTime() >= GetRequiredChannelTime(); }
     uint32 GetRequiredChannelTime() const { return static_cast<uint32>(targetLevel) * 1000; } // 1 sec per rank
 };
@@ -101,10 +103,10 @@ struct Echo
     Echo() : target(nullptr), remainingHeals(0), healAmount(0), lastHeal(0), healInterval(2000) {}
 
     Echo(::Unit* tgt, uint32 heals, uint32 amount)
-        : target(tgt), remainingHeals(heals), healAmount(amount), lastHeal(getMSTime()), healInterval(2000) {}
+        : target(tgt), remainingHeals(heals), healAmount(amount), lastHeal(GameTime::GetGameTimeMS()), healInterval(2000) {}
 
-    bool ShouldHeal() const { return getMSTime() - lastHeal >= healInterval && remainingHeals > 0; }
-    void ProcessHeal() { if (remainingHeals > 0) { remainingHeals--; lastHeal = getMSTime(); } }
+    bool ShouldHeal() const { return GameTime::GetGameTimeMS() - lastHeal >= healInterval && remainingHeals > 0; }
+    void ProcessHeal() { if (remainingHeals > 0) { remainingHeals--; lastHeal = GameTime::GetGameTimeMS(); } }
 };
 
 // Evoker AI implementation with full essence and empowerment management
@@ -212,12 +214,12 @@ private:
 
     // Empowerment system
     EmpoweredSpell _currentEmpoweredSpell;
-    std::unordered_map<uint32, EmpowermentLevel> _optimalEmpowermentLevels;
+    ::std::unordered_map<uint32, EmpowermentLevel> _optimalEmpowermentLevels;
     uint32 _lastEmpoweredSpell;
     bool _isChannelingEmpowered;
 
     // Echo system (Preservation)
-    std::vector<Echo> _activeEchoes;
+    ::std::vector<Echo> _activeEchoes;
     uint32 _lastEchoUpdate;
     uint32 _echoUpdateInterval;
     uint32 _maxEchoes;
@@ -235,14 +237,14 @@ private:
     uint32 _callOfYseraStacks;
     uint32 _lastVerdantEmbrace;
     uint32 _lastTemporalAnomaly;
-    std::unordered_map<ObjectGuid, uint32> _rendezvousTargets;
+    ::std::unordered_map<ObjectGuid, uint32> _rendezvousTargets;
 
     // Augmentation tracking
     uint32 _prescientStacks;
     uint32 _blisteryScalesStacks;
     uint32 _lastEbon;
     uint32 _lastBreathOfEons;
-    std::unordered_map<ObjectGuid, uint32> _augmentationBuffs;
+    ::std::unordered_map<ObjectGuid, uint32> _augmentationBuffs;
 
     // Aspect management
     uint32 _aspectDuration;
@@ -359,7 +361,7 @@ private:
     ::Unit* GetBestEchoTarget();
     ::Unit* GetBestAugmentationTarget();
     ::Unit* GetHighestPriorityDamageTarget();
-    std::vector<::Unit*> GetEmpoweredSpellTargets(uint32 spellId);
+    ::std::vector<::Unit*> GetEmpoweredSpellTargets(uint32 spellId);
 
     // Buff and debuff management
     void ManageBuffs();
@@ -425,20 +427,20 @@ public:
     static bool ShouldConserveEssence(Player* caster, uint32 currentEssence);
 
     // Echo optimization
-    static uint32 CalculateOptimalEchoTargets(Player* caster, const std::vector<::Unit*>& allies);
+    static uint32 CalculateOptimalEchoTargets(Player* caster, const ::std::vector<::Unit*>& allies);
     static bool ShouldCreateEcho(Player* caster, ::Unit* target);
     static uint32 CalculateEchoValue(Player* caster, ::Unit* target);
 
     // Augmentation calculations
     static uint32 CalculateBuffEfficiency(uint32 spellId, Player* caster, ::Unit* target);
-    static ::Unit* GetOptimalAugmentationTarget(Player* caster, const std::vector<::Unit*>& allies);
+    static ::Unit* GetOptimalAugmentationTarget(Player* caster, const ::std::vector<::Unit*>& allies);
 
 private:
     // Cache for evoker calculations
-    static inline std::unordered_map<uint32, uint32> _damageCache;
-    static inline std::unordered_map<uint32, uint32> _healingCache;
-    static inline std::unordered_map<EmpowermentLevel, uint32> _empowermentCache;
-    static inline std::recursive_mutex _cacheMutex;
+    static inline ::std::unordered_map<uint32, uint32> _damageCache;
+    static inline ::std::unordered_map<uint32, uint32> _healingCache;
+    static inline ::std::unordered_map<EmpowermentLevel, uint32> _empowermentCache;
+    static inline Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _cacheMutex;
 
     static void CacheEvokerData();
 };
@@ -531,7 +533,7 @@ public:
 
 private:
     EvokerAI* _owner;
-    std::vector<Echo> _echoes;
+    ::std::vector<Echo> _echoes;
     uint32 _lastUpdate;
     uint32 _maxEchoes;
 

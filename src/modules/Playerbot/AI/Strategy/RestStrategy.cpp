@@ -16,6 +16,7 @@
 #include "SpellInfo.h"
 #include "Log.h"
 #include "SpellMgr.h"
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -69,7 +70,6 @@ bool RestStrategy::IsActive(BotAI* ai) const
         return false;
 
     Player* bot = ai->GetBot();
-
     // NOT active during combat (can't eat/drink in combat)
     if (bot->IsInCombat())
         return false;
@@ -84,7 +84,6 @@ float RestStrategy::GetRelevance(BotAI* ai) const
         return 0.0f;
 
     Player* bot = ai->GetBot();
-
     // Can't rest in combat
     if (bot->IsInCombat())
         return 0.0f;
@@ -101,9 +100,7 @@ void RestStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
 {
     if (!ai || !ai->GetBot())
         return;
-
     Player* bot = ai->GetBot();
-
     // Can't rest in combat
     if (bot->IsInCombat())
     {
@@ -122,7 +119,7 @@ void RestStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     TC_LOG_DEBUG("module.playerbot.strategy", "RestStrategy::UpdateBehavior: Bot {} health={:.1f}%, mana={:.1f}%, needsFood={}, needsDrink={}",
                  bot->GetName(), healthPct, manaPct, NeedsFood(ai), NeedsDrink(ai));
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Check for rest timeout (prevent infinite resting)
     if (_restStartTime > 0 && (currentTime - _restStartTime) > _maxRestTime)
@@ -136,7 +133,6 @@ void RestStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     }
 
     // Check if rest is complete (healthPct and manaPct already declared above)
-
     if (_isEating && healthPct >= _restCompleteHealth)
     {
         TC_LOG_DEBUG("module.playerbot.strategy", "RestStrategy: Bot {} finished eating ({:.1f}% health)",
@@ -150,7 +146,6 @@ void RestStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
                      bot->GetName(), manaPct);
         _isDrinking = false;
     }
-
     // If both complete, stop resting
     if (!_isEating && !_isDrinking && _restStartTime > 0)
     {
@@ -166,7 +161,6 @@ void RestStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
         {
             TC_LOG_DEBUG("module.playerbot.strategy", "RestStrategy: Bot {} found food item {}, attempting to eat",
                          bot->GetName(), food->GetTemplate()->GetName(DEFAULT_LOCALE));
-
             if (EatFood(ai, food))
             {
                 _isEating = true;
@@ -281,10 +275,10 @@ Item* RestStrategy::FindFood(BotAI* ai) const
             continue;
 
         // Check if item is food
-        if (proto->GetClass() == ITEM_CLASS_CONSUMABLE && proto->GetSubClass() == ITEM_SUBCLASS_FOOD_DRINK)
+    if (proto->GetClass() == ITEM_CLASS_CONSUMABLE && proto->GetSubClass() == ITEM_SUBCLASS_FOOD_DRINK)
         {
             // Verify it's actually food by checking spell specific type
-            for (ItemEffectEntry const* effect : proto->Effects)
+    for (ItemEffectEntry const* effect : proto->Effects)
             {
                 if (effect && effect->SpellID > 0)
                 {
@@ -318,7 +312,7 @@ Item* RestStrategy::FindFood(BotAI* ai) const
                 if (proto->GetClass() == ITEM_CLASS_CONSUMABLE && proto->GetSubClass() == ITEM_SUBCLASS_FOOD_DRINK)
                 {
                     // Verify it's actually food by checking spell specific type
-                    for (ItemEffectEntry const* effect : proto->Effects)
+    for (ItemEffectEntry const* effect : proto->Effects)
                     {
                         if (effect && effect->SpellID > 0)
                         {
@@ -358,10 +352,10 @@ Item* RestStrategy::FindDrink(BotAI* ai) const
             continue;
 
         // Check if item is drink (restores mana)
-        if (proto->GetClass() == ITEM_CLASS_CONSUMABLE)
+    if (proto->GetClass() == ITEM_CLASS_CONSUMABLE)
         {
             // Check if spell is drink-specific
-            for (ItemEffectEntry const* effect : proto->Effects)
+    for (ItemEffectEntry const* effect : proto->Effects)
             {
                 if (effect && effect->SpellID > 0)
                 {
@@ -435,8 +429,8 @@ Item* RestStrategy::FindBandage(BotAI* ai) const
             continue;
 
         // Check item name contains "Bandage"
-        std::string itemName = proto->GetName(DEFAULT_LOCALE);
-        if (itemName.find("Bandage") != std::string::npos)
+        ::std::string itemName = proto->GetName(DEFAULT_LOCALE);
+        if (itemName.find("Bandage") != ::std::string::npos)
             return item;
     }
 
@@ -455,8 +449,8 @@ Item* RestStrategy::FindBandage(BotAI* ai) const
                 if (!proto)
                     continue;
 
-                std::string itemName = proto->GetName(DEFAULT_LOCALE);
-                if (itemName.find("Bandage") != std::string::npos)
+                ::std::string itemName = proto->GetName(DEFAULT_LOCALE);
+                if (itemName.find("Bandage") != ::std::string::npos)
                     return item;
             }
         }

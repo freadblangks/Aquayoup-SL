@@ -8,10 +8,10 @@
  */
 
 #include "DruidAI.h"
-#include "BalanceDruidRefactored.h"
-#include "FeralDruidRefactored.h"
-#include "GuardianDruidRefactored.h"
-#include "RestorationDruidRefactored.h"
+#include "BalanceDruid.h"
+#include "FeralDruid.h"
+#include "GuardianDruid.h"
+#include "RestorationDruid.h"
 #include "../BaselineRotationManager.h"
 #include "../../Combat/CombatBehaviorIntegration.h"
 #include "Player.h"
@@ -24,8 +24,7 @@
 namespace Playerbot
 {
 
-DruidAI::DruidAI(Player* bot) : ClassAI(bot),
-    _currentForm(DruidForm::HUMANOID),
+DruidAI::DruidAI(Player* bot) : ClassAI(bot),    _currentForm(DruidForm::HUMANOID),
     _lastFormShift(0),
     _comboPoints(0),
     _energy(100),
@@ -56,15 +55,20 @@ void DruidAI::UpdateRotation(::Unit* target)
         baselineManager.HandleAutoSpecialization(GetBot());
 
         if (baselineManager.ExecuteBaselineRotation(GetBot(), target))
+
             return;
 
         // Fallback: basic melee or ranged attack based on form
-        if (!GetBot()->IsNonMeleeSpellCast(false))
+    if (!GetBot()->IsNonMeleeSpellCast(false))
         {
-            float distance = std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
-            if (distance <= 5.0f || GetBot()->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
+
+            float distance = ::std::sqrt(GetBot()->GetExactDistSq(target)); // Calculate once from squared distance
+    if (distance <= 5.0f || GetBot()->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
+
             {
+
                 GetBot()->AttackerStateUpdate(target);
+
             }
         }
         return;
@@ -82,6 +86,7 @@ void DruidAI::UpdateRotation(::Unit* target)
     if (behaviors && behaviors->ShouldInterrupt(target))
     {
         if (HandleInterrupts(target))
+
             return;
     }
 
@@ -89,6 +94,7 @@ void DruidAI::UpdateRotation(::Unit* target)
     if (behaviors && behaviors->NeedsDefensive())
     {
         if (HandleDefensives())
+
             return;
     }
 
@@ -96,6 +102,7 @@ void DruidAI::UpdateRotation(::Unit* target)
     if (behaviors && behaviors->ShouldSwitchTarget())
     {
         if (HandleTargetSwitching(target))
+
             return;
     }
 
@@ -103,6 +110,7 @@ void DruidAI::UpdateRotation(::Unit* target)
     if (behaviors && behaviors->ShouldAOE())
     {
         if (HandleAoERotation(target))
+
             return;
     }
 
@@ -110,6 +118,7 @@ void DruidAI::UpdateRotation(::Unit* target)
     if (behaviors && behaviors->ShouldUseCooldowns())
     {
         if (HandleOffensiveCooldowns(target))
+
             return;
     }
 
@@ -137,10 +146,13 @@ bool DruidAI::HandleInterrupts(::Unit* target)
     if ((IsInForm(DruidForm::CAT) || IsInForm(DruidForm::BEAR)) &&
         CanUseAbility(SKULL_BASH_CAT))
     {
-        if (CastSpell(interruptTarget, SKULL_BASH_CAT))
+        if (CastSpell(SKULL_BASH_CAT, interruptTarget))
         {
+
             TC_LOG_DEBUG("module.playerbot.ai", "Druid {} interrupted {} with Skull Bash",
+
                          GetBot()->GetName(), interruptTarget->GetName());
+
             return true;
         }
     }
@@ -148,10 +160,13 @@ bool DruidAI::HandleInterrupts(::Unit* target)
     // Solar Beam - Balance spec interrupt
     if (GetBot()->GetPrimarySpecialization() == ChrSpecialization::DruidBalance && CanUseAbility(SOLAR_BEAM))
     {
-        if (CastSpell(interruptTarget, SOLAR_BEAM))
+        if (CastSpell(SOLAR_BEAM, interruptTarget))
         {
+
             TC_LOG_DEBUG("module.playerbot.ai", "Druid {} interrupted {} with Solar Beam",
+
                          GetBot()->GetName(), interruptTarget->GetName());
+
             return true;
         }
     }
@@ -160,10 +175,13 @@ bool DruidAI::HandleInterrupts(::Unit* target)
     float rangeSq_typhoon = 15.0f * 15.0f; // 225.0f
     if (GetBot()->GetExactDistSq(interruptTarget) <= rangeSq_typhoon && CanUseAbility(TYPHOON))
     {
-        if (CastSpell(interruptTarget, TYPHOON))
+        if (CastSpell(TYPHOON, interruptTarget))
         {
+
             TC_LOG_DEBUG("module.playerbot.ai", "Druid {} interrupted {} with Typhoon",
+
                          GetBot()->GetName(), interruptTarget->GetName());
+
             return true;
         }
     }
@@ -172,10 +190,13 @@ bool DruidAI::HandleInterrupts(::Unit* target)
     float rangeSq_bash = 5.0f * 5.0f; // 25.0f
     if (GetBot()->GetExactDistSq(interruptTarget) <= rangeSq_bash && CanUseAbility(MIGHTY_BASH))
     {
-        if (CastSpell(interruptTarget, MIGHTY_BASH))
+        if (CastSpell(MIGHTY_BASH, interruptTarget))
         {
+
             TC_LOG_DEBUG("module.playerbot.ai", "Druid {} interrupted {} with Mighty Bash",
+
                          GetBot()->GetName(), interruptTarget->GetName());
+
             return true;
         }
     }
@@ -189,8 +210,7 @@ bool DruidAI::HandleDefensives()
     if (!bot)
         return false;
 
-    float healthPercent = bot->GetHealthPct();
-    uint32 currentTime = getMSTime();
+    float healthPercent = bot->GetHealthPct();    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Survival Instincts - critical health
     if (healthPercent < 30.0f &&
@@ -199,67 +219,83 @@ bool DruidAI::HandleDefensives()
     {
         if (CastSpell(SURVIVAL_INSTINCTS))
         {
+
             _lastSurvivalInstincts = currentTime;
+
             TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Survival Instincts at {}% health",
+
                          bot->GetName(), healthPercent);
+
             return true;
         }
-    }
-
-    // Barkskin - moderate damage reduction
+    }    // Barkskin - moderate damage reduction
     if (healthPercent < 50.0f &&
         currentTime > _lastBarkskin + 60000 &&
         CanUseAbility(BARKSKIN))
     {
         if (CastSpell(BARKSKIN))
         {
+
             _lastBarkskin = currentTime;
+
             TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Barkskin at {}% health",
-                         bot->GetName(), healthPercent);
+            bot->GetName(), healthPercent);
+
             return true;
         }
     }
 
     // Frenzied Regeneration - Guardian healing
-    if (bot->GetPrimarySpecialization() == ChrSpecialization::DruidGuardian &&
-        healthPercent < 60.0f &&
+    if (bot->GetPrimarySpecialization() == ChrSpecialization::DruidGuardian &&        healthPercent < 60.0f &&
         currentTime > _lastFrenziedRegen + 30000 &&
         CanUseAbility(FRENZIED_REGENERATION))
     {
         if (CastSpell(FRENZIED_REGENERATION))
         {
+
             _lastFrenziedRegen = currentTime;
+
             TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Frenzied Regeneration",
+
                          bot->GetName());
+
             return true;
         }
     }
 
     // Ironbark - Restoration defensive for allies
-    if (bot->GetPrimarySpecialization() == ChrSpecialization::DruidRestoration)
-    {
+    if (bot->GetPrimarySpecialization() == ChrSpecialization::DruidRestoration)    {
         Unit* lowestAlly = GetLowestHealthAlly(40.0f);
         if (lowestAlly && lowestAlly->GetHealthPct() < 40.0f &&
+
             CanUseAbility(IRONBARK))
         {
-            if (CastSpell(lowestAlly, IRONBARK))
+
+            if (CastSpell(IRONBARK, lowestAlly))
+
             {
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Druid {} cast Ironbark on {}",
+
                              bot->GetName(), lowestAlly->GetName());
+
                 return true;
+
             }
         }
     }
 
     // Cenarion Ward - preemptive defense
-    if (bot->GetPrimarySpecialization() == ChrSpecialization::DruidRestoration &&
-        healthPercent < 70.0f &&
+    if (bot->GetPrimarySpecialization() == ChrSpecialization::DruidRestoration &&        healthPercent < 70.0f &&
         CanUseAbility(CENARION_WARD))
     {
-        if (CastSpell(bot, CENARION_WARD))
+        if (CastSpell(CENARION_WARD, bot))
         {
+
             TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Cenarion Ward",
+
                          bot->GetName());
+
             return true;
         }
     }
@@ -275,6 +311,7 @@ bool DruidAI::HandleTargetSwitching(::Unit*& target)
         OnTargetChanged(priorityTarget);
         target = priorityTarget;
         TC_LOG_DEBUG("module.playerbot.ai", "Druid {} switching target to {}",
+
                      GetBot()->GetName(), priorityTarget->GetName());
         return true;
     }
@@ -286,7 +323,7 @@ bool DruidAI::HandleAoERotation(::Unit* target)
     if (!target)
         return false;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     ChrSpecialization spec = GetBot()->GetPrimarySpecialization();
 
     switch (spec)
@@ -294,148 +331,248 @@ bool DruidAI::HandleAoERotation(::Unit* target)
         case ChrSpecialization::DruidFeral:
         {
             // Ensure we're in Cat Form for Feral AoE
-            if (!IsInForm(DruidForm::CAT))
+    if (!IsInForm(DruidForm::CAT))
+
             {
+
                 if (ShiftToForm(DruidForm::CAT))
+
                     return true;
+
             }
 
             // Primal Wrath - combo point AoE finisher
-            if (_comboPoints >= 4 && CanUseAbility(PRIMAL_WRATH))
+    if (_comboPoints >= 4 && CanUseAbility(PRIMAL_WRATH))
+
             {
-                if (CastSpell(target, PRIMAL_WRATH))
+
+                if (CastSpell(PRIMAL_WRATH, target))
+
                 {
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} using Primal Wrath for AoE",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Thrash - AoE bleed
-            if (currentTime > _lastThrash + 6000 && CanUseAbility(THRASH_CAT))
+    if (currentTime > _lastThrash + 6000 && CanUseAbility(THRASH_CAT))
+
             {
-                if (CastSpell(target, THRASH_CAT))
+
+                if (CastSpell(THRASH_CAT, target))
+
                 {
+
                     _lastThrash = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} using Thrash for AoE",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Swipe - AoE builder
-            if (currentTime > _lastSwipe + 3000 && CanUseAbility(SWIPE_CAT))
+    if (currentTime > _lastSwipe + 3000 && CanUseAbility(SWIPE_CAT))
+
             {
-                if (CastSpell(target, SWIPE_CAT))
+
+                if (CastSpell(SWIPE_CAT, target))
+
                 {
+
                     _lastSwipe = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} using Swipe for AoE",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
+
             break;
         }
 
         case ChrSpecialization::DruidGuardian:
         {
             // Ensure we're in Bear Form for Guardian AoE
-            if (!IsInForm(DruidForm::BEAR))
+    if (!IsInForm(DruidForm::BEAR))
+
             {
+
                 if (ShiftToForm(DruidForm::BEAR))
+
                     return true;
+
             }
 
             // Thrash - primary AoE threat
-            if (currentTime > _lastThrash + 6000 && CanUseAbility(THRASH_BEAR))
+    if (currentTime > _lastThrash + 6000 && CanUseAbility(THRASH_BEAR))
+
             {
-                if (CastSpell(target, THRASH_BEAR))
+
+                if (CastSpell(THRASH_BEAR, target))
+
                 {
+
                     _lastThrash = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} using Thrash for AoE threat",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Swipe - AoE damage
-            if (currentTime > _lastSwipe + 3000 && CanUseAbility(SWIPE_BEAR))
+    if (currentTime > _lastSwipe + 3000 && CanUseAbility(SWIPE_BEAR))
+
             {
-                if (CastSpell(target, SWIPE_BEAR))
+
+                if (CastSpell(SWIPE_BEAR, target))
+
                 {
+
                     _lastSwipe = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} using Swipe for AoE",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
+
             break;
         }
 
         case ChrSpecialization::DruidBalance:
         {
             // Starfall - major AoE
-            if (CanUseAbility(STARFALL))
+    if (CanUseAbility(STARFALL))
+
             {
-                if (CastSpell(target, STARFALL))
+
+                if (CastSpell(STARFALL, target))
+
                 {
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} using Starfall for AoE",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Lunar Strike - cleave
-            if (CanUseAbility(LUNAR_STRIKE))
+    if (CanUseAbility(LUNAR_STRIKE))
+
             {
-                if (CastSpell(target, LUNAR_STRIKE))
+
+                if (CastSpell(LUNAR_STRIKE, target))
+
                 {
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} using Lunar Strike for cleave",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Sunfire - spread DoT
-            if (CanUseAbility(SUNFIRE))
+    if (CanUseAbility(SUNFIRE))
+
             {
-                if (CastSpell(target, SUNFIRE))
+
+                if (CastSpell(SUNFIRE, target))
+
                 {
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} spreading Sunfire",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
+
             break;
         }
 
         case ChrSpecialization::DruidRestoration:
         {
             // Wild Growth - AoE heal
-            if (CanUseAbility(WILD_GROWTH))
+    if (CanUseAbility(WILD_GROWTH))
+
             {
+
                 Unit* healTarget = GetLowestHealthAlly(40.0f);
+
                 if (healTarget)
+
                 {
-                    if (CastSpell(healTarget, WILD_GROWTH))
+
+                    if (CastSpell(WILD_GROWTH, healTarget))
+
                     {
+
                         TC_LOG_DEBUG("module.playerbot.ai", "Druid {} using Wild Growth",
+
                                      GetBot()->GetName());
+
                         return true;
+
                     }
+
                 }
+
             }
 
             // Efflorescence - ground AoE heal
-            if (CanUseAbility(EFFLORESCENCE))
+    if (CanUseAbility(EFFLORESCENCE))
+
             {
-                if (CastSpell(target, EFFLORESCENCE))
+
+                if (CastSpell(EFFLORESCENCE, target))
+
                 {
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} placing Efflorescence",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
+
             break;
         }
     }
@@ -448,7 +585,7 @@ bool DruidAI::HandleOffensiveCooldowns(::Unit* target)
     if (!target)
         return false;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     ChrSpecialization spec = GetBot()->GetPrimarySpecialization();
 
     switch (spec)
@@ -456,134 +593,230 @@ bool DruidAI::HandleOffensiveCooldowns(::Unit* target)
         case ChrSpecialization::DruidFeral:
         {
             // Tiger's Fury - energy and damage boost
-            if (currentTime > _lastTigersFury + 30000 &&
+    if (currentTime > _lastTigersFury + 30000 &&
+
                 _energy < 40 &&
+
                 CanUseAbility(TIGERS_FURY))
+
             {
+
                 if (CastSpell(TIGERS_FURY))
+
                 {
+
                     _lastTigersFury = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Tiger's Fury",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Berserk - major DPS cooldown
-            if (currentTime > _lastBerserk + 180000 &&
+    if (currentTime > _lastBerserk + 180000 &&
+
                 CanUseAbility(BERSERK_CAT))
+
             {
+
                 if (CastSpell(BERSERK_CAT))
+
                 {
+
                     _lastBerserk = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Berserk",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Incarnation: King of the Jungle
-            if (currentTime > _lastIncarnation + 180000 &&
+    if (currentTime > _lastIncarnation + 180000 &&
+
                 CanUseAbility(INCARNATION_KING))
+
             {
+
                 if (CastSpell(INCARNATION_KING))
+
                 {
+
                     _lastIncarnation = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Incarnation: King of the Jungle",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
+
             break;
         }
 
         case ChrSpecialization::DruidGuardian:
         {
             // Berserk - rage generation and defense
-            if (currentTime > _lastBerserk + 180000 &&
+    if (currentTime > _lastBerserk + 180000 &&
+
                 CanUseAbility(BERSERK_BEAR))
+
             {
+
                 if (CastSpell(BERSERK_BEAR))
+
                 {
+
                     _lastBerserk = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Berserk (Bear)",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Incarnation: Guardian of Ursoc
-            if (currentTime > _lastIncarnation + 180000 &&
+    if (currentTime > _lastIncarnation + 180000 &&
+
                 CanUseAbility(INCARNATION_GUARDIAN))
+
             {
+
                 if (CastSpell(INCARNATION_GUARDIAN))
+
                 {
+
                     _lastIncarnation = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Incarnation: Guardian of Ursoc",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
+
             break;
         }
 
         case ChrSpecialization::DruidBalance:
         {
             // Celestial Alignment - major DPS window
-            if (currentTime > _lastCelestialAlignment + 180000 &&
+    if (currentTime > _lastCelestialAlignment + 180000 &&
+
                 CanUseAbility(CELESTIAL_ALIGNMENT))
+
             {
+
                 if (CastSpell(CELESTIAL_ALIGNMENT))
+
                 {
+
                     _lastCelestialAlignment = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Celestial Alignment",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Incarnation: Chosen of Elune
-            if (currentTime > _lastIncarnation + 180000 &&
+    if (currentTime > _lastIncarnation + 180000 &&
+
                 CanUseAbility(INCARNATION_BALANCE))
+
             {
+
                 if (CastSpell(INCARNATION_BALANCE))
+
                 {
+
                     _lastIncarnation = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Incarnation: Chosen of Elune",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
+
             break;
         }
 
         case ChrSpecialization::DruidRestoration:
         {
             // Tranquility - major raid heal
+
             Unit* lowestAlly = GetLowestHealthAlly(40.0f);
+
             if (lowestAlly && lowestAlly->GetHealthPct() < 30.0f &&
+
                 CanUseAbility(TRANQUILITY))
+
             {
+
                 if (CastSpell(TRANQUILITY))
+
                 {
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} channeling Tranquility",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
 
             // Incarnation: Tree of Life
-            if (currentTime > _lastIncarnation + 180000 &&
+    if (currentTime > _lastIncarnation + 180000 &&
+
                 CanUseAbility(INCARNATION_TREE))
+
             {
+
                 if (CastSpell(INCARNATION_TREE))
+
                 {
+
                     _lastIncarnation = currentTime;
+
                     TC_LOG_DEBUG("module.playerbot.ai", "Druid {} activated Incarnation: Tree of Life",
+
                                  GetBot()->GetName());
+
                     return true;
+
                 }
+
             }
+
             break;
         }
     }
@@ -611,35 +844,53 @@ void DruidAI::HandleComboPointManagement(::Unit* target)
     if (_comboPoints >= 5)
     {
         // Rip - maintain bleed
-        if (!HasAura(RIP, target) && CanUseAbility(RIP))
+    if (!HasAura(RIP, target) && CanUseAbility(RIP))
         {
-            if (CastSpell(target, RIP))
+
+            if (CastSpell(RIP, target))
+
             {
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Druid {} applied Rip with {} combo points",
+
                              GetBot()->GetName(), _comboPoints);
+
                 return;
+
             }
         }
 
         // Savage Roar - maintain buff
-        if (!HasAura(SAVAGE_ROAR) && CanUseAbility(SAVAGE_ROAR))
+    if (!HasAura(SAVAGE_ROAR) && CanUseAbility(SAVAGE_ROAR))
         {
+
             if (CastSpell(SAVAGE_ROAR))
+
             {
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Druid {} refreshed Savage Roar",
+
                              GetBot()->GetName());
+
                 return;
+
             }
         }
 
         // Ferocious Bite - dump combo points
-        if (CanUseAbility(FEROCIOUS_BITE))
+    if (CanUseAbility(FEROCIOUS_BITE))
         {
-            if (CastSpell(target, FEROCIOUS_BITE))
+
+            if (CastSpell(FEROCIOUS_BITE, target))
+
             {
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Druid {} used Ferocious Bite",
+
                              GetBot()->GetName());
+
                 return;
+
             }
         }
     }
@@ -648,24 +899,36 @@ void DruidAI::HandleComboPointManagement(::Unit* target)
     if (_comboPoints < 5)
     {
         // Rake - maintain bleed and build CP
-        if (!HasAura(RAKE, target) && CanUseAbility(RAKE))
+    if (!HasAura(RAKE, target) && CanUseAbility(RAKE))
         {
-            if (CastSpell(target, RAKE))
+
+            if (CastSpell(RAKE, target))
+
             {
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Druid {} applied Rake",
+
                              GetBot()->GetName());
+
                 return;
+
             }
         }
 
         // Shred - primary builder from behind
-        if (CanUseAbility(SHRED))
+    if (CanUseAbility(SHRED))
         {
-            if (CastSpell(target, SHRED))
+
+            if (CastSpell(SHRED, target))
+
             {
+
                 TC_LOG_DEBUG("module.playerbot.ai", "Druid {} used Shred",
+
                              GetBot()->GetName());
+
                 return;
+
             }
         }
     }
@@ -683,174 +946,298 @@ void DruidAI::ExecuteSpecializationRotation(::Unit* target)
         case ChrSpecialization::DruidFeral:
         {
             // Ensure Cat Form
-            if (!IsInForm(DruidForm::CAT))
+    if (!IsInForm(DruidForm::CAT))
+
             {
+
                 ShiftToForm(DruidForm::CAT);
+
                 return;
+
             }
 
             // Basic Feral rotation
-            if (!HasAura(RAKE, target) && CanUseAbility(RAKE))
+    if (!HasAura(RAKE, target) && CanUseAbility(RAKE))
+
             {
-                CastSpell(target, RAKE);
+
+                CastSpell(RAKE, target);
+
                 return;
+
             }
+
 
             if (_comboPoints >= 5)
+
             {
+
                 if (!HasAura(RIP, target) && CanUseAbility(RIP))
+
                 {
-                    CastSpell(target, RIP);
+
+                    CastSpell(RIP, target);
+
                     return;
+
                 }
+
                 if (CanUseAbility(FEROCIOUS_BITE))
+
                 {
-                    CastSpell(target, FEROCIOUS_BITE);
+
+                    CastSpell(FEROCIOUS_BITE, target);
+
                     return;
+
                 }
+
             }
 
+
             if (CanUseAbility(SHRED))
+
             {
-                CastSpell(target, SHRED);
+
+                CastSpell(SHRED, target);
+
                 return;
+
             }
+
             break;
         }
 
         case ChrSpecialization::DruidGuardian:
         {
             // Ensure Bear Form
-            if (!IsInForm(DruidForm::BEAR))
+    if (!IsInForm(DruidForm::BEAR))
+
             {
+
                 ShiftToForm(DruidForm::BEAR);
+
                 return;
+
             }
 
             // Basic Guardian rotation
-            if (CanUseAbility(MANGLE_BEAR))
+    if (CanUseAbility(MANGLE_BEAR))
+
             {
-                CastSpell(target, MANGLE_BEAR);
+
+                CastSpell(MANGLE_BEAR, target);
+
                 return;
+
             }
+
 
             if (!HasAura(THRASH_BEAR, target) && CanUseAbility(THRASH_BEAR))
+
             {
-                CastSpell(target, THRASH_BEAR);
+
+                CastSpell(THRASH_BEAR, target);
+
                 return;
+
             }
+
 
             if (CanUseAbility(MAUL))
+
             {
-                CastSpell(target, MAUL);
+
+                CastSpell(MAUL, target);
+
                 return;
+
             }
 
+
             if (CanUseAbility(SWIPE_BEAR))
+
             {
-                CastSpell(target, SWIPE_BEAR);
+
+                CastSpell(SWIPE_BEAR, target);
+
                 return;
+
             }
+
             break;
         }
 
         case ChrSpecialization::DruidBalance:
         {
             // Ensure Moonkin Form if available
-            if (!IsInForm(DruidForm::MOONKIN) && CanUseAbility(MOONKIN_FORM))
+    if (!IsInForm(DruidForm::MOONKIN) && CanUseAbility(MOONKIN_FORM))
+
             {
+
                 ShiftToForm(DruidForm::MOONKIN);
+
                 return;
+
             }
 
             // Basic Balance rotation
-            if (!HasAura(MOONFIRE, target) && CanUseAbility(MOONFIRE))
+    if (!HasAura(MOONFIRE, target) && CanUseAbility(MOONFIRE))
+
             {
-                CastSpell(target, MOONFIRE);
+
+                CastSpell(MOONFIRE, target);
+
                 return;
+
             }
+
 
             if (!HasAura(SUNFIRE, target) && CanUseAbility(SUNFIRE))
+
             {
-                CastSpell(target, SUNFIRE);
+
+                CastSpell(SUNFIRE, target);
+
                 return;
+
             }
+
 
             if (CanUseAbility(STARSURGE))
+
             {
-                CastSpell(target, STARSURGE);
+
+                CastSpell(STARSURGE, target);
+
                 return;
+
             }
+
 
             if (CanUseAbility(SOLAR_WRATH))
+
             {
-                CastSpell(target, SOLAR_WRATH);
+
+                CastSpell(SOLAR_WRATH, target);
+
                 return;
+
             }
+
 
             if (CanUseAbility(LUNAR_STRIKE))
+
             {
-                CastSpell(target, LUNAR_STRIKE);
+
+                CastSpell(LUNAR_STRIKE, target);
+
                 return;
+
             }
 
+
             if (CanUseAbility(WRATH))
+
             {
-                CastSpell(target, WRATH);
+
+                CastSpell(WRATH, target);
+
                 return;
+
             }
+
             break;
         }
 
         case ChrSpecialization::DruidRestoration:
         {
             // Basic Restoration rotation - heal allies
+
             Unit* healTarget = GetLowestHealthAlly(40.0f);
+
             if (healTarget)
+
             {
+
                 if (healTarget->GetHealthPct() < 30.0f && CanUseAbility(SWIFTMEND))
+
                 {
-                    CastSpell(healTarget, SWIFTMEND);
+
+                    CastSpell(SWIFTMEND, healTarget);
+
                     return;
+
                 }
+
 
                 if (!HasAura(REJUVENATION, healTarget) && CanUseAbility(REJUVENATION))
+
                 {
-                    CastSpell(healTarget, REJUVENATION);
+
+                    CastSpell(REJUVENATION, healTarget);
+
                     return;
+
                 }
+
 
                 if (!HasAura(LIFEBLOOM, healTarget) && CanUseAbility(LIFEBLOOM))
+
                 {
-                    CastSpell(healTarget, LIFEBLOOM);
+
+                    CastSpell(LIFEBLOOM, healTarget);
+
                     return;
+
                 }
+
 
                 if (healTarget->GetHealthPct() < 50.0f && CanUseAbility(REGROWTH))
+
                 {
-                    CastSpell(healTarget, REGROWTH);
+
+                    CastSpell(REGROWTH, healTarget);
+
                     return;
+
                 }
 
+
                 if (healTarget->GetHealthPct() < 70.0f && CanUseAbility(HEALING_TOUCH))
+
                 {
-                    CastSpell(healTarget, HEALING_TOUCH);
+
+                    CastSpell(HEALING_TOUCH, healTarget);
+
                     return;
+
                 }
+
             }
 
             // If no healing needed, do some damage
-            if (!HasAura(MOONFIRE, target) && CanUseAbility(MOONFIRE))
+    if (!HasAura(MOONFIRE, target) && CanUseAbility(MOONFIRE))
+
             {
-                CastSpell(target, MOONFIRE);
+
+                CastSpell(MOONFIRE, target);
+
                 return;
+
             }
 
+
             if (CanUseAbility(WRATH))
+
             {
-                CastSpell(target, WRATH);
+
+                CastSpell(WRATH, target);
+
                 return;
+
             }
+
             break;
         }
     }
@@ -890,26 +1277,37 @@ bool DruidAI::CanUseAbility(uint32 spellId)
     // Check form requirements
     const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId, GetBot()->GetMap()->GetDifficultyID());
     if (spellInfo)
-    {
-        // Check if spell requires specific form
-        if (spellInfo->Stances)
+    {        // Check if spell requires specific form
+    if (spellInfo->Stances)
         {
+
             bool canCastInForm = false;
+
             uint32 currentFormMask = 0;
 
-            if (IsInForm(DruidForm::CAT))
-                currentFormMask = 1 << 1; // Cat form bit
-            else if (IsInForm(DruidForm::BEAR))
-                currentFormMask = 1 << 0; // Bear form bit
-            else if (IsInForm(DruidForm::MOONKIN))
-                currentFormMask = 1 << 4; // Moonkin form bit
-            else if (IsInForm(DruidForm::TREE_OF_LIFE))
-                currentFormMask = 1 << 5; // Tree form bit
 
-            if (spellInfo->Stances & currentFormMask)
+            if (IsInForm(DruidForm::CAT))
+
+                currentFormMask = 1 << 1; // Cat form bit
+
+            else if (IsInForm(DruidForm::BEAR))
+
+                currentFormMask = 1 << 0; // Bear form bit
+
+            else if (IsInForm(DruidForm::MOONKIN))
+
+                currentFormMask = 1 << 4; // Moonkin form bit
+
+            else if (IsInForm(DruidForm::TREE_OF_LIFE))
+
+                currentFormMask = 1 << 5; // Tree form bit
+    if (spellInfo->Stances & currentFormMask)
+
                 canCastInForm = true;
 
+
             if (!canCastInForm && spellInfo->StancesNot == 0)
+
                 return false; // Required form not active
         }
     }
@@ -917,17 +1315,16 @@ bool DruidAI::CanUseAbility(uint32 spellId)
     return true;
 }
 
-void DruidAI::OnCombatStart(::Unit* target)
-{
+void DruidAI::OnCombatStart(::Unit* target){
     if (!target || !GetBot())
         return;
 
     TC_LOG_DEBUG("playerbot", "DruidAI {} entering combat with {}",
+
                  GetBot()->GetName(), target->GetName());
 
     _inCombat = true;
-    _currentTarget = target->GetGUID();
-    _combatTime = 0;
+    _currentTarget = target->GetGUID();    _combatTime = 0;
 
     // Update resources
     UpdateResources();
@@ -962,7 +1359,9 @@ bool DruidAI::HasEnoughResource(uint32 spellId)
     {
         if (powerCost.Power == powerType)
         {
+
             cost = powerCost.Amount;
+
             break;
         }
     }
@@ -1005,11 +1404,14 @@ float DruidAI::GetOptimalRange(::Unit* target)
     {
         case ChrSpecialization::DruidFeral:
         case ChrSpecialization::DruidGuardian:
+
             return 5.0f; // Melee range
         case ChrSpecialization::DruidBalance:
         case ChrSpecialization::DruidRestoration:
+
             return 30.0f; // Casting range
         default:
+
             return 25.0f; // Safe default
     }
 }
@@ -1024,18 +1426,25 @@ bool DruidAI::IsInForm(DruidForm form) const
     switch (form)
     {
         case DruidForm::CAT:
+
             return bot->HasAura(CAT_FORM);
         case DruidForm::BEAR:
+
             return bot->HasAura(BEAR_FORM);
         case DruidForm::MOONKIN:
+
             return bot->HasAura(MOONKIN_FORM);
         case DruidForm::TREE_OF_LIFE:
+
             return bot->HasAura(TREE_OF_LIFE);
         case DruidForm::TRAVEL:
+
             return bot->HasAura(TRAVEL_FORM);
         case DruidForm::HUMANOID:
+
             return !bot->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT);
         default:
+
             return false;
     }
 }
@@ -1050,7 +1459,7 @@ bool DruidAI::ShiftToForm(DruidForm form)
     if (IsInForm(form))
         return false;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime < _lastFormShift + 1500) // GCD for form shifting
         return false;
 
@@ -1058,31 +1467,47 @@ bool DruidAI::ShiftToForm(DruidForm form)
     switch (form)
     {
         case DruidForm::CAT:
+
             spellId = CAT_FORM;
+
             break;
         case DruidForm::BEAR:
+
             spellId = BEAR_FORM;
+
             break;
         case DruidForm::MOONKIN:
+
             spellId = MOONKIN_FORM;
+
             break;
         case DruidForm::TREE_OF_LIFE:
+
             spellId = TREE_OF_LIFE;
             break;
+
         case DruidForm::TRAVEL:
-            spellId = TRAVEL_FORM;
+        spellId = TRAVEL_FORM;
+
             break;
-        case DruidForm::HUMANOID:
+            case DruidForm::HUMANOID:
             // Cancel current form
-            if (bot->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
+    if (bot->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
+
             {
-                bot->RemoveAurasByType(SPELL_AURA_MOD_SHAPESHIFT);
+            bot->RemoveAurasByType(SPELL_AURA_MOD_SHAPESHIFT);
+
                 _lastFormShift = currentTime;
+
                 _currentForm = DruidForm::HUMANOID;
+
                 return true;
+
             }
+
             return false;
         default:
+
             return false;
     }
 
@@ -1090,41 +1515,45 @@ bool DruidAI::ShiftToForm(DruidForm form)
     {
         if (CastSpell(spellId))
         {
+
             _lastFormShift = currentTime;
+
             _currentForm = form;
+
             return true;
         }
-    }
-
-    return false;
-}
-
-DruidAI::DruidForm DruidAI::GetCurrentForm() const
-{
-    return _currentForm;
+    }    return false;
+}DruidAI::DruidForm DruidAI::GetCurrentForm() const
+{    return _currentForm;
 }
 
 bool DruidAI::CanShiftToForm(DruidForm form) const
 {
-    Player* bot = GetBot();
-    if (!bot)
+    Player* bot = GetBot();    if (!bot)
         return false;
 
     switch (form)
     {
         case DruidForm::CAT:
+
             return bot->HasSpell(CAT_FORM);
         case DruidForm::BEAR:
+
             return bot->HasSpell(BEAR_FORM);
         case DruidForm::MOONKIN:
+
             return bot->HasSpell(MOONKIN_FORM);
         case DruidForm::TREE_OF_LIFE:
+
             return bot->HasSpell(TREE_OF_LIFE);
         case DruidForm::TRAVEL:
+
             return bot->HasSpell(TRAVEL_FORM);
         case DruidForm::HUMANOID:
+
             return true; // Can always shift to humanoid
         default:
+
             return false;
     }
 }
@@ -1141,17 +1570,22 @@ void DruidAI::UpdateResources()
     switch (powerType)
     {
         case POWER_ENERGY:
+
             _energy = bot->GetPower(POWER_ENERGY);
             // Combo points are stored as a separate power type
+
             _comboPoints = bot->GetPower(POWER_COMBO_POINTS);
             break;
         case POWER_RAGE:
+
             _rage = bot->GetPower(POWER_RAGE);
             break;
         case POWER_MANA:
             // Mana is tracked via GetPower directly
+
             break;
         default:
+
             break;
     }
 }

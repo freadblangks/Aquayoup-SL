@@ -24,8 +24,14 @@
 #include "Session/BotPacketRelay.h"
 #include "Chat/BotChatCommandHandler.h"
 #include "Professions/ProfessionManager.h"
+#include "Professions/ProfessionDatabase.h"
+#include "Professions/ProfessionAuctionBridge.h"
+#include "Professions/GatheringMaterialsBridge.h"
+#include "Professions/AuctionMaterialsBridge.h"
+#include "Banking/BankingManager.h"
 #include "Quest/QuestHubDatabase.h"
 #include "Equipment/BotGearFactory.h"
+#include "AI/ClassAI/ClassBehaviorTreeRegistry.h"
 #include "PlayerbotModuleAdapter.h"
 #include "Update/ModuleUpdateManager.h"
 #include "Group/GroupEventBus.h"
@@ -174,10 +180,29 @@ bool PlayerbotModule::Initialize()
     //         return false;
     //     }
     //
-    // Initialize Profession Manager (must happen before bots are created)
-    TC_LOG_INFO("server.loading", "Initializing Profession Manager...");
-    Playerbot::ProfessionManager::instance()->Initialize();
-    TC_LOG_INFO("server.loading", "Profession Manager initialized successfully");
+    // Initialize Profession Database (must happen before bots are created)
+    // Phase 1B: Shared profession data now in ProfessionDatabase singleton
+    // Per-bot ProfessionManager instances created by GameSystemsManager
+    TC_LOG_INFO("server.loading", "Initializing Profession Database...");
+    Playerbot::ProfessionDatabase::instance()->Initialize();
+    TC_LOG_INFO("server.loading", "Profession Database initialized successfully");
+
+    // Initialize Profession Bridges (Phase 3 Option C: Economic integration)
+    // NOTE: All bridges now per-bot (Phase 4.1-4.3), initialized in GameSystemsManager
+    //  - GatheringMaterialsBridge (Phase 4.1)
+    //  - AuctionMaterialsBridge (Phase 4.2)
+    //  - ProfessionAuctionBridge (Phase 4.3)
+    //  - BankingManager (Phase 5.1) - Personal banking automation
+
+    TC_LOG_INFO("server.loading", "Initializing Profession Event Bus...");
+    // ProfessionEventBus is event-driven, no initialization required (lazy init)
+    TC_LOG_INFO("server.loading", "Profession Event Bus ready");
+
+    // Initialize Class Behavior Tree Registry (Phase 5: Class-specific AI trees for all 13 classes)
+    TC_LOG_INFO("server.loading", "Initializing Class Behavior Tree Registry...");
+    Playerbot::ClassBehaviorTreeRegistry::Initialize();
+    TC_LOG_INFO("server.loading", "Class Behavior Tree Registry initialized successfully - {} class/spec trees registered",
+        39); // 13 classes × 3 specs = 39 combinations
 
     // Initialize Quest Hub Database (spatial clustering of quest givers for efficient pathfinding)
     TC_LOG_INFO("server.loading", "Initializing Quest Hub Database...");
@@ -331,7 +356,7 @@ void PlayerbotModule::OnWorldUpdate(uint32 diff)
 
     if (!loginTriggered && totalTime > 5000) // Wait 5 seconds after startup
     {
-        TC_LOG_INFO("module.playerbot", "🔄 OnWorldUpdate: Auto-triggering character logins for existing sessions");
+        TC_LOG_INFO("module.playerbot", " OnWorldUpdate: Auto-triggering character logins for existing sessions");
         TriggerBotCharacterLogins();
         loginTriggered = true;
     }
@@ -503,7 +528,7 @@ void PlayerbotModule::TriggerBotCharacterLogins()
         return;
     }
 
-    TC_LOG_INFO("module.playerbot", "🚀 TriggerBotCharacterLogins: Manually triggering character logins for existing sessions");
+    TC_LOG_INFO("module.playerbot", " TriggerBotCharacterLogins: Manually triggering character logins for existing sessions");
 
     // Call the BotSessionMgr method to trigger logins (legacy approach)
     sBotSessionMgr->TriggerCharacterLoginForAllSessions();
@@ -511,7 +536,7 @@ void PlayerbotModule::TriggerBotCharacterLogins()
     // Call the BotWorldSessionMgr method to trigger native logins
     Playerbot::sBotWorldSessionMgr->TriggerCharacterLoginForAllSessions();
 
-    TC_LOG_INFO("module.playerbot", "🚀 TriggerBotCharacterLogins: Complete");
+    TC_LOG_INFO("module.playerbot", " TriggerBotCharacterLogins: Complete");
 }
 
 void PlayerbotModule::ShutdownDatabase()

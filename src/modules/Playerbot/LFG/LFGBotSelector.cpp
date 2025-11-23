@@ -46,6 +46,86 @@ LFGBotSelector* LFGBotSelector::instance()
     return &instance;
 }
 
+// ============================================================================
+// STATIC UTILITY METHODS (Phase 7 - System-wide bot discovery)
+// ============================================================================
+
+std::vector<Player*> LFGBotSelector::FindAvailableTanks(
+    uint8 minLevel,
+    uint8 maxLevel,
+    uint32 count,
+    Player* humanPlayer)
+{
+    std::vector<Player*> tanks = instance()->FindTanks(minLevel, maxLevel, count);
+
+    // Filter out bots already grouped with the human player
+    if (humanPlayer && humanPlayer->GetGroup())
+    {
+        ObjectGuid humanGroupGuid = humanPlayer->GetGroup()->GetGUID();
+        tanks.erase(
+            std::remove_if(tanks.begin(), tanks.end(),
+                [humanGroupGuid](Player* bot) {
+                    Group* botGroup = bot->GetGroup();
+                    return botGroup && botGroup->GetGUID() == humanGroupGuid;
+                }),
+            tanks.end());
+    }
+
+    return tanks;
+}
+
+std::vector<Player*> LFGBotSelector::FindAvailableHealers(
+    uint8 minLevel,
+    uint8 maxLevel,
+    uint32 count,
+    Player* humanPlayer)
+{
+    std::vector<Player*> healers = instance()->FindHealers(minLevel, maxLevel, count);
+
+    // Filter out bots already grouped with the human player
+    if (humanPlayer && humanPlayer->GetGroup())
+    {
+        ObjectGuid humanGroupGuid = humanPlayer->GetGroup()->GetGUID();
+        healers.erase(
+            std::remove_if(healers.begin(), healers.end(),
+                [humanGroupGuid](Player* bot) {
+                    Group* botGroup = bot->GetGroup();
+                    return botGroup && botGroup->GetGUID() == humanGroupGuid;
+                }),
+            healers.end());
+    }
+
+    return healers;
+}
+
+std::vector<Player*> LFGBotSelector::FindAvailableDPS(
+    uint8 minLevel,
+    uint8 maxLevel,
+    uint32 count,
+    Player* humanPlayer)
+{
+    std::vector<Player*> dps = instance()->FindDPS(minLevel, maxLevel, count);
+
+    // Filter out bots already grouped with the human player
+    if (humanPlayer && humanPlayer->GetGroup())
+    {
+        ObjectGuid humanGroupGuid = humanPlayer->GetGroup()->GetGUID();
+        dps.erase(
+            std::remove_if(dps.begin(), dps.end(),
+                [humanGroupGuid](Player* bot) {
+                    Group* botGroup = bot->GetGroup();
+                    return botGroup && botGroup->GetGUID() == humanGroupGuid;
+                }),
+            dps.end());
+    }
+
+    return dps;
+}
+
+// ============================================================================
+// INSTANCE METHODS (Original singleton interface)
+// ============================================================================
+
 std::vector<Player*> LFGBotSelector::FindTanks(uint8 minLevel, uint8 maxLevel, uint32 count)
 {
     return FindBotsForRole(minLevel, maxLevel, lfg::PLAYER_ROLE_TANK, count);
@@ -69,7 +149,6 @@ bool LFGBotSelector::IsBotAvailable(Player* bot)
     // Must be a bot
     if (!Playerbot::PlayerBotHooks::IsPlayerBot(bot))
         return false;
-
     // Must be online (have a valid session)
     if (!bot->GetSession())
         return false;
@@ -94,7 +173,6 @@ bool LFGBotSelector::IsBotAvailable(Player* bot)
         TC_LOG_DEBUG("module.playerbot.lfg", "LFGBotSelector::IsBotAvailable - Bot {} has deserter debuff", bot->GetName());
         return false;
     }
-
     // Must not be in an instance (except if it's the normal world)
     if (IsInInstance(bot))
     {
@@ -248,7 +326,7 @@ std::vector<Player*> LFGBotSelector::FindBotsForRole(uint8 minLevel, uint8 maxLe
     for (Player* bot : allBots)
     {
         // Check basic availability
-        if (!IsBotAvailable(bot))
+    if (!IsBotAvailable(bot))
             continue;
 
         // Check level range
@@ -257,12 +335,11 @@ std::vector<Player*> LFGBotSelector::FindBotsForRole(uint8 minLevel, uint8 maxLe
             continue;
 
         // Check if bot can perform the desired role
-        if (!sLFGRoleDetector->CanPerformRole(bot, desiredRole))
+    if (!sLFGRoleDetector->CanPerformRole(bot, desiredRole))
             continue;
 
         // Calculate priority
         uint32 priority = CalculateBotPriority(bot, desiredRole, idealLevel);
-
         candidates.push_back({ bot, priority });
     }
 
@@ -305,11 +382,11 @@ std::vector<Player*> LFGBotSelector::GetAllOnlineBots()
             continue;
 
         // Check if this is a bot
-        if (!Playerbot::PlayerBotHooks::IsPlayerBot(player))
+    if (!Playerbot::PlayerBotHooks::IsPlayerBot(player))
             continue;
 
         // Check if bot is in world
-        if (!player->IsInWorld())
+    if (!player->IsInWorld())
             continue;
 
         bots.push_back(player);
@@ -348,7 +425,6 @@ bool LFGBotSelector::IsInLFG(Player* bot)
         return false;
 
     lfg::LfgState state = sLFGMgr->GetState(bot->GetGUID());
-
     // Bot is in LFG if queued, in proposal, or in role check
     return state == lfg::LFG_STATE_QUEUED ||
            state == lfg::LFG_STATE_PROPOSAL ||

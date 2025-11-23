@@ -20,6 +20,7 @@
 #define PLAYERBOT_MEMORYPOOL_H
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include <memory>
 #include <atomic>
 #include <mutex>
@@ -53,7 +54,7 @@ public:
         size_t chunkSize{100};           // Blocks per chunk allocation
         bool enableThreadCache{true};
         bool enableDefragmentation{false}; // Disabled by default for simplicity
-        std::chrono::seconds defragInterval{60};
+        ::std::chrono::seconds defragInterval{60};
     };
 
 private:
@@ -70,18 +71,18 @@ private:
 
     struct Chunk
     {
-        std::unique_ptr<Block[]> blocks;
+        ::std::unique_ptr<Block[]> blocks;
         size_t capacity;
         Chunk* next{nullptr};
 
-        Chunk(size_t cap) : blocks(std::make_unique<Block[]>(cap)), capacity(cap) {}
+        Chunk(size_t cap) : blocks(::std::make_unique<Block[]>(cap)), capacity(cap) {}
     };
 
     // Thread-local cache for lock-free allocations
     struct ThreadCache
     {
         static constexpr size_t CACHE_SIZE = 32;
-        std::array<Block*, CACHE_SIZE> cache{};
+        ::std::array<Block*, CACHE_SIZE> cache{};
         size_t count{0};
 
         Block* TryPop()
@@ -103,14 +104,14 @@ private:
     };
 
     // Pool state
-    alignas(64) std::atomic<Block*> _freeList{nullptr};
-    alignas(64) std::atomic<Chunk*> _chunks{nullptr};
-    alignas(64) std::atomic<size_t> _totalCapacity{0};
-    alignas(64) std::atomic<size_t> _usedBlocks{0};
-    alignas(64) std::atomic<size_t> _peakUsage{0};
+    alignas(64) ::std::atomic<Block*> _freeList{nullptr};
+    alignas(64) ::std::atomic<Chunk*> _chunks{nullptr};
+    alignas(64) ::std::atomic<size_t> _totalCapacity{0};
+    alignas(64) ::std::atomic<size_t> _usedBlocks{0};
+    alignas(64) ::std::atomic<size_t> _peakUsage{0};
 
     Configuration _config;
-    std::recursive_mutex _chunkMutex;
+    Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BEHAVIOR_MANAGER> _chunkMutex;
 
     // Thread-local cache
     static thread_local ThreadCache _threadCache;
@@ -136,9 +137,9 @@ public:
     /**
      * @brief Get current usage metrics
      */
-    size_t GetUsedBlocks() const { return _usedBlocks.load(std::memory_order_relaxed); }
+    size_t GetUsedBlocks() const { return _usedBlocks.load(::std::memory_order_relaxed); }
     size_t GetFreeBlocks() const { return _totalCapacity.load() - _usedBlocks.load(); }
-    size_t GetPeakUsage() const { return _peakUsage.load(std::memory_order_relaxed); }
+    size_t GetPeakUsage() const { return _peakUsage.load(::std::memory_order_relaxed); }
     size_t GetMemoryUsage() const { return _totalCapacity.load() * sizeof(Block); }
 
 private:
@@ -158,15 +159,15 @@ class BotMemoryManager
 private:
     struct BotMemoryUsage
     {
-        std::atomic<size_t> totalMemory{0};
-        std::chrono::steady_clock::time_point lastUpdate;
+        ::std::atomic<size_t> totalMemory{0};
+        ::std::chrono::steady_clock::time_point lastUpdate;
     };
 
-    std::unordered_map<ObjectGuid, BotMemoryUsage> _botMemoryUsage;
-    mutable std::recursive_mutex _usageMutex;
+    ::std::unordered_map<ObjectGuid, BotMemoryUsage> _botMemoryUsage;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BEHAVIOR_MANAGER> _usageMutex;
 
-    std::atomic<size_t> _totalAllocated{0};
-    std::atomic<size_t> _maxMemory{1ULL << 30}; // 1GB default
+    ::std::atomic<size_t> _totalAllocated{0};
+    ::std::atomic<size_t> _maxMemory{1ULL << 30}; // 1GB default
 
 public:
     static BotMemoryManager& Instance();
@@ -194,7 +195,7 @@ public:
      */
     size_t GetTotalAllocated() const
     {
-        return _totalAllocated.load(std::memory_order_relaxed);
+        return _totalAllocated.load(::std::memory_order_relaxed);
     }
 
     /**

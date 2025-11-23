@@ -8,6 +8,8 @@
  */
 
 #include "AdaptiveBehaviorManager.h"
+#include "../Decision/DecisionFusionSystem.h"
+#include "../Common/ActionScoringEngine.h"
 #include "Player.h"
 #include "Group.h"
 #include "SpellInfo.h"
@@ -25,7 +27,7 @@
 namespace Playerbot
 {
 
-AdaptiveBehaviorManager::AdaptiveBehaviorManager(Player* bot) :
+AdaptiveBehaviorManager::AdaptiveBehaviorManager(::Player* bot) :
     _bot(bot),
     _activeStrategies(STRATEGY_NONE),
     _activeProfile(nullptr),
@@ -70,7 +72,7 @@ void AdaptiveBehaviorManager::CreateEmergencyTankProfile()
                (!metrics.tankAlive && (metrics.eliteCount > 0 || metrics.bossCount > 0));
     };
 
-    profile.applyFunction = [this](Player* bot, uint32 flags) {
+    profile.applyFunction = [this](::Player* bot, uint32 flags) {
         // Emergency tank activation logic
         TC_LOG_DEBUG("bot.playerbot", "Bot {} activating emergency tank mode", bot->GetName());
         ActivateStrategy(flags);
@@ -95,7 +97,7 @@ void AdaptiveBehaviorManager::CreateAOEProfile()
                (metrics.enemyCount >= 3 && metrics.nearestEnemyDistance <= 8.0f);
     };
 
-    profile.applyFunction = [this](Player* bot, uint32 flags) {
+    profile.applyFunction = [this](::Player* bot, uint32 flags) {
         TC_LOG_DEBUG("bot.playerbot", "Bot {} activating AOE mode", bot->GetName());
         ActivateStrategy(flags);
     };
@@ -120,7 +122,7 @@ void AdaptiveBehaviorManager::CreateSurvivalProfile()
                (metrics.averageGroupHealth < 40.0f && !metrics.healerAlive);
     };
 
-    profile.applyFunction = [this](Player* bot, uint32 flags) {
+    profile.applyFunction = [this](::Player* bot, uint32 flags) {
         TC_LOG_DEBUG("bot.playerbot", "Bot {} activating survival mode", bot->GetName());
         ActivateStrategy(flags);
     };
@@ -143,7 +145,7 @@ void AdaptiveBehaviorManager::CreateBurstProfile()
                (metrics.bossCount > 0 && metrics.enrageTimer > 0 && metrics.enrageTimer < 30000);
     };
 
-    profile.applyFunction = [this](Player* bot, uint32 flags) {
+    profile.applyFunction = [this](::Player* bot, uint32 flags) {
         TC_LOG_DEBUG("bot.playerbot", "Bot {} activating burst phase", bot->GetName());
         ActivateStrategy(flags);
     };
@@ -166,7 +168,7 @@ void AdaptiveBehaviorManager::CreateResourceConservationProfile()
                (metrics.combatDuration < 30000 && metrics.bossCount > 0); // Save resources early in boss fight
     };
 
-    profile.applyFunction = [this](Player* bot, uint32 flags) {
+    profile.applyFunction = [this](::Player* bot, uint32 flags) {
         TC_LOG_DEBUG("bot.playerbot", "Bot {} activating resource conservation", bot->GetName());
         ActivateStrategy(flags);
     };
@@ -176,7 +178,7 @@ void AdaptiveBehaviorManager::CreateResourceConservationProfile()
 
 void AdaptiveBehaviorManager::Update(uint32 diff, const CombatMetrics& metrics, CombatSituation situation)
 {
-    uint32 startTime = getMSTime();
+    uint32 startTime = GameTime::GetGameTimeMS();
 
     _updateTimer += diff;
 
@@ -200,7 +202,7 @@ void AdaptiveBehaviorManager::Update(uint32 diff, const CombatMetrics& metrics, 
     }
 
     // Track performance
-    _lastUpdateTime = getMSTime() - startTime;
+    _lastUpdateTime = GameTime::GetGameTimeMS() - startTime;
     _totalUpdateTime += _lastUpdateTime;
     _updateCount++;
 }
@@ -224,7 +226,7 @@ void AdaptiveBehaviorManager::UpdateBehavior(const CombatMetrics& metrics, Comba
     if (newStrategies != _activeStrategies)
     {
         _strategySwitchCount++;
-        _lastStrategyUpdate = getMSTime();
+        _lastStrategyUpdate = GameTime::GetGameTimeMS();
     }
 }
 
@@ -236,26 +238,26 @@ void AdaptiveBehaviorManager::UpdateProfiles(uint32 diff, const CombatMetrics& m
     for (BehaviorProfile& profile : _profiles)
     {
         // Update active time
-        if (profile.isActive)
+    if (profile.isActive)
         {
             profile.activeTime += diff;
 
             // Check if profile should deactivate (exceeded max duration)
-            if (profile.activeTime >= profile.maxDuration)
+    if (profile.activeTime >= profile.maxDuration)
             {
                 RemoveProfile(profile);
                 continue;
             }
 
             // Check if profile should remain active (minimum duration not met)
-            if (profile.activeTime < profile.minDuration)
+    if (profile.activeTime < profile.minDuration)
                 continue;
         }
 
         // Check cooldown
-        if (profile.lastActivated > 0 && profile.cooldown > 0)
+    if (profile.lastActivated > 0 && profile.cooldown > 0)
         {
-            if (getMSTime() - profile.lastActivated < profile.cooldown)
+            if (GameTime::GetGameTimeMS() - profile.lastActivated < profile.cooldown)
                 continue;
         }
 
@@ -263,7 +265,7 @@ void AdaptiveBehaviorManager::UpdateProfiles(uint32 diff, const CombatMetrics& m
         EvaluateProfileActivation(profile, metrics, situation);
 
         // Track highest priority profile
-        if (profile.condition && profile.condition(metrics, situation))
+    if (profile.condition && profile.condition(metrics, situation))
         {
             if (profile.priority > highestPriority)
             {
@@ -281,7 +283,7 @@ void AdaptiveBehaviorManager::UpdateProfiles(uint32 diff, const CombatMetrics& m
 
         ApplyProfile(*highestPriorityProfile);
         _activeProfile = highestPriorityProfile;
-        _lastProfileSwitch = getMSTime();
+        _lastProfileSwitch = GameTime::GetGameTimeMS();
         _profileSwitchCount++;
     }
 }
@@ -296,9 +298,9 @@ void AdaptiveBehaviorManager::EvaluateProfileActivation(BehaviorProfile& profile
     if (shouldActivate && !profile.isActive)
     {
         // Check cooldown
-        if (profile.lastActivated > 0 && profile.cooldown > 0)
+    if (profile.lastActivated > 0 && profile.cooldown > 0)
         {
-            if (getMSTime() - profile.lastActivated < profile.cooldown)
+            if (GameTime::GetGameTimeMS() - profile.lastActivated < profile.cooldown)
                 return;
         }
 
@@ -316,9 +318,8 @@ void AdaptiveBehaviorManager::ApplyProfile(BehaviorProfile& profile)
         profile.applyFunction(_bot, profile.strategyFlags);
 
     profile.isActive = true;
-    profile.lastActivated = getMSTime();
+    profile.lastActivated = GameTime::GetGameTimeMS();
     profile.activeTime = 0;
-
     TC_LOG_DEBUG("bot.playerbot", "Bot {} activated behavior profile: {}", _bot->GetName(), profile.name);
 }
 
@@ -327,36 +328,35 @@ void AdaptiveBehaviorManager::RemoveProfile(BehaviorProfile& profile)
     DeactivateStrategy(profile.strategyFlags);
     profile.isActive = false;
     profile.activeTime = 0;
-
     TC_LOG_DEBUG("bot.playerbot", "Bot {} deactivated behavior profile: {}", _bot->GetName(), profile.name);
 }
 
 void AdaptiveBehaviorManager::AdaptToComposition()
 {
     // Update composition if cache is old
-    if (getMSTime() - _compositionCacheTime > 5000)
+    if (GameTime::GetGameTimeMS() - _compositionCacheTime > 5000)
     {
         UpdateGroupComposition();
-        _compositionCacheTime = getMSTime();
+        _compositionCacheTime = GameTime::GetGameTimeMS();
     }
 
     // Adapt behavior based on composition
     if (!IsOptimalComposition())
     {
         // Missing tank - someone may need to emergency tank
-        if (_groupComposition.tanks == 0 && CanPerformRole(BotRole::TANK))
+    if (_groupComposition.tanks == 0 && CanPerformRole(BotRole::TANK))
         {
             ActivateStrategy(STRATEGY_EMERGENCY_TANK);
         }
 
         // Missing healer - activate self-preservation
-        if (_groupComposition.healers == 0)
+    if (_groupComposition.healers == 0)
         {
             ActivateStrategy(STRATEGY_SURVIVAL | STRATEGY_USE_CONSUMABLES);
         }
 
         // Too many melee - some should stay ranged
-        if (_groupComposition.meleeDPS > _groupComposition.rangedDPS + 2)
+    if (_groupComposition.meleeDPS > _groupComposition.rangedDPS + 2)
         {
             if (GetPrimaryRole() == BotRole::MELEE_DPS && CanPerformRole(BotRole::RANGED_DPS))
             {
@@ -375,7 +375,7 @@ void AdaptiveBehaviorManager::AssignRoles()
     _roleAssignment.secondaryRole = secondary;
     _roleAssignment.roleEffectiveness = CalculateRoleScore(primary);
     _roleAssignment.rolePriority = GetRolePriority(primary);
-    _roleAssignment.assignedTime = getMSTime();
+    _roleAssignment.assignedTime = GameTime::GetGameTimeMS();
     _roleAssignment.isTemporary = false;
 
     TC_LOG_DEBUG("bot.playerbot", "Bot {} assigned roles - Primary: {}, Secondary: {}",
@@ -392,12 +392,12 @@ void AdaptiveBehaviorManager::ActivateStrategy(uint32 flags)
         _strategySwitchCount++;
 
         // Track activation time for each strategy
-        for (uint32 i = 0; i < 32; ++i)
+    for (uint32 i = 0; i < 32; ++i)
         {
             uint32 flag = 1 << i;
             if ((flags & flag) && !(oldStrategies & flag))
             {
-                _strategyActiveTimes[flag] = getMSTime();
+                _strategyActiveTimes[flag] = GameTime::GetGameTimeMS();
             }
         }
     }
@@ -419,7 +419,7 @@ void AdaptiveBehaviorManager::RegisterProfile(const BehaviorProfile& profile)
     _profiles.push_back(profile);
 }
 
-void AdaptiveBehaviorManager::ActivateProfile(const std::string& name)
+void AdaptiveBehaviorManager::ActivateProfile(const ::std::string& name)
 {
     for (BehaviorProfile& profile : _profiles)
     {
@@ -431,7 +431,7 @@ void AdaptiveBehaviorManager::ActivateProfile(const std::string& name)
     }
 }
 
-void AdaptiveBehaviorManager::DeactivateProfile(const std::string& name)
+void AdaptiveBehaviorManager::DeactivateProfile(const ::std::string& name)
 {
     for (BehaviorProfile& profile : _profiles)
     {
@@ -443,7 +443,7 @@ void AdaptiveBehaviorManager::DeactivateProfile(const std::string& name)
     }
 }
 
-bool AdaptiveBehaviorManager::IsProfileActive(const std::string& name) const
+bool AdaptiveBehaviorManager::IsProfileActive(const ::std::string& name) const
 {
     for (const BehaviorProfile& profile : _profiles)
     {
@@ -458,9 +458,9 @@ const BehaviorProfile* AdaptiveBehaviorManager::GetActiveProfile() const
     return _activeProfile;
 }
 
-std::vector<std::string> AdaptiveBehaviorManager::GetActiveProfileNames() const
+::std::vector<::std::string> AdaptiveBehaviorManager::GetActiveProfileNames() const
 {
-    std::vector<std::string> names;
+    ::std::vector<::std::string> names;
     for (const BehaviorProfile& profile : _profiles)
     {
         if (profile.isActive)
@@ -472,7 +472,6 @@ std::vector<std::string> AdaptiveBehaviorManager::GetActiveProfileNames() const
 bool AdaptiveBehaviorManager::CanPerformRole(BotRole role) const
 {
     Classes botClass = GetBotClass();
-
     switch (role)
     {
         case BotRole::TANK:
@@ -482,7 +481,6 @@ bool AdaptiveBehaviorManager::CanPerformRole(BotRole role) const
         case BotRole::HEALER:
             return botClass == CLASS_PRIEST || botClass == CLASS_DRUID ||
                    botClass == CLASS_SHAMAN || botClass == CLASS_PALADIN;
-
         case BotRole::MELEE_DPS:
             return botClass == CLASS_WARRIOR || botClass == CLASS_ROGUE ||
                    botClass == CLASS_DEATH_KNIGHT || botClass == CLASS_PALADIN ||
@@ -496,7 +494,6 @@ bool AdaptiveBehaviorManager::CanPerformRole(BotRole role) const
         case BotRole::CROWD_CONTROL:
             return botClass == CLASS_MAGE || botClass == CLASS_ROGUE ||
                    botClass == CLASS_HUNTER || botClass == CLASS_WARLOCK;
-
         default:
             return true;
     }
@@ -511,7 +508,7 @@ void AdaptiveBehaviorManager::ForceRole(BotRole role, bool temporary)
 {
     _roleAssignment.primaryRole = role;
     _roleAssignment.isTemporary = temporary;
-    _roleAssignment.assignedTime = getMSTime();
+    _roleAssignment.assignedTime = GameTime::GetGameTimeMS();
 
     TC_LOG_DEBUG("bot.playerbot", "Bot {} forced to role: {} (temporary: {})",
         _bot->GetName(), GetRoleName(role), temporary);
@@ -521,7 +518,7 @@ void AdaptiveBehaviorManager::UpdateGroupComposition()
 {
     _groupComposition.Reset();
 
-    Group* group = _bot->GetGroup();
+    ::Group* group = _bot->GetGroup();
     if (!group)
     {
         _groupComposition.totalMembers = 1;
@@ -531,7 +528,7 @@ void AdaptiveBehaviorManager::UpdateGroupComposition()
 
     for (GroupReference const& groupRef : group->GetMembers())
     {
-        Player* member = groupRef.GetSource();
+        ::Player* member = groupRef.GetSource();
         if (!member)
             continue;
 
@@ -596,7 +593,7 @@ void AdaptiveBehaviorManager::UpdateGroupComposition()
         }
 
         // Check for special abilities
-        if (memberClass == CLASS_SHAMAN || memberClass == CLASS_MAGE)
+    if (memberClass == CLASS_SHAMAN || memberClass == CLASS_MAGE)
             _groupComposition.hasBloodlust = true;
 
         if (memberClass == CLASS_DRUID)
@@ -664,7 +661,7 @@ uint32 AdaptiveBehaviorManager::GetAverageUpdateTime() const
     return _totalUpdateTime / _updateCount;
 }
 
-void AdaptiveBehaviorManager::RecordDecisionOutcome(const std::string& decision, bool success)
+void AdaptiveBehaviorManager::RecordDecisionOutcome(const ::std::string& decision, bool success)
 {
     DecisionOutcome& outcome = _decisionHistory[decision];
     if (success)
@@ -677,7 +674,7 @@ void AdaptiveBehaviorManager::RecordDecisionOutcome(const std::string& decision,
         outcome.successRate = static_cast<float>(outcome.successCount) / total * 100.0f;
 }
 
-float AdaptiveBehaviorManager::GetDecisionSuccessRate(const std::string& decision) const
+float AdaptiveBehaviorManager::GetDecisionSuccessRate(const ::std::string& decision) const
 {
     auto it = _decisionHistory.find(decision);
     if (it != _decisionHistory.end())
@@ -693,7 +690,7 @@ void AdaptiveBehaviorManager::AdjustBehaviorWeights()
         float successRate = GetDecisionSuccessRate(profile.name);
 
         // Adjust priority based on success rate
-        if (successRate > 80.0f && profile.priority < BehaviorPriority::CRITICAL)
+    if (successRate > 80.0f && profile.priority < BehaviorPriority::CRITICAL)
         {
             profile.priority = static_cast<BehaviorPriority>(static_cast<uint8>(profile.priority) + 1);
         }
@@ -706,9 +703,8 @@ void AdaptiveBehaviorManager::AdjustBehaviorWeights()
 
 void AdaptiveBehaviorManager::UpdateRoleAssignment()
 {
-    if (getMSTime() - _roleAssignment.assignedTime < 30000)
+    if (GameTime::GetGameTimeMS() - _roleAssignment.assignedTime < 30000)
         return; // Don't switch roles too frequently
-
     if (NeedsRoleSwitch())
     {
         AssignRoles();
@@ -840,7 +836,7 @@ float AdaptiveBehaviorManager::CalculateRoleScore(BotRole role) const
     // Gear score bonus (simplified)
     score += GetGearScore() / 100.0f;
 
-    return std::min(100.0f, score);
+    return ::std::min(100.0f, score);
 }
 
 bool AdaptiveBehaviorManager::IsRoleNeeded(BotRole role) const
@@ -955,7 +951,6 @@ void AdaptiveBehaviorManager::ApplyPositioningStrategies(CombatSituation situati
             ActivateStrategy(STRATEGY_STACK);
             DeactivateStrategy(STRATEGY_SPREAD);
             break;
-
         case CombatSituation::KITE:
             ActivateStrategy(STRATEGY_KITE | STRATEGY_MOBILITY | STRATEGY_STAY_RANGED);
             DeactivateStrategy(STRATEGY_STAY_MELEE);
@@ -963,7 +958,7 @@ void AdaptiveBehaviorManager::ApplyPositioningStrategies(CombatSituation situati
 
         default:
             // Normal positioning based on role
-            if (IsDPSRole(GetPrimaryRole()))
+    if (IsDPSRole(GetPrimaryRole()))
             {
                 if (GetPrimaryRole() == BotRole::MELEE_DPS)
                     ActivateStrategy(STRATEGY_STAY_MELEE);
@@ -1002,7 +997,7 @@ void AdaptiveBehaviorManager::ApplyResourceStrategies(const CombatMetrics& metri
     else
     {
         // Normal enemies, use cooldowns freely
-        if (metrics.enemyCount >= 3 || metrics.eliteCount > 0)
+    if (metrics.enemyCount >= 3 || metrics.eliteCount > 0)
         {
             ActivateStrategy(STRATEGY_USE_COOLDOWNS);
         }
@@ -1081,6 +1076,18 @@ void AdaptiveBehaviorManager::ResetStrategies()
 {
     _activeStrategies = STRATEGY_NONE;
     _strategyActiveTimes.clear();
+}
+
+// ============================================================================
+// DECISION FUSION INTEGRATION
+// ============================================================================
+
+Playerbot::bot::ai::DecisionVote AdaptiveBehaviorManager::GetRecommendedAction(Unit* target, Playerbot::bot::ai::CombatContext context) const
+{
+    // TODO: DecisionVote and DecisionSource not fully defined (only forward-declared)
+    // TODO: Implement when DecisionFusionSystem.h provides full definitions
+    (void)target; (void)context; // Suppress unused warnings
+    return Playerbot::bot::ai::DecisionVote{}; // Return default-constructed vote
 }
 
 } // namespace Playerbot

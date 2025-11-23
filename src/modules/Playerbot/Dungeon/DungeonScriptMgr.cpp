@@ -49,7 +49,7 @@ void DungeonScriptMgr::Initialize()
     if (_initialized)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
 
     TC_LOG_INFO("playerbot", "DungeonScriptMgr: Initializing dungeon script system...");
 
@@ -77,13 +77,8 @@ void DungeonScriptMgr::LoadScripts()
 
 void DungeonScriptMgr::RegisterScript(DungeonScript* script)
 {
-    if (!script)
-    {
-        TC_LOG_ERROR("playerbot", "DungeonScriptMgr: Attempted to register null script");
-        return;
-    }
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
 
     uint32 mapId = script->GetMapId();
     char const* name = script->GetName();
@@ -97,7 +92,7 @@ void DungeonScriptMgr::RegisterScript(DungeonScript* script)
     }
 
     // Register by map ID (take ownership with unique_ptr)
-    _mapScripts[mapId] = std::unique_ptr<DungeonScript>(script);
+    _mapScripts[mapId] = ::std::unique_ptr<DungeonScript>(script);
 
     // Register by name (non-owning raw pointer for lookup)
     _namedScripts[name] = script;
@@ -110,14 +105,8 @@ void DungeonScriptMgr::RegisterScript(DungeonScript* script)
 
 void DungeonScriptMgr::RegisterBossScript(uint32 bossEntry, DungeonScript* script)
 {
-    if (!script)
-    {
-        TC_LOG_ERROR("playerbot", "DungeonScriptMgr: Attempted to register null script for boss {}",
-            bossEntry);
-        return;
-    }
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
 
     // Check for duplicate
     if (_bossScripts.count(bossEntry))
@@ -139,7 +128,7 @@ void DungeonScriptMgr::RegisterBossScript(uint32 bossEntry, DungeonScript* scrip
 
 DungeonScript* DungeonScriptMgr::GetScriptForMap(uint32 mapId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
 
     auto it = _mapScripts.find(mapId);
     if (it != _mapScripts.end())
@@ -154,7 +143,7 @@ DungeonScript* DungeonScriptMgr::GetScriptForMap(uint32 mapId) const
 
 DungeonScript* DungeonScriptMgr::GetScriptForBoss(uint32 bossEntry) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
 
     auto it = _bossScripts.find(bossEntry);
     if (it != _bossScripts.end())
@@ -169,13 +158,13 @@ DungeonScript* DungeonScriptMgr::GetScriptForBoss(uint32 bossEntry) const
 
 bool DungeonScriptMgr::HasScriptForMap(uint32 mapId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     return _mapScripts.count(mapId) > 0;
 }
 
 bool DungeonScriptMgr::HasScriptForBoss(uint32 bossEntry) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
     return _bossScripts.count(bossEntry) > 0;
 }
 
@@ -197,12 +186,11 @@ void DungeonScriptMgr::ExecuteBossMechanic(::Player* player, ::Creature* boss,
     // Step 2: If no boss script, try map script
     if (!script)
         script = GetScriptForMap(player->GetMapId());
-
     if (script)
     {
         // Script exists - delegate to it
         // Script's virtual method may call generic or implement custom logic
-        switch (mechanic)
+    switch (mechanic)
         {
             case MechanicType::INTERRUPT:
                 script->HandleInterruptPriority(player, boss);
@@ -320,7 +308,7 @@ DungeonScriptMgr::ScriptStats DungeonScriptMgr::GetStats() const
 
 void DungeonScriptMgr::ListAllScripts() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
 
     TC_LOG_INFO("playerbot", "DungeonScriptMgr: === Registered Scripts ===");
 
@@ -340,9 +328,9 @@ void DungeonScriptMgr::ListAllScripts() const
         _scriptCount.load(), _bossMappingCount.load());
 }
 
-DungeonScript* DungeonScriptMgr::GetScriptByName(std::string const& name) const
+DungeonScript* DungeonScriptMgr::GetScriptByName(::std::string const& name) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    ::std::lock_guard lock(_mutex);
 
     auto it = _namedScripts.find(name);
     if (it != _namedScripts.end())

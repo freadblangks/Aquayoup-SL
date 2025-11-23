@@ -10,10 +10,12 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "Player.h"
 #include "Guild.h"
 #include "Group.h"
-#include "Calendar.h"
+#include "CalendarMgr.h"
+#include "../Core/DI/Interfaces/IGuildEventCoordinator.h"
 #include <unordered_map>
 #include <vector>
 #include <queue>
@@ -24,30 +26,10 @@
 namespace Playerbot
 {
 
-enum class GuildEventType : uint8
-{
-    RAID_DUNGEON        = 0,
-    PVP_BATTLEGROUND    = 1,
-    PVP_ARENA           = 2,
-    GUILD_MEETING       = 3,
-    SOCIAL_GATHERING    = 4,
-    ACHIEVEMENT_RUN     = 5,
-    LEVELING_GROUP      = 6,
-    CRAFTING_SESSION    = 7,
-    CONTEST_COMPETITION = 8,
-    OFFICER_MEETING     = 9
-};
-
-enum class EventStatus : uint8
-{
-    PLANNING        = 0,
-    RECRUITING      = 1,
-    CONFIRMED       = 2,
-    IN_PROGRESS     = 3,
-    COMPLETED       = 4,
-    CANCELLED       = 5,
-    POSTPONED       = 6
-};
+// Enums and structs defined in IGuildEventCoordinator.h interface:
+// - enum class GuildEventType
+// - enum class EventStatus
+// - struct EventCoordinationProfile
 
 enum class EventPriority : uint8
 {
@@ -84,8 +66,8 @@ struct GuildEvent
     GuildEvent() : eventId(0), guildId(0), organizerGuid(0)
         , eventType(GuildEventType::SOCIAL_GATHERING), status(EventStatus::PLANNING)
         , priority(EventPriority::NORMAL), scheduledTime(0), duration(7200000) // 2 hours
-        , maxParticipants(40), minParticipants(5), creationTime(getMSTime())
-        , lastUpdateTime(getMSTime()), isRecurring(false), recurringInterval(0) {}
+        , maxParticipants(40), minParticipants(5), creationTime(GameTime::GetGameTimeMS())
+        , lastUpdateTime(GameTime::GetGameTimeMS()), isRecurring(false), recurringInterval(0) {}
 };
 
 /**
@@ -94,78 +76,45 @@ struct GuildEvent
  * This system provides intelligent guild event planning, scheduling, coordination,
  * and management for playerbots using TrinityCore's calendar and guild systems.
  */
-class TC_GAME_API GuildEventCoordinator
+class TC_GAME_API GuildEventCoordinator final : public IGuildEventCoordinator
 {
 public:
-    static GuildEventCoordinator* instance();
+    explicit GuildEventCoordinator(Player* bot);
+    ~GuildEventCoordinator();
+    GuildEventCoordinator(GuildEventCoordinator const&) = delete;
+    GuildEventCoordinator& operator=(GuildEventCoordinator const&) = delete;
 
     // Core event management using TrinityCore's Calendar system
-    uint32 CreateGuildEvent(Player* organizer, const GuildEvent& eventData);
-    bool UpdateGuildEvent(uint32 eventId, const GuildEvent& updatedData);
-    bool CancelGuildEvent(Player* organizer, uint32 eventId);
-    void ProcessEventInvitations(uint32 eventId);
+    uint32 CreateGuildEvent(Player* organizer, const GuildEvent& eventData) override;
+    bool UpdateGuildEvent(uint32 eventId, const GuildEvent& updatedData) override;
+    bool CancelGuildEvent(Player* organizer, uint32 eventId) override;
+    void ProcessEventInvitations(uint32 eventId) override;
 
     // Event planning and scheduling
-    void PlanGuildEvents(Player* player);
-    void ScheduleRecurringEvents(Player* player);
-    void ProposeEventIdeas(Player* player);
-    void CoordinateEventTiming(Player* player, uint32 eventId);
+    void PlanGuildEvents() override;
+    void ScheduleRecurringEvents() override;
+    void ProposeEventIdeas();
+    void CoordinateEventTiming(uint32 eventId);
 
     // Event recruitment and coordination
-    void RecruitEventParticipants(Player* organizer, uint32 eventId);
-    void ManageEventSignups(Player* player, uint32 eventId);
-    void AssignEventRoles(Player* player, uint32 eventId);
-    void HandleEventChanges(Player* player, uint32 eventId);
+    void RecruitEventParticipants(Player* organizer, uint32 eventId) override;
+    void ManageEventSignups(uint32 eventId) override;
+    void AssignEventRoles(uint32 eventId) override;
+    void HandleEventChanges(uint32 eventId);
 
     // Event execution and management
-    void ExecuteGuildEvent(uint32 eventId);
-    void CoordinateEventActivities(Player* leader, uint32 eventId);
-    void MonitorEventProgress(uint32 eventId);
-    void HandleEventCompletion(uint32 eventId);
+    void ExecuteGuildEvent(uint32 eventId) override;
+    void CoordinateEventActivities(Player* leader, uint32 eventId) override;
+    void MonitorEventProgress(uint32 eventId) override;
+    void HandleEventCompletion(uint32 eventId) override;
 
-    // Advanced event features
-    struct EventCoordinationProfile
-    {
-        bool enableEventPlanning;
-        bool enableEventParticipation;
-        bool enableEventLeadership;
-        std::vector<GuildEventType> preferredEventTypes;
-        std::vector<GuildEventType> availableLeadershipTypes;
-        float planningProactiveness; // How often to propose events
-        float participationRate; // Likelihood to join events
-        std::vector<std::pair<uint32, uint32>> availabilityWindows; // startTime, endTime pairs
-        uint32 maxEventsPerWeek;
-        bool autoAcceptInvitations;
+    // Advanced event features (EventCoordinationProfile struct defined in IGuildEventCoordinator.h)
+    void SetEventProfile(const EventCoordinationProfile& profile) override;
+    EventCoordinationProfile GetEventProfile() override;
 
-        EventCoordinationProfile() : enableEventPlanning(true), enableEventParticipation(true)
-            , enableEventLeadership(false), planningProactiveness(0.3f)
-            , participationRate(0.8f), maxEventsPerWeek(7), autoAcceptInvitations(false) {}
-    };
-
-    void SetEventProfile(uint32 playerGuid, const EventCoordinationProfile& profile);
-    EventCoordinationProfile GetEventProfile(uint32 playerGuid);
-
-    // Event analytics and tracking
-    struct EventParticipation
-    {
-        uint32 playerGuid;
-        uint32 guildId;
-        std::vector<uint32> organizedEvents;
-        std::vector<uint32> participatedEvents;
-        std::unordered_map<GuildEventType, uint32> eventTypePreferences;
-        uint32 totalEventsCreated;
-        uint32 totalEventsAttended;
-        float organizationRating;
-        float participationRating;
-        uint32 lastEventActivity;
-
-        EventParticipation(uint32 pGuid, uint32 gId) : playerGuid(pGuid), guildId(gId)
-            , totalEventsCreated(0), totalEventsAttended(0), organizationRating(0.5f)
-            , participationRating(0.7f), lastEventActivity(getMSTime()) {}
-    };
-
-    EventParticipation GetEventParticipation(uint32 playerGuid);
-    void UpdateEventParticipation(uint32 playerGuid, uint32 eventId, bool wasOrganizer);
+    // Event analytics and tracking (EventParticipation struct defined in IGuildEventCoordinator.h)
+    EventParticipation GetEventParticipation() override;
+    void UpdateEventParticipation(uint32 eventId, bool wasOrganizer);
 
     // Event type specific coordination
     void CoordinateRaidEvent(Player* leader, uint32 eventId);
@@ -174,57 +123,32 @@ public:
     void CoordinateLevelingEvent(Player* leader, uint32 eventId);
 
     // Event optimization and intelligence
-    void OptimizeEventScheduling(Player* player);
-    void AnalyzeGuildEventPatterns(uint32 guildId);
+    void OptimizeEventScheduling() override;
+    void AnalyzeGuildEventPatterns(uint32 guildId) override;
     void SuggestOptimalEventTimes(uint32 guildId);
-    std::vector<GuildEventType> RecommendEventTypes(Player* player);
+    std::vector<GuildEventType> RecommendEventTypes();
 
     // Event communication and updates
-    void BroadcastEventUpdates(uint32 eventId, const std::string& updateMessage);
-    void SendEventReminders(uint32 eventId);
+    void BroadcastEventUpdates(uint32 eventId, const std::string& updateMessage) override;
+    void SendEventReminders(uint32 eventId) override;
     void NotifyEventChanges(uint32 eventId);
-    void UpdateEventStatus(uint32 eventId, EventStatus newStatus);
+    void UpdateEventStatus(uint32 eventId, EventStatus newStatus) override;
 
     // Group formation for events
-    Group* FormEventGroup(uint32 eventId);
-    void AssignGroupRoles(Group* group, uint32 eventId);
+    Group* FormEventGroup(uint32 eventId) override;
+    void AssignGroupRoles(Group* group, uint32 eventId) override;
     void CoordinateGroupForEvent(Group* group, uint32 eventId);
     void HandleEventGroupChanges(Group* group, uint32 eventId);
 
     // Event conflict resolution
-    void ResolveEventConflicts(Player* player);
+    void ResolveEventConflicts();
     void HandleOverlappingEvents(uint32 eventId1, uint32 eventId2);
     void ManageEventPriorities(uint32 guildId);
-    void RescheduleConflictingEvents(Player* player);
+    void RescheduleConflictingEvents();
 
-    // Performance monitoring
-    struct EventMetrics
-    {
-        std::atomic<uint32> eventsCreated{0};
-        std::atomic<uint32> eventsCompleted{0};
-        std::atomic<uint32> eventsCancelled{0};
-        std::atomic<uint32> totalParticipants{0};
-        std::atomic<float> averageAttendance{0.75f};
-        std::atomic<float> organizationEfficiency{0.8f};
-        std::atomic<float> memberSatisfaction{0.85f};
-        std::chrono::steady_clock::time_point lastUpdate;
-
-        void Reset() {
-            eventsCreated = 0; eventsCompleted = 0; eventsCancelled = 0;
-            totalParticipants = 0; averageAttendance = 0.75f;
-            organizationEfficiency = 0.8f; memberSatisfaction = 0.85f;
-            lastUpdate = std::chrono::steady_clock::now();
-        }
-
-        float GetCompletionRate() const {
-            uint32 created = eventsCreated.load();
-            uint32 completed = eventsCompleted.load();
-            return created > 0 ? (float)completed / created : 0.0f;
-        }
-    };
-
-    EventMetrics GetGuildEventMetrics(uint32 guildId);
-    EventMetrics GetPlayerEventMetrics(uint32 playerGuid);
+    // Performance monitoring (EventMetrics struct defined in IGuildEventCoordinator.h)
+    EventMetrics GetGuildEventMetrics(uint32 guildId) override;
+    EventMetrics GetPlayerEventMetrics() override;
 
     // Event templates and presets
     void CreateEventTemplate(const std::string& templateName, const GuildEvent& templateData);
@@ -239,10 +163,10 @@ public:
     void CoordinateGuildAnniversary(uint32 guildId);
 
     // Configuration and customization
-    void SetEventCoordinationEnabled(uint32 guildId, bool enabled);
+    void SetEventCoordinationEnabled(uint32 guildId, bool enabled) override;
     void SetMaxConcurrentEvents(uint32 guildId, uint32 maxEvents);
-    void ConfigureEventNotifications(uint32 playerGuid, bool enableReminders);
-    void SetEventAutoSignup(uint32 playerGuid, GuildEventType eventType, bool autoSignup);
+    void ConfigureEventNotifications(bool enableReminders);
+    void SetEventAutoSignup(GuildEventType eventType, bool autoSignup);
 
     // Error handling and recovery
     void HandleEventError(uint32 eventId, const std::string& error);
@@ -251,21 +175,20 @@ public:
     void EmergencyEventCancellation(uint32 eventId);
 
     // Update and maintenance
-    void Update(uint32 diff);
-    void UpdateEventStates();
+    void Update(uint32 diff) override;
+    void UpdateEventStates() override;
     void ProcessEventReminders();
-    void CleanupExpiredEvents();
+    void CleanupExpiredEvents() override;
 
 private:
-    GuildEventCoordinator();
-    ~GuildEventCoordinator() = default;
+    Player* _bot;
 
     // Core event data
     std::unordered_map<uint32, GuildEvent> _guildEvents; // eventId -> event
     std::unordered_map<uint32, EventCoordinationProfile> _playerProfiles; // playerGuid -> profile
     std::unordered_map<uint32, EventParticipation> _playerParticipation; // playerGuid -> participation
     std::atomic<uint32> _nextEventId{1};
-    mutable std::recursive_mutex _eventMutex;
+    
 
     // Guild event tracking
     std::unordered_map<uint32, std::vector<uint32>> _guildActiveEvents; // guildId -> eventIds
@@ -313,7 +236,7 @@ private:
     void MonitorEventHealth(uint32 eventId);
 
     // Communication helpers
-    void SendEventInvitation(uint32 playerGuid, uint32 eventId);
+    void SendEventInvitation(uint32 eventId);
     void BroadcastEventAnnouncement(uint32 eventId);
     void UpdateEventParticipants(uint32 eventId, const std::string& message);
     void LogEventActivity(uint32 eventId, const std::string& activity);

@@ -26,6 +26,10 @@
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "Unit.h"
+#include "UnitAI.h"
+#include "AI/BotAI.h"
+#include "Core/Managers/GameSystemsManager.h"
 #include <algorithm>
 #include <cmath>
 
@@ -40,7 +44,7 @@ namespace Playerbot
         VendorPurchaseRequest const& request)
     {
         // Validate player
-        if (!player)
+    if (!player)
         {
             TC_LOG_ERROR("playerbot.vendor", "VendorPurchaseManager: Invalid player (nullptr)");
             return VendorPurchaseResult::PURCHASE_FAILED;
@@ -57,7 +61,7 @@ namespace Playerbot
         }
 
         // Check if creature is a vendor
-        if (!vendor->IsVendor())
+    if (!vendor->IsVendor())
         {
             TC_LOG_ERROR("playerbot.vendor",
                 "VendorPurchaseManager: Creature {} ({}) is not a vendor",
@@ -66,7 +70,7 @@ namespace Playerbot
         }
 
         // Find item in vendor inventory
-        std::optional<uint32> vendorSlotOpt = FindVendorSlot(vendor, request.itemId);
+        ::std::optional<uint32> vendorSlotOpt = FindVendorSlot(vendor, request.itemId);
         if (!vendorSlotOpt.has_value())
         {
             TC_LOG_WARN("playerbot.vendor",
@@ -110,15 +114,15 @@ namespace Playerbot
         }
     }
 
-    std::vector<VendorPurchaseRecommendation> VendorPurchaseManager::GetPurchaseRecommendations(
+    ::std::vector<VendorPurchaseRecommendation> VendorPurchaseManager::GetPurchaseRecommendations(
         Player const* player,
         Creature const* vendor,
         uint64 goldBudget) const
     {
-        std::vector<VendorPurchaseRecommendation> recommendations;
+        ::std::vector<VendorPurchaseRecommendation> recommendations;
 
         // Validate inputs
-        if (!player || !vendor)
+    if (!player || !vendor)
             return recommendations;
 
         // Get vendor inventory
@@ -137,7 +141,7 @@ namespace Playerbot
         uint64 remainingBudget = goldBudget;
 
         // Analyze each vendor item
-        for (uint32 slot = 0; slot < itemCount; ++slot)
+    for (uint32 slot = 0; slot < itemCount; ++slot)
         {
             VendorItem const* vendorItem = vendorItems->GetItem(slot);
             if (!vendorItem)
@@ -157,7 +161,7 @@ namespace Playerbot
             uint64 goldCost = CalculatePurchaseCost(player, vendor, vendorItem, itemTemplate, 1);
 
             // Check budget
-            if (goldCost > remainingBudget)
+    if (goldCost > remainingBudget)
                 continue; // Can't afford
 
             // Check for gear upgrades
@@ -194,9 +198,9 @@ namespace Playerbot
             rec.upgradeScore = upgradeScore;
 
             // Generate purchase reason
-            if (isUpgrade)
+    if (isUpgrade)
             {
-                rec.reason = "Gear upgrade (score: " + std::to_string(static_cast<int>(upgradeScore)) + ")";
+                rec.reason = "Gear upgrade (score: " + ::std::to_string(static_cast<int>(upgradeScore)) + ")";
             }
             else if (itemTemplate->GetClass() == ITEM_CLASS_CONSUMABLE)
             {
@@ -214,18 +218,18 @@ namespace Playerbot
         }
 
         // Sort by priority (CRITICAL first, then HIGH, etc.)
-        std::sort(recommendations.begin(), recommendations.end(),
+        ::std::sort(recommendations.begin(), recommendations.end(),
             [](auto const& a, auto const& b)
             {
                 if (a.priority != b.priority)
                     return a.priority < b.priority; // Lower enum value = higher priority
 
                 // Within same priority, sort by upgrade score
-                if (a.isUpgrade && b.isUpgrade)
+    if (a.isUpgrade && b.isUpgrade)
                     return a.upgradeScore > b.upgradeScore;
 
                 // Upgrades before non-upgrades
-                if (a.isUpgrade != b.isUpgrade)
+    if (a.isUpgrade != b.isUpgrade)
                     return a.isUpgrade;
 
                 // Finally, sort by item ID for consistency
@@ -239,16 +243,16 @@ namespace Playerbot
         return recommendations;
     }
 
-    std::optional<uint32> VendorPurchaseManager::FindVendorSlot(
+    ::std::optional<uint32> VendorPurchaseManager::FindVendorSlot(
         Creature const* vendor,
         uint32 itemId)
     {
         if (!vendor)
-            return std::nullopt;
+            return ::std::nullopt;
 
         VendorItemData const* vendorItems = vendor->GetVendorItems();
         if (!vendorItems || vendorItems->Empty())
-            return std::nullopt;
+            return ::std::nullopt;
 
         // Linear search through vendor inventory
         uint32 itemCount = vendorItems->GetItemCount();
@@ -259,7 +263,7 @@ namespace Playerbot
                 return slot;
         }
 
-        return std::nullopt;
+        return ::std::nullopt;
     }
 
     bool VendorPurchaseManager::IsItemUpgrade(
@@ -273,19 +277,28 @@ namespace Playerbot
             return false;
 
         // Only evaluate equippable items
-        if (itemTemplate->GetInventoryType() == INVTYPE_NON_EQUIP)
+    if (itemTemplate->GetInventoryType() == INVTYPE_NON_EQUIP)
             return false;
 
         // Check if player can use item (class restriction)
-        if (!(itemTemplate->GetAllowableClass() & player->GetClassMask()))
+    if (!(itemTemplate->GetAllowableClass() & player->GetClassMask()))
             return false;
 
-        // Delegate to EquipmentManager for gear evaluation
-        // This ensures consistent gear scoring across all bot systems
-        EquipmentManager* equipMgr = EquipmentManager::instance();
+        // Get EquipmentManager from bot's GameSystemsManager (Phase 6.1)
+        Player* mutablePlayer = const_cast<Player*>(player);
+        BotAI* botAI = dynamic_cast<BotAI*>(mutablePlayer->GetAI());
+
+        // Only bots have EquipmentManager - non-bots can't use this feature
+        if (!botAI)
+        {
+            TC_LOG_DEBUG("playerbot.vendor", "VendorPurchaseManager: Player is not a bot, cannot evaluate gear");
+            return false;
+        }
+
+        EquipmentManager* equipMgr = botAI->GetGameSystems()->GetEquipmentManager();
         if (!equipMgr)
         {
-            TC_LOG_ERROR("playerbot.vendor", "VendorPurchaseManager: EquipmentManager instance not available");
+            TC_LOG_ERROR("playerbot.vendor", "VendorPurchaseManager: EquipmentManager not available");
             return false;
         }
 
@@ -298,14 +311,13 @@ namespace Playerbot
         }
 
         // Get currently equipped item in that slot
-        Player* mutablePlayer = const_cast<Player*>(player);
         Item* currentItem = mutablePlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, equipSlot);
 
         // Calculate score for vendor item using class/spec stat priorities
-        float vendorItemScore = equipMgr->CalculateItemTemplateScore(mutablePlayer, itemTemplate);
+        float vendorItemScore = equipMgr->CalculateItemTemplateScore(itemTemplate);
 
         // If no item equipped, vendor item is an upgrade if it has positive score
-        if (!currentItem)
+    if (!currentItem)
         {
             if (vendorItemScore > 0.0f)
             {
@@ -318,7 +330,7 @@ namespace Playerbot
         }
 
         // Calculate score for currently equipped item
-        float currentItemScore = equipMgr->CalculateItemScore(mutablePlayer, currentItem);
+        float currentItemScore = equipMgr->CalculateItemScore(currentItem);
 
         // Compare scores
         float scoreDifference = vendorItemScore - currentItemScore;
@@ -344,18 +356,18 @@ namespace Playerbot
             return ItemPurchasePriority::NONE;
 
         // Check class restrictions
-        if (!(itemTemplate->GetAllowableClass() & player->GetClassMask()))
+    if (!(itemTemplate->GetAllowableClass() & player->GetClassMask()))
             return ItemPurchasePriority::NONE;
 
         // Check level requirements
-        if (itemTemplate->GetBaseRequiredLevel() > player->GetLevel())
+    if (itemTemplate->GetBaseRequiredLevel() > player->GetLevel())
             return ItemPurchasePriority::NONE;
 
         uint32 itemClass = itemTemplate->GetClass();
         uint32 itemSubClass = itemTemplate->GetSubClass();
 
         // CRITICAL: Food and water
-        if (itemClass == ITEM_CLASS_CONSUMABLE)
+    if (itemClass == ITEM_CLASS_CONSUMABLE)
         {
             if (itemSubClass == ITEM_SUBCLASS_FOOD_DRINK|| itemSubClass == ITEM_SUBCLASS_CONSUMABLE) // Water is CONSUMABLE subclass
             {
@@ -372,7 +384,7 @@ namespace Playerbot
         }
 
         // CRITICAL/HIGH: Reagents for casters
-        if (itemClass == ITEM_CLASS_REAGENT)
+    if (itemClass == ITEM_CLASS_REAGENT)
         {
             uint32 currentCount = player->GetItemCount(itemTemplate->GetId());
             if (currentCount < 20)
@@ -382,7 +394,7 @@ namespace Playerbot
         }
 
         // CRITICAL: Ammo for hunters (if applicable)
-        if (itemClass == ITEM_CLASS_PROJECTILE && player->GetClass() == CLASS_HUNTER)
+    if (itemClass == ITEM_CLASS_PROJECTILE && player->GetClass() == CLASS_HUNTER)
         {
             uint32 currentCount = player->GetItemCount(itemTemplate->GetId());
             if (currentCount < 200)
@@ -392,7 +404,7 @@ namespace Playerbot
         }
 
         // HIGH: Gear upgrades
-        if (itemTemplate->GetInventoryType() != INVTYPE_NON_EQUIP)
+    if (itemTemplate->GetInventoryType() != INVTYPE_NON_EQUIP)
         {
             float upgradeScore = 0.0f;
             if (IsItemUpgrade(player, itemTemplate, upgradeScore))
@@ -400,18 +412,18 @@ namespace Playerbot
         }
 
         // MEDIUM: Trade goods, recipes
-        if (itemClass == ITEM_CLASS_TRADE_GOODS || itemClass == ITEM_CLASS_RECIPE)
+    if (itemClass == ITEM_CLASS_TRADE_GOODS || itemClass == ITEM_CLASS_RECIPE)
             return ItemPurchasePriority::MEDIUM;
 
         // LOW: Vanity items, pets, mounts
-        if (itemClass == ITEM_CLASS_MISCELLANEOUS)
+    if (itemClass == ITEM_CLASS_MISCELLANEOUS)
         {
             // Companion pets
-            if (itemSubClass == ITEM_SUBCLASS_MISCELLANEOUS_COMPANION_PET)
+    if (itemSubClass == ITEM_SUBCLASS_MISCELLANEOUS_COMPANION_PET)
                 return ItemPurchasePriority::LOW;
 
             // Mounts
-            if (itemSubClass == ITEM_SUBCLASS_MISCELLANEOUS_MOUNT)
+    if (itemSubClass == ITEM_SUBCLASS_MISCELLANEOUS_MOUNT)
                 return ItemPurchasePriority::LOW;
         }
 
@@ -472,16 +484,16 @@ namespace Playerbot
         uint32 quantity)
     {
         // Validate player
-        if (!player)
+    if (!player)
             return VendorPurchaseResult::PURCHASE_FAILED;
 
         // Validate vendor
-        if (!vendor)
+    if (!vendor)
             return VendorPurchaseResult::VENDOR_NOT_FOUND;
 
         // Check interaction range (most vendor checks happen in BuyItemFromVendorSlot,
         // but we can pre-validate range for better error messages)
-        if (!player->IsWithinDistInMap(vendor, 10.0f)) // Typical interaction range
+    if (!player->IsWithinDistInMap(vendor, 10.0f)) // Typical interaction range
             return VendorPurchaseResult::OUT_OF_RANGE;
 
         // Get vendor items
@@ -490,7 +502,7 @@ namespace Playerbot
             return VendorPurchaseResult::ITEM_NOT_FOUND;
 
         // Validate vendor slot
-        if (vendorSlot >= vendorItems->GetItemCount())
+    if (vendorSlot >= vendorItems->GetItemCount())
             return VendorPurchaseResult::ITEM_NOT_FOUND;
 
         // Get vendor item
@@ -504,15 +516,15 @@ namespace Playerbot
             return VendorPurchaseResult::ITEM_NOT_FOUND;
 
         // Check level requirement
-        if (itemTemplate->GetBaseRequiredLevel() > player->GetLevel())
+    if (itemTemplate->GetBaseRequiredLevel() > player->GetLevel())
             return VendorPurchaseResult::LEVEL_TOO_LOW;
 
         // Check class restriction
-        if (!(itemTemplate->GetAllowableClass() & player->GetClassMask()))
+    if (!(itemTemplate->GetAllowableClass() & player->GetClassMask()))
             return VendorPurchaseResult::CLASS_RESTRICTION;
 
         // Check limited stock
-        if (vendorItem->maxcount != 0)
+    if (vendorItem->maxcount != 0)
         {
             // Note: GetVendorItemCurrentCount is not const in TrinityCore 11.2
             Creature* mutableVendor = const_cast<Creature*>(vendor);
@@ -524,11 +536,11 @@ namespace Playerbot
         uint64 totalCost = CalculatePurchaseCost(player, vendor, vendorItem, itemTemplate, quantity);
 
         // Check if player has enough gold
-        if (totalCost > player->GetMoney())
+    if (totalCost > player->GetMoney())
             return VendorPurchaseResult::INSUFFICIENT_GOLD;
 
         // Check inventory space
-        if (!HasInventorySpace(player, itemTemplate, quantity))
+    if (!HasInventorySpace(player, itemTemplate, quantity))
             return VendorPurchaseResult::INVENTORY_FULL;
 
         return VendorPurchaseResult::SUCCESS;
@@ -559,10 +571,10 @@ namespace Playerbot
 
         // Apply reputation discount
         float discount = player->GetReputationPriceDiscount(vendor);
-        totalPrice = static_cast<uint64>(std::floor(totalPrice * discount));
+        totalPrice = static_cast<uint64>(::std::floor(totalPrice * discount));
 
         // Ensure minimum price of 1 copper if item has base price
-        if (basePrice > 0 && totalPrice == 0)
+    if (basePrice > 0 && totalPrice == 0)
             totalPrice = 1;
 
         return totalPrice;
@@ -584,14 +596,14 @@ namespace Playerbot
         uint32 freeSlots = 0;
 
         // Check backpack
-        for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+    for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
         {
             if (!player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
                 ++freeSlots;
         }
 
         // Check additional bags
-        for (uint8 bag = INVENTORY_SLOT_BAG_START; bag < INVENTORY_SLOT_BAG_END; ++bag)
+    for (uint8 bag = INVENTORY_SLOT_BAG_START; bag < INVENTORY_SLOT_BAG_END; ++bag)
         {
             if (Bag const* bagItem = player->GetBagByPos(bag))
             {
@@ -650,7 +662,7 @@ namespace Playerbot
         }
 
         // Calculate how many to buy
-        if (currentCount >= targetStock)
+    if (currentCount >= targetStock)
             return 0; // Already stocked
 
         uint32 quantityNeeded = targetStock - currentCount;

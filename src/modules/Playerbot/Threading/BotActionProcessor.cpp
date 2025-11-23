@@ -129,11 +129,9 @@ BotActionResult BotActionProcessor::ExecuteAttackTarget(Player* bot, BotAction c
 
     // Start attacking
     bot->Attack(target, true);
-
     TC_LOG_TRACE("playerbot.action",
         "Bot {} started attacking {} at distance {:.1f}",
         bot->GetName(), target->GetName(), bot->GetDistance(target));
-
     return BotActionResult::Success();
 }
 
@@ -154,7 +152,7 @@ BotActionResult BotActionProcessor::ExecuteCastSpell(Player* bot, BotAction cons
     }
 
     // Cast spell
-    bot->CastSpell(target ? target : bot, action.spellId, false);
+    bot->CastSpell(CastSpellTargetArg(target ? target : bot), action.spellId);
 
     TC_LOG_TRACE("playerbot.action",
         "Bot {} cast spell {} on {}",
@@ -232,7 +230,6 @@ BotActionResult BotActionProcessor::ExecuteInteractObject(Player* bot, BotAction
     TC_LOG_TRACE("playerbot.action",
         "Bot {} interacted with GameObject {}",
         bot->GetName(), object->GetEntry());
-
     return BotActionResult::Success();
 }
 
@@ -247,7 +244,7 @@ BotActionResult BotActionProcessor::ExecuteInteractNPC(Player* bot, BotAction co
 
     // Interact with NPC (opens gossip menu)
     // Get the first gossip menu for this creature
-    std::vector<uint32> const& gossipMenuIds = npc->GetCreatureTemplate()->GossipMenuIds;
+    ::std::vector<uint32> const& gossipMenuIds = npc->GetCreatureTemplate()->GossipMenuIds;
     uint32 menuId = gossipMenuIds.empty() ? 0 : gossipMenuIds[0];
 
     // Prepare gossip menu with quest options enabled
@@ -288,7 +285,6 @@ BotActionResult BotActionProcessor::ExecuteLootObject(Player* bot, BotAction con
         Loot* loot = object->GetLootForPlayer(bot);
         if (loot)
             bot->SendLoot(*loot, false);
-
         return BotActionResult::Success();
     }
 
@@ -438,7 +434,6 @@ BotActionResult BotActionProcessor::ExecuteSendChatMessage(Player* bot, BotActio
 
     // Send chat message
     bot->Say(action.text, LANG_UNIVERSAL);
-
     TC_LOG_TRACE("playerbot.action",
         "Bot {} said: {}", bot->GetName(), action.text);
 

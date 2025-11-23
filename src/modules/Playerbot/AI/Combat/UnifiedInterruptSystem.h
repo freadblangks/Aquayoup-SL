@@ -19,10 +19,12 @@
 #define _PLAYERBOT_UNIFIED_INTERRUPT_SYSTEM_H
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "ObjectGuid.h"
 #include "Position.h"
 #include "InterruptDatabase.h"
 #include "InterruptManager.h"
+#include "../../Core/DI/Interfaces/IUnifiedInterruptSystem.h"
 #include <map>
 #include <vector>
 #include <set>
@@ -73,7 +75,7 @@ struct BotInterruptInfo
     bool isAssigned{false};
     uint32 lastInterruptTime{0};
     uint32 interruptsPerformed{0};
-    std::vector<uint32> alternativeInterrupts;  // Stun, silence, etc.
+    ::std::vector<uint32> alternativeInterrupts;  // Stun, silence, etc.
 };
 
 /**
@@ -128,8 +130,8 @@ struct UnifiedInterruptTarget
     bool isChanneled{false};
     bool isInterruptible{true};
     bool requiresLoS{true};
-    std::string spellName;
-    std::string targetName;
+    ::std::string spellName;
+    ::std::string targetName;
 };
 
 /**
@@ -138,7 +140,7 @@ struct UnifiedInterruptTarget
 struct UnifiedInterruptCapability
 {
     uint32 spellId{0};
-    std::string spellName;
+    ::std::string spellName;
     InterruptMethod method{InterruptMethod::SPELL_INTERRUPT};
     float range{0.0f};
     float cooldown{0.0f};
@@ -165,7 +167,7 @@ struct UnifiedInterruptPlan
     bool requiresMovement{false};
     Position executionPosition;
     uint32 priority{0};
-    std::string reasoning;
+    ::std::string reasoning;
 
     bool operator<(UnifiedInterruptPlan const& other) const
     {
@@ -178,23 +180,23 @@ struct UnifiedInterruptPlan
  */
 struct UnifiedInterruptMetrics
 {
-    std::atomic<uint64> spellsDetected{0};
-    std::atomic<uint64> interruptsAssigned{0};
-    std::atomic<uint64> interruptsExecuted{0};
-    std::atomic<uint64> interruptsSuccessful{0};
-    std::atomic<uint64> interruptsFailed{0};
-    std::atomic<uint64> fallbacksUsed{0};
-    std::atomic<uint64> movementRequested{0};
-    std::atomic<uint64> backupInterruptsUsed{0};
-    std::atomic<uint64> assignmentTimeUs{0};  // Microseconds
+    ::std::atomic<uint64> spellsDetected{0};
+    ::std::atomic<uint64> interruptsAssigned{0};
+    ::std::atomic<uint64> interruptsExecuted{0};
+    ::std::atomic<uint64> interruptsSuccessful{0};
+    ::std::atomic<uint64> interruptsFailed{0};
+    ::std::atomic<uint64> fallbacksUsed{0};
+    ::std::atomic<uint64> movementRequested{0};
+    ::std::atomic<uint64> backupInterruptsUsed{0};
+    ::std::atomic<uint64> assignmentTimeUs{0};  // Microseconds
 
     // Additional metrics for detailed tracking
-    std::atomic<uint64> interruptAttempts{0};
-    std::atomic<uint64> interruptSuccesses{0};
-    std::atomic<uint64> interruptFailures{0};
-    std::atomic<uint64> movementRequired{0};
-    std::atomic<uint64> groupCoordinations{0};
-    std::atomic<uint64> rotationViolations{0};
+    ::std::atomic<uint64> interruptAttempts{0};
+    ::std::atomic<uint64> interruptSuccesses{0};
+    ::std::atomic<uint64> interruptFailures{0};
+    ::std::atomic<uint64> movementRequired{0};
+    ::std::atomic<uint64> groupCoordinations{0};
+    ::std::atomic<uint64> rotationViolations{0};
 
     void Reset()
     {
@@ -256,7 +258,7 @@ struct BotInterruptStats
  * - Memory overhead: <1KB per bot
  * - Scales to 5000+ concurrent bots
  */
-class TC_GAME_API UnifiedInterruptSystem
+class TC_GAME_API UnifiedInterruptSystem final : public IUnifiedInterruptSystem
 {
 public:
     /**
@@ -269,19 +271,19 @@ public:
      * @brief Initialize system (load spell database)
      * @return True if initialization successful
      */
-    bool Initialize();
+    bool Initialize() override;
 
     /**
      * @brief Shutdown system and cleanup
      */
-    void Shutdown();
+    void Shutdown() override;
 
     /**
      * @brief Update system for a specific bot (called per bot per update)
      * @param bot The bot to update for
      * @param diff Time since last update (ms)
      */
-    void Update(Player* bot, uint32 diff);
+    void Update(Player* bot, uint32 diff) override;
 
     // =====================================================================
     // BOT REGISTRATION
@@ -292,19 +294,19 @@ public:
      * @param bot The player bot
      * @param ai The bot's AI instance
      */
-    void RegisterBot(Player* bot, BotAI* ai);
+    void RegisterBot(Player* bot, BotAI* ai) override;
 
     /**
      * @brief Unregister bot
      * @param botGuid Bot's ObjectGuid
      */
-    void UnregisterBot(ObjectGuid botGuid);
+    void UnregisterBot(ObjectGuid botGuid) override;
 
     /**
      * @brief Update bot's interrupt capabilities (check spells, cooldowns)
      * @param bot The bot to update
      */
-    void UpdateBotCapabilities(Player* bot);
+    void UpdateBotCapabilities(Player* bot) override;
 
     // =====================================================================
     // CAST DETECTION & TRACKING
@@ -316,21 +318,21 @@ public:
      * @param spellId Spell being cast
      * @param castTime Total cast time (ms)
      */
-    void OnEnemyCastStart(Unit* caster, uint32 spellId, uint32 castTime);
+    void OnEnemyCastStart(Unit* caster, uint32 spellId, uint32 castTime) override;
 
     /**
      * @brief Register cast interruption
      * @param casterGuid Caster's GUID
      * @param spellId Interrupted spell
      */
-    void OnEnemyCastInterrupted(ObjectGuid casterGuid, uint32 spellId);
+    void OnEnemyCastInterrupted(ObjectGuid casterGuid, uint32 spellId) override;
 
     /**
      * @brief Register cast completion
      * @param casterGuid Caster's GUID
      * @param spellId Completed spell
      */
-    void OnEnemyCastComplete(ObjectGuid casterGuid, uint32 spellId);
+    void OnEnemyCastComplete(ObjectGuid casterGuid, uint32 spellId) override;
 
     // =====================================================================
     // SPELL DATABASE ACCESS
@@ -349,14 +351,14 @@ public:
      * @param mythicLevel Mythic+ level (0 = normal)
      * @return Interrupt priority
      */
-    InterruptPriority GetSpellPriority(uint32 spellId, uint8 mythicLevel = 0);
+    InterruptPriority GetSpellPriority(uint32 spellId, uint8 mythicLevel = 0) override;
 
     /**
      * @brief Check if spell requires immediate interrupt
      * @param spellId Spell to check
      * @return True if always interrupt
      */
-    bool ShouldAlwaysInterrupt(uint32 spellId);
+    bool ShouldAlwaysInterrupt(uint32 spellId) override;
 
     // =====================================================================
     // DECISION MAKING & PLANNING
@@ -367,7 +369,7 @@ public:
      * @param bot The scanning bot
      * @return Vector of interrupt targets
      */
-    std::vector<UnifiedInterruptTarget> ScanForInterruptTargets(Player* bot);
+    ::std::vector<UnifiedInterruptTarget> ScanForInterruptTargets(Player* bot);
 
     /**
      * @brief Create interrupt plan for target
@@ -383,7 +385,7 @@ public:
      * @param targets Vector of targets
      * @return Vector of executable plans (sorted by priority)
      */
-    std::vector<UnifiedInterruptPlan> GenerateInterruptPlans(Player* bot, std::vector<UnifiedInterruptTarget> const& targets);
+    ::std::vector<UnifiedInterruptPlan> GenerateInterruptPlans(Player* bot, ::std::vector<UnifiedInterruptTarget> const& targets);
 
     /**
      * @brief Execute interrupt plan
@@ -391,7 +393,7 @@ public:
      * @param plan The plan to execute
      * @return True if execution successful
      */
-    bool ExecuteInterruptPlan(Player* bot, UnifiedInterruptPlan const& plan);
+    bool ExecuteInterruptPlan(Player* bot, UnifiedInterruptPlan const& plan) override;
 
     // =====================================================================
     // GROUP COORDINATION & ASSIGNMENT
@@ -401,7 +403,7 @@ public:
      * @brief Coordinate interrupt assignments for a group (thread-safe)
      * @param group The group to coordinate
      */
-    void CoordinateGroupInterrupts(Group* group);
+    void CoordinateGroupInterrupts(Group* group) override;
 
     /**
      * @brief Check if bot should interrupt now
@@ -410,7 +412,7 @@ public:
      * @param spellId OUT: Spell to use
      * @return True if should interrupt
      */
-    bool ShouldBotInterrupt(ObjectGuid botGuid, ObjectGuid& targetGuid, uint32& spellId);
+    bool ShouldBotInterrupt(ObjectGuid botGuid, ObjectGuid& targetGuid, uint32& spellId) override;
 
     /**
      * @brief Get next interrupt assignment for bot
@@ -424,7 +426,7 @@ public:
      * @param botGuid Bot that executed
      * @param success Whether interrupt succeeded
      */
-    void OnInterruptExecuted(ObjectGuid botGuid, bool success);
+    void OnInterruptExecuted(ObjectGuid botGuid, bool success) override;
 
     // =====================================================================
     // ROTATION SYSTEM
@@ -442,7 +444,7 @@ public:
      * @param botGuid Bot that interrupted
      * @param spellId Interrupt spell used
      */
-    void MarkInterruptUsed(ObjectGuid botGuid, uint32 spellId);
+    void MarkInterruptUsed(ObjectGuid botGuid, uint32 spellId) override;
 
     // =====================================================================
     // FALLBACK LOGIC
@@ -455,7 +457,7 @@ public:
      * @param failedSpellId The interrupt that failed
      * @return True if fallback successful
      */
-    bool HandleFailedInterrupt(Player* bot, Unit* target, uint32 failedSpellId);
+    bool HandleFailedInterrupt(Player* bot, Unit* target, uint32 failedSpellId) override;
 
     /**
      * @brief Select best fallback method for situation
@@ -473,7 +475,7 @@ public:
      * @param method The fallback method
      * @return True if successful
      */
-    bool ExecuteFallback(Player* bot, Unit* target, FallbackMethod method);
+    bool ExecuteFallback(Player* bot, Unit* target, FallbackMethod method) override;
 
     // =====================================================================
     // MOVEMENT INTEGRATION
@@ -485,7 +487,7 @@ public:
      * @param target The interrupt target
      * @return True if movement requested
      */
-    bool RequestInterruptPositioning(Player* bot, Unit* target);
+    bool RequestInterruptPositioning(Player* bot, Unit* target) override;
 
     /**
      * @brief Calculate optimal interrupt position
@@ -515,13 +517,13 @@ public:
     /**
      * @brief Reset all statistics
      */
-    void ResetStatistics();
+    void ResetStatistics() override;
 
     /**
      * @brief Get formatted status string for debugging
      * @return Human-readable status
      */
-    std::string GetStatusString() const;
+    ::std::string GetStatusString() const override;
 
 private:
     UnifiedInterruptSystem();
@@ -544,7 +546,7 @@ private:
     // INTERNAL HELPER METHODS
     // =====================================================================
 
-    std::vector<ObjectGuid> GetAvailableInterrupters(CastingSpellInfo const& castInfo);
+    ::std::vector<ObjectGuid> GetAvailableInterrupters(CastingSpellInfo const& castInfo);
     uint32 CalculateInterruptTime(CastingSpellInfo const& castInfo) const;
     float CalculateInterruptUrgency(UnifiedInterruptTarget const& target) const;
     float CalculateInterruptEffectiveness(UnifiedInterruptCapability const& capability, UnifiedInterruptTarget const& target) const;
@@ -559,45 +561,45 @@ private:
     // THREAD SAFETY (Single mutex pattern from InterruptCoordinator)
     // =====================================================================
 
-    mutable std::recursive_mutex _mutex;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _mutex;
 
     // =====================================================================
     // INITIALIZATION STATE
     // =====================================================================
 
     bool _initialized{false};
-    std::chrono::system_clock::time_point _initTime;
+    ::std::chrono::system_clock::time_point _initTime;
 
     // =====================================================================
     // BOT TRACKING
     // =====================================================================
 
-    std::map<ObjectGuid, BotInterruptInfo> _registeredBots;
-    std::map<ObjectGuid, BotAI*> _botAI;
-    std::map<ObjectGuid, std::vector<UnifiedInterruptCapability>> _botCapabilities;
-    std::map<ObjectGuid, BotInterruptStats> _botStats;
+    ::std::map<ObjectGuid, BotInterruptInfo> _registeredBots;
+    ::std::map<ObjectGuid, BotAI*> _botAI;
+    ::std::map<ObjectGuid, ::std::vector<UnifiedInterruptCapability>> _botCapabilities;
+    ::std::map<ObjectGuid, BotInterruptStats> _botStats;
 
     // =====================================================================
     // ACTIVE CAST TRACKING
     // =====================================================================
 
-    std::map<ObjectGuid, CastingSpellInfo> _activeCasts;
+    ::std::map<ObjectGuid, CastingSpellInfo> _activeCasts;
 
     // =====================================================================
     // ASSIGNMENT SYSTEM
     // =====================================================================
 
-    std::vector<BotInterruptAssignment> _pendingAssignments;
-    std::set<ObjectGuid> _assignedBots;
+    ::std::vector<BotInterruptAssignment> _pendingAssignments;
+    ::std::set<ObjectGuid> _assignedBots;
 
     // =====================================================================
     // ROTATION SYSTEM
     // =====================================================================
 
-    std::map<Group*, std::queue<ObjectGuid>> _groupRotations;
-    std::map<ObjectGuid, std::vector<uint32>> _interruptHistory;  // Bot GUID → spell IDs interrupted
-    std::vector<ObjectGuid> _rotationOrder;  // Global rotation order
-    std::map<ObjectGuid, ObjectGuid> _groupAssignments;  // Target GUID → Assigned Bot GUID
+    ::std::map<Group*, ::std::queue<ObjectGuid>> _groupRotations;
+    ::std::map<ObjectGuid, ::std::vector<uint32>> _interruptHistory;  // Bot GUID → spell IDs interrupted
+    ::std::vector<ObjectGuid> _rotationOrder;  // Global rotation order
+    ::std::map<ObjectGuid, ObjectGuid> _groupAssignments;  // Target GUID → Assigned Bot GUID
 
     // =====================================================================
     // PERFORMANCE METRICS (Atomic for thread-safe access)

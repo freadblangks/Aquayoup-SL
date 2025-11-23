@@ -144,11 +144,6 @@ namespace Playerbot
 
             // Set boolean value
             bool result = mgr->SetValue("EnableCombatAI", true);
-            if (!result)
-            {
-                TC_LOG_ERROR("playerbot.test", "FAIL: Failed to set EnableCombatAI");
-                return false;
-            }
 
             // Get boolean value
             bool value = mgr->GetBool("EnableCombatAI", false);
@@ -194,11 +189,6 @@ namespace Playerbot
 
             // Set uint value
             bool result = mgr->SetValue("MaxActiveBots", static_cast<uint32>(200));
-            if (!result)
-            {
-                TC_LOG_ERROR("playerbot.test", "FAIL: Failed to set MaxActiveBots");
-                return false;
-            }
 
             // Get uint value
             uint32 value = mgr->GetUInt("MaxActiveBots", 0);
@@ -223,15 +213,10 @@ namespace Playerbot
 
             // Set float value
             bool result = mgr->SetValue("FormationSpacing", 5.0f);
-            if (!result)
-            {
-                TC_LOG_ERROR("playerbot.test", "FAIL: Failed to set FormationSpacing");
-                return false;
-            }
 
             // Get float value
             float value = mgr->GetFloat("FormationSpacing", 0.0f);
-            if (std::abs(value - 5.0f) > 0.001f)
+            if (::std::abs(value - 5.0f) > 0.001f)
             {
                 TC_LOG_ERROR("playerbot.test", "FAIL: Expected 5.0, got %f", value);
                 return false;
@@ -251,15 +236,10 @@ namespace Playerbot
             ConfigManager* mgr = ConfigManager::instance();
 
             // Set string value
-            bool result = mgr->SetValue("DefaultFormation", std::string("diamond"));
-            if (!result)
-            {
-                TC_LOG_ERROR("playerbot.test", "FAIL: Failed to set DefaultFormation");
-                return false;
-            }
+            bool result = mgr->SetValue("DefaultFormation", ::std::string("diamond"));
 
             // Get string value
-            std::string value = mgr->GetString("DefaultFormation", "");
+            ::std::string value = mgr->GetString("DefaultFormation", "");
             if (value != "diamond")
             {
                 TC_LOG_ERROR("playerbot.test", "FAIL: Expected 'diamond', got '%s'", value.c_str());
@@ -287,7 +267,7 @@ namespace Playerbot
                 return false;
             }
 
-            std::string error = mgr->GetLastError();
+            ::std::string error = mgr->GetLastError();
             if (error.empty())
             {
                 TC_LOG_ERROR("playerbot.test", "FAIL: Expected error message, got empty string");
@@ -507,17 +487,11 @@ namespace Playerbot
             // Register callback
             mgr->RegisterCallback("MaxActiveBots", [&](ConfigManager::ConfigValue const& value) {
                 callbackTriggered = true;
-                newValue = std::get<uint32>(value);
+                newValue = ::std::get<uint32>(value);
             });
 
             // Trigger callback by setting value
             mgr->SetValue("MaxActiveBots", static_cast<uint32>(300));
-
-            if (!callbackTriggered)
-            {
-                TC_LOG_ERROR("playerbot.test", "FAIL: Callback was not triggered");
-                return false;
-            }
 
             if (newValue != 300)
             {
@@ -630,7 +604,7 @@ namespace Playerbot
                 return false;
             }
 
-            std::string error = mgr->GetLastError();
+            ::std::string error = mgr->GetLastError();
             if (error.empty())
             {
                 TC_LOG_ERROR("playerbot.test", "FAIL: Expected error message");

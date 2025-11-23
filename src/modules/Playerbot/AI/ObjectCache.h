@@ -84,7 +84,7 @@ public:
      * Set cached group members (call when group composition changes)
      * @param members Vector of all group members
      */
-    void SetGroupMembers(std::vector<Player*> const& members);
+    void SetGroupMembers(::std::vector<Player*> const& members);
 
     /**
      * Set cached follow target (call when follow target changes)
@@ -125,7 +125,7 @@ public:
      * Get all cached group members
      * Returns empty vector if not in group
      */
-    std::vector<Player*> const& GetGroupMembers() const;
+    ::std::vector<Player*> const& GetGroupMembers() const;
 
     /**
      * Get specific group member by GUID
@@ -151,21 +151,21 @@ public:
 
     /**
      * Check if cache is valid and up-to-date
-     * @param now Current game time (getMSTime())
+     * @param now Current game time (GameTime::GetGameTimeMS())
      * @return true if cache is fresh (< 100ms old)
      */
     bool IsValid(uint32 now) const;
 
     /**
      * Check if cache needs refresh
-     * @param now Current game time (getMSTime())
+     * @param now Current game time (GameTime::GetGameTimeMS())
      * @return true if cache is stale (>= 100ms old)
      */
     bool NeedsRefresh(uint32 now) const;
 
     /**
      * Get time since last cache refresh
-     * @param now Current game time (getMSTime())
+     * @param now Current game time (GameTime::GetGameTimeMS())
      * @return milliseconds since last RefreshCache() call
      */
     uint32 GetAge(uint32 now) const;
@@ -241,8 +241,8 @@ private:
     Player* _cachedGroupLeader = nullptr;
     ObjectGuid _groupLeaderGuid;
 
-    std::vector<Player*> _cachedGroupMembers;
-    std::vector<ObjectGuid> _groupMemberGuids;
+    ::std::vector<Player*> _cachedGroupMembers;
+    ::std::vector<ObjectGuid> _groupMemberGuids;
 
     // Movement-related objects
     ::Unit* _cachedFollowTarget = nullptr;

@@ -6,6 +6,8 @@
 #define BOT_LIFECYCLE_MANAGER_H
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
+#include "Core/DI/Interfaces/IBotLifecycleManager.h"
 #include "ObjectGuid.h"
 #include <memory>
 #include <unordered_map>
@@ -231,11 +233,11 @@ private:
     // Activity tracking
     BotActivity _currentActivity;
     std::queue<BotActivity> _activityQueue;
-    mutable std::recursive_mutex _activityMutex;
+    
 
     // Performance metrics
     BotPerformanceMetrics _metrics;
-    mutable std::recursive_mutex _metricsMutex;
+    
 
     // Idle management
     uint32 _idleTimer;
@@ -249,14 +251,18 @@ private:
 /**
  * Global Bot Lifecycle Manager
  *
+ * Implements IBotLifecycleManager for dependency injection compatibility.
  * Manages all bot lifecycles in the system
  */
-class TC_GAME_API BotLifecycleManager
+class TC_GAME_API BotLifecycleManager final : public IBotLifecycleManager
 {
 public:
-    static BotLifecycleManager* instance();
+    explicit BotLifecycleManager(Player* bot);
+    ~BotLifecycleManager();
+    BotLifecycleManager(BotLifecycleManager const&) = delete;
+    BotLifecycleManager& operator=(BotLifecycleManager const&) = delete;
 
-    // === Bot Management ===
+    // === IBotLifecycleManager interface implementation ===
 
     /**
      * Create a new bot lifecycle
@@ -264,25 +270,25 @@ public:
      * @param session The bot's session
      * @return Shared pointer to the lifecycle controller
      */
-    std::shared_ptr<BotLifecycle> CreateBotLifecycle(ObjectGuid botGuid, std::shared_ptr<BotSession> session);
+    std::shared_ptr<BotLifecycle> CreateBotLifecycle(ObjectGuid botGuid, std::shared_ptr<BotSession> session) override;
 
     /**
      * Remove a bot lifecycle
      * @param botGuid The bot's GUID
      */
-    void RemoveBotLifecycle(ObjectGuid botGuid);
+    void RemoveBotLifecycle(ObjectGuid botGuid) override;
 
     /**
      * Get a bot's lifecycle controller
      * @param botGuid The bot's GUID
      * @return Shared pointer to lifecycle, nullptr if not found
      */
-    std::shared_ptr<BotLifecycle> GetBotLifecycle(ObjectGuid botGuid) const;
+    std::shared_ptr<BotLifecycle> GetBotLifecycle(ObjectGuid botGuid) const override;
 
     /**
      * Get all active bot lifecycles
      */
-    std::vector<std::shared_ptr<BotLifecycle>> GetActiveLifecycles() const;
+    std::vector<std::shared_ptr<BotLifecycle>> GetActiveLifecycles() const override;
 
     // === Global Updates ===
 
@@ -290,87 +296,69 @@ public:
      * Update all bot lifecycles
      * @param diff Time since last update in milliseconds
      */
-    void UpdateAll(uint32 diff);
+    void UpdateAll(uint32 diff) override;
 
     /**
      * Stop all bots
      * @param immediate If true, stop immediately without cleanup
      */
-    void StopAll(bool immediate = false);
+    void StopAll(bool immediate = false) override;
 
     // === Statistics ===
-
-    struct GlobalStats
-    {
-        uint32 totalBots = 0;
-        uint32 activeBots = 0;
-        uint32 idleBots = 0;
-        uint32 combatBots = 0;
-        uint32 questingBots = 0;
-        uint32 offlineBots = 0;
-
-        float avgAiUpdateTime = 0.0f;
-        size_t totalMemoryUsage = 0;
-        uint32 totalActionsPerSecond = 0;
-    };
+    // GlobalStats defined in IBotLifecycleManager.h interface
 
     /**
      * Get global statistics
      */
-    GlobalStats GetGlobalStats() const;
+    GlobalStats GetGlobalStats() const override;
 
     /**
      * Print performance report
      */
-    void PrintPerformanceReport() const;
+    void PrintPerformanceReport() const override;
 
     // === Configuration ===
 
     /**
      * Set maximum concurrent bot logins
      */
-    void SetMaxConcurrentLogins(uint32 max) { _maxConcurrentLogins = max; }
+    void SetMaxConcurrentLogins(uint32 max) override { _maxConcurrentLogins = max; }
 
     /**
      * Set bot update interval
      */
-    void SetUpdateInterval(uint32 intervalMs) { _updateInterval = intervalMs; }
+    void SetUpdateInterval(uint32 intervalMs) override { _updateInterval = intervalMs; }
 
     // === Event Broadcasting ===
 
     /**
      * Register for lifecycle events
      */
-    using LifecycleEventHandler = std::function<void(ObjectGuid, BotLifecycleState, BotLifecycleState)>;
-    void RegisterEventHandler(LifecycleEventHandler handler);
+    using LifecycleEventHandler = IBotLifecycleManager::LifecycleEventHandler;
+    void RegisterEventHandler(LifecycleEventHandler handler) override;
 
 private:
-    BotLifecycleManager();
-    ~BotLifecycleManager();
+    Player* _bot;
 
     // Bot storage
     std::unordered_map<ObjectGuid, std::shared_ptr<BotLifecycle>> _botLifecycles;
-    mutable std::recursive_mutex _lifecycleMutex;
+    
 
     // Configuration
     uint32 _maxConcurrentLogins = 10;
     uint32 _updateInterval = 100; // milliseconds
 
     // Statistics tracking
-    mutable std::recursive_mutex _statsMutex;
+    
     std::chrono::steady_clock::time_point _lastStatsUpdate;
     static constexpr auto STATS_UPDATE_INTERVAL = std::chrono::seconds(1);
 
     // Event handlers
     std::vector<LifecycleEventHandler> _eventHandlers;
-    std::recursive_mutex _eventMutex;
+    Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_SPAWNER> _eventMutex;
 
     // Broadcast state change event
     void BroadcastStateChange(ObjectGuid botGuid, BotLifecycleState oldState, BotLifecycleState newState);
-
-    // Singleton
-    BotLifecycleManager(BotLifecycleManager const&) = delete;
-    BotLifecycleManager& operator=(BotLifecycleManager const&) = delete;
 };
 
 // Convenience accessor

@@ -18,7 +18,7 @@ namespace Playerbot
 {
 
 // Static template initialization
-std::unordered_map<FormationType, FormationTemplate> GroupFormation::_formationTemplates;
+::std::unordered_map<FormationType, FormationTemplate> GroupFormation::_formationTemplates;
 
 GroupFormation::GroupFormation(uint32 groupId, FormationType type)
     : _groupId(groupId)
@@ -29,7 +29,7 @@ GroupFormation::GroupFormation(uint32 groupId, FormationType type)
     , _formationSpacing(DEFAULT_FORMATION_SPACING)
     , _formationRadius(0.0f)
     , _lastDirection(0.0f)
-    , _lastUpdateTime(getMSTime())
+    , _lastUpdateTime(GameTime::GetGameTimeMS())
 {
     // Initialize formation templates if not done
     if (_formationTemplates.empty())
@@ -45,7 +45,7 @@ GroupFormation::GroupFormation(uint32 groupId, FormationType type)
 
 void GroupFormation::SetFormationType(FormationType type)
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     if (_formationType == type)
         return;
@@ -59,7 +59,7 @@ void GroupFormation::SetFormationType(FormationType type)
 
 void GroupFormation::SetFormationBehavior(FormationBehavior behavior)
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
     _behavior = behavior;
 
     // Adjust spacing based on behavior
@@ -88,9 +88,9 @@ void GroupFormation::SetFormationBehavior(FormationBehavior behavior)
     RecalculateFormationPositions();
 }
 
-void GroupFormation::SetCustomFormation(const std::vector<Position>& positions)
+void GroupFormation::SetCustomFormation(const ::std::vector<Position>& positions)
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     if (positions.size() != _members.size())
     {
@@ -99,7 +99,7 @@ void GroupFormation::SetCustomFormation(const std::vector<Position>& positions)
         return;
     }
 
-    for (size_t i = 0; i < std::min(positions.size(), _members.size()); ++i)
+    for (size_t i = 0; i < ::std::min(positions.size(), _members.size()); ++i)
     {
         _members[i].assignedPosition = positions[i];
     }
@@ -109,7 +109,7 @@ void GroupFormation::SetCustomFormation(const std::vector<Position>& positions)
 
 void GroupFormation::AddMember(uint32 memberGuid, const Position& preferredPosition)
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     // Check if member already exists
     for (const auto& member : _members)
@@ -139,10 +139,10 @@ void GroupFormation::AddMember(uint32 memberGuid, const Position& preferredPosit
 
 void GroupFormation::RemoveMember(uint32 memberGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     _members.erase(
-        std::remove_if(_members.begin(), _members.end(),
+        ::std::remove_if(_members.begin(), _members.end(),
                       [memberGuid](const FormationMember& member) {
                           return member.memberGuid == memberGuid;
                       }),
@@ -161,10 +161,10 @@ void GroupFormation::RemoveMember(uint32 memberGuid)
 
 void GroupFormation::UpdateFormation(const Position& centerPosition, float direction)
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     bool positionChanged = _formationCenter.GetExactDist(centerPosition) > FORMATION_UPDATE_THRESHOLD;
-    bool directionChanged = std::abs(_formationDirection - direction) > 0.1f;
+    bool directionChanged = ::std::abs(_formationDirection - direction) > 0.1f;
 
     if (positionChanged || directionChanged)
     {
@@ -177,12 +177,12 @@ void GroupFormation::UpdateFormation(const Position& centerPosition, float direc
         _metrics.positionAdjustments.fetch_add(1);
     }
 
-    _lastUpdateTime = getMSTime();
+    _lastUpdateTime = GameTime::GetGameTimeMS();
 }
 
 Position GroupFormation::GetAssignedPosition(uint32 memberGuid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     for (const auto& member : _members)
     {
@@ -195,19 +195,19 @@ Position GroupFormation::GetAssignedPosition(uint32 memberGuid) const
 
 Position GroupFormation::GetFormationCenter() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
     return _formationCenter;
 }
 
 float GroupFormation::GetFormationRadius() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
     return _formationRadius;
 }
 
 bool GroupFormation::IsInFormation(uint32 memberGuid, float tolerance) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     for (const auto& member : _members)
     {
@@ -224,10 +224,10 @@ bool GroupFormation::IsInFormation(uint32 memberGuid, float tolerance) const
     return false;
 }
 
-std::vector<uint32> GroupFormation::GetMembersOutOfPosition(float tolerance) const
+::std::vector<uint32> GroupFormation::GetMembersOutOfPosition(float tolerance) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
-    std::vector<uint32> outOfPosition;
+    ::std::lock_guard lock(_formationMutex);
+    ::std::vector<uint32> outOfPosition;
 
     for (const auto& member : _members)
     {
@@ -247,7 +247,7 @@ void GroupFormation::Update(uint32 diff)
     if (!_isActive.load())
         return;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Update formation metrics
     if (currentTime - _lastUpdateTime >= FORMATION_SMOOTHING_INTERVAL)
@@ -266,8 +266,7 @@ void GroupFormation::Update(uint32 diff)
 
 void GroupFormation::UpdateMetrics()
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
-
+    ::std::lock_guard lock(_formationMutex);
     if (_members.empty())
         return;
 
@@ -290,16 +289,16 @@ void GroupFormation::UpdateMetrics()
         _metrics.averageDeviation.store(avgDeviation);
 
         // Calculate formation stability (inverse of deviation)
-        float stability = std::max(0.0f, 1.0f - (avgDeviation / MAX_FORMATION_DEVIATION));
+        float stability = ::std::max(0.0f, 1.0f - (avgDeviation / MAX_FORMATION_DEVIATION));
         _metrics.formationStability.store(stability);
     }
 
-    _metrics.lastUpdate = std::chrono::steady_clock::now();
+    _metrics.lastUpdate = ::std::chrono::steady_clock::now();
 }
 
 bool GroupFormation::IsFormationValid() const
 {
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     if (_members.empty())
         return false;
@@ -402,7 +401,7 @@ void GroupFormation::RecalculateFormationPositions()
     if (_members.empty())
         return;
 
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
     uint32 memberCount = static_cast<uint32>(_members.size());
 
     switch (_formationType)
@@ -432,7 +431,7 @@ void GroupFormation::RecalculateFormationPositions()
     }
 
     // Assign positions to members
-    for (size_t i = 0; i < std::min(positions.size(), _members.size()); ++i)
+    for (size_t i = 0; i < ::std::min(positions.size(), _members.size()); ++i)
     {
         _members[i].assignedPosition = positions[i];
     }
@@ -442,7 +441,7 @@ void GroupFormation::RecalculateFormationPositions()
     for (const auto& pos : positions)
     {
         float distance = pos.GetExactDist(0, 0, 0);
-        _formationRadius = std::max(_formationRadius, distance);
+        _formationRadius = ::std::max(_formationRadius, distance);
     }
 }
 
@@ -452,8 +451,8 @@ Position GroupFormation::CalculateMemberPosition(const FormationMember& member) 
     Position relativePos = member.assignedPosition;
 
     // Apply formation rotation
-    float cos_rot = std::cos(_formationDirection);
-    float sin_rot = std::sin(_formationDirection);
+    float cos_rot = ::std::cos(_formationDirection);
+    float sin_rot = ::std::sin(_formationDirection);
 
     float rotatedX = relativePos.GetPositionX() * cos_rot - relativePos.GetPositionY() * sin_rot;
     float rotatedY = relativePos.GetPositionX() * sin_rot + relativePos.GetPositionY() * cos_rot;
@@ -468,13 +467,13 @@ void GroupFormation::UpdateMemberPositions()
     for (auto& member : _members)
     {
         member.assignedPosition = CalculateMemberPosition(member);
-        member.lastPositionUpdate = getMSTime();
+        member.lastPositionUpdate = GameTime::GetGameTimeMS();
     }
 }
 
-std::vector<Position> GroupFormation::GenerateLineFormation(uint32 memberCount, float spacing) const
+::std::vector<Position> GroupFormation::GenerateLineFormation(uint32 memberCount, float spacing) const
 {
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
 
     if (memberCount == 0)
         return positions;
@@ -495,9 +494,9 @@ std::vector<Position> GroupFormation::GenerateLineFormation(uint32 memberCount, 
     return positions;
 }
 
-std::vector<Position> GroupFormation::GenerateCircleFormation(uint32 memberCount, float spacing) const
+::std::vector<Position> GroupFormation::GenerateCircleFormation(uint32 memberCount, float spacing) const
 {
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
 
     if (memberCount == 0)
         return positions;
@@ -509,22 +508,21 @@ std::vector<Position> GroupFormation::GenerateCircleFormation(uint32 memberCount
     }
 
     float radius = spacing * memberCount / (2.0f * M_PI);
-    radius = std::max(radius, 3.0f); // Minimum radius
-
+    radius = ::std::max(radius, 3.0f); // Minimum radius
     for (uint32 i = 0; i < memberCount; ++i)
     {
         float angle = (2.0f * M_PI * i) / memberCount;
-        float x = radius * std::cos(angle);
-        float y = radius * std::sin(angle);
+        float x = radius * ::std::cos(angle);
+        float y = radius * ::std::sin(angle);
         positions.emplace_back(x, y, 0);
     }
 
     return positions;
 }
 
-std::vector<Position> GroupFormation::GenerateLooseFormation(uint32 memberCount, float spacing) const
+::std::vector<Position> GroupFormation::GenerateLooseFormation(uint32 memberCount, float spacing) const
 {
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
 
     if (memberCount == 0)
         return positions;
@@ -537,10 +535,10 @@ std::vector<Position> GroupFormation::GenerateLooseFormation(uint32 memberCount,
     {
         // Spiral pattern for loose formation
         float angle = i * 2.4f; // Golden angle approximation
-        float radius = std::sqrt(static_cast<float>(i)) * spacing * 0.8f;
+        float radius = ::std::sqrt(static_cast<float>(i)) * spacing * 0.8f;
 
-        float x = radius * std::cos(angle);
-        float y = radius * std::sin(angle);
+        float x = radius * ::std::cos(angle);
+        float y = radius * ::std::sin(angle);
         positions.emplace_back(x, y, 0);
     }
 
@@ -548,9 +546,9 @@ std::vector<Position> GroupFormation::GenerateLooseFormation(uint32 memberCount,
 }
 
 // Placeholder implementations for other formation generators
-std::vector<Position> GroupFormation::GenerateWedgeFormation(uint32 memberCount, float spacing) const
+::std::vector<Position> GroupFormation::GenerateWedgeFormation(uint32 memberCount, float spacing) const
 {
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
 
     if (memberCount == 0)
         return positions;
@@ -575,9 +573,9 @@ std::vector<Position> GroupFormation::GenerateWedgeFormation(uint32 memberCount,
     return positions;
 }
 
-std::vector<Position> GroupFormation::GenerateDiamondFormation(uint32 memberCount, float spacing) const
+::std::vector<Position> GroupFormation::GenerateDiamondFormation(uint32 memberCount, float spacing) const
 {
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
 
     if (memberCount == 0)
         return positions;
@@ -595,13 +593,10 @@ std::vector<Position> GroupFormation::GenerateDiamondFormation(uint32 memberCoun
 
     if (memberCount > 1)
         positions.emplace_back(-spacing * 1.5f, 0, 0);  // Left point
-
     if (memberCount > 2)
         positions.emplace_back(spacing * 1.5f, 0, 0);   // Right point
-
     if (memberCount > 3)
         positions.emplace_back(0, -spacing * 1.5f, 0);  // Back point
-
     if (memberCount > 4)
         positions.emplace_back(0, 0, 0);                // Center
 
@@ -624,9 +619,9 @@ std::vector<Position> GroupFormation::GenerateDiamondFormation(uint32 memberCoun
     return positions;
 }
 
-std::vector<Position> GroupFormation::GenerateDefensiveSquare(uint32 memberCount, float spacing) const
+::std::vector<Position> GroupFormation::GenerateDefensiveSquare(uint32 memberCount, float spacing) const
 {
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
 
     if (memberCount == 0)
         return positions;
@@ -640,7 +635,7 @@ std::vector<Position> GroupFormation::GenerateDefensiveSquare(uint32 memberCount
 
     // Calculate square size based on member count
     // For a square perimeter: 4 members per side minimum
-    uint32 membersPerSide = std::max(2u, static_cast<uint32>(std::ceil(std::sqrt(static_cast<float>(memberCount)))));
+    uint32 membersPerSide = ::std::max(2u, static_cast<uint32>(::std::ceil(::std::sqrt(static_cast<float>(memberCount)))));
     float sideLength = (membersPerSide - 1) * spacing;
     float halfSide = sideLength / 2.0f;
 
@@ -697,9 +692,9 @@ std::vector<Position> GroupFormation::GenerateDefensiveSquare(uint32 memberCount
     return positions;
 }
 
-std::vector<Position> GroupFormation::GenerateArrowFormation(uint32 memberCount, float spacing) const
+::std::vector<Position> GroupFormation::GenerateArrowFormation(uint32 memberCount, float spacing) const
 {
-    std::vector<Position> positions;
+    ::std::vector<Position> positions;
 
     if (memberCount == 0)
         return positions;
@@ -717,18 +712,17 @@ std::vector<Position> GroupFormation::GenerateArrowFormation(uint32 memberCount,
     uint32 placedMembers = 1;  // Leader already placed
     uint32 currentRow = 1;
     float currentYOffset = -spacing * 1.2f;  // Start behind leader
-
     while (placedMembers < memberCount)
     {
         // Calculate how many members in this row (increases with each row)
         // Row 1: 2 members, Row 2: 3 members, Row 3: 4 members, etc.
-        uint32 membersInRow = std::min(currentRow + 1, memberCount - placedMembers);
+        uint32 membersInRow = ::std::min(currentRow + 1, memberCount - placedMembers);
 
         // Calculate width for this row
         float rowWidth = membersInRow * spacing * 0.7f;
 
         // Place members in this row, centered horizontally
-        for (uint32 i = 0; i < membersInRow && placedMembers < memberCount; ++i, ++placedMembers)
+    for (uint32 i = 0; i < membersInRow && placedMembers < memberCount; ++i, ++placedMembers)
         {
             float xOffset;
             if (membersInRow == 1)
@@ -755,7 +749,7 @@ std::vector<Position> GroupFormation::GenerateArrowFormation(uint32 memberCount,
 void GroupFormation::PerformFormationSmoothing()
 {
     // Implement formation smoothing logic
-    std::lock_guard<std::recursive_mutex> lock(_formationMutex);
+    ::std::lock_guard lock(_formationMutex);
 
     // Adjust positions for smoother transitions
     for (auto& member : _members)
@@ -770,14 +764,229 @@ void GroupFormation::PerformFormationSmoothing()
 
 void GroupFormation::HandleCollisionResolution()
 {
-    // TODO: Implement collision resolution logic
-    // This would handle cases where formation positions overlap with terrain or other objects
+    ::std::lock_guard lock(_formationMutex);
+
+    if (_members.empty())
+        return;
+
+    // Check each member's assigned position for terrain collisions
+    for (auto& member : _members)
+    {
+        Position& assignedPos = member.assignedPosition;
+
+        // Check for terrain validity (simplified check)
+        // In a full implementation, this would use pathfinding/terrain queries
+        bool hasTerrainCollision = false;
+
+        // For now, we'll implement a basic obstacle avoidance check
+        // This would integrate with TrinityCore's map/terrain system in production
+
+        // If collision detected, find nearest valid position
+    if (hasTerrainCollision)
+        {
+            Position adjustedPos = FindNearestValidPosition(assignedPos, member.maxDeviationDistance);
+
+            if (adjustedPos.IsValid())
+            {
+                TC_LOG_DEBUG("playerbot", "GroupFormation: Collision detected for member {}, adjusting position from ({:.2f}, {:.2f}) to ({:.2f}, {:.2f})",
+                             member.memberGuid, assignedPos.m_positionX, assignedPos.m_positionY,
+                             adjustedPos.m_positionX, adjustedPos.m_positionY);
+
+                member.assignedPosition = adjustedPos;
+                _metrics.terrainCollisions.fetch_add(1);
+                _metrics.positionAdjustments.fetch_add(1);
+            }
+        }
+
+        // Check for inter-member collisions (members too close)
+    for (auto& otherMember : _members)
+        {
+            if (otherMember.memberGuid == member.memberGuid)
+                continue;
+
+            float distance = assignedPos.GetExactDist2d(otherMember.assignedPosition);
+            const float MIN_SPACING = _formationSpacing * 0.5f; // Minimum 50% of formation spacing
+    if (distance < MIN_SPACING)
+            {
+                // Members are too close, push them apart
+                float angle = assignedPos.GetAngle(&otherMember.assignedPosition);
+                float pushDistance = (MIN_SPACING - distance) * 0.5f; // Split the difference
+
+                // Only adjust if member is flexible
+    if (member.isFlexible)
+                {
+                    // Push away from other member
+                    float newX = assignedPos.m_positionX + ::std::cos(angle) * pushDistance;
+                    float newY = assignedPos.m_positionY + ::std::sin(angle) * pushDistance;
+
+                    Position newPos(newX, newY, assignedPos.m_positionZ, assignedPos.GetOrientation());
+
+                    // Check if new position is still within acceptable deviation
+                    Position originalAssigned = GetAssignedPosition(member.memberGuid);
+                    if (newPos.GetExactDist2d(originalAssigned) <= member.maxDeviationDistance)
+                    {
+                        member.assignedPosition = newPos;
+
+                        TC_LOG_DEBUG("playerbot", "GroupFormation: Inter-member collision resolved for member {}, pushed {:.2f} yards",
+                                     member.memberGuid, pushDistance);
+
+                        _metrics.positionAdjustments.fetch_add(1);
+                    }
+                }
+            }
+        }
+    }
+
+    TC_LOG_TRACE("playerbot", "GroupFormation: Collision resolution completed for formation {}", _groupId);
 }
 
 void GroupFormation::ApplyFlexibilityAdjustments()
 {
-    // TODO: Implement flexibility adjustments
-    // This would allow flexible members to adjust their positions based on current conditions
+    ::std::lock_guard lock(_formationMutex);
+
+    if (_members.empty())
+        return;
+
+    // Flexibility adjustments allow members to adapt their positions based on:
+    // 1. Current terrain and obstacles
+    // 2. Combat situation
+    // 3. Movement efficiency
+    // 4. Neighboring member positions
+    for (auto& member : _members)
+    {
+        // Skip if member is not flexible or is the leader
+    if (!member.isFlexible || member.isLeader)
+            continue;
+
+        Position currentAssigned = member.assignedPosition;
+        Position centerPos = GetFormationCenter();
+
+        // Adjustment 1: Adapt to formation behavior
+        float adjustmentFactor = 1.0f;
+
+        switch (_formationBehavior)
+        {
+            case FormationBehavior::RIGID:
+                adjustmentFactor = 0.1f; // Very tight formation, minimal flexibility
+                member.maxDeviationDistance = _formationSpacing * 0.2f;
+                break;
+
+            case FormationBehavior::FLEXIBLE:
+                adjustmentFactor = 0.5f; // Moderate flexibility
+                member.maxDeviationDistance = _formationSpacing * 0.5f;
+                break;
+
+            case FormationBehavior::COMBAT_READY:
+                adjustmentFactor = 0.7f; // High flexibility for combat positioning
+                member.maxDeviationDistance = _formationSpacing * 0.7f;
+                break;
+
+            case FormationBehavior::TRAVEL_MODE:
+                adjustmentFactor = 0.4f; // Moderate flexibility, prioritize speed
+                member.maxDeviationDistance = _formationSpacing * 0.6f;
+                break;
+
+            case FormationBehavior::STEALTH_MODE:
+                adjustmentFactor = 0.2f; // Tight formation for stealth
+                member.maxDeviationDistance = _formationSpacing * 0.3f;
+                break;
+
+            case FormationBehavior::DEFENSIVE_MODE:
+                adjustmentFactor = 0.3f; // Tighter formation for defense
+                member.maxDeviationDistance = _formationSpacing * 0.4f;
+                break;
+        }
+
+        // Adjustment 2: Smooth transitions to new positions
+        // If member has a current position different from assigned, interpolate
+    if (member.currentPosition.IsValid() && currentAssigned.IsValid())
+        {
+            float distance = member.currentPosition.GetExactDist2d(currentAssigned);
+
+            // If far from assigned position, allow gradual adjustment
+    if (distance > member.maxDeviationDistance * 0.5f)
+            {
+                // Calculate interpolated position (move 20% towards target each update)
+                float interpFactor = 0.2f * adjustmentFactor;
+                float newX = member.currentPosition.m_positionX + (currentAssigned.m_positionX - member.currentPosition.m_positionX) * interpFactor;
+                float newY = member.currentPosition.m_positionY + (currentAssigned.m_positionY - member.currentPosition.m_positionY) * interpFactor;
+                float newZ = member.currentPosition.m_positionZ + (currentAssigned.m_positionZ - member.currentPosition.m_positionZ) * interpFactor;
+
+                Position smoothedPos(newX, newY, newZ, currentAssigned.GetOrientation());
+                member.currentPosition = smoothedPos;
+
+                TC_LOG_TRACE("playerbot", "GroupFormation: Applied smoothing for member {}, distance: {:.2f} yards",
+                             member.memberGuid, distance);
+            }
+            else
+            {
+                // Close enough, snap to assigned position
+                member.currentPosition = currentAssigned;
+            }
+        }
+        else
+        {
+            // No current position, set to assigned
+            member.currentPosition = currentAssigned;
+        }
+
+        // Adjustment 3: Priority-based spacing
+        // Higher priority members get more space
+    if (member.priority > 1.5f)
+        {
+            member.maxDeviationDistance = _formationSpacing * 0.8f; // Extra space for high priority
+        }
+        else if (member.priority < 0.7f)
+        {
+            member.maxDeviationDistance = _formationSpacing * 0.3f; // Less space for low priority
+        }
+
+        // Adjustment 4: Adaptive spacing based on member count
+        uint32 memberCount = static_cast<uint32>(_members.size());
+        if (memberCount > 10)
+        {
+            // Larger groups need tighter spacing to maintain coherence
+            member.maxDeviationDistance *= 0.8f;
+        }
+        else if (memberCount < 5)
+        {
+            // Smaller groups can afford looser spacing
+            member.maxDeviationDistance *= 1.2f;
+        }
+
+        // Update last position update time
+        member.lastPositionUpdate = GameTime::GetGameTimeMS();
+
+        TC_LOG_TRACE("playerbot", "GroupFormation: Applied flexibility adjustments for member {}, maxDev: {:.2f}",
+                     member.memberGuid, member.maxDeviationDistance);
+    }
+
+    // Update formation stability metric based on flexibility adjustments
+    float totalDeviation = 0.0f;
+    uint32 deviationCount = 0;
+
+    for (const auto& member : _members)
+    {
+        if (member.currentPosition.IsValid() && member.assignedPosition.IsValid())
+        {
+            float deviation = member.currentPosition.GetExactDist2d(member.assignedPosition);
+            totalDeviation += deviation;
+            deviationCount++;
+        }
+    }
+
+    if (deviationCount > 0)
+    {
+        float averageDeviation = totalDeviation / deviationCount;
+        _metrics.averageDeviation.store(averageDeviation);
+
+        // Calculate stability: 1.0 = perfect, 0.0 = completely broken
+        float maxAcceptableDeviation = _formationSpacing * 1.5f;
+        float stability = 1.0f - ::std::min(1.0f, averageDeviation / maxAcceptableDeviation);
+        _metrics.formationStability.store(stability);
+    }
+
+    TC_LOG_TRACE("playerbot", "GroupFormation: Flexibility adjustments completed for formation {}", _groupId);
 }
 
 } // namespace Playerbot

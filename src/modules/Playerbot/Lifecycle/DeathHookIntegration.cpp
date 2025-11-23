@@ -71,7 +71,6 @@ bool DeathHookIntegration::OnCorpsePreRemove(Corpse* corpse)
         return true; // Allow removal
 
     ObjectGuid corpseGuid = corpse->GetGUID();
-
     // Check if this corpse is safe to remove
     if (!SafeCorpseManager::Instance().IsCorpseSafeToDelete(corpseGuid))
     {

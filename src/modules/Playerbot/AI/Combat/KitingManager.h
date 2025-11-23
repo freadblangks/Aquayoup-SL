@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "ObjectGuid.h"
 #include "Position.h"
 #include <unordered_map>
@@ -104,7 +105,7 @@ struct KitingTarget
     bool isCharging;
     bool isCasting;
     uint32 lastUpdate;
-    std::string name;
+    ::std::string name;
 
     KitingTarget() : unit(nullptr), distance(0.0f), relativeSpeed(0.0f),
                     threatLevel(0.0f), isMoving(false), isCharging(false),
@@ -115,7 +116,7 @@ struct KitingTarget
 struct KitingPattern
 {
     KitingType type;
-    std::vector<Position> waypoints;
+    ::std::vector<Position> waypoints;
     float optimalDistance;
     float minDistance;
     float maxDistance;
@@ -125,7 +126,7 @@ struct KitingPattern
     bool maintainLoS;           // Maintain line of sight
     bool useObstacles;          // Utilize terrain obstacles
     uint32 patternDuration;     // How long to maintain pattern
-    std::string description;
+    ::std::string description;
 
     KitingPattern() : type(KitingType::BASIC_KITING), optimalDistance(20.0f),
                      minDistance(15.0f), maxDistance(30.0f), movementSpeed(0.0f),
@@ -137,7 +138,7 @@ struct KitingPattern
 struct KitingContext
 {
     Player* bot;
-    std::vector<Unit*> threats;
+    ::std::vector<Unit*> threats;
     Unit* primaryTarget;
     Position currentPosition;
     Position safeDirection;
@@ -148,8 +149,8 @@ struct KitingContext
     bool isCasting;
     KitingTrigger triggers;
     float availableSpace;       // Available space for kiting
-    std::vector<Position> obstacles;
-    std::vector<Player*> groupMembers;
+    ::std::vector<Position> obstacles;
+    ::std::vector<Player*> groupMembers;
 
     KitingContext() : bot(nullptr), primaryTarget(nullptr), currentHealth(100.0f),
                      currentMana(100.0f), inCombat(false), isMoving(false),
@@ -169,8 +170,8 @@ struct KitingResult
     bool requiresSprint;
     bool requiresJump;
     bool breaksFormation;
-    std::string failureReason;
-    std::vector<Position> alternativePositions;
+    ::std::string failureReason;
+    ::std::vector<Position> alternativePositions;
 
     KitingResult() : success(false), usedType(KitingType::NONE),
                     estimatedDuration(0.0f), safetyImprovement(0.0f),
@@ -181,16 +182,16 @@ struct KitingResult
 // Kiting performance metrics
 struct KitingMetrics
 {
-    std::atomic<uint32> kitingActivations{0};
-    std::atomic<uint32> successfulKites{0};
-    std::atomic<uint32> failedKites{0};
-    std::atomic<uint32> emergencyEscapes{0};
-    std::atomic<uint32> damageAvoided{0};
-    std::chrono::microseconds averageKitingDuration{0};
-    std::chrono::microseconds maxKitingDuration{0};
+    ::std::atomic<uint32> kitingActivations{0};
+    ::std::atomic<uint32> successfulKites{0};
+    ::std::atomic<uint32> failedKites{0};
+    ::std::atomic<uint32> emergencyEscapes{0};
+    ::std::atomic<uint32> damageAvoided{0};
+    ::std::chrono::microseconds averageKitingDuration{0};
+    ::std::chrono::microseconds maxKitingDuration{0};
     float averageDistanceMaintained{0.0f};
     float optimalDistanceRatio{0.0f};
-    std::chrono::steady_clock::time_point lastUpdate;
+    ::std::chrono::steady_clock::time_point lastUpdate;
 
     void Reset()
     {
@@ -199,11 +200,11 @@ struct KitingMetrics
         failedKites = 0;
         emergencyEscapes = 0;
         damageAvoided = 0;
-        averageKitingDuration = std::chrono::microseconds{0};
-        maxKitingDuration = std::chrono::microseconds{0};
+        averageKitingDuration = ::std::chrono::microseconds{0};
+        maxKitingDuration = ::std::chrono::microseconds{0};
         averageDistanceMaintained = 0.0f;
         optimalDistanceRatio = 0.0f;
-        lastUpdate = std::chrono::steady_clock::now();
+        lastUpdate = ::std::chrono::steady_clock::now();
     }
 
     float GetSuccessRate() const
@@ -228,7 +229,7 @@ public:
     // Kiting pattern selection
     KitingType SelectOptimalKitingType(const KitingContext& context);
     KitingPattern GenerateKitingPattern(KitingType type, const KitingContext& context);
-    std::vector<KitingPattern> GetAvailablePatterns(const KitingContext& context);
+    ::std::vector<KitingPattern> GetAvailablePatterns(const KitingContext& context);
 
     // Distance management
     bool ShouldMaintainDistance(Unit* target);
@@ -244,16 +245,16 @@ public:
     KitingResult ExecuteFigureEight(const KitingContext& context);
 
     // Target analysis
-    std::vector<KitingTarget> AnalyzeThreats(const std::vector<Unit*>& enemies);
+    ::std::vector<KitingTarget> AnalyzeThreats(const ::std::vector<Unit*>& enemies);
     KitingPriority AssessKitingPriority(Unit* target);
     bool IsKiteable(Unit* target);
     float CalculateKitingEfficiency(Unit* target, KitingType type);
 
     // Positioning calculations
     Position CalculateKitingPosition(Unit* target, KitingType type);
-    Position FindSafeKitingDirection(const std::vector<Unit*>& threats);
+    Position FindSafeKitingDirection(const ::std::vector<Unit*>& threats);
     Position GetCircularKitingPosition(Unit* target, float angle);
-    Position GetRetreatPosition(const std::vector<Unit*>& threats, float distance);
+    Position GetRetreatPosition(const ::std::vector<Unit*>& threats, float distance);
 
     // Attack timing integration
     bool CanAttackWhileKiting();
@@ -268,15 +269,15 @@ public:
     Position AdjustKitingForTerrain(const Position& intended);
 
     // Emergency kiting
-    void ActivateEmergencyKiting(const std::vector<Unit*>& threats);
+    void ActivateEmergencyKiting(const ::std::vector<Unit*>& threats);
     void DeactivateEmergencyKiting();
     bool IsEmergencyKitingActive() const { return _emergencyKiting; }
-    Position FindEmergencyEscapeRoute(const std::vector<Unit*>& threats);
+    Position FindEmergencyEscapeRoute(const ::std::vector<Unit*>& threats);
 
     // Group coordination
     bool WillKitingBreakFormation();
-    Position AdjustKitingForGroup(const Position& intended, const std::vector<Player*>& group);
-    void CoordinateKitingWithGroup(const std::vector<Player*>& group);
+    Position AdjustKitingForGroup(const Position& intended, const ::std::vector<Player*>& group);
+    void CoordinateKitingWithGroup(const ::std::vector<Player*>& group);
 
     // State management
     KitingState GetCurrentState() const { return _currentState; }
@@ -310,10 +311,10 @@ private:
     void ExecuteCurrentPattern();
 
     // Pattern generation methods
-    std::vector<Position> GenerateCircularWaypoints(Unit* target, float radius, uint32 points);
-    std::vector<Position> GenerateLineWaypoints(const Position& start, const Position& direction, float distance);
-    std::vector<Position> GenerateFigureEightWaypoints(Unit* target, float radius);
-    std::vector<Position> GenerateZigzagWaypoints(const Position& start, const Position& direction, float distance);
+    ::std::vector<Position> GenerateCircularWaypoints(Unit* target, float radius, uint32 points);
+    ::std::vector<Position> GenerateLineWaypoints(const Position& start, const Position& direction, float distance);
+    ::std::vector<Position> GenerateFigureEightWaypoints(Unit* target, float radius);
+    ::std::vector<Position> GenerateZigzagWaypoints(const Position& start, const Position& direction, float distance);
 
     // Movement execution
     bool ExecuteMovementToPosition(const Position& target);
@@ -328,9 +329,9 @@ private:
     void SynchronizeAttackWithMovement();
 
     // Safety validation
-    bool IsPositionSafe(const Position& pos, const std::vector<Unit*>& threats);
-    float CalculateSafetyRating(const Position& pos, const std::vector<Unit*>& threats);
-    bool ValidateKitingPath(const std::vector<Position>& waypoints);
+    bool IsPositionSafe(const Position& pos, const ::std::vector<Unit*>& threats);
+    float CalculateSafetyRating(const Position& pos, const ::std::vector<Unit*>& threats);
+    bool ValidateKitingPath(const ::std::vector<Position>& waypoints);
 
     // Prediction and optimization
     void UpdateThreatPredictions();
@@ -339,7 +340,7 @@ private:
     void AdaptPatternToSituation();
 
     // Performance tracking
-    void TrackPerformance(std::chrono::microseconds duration, const std::string& operation);
+    void TrackPerformance(::std::chrono::microseconds duration, const ::std::string& operation);
     void UpdateKitingStatistics();
 
     // Utility methods
@@ -356,12 +357,12 @@ private:
     KitingState _currentState;
     KitingType _currentKitingType;
     KitingPattern _currentPattern;
-    std::vector<KitingTarget> _trackedTargets;
+    ::std::vector<KitingTarget> _trackedTargets;
 
     // Movement state
     Position _currentKitingPosition;
     Position _targetKitingPosition;
-    std::vector<Position> _kitingWaypoints;
+    ::std::vector<Position> _kitingWaypoints;
     uint32 _currentWaypointIndex;
     uint32 _lastMovementTime;
 
@@ -381,7 +382,7 @@ private:
     bool _emergencyKiting;
 
     // Environmental data
-    std::vector<Position> _obstacles;
+    ::std::vector<Position> _obstacles;
     float _availableKitingSpace;
     uint32 _lastObstacleUpdate;
 
@@ -390,7 +391,7 @@ private:
     uint32 _kitingStartTime;
 
     // Thread safety
-    mutable std::recursive_mutex _mutex;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _mutex;
 
     // Constants
     static constexpr float DEFAULT_OPTIMAL_DISTANCE = 20.0f;    // 20 yards
@@ -409,14 +410,14 @@ class TC_GAME_API KitingUtils
 public:
     // Distance and positioning utilities
     static float CalculateOptimalKitingDistance(Player* bot, Unit* target);
-    static Position FindBestKitingDirection(Player* bot, const std::vector<Unit*>& threats);
-    static bool IsPositionGoodForKiting(const Position& pos, Player* bot, const std::vector<Unit*>& threats);
+    static Position FindBestKitingDirection(Player* bot, const ::std::vector<Unit*>& threats);
+    static bool IsPositionGoodForKiting(const Position& pos, Player* bot, const ::std::vector<Unit*>& threats);
     static float CalculateKitingEfficiency(Player* bot, Unit* target, const Position& kitingPos);
 
     // Movement pattern utilities
-    static std::vector<Position> InterpolateMovementPath(const Position& start, const Position& end, uint32 points);
+    static ::std::vector<Position> InterpolateMovementPath(const Position& start, const Position& end, uint32 points);
     static Position CalculateInterceptionPoint(const Position& target, const Position& targetVel, const Position& interceptor, float interceptorSpeed);
-    static bool WillPathIntersectThreat(const std::vector<Position>& path, Unit* threat, float safetyRadius);
+    static bool WillPathIntersectThreat(const ::std::vector<Position>& path, Unit* threat, float safetyRadius);
 
     // Timing and synchronization utilities
     static float CalculateMovementTime(Player* bot, const Position& destination);
@@ -426,7 +427,7 @@ public:
 
     // Terrain and environment utilities
     static bool IsTerrainSuitableForKiting(const Position& center, float radius);
-    static std::vector<Position> FindKitingObstacles(const Position& center, float radius);
+    static ::std::vector<Position> FindKitingObstacles(const Position& center, float radius);
     static Position AdjustPositionForTerrain(const Position& intended, float searchRadius = 5.0f);
     static bool HasEscapeRoutes(const Position& pos, uint32 routeCount = 3);
 
@@ -434,18 +435,18 @@ public:
     static KitingType GetOptimalKitingTypeForClass(uint8 playerClass);
     static float GetClassKitingRange(uint8 playerClass);
     static bool CanClassKiteEffectively(uint8 playerClass);
-    static std::vector<uint32> GetKitingSpells(uint8 playerClass);
+    static ::std::vector<uint32> GetKitingSpells(uint8 playerClass);
 
     // Group coordination utilities
     static bool IsKitingCompatibleWithGroupRole(Player* bot);
-    static Position AdjustKitingForGroupFormation(const Position& intended, const std::vector<Player*>& group);
-    static bool WillKitingDisruptGroup(Player* bot, const Position& kitingPos, const std::vector<Player*>& group);
+    static Position AdjustKitingForGroupFormation(const Position& intended, const ::std::vector<Player*>& group);
+    static bool WillKitingDisruptGroup(Player* bot, const Position& kitingPos, const ::std::vector<Player*>& group);
 
     // Safety assessment utilities
-    static float CalculatePositionSafety(const Position& pos, const std::vector<Unit*>& threats);
-    static bool IsPositionTrappable(const Position& pos, const std::vector<Unit*>& threats);
-    static std::vector<Position> FindEscapeRoutes(const Position& current, const std::vector<Unit*>& threats);
-    static Position FindSafestNearbyPosition(const Position& current, const std::vector<Unit*>& threats, float radius);
+    static float CalculatePositionSafety(const Position& pos, const ::std::vector<Unit*>& threats);
+    static bool IsPositionTrappable(const Position& pos, const ::std::vector<Unit*>& threats);
+    static ::std::vector<Position> FindEscapeRoutes(const Position& current, const ::std::vector<Unit*>& threats);
+    static Position FindSafestNearbyPosition(const Position& current, const ::std::vector<Unit*>& threats, float radius);
 };
 
 } // namespace Playerbot

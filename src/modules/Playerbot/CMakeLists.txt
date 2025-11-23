@@ -85,7 +85,12 @@ set(PLAYERBOT_SOURCES
     # AI system (AI Framework implementation)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAI.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAI_HybridAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAIFactory.cpp
+
+    # Specialized AI Factory - Enterprise-grade spec routing with Phase 5 integration
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/SpecializedAIFactory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/SpecializedAIFactory.h
 
     # Phase 2.1: BehaviorManager Base Class - Manager Pattern Foundation
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorManager.cpp
@@ -96,6 +101,41 @@ set(PLAYERBOT_SOURCES
     # Phase 2.1 Refactoring: BehaviorPriorityManager - Priority-based Behavior Coordination (Fixes Issues #2 & #3)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorPriorityManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorPriorityManager.h
+
+    # Hybrid AI Decision System: Utility AI Layer (Phase 1)
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Utility/UtilitySystem.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Utility/UtilityContextBuilder.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Utility/Evaluators/CombatEvaluators.h
+
+    # Hybrid AI Decision System: Behavior Tree Execution Layer (Phase 2)
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorTree/BehaviorTree.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorTree/Nodes/CombatNodes.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorTree/Nodes/HealingNodes.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorTree/Nodes/MovementNodes.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorTree/BehaviorTreeFactory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorTree/BehaviorTreeFactory.h
+
+    # Hybrid AI Decision System: Controller Integration (Phase 2 Week 3)
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/HybridAIController.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/HybridAIController.h
+
+    # Hierarchical Group Coordination System (Phase 3)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/GroupCoordinator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/GroupCoordinator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/RoleCoordinator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/RoleCoordinator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/RaidOrchestrator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/RaidOrchestrator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/ZoneOrchestrator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/ZoneOrchestrator.h
+
+    # Blackboard Shared State System (Phase 4)
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Blackboard/SharedBlackboard.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Blackboard/SharedBlackboard.h
+
+    # Integrated AI System: Bridges BT + Blackboard + Coordination (Phase 4 Week 2)
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Integration/IntegratedAIContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Integration/IntegratedAIContext.h
 
     # AI Strategy System (minimal implementation)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/Strategy.cpp
@@ -112,10 +152,6 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/RestStrategy.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/SoloCombatStrategy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/SoloCombatStrategy.h
-
-    # Phase 2.2: CombatMovementStrategy - Role-based Combat Positioning
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/CombatMovementStrategy.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/CombatMovementStrategy.h
 
     # AI Action System (basic)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Actions/Action.cpp
@@ -135,6 +171,12 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Managers/IManagerBase.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Managers/ManagerRegistry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Managers/ManagerRegistry.h
+
+    # Phase 6: Game Systems Facade - BotAI Decoupling
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Managers/IGameSystemsManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Managers/GameSystemsManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Managers/GameSystemsManager.h
+
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Events/EventDispatcher.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Events/EventDispatcher.h
 
@@ -150,11 +192,8 @@ set(PLAYERBOT_SOURCES
     # Event flow now: TrinityCore ScriptMgr → PlayerbotEventScripts → EventDispatcher → Managers
 
     # Phase 4.1: Script System Integration - Non-Invasive Event Hooks
-    ${CMAKE_CURRENT_SOURCE_DIR}/Scripts/PlayerbotEventScripts.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/scripts/PlayerbotEventScripts.cpp
 
-    # Bot Resurrection Script - TrinityCore ScriptMgr Integration for Auto-Resurrection
-    ${CMAKE_CURRENT_SOURCE_DIR}/Scripting/BotResurrectionScript.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Scripting/BotResurrectionScript.h
 
     # AI Trigger System
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Triggers/Trigger.cpp
@@ -173,10 +212,19 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/ClassAI.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/ActionPriority.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/ActionPriority.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/CooldownManager.cpp
+    # ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/CooldownManager.cpp  # PHASE 47: Removed - using Common/CooldownManager.h (header-only)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/CooldownManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/ResourceManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/ResourceManager.h
+
+    # ClassAI Common Utilities (Deduplication Phase: Unified Systems)
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Common/StatusEffectTracker.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Common/CooldownManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Common/RotationHelpers.h
+
+    # ClassAI Behavior Tree Integration (Phase 5: 13 Classes × 3 Specs)
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/ClassBehaviorTreeRegistry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/ClassBehaviorTreeRegistry.h
 
     # ClassAI Template Architecture (Phase 3: Code Duplication Elimination)
     # Note: .cpp removed due to old SPEC_* constants, but .h still needed for template definitions
@@ -199,9 +247,9 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DeathKnights/DeathKnightTypes.h
 
     # Death Knight Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DeathKnights/BloodDeathKnightRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DeathKnights/FrostDeathKnightRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DeathKnights/UnholyDeathKnightRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DeathKnights/BloodDeathKnight.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DeathKnights/FrostDeathKnight.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DeathKnights/UnholyDeathKnight.h
 
     # Demon Hunter AI
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DemonHunters/DemonHunterAI.cpp
@@ -212,59 +260,64 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Druids/DruidAI.h
 
     # Druid Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Druids/BalanceDruidRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Druids/FeralDruidRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Druids/GuardianDruidRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Druids/RestorationDruidRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Druids/BalanceDruid.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Druids/FeralDruid.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Druids/GuardianDruid.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Druids/RestorationDruid.h
 
     # Evoker AI - Template-based architecture (Option A: Full Migration)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Evokers/EvokerAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Evokers/EvokerAI.h
+
+    # Evoker Refactored Specializations (Template-based with Phase 5 integration)
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Evokers/DevastationEvoker.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Evokers/PreservationEvoker.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Evokers/AugmentationEvoker.h
 
     # Hunter AI - Template-based architecture (Option A: Full Migration)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Hunters/HunterAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Hunters/HunterAI.h
 
     # Hunter Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Hunters/BeastMasteryHunterRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Hunters/MarksmanshipHunterRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Hunters/SurvivalHunterRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Hunters/BeastMasteryHunter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Hunters/MarksmanshipHunter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Hunters/SurvivalHunter.h
 
     # Demon Hunter Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DemonHunters/HavocDemonHunterRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DemonHunters/VengeanceDemonHunterRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DemonHunters/HavocDemonHunter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/DemonHunters/VengeanceDemonHunter.h
 
     # Mage AI - Template-based architecture (Option A: Full Migration)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Mages/MageAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Mages/MageAI.h
 
     # Mage Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Mages/ArcaneMageRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Mages/FireMageRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Mages/FrostMageRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Mages/ArcaneMage.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Mages/FireMage.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Mages/FrostMage.h
 
     # Priest Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Priests/DisciplinePriestRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Priests/HolyPriestRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Priests/ShadowPriestRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Priests/DisciplinePriest.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Priests/HolyPriest.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Priests/ShadowPriest.h
 
     # Monk AI
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Monks/MonkAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Monks/MonkAI.h
 
     # Monk Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Monks/BrewmasterMonkRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Monks/MistweaverMonkRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Monks/WindwalkerMonkRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Monks/BrewmasterMonk.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Monks/MistweaverMonk.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Monks/WindwalkerMonk.h
 
     # Paladin AI
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Paladins/PaladinAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Paladins/PaladinAI.h
 
     # Paladin Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Paladins/HolyPaladinRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Paladins/ProtectionPaladinRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Paladins/RetributionSpecializationRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Paladins/HolyPaladin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Paladins/ProtectionPaladin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Paladins/RetributionPaladin.h
 
     # Priest AI - Template-based architecture (Option A: Full Migration)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Priests/PriestAI.cpp
@@ -275,36 +328,36 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Rogues/RogueAI.h
 
     # Rogue Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Rogues/AssassinationRogueRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Rogues/OutlawRogueRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Rogues/SubtletyRogueRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Rogues/AssassinationRogue.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Rogues/OutlawRogue.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Rogues/SubtletyRogue.h
 
     # Shaman AI - Template-based architecture (Option A: Full Migration)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Shamans/ShamanAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Shamans/ShamanAI.h
 
     # Shaman Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Shamans/ElementalShamanRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Shamans/EnhancementShamanRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Shamans/RestorationShamanRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Shamans/ElementalShaman.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Shamans/EnhancementShaman.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Shamans/RestorationShaman.h
 
     # Warlock AI - Template-based architecture (Option A: Full Migration)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warlocks/WarlockAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warlocks/WarlockAI.h
 
     # Warlock Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warlocks/AfflictionWarlockRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warlocks/DemonologyWarlockRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warlocks/DestructionWarlockRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warlocks/AfflictionWarlock.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warlocks/DemonologyWarlock.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warlocks/DestructionWarlock.h
 
     # Warrior AI
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warriors/WarriorAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warriors/WarriorAI.h
 
     # Warrior Refactored Specializations (Template-based)
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warriors/ArmsWarriorRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warriors/FuryWarriorRefactored.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warriors/ProtectionWarriorRefactored.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warriors/ArmsWarrior.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warriors/FuryWarrior.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/Warriors/ProtectionWarrior.h
 
     # Group Management System
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupInvitationHandler.cpp
@@ -314,8 +367,9 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleAssignment.h
 
     # Group Event System - Event-Driven Architecture for Group Coordination
-    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventHandler.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/PlayerbotGroupScript.cpp
@@ -341,26 +395,36 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Network/ParseInstancePacket_Typed.cpp
 
     # Phase 4: Complete Event Bus System (All 11 Buses)
-    ${CMAKE_CURRENT_SOURCE_DIR}/Combat/CombatEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Combat/CombatEventBus.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Cooldown/CooldownEventBus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Combat/CombatEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Combat/CombatEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Cooldown/CooldownEventBus.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Aura/AuraEventBus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Cooldown/CooldownEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Cooldown/CooldownEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Aura/AuraEventBus.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Loot/LootEventBus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Aura/AuraEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Aura/AuraEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Loot/LootEventBus.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Quest/QuestEventBus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Loot/LootEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Loot/LootEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Quest/QuestEventBus.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resource/ResourceEventBus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Quest/QuestEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Quest/QuestEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Resource/ResourceEventBus.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEventBus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resource/ResourceEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resource/ResourceEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEventBus.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEventBus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEventBus.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/NPC/NPCEventBus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/NPC/NPCEventBus.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Instance/InstanceEventBus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/NPC/NPCEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/NPC/NPCEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Instance/InstanceEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Instance/InstanceEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Instance/InstanceEvents.h
 
     # Phase 4: BotAI Event Handler Integration
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAI_EventHandlers.cpp
@@ -375,8 +439,6 @@ set(PLAYERBOT_SOURCES
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Movement/QuestPathfinder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Movement/QuestPathfinder.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Movement/GroupFormationManager.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Movement/GroupFormationManager.h
 
     # Phase 2: Account Management System
     ${CMAKE_CURRENT_SOURCE_DIR}/Account/BotAccountMgr.cpp
@@ -438,6 +500,7 @@ set(PLAYERBOT_SOURCES
     # ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotPerformanceMonitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawnEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawnEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawnEvents.h
 
     # Performance Optimization System (Phase 5)
     ${CMAKE_CURRENT_SOURCE_DIR}/Performance/ObjectPool.h
@@ -537,8 +600,8 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Database/BotStatePersistence.h
 
     # Script integration
-    ${CMAKE_CURRENT_SOURCE_DIR}/Scripts/PlayerbotWorldScript.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Scripts/PlayerbotWorldScript.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/scripts/PlayerbotWorldScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/scripts/PlayerbotWorldScript.h
 
     # Social Systems - WoW 11.2 Economy Integration
     # Phase 2.4: Replaced by TradeManager and AuctionManager (BehaviorManager pattern)
@@ -552,6 +615,17 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Social/GuildIntegration.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Social/LootDistribution.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Social/LootDistribution.h
+    # Manager Consolidation Phase 1: UnifiedLootManager (consolidates LootAnalysis, LootCoordination, LootDistribution)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/UnifiedLootManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/UnifiedLootManager.h
+
+    # Manager Consolidation Phase 2: UnifiedQuestManager (consolidates QuestPickup, QuestCompletion, QuestValidation, QuestTurnIn, DynamicQuestSystem)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Quest/UnifiedQuestManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Quest/UnifiedQuestManager.h
+
+    # Manager Consolidation Phase 3: UnifiedMovementCoordinator (consolidates MovementArbiter, PathfindingAdapter, FormationManager, PositionManager)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Movement/UnifiedMovementCoordinator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Movement/UnifiedMovementCoordinator.h
 
     # Equipment Management - Complete Auto-Equip + Junk Selling + Consumables
     ${CMAKE_CURRENT_SOURCE_DIR}/Equipment/EquipmentManager.cpp
@@ -566,6 +640,8 @@ set(PLAYERBOT_SOURCES
     # Profession System - Complete Crafting + Gathering Automation (Phase 1, 2, 3)
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionDatabase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionDatabase.h
     # Phase 2.4: Replaced by GatheringManager (BehaviorManager pattern)
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/GatheringManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/GatheringManager.h
@@ -573,6 +649,17 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/FarmingCoordinator.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionAuctionBridge.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionAuctionBridge.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/GatheringMaterialsBridge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/GatheringMaterialsBridge.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/AuctionMaterialsBridge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/AuctionMaterialsBridge.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionEvents.h
+
+    # Banking System - Personal Bank Automation
+    ${CMAKE_CURRENT_SOURCE_DIR}/Banking/BankingManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Banking/BankingManager.h
 
     # Economy Systems - Advanced Auction House Integration
     ${CMAKE_CURRENT_SOURCE_DIR}/Economy/AuctionManager.cpp
@@ -612,11 +699,10 @@ set(PLAYERBOT_SOURCES
     # ${CMAKE_CURRENT_SOURCE_DIR}/Config/PlayerbotQuestConfig.cpp
     # ${CMAKE_CURRENT_SOURCE_DIR}/Config/PlayerbotQuestConfig.h
 
-    # Advanced Features - Group/Raid, Economy, Social, Advanced Behaviors
+    # Advanced Features - Group/Raid, Social, Advanced Behaviors
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/GroupCoordinator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/GroupCoordinator.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/EconomyManager.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/EconomyManager.h
+    # Advanced/EconomyManager REMOVED - Duplicate of Economy/AuctionManager (production system)
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/SocialManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/SocialManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/AdvancedBehaviorManager.cpp
@@ -686,7 +772,6 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/Core/GossipHandler.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/Core/InteractionValidator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/Core/InteractionValidator.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/Vendors/VendorInteraction.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/VendorInteractionManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/VendorInteractionManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/FlightMasterManager.cpp
@@ -801,8 +886,6 @@ source_group("AI\\Strategy" FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/LootStrategy.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/RestStrategy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/RestStrategy.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/CombatMovementStrategy.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Strategy/CombatMovementStrategy.h
 )
 
 source_group("AI\\Actions" FILES
@@ -879,8 +962,9 @@ source_group("Group" FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleDefinitions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleDefinitions.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleAssignment.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventHandler.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/PlayerbotGroupScript.cpp
@@ -911,53 +995,63 @@ source_group("Movement" FILES
 )
 
 source_group("Resource" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resource/ResourceEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Resource/ResourceEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resource/ResourceEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resource/ResourceEvents.h
 )
 
 source_group("Social" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEvents.h
 )
 
 source_group("Auction" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEvents.h
 )
 
 source_group("NPC" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/NPC/NPCEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/NPC/NPCEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/NPC/NPCEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/NPC/NPCEvents.h
 )
 
 source_group("Instance" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Instance/InstanceEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Instance/InstanceEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Instance/InstanceEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Instance/InstanceEvents.h
 )
 
 source_group("Combat" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Combat/CombatEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Combat/CombatEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Combat/CombatEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Combat/CombatEvents.h
 )
 
 source_group("Cooldown" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Cooldown/CooldownEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Cooldown/CooldownEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Cooldown/CooldownEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Cooldown/CooldownEvents.h
 )
 
 source_group("Aura" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Aura/AuraEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Aura/AuraEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Aura/AuraEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Aura/AuraEvents.h
 )
 
 source_group("Loot" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Loot/LootEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Loot/LootEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Loot/LootEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Loot/LootEvents.h
 )
 
 source_group("Quest" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Quest/QuestEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Quest/QuestEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Quest/QuestEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Quest/QuestEvents.h
 )
 
 source_group("Account" FILES
@@ -1001,6 +1095,7 @@ source_group("Lifecycle" FILES
     # ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotPerformanceMonitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawnEventBus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawnEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawnEvents.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/DeathRecoveryManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/DeathRecoveryManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/ResourceMonitor.cpp
@@ -1057,10 +1152,8 @@ source_group("Adapters" FILES
 )
 
 source_group("Scripts" FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Scripts/PlayerbotWorldScript.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Scripts/PlayerbotWorldScript.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Scripting/BotResurrectionScript.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Scripting/BotResurrectionScript.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/scripts/PlayerbotWorldScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/scripts/PlayerbotWorldScript.h
 )
 
 source_group("Social" FILES
@@ -1090,12 +1183,26 @@ source_group("Talents" FILES
 source_group("Professions" FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionDatabase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionDatabase.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/GatheringManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/GatheringManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/FarmingCoordinator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/FarmingCoordinator.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionAuctionBridge.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionAuctionBridge.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/GatheringMaterialsBridge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/GatheringMaterialsBridge.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/AuctionMaterialsBridge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/AuctionMaterialsBridge.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionEventBus.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionEvents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Professions/ProfessionEvents.h
+)
+
+source_group("Banking" FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/Banking/BankingManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Banking/BankingManager.h
 )
 
 source_group("Economy" FILES
@@ -1136,8 +1243,7 @@ source_group("Game" FILES
 source_group("Advanced" FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/GroupCoordinator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/GroupCoordinator.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/EconomyManager.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/EconomyManager.h
+    # Advanced/EconomyManager REMOVED - Duplicate of Economy/AuctionManager (production system)
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/SocialManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/SocialManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/AdvancedBehaviorManager.cpp
@@ -1209,7 +1315,6 @@ source_group("Interaction" FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/Core/GossipHandler.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/Core/InteractionValidator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/Core/InteractionValidator.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/Vendors/VendorInteraction.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/VendorInteractionManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/VendorInteractionManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/FlightMasterManager.cpp

@@ -19,6 +19,7 @@
 #define TRINITY_BOT_INVENTORY_MANAGER_H
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "ItemDefines.h"
 #include "ObjectGuid.h"
 #include <chrono>
@@ -335,14 +336,14 @@ public:
      * @brief Get all items in inventory
      * @return Vector of all items
      */
-    std::vector<Item*> GetAllItems() const;
+    ::std::vector<Item*> GetAllItems() const;
 
     /**
      * @brief Get items by quality
      * @param quality Item quality to filter
      * @return Vector of matching items
      */
-    std::vector<Item*> GetItemsByQuality(uint32 quality) const;
+    ::std::vector<Item*> GetItemsByQuality(uint32 quality) const;
 
     /**
      * @brief Get item by ID
@@ -385,8 +386,8 @@ public:
         uint32 itemsSold = 0;
         uint32 itemsDestroyed = 0;
         uint32 bagsOrganized = 0;
-        std::chrono::microseconds averageUpdateTime{0};
-        std::chrono::microseconds maxUpdateTime{0};
+        ::std::chrono::microseconds averageUpdateTime{0};
+        ::std::chrono::microseconds maxUpdateTime{0};
         float cacheHitRate = 0.0f;
     };
 
@@ -455,7 +456,7 @@ private:
     /**
      * @brief Find nearby lootable objects
      */
-    std::vector<ObjectGuid> FindLootableObjects(float range) const;
+    ::std::vector<ObjectGuid> FindLootableObjects(float range) const;
 
     /**
      * @brief Calculate item stat value
@@ -470,12 +471,12 @@ private:
     /**
      * @brief Log inventory action for debugging
      */
-    void LogAction(std::string const& action, Item* item = nullptr) const;
+    void LogAction(::std::string const& action, Item* item = nullptr) const;
 
     /**
      * @brief Update performance metrics
      */
-    void UpdateMetrics(std::chrono::steady_clock::time_point startTime);
+    void UpdateMetrics(::std::chrono::steady_clock::time_point startTime);
 
     // ========================================================================
     // LRU CACHE IMPLEMENTATION
@@ -535,8 +536,8 @@ private:
 
     private:
         size_t _capacity;
-        mutable std::list<Key> _lru;
-        mutable std::unordered_map<Key, std::pair<Value, typename std::list<Key>::iterator>> _cache;
+        mutable ::std::list<Key> _lru;
+        mutable ::std::unordered_map<Key, ::std::pair<Value, typename ::std::list<Key>::iterator>> _cache;
     };
 
     // ========================================================================
@@ -562,23 +563,23 @@ private:
     // Caches
     LRUCache<uint32, float> _itemScoreCache{256};           // ItemId -> Score
     LRUCache<uint32, bool> _itemUsableCache{256};          // ItemId -> Usable
-    std::unordered_map<uint8, Item*> _equippedItems;       // Slot -> Item
-    std::unordered_map<uint32, uint32> _itemCounts;        // ItemId -> Count
-    std::vector<Item*> _inventoryItems;                    // All bag items
+    ::std::unordered_map<uint8, Item*> _equippedItems;       // Slot -> Item
+    ::std::unordered_map<uint32, uint32> _itemCounts;        // ItemId -> Count
+    ::std::vector<Item*> _inventoryItems;                    // All bag items
 
     // State
-    std::unordered_set<uint32> _ignoredItems;              // Items to never loot/equip
-    std::unordered_set<ObjectGuid> _lootedObjects;         // Recently looted to avoid re-checking
+    ::std::unordered_set<uint32> _ignoredItems;              // Items to never loot/equip
+    ::std::unordered_set<ObjectGuid> _lootedObjects;         // Recently looted to avoid re-checking
     uint32 _lastCacheUpdate = 0;
 
     // Stat weights for item scoring (class-specific)
-    std::unordered_map<uint32, float> _statWeights;
+    ::std::unordered_map<uint32, float> _statWeights;
 
     // Performance metrics
     mutable PerformanceMetrics _metrics;
 
     // Thread safety
-    mutable std::recursive_mutex _mutex;
+    mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BEHAVIOR_MANAGER> _mutex;
 };
 
 } // namespace Playerbot

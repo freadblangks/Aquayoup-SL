@@ -36,7 +36,7 @@ namespace Playerbot
     void AuctionManager::OnEventInternal(Events::BotEvent const& event)
     {
         // Early exit for non-auction events (auction events are in trade category)
-        if (!event.IsTradeEvent())
+    if (!event.IsTradeEvent())
             return;
 
         Player* bot = GetBot();
@@ -44,12 +44,12 @@ namespace Playerbot
             return;
 
         // Handle auction events with full implementation
-        switch (event.type)
+    switch (event.type)
         {
             case StateMachine::EventType::AUCTION_BID_PLACED:
             {
                 // Extract auction bid data
-                if (!event.eventData.has_value())
+    if (!event.eventData.has_value())
                 {
                     TC_LOG_WARN("module.playerbot", "AuctionManager::OnEventInternal: AUCTION_BID_PLACED event {} missing data", event.eventId);
                     ForceUpdate();
@@ -59,15 +59,14 @@ namespace Playerbot
                 AuctionEventData auctionData;
                 try
                 {
-                    auctionData = std::any_cast<AuctionEventData>(event.eventData);
+                    auctionData = ::std::any_cast<AuctionEventData>(event.eventData);
                 }
-                catch (std::bad_any_cast const& e)
+                catch (::std::bad_any_cast const& e)
                 {
                     TC_LOG_ERROR("module.playerbot", "AuctionManager::OnEventInternal: Failed to cast AUCTION_BID_PLACED data: {}", e.what());
                     ForceUpdate();
                     return;
                 }
-
                 TC_LOG_INFO("module.playerbot", "AuctionManager: Bot {} placed bid on auction {} (Item: {}, Bid: {} copper, Buyout: {} copper)",
                     bot->GetName(), auctionData.auctionId, auctionData.itemEntry,
                     auctionData.bidPrice, auctionData.buyoutPrice);
@@ -94,7 +93,7 @@ namespace Playerbot
             case StateMachine::EventType::AUCTION_WON:
             {
                 // Extract auction won data
-                if (!event.eventData.has_value())
+    if (!event.eventData.has_value())
                 {
                     TC_LOG_WARN("module.playerbot", "AuctionManager::OnEventInternal: AUCTION_WON event {} missing data", event.eventId);
                     ForceUpdate();
@@ -104,9 +103,9 @@ namespace Playerbot
                 AuctionEventData auctionData;
                 try
                 {
-                    auctionData = std::any_cast<AuctionEventData>(event.eventData);
+                    auctionData = ::std::any_cast<AuctionEventData>(event.eventData);
                 }
-                catch (std::bad_any_cast const& e)
+                catch (::std::bad_any_cast const& e)
                 {
                     TC_LOG_ERROR("module.playerbot", "AuctionManager::OnEventInternal: Failed to cast AUCTION_WON data: {}", e.what());
                     ForceUpdate();
@@ -129,7 +128,7 @@ namespace Playerbot
             case StateMachine::EventType::AUCTION_OUTBID:
             {
                 // Extract outbid data
-                if (!event.eventData.has_value())
+    if (!event.eventData.has_value())
                 {
                     TC_LOG_WARN("module.playerbot", "AuctionManager::OnEventInternal: AUCTION_OUTBID event {} missing data", event.eventId);
                     ForceUpdate();
@@ -139,9 +138,9 @@ namespace Playerbot
                 AuctionEventData auctionData;
                 try
                 {
-                    auctionData = std::any_cast<AuctionEventData>(event.eventData);
+                    auctionData = ::std::any_cast<AuctionEventData>(event.eventData);
                 }
-                catch (std::bad_any_cast const& e)
+                catch (::std::bad_any_cast const& e)
                 {
                     TC_LOG_ERROR("module.playerbot", "AuctionManager::OnEventInternal: Failed to cast AUCTION_OUTBID data: {}", e.what());
                     ForceUpdate();
@@ -159,7 +158,7 @@ namespace Playerbot
                 if (newBidAmount > 0 && newBidAmount <= auctionData.buyoutPrice)
                 {
                     // Check if bot can afford the new bid
-                    if (bot->GetMoney() >= newBidAmount)
+    if (bot->GetMoney() >= newBidAmount)
                     {
                         TC_LOG_DEBUG("module.playerbot", "AuctionManager: Bot {} considering re-bidding {} copper on auction {}",
                             bot->GetName(), newBidAmount, auctionData.auctionId);
@@ -171,7 +170,6 @@ namespace Playerbot
                     {
                         TC_LOG_DEBUG("module.playerbot", "AuctionManager: Bot {} cannot afford re-bid on auction {} (need: {}, have: {})",
                             bot->GetName(), auctionData.auctionId, newBidAmount, bot->GetMoney());
-
                         // Unregister auction (bot can't compete)
                         UnregisterBotAuction(bot, auctionData.auctionId);
                     }
@@ -192,7 +190,7 @@ namespace Playerbot
             case StateMachine::EventType::AUCTION_EXPIRED:
             {
                 // Extract expiration data
-                if (!event.eventData.has_value())
+    if (!event.eventData.has_value())
                 {
                     TC_LOG_WARN("module.playerbot", "AuctionManager::OnEventInternal: AUCTION_EXPIRED event {} missing data", event.eventId);
                     ForceUpdate();
@@ -202,9 +200,9 @@ namespace Playerbot
                 AuctionEventData auctionData;
                 try
                 {
-                    auctionData = std::any_cast<AuctionEventData>(event.eventData);
+                    auctionData = ::std::any_cast<AuctionEventData>(event.eventData);
                 }
-                catch (std::bad_any_cast const& e)
+                catch (::std::bad_any_cast const& e)
                 {
                     TC_LOG_ERROR("module.playerbot", "AuctionManager::OnEventInternal: Failed to cast AUCTION_EXPIRED data: {}", e.what());
                     ForceUpdate();
@@ -227,7 +225,7 @@ namespace Playerbot
             case StateMachine::EventType::AUCTION_SOLD:
             {
                 // Extract sale data
-                if (!event.eventData.has_value())
+    if (!event.eventData.has_value())
                 {
                     TC_LOG_WARN("module.playerbot", "AuctionManager::OnEventInternal: AUCTION_SOLD event {} missing data", event.eventId);
                     ForceUpdate();
@@ -237,9 +235,9 @@ namespace Playerbot
                 AuctionEventData auctionData;
                 try
                 {
-                    auctionData = std::any_cast<AuctionEventData>(event.eventData);
+                    auctionData = ::std::any_cast<AuctionEventData>(event.eventData);
                 }
-                catch (std::bad_any_cast const& e)
+                catch (::std::bad_any_cast const& e)
                 {
                     TC_LOG_ERROR("module.playerbot", "AuctionManager::OnEventInternal: Failed to cast AUCTION_SOLD data: {}", e.what());
                     ForceUpdate();

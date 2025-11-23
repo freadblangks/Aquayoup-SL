@@ -16,6 +16,7 @@
  */
 
 #include "LFGBotManager.h"
+#include "Core/PlayerBotHelpers.h"  // GetBotAI, GetGameSystems
 #include "LFGBotSelector.h"
 #include "LFGRoleDetector.h"
 #include "LFGGroupCoordinator.h"
@@ -52,7 +53,7 @@ LFGBotManager* LFGBotManager::instance()
 
 void LFGBotManager::Initialize()
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
 
     if (_initialized)
     {
@@ -79,7 +80,7 @@ void LFGBotManager::Initialize()
 
 void LFGBotManager::Shutdown()
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
 
     if (!_initialized)
         return;
@@ -125,12 +126,6 @@ void LFGBotManager::OnPlayerJoinQueue(Player* player, uint8 playerRole, lfg::Lfg
 {
     if (!_enabled || !_initialized)
         return;
-
-    if (!player)
-    {
-        TC_LOG_ERROR("module.playerbot", "LFGBotManager::OnPlayerJoinQueue - Null player pointer");
-        return;
-    }
 
     // Only process human players
     if (Playerbot::PlayerBotHooks::IsPlayerBot(player))
@@ -190,7 +185,7 @@ void LFGBotManager::OnPlayerLeaveQueue(ObjectGuid playerGuid)
     if (!_enabled || !_initialized)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
 
     // Check if this is a human player with assigned bots
     auto humanItr = _humanPlayers.find(playerGuid);
@@ -200,7 +195,7 @@ void LFGBotManager::OnPlayerLeaveQueue(ObjectGuid playerGuid)
                      humanItr->second.assignedBots.size());
 
         // Remove all assigned bots from queue
-        for (ObjectGuid botGuid : humanItr->second.assignedBots)
+    for (ObjectGuid botGuid : humanItr->second.assignedBots)
         {
             if (Player* bot = ObjectAccessor::FindPlayer(botGuid))
             {
@@ -241,7 +236,7 @@ void LFGBotManager::OnProposalReceived(uint32 proposalId, lfg::LfgProposal const
     if (!_enabled || !_initialized)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
 
     // Find all bots in this proposal
     std::unordered_set<ObjectGuid> botsInProposal;
@@ -249,7 +244,7 @@ void LFGBotManager::OnProposalReceived(uint32 proposalId, lfg::LfgProposal const
     for (auto const& [playerGuid, proposalPlayer] : proposal.players)
     {
         // Check if this is a queued bot
-        if (_queuedBots.find(playerGuid) != _queuedBots.end())
+    if (_queuedBots.find(playerGuid) != _queuedBots.end())
         {
             botsInProposal.insert(playerGuid);
 
@@ -278,7 +273,7 @@ void LFGBotManager::OnRoleCheckReceived(ObjectGuid groupGuid, ObjectGuid botGuid
     if (!_enabled || !_initialized)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
 
     // If specific bot GUID provided, handle just that bot
     if (!botGuid.IsEmpty())
@@ -300,7 +295,7 @@ void LFGBotManager::OnRoleCheckReceived(ObjectGuid groupGuid, ObjectGuid botGuid
     {
         // Check if bot is part of this group's proposal
         // We need to verify the bot is actually in this group
-        if (Player* bot = ObjectAccessor::FindPlayer(queuedBotGuid))
+    if (Player* bot = ObjectAccessor::FindPlayer(queuedBotGuid))
         {
             uint8 role = queueInfo.assignedRole;
             TC_LOG_DEBUG("module.playerbot", "LFGBotManager::OnRoleCheckReceived - Bot {} confirming role {} for group {}",
@@ -316,7 +311,7 @@ void LFGBotManager::OnGroupFormed(ObjectGuid groupGuid)
     if (!_enabled || !_initialized)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
 
     TC_LOG_DEBUG("module.playerbot", "LFGBotManager::OnGroupFormed - Group {} formed successfully", groupGuid.ToString());
 
@@ -345,7 +340,7 @@ void LFGBotManager::OnGroupFormed(ObjectGuid groupGuid)
                 groupGuid.ToString());
 
             // Teleport the group to the dungeon
-            if (sLFGGroupCoordinator->TeleportGroupToDungeon(group, dungeonId))
+    if (sLFGGroupCoordinator->TeleportGroupToDungeon(group, dungeonId))
             {
                 TC_LOG_INFO("module.playerbot", "LFGBotManager::OnGroupFormed - Group {} teleported to dungeon {}",
                     groupGuid.ToString(), dungeonId);
@@ -373,7 +368,7 @@ void LFGBotManager::OnProposalFailed(uint32 proposalId)
     if (!_enabled || !_initialized)
         return;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
 
     auto itr = _proposalBots.find(proposalId);
     if (itr == _proposalBots.end())
@@ -401,7 +396,7 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
     if (dungeons.empty())
         return 0;
 
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
 
     uint32 dungeonId = *dungeons.begin();
     uint8 minLevel = 0, maxLevel = 0;
@@ -430,13 +425,16 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
     // Queue tanks
     if ((neededRoles & lfg::PLAYER_ROLE_TANK) && tanksNeeded > 0)
     {
-        std::vector<Player*> tanks = LFGBotSelector::instance()->FindTanks(minLevel, maxLevel, tanksNeeded);
+        // Use static method for system-wide bot discovery (Phase 7 compliant)
+        std::vector<Player*> tanks = LFGBotSelector::FindAvailableTanks(minLevel, maxLevel, tanksNeeded, humanPlayer);
         for (Player* tank : tanks)
         {
             if (QueueBot(tank, lfg::PLAYER_ROLE_TANK, dungeons))
             {
                 RegisterBotAssignment(playerGuid, tank->GetGUID(), lfg::PLAYER_ROLE_TANK, dungeons);
                 ++botsQueued;
+                TC_LOG_INFO("playerbot.lfg", "Queued tank bot {} (level {}) for human player {}",
+                    tank->GetName(), tank->GetLevel(), humanPlayer->GetName());
             }
         }
     }
@@ -444,13 +442,16 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
     // Queue healers
     if ((neededRoles & lfg::PLAYER_ROLE_HEALER) && healersNeeded > 0)
     {
-        std::vector<Player*> healers = LFGBotSelector::instance()->FindHealers(minLevel, maxLevel, healersNeeded);
+        // Use static method for system-wide bot discovery (Phase 7 compliant)
+        std::vector<Player*> healers = LFGBotSelector::FindAvailableHealers(minLevel, maxLevel, healersNeeded, humanPlayer);
         for (Player* healer : healers)
         {
             if (QueueBot(healer, lfg::PLAYER_ROLE_HEALER, dungeons))
             {
                 RegisterBotAssignment(playerGuid, healer->GetGUID(), lfg::PLAYER_ROLE_HEALER, dungeons);
                 ++botsQueued;
+                TC_LOG_INFO("playerbot.lfg", "Queued healer bot {} (level {}) for human player {}",
+                    healer->GetName(), healer->GetLevel(), humanPlayer->GetName());
             }
         }
     }
@@ -458,13 +459,16 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
     // Queue DPS
     if ((neededRoles & lfg::PLAYER_ROLE_DAMAGE) && dpsNeeded > 0)
     {
-        std::vector<Player*> dps = LFGBotSelector::instance()->FindDPS(minLevel, maxLevel, dpsNeeded);
+        // Use static method for system-wide bot discovery (Phase 7 compliant)
+        std::vector<Player*> dps = LFGBotSelector::FindAvailableDPS(minLevel, maxLevel, dpsNeeded, humanPlayer);
         for (Player* dpsPlayer : dps)
         {
             if (QueueBot(dpsPlayer, lfg::PLAYER_ROLE_DAMAGE, dungeons))
             {
                 RegisterBotAssignment(playerGuid, dpsPlayer->GetGUID(), lfg::PLAYER_ROLE_DAMAGE, dungeons);
                 ++botsQueued;
+                TC_LOG_INFO("playerbot.lfg", "Queued DPS bot {} (level {}) for human player {}",
+                    dpsPlayer->GetName(), dpsPlayer->GetLevel(), humanPlayer->GetName());
             }
         }
     }
@@ -482,13 +486,13 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
 
 bool LFGBotManager::IsBotQueued(ObjectGuid botGuid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
     return _queuedBots.find(botGuid) != _queuedBots.end();
 }
 
 void LFGBotManager::GetStatistics(uint32& totalQueued, uint32& totalAssignments) const
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
     totalQueued = static_cast<uint32>(_queuedBots.size());
     totalAssignments = static_cast<uint32>(_humanPlayers.size());
 }
@@ -501,7 +505,7 @@ void LFGBotManager::SetEnabled(bool enable)
     if (!enable)
     {
         // Remove all bots from queues when disabled
-        std::lock_guard<std::recursive_mutex> lock(_mutex);
+        std::lock_guard lock(_mutex);
         for (auto const& [botGuid, queueInfo] : _queuedBots)
         {
             if (Player* bot = ObjectAccessor::FindPlayer(botGuid))
@@ -517,7 +521,7 @@ void LFGBotManager::SetEnabled(bool enable)
 
 void LFGBotManager::CleanupStaleAssignments()
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard lock(_mutex);
 
     time_t currentTime = time(nullptr);
     std::vector<ObjectGuid> staleHumans;
@@ -527,7 +531,7 @@ void LFGBotManager::CleanupStaleAssignments()
     for (auto const& [botGuid, queueInfo] : _queuedBots)
     {
         // Check if bot has been queued too long
-        if ((currentTime - queueInfo.queueTime) > MAX_QUEUE_TIME)
+    if ((currentTime - queueInfo.queueTime) > MAX_QUEUE_TIME)
         {
             TC_LOG_DEBUG("module.playerbot", "LFGBotManager::CleanupStaleAssignments - Bot {} queue time exceeded, removing",
                          botGuid.ToString());

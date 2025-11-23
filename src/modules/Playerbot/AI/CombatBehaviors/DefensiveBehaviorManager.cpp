@@ -44,7 +44,7 @@ namespace
         if (!player) return BOT_ROLE_DPS;
         Classes cls = static_cast<Classes>(player->GetClass());
         uint8 spec = 0; // Simplified for now - spec detection would need talent system integration
-        switch (cls) {
+    switch (cls) {
             case CLASS_WARRIOR: return (spec == 2) ? BOT_ROLE_TANK : BOT_ROLE_DPS;
             case CLASS_PALADIN:
                 if (spec == 1) return BOT_ROLE_HEALER;
@@ -169,7 +169,7 @@ namespace
     // Helper function to calculate linear prediction
     float LinearPredict(float currentValue, float rateOfChange, float timeAhead)
     {
-        return std::max(0.0f, currentValue + (rateOfChange * timeAhead));
+        return ::std::max(0.0f, currentValue + (rateOfChange * timeAhead));
     }
 }
 
@@ -214,10 +214,10 @@ void DefensiveBehaviorManager::Update(uint32 diff)
     if (!_bot || !_bot->IsAlive())
         return;
 
-    auto startTime = std::chrono::steady_clock::now();
+    auto startTime = ::std::chrono::steady_clock::now();
 
     // Update defensive state (throttled for performance)
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _currentState.lastUpdateTime >= STATE_UPDATE_INTERVAL)
     {
         UpdateState();
@@ -229,7 +229,7 @@ void DefensiveBehaviorManager::Update(uint32 diff)
 
     // Clean up old external requests (older than 5 seconds)
     _externalRequests.erase(
-        std::remove_if(_externalRequests.begin(), _externalRequests.end(),
+        ::std::remove_if(_externalRequests.begin(), _externalRequests.end(),
             [currentTime](const ExternalDefensiveRequest& req) {
                 return (currentTime - req.requestTime) > 5000;
             }),
@@ -276,7 +276,7 @@ void DefensiveBehaviorManager::UpdateState()
             _currentState.debuffCount++;
 
             // Check for major debuffs (stuns, fears, etc.)
-            if (aura->HasEffectType(SPELL_AURA_MOD_STUN) ||
+    if (aura->HasEffectType(SPELL_AURA_MOD_STUN) ||
                 aura->HasEffectType(SPELL_AURA_MOD_FEAR) ||
                 aura->HasEffectType(SPELL_AURA_MOD_CONFUSE) ||
                 aura->HasEffectType(SPELL_AURA_MOD_CHARM) ||
@@ -305,11 +305,11 @@ void DefensiveBehaviorManager::UpdateState()
                     continue;
 
                 // Check tank status
-                if (GetPlayerRole(member) == BOT_ROLE_TANK && !member->IsAlive())
+    if (GetPlayerRole(member) == BOT_ROLE_TANK && !member->IsAlive())
                     _currentState.tankDead = true;
 
                 // Check healer mana
-                if (GetPlayerRole(member) == BOT_ROLE_HEALER && member->IsAlive())
+    if (GetPlayerRole(member) == BOT_ROLE_HEALER && member->IsAlive())
                 {
                     if (member->GetPowerPct(POWER_MANA) < 20.0f)
                         _currentState.healerOOM = true;
@@ -375,7 +375,7 @@ uint32 DefensiveBehaviorManager::SelectDefensive() const
 // Get current defensive priority
 DefensiveBehaviorManager::DefensivePriority DefensiveBehaviorManager::GetCurrentPriority() const
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Use cached priority if still valid
     if (currentTime - _priorityCacheTime < PRIORITY_CACHE_DURATION)
@@ -408,7 +408,7 @@ DefensiveBehaviorManager::DefensivePriority DefensiveBehaviorManager::EvaluatePr
 void DefensiveBehaviorManager::RegisterDamage(uint32 damage, uint32 timestamp)
 {
     if (timestamp == 0)
-        timestamp = getMSTime();
+        timestamp = GameTime::GetGameTimeMS();
 
     // Store in circular buffer
     DamageEntry& entry = _damageHistory[_damageHistoryIndex];
@@ -439,7 +439,7 @@ void DefensiveBehaviorManager::PrepareForIncoming(uint32 spellId)
         {
             // Estimate potential damage (simplified)
             uint32 estimatedDamage = effect.CalcValue() * 2; // Rough estimate
-            if (estimatedDamage > _bot->GetMaxHealth() * 0.3f)
+    if (estimatedDamage > _bot->GetMaxHealth() * 0.3f)
                 isMajorThreat = true;
         }
     }
@@ -474,7 +474,7 @@ void DefensiveBehaviorManager::PrepareForIncoming(uint32 spellId)
 // Calculate incoming DPS
 float DefensiveBehaviorManager::GetIncomingDPS() const
 {
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
     uint32 totalDamage = 0;
     uint32 oldestTime = currentTime;
 
@@ -555,7 +555,7 @@ void DefensiveBehaviorManager::MarkDefensiveUsed(uint32 spellId)
     auto it = _defensiveCooldowns.find(spellId);
     if (it != _defensiveCooldowns.end())
     {
-        it->second.lastUsedTime = getMSTime();
+        it->second.lastUsedTime = GameTime::GetGameTimeMS();
         it->second.usageCount++;
         _metrics.defensivesUsed++;
     }
@@ -570,7 +570,7 @@ void DefensiveBehaviorManager::RequestExternalDefensive(ObjectGuid target, Defen
         if (req.targetGuid == target && !req.fulfilled)
         {
             // Update priority if higher
-            if (priority > req.priority)
+    if (priority > req.priority)
                 req.priority = priority;
             return;
         }
@@ -580,7 +580,7 @@ void DefensiveBehaviorManager::RequestExternalDefensive(ObjectGuid target, Defen
     ExternalDefensiveRequest request;
     request.targetGuid = target;
     request.priority = priority;
-    request.requestTime = getMSTime();
+    request.requestTime = GameTime::GetGameTimeMS();
     request.fulfilled = false;
 
     // PHASE 5B: Thread-safe spatial grid query (replaces ObjectAccessor::GetUnit)
@@ -611,7 +611,7 @@ ObjectGuid DefensiveBehaviorManager::GetExternalDefensiveTarget() const
         auto it = _providedDefensives.find(req.targetGuid);
         if (it != _providedDefensives.end())
         {
-            if (getMSTime() - it->second < 10000) // 10 second cooldown
+            if (GameTime::GetGameTimeMS() - it->second < 10000) // 10 second cooldown
                 continue;
         }
 
@@ -641,7 +641,6 @@ void DefensiveBehaviorManager::CoordinateExternalDefensives()
         // PHASE 5B: Thread-safe spatial grid validation (replaces ObjectAccessor::GetUnit)
         auto snapshot = SpatialGridQueryHelpers::FindCreatureByGuid(_bot, targetGuid);
         Unit* target = nullptr;
-
         if (snapshot && snapshot->IsAlive())
         {
             // Get Unit* for spell casting (main thread operation)
@@ -742,11 +741,11 @@ void DefensiveBehaviorManager::CoordinateExternalDefensives()
 
             if (provided)
             {
-                _providedDefensives[targetGuid] = getMSTime();
+                _providedDefensives[targetGuid] = GameTime::GetGameTimeMS();
                 _metrics.externalDefensivesProvided++;
 
                 // Mark request as fulfilled
-                for (auto& req : _externalRequests)
+    for (auto& req : _externalRequests)
                 {
                     if (req.targetGuid == targetGuid)
                     {
@@ -852,9 +851,9 @@ bool DefensiveBehaviorManager::ShouldUseBandage() const
 }
 
 // Get class-specific defensives (static)
-std::vector<DefensiveBehaviorManager::DefensiveCooldown> DefensiveBehaviorManager::GetClassDefensives(uint8 classId)
+::std::vector<DefensiveBehaviorManager::DefensiveCooldown> DefensiveBehaviorManager::GetClassDefensives(uint8 classId)
 {
-    std::vector<DefensiveCooldown> defensives;
+    ::std::vector<DefensiveCooldown> defensives;
 
     switch (classId)
     {
@@ -970,11 +969,11 @@ void DefensiveBehaviorManager::InitializeClassDefensives()
     if (!_bot)
         return;
 
-    std::vector<DefensiveCooldown> classDefensives = GetClassDefensives(_bot->GetClass());
+    ::std::vector<DefensiveCooldown> classDefensives = GetClassDefensives(_bot->GetClass());
     for (const auto& defensive : classDefensives)
     {
         // Only register if bot has the spell
-        if (_bot->HasSpell(defensive.spellId))
+    if (_bot->HasSpell(defensive.spellId))
         {
             RegisterDefensiveCooldown(defensive);
         }
@@ -1016,7 +1015,7 @@ uint32 DefensiveBehaviorManager::SelectBestDefensive(DefensivePriority priority)
     if (!_bot)
         return 0;
 
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Update sorted defensives cache if needed
     if (currentTime - _sortedDefensivesTime >= SORTED_DEFENSIVES_CACHE_DURATION)
@@ -1029,13 +1028,13 @@ uint32 DefensiveBehaviorManager::SelectBestDefensive(DefensivePriority priority)
         }
 
         // Sort by tier and score
-        std::sort(_sortedDefensives.begin(), _sortedDefensives.end(),
+        ::std::sort(_sortedDefensives.begin(), _sortedDefensives.end(),
             [this, priority](uint32 a, uint32 b) {
                 const DefensiveCooldown& cdA = _defensiveCooldowns.at(a);
                 const DefensiveCooldown& cdB = _defensiveCooldowns.at(b);
 
                 // Higher tier is better
-                if (cdA.tier != cdB.tier)
+    if (cdA.tier != cdB.tier)
                     return cdA.tier > cdB.tier;
 
                 // Higher score is better
@@ -1091,7 +1090,7 @@ float DefensiveBehaviorManager::CalculateDefensiveScore(const DefensiveCooldown&
     score += static_cast<float>(cooldown.tier) * 20.0f;
 
     // Priority matching (use stronger defensives for higher priority)
-    float priorityMatch = std::abs(static_cast<float>(cooldown.tier) - static_cast<float>(priority));
+    float priorityMatch = ::std::abs(static_cast<float>(cooldown.tier) - static_cast<float>(priority));
     score -= priorityMatch * 10.0f;
 
     // Duration bonus (longer = better)
@@ -1105,13 +1104,13 @@ float DefensiveBehaviorManager::CalculateDefensiveScore(const DefensiveCooldown&
         score += 15.0f;
 
     // Recent usage penalty
-    uint32 timeSinceUse = getMSTime() - cooldown.lastUsedTime;
+    uint32 timeSinceUse = GameTime::GetGameTimeMS() - cooldown.lastUsedTime;
     if (timeSinceUse < 30000) // Used in last 30 seconds
         score -= 20.0f;
 
     // Health range bonus (if we're in optimal range)
     float healthMidpoint = (cooldown.minHealthPercent + cooldown.maxHealthPercent) / 2.0f;
-    float healthDistance = std::abs(_currentState.healthPercent - healthMidpoint);
+    float healthDistance = ::std::abs(_currentState.healthPercent - healthMidpoint);
     score -= healthDistance * 0.5f;
 
     return score;
@@ -1169,7 +1168,7 @@ bool DefensiveBehaviorManager::IsDamageMostlyMagical() const
 {
     uint32 magicalDamage = 0;
     uint32 physicalDamage = 0;
-    uint32 currentTime = getMSTime();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     for (const auto& entry : _damageHistory)
     {
@@ -1196,10 +1195,10 @@ bool DefensiveBehaviorManager::IsDamageMostlyPhysical() const
 }
 
 // Update performance metrics
-void DefensiveBehaviorManager::UpdateMetrics(std::chrono::steady_clock::time_point startTime)
+void DefensiveBehaviorManager::UpdateMetrics(::std::chrono::steady_clock::time_point startTime)
 {
-    auto endTime = std::chrono::steady_clock::now();
-    auto updateTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+    auto endTime = ::std::chrono::steady_clock::now();
+    auto updateTime = ::std::chrono::duration_cast<::std::chrono::microseconds>(endTime - startTime);
 
     _metrics.updatesPerformed++;
 

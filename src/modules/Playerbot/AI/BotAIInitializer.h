@@ -6,6 +6,7 @@
 #define BOT_AI_INITIALIZER_H
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include "Player.h"
 #include <memory>
 #include <functional>
@@ -104,7 +105,7 @@ struct BotAIConfig
 class TC_GAME_API BotAIInitializer
 {
 public:
-    using InitCallback = std::function<void(bool success, BotAI* ai)>;
+    using InitCallback = ::std::function<void(bool success, BotAI* ai)>;
 
     BotAIInitializer(Player* bot);
     ~BotAIInitializer();
@@ -164,7 +165,7 @@ public:
     /**
      * Get initialization error message
      */
-    std::string GetError() const { return _errorMessage; }
+    ::std::string GetError() const { return _errorMessage; }
 
 private:
     // === Initialization Steps ===
@@ -208,7 +209,7 @@ private:
 
     // === Error Handling ===
 
-    void SetError(std::string const& error);
+    void SetError(::std::string const& error);
     void HandleInitializationFailure();
 
 private:
@@ -219,13 +220,13 @@ private:
 
     // State management
     AIInitState _state;
-    std::chrono::steady_clock::time_point _stateStartTime;
+    ::std::chrono::steady_clock::time_point _stateStartTime;
 
     // Callback management
     InitCallback _callback;
 
     // Error tracking
-    std::string _errorMessage;
+    ::std::string _errorMessage;
     uint32 _retryCount;
     static constexpr uint32 MAX_RETRIES = 3;
 
@@ -283,8 +284,8 @@ public:
 
 private:
     // Track active AIs
-    static std::unordered_map<ObjectGuid, BotAI*> _activeAIs;
-    static std::recursive_mutex _aiMutex;
+    static ::std::unordered_map<ObjectGuid, BotAI*> _activeAIs;
+    static Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE> _aiMutex;
 };
 
 /**

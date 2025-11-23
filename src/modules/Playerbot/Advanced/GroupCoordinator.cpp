@@ -8,13 +8,16 @@
  */
 
 #include "GroupCoordinator.h"
+#include "TacticalCoordinator.h"
 #include "BotAI.h"
 #include "Player.h"
 #include "Group.h"
 #include "GroupMgr.h"
+#include "../Group/GroupEvents.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Log.h"
+#include "GameTime.h"
 #include "Item.h"
 #include "ItemTemplate.h"
 #include "Creature.h"
@@ -28,6 +31,8 @@
 #include <algorithm>
 
 namespace Playerbot
+{
+namespace Advanced
 {
     // Configuration constants
     static constexpr uint32 GROUP_UPDATE_INTERVAL = 1000;  // 1 second
@@ -72,6 +77,16 @@ namespace Playerbot
         m_assignedRole = DetermineRole();
         m_preferredRole = m_assignedRole;
 
+        // Initialize tactical coordinator if in a group
+        if (m_bot->GetGroup())
+        {
+            // Create shared tactical coordinator for the group
+            // Note: In a production implementation, this should be shared across all group members
+            // For now, each bot creates its own instance
+            m_tacticalCoordinator = std::make_shared<TacticalCoordinator>(m_bot->GetGroup());
+            m_tacticalCoordinator->Initialize();
+        }
+
         // Load boss strategies
         LoadBossStrategies();
 
@@ -87,29 +102,33 @@ namespace Playerbot
         StartPerformanceTimer();
 
         // Update group state
-        if (getMSTime() - m_lastGroupUpdate > GROUP_UPDATE_INTERVAL)
+    if (GameTime::GetGameTimeMS() - m_lastGroupUpdate > GROUP_UPDATE_INTERVAL)
         {
             UpdateGroupState(diff);
-            m_lastGroupUpdate = getMSTime();
+            m_lastGroupUpdate = GameTime::GetGameTimeMS();
         }
 
         // Process pending invites
         ProcessPendingInvites(diff);
 
         // Process ready checks
-        if (m_readyCheckActive)
+    if (m_readyCheckActive)
             ProcessReadyCheck(diff);
 
         // Update group target
-        if (IsInGroup() && getMSTime() - m_targetUpdateTime > TARGET_UPDATE_INTERVAL)
+    if (IsInGroup() && GameTime::GetGameTimeMS() - m_targetUpdateTime > TARGET_UPDATE_INTERVAL)
         {
             UpdateGroupTarget();
-            m_targetUpdateTime = getMSTime();
+            m_targetUpdateTime = GameTime::GetGameTimeMS();
         }
 
         // Update queue status
-        if (m_queueInfo.isQueued)
+    if (m_queueInfo.isQueued)
             UpdateQueueStatus();
+
+        // Update tactical coordinator
+        if (m_tacticalCoordinator)
+            m_tacticalCoordinator->Update(diff);
 
         EndPerformanceTimer();
         UpdatePerformanceMetrics();
@@ -138,11 +157,9 @@ namespace Playerbot
     {
         if (!group || !m_bot)
             return false;
-
         m_currentGroup = group;
         m_currentState = GroupState::ACTIVE;
         RecordGroupJoin();
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s joined group", m_bot->GetName().c_str());
         return true;
     }
@@ -170,7 +187,7 @@ namespace Playerbot
         if (IsInGroup())
         {
             // Invite to existing group (must be leader or have invite rights)
-            if (Group* group = m_bot->GetGroup())
+    if (Group* group = m_bot->GetGroup())
             {
                 if (group->IsLeader(m_bot->GetGUID()) || group->IsAssistant(m_bot->GetGUID()))
                 {
@@ -196,12 +213,10 @@ namespace Playerbot
 
             m_currentGroup = group;
             m_currentState = GroupState::FORMING;
-
             TC_LOG_DEBUG("bot.playerbot", "Bot %s created group and invited %s",
                 m_bot->GetName().c_str(), player->GetName().c_str());
             return true;
         }
-
         return false;
     }
 
@@ -257,9 +272,8 @@ namespace Playerbot
             return GroupRole::UNDEFINED;
 
         Classes botClass = static_cast<Classes>(m_bot->GetClass());
-
         // Tank classes
-        if (botClass == CLASS_WARRIOR || botClass == CLASS_PALADIN ||
+    if (botClass == CLASS_WARRIOR || botClass == CLASS_PALADIN ||
             botClass == CLASS_DEATH_KNIGHT || botClass == CLASS_DEMON_HUNTER)
         {
             if (HasTankingAbilities())
@@ -267,7 +281,7 @@ namespace Playerbot
         }
 
         // Healer classes
-        if (botClass == CLASS_PRIEST || botClass == CLASS_PALADIN ||
+    if (botClass == CLASS_PRIEST || botClass == CLASS_PALADIN ||
             botClass == CLASS_SHAMAN || botClass == CLASS_DRUID ||
             botClass == CLASS_MONK || botClass == CLASS_EVOKER)
         {
@@ -276,7 +290,7 @@ namespace Playerbot
         }
 
         // Melee DPS
-        if (botClass == CLASS_WARRIOR || botClass == CLASS_ROGUE ||
+    if (botClass == CLASS_WARRIOR || botClass == CLASS_ROGUE ||
             botClass == CLASS_DEATH_KNIGHT || botClass == CLASS_MONK ||
             botClass == CLASS_DEMON_HUNTER)
         {
@@ -284,7 +298,7 @@ namespace Playerbot
         }
 
         // Ranged DPS
-        if (botClass == CLASS_HUNTER || botClass == CLASS_MAGE ||
+    if (botClass == CLASS_HUNTER || botClass == CLASS_MAGE ||
             botClass == CLASS_WARLOCK || botClass == CLASS_PRIEST ||
             botClass == CLASS_SHAMAN || botClass == CLASS_DRUID ||
             botClass == CLASS_EVOKER)
@@ -297,7 +311,7 @@ namespace Playerbot
 
     bool GroupCoordinator::CanFillRole(GroupRole role) const
     {
-        std::vector<RoleCapability> capabilities = AnalyzeRoleCapabilities();
+        ::std::vector<RoleCapability> capabilities = AnalyzeRoleCapabilities();
 
         for (auto const& cap : capabilities)
         {
@@ -381,7 +395,7 @@ namespace Playerbot
     bool GroupCoordinator::RollForLoot(uint32 itemId, LootDecision decision)
     {
         m_lootDecisions[itemId] = decision;
-        m_lastLootRoll = getMSTime();
+        m_lastLootRoll = GameTime::GetGameTimeMS();
         RecordLootRoll(itemId, decision);
 
         TC_LOG_DEBUG("bot.playerbot", "Bot %s rolled %u for item %u",
@@ -398,7 +412,6 @@ namespace Playerbot
         // Set group loot to group loot
         group->SetLootMethod(GROUP_LOOT);
         group->SetLootThreshold(ITEM_QUALITY_UNCOMMON);
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s configured loot settings", m_bot->GetName().c_str());
     }
 
@@ -409,7 +422,7 @@ namespace Playerbot
             return false;
 
         // Check if item is usable by class
-        if (proto->GetAllowableClass() && !(proto->GetAllowableClass() & m_bot->GetClassMask()))
+    if (proto->GetAllowableClass() && !(proto->GetAllowableClass() & m_bot->GetClassMask()))
             return false;
 
         // Check if it's an upgrade
@@ -437,7 +450,6 @@ namespace Playerbot
             return false;
 
         RecordQuestShare(questId);
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s shared quest %u", m_bot->GetName().c_str(), questId);
         return true;
     }
@@ -458,7 +470,6 @@ namespace Playerbot
 
         TC_LOG_DEBUG("bot.playerbot", "Bot %s accepted shared quest %u from %s",
             m_bot->GetName().c_str(), questId, sharer->GetName().c_str());
-
         return true;
     }
 
@@ -467,14 +478,13 @@ namespace Playerbot
         if (!IsInGroup() || !m_autoShareQuests)
             return;
 
-        std::vector<uint32> shareable = GetShareableQuests();
+        ::std::vector<uint32> shareable = GetShareableQuests();
         for (uint32 questId : shareable)
             ShareQuest(questId);
     }
-
-    std::vector<uint32> GroupCoordinator::GetShareableQuests() const
+    ::std::vector<uint32> GroupCoordinator::GetShareableQuests() const
     {
-        std::vector<uint32> shareable;
+        ::std::vector<uint32> shareable;
 
         if (!m_bot)
             return shareable;
@@ -507,12 +517,10 @@ namespace Playerbot
             Player* member = ref.GetSource();
             if (!member)
                 continue;
-
             comp.total++;
 
             // Determine role (simplified)
             Classes memberClass = static_cast<Classes>(member->GetClass());
-
             if (memberClass == CLASS_WARRIOR || memberClass == CLASS_PALADIN ||
                 memberClass == CLASS_DEATH_KNIGHT)
                 comp.tanks++;
@@ -526,7 +534,6 @@ namespace Playerbot
         // Check balance (1 tank, 1 healer, rest DPS)
         comp.isBalanced = (comp.tanks >= 1 && comp.healers >= 1);
         comp.canRaid = (comp.total >= 10);
-
         return comp;
     }
 
@@ -534,7 +541,6 @@ namespace Playerbot
     {
         return AnalyzeGroupComposition().isBalanced;
     }
-
     GroupCoordinator::GroupRole GroupCoordinator::GetNeededRole() const
     {
         GroupComposition comp = AnalyzeGroupComposition();
@@ -543,18 +549,16 @@ namespace Playerbot
             return GroupRole::TANK;
         if (comp.healers == 0)
             return GroupRole::HEALER;
-
         return GroupRole::DPS_MELEE;
     }
 
-    std::vector<Player*> GroupCoordinator::GetGroupMembers() const
+    ::std::vector<Player*> GroupCoordinator::GetGroupMembers() const
     {
-        std::vector<Player*> members;
+        ::std::vector<Player*> members;
 
         Group* group = GetGroup();
         if (!group)
             return members;
-
         for (GroupReference const& ref : group->GetMembers())
         {
             if (Player* member = ref.GetSource())
@@ -571,21 +575,17 @@ namespace Playerbot
             return false;
 
         m_readyCheckActive = true;
-        m_readyCheckTime = getMSTime();
+        m_readyCheckTime = GameTime::GetGameTimeMS();
         m_readyMembers.clear();
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s initiated ready check", m_bot->GetName().c_str());
         return true;
     }
-
     bool GroupCoordinator::RespondToReadyCheck(bool ready)
     {
         if (!m_readyCheckActive)
             return false;
-
         if (ready)
             m_readyMembers.insert(m_bot->GetGUID());
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s responded to ready check: %s",
             m_bot->GetName().c_str(), ready ? "ready" : "not ready");
 
@@ -596,7 +596,6 @@ namespace Playerbot
     {
         if (!m_readyCheckActive)
             return false;
-
         Group* group = GetGroup();
         if (!group)
             return false;
@@ -607,7 +606,7 @@ namespace Playerbot
     void GroupCoordinator::WaitForGroupReady()
     {
         // Wait for all members to be ready
-        while (m_readyCheckActive && !IsGroupReady())
+    while (m_readyCheckActive && !IsGroupReady())
         {
             // Process updates
             Update(100);
@@ -618,9 +617,8 @@ namespace Playerbot
     bool GroupCoordinator::QueueForDungeon(uint32 dungeonId)
     {
         m_queueInfo.dungeonId = dungeonId;
-        m_queueInfo.queueTime = getMSTime();
+        m_queueInfo.queueTime = GameTime::GetGameTimeMS();
         m_queueInfo.isQueued = true;
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s queued for dungeon %u",
             m_bot->GetName().c_str(), dungeonId);
 
@@ -630,9 +628,8 @@ namespace Playerbot
     bool GroupCoordinator::QueueForRaid(uint32 raidId)
     {
         m_queueInfo.dungeonId = raidId;
-        m_queueInfo.queueTime = getMSTime();
+        m_queueInfo.queueTime = GameTime::GetGameTimeMS();
         m_queueInfo.isQueued = true;
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s queued for raid %u",
             m_bot->GetName().c_str(), raidId);
 
@@ -646,7 +643,6 @@ namespace Playerbot
 
         m_queueInfo.isQueued = false;
         m_currentState = GroupState::DUNGEON;
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s accepted dungeon invite", m_bot->GetName().c_str());
         return true;
     }
@@ -654,7 +650,6 @@ namespace Playerbot
     void GroupCoordinator::LeaveDungeonQueue()
     {
         m_queueInfo.isQueued = false;
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s left dungeon queue", m_bot->GetName().c_str());
     }
 
@@ -710,7 +705,6 @@ namespace Playerbot
     {
         if (!m_bot || m_bot->IsAlive())
             return;
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s requesting resurrection", m_bot->GetName().c_str());
     }
 
@@ -731,7 +725,6 @@ namespace Playerbot
     {
         if (!IsInGroup())
             return;
-
         TC_LOG_DEBUG("bot.playerbot", "Bot %s coordinating group recovery", m_bot->GetName().c_str());
     }
 
@@ -775,9 +768,9 @@ namespace Playerbot
             m_bot->GetName().c_str(), static_cast<uint32>(oldState), static_cast<uint32>(newState));
     }
 
-    std::vector<GroupCoordinator::RoleCapability> GroupCoordinator::AnalyzeRoleCapabilities() const
+    ::std::vector<GroupCoordinator::RoleCapability> GroupCoordinator::AnalyzeRoleCapabilities() const
     {
-        std::vector<RoleCapability> capabilities;
+        ::std::vector<RoleCapability> capabilities;
 
         RoleCapability tank;
         tank.role = GroupRole::TANK;
@@ -874,7 +867,7 @@ namespace Playerbot
         float value = 0.0f;
 
         // Base value from quality
-        switch (proto->GetQuality())
+    switch (proto->GetQuality())
         {
             case ITEM_QUALITY_POOR:     value = 1.0f; break;
             case ITEM_QUALITY_NORMAL:   value = 5.0f; break;
@@ -894,7 +887,7 @@ namespace Playerbot
             return false;
 
         // Check if item is equipment
-        if (proto->GetClass() != ITEM_CLASS_WEAPON && proto->GetClass() != ITEM_CLASS_ARMOR)
+    if (proto->GetClass() != ITEM_CLASS_WEAPON && proto->GetClass() != ITEM_CLASS_ARMOR)
             return false;
 
         // Get current item in that slot
@@ -910,11 +903,11 @@ namespace Playerbot
         return proto->GetBaseItemLevel() > currentItem->GetTemplate()->GetBaseItemLevel();
     }
 
-    std::vector<GroupCoordinator::ShareableQuest> GroupCoordinator::EvaluateQuestsToShare() const
+    ::std::vector<GroupCoordinator::ShareableQuest> GroupCoordinator::EvaluateQuestsToShare() const
     {
-        std::vector<ShareableQuest> quests;
+        ::std::vector<ShareableQuest> quests;
 
-        std::vector<uint32> shareable = GetShareableQuests();
+        ::std::vector<uint32> shareable = GetShareableQuests();
         Group* group = GetGroup();
         if (!group)
             return quests;
@@ -950,13 +943,12 @@ namespace Playerbot
         Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
         if (!quest || !quest->HasFlag(QUEST_FLAGS_SHARABLE))
             return false;
-
         Group* group = GetGroup();
         if (!group)
             return false;
 
         // Check if at least one member can accept
-        for (GroupReference const& ref : group->GetMembers())
+    for (GroupReference const& ref : group->GetMembers())
         {
             Player* member = ref.GetSource();
             if (member && member != m_bot && CanMemberAcceptQuest(member, questId))
@@ -1013,7 +1005,7 @@ namespace Playerbot
         if (!m_queueInfo.isQueued)
             return;
 
-        uint32 timeInQueue = getMSTime() - m_queueInfo.queueTime;
+        uint32 timeInQueue = GameTime::GetGameTimeMS() - m_queueInfo.queueTime;
         m_queueInfo.estimatedWait = 300000; // 5 minutes estimate
     }
 
@@ -1027,7 +1019,7 @@ namespace Playerbot
                 continue;
             }
 
-            if (getMSTime() - it->second.inviteTime > m_inviteResponseDelay)
+            if (GameTime::GetGameTimeMS() - it->second.inviteTime > m_inviteResponseDelay)
             {
                 // PHASE 5C: Thread-safe spatial grid validation (replaces ObjectAccessor::FindPlayer)
                 auto snapshot = SpatialGridQueryHelpers::FindPlayerByGuid(m_bot, it->first);
@@ -1095,7 +1087,7 @@ namespace Playerbot
 
     void GroupCoordinator::ProcessReadyCheck(uint32 diff)
     {
-        if (getMSTime() - m_readyCheckTime > READY_CHECK_TIMEOUT)
+        if (GameTime::GetGameTimeMS() - m_readyCheckTime > READY_CHECK_TIMEOUT)
         {
             m_readyCheckActive = false;
             m_readyMembers.clear();
@@ -1129,13 +1121,13 @@ namespace Playerbot
 
     void GroupCoordinator::StartPerformanceTimer()
     {
-        m_performanceStart = std::chrono::high_resolution_clock::now();
+        m_performanceStart = ::std::chrono::high_resolution_clock::now();
     }
 
     void GroupCoordinator::EndPerformanceTimer()
     {
-        auto end = std::chrono::high_resolution_clock::now();
-        m_lastUpdateDuration = std::chrono::duration_cast<std::chrono::microseconds>(end - m_performanceStart);
+        auto end = ::std::chrono::high_resolution_clock::now();
+        m_lastUpdateDuration = ::std::chrono::duration_cast<::std::chrono::microseconds>(end - m_performanceStart);
         m_totalUpdateTime += m_lastUpdateDuration;
         m_updateCount++;
     }
@@ -1172,10 +1164,10 @@ namespace Playerbot
             m_bot->GetName().c_str(), targetIconId);
 
         // If this is our current target and icon was changed, update our targeting priority
-        if (event.targetGuid == m_groupTarget)
+    if (event.targetGuid == m_groupTarget)
         {
             // High priority icons (Skull, Cross) should be focused
-            if (targetIconId == 0 || targetIconId == 1) // Skull or Cross
+    if (targetIconId == 0 || targetIconId == 1) // Skull or Cross
             {
                 // PHASE 5C: Thread-safe spatial grid validation (replaces ObjectAccessor::GetUnit)
                 auto snapshot = SpatialGridQueryHelpers::FindCreatureByGuid(m_bot, event.targetGuid);
@@ -1215,7 +1207,7 @@ namespace Playerbot
             comp.isBalanced ? "Yes" : "No");
 
         // If group became unbalanced, consider suggesting role changes
-        if (!comp.isBalanced)
+    if (!comp.isBalanced)
         {
             GroupRole neededRole = GetNeededRole();
             if (CanFillRole(neededRole) && neededRole != m_assignedRole)
@@ -1227,10 +1219,78 @@ namespace Playerbot
         }
 
         // If new member joined, check if we should share quests
-        if (event.type == GroupEventType::MEMBER_JOINED && m_autoShareQuests)
+    if (event.type == GroupEventType::MEMBER_JOINED && m_autoShareQuests)
         {
             SyncGroupQuests();
         }
     }
 
+    // ========================================================================
+    // TACTICAL COORDINATION DELEGATION
+    // ========================================================================
+
+    void GroupCoordinator::RequestInterrupt(ObjectGuid targetGuid)
+    {
+        if (!m_tacticalCoordinator)
+        {
+            TC_LOG_WARN("bot.playerbot", "Bot %s: Cannot request interrupt - no tactical coordinator",
+                m_bot->GetName().c_str());
+            return;
+        }
+
+        ObjectGuid assignedBot = m_tacticalCoordinator->AssignInterrupt(targetGuid);
+
+        if (!assignedBot.IsEmpty())
+        {
+            TC_LOG_DEBUG("bot.playerbot", "Bot %s: Interrupt assigned to %s for target %s",
+                m_bot->GetName().c_str(),
+                assignedBot.ToString().c_str(),
+                targetGuid.ToString().c_str());
+        }
+    }
+
+    void GroupCoordinator::RequestDispel(ObjectGuid targetGuid)
+    {
+        if (!m_tacticalCoordinator)
+        {
+            TC_LOG_WARN("bot.playerbot", "Bot %s: Cannot request dispel - no tactical coordinator",
+                m_bot->GetName().c_str());
+            return;
+        }
+
+        ObjectGuid assignedBot = m_tacticalCoordinator->AssignDispel(targetGuid);
+
+        if (!assignedBot.IsEmpty())
+        {
+            TC_LOG_DEBUG("bot.playerbot", "Bot %s: Dispel assigned to %s for target %s",
+                m_bot->GetName().c_str(),
+                assignedBot.ToString().c_str(),
+                targetGuid.ToString().c_str());
+        }
+    }
+
+    bool GroupCoordinator::IsGroupCooldownAvailable(std::string const& cooldownName) const
+    {
+        if (!m_tacticalCoordinator)
+            return true; // No coordinator = no cooldown tracking
+
+        return m_tacticalCoordinator->IsGroupCooldownAvailable(cooldownName);
+    }
+
+    void GroupCoordinator::UseGroupCooldown(std::string const& cooldownName, uint32 durationMs)
+    {
+        if (!m_tacticalCoordinator)
+        {
+            TC_LOG_WARN("bot.playerbot", "Bot %s: Cannot use group cooldown - no tactical coordinator",
+                m_bot->GetName().c_str());
+            return;
+        }
+
+        m_tacticalCoordinator->UseGroupCooldown(cooldownName, durationMs);
+
+        TC_LOG_DEBUG("bot.playerbot", "Bot %s: Group cooldown %s used (duration: %ums)",
+            m_bot->GetName().c_str(), cooldownName.c_str(), durationMs);
+    }
+
+} // namespace Advanced
 } // namespace Playerbot

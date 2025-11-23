@@ -20,8 +20,10 @@
 #include "ObjectAccessor.h"
 #include "GridNotifiers.h"
 #include "CellImpl.h"
+#include "../../Services/HealingTargetSelector.h"  // Phase 5B: Unified healing service
 #include <ranges>
 #include <span>
+#include <vector>
 
 namespace Playerbot
 {
@@ -63,10 +65,12 @@ protected:
 
         if (criticalHealing || injuredAllies >= 2)
         {
+
             _healingMode = true;
         }
         else if (injuredAllies == 0)
         {
+
             _healingMode = false;
         }
 
@@ -80,59 +84,21 @@ protected:
     {
         if (_healingMode)
         {
+
             return SelectHealingTarget();
         }
         else
         {
+
             return SelectDamageTarget();
         }
     }
 
     Unit* SelectHealingTarget()
     {
-        Unit* lowestHealth = nullptr;
-        float lowestPct = 100.0f;
-
-        // Priority: Self > Tank > Other healers > DPS
-        if (this->GetBot()->GetHealthPct() < 50.0f)
-            return this->GetBot();
-
-        if (Group* group = this->GetBot()->GetGroup())
-        {
-            // First pass: Find tanks under 60%
-            for (GroupReference* ref : *group)
-            {
-                if (Player* member = ref->GetSource())
-                {
-                    if (member->IsAlive() && IsTank(member) && member->GetHealthPct() < 60.0f)
-                    {
-                        if (member->GetHealthPct() < lowestPct)
-                        {
-                            lowestPct = member->GetHealthPct();
-                            lowestHealth = member;
-                        }
-                    }
-                }
-            }
-
-            if (lowestHealth)
-                return lowestHealth;
-
-            // Second pass: Anyone critically injured
-            for (GroupReference* ref : *group)
-            {
-                if (Player* member = ref->GetSource())
-                {
-                    if (member->IsAlive() && member->GetHealthPct() < lowestPct)
-                    {
-                        lowestPct = member->GetHealthPct();
-                        lowestHealth = member;
-                    }
-                }
-            }
-        }
-
-        return lowestHealth;
+        // Use unified HealingTargetSelector service (Phase 5B integration)
+        // Eliminates 40+ lines of duplicated healing target logic
+        return bot::ai::HealingTargetSelector::SelectTarget(this->GetBot());
     }
 
     Unit* SelectDamageTarget()
@@ -141,40 +107,54 @@ protected:
         Unit* bestTarget = nullptr;
         float lowestHealth = 100.0f;
 
-        std::list<Unit*> hostileUnits;
+        ::std::list<Unit*> hostileUnits;
         Trinity::AnyUnfriendlyUnitInObjectRangeCheck u_check(this->GetBot(), this->GetBot(), 40.0f);
         Trinity::UnitListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> u_search(this->GetBot(), hostileUnits, u_check);
         this->GetBot()->VisitNearbyObject(40.0f, u_search);
 
         for (Unit* hostile : hostileUnits)
         {
+
             if (hostile->IsAlive() && this->GetBot()->CanSeeOrDetect(hostile))
+
             {
+
                 float healthPct = hostile->GetHealthPct();
+
                 if (healthPct < lowestHealth)
+
                 {
+
                     lowestHealth = healthPct;
+
                     bestTarget = hostile;
+
                 }
+
             }
         }
 
         return bestTarget;
-    }
-
-    uint32 CountInjuredAllies(float threshold) const
+    }    uint32 CountInjuredAllies(float threshold) const
     {
         uint32 count = 0;
 
         if (Group* group = this->GetBot()->GetGroup())
         {
+
             for (GroupReference* ref : *group)
+
             {
+
                 if (Player* member = ref->GetSource())
+
                 {
+
                     if (member->IsAlive() && member->GetHealthPct() < threshold * 100.0f)
-                        count++;
+                    count++;
+
                 }
+
             }
         }
 
@@ -185,13 +165,17 @@ protected:
     {
         if (Group* group = this->GetBot()->GetGroup())
         {
+
             for (GroupReference* ref : *group)
             {
-                if (Player* member = ref->GetSource())
-                {
+            if (Player* member = ref->GetSource())
+            {
+
                     if (member->IsAlive() && member->GetHealthPct() < threshold * 100.0f)
-                        return true;
+                    return true;
+
                 }
+
             }
         }
 
@@ -201,10 +185,11 @@ protected:
     bool IsTank(Player* player) const
     {
         // Simple check - could be enhanced with role detection
+
         return player->GetClass() == CLASS_WARRIOR ||
-               player->GetClass() == CLASS_PALADIN ||
-               player->GetClass() == CLASS_DEATH_KNIGHT;
-    }
+        player->GetClass() == CLASS_PALADIN ||
+        player->GetClass() == CLASS_DEATH_KNIGHT;
+        }
 
 protected:
     bool _healingMode;
@@ -237,17 +222,22 @@ protected:
      */
     void ManageStagger()
     {
-        uint32 currentTime = getMSTime();
+        uint32 currentTime = GameTime::GetGameTimeMS();
 
         // Accumulate stagger from recent damage
         float staggerPct = static_cast<float>(_staggerAmount) / this->GetBot()->GetMaxHealth();
 
         if (staggerPct > 0.6f) // Heavy stagger
         {
+
             if (currentTime - _lastStaggerPurge > 3000) // 3 second cooldown
+
             {
+
                 PurgeStagger();
+
                 _lastStaggerPurge = currentTime;
+
             }
         }
     }
@@ -287,19 +277,23 @@ protected:
      */
     void ManageShieldBlock()
     {
-        uint32 currentTime = getMSTime();
+        uint32 currentTime = GameTime::GetGameTimeMS();
 
         // Regenerate shield block charges
         if (currentTime - _lastShieldBlock > 12000) // 12 second recharge
         {
-            _shieldBlockCharges = std::min<uint32>(_shieldBlockCharges + 1, 2);
+
+            _shieldBlockCharges = ::std::min<uint32>(_shieldBlockCharges + 1, 2);
         }
 
         // Use shield block on high damage
         if (this->GetBot()->GetHealthPct() < 70.0f && _shieldBlockCharges > 0)
         {
+
             UseShieldBlock();
+
             _shieldBlockCharges--;
+
             _lastShieldBlock = currentTime;
         }
     }
@@ -336,43 +330,55 @@ protected:
     void ManageDoTs()
     {
         // Get all valid targets
-        std::list<Unit*> targets = GetValidDotTargets();
+        ::std::list<Unit*> targets = GetValidDotTargets();
 
         // Sort by missing DoTs
         targets.sort([this](Unit* a, Unit* b) {
+
             return GetMissingDotCount(a) > GetMissingDotCount(b);
         });
 
         // Apply DoTs to targets
-        for (Unit* target : targets)
-        {
+        for (Unit* target : targets)        {
+
             if (GetMissingDotCount(target) > 0)
+
             {
+
                 ApplyMissingDoTs(target);
+
             }
+
             else
+
             {
+
                 RefreshExpiringDoTs(target);
+
             }
         }
     }
 
-    std::list<Unit*> GetValidDotTargets() const
+    ::std::list<Unit*> GetValidDotTargets() const
     {
-        std::list<Unit*> targets;
-
-        std::list<Unit*> hostileUnits;
+        ::std::list<Unit*> targets;        ::std::list<Unit*> hostileUnits;
         Trinity::AnyUnfriendlyUnitInObjectRangeCheck u_check(this->GetBot(), this->GetBot(), 40.0f);
         Trinity::UnitListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> u_search(this->GetBot(), hostileUnits, u_check);
         this->GetBot()->VisitNearbyObject(40.0f, u_search);
 
         for (Unit* hostile : hostileUnits)
         {
+
             if (hostile->IsAlive() &&
+
                 this->GetBot()->CanSeeOrDetect(hostile) &&
+
                 hostile->GetHealthPct() > 20.0f) // Don't DoT low health targets
+
             {
+
                 targets.push_back(hostile);
+
             }
         }
 
@@ -382,19 +388,22 @@ protected:
     uint32 GetMissingDotCount(Unit* target) const
     {
         uint32 missingCount = 0;
-        auto it = this->_activeDots.find(target->GetGUID().GetRawValue());
-
-        if (it == this->_activeDots.end())
+        auto it = this->_activeDots.find(target->GetGUID().GetRawValue());        if (it == this->_activeDots.end())
         {
+
             return _maxDotsPerTarget; // No DoTs applied
         }
 
         // Count missing DoTs based on specialization
         for (uint32 dotSpell : GetRequiredDotSpells())
         {
+
             if (it->second.find(dotSpell) == it->second.end())
+
             {
+
                 missingCount++;
+
             }
         }
 
@@ -403,22 +412,26 @@ protected:
 
     void RefreshExpiringDoTs(Unit* target)
     {
-        auto it = this->_activeDots.find(target->GetGUID().GetRawValue());
-        if (it == this->_activeDots.end())
+        auto it = this->_activeDots.find(target->GetGUID().GetRawValue());        if (it == this->_activeDots.end())
+
             return;
 
         for (auto& [spellId, duration] : it->second)
         {
+
             if (duration < 3000) // Refresh if less than 3 seconds
+
             {
+
                 RefreshDot(target, spellId);
+
             }
         }
     }
 
     virtual void ApplyMissingDoTs(Unit* target) = 0;
     virtual void RefreshDot(Unit* target, uint32 spellId) = 0;
-    virtual std::vector<uint32> GetRequiredDotSpells() const = 0;
+    virtual ::std::vector<uint32> GetRequiredDotSpells() const = 0;
 
 private:
     uint32 _maxDotsPerTarget;
@@ -446,24 +459,33 @@ protected:
      */
     void ManageBurstWindow()
     {
-        uint32 currentTime = getMSTime();
+        uint32 currentTime = GameTime::GetGameTimeMS();
 
         // Check if burst is available
         if (!_burstWindowActive && currentTime - _lastBurstTime > _burstCooldown)
         {
+
             if (ShouldStartBurst())
+
             {
+
                 StartBurstWindow();
+
                 _burstWindowActive = true;
+
                 _lastBurstTime = currentTime;
+
                 _burstEndTime = currentTime + GetBurstDuration();
+
             }
         }
 
         // Check if burst should end
         if (_burstWindowActive && currentTime > _burstEndTime)
         {
+
             EndBurstWindow();
+
             _burstWindowActive = false;
         }
     }
@@ -473,7 +495,9 @@ protected:
         // Default logic - start burst on high health boss or multiple enemies
         if (this->_currentTarget)
         {
+
             return this->_currentTarget->GetHealthPct() > 80.0f ||
+
                    CountNearbyEnemies() >= 3;
         }
         return false;
@@ -484,33 +508,49 @@ protected:
         uint32 count = 0;
         Player* bot = this->GetBot();
         if (!bot)
+
             return 0;
 
-        std::list<Unit*> hostileUnits;
+        ::std::list<Unit*> hostileUnits;
         Trinity::AnyUnfriendlyUnitInObjectRangeCheck u_check(bot, bot, 10.0f);
         Trinity::UnitListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> u_searcher(bot, hostileUnits, u_check);
         // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitAllObjects
         Map* map = bot->GetMap();
         if (map)
         {
+
             auto* spatialGrid = Playerbot::SpatialGridManager::Instance().GetGrid(map);
+
             if (spatialGrid)
+
             {
+
                 auto guids = spatialGrid->QueryNearbyCreatureGuids(*bot, 10.0f);
+
                 for (ObjectGuid guid : guids)
+
                 {
+
                     if (Creature* creature = ObjectAccessor::GetCreature(*bot, guid))
+
                     {
+
                         if (u_check(creature))
+
                             hostileUnits.push_back(creature);
+
                     }
+
                 }
+
             }
         }
 
         for (Unit* hostile : hostileUnits)
         {
+
             if (hostile->IsAlive())
+
                 count++;
         }
 
@@ -544,10 +584,10 @@ public:
     {
         uint32 spellId;
         float priority;
-        std::function<bool()> condition;
+        ::std::function<bool()> condition;
     };
 
-    void AddAbility(uint32 spellId, float priority, std::function<bool()> condition = nullptr)
+    void AddAbility(uint32 spellId, float priority, ::std::function<bool()> condition = nullptr)
     {
         _abilities.push_back({spellId, priority, condition});
         SortAbilities();
@@ -557,22 +597,27 @@ public:
     {
         for (const auto& ability : _abilities)
         {
+
             if (!ability.condition || ability.condition())
+
             {
+
                 return ability.spellId;
+
             }
         }
         return 0;
-    }
-
-    void UpdatePriority(uint32 spellId, float newPriority)
+    }    void UpdatePriority(uint32 spellId, float newPriority)
     {
-        auto it = std::find_if(_abilities.begin(), _abilities.end(),
+        auto it = ::std::find_if(_abilities.begin(), _abilities.end(),
+
             [spellId](const AbilityPriority& a) { return a.spellId == spellId; });
 
         if (it != _abilities.end())
         {
+
             it->priority = newPriority;
+
             SortAbilities();
         }
     }
@@ -580,20 +625,22 @@ public:
 private:
     void SortAbilities()
     {
-        std::sort(_abilities.begin(), _abilities.end(),
+        ::std::sort(_abilities.begin(), _abilities.end(),
+
             [](const AbilityPriority& a, const AbilityPriority& b) {
+
                 return a.priority > b.priority;
+
             });
     }
 
-    std::vector<AbilityPriority> _abilities;
+    ::std::vector<AbilityPriority> _abilities;
 };
 
 /**
  * Snapshot system for DoT/HoT calculations
  */
-class SnapshotManager
-{
+class SnapshotManager{
 public:
     struct Snapshot
     {
@@ -609,11 +656,10 @@ public:
     {
         Snapshot snap;
         snap.spellId = spellId;
-        snap.targetGuid = target->GetGUID().GetCounter();
-        snap.spellPower = caster->GetTotalAttackPowerValue(BASE_ATTACK);
+        snap.targetGuid = target->GetGUID().GetCounter();        snap.spellPower = caster->GetTotalAttackPowerValue(BASE_ATTACK);
         snap.critChance = caster->GetUnitCriticalChanceAgainst(BASE_ATTACK, target);
         snap.haste = caster->GetRatingBonusValue(CR_HASTE_MELEE);
-        snap.timestamp = getMSTime();
+        snap.timestamp = GameTime::GetGameTimeMS();
 
         _snapshots[GetKey(spellId, target)] = snap;
     }
@@ -636,12 +682,11 @@ public:
     }
 
 private:
-    uint64 GetKey(uint32 spellId, Unit* target) const
-    {
+    uint64 GetKey(uint32 spellId, Unit* target) const    {
         return (static_cast<uint64>(spellId) << 32) | target->GetGUID().GetCounter();
     }
 
-    std::unordered_map<uint64, Snapshot> _snapshots;
+    ::std::unordered_map<uint64, Snapshot> _snapshots;
 };
 
 } // namespace Playerbot

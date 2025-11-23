@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Define.h"
+#include "Threading/LockHierarchy.h"
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -49,10 +50,10 @@ public:
     // === LATENCY TRACKING ===
     struct LatencyTracker
     {
-        std::atomic<uint64> totalTime{0};    // microseconds
-        std::atomic<uint32> operationCount{0};
-        std::atomic<uint64> minTime{UINT64_MAX};
-        std::atomic<uint64> maxTime{0};
+        ::std::atomic<uint64> totalTime{0};    // microseconds
+        ::std::atomic<uint32> operationCount{0};
+        ::std::atomic<uint64> minTime{UINT64_MAX};
+        ::std::atomic<uint64> maxTime{0};
 
         void RecordOperation(uint64 microseconds);
         float GetAverageMs() const;
@@ -100,14 +101,14 @@ public:
 
         // Scalability indicators
         bool scalabilityHealthy = true;
-        std::string performanceStatus = "HEALTHY";
+        ::std::string performanceStatus = "HEALTHY";
     };
 
     PerformanceSnapshot GetSnapshot() const;
 
     // === ALERTING SYSTEM ===
     bool IsPerformanceHealthy() const;
-    std::string GetPerformanceStatus() const;
+    ::std::string GetPerformanceStatus() const;
 
     // === RESET COUNTERS ===
     void ResetCounters();
@@ -121,7 +122,7 @@ public:
 
     private:
         LatencyTracker& _tracker;
-        std::chrono::high_resolution_clock::time_point _start;
+        ::std::chrono::high_resolution_clock::time_point _start;
     };
 
     // Convenience macros for timing
@@ -147,22 +148,22 @@ private:
     LatencyTracker _lockWaitTime;
 
     // Throughput counters (per interval)
-    std::atomic<uint32> _spawnRequestsPerSecond{0};
-    std::atomic<uint32> _successfulSpawnsPerSecond{0};
-    std::atomic<uint32> _failedSpawnsPerSecond{0};
+    ::std::atomic<uint32> _spawnRequestsPerSecond{0};
+    ::std::atomic<uint32> _successfulSpawnsPerSecond{0};
+    ::std::atomic<uint32> _failedSpawnsPerSecond{0};
 
     // Resource usage
-    std::atomic<uint64> _totalMemoryBytes{0};
-    std::atomic<uint32> _currentBotCount{0};
-    std::atomic<float> _cpuUsage{0.0f};
+    ::std::atomic<uint64> _totalMemoryBytes{0};
+    ::std::atomic<uint32> _currentBotCount{0};
+    ::std::atomic<float> _cpuUsage{0.0f};
 
     // Timing for throughput calculation
-    std::chrono::steady_clock::time_point _lastUpdate;
+    ::std::chrono::steady_clock::time_point _lastUpdate;
     uint32 _updateInterval = 1000; // 1 second
 
     // Singleton
-    inline static std::unique_ptr<BotPerformanceMonitor> _instance;
-    inline static std::recursive_mutex _instanceMutex;
+    inline static ::std::unique_ptr<BotPerformanceMonitor> _instance;
+    inline static Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_SPAWNER> _instanceMutex;
 
     // Non-copyable
     BotPerformanceMonitor(BotPerformanceMonitor const&) = delete;

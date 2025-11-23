@@ -28,6 +28,7 @@
 #include "../AI/BotAI.h"
 #include <algorithm>
 #include <random>
+#include "GameTime.h"
 
 namespace Playerbot
 {
@@ -147,12 +148,11 @@ void SocialManager::Shutdown()
 // CHAT SYSTEM
 // ============================================================================
 
-bool SocialManager::SendChatMessage(ChatType type, std::string const& message, ObjectGuid target)
+bool SocialManager::SendChatMessage(ChatType type, ::std::string const& message, ObjectGuid target)
 {
     if (!m_bot || !m_chatEnabled || message.empty())
         return false;
-
-    std::string sanitized = SanitizeMessage(message);
+    ::std::string sanitized = SanitizeMessage(message);
     if (sanitized.empty() || IsSpam(sanitized))
         return false;
 
@@ -227,7 +227,7 @@ bool SocialManager::SendChatMessage(ChatType type, std::string const& message, O
     return true;
 }
 
-bool SocialManager::RespondToChat(Player* sender, std::string const& message, ChatType type)
+bool SocialManager::RespondToChat(Player* sender, ::std::string const& message, ChatType type)
 {
     if (!m_bot || !sender || !m_chatEnabled || !m_autoRespond)
         return false;
@@ -238,22 +238,20 @@ bool SocialManager::RespondToChat(Player* sender, std::string const& message, Ch
     if (!ShouldRespondToChat(sender, message, type))
         return false;
 
-    std::string response = GenerateChatResponse(message, type);
+    ::std::string response = GenerateChatResponse(message, type);
     if (response.empty())
         return false;
 
     // Add a small delay for natural conversation
     uint32 delay = urand(m_minChatDelay, m_maxChatDelay);
-    m_nextChatTime = getMSTime() + delay;
-
+    m_nextChatTime = GameTime::GetGameTimeMS() + delay;
     // Respond via whisper if message was a whisper, otherwise use same channel
     ChatType responseType = (type == ChatType::WHISPER) ? ChatType::WHISPER : type;
     ObjectGuid target = (type == ChatType::WHISPER) ? sender->GetGUID() : ObjectGuid::Empty;
-
     return SendChatMessage(responseType, response, target);
 }
 
-void SocialManager::ProcessIncomingChat(Player* sender, std::string const& message, ChatType type)
+void SocialManager::ProcessIncomingChat(Player* sender, ::std::string const& message, ChatType type)
 {
     if (!sender || message.empty())
         return;
@@ -261,14 +259,14 @@ void SocialManager::ProcessIncomingChat(Player* sender, std::string const& messa
     RecordMessageReceived(type);
 
     // Update reputation based on message tone (simplified sentiment analysis)
-    bool isPositive = (message.find("thank") != std::string::npos ||
-                      message.find("great") != std::string::npos ||
-                      message.find("nice") != std::string::npos ||
-                      message.find("good") != std::string::npos);
+    bool isPositive = (message.find("thank") != ::std::string::npos ||
+                      message.find("great") != ::std::string::npos ||
+                      message.find("nice") != ::std::string::npos ||
+                      message.find("good") != ::std::string::npos);
 
-    bool isNegative = (message.find("bad") != std::string::npos ||
-                      message.find("terrible") != std::string::npos ||
-                      message.find("stupid") != std::string::npos);
+    bool isNegative = (message.find("bad") != ::std::string::npos ||
+                      message.find("terrible") != ::std::string::npos ||
+                      message.find("stupid") != ::std::string::npos);
 
     if (isPositive)
         UpdateReputation(sender->GetGUID(), 5, true);
@@ -278,26 +276,26 @@ void SocialManager::ProcessIncomingChat(Player* sender, std::string const& messa
         UpdateReputation(sender->GetGUID(), 1, true); // Neutral interaction
 }
 
-std::string SocialManager::GenerateChatResponse(std::string const& message, ChatType type)
+::std::string SocialManager::GenerateChatResponse(::std::string const& message, ChatType type)
 {
     // Check for response templates first
     for (auto const& word : m_responseTemplates)
     {
-        if (message.find(word.trigger) != std::string::npos && !IsOnCooldown(word.trigger))
+        if (message.find(word.trigger) != ::std::string::npos && !IsOnCooldown(word.trigger))
         {
             if (!word.responses.empty())
             {
                 uint32 index = urand(0, word.responses.size() - 1);
-                m_responseCooldowns[word.trigger] = getMSTime() + word.cooldown;
+                m_responseCooldowns[word.trigger] = GameTime::GetGameTimeMS() + word.cooldown;
                 return word.responses[index];
             }
         }
     }
 
     // Generic contextual responses
-    std::vector<std::string> genericResponses;
+    ::std::vector<::std::string> genericResponses;
 
-    if (message.find("?") != std::string::npos)
+    if (message.find("?") != ::std::string::npos)
     {
         genericResponses = {
             "I'm not sure about that.",
@@ -306,7 +304,7 @@ std::string SocialManager::GenerateChatResponse(std::string const& message, Chat
             "Hmm, interesting question."
         };
     }
-    else if (message.find("hello") != std::string::npos || message.find("hi") != std::string::npos)
+    else if (message.find("hello") != ::std::string::npos || message.find("hi") != ::std::string::npos)
     {
         genericResponses = {
             "Hello!",
@@ -315,7 +313,7 @@ std::string SocialManager::GenerateChatResponse(std::string const& message, Chat
             "Hey!"
         };
     }
-    else if (message.find("thanks") != std::string::npos || message.find("thank") != std::string::npos)
+    else if (message.find("thanks") != ::std::string::npos || message.find("thank") != ::std::string::npos)
     {
         genericResponses = {
             "You're welcome!",
@@ -355,7 +353,7 @@ std::string SocialManager::GenerateChatResponse(std::string const& message, Chat
 void SocialManager::SetChatDelay(uint32 minDelay, uint32 maxDelay)
 {
     m_minChatDelay = minDelay;
-    m_maxChatDelay = std::max(minDelay, maxDelay);
+    m_maxChatDelay = ::std::max(minDelay, maxDelay);
 }
 
 // ============================================================================
@@ -407,22 +405,21 @@ bool SocialManager::RespondWithEmote(Player* trigger, EmoteType triggerEmote)
 
     return PerformEmote(response);
 }
-
-SocialManager::EmoteType SocialManager::SelectContextualEmote(std::string const& context)
+SocialManager::EmoteType SocialManager::SelectContextualEmote(::std::string const& context)
 {
-    if (context.find("victory") != std::string::npos || context.find("win") != std::string::npos)
+    if (context.find("victory") != ::std::string::npos || context.find("win") != ::std::string::npos)
         return EmoteType::VICTORY;
-    else if (context.find("sad") != std::string::npos || context.find("lost") != std::string::npos)
+    else if (context.find("sad") != ::std::string::npos || context.find("lost") != ::std::string::npos)
         return EmoteType::CRY;
-    else if (context.find("funny") != std::string::npos || context.find("joke") != std::string::npos)
+    else if (context.find("funny") != ::std::string::npos || context.find("joke") != ::std::string::npos)
         return EmoteType::LAUGH;
-    else if (context.find("rest") != std::string::npos || context.find("wait") != std::string::npos)
+    else if (context.find("rest") != ::std::string::npos || context.find("wait") != ::std::string::npos)
         return EmoteType::SIT;
-    else if (context.find("hello") != std::string::npos || context.find("greet") != std::string::npos)
+    else if (context.find("hello") != ::std::string::npos || context.find("greet") != ::std::string::npos)
         return EmoteType::WAVE;
-    else if (context.find("thank") != std::string::npos)
+    else if (context.find("thank") != ::std::string::npos)
         return EmoteType::THANKS;
-    else if (context.find("dance") != std::string::npos || context.find("party") != std::string::npos)
+    else if (context.find("dance") != ::std::string::npos || context.find("party") != ::std::string::npos)
         return EmoteType::DANCE;
 
     return EmoteType::NONE;
@@ -432,7 +429,7 @@ SocialManager::EmoteType SocialManager::SelectContextualEmote(std::string const&
 // FRIEND LIST MANAGEMENT
 // ============================================================================
 
-bool SocialManager::AddFriend(ObjectGuid playerGuid, std::string const& note)
+bool SocialManager::AddFriend(ObjectGuid playerGuid, ::std::string const& note)
 {
     if (!m_bot || playerGuid.IsEmpty() || playerGuid == m_bot->GetGUID())
         return false;
@@ -490,9 +487,9 @@ bool SocialManager::IsFriend(ObjectGuid playerGuid) const
     return m_friends.find(playerGuid) != m_friends.end();
 }
 
-std::vector<SocialManager::FriendInfo> SocialManager::GetFriends() const
+::std::vector<SocialManager::FriendInfo> SocialManager::GetFriends() const
 {
-    std::vector<FriendInfo> friends;
+    ::std::vector<FriendInfo> friends;
     friends.reserve(m_friends.size());
 
     for (auto const& pair : m_friends)
@@ -510,7 +507,7 @@ SocialManager::FriendInfo SocialManager::GetFriendInfo(ObjectGuid playerGuid) co
     return FriendInfo();
 }
 
-void SocialManager::UpdateFriendNote(ObjectGuid playerGuid, std::string const& note)
+void SocialManager::UpdateFriendNote(ObjectGuid playerGuid, ::std::string const& note)
 {
     auto itr = m_friends.find(playerGuid);
     if (itr != m_friends.end())
@@ -593,9 +590,9 @@ bool SocialManager::IsIgnored(ObjectGuid playerGuid) const
     return m_ignoreList.find(playerGuid) != m_ignoreList.end();
 }
 
-std::vector<ObjectGuid> SocialManager::GetIgnoreList() const
+::std::vector<ObjectGuid> SocialManager::GetIgnoreList() const
 {
-    return std::vector<ObjectGuid>(m_ignoreList.begin(), m_ignoreList.end());
+    return ::std::vector<ObjectGuid>(m_ignoreList.begin(), m_ignoreList.end());
 }
 
 // ============================================================================
@@ -606,7 +603,6 @@ bool SocialManager::JoinGuild(Guild* guild)
 {
     if (!m_bot || !guild)
         return false;
-
     if (m_bot->GetGuildId())
         return false; // Already in a guild
 
@@ -654,12 +650,12 @@ Guild* SocialManager::GetGuild() const
     return m_guild;
 }
 
-bool SocialManager::SendGuildChat(std::string const& message)
+bool SocialManager::SendGuildChat(::std::string const& message)
 {
     if (!m_bot || !m_guild || !m_guildChatEnabled || message.empty())
         return false;
 
-    std::string sanitized = SanitizeMessage(message);
+    ::std::string sanitized = SanitizeMessage(message);
     if (sanitized.empty() || IsSpam(sanitized))
         return false;
 
@@ -668,12 +664,12 @@ bool SocialManager::SendGuildChat(std::string const& message)
     m_guild->BroadcastPacket(packet.Write());
 
     m_stats.guildChatsSent++;
-    m_lastGuildChatTime = getMSTime();
+    m_lastGuildChatTime = GameTime::GetGameTimeMS();
 
     return true;
 }
 
-bool SocialManager::SendOfficerChat(std::string const& message)
+bool SocialManager::SendOfficerChat(::std::string const& message)
 {
     if (!m_bot || !m_guild || !m_guildChatEnabled || message.empty())
         return false;
@@ -682,7 +678,7 @@ bool SocialManager::SendOfficerChat(std::string const& message)
     if (!m_guild->IsMember(m_bot->GetGUID()))
         return false;
 
-    std::string sanitized = SanitizeMessage(message);
+    ::std::string sanitized = SanitizeMessage(message);
     if (sanitized.empty() || IsSpam(sanitized))
         return false;
 
@@ -693,7 +689,7 @@ bool SocialManager::SendOfficerChat(std::string const& message)
     return true;
 }
 
-bool SocialManager::RespondToGuildChat(Player* sender, std::string const& message)
+bool SocialManager::RespondToGuildChat(Player* sender, ::std::string const& message)
 {
     if (!m_bot || !sender || !m_guildChatEnabled || !m_autoRespond)
         return false;
@@ -701,12 +697,12 @@ bool SocialManager::RespondToGuildChat(Player* sender, std::string const& messag
     if (!ShouldRespondToChat(sender, message, ChatType::GUILD))
         return false;
 
-    std::string response = GenerateChatResponse(message, ChatType::GUILD);
+    ::std::string response = GenerateChatResponse(message, ChatType::GUILD);
     if (response.empty())
         return false;
 
     uint32 delay = urand(m_minChatDelay, m_maxChatDelay);
-    m_nextChatTime = getMSTime() + delay;
+    m_nextChatTime = GameTime::GetGameTimeMS() + delay;
 
     return SendGuildChat(response);
 }
@@ -742,7 +738,6 @@ bool SocialManager::ShouldAcceptGuildInvite(Player* inviter) const
 
     if (m_bot->GetGuildId())
         return false; // Already in guild
-
     if (IsIgnored(inviter->GetGUID()))
         return false;
 
@@ -764,7 +759,7 @@ void SocialManager::UpdateReputation(ObjectGuid playerGuid, int32 change, bool i
 
     auto& rep = m_reputations[playerGuid];
     rep.playerGuid = playerGuid;
-    rep.reputation = std::max(-100, std::min(100, rep.reputation + change));
+    rep.reputation = ::std::max(-100, ::std::min(100, rep.reputation + change));
     rep.interactions++;
     rep.lastInteraction = time(nullptr);
 
@@ -787,15 +782,15 @@ bool SocialManager::HasPositiveReputation(ObjectGuid playerGuid) const
     return GetReputation(playerGuid) > 0;
 }
 
-std::vector<SocialManager::SocialReputation> SocialManager::GetTopFriendlyPlayers(uint32 count) const
+::std::vector<SocialManager::SocialReputation> SocialManager::GetTopFriendlyPlayers(uint32 count) const
 {
-    std::vector<SocialReputation> reps;
+    ::std::vector<SocialReputation> reps;
     reps.reserve(m_reputations.size());
 
     for (auto const& pair : m_reputations)
         reps.push_back(pair.second);
 
-    std::sort(reps.begin(), reps.end(), [](SocialReputation const& a, SocialReputation const& b) {
+    ::std::sort(reps.begin(), reps.end(), [](SocialReputation const& a, SocialReputation const& b) {
         return a.reputation > b.reputation;
     });
 
@@ -808,7 +803,6 @@ std::vector<SocialManager::SocialReputation> SocialManager::GetTopFriendlyPlayer
 // ============================================================================
 // RESPONSE TEMPLATES
 // ============================================================================
-
 void SocialManager::LoadResponseTemplates()
 {
     // Pre-defined response templates for common scenarios
@@ -867,7 +861,7 @@ void SocialManager::AddResponseTemplate(ResponseTemplate const& response)
     m_responseTemplates.push_back(response);
 }
 
-bool SocialManager::HasResponseTemplate(std::string const& trigger) const
+bool SocialManager::HasResponseTemplate(::std::string const& trigger) const
 {
     for (auto const& templ : m_responseTemplates)
     {
@@ -877,7 +871,7 @@ bool SocialManager::HasResponseTemplate(std::string const& trigger) const
     return false;
 }
 
-std::string SocialManager::GetRandomResponse(std::string const& trigger)
+::std::string SocialManager::GetRandomResponse(::std::string const& trigger)
 {
     for (auto const& templ : m_responseTemplates)
     {
@@ -902,7 +896,7 @@ void SocialManager::GreetPlayer(Player* player)
     if (IsIgnored(player->GetGUID()))
         return;
 
-    std::vector<std::string> greetings = {
+    ::std::vector<::std::string> greetings = {
         "Hello!",
         "Greetings!",
         "Hi there!",
@@ -921,7 +915,7 @@ void SocialManager::FarewellPlayer(Player* player)
     if (!m_bot || !player || !m_autoGreet)
         return;
 
-    std::vector<std::string> farewells = {
+    ::std::vector<::std::string> farewells = {
         "Goodbye!",
         "Farewell!",
         "See you!",
@@ -975,7 +969,7 @@ void SocialManager::HandlePlayerLogout(Player* player)
 // CHANNEL MANAGEMENT
 // ============================================================================
 
-bool SocialManager::JoinChannel(std::string const& channelName, std::string const& password)
+bool SocialManager::JoinChannel(::std::string const& channelName, ::std::string const& password)
 {
     if (!m_bot || channelName.empty())
         return false;
@@ -994,7 +988,7 @@ bool SocialManager::JoinChannel(std::string const& channelName, std::string cons
     return true;
 }
 
-bool SocialManager::LeaveChannel(std::string const& channelName)
+bool SocialManager::LeaveChannel(::std::string const& channelName)
 {
     if (!m_bot || channelName.empty())
         return false;
@@ -1013,14 +1007,14 @@ bool SocialManager::LeaveChannel(std::string const& channelName)
     return true;
 }
 
-bool SocialManager::IsInChannel(std::string const& channelName) const
+bool SocialManager::IsInChannel(::std::string const& channelName) const
 {
     return m_channels.find(channelName) != m_channels.end();
 }
 
-std::vector<std::string> SocialManager::GetChannels() const
+::std::vector<::std::string> SocialManager::GetChannels() const
 {
-    return std::vector<std::string>(m_channels.begin(), m_channels.end());
+    return ::std::vector<::std::string>(m_channels.begin(), m_channels.end());
 }
 
 // ============================================================================
@@ -1033,7 +1027,7 @@ void SocialManager::ProcessChatQueue(uint32 diff)
     // Framework in place for future enhancement
 }
 
-bool SocialManager::ShouldRespondToChat(Player* sender, std::string const& message, ChatType type)
+bool SocialManager::ShouldRespondToChat(Player* sender, ::std::string const& message, ChatType type)
 {
     if (!sender || message.empty())
         return false;
@@ -1046,7 +1040,7 @@ bool SocialManager::ShouldRespondToChat(Player* sender, std::string const& messa
         return false;
 
     // Don't respond if on cooldown
-    if (getMSTime() < m_nextChatTime)
+    if (GameTime::GetGameTimeMS() < m_nextChatTime)
         return false;
 
     // Don't respond to spam
@@ -1056,29 +1050,29 @@ bool SocialManager::ShouldRespondToChat(Player* sender, std::string const& messa
     return true;
 }
 
-std::string SocialManager::SanitizeMessage(std::string const& message) const
+::std::string SocialManager::SanitizeMessage(::std::string const& message) const
 {
-    std::string sanitized = message;
+    ::std::string sanitized = message;
 
     // Remove excessive whitespace
-    sanitized.erase(std::unique(sanitized.begin(), sanitized.end(),
+    sanitized.erase(::std::unique(sanitized.begin(), sanitized.end(),
         [](char a, char b) { return a == ' ' && b == ' '; }), sanitized.end());
 
     // Trim leading/trailing whitespace
     size_t start = sanitized.find_first_not_of(" \t\n\r");
     size_t end = sanitized.find_last_not_of(" \t\n\r");
 
-    if (start == std::string::npos || end == std::string::npos)
+    if (start == ::std::string::npos || end == ::std::string::npos)
         return "";
 
     return sanitized.substr(start, end - start + 1);
 }
 
-bool SocialManager::IsSpam(std::string const& message) const
+bool SocialManager::IsSpam(::std::string const& message) const
 {
     // Check for repeated messages
     uint32 count = 0;
-    uint32 now = getMSTime();
+    uint32 now = GameTime::GetGameTimeMS();
 
     for (auto const& recent : m_recentChats)
     {
@@ -1091,7 +1085,7 @@ bool SocialManager::IsSpam(std::string const& message) const
 
 void SocialManager::ScheduleNextChat()
 {
-    m_nextChatTime = getMSTime() + urand(m_minChatDelay, m_maxChatDelay);
+    m_nextChatTime = GameTime::GetGameTimeMS() + urand(m_minChatDelay, m_maxChatDelay);
 }
 
 void SocialManager::ProcessEmoteQueue(uint32 diff)
@@ -1102,12 +1096,12 @@ void SocialManager::ProcessEmoteQueue(uint32 diff)
 
 void SocialManager::ScheduleRandomEmote()
 {
-    m_nextEmoteTime = getMSTime() + m_emoteInterval + urand(0, 30000);
+    m_nextEmoteTime = GameTime::GetGameTimeMS() + m_emoteInterval + urand(0, 30000);
 }
 
 SocialManager::EmoteType SocialManager::SelectRandomEmote() const
 {
-    std::vector<EmoteType> emotes = {
+    ::std::vector<EmoteType> emotes = {
         EmoteType::WAVE,
         EmoteType::BOW,
         EmoteType::THANKS,
@@ -1177,10 +1171,10 @@ void SocialManager::DecayReputations(uint32 diff)
         uint32 timeSinceLastInteraction = now - pair.second.lastInteraction;
 
         // Decay 1 point per day of no interaction
-        if (timeSinceLastInteraction > 86400) // 1 day in seconds
+    if (timeSinceLastInteraction > 86400) // 1 day in seconds
         {
             uint32 daysElapsed = timeSinceLastInteraction / 86400;
-            int32 decay = std::min<int32>(daysElapsed, std::abs(pair.second.reputation));
+            int32 decay = ::std::min<int32>(daysElapsed, ::std::abs(pair.second.reputation));
 
             if (pair.second.reputation > 0)
                 pair.second.reputation -= decay;
@@ -1190,17 +1184,17 @@ void SocialManager::DecayReputations(uint32 diff)
     }
 }
 
-bool SocialManager::IsOnCooldown(std::string const& trigger) const
+bool SocialManager::IsOnCooldown(::std::string const& trigger) const
 {
     auto itr = m_responseCooldowns.find(trigger);
     if (itr != m_responseCooldowns.end())
-        return getMSTime() < itr->second;
+        return GameTime::GetGameTimeMS() < itr->second;
     return false;
 }
 
 void SocialManager::UpdateCooldowns(uint32 diff)
 {
-    uint32 now = getMSTime();
+    uint32 now = GameTime::GetGameTimeMS();
 
     for (auto itr = m_responseCooldowns.begin(); itr != m_responseCooldowns.end();)
     {
@@ -1211,11 +1205,11 @@ void SocialManager::UpdateCooldowns(uint32 diff)
     }
 }
 
-void SocialManager::TrackChat(std::string const& message)
+void SocialManager::TrackChat(::std::string const& message)
 {
     RecentChat chat;
     chat.message = message;
-    chat.timestamp = getMSTime();
+    chat.timestamp = GameTime::GetGameTimeMS();
     chat.count = 1;
 
     m_recentChats.push_back(chat);
@@ -1227,10 +1221,10 @@ void SocialManager::TrackChat(std::string const& message)
 
 void SocialManager::CleanupOldChats(uint32 diff)
 {
-    uint32 now = getMSTime();
+    uint32 now = GameTime::GetGameTimeMS();
 
     m_recentChats.erase(
-        std::remove_if(m_recentChats.begin(), m_recentChats.end(),
+        ::std::remove_if(m_recentChats.begin(), m_recentChats.end(),
             [now](RecentChat const& chat) {
                 return (now - chat.timestamp) > 60000; // Remove chats older than 1 minute
             }),
@@ -1279,13 +1273,13 @@ void SocialManager::RecordGreeting()
 
 void SocialManager::StartPerformanceTimer()
 {
-    m_performanceStart = std::chrono::high_resolution_clock::now();
+    m_performanceStart = ::std::chrono::high_resolution_clock::now();
 }
 
 void SocialManager::EndPerformanceTimer()
 {
-    auto end = std::chrono::high_resolution_clock::now();
-    m_lastUpdateDuration = std::chrono::duration_cast<std::chrono::microseconds>(end - m_performanceStart);
+    auto end = ::std::chrono::high_resolution_clock::now();
+    m_lastUpdateDuration = ::std::chrono::duration_cast<::std::chrono::microseconds>(end - m_performanceStart);
     m_totalUpdateTime += m_lastUpdateDuration;
     m_updateCount++;
 }
@@ -1298,9 +1292,9 @@ void SocialManager::UpdatePerformanceMetrics()
         m_cpuUsage = (avgDuration.count() / 1000.0f) / 100.0f; // Convert to percentage
 
         // Reset counters periodically
-        if (m_updateCount >= 1000)
+    if (m_updateCount >= 1000)
         {
-            m_totalUpdateTime = std::chrono::microseconds(0);
+            m_totalUpdateTime = ::std::chrono::microseconds(0);
             m_updateCount = 0;
         }
     }
@@ -1313,9 +1307,9 @@ size_t SocialManager::GetMemoryUsage() const
     memory += m_ignoreList.size() * sizeof(ObjectGuid);
     memory += m_reputations.size() * sizeof(SocialReputation);
     memory += m_responseTemplates.size() * sizeof(ResponseTemplate);
-    memory += m_responseCooldowns.size() * (sizeof(std::string) + sizeof(uint32));
+    memory += m_responseCooldowns.size() * (sizeof(::std::string) + sizeof(uint32));
     memory += m_recentChats.size() * sizeof(RecentChat);
-    memory += m_channels.size() * sizeof(std::string);
+    memory += m_channels.size() * sizeof(::std::string);
     return memory;
 }
 
