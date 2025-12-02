@@ -322,6 +322,7 @@ REPLACE INTO `creature_model_info` VALUES (115281, 0, 0, 0, 0);
 REPLACE INTO `creature_model_info` VALUES (116539, 0, 0, 0, 0);
 REPLACE INTO `creature_model_info` VALUES (116687, 0, 0, 0, 0);
 REPLACE INTO `creature_model_info` VALUES (126177, 0, 0, 0, 0);
+REPLACE INTO `creature_model_info` VALUES (113609, 0, 0, 0, 0);
 
 -- ----------------------------
 -- Warlock spell fixes
@@ -518,6 +519,8 @@ REPLACE INTO `areatrigger_scripts` VALUES (1489, 'at_pri_power_word_barrier');
 -- ----------------------------
 -- Paladin spell fixes
 -- ----------------------------
+REPLACE INTO `spell_script_names` VALUES (85043, 'spell_pal_grand_crusader');
+REPLACE INTO `spell_script_names` VALUES (152261, 'spell_pal_holy_shield');
 
 -- ----------------------------
 -- Monk spell fixes

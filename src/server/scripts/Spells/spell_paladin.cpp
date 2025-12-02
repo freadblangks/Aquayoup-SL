@@ -71,6 +71,7 @@ enum PaladinSpells
     SPELL_PALADIN_DIVINE_STORM_DAMAGE            = 224239,
     SPELL_PALADIN_ENDURING_LIGHT                 = 40471,
     SPELL_PALADIN_ENDURING_JUDGEMENT             = 40472,
+    SPELL_PALADIN_ETERNAL_FLAME                  = 156322,
     SPELL_PALADIN_EXECUTION_SENTENCE_DAMAGE      = 387113,
     SPELL_PALADIN_EXECUTION_SENTENCE_11_SECONDS  = 406919,
     SPELL_PALADIN_EXECUTION_SENTENCE_8_SECONDS   = 386579,
@@ -475,7 +476,12 @@ struct areatrigger_pal_consecration : AreaTriggerAI
     void OnUnitExit(Unit* unit, AreaTriggerExitReason /*reason*/) override
     {
         if (at->GetCasterGuid() == unit->GetGUID())
-            unit->RemoveAurasDueToSpell(SPELL_PALADIN_CONSECRATION_PROTECTION_AURA, at->GetCasterGuid());
+        {
+            if (Aura* existingAura = unit->GetAura(SPELL_PALADIN_CONSECRATION_PROTECTION_AURA, at->GetCasterGuid()))
+            {
+                existingAura->SetDuration(existingAura->GetDuration() + 4000);
+            }
+        }
 
         unit->RemoveAurasDueToSpell(SPELL_PALADIN_CONSECRATED_GROUND_SLOW, at->GetCasterGuid());
     }
@@ -699,6 +705,47 @@ class spell_pal_divine_storm : public SpellScript
     void Register() override
     {
         OnCast += SpellCastFn(spell_pal_divine_storm::HandleOnCast);
+    }
+};
+
+// 156322 - Eternal Flame
+class spell_pal_eternal_flame : public SpellScript
+{
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        return ValidateSpellEffect({ {spellInfo->Id, EFFECT_2} });
+    }
+
+    void CalculateHealing(SpellEffectInfo const& /*effectInfo*/, Unit* victim, int32& /*healing*/, int32& /*flatMod*/, float& pctMod)
+    {
+        Unit* caster = GetCaster();
+        if (victim == caster)
+            AddPct(pctMod, GetEffectInfo(EFFECT_2).CalcValue(caster));
+    }
+
+    void Register() override
+    {
+        CalcHealing += SpellCalcHealingFn(spell_pal_eternal_flame::CalculateHealing);
+    }
+};
+
+class spell_pal_eternal_flame_aura : public AuraScript
+{
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        return ValidateSpellEffect({ {spellInfo->Id, EFFECT_2} });
+    }
+
+    void CalculateHealing(AuraEffect const* /*aurEff*/, Unit* victim, int32& /*healing*/, int32& /*flatMod*/, float& pctMod)
+    {
+        Unit* caster = GetCaster();
+        if (victim == caster)
+            AddPct(pctMod, GetEffectInfo(EFFECT_2).CalcValue(caster));
+    }
+
+    void Register() override
+    {
+        DoEffectCalcDamageAndHealing += AuraEffectCalcHealingFn(spell_pal_eternal_flame_aura::CalculateHealing, EFFECT_0, SPELL_AURA_PERIODIC_HEAL);
     }
 };
 
@@ -1870,6 +1917,55 @@ class spell_pal_zeal : public AuraScript
     }
 };
 
+// 85043 - Grand Crusader
+class spell_pal_grand_crusader : public AuraScript
+{
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_PALADIN_AVENGERS_SHIELD });
+    }
+
+    bool CheckProc(ProcEventInfo& /*eventInfo*/)
+    {
+        return GetTarget()->GetTypeId() == TYPEID_PLAYER;
+    }
+
+    void HandleEffectProc(AuraEffect* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
+    {
+        GetTarget()->GetSpellHistory()->ResetCooldown(SPELL_PALADIN_AVENGERS_SHIELD, true);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_pal_grand_crusader::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_pal_grand_crusader::HandleEffectProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
+// 152261 - Holy Shield
+class spell_pal_holy_shield : public AuraScript
+{
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        if (eventInfo.GetHitMask() & PROC_HIT_BLOCK)
+            return true;
+
+        return false;
+    }
+
+    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
+    {
+        // Disable absorb (shitty blizzard)
+        amount = 0;
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_pal_holy_shield::CheckProc);
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_pal_holy_shield::CalculateAmount, EFFECT_2, SPELL_AURA_SCHOOL_ABSORB);
+    }
+};
+
 void AddSC_paladin_spell_scripts()
 {
     RegisterSpellScript(spell_pal_a_just_reward);
@@ -1890,6 +1986,7 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_divine_shield);
     RegisterSpellScript(spell_pal_divine_steed);
     RegisterSpellScript(spell_pal_divine_storm);
+    RegisterSpellAndAuraScriptPair(spell_pal_eternal_flame, spell_pal_eternal_flame_aura);
     RegisterSpellAndAuraScriptPair(spell_pal_execution_sentence, spell_pal_execution_sentence_aura);
     RegisterSpellScript(spell_pal_eye_for_an_eye);
     RegisterSpellScript(spell_pal_final_verdict);
@@ -1928,4 +2025,6 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_zeal);
 
     //new
+    RegisterSpellScript(spell_pal_grand_crusader);
+    RegisterSpellScript(spell_pal_holy_shield);
 }
