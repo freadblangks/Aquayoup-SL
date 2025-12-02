@@ -34,6 +34,7 @@
  */
 
 #include "catch2/catch_test_macros.hpp"
+#include "GameTime.h"
 #include "AI/BehaviorTree/BehaviorTree.h"
 #include "AI/BehaviorTree/BehaviorTreeFactory.h"
 #include "AI/HybridAIController.h"
@@ -111,12 +112,15 @@ TEST_CASE("Integration: Hybrid AI decision flow", "[integration][phase2][hybrid-
 
     SECTION("HybridAIController integrates Utility AI with BT execution")
     {
+        // DESIGN NOTE: Test stub implementation
         // HybridAIController would:
         // 1. Build context via UtilityContextBuilder
         // 2. Select behavior via UtilityAI scoring
         // 3. Get corresponding BT from factory
         // 4. Execute BT
-        REQUIRE(true); // Placeholder for integration verification
+        // This stub verifies test structure only, not actual integration logic
+        // Production implementation in: src/modules/Playerbot/AI/HybridAIController.cpp
+        REQUIRE(true);
     }
 }
 

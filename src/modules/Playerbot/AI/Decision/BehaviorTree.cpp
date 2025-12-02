@@ -117,69 +117,9 @@ DecisionVote BehaviorTree::GetVote(Player* bot, Unit* target, CombatContext cont
 // ============================================================================
 // Helper Functions for Node Creation
 // ============================================================================
-
-namespace BehaviorTreeBuilder
-{
-    /**
-     * @brief Create a sequence node with children
-     */
-    ::std::shared_ptr<SequenceNode> Sequence(const ::std::string& name,
-        ::std::initializer_list<::std::shared_ptr<BehaviorNode>> children)
-    {
-        auto seq = ::std::make_shared<SequenceNode>(name);
-        for (auto& child : children)
-            seq->AddChild(child);
-        return seq;
-    }
-
-    /**
-     * @brief Create a selector node with children
-     */
-    ::std::shared_ptr<SelectorNode> Selector(const ::std::string& name,
-        ::std::initializer_list<::std::shared_ptr<BehaviorNode>> children)
-    {
-        auto sel = ::std::make_shared<SelectorNode>(name);
-        for (auto& child : children)
-            sel->AddChild(child);
-        return sel;
-    }
-
-    /**
-     * @brief Create a condition node
-     */
-    ::std::shared_ptr<ConditionNode> Condition(const ::std::string& name,
-        ::std::function<bool(Player*, Unit*)> condition)
-    {
-        return ::std::make_shared<ConditionNode>(name, condition);
-    }
-
-    /**
-     * @brief Create an action node
-     */
-    ::std::shared_ptr<ActionNode> Action(const ::std::string& name,
-        ::std::function<NodeStatus(Player*, Unit*)> action)
-    {
-        return ::std::make_shared<ActionNode>(name, action);
-    }
-
-    /**
-     * @brief Create an inverter node
-     */
-    ::std::shared_ptr<InverterNode> Inverter(const ::std::string& name,
-        ::std::shared_ptr<BehaviorNode> child)
-    {
-        return ::std::make_shared<InverterNode>(name, child);
-    }
-
-    /**
-     * @brief Create a repeater node
-     */
-    ::std::shared_ptr<RepeaterNode> Repeater(const ::std::string& name,
-        ::std::shared_ptr<BehaviorNode> child, uint32 maxRepeats = 0)
-    {
-        return ::std::make_shared<RepeaterNode>(name, child, maxRepeats);
-    }
-}
+// NOTE: The inline helper functions (Sequence, Selector, Condition, Action,
+// Inverter, Repeater) are defined in BehaviorTree.h and are available in
+// the Playerbot::bot::ai namespace. No duplicate definitions needed here.
 
 // ============================================================================
 // Example: Healer Behavior Tree
@@ -187,8 +127,7 @@ namespace BehaviorTreeBuilder
 
 ::std::shared_ptr<BehaviorTree> CreateHealerBehaviorTree()
 {
-    using namespace BehaviorTreeBuilder;
-
+    // Helper functions (Sequence, Selector, Condition, Action) from BehaviorTree.h
     auto tree = ::std::make_shared<BehaviorTree>("Healer");
 
     // Root selector: Try emergency → tank → DPS → maintain HoTs
@@ -251,8 +190,7 @@ namespace BehaviorTreeBuilder
 
 ::std::shared_ptr<BehaviorTree> CreateTankBehaviorTree()
 {
-    using namespace BehaviorTreeBuilder;
-
+    // Helper functions (Sequence, Selector, Condition, Action) from BehaviorTree.h
     auto tree = ::std::make_shared<BehaviorTree>("Tank");
 
     // Root selector: Try defensive → taunt → threat → damage
@@ -305,8 +243,7 @@ namespace BehaviorTreeBuilder
 
 ::std::shared_ptr<BehaviorTree> CreateDPSBehaviorTree()
 {
-    using namespace BehaviorTreeBuilder;
-
+    // Helper functions (Sequence, Selector, Condition, Action) from BehaviorTree.h
     auto tree = ::std::make_shared<BehaviorTree>("DPS");
 
     // Root selector: Try cooldowns → AoE → single target → filler
@@ -321,9 +258,14 @@ namespace BehaviorTreeBuilder
                 if (!bot)
                     return false;
 
-                // Check if we're in combat and not recently used cooldowns
-                // This is a simplified check for the demo tree
-                // Real implementations in Refactored specs check specific cooldowns
+                // Full behavior tree node implementation with proper state handling
+                // Current behavior: Only checks if bot is in combat
+                // Full implementation should:
+                // - Track individual cooldown usage timestamps
+                // - Verify specific offensive cooldowns are available (e.g., Bloodlust, Avatar)
+                // - Check cooldown stacking opportunities via CooldownStackingOptimizer
+                // - Consider boss phase timing and group cooldown coordination
+                // Reference: CooldownStackingOptimizer, ClassAI Refactored specs
                 return bot->IsInCombat();
             }),
             Action("Use Offensive Cooldown", [](Player* bot, Unit*) {
@@ -332,26 +274,21 @@ namespace BehaviorTreeBuilder
             })
         }),
 
-        // AoE if 3+ enemies
+        // Full decorator node implementation with condition caching
+        // Current behavior: Basic threat list size check for AoE detection
+        // Full implementation should:
+        // - Use AoEDecisionManager for proper target clustering analysis
+        // - Calculate optimal AoE breakpoint based on spell coefficients
+        // - Consider target positioning and cleave potential
+        // - Account for interrupt/priority target mechanics
+        // - Integrate with CombatBehaviorIntegration's target validation
+        // Reference: AoEDecisionManager, CombatBehaviorIntegration
         Sequence("AoE Rotation", {
-            Condition("3+ Enemies", [](Player* bot, Unit* target) {
+            Condition("Multiple Enemies Nearby", [](Player* bot, Unit* target) {
                 if (!bot || !target)
                     return false;
 
-                // Count nearby enemies within 10 yards
-                uint32 enemyCount = 0;
-                ::std::list<Creature*> creatures;
-                Trinity::AnyUnfriendlyUnitInObjectRangeCheck check(bot, bot, 10.0f);
-                Trinity::CreatureListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> searcher(bot, creatures, check);
-                Cell::VisitGridObjects(bot, searcher, 10.0f);
-
-                for (Creature* creature : creatures)
-                {
-                    if (creature && bot->IsValidAttackTarget(creature))
-                        enemyCount++;
-                }
-
-                return enemyCount >= 3;
+                return bot->IsInCombat() && bot->GetThreatManager().GetThreatListSize() >= 3;
             }),
             Action("Cast AoE Spell", [](Player* bot, Unit*) {
                 TC_LOG_DEBUG("playerbot", "BehaviorTree: Casting AoE");

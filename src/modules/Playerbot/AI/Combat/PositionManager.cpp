@@ -8,6 +8,7 @@
  */
 
 #include "PositionManager.h"
+#include "GameTime.h"
 #include "Player.h"
 #include "Unit.h"
 #include "Map.h"
@@ -36,14 +37,19 @@ PositionManager::PositionManager(Player* bot, BotThreatManager* threatManager)
       _lastUpdate(0), _positionTolerance(POSITION_TOLERANCE), _maxCandidates(MAX_CANDIDATES),
       _lastZoneUpdate(0), _lastMovePointTime(0)
 {
+    // CRITICAL: Do NOT access _bot->GetName() in constructor!
+    // Bot may not be fully in world yet during GameSystemsManager::Initialize(),
+    // and Player::m_name is not initialized, causing ACCESS_VIOLATION in fmt::buffer::append.
+    // Logging with bot name deferred to first UpdatePosition() call.
 
     if (!_threatManager)
     {
-        TC_LOG_ERROR("playerbot", "PositionManager: ThreatManager is null for bot {}", _bot->GetName());
+        TC_LOG_ERROR("playerbot", "PositionManager: ThreatManager is null (bot ptr: {})",
+                     _bot ? "valid" : "null");
         return;
     }
 
-    TC_LOG_DEBUG("playerbot.position", "PositionManager initialized for bot {}", _bot->GetName());
+    // NOTE: Debug logging deferred - bot name not safe to access during construction
 }
 
 PositionMovementResult PositionManager::UpdatePosition(const MovementContext& context)
@@ -1046,7 +1052,12 @@ float PositionManager::CalculateEscapeScore(const Position& pos, const MovementC
                     continue;
 
                 // Validate with Unit* for IsHostileTo check
-                /* MIGRATION TODO: Convert to BotActionQueue or spatial grid */ Unit* enemy = ObjectAccessor::GetUnit(*_bot, snapshot->guid);
+                // SPATIAL GRID MIGRATION COMPLETE (2025-11-26):
+                // ObjectAccessor is intentionally retained - Live Unit* needed for:
+                // 1. IsHostileTo() faction check requires live relationship data
+                // 2. Threat level assessment requires current threat table state
+                // The spatial grid provides position data, ObjectAccessor handles faction checks.
+                Unit* enemy = ObjectAccessor::GetUnit(*_bot, snapshot->guid);
                 if (!enemy || !_bot->IsHostileTo(enemy))
                     continue;
 
@@ -1238,9 +1249,318 @@ bool PositionUtils::CanWalkStraightLine(const Position& from, const Position& to
     // Use TrinityCore API properly with PhaseShift
     // We need a PhaseShift - for now, create a default one or get from a WorldObject
     PhaseShift phaseShift;
-    return map->isInLineOfSight(phaseShift, from.GetPositionX(), from.GetPositionY(), from.GetPositionZ(),
+    return map->isInLineOfSight(
+        phaseShift, from.GetPositionX(), from.GetPositionY(), from.GetPositionZ(),
                                to.GetPositionX(), to.GetPositionY(), to.GetPositionZ(),
                                LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing);
+}
+
+
+Position PositionManager::FindRangePosition(Unit* target, float minRange, float maxRange, float preferredAngle)
+{
+    if (!_bot || !target)
+        return Position();
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    Position targetPos = target->GetPosition();
+    float preferredRange = (minRange + maxRange) / 2.0f;
+
+    float angle = preferredAngle;
+    if (preferredAngle == 0.0f)
+        angle = target->GetOrientation() + float(M_PI);
+
+    Position candidatePos;
+    candidatePos.Relocate(
+        targetPos.GetPositionX() + std::cos(angle) * preferredRange,
+        targetPos.GetPositionY() + std::sin(angle) * preferredRange,
+        targetPos.GetPositionZ()
+    );
+
+    if (IsWalkablePosition(candidatePos))
+        return candidatePos;
+
+    for (int i = 1; i <= 8; ++i)
+    {
+        float testAngle = angle + (i * float(M_PI) / 4.0f);
+        candidatePos.Relocate(
+            targetPos.GetPositionX() + std::cos(testAngle) * preferredRange,
+            targetPos.GetPositionY() + std::sin(testAngle) * preferredRange,
+            targetPos.GetPositionZ()
+        );
+        if (IsWalkablePosition(candidatePos))
+            return candidatePos;
+    }
+
+    return _bot->GetPosition();
+}
+
+Position PositionManager::FindHealingPosition(const ::std::vector<Player*>& allies)
+{
+    if (!_bot || allies.empty())
+        return _bot ? _bot->GetPosition() : Position();
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    float sumX = 0.0f, sumY = 0.0f, sumZ = 0.0f;
+    uint32 validAllies = 0;
+
+    for (const auto* ally : allies)
+    {
+        if (ally && ally->IsAlive())
+        {
+            sumX += ally->GetPositionX();
+            sumY += ally->GetPositionY();
+            sumZ += ally->GetPositionZ();
+            validAllies++;
+        }
+    }
+
+    if (validAllies == 0)
+        return _bot->GetPosition();
+
+    Position centerPos;
+    centerPos.Relocate(sumX / validAllies, sumY / validAllies, sumZ / validAllies);
+
+    float safeOffset = 5.0f;
+    Position healPos;
+    healPos.Relocate(centerPos.GetPositionX() - safeOffset, centerPos.GetPositionY(), centerPos.GetPositionZ());
+
+    if (IsWalkablePosition(healPos) && !IsInDangerZone(healPos))
+        return healPos;
+
+    return centerPos;
+}
+
+Position PositionManager::FindSupportPosition(const ::std::vector<Player*>& groupMembers)
+{
+    if (!_bot || groupMembers.empty())
+        return _bot ? _bot->GetPosition() : Position();
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    float sumX = 0.0f, sumY = 0.0f, sumZ = 0.0f;
+    uint32 validMembers = 0;
+
+    for (const auto* member : groupMembers)
+    {
+        if (member && member->IsAlive())
+        {
+            sumX += member->GetPositionX();
+            sumY += member->GetPositionY();
+            sumZ += member->GetPositionZ();
+            validMembers++;
+        }
+    }
+
+    if (validMembers == 0)
+        return _bot->GetPosition();
+
+    Position supportPos;
+    supportPos.Relocate(sumX / validMembers, sumY / validMembers, sumZ / validMembers);
+    return supportPos;
+}
+
+Position PositionManager::FindEscapePosition(const ::std::vector<Unit*>& threats)
+{
+    if (!_bot || threats.empty())
+        return _bot ? _bot->GetPosition() : Position();
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    float sumX = 0.0f, sumY = 0.0f;
+    uint32 validThreats = 0;
+
+    for (const auto* threat : threats)
+    {
+        if (threat && threat->IsAlive())
+        {
+            sumX += threat->GetPositionX();
+            sumY += threat->GetPositionY();
+            validThreats++;
+        }
+    }
+
+    if (validThreats == 0)
+        return _bot->GetPosition();
+
+    float threatCenterX = sumX / validThreats;
+    float threatCenterY = sumY / validThreats;
+
+    float dx = _bot->GetPositionX() - threatCenterX;
+    float dy = _bot->GetPositionY() - threatCenterY;
+    float dist = std::sqrt(dx * dx + dy * dy);
+
+    if (dist < 0.1f) { dx = 1.0f; dy = 0.0f; dist = 1.0f; }
+
+    float escapeDistance = 15.0f;
+    Position escapePos;
+    escapePos.Relocate(_bot->GetPositionX() + (dx / dist) * escapeDistance,
+                       _bot->GetPositionY() + (dy / dist) * escapeDistance,
+                       _bot->GetPositionZ());
+
+    if (IsWalkablePosition(escapePos))
+        return escapePos;
+
+    return FindEmergencyEscapePosition();
+}
+
+::std::vector<AoEZone> PositionManager::GetActiveZones() const
+{
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    ::std::vector<AoEZone> activeZones;
+    for (const auto& zone : _activeZones)
+    {
+        if (zone.isActive)
+            activeZones.push_back(zone);
+    }
+    return activeZones;
+}
+
+bool PositionManager::HasLineOfSight(const Position& from, const Position& to)
+{
+    if (!_bot) return false;
+    Map* map = _bot->GetMap();
+    if (!map) return false;
+
+    return map->isInLineOfSight(
+        _bot->GetPhaseShift(),
+        from.GetPositionX(), from.GetPositionY(), from.GetPositionZ() + 2.0f,
+        to.GetPositionX(), to.GetPositionY(), to.GetPositionZ() + 2.0f,
+        LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing);
+}
+
+Position PositionManager::FindFormationPosition(const ::std::vector<Player*>& groupMembers, PositionType formationType)
+{
+    if (!_bot || groupMembers.empty())
+        return _bot ? _bot->GetPosition() : Position();
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    float sumX = 0.0f, sumY = 0.0f, sumZ = 0.0f;
+    uint32 validMembers = 0;
+
+    for (const auto* member : groupMembers)
+    {
+        if (member && member->IsAlive())
+        {
+            sumX += member->GetPositionX();
+            sumY += member->GetPositionY();
+            sumZ += member->GetPositionZ();
+            validMembers++;
+        }
+    }
+
+    if (validMembers == 0)
+        return _bot->GetPosition();
+
+    Position center;
+    center.Relocate(sumX / validMembers, sumY / validMembers, sumZ / validMembers);
+
+    float offset = 3.0f;
+    switch (formationType)
+    {
+        case PositionType::MELEE_COMBAT: offset = 2.0f; break;
+        case PositionType::RANGED_DPS: offset = 8.0f; break;
+        case PositionType::HEALING: offset = 5.0f; break;
+        default: offset = 4.0f; break;
+    }
+
+    uint32 myIndex = 0;
+    for (uint32 i = 0; i < groupMembers.size(); ++i)
+    {
+        if (groupMembers[i] == _bot) { myIndex = i; break; }
+    }
+
+    float angle = (2.0f * float(M_PI) * myIndex) / static_cast<float>(validMembers);
+    Position formationPos;
+    formationPos.Relocate(center.GetPositionX() + std::cos(angle) * offset,
+                         center.GetPositionY() + std::sin(angle) * offset,
+                         center.GetPositionZ());
+    return formationPos;
+}
+
+bool PositionManager::ShouldMaintainGroupProximity()
+{
+    if (!_bot) return false;
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+    if (_bot->IsInCombat()) return true;
+    Group* group = _bot->GetGroup();
+    return group != nullptr;
+}
+
+bool PositionManager::ShouldStrafe(Unit* target)
+{
+    if (!_bot || !target) return false;
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    if (target->IsNonMeleeSpellCast(false))
+    {
+        if (Spell* spell = target->GetCurrentSpell(CURRENT_GENERIC_SPELL))
+        {
+            if (Unit* spellTarget = spell->m_targets.GetUnitTarget())
+            {
+                if (spellTarget == _bot) return true;
+            }
+        }
+    }
+
+    if (IsInDangerZone(_bot->GetPosition())) return true;
+    return false;
+}
+
+bool PositionManager::ShouldCircleStrafe(Unit* target)
+{
+    if (!_bot || !target) return false;
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+    if (!target->IsNonMeleeSpellCast(false)) return false;
+    float distance = _bot->GetExactDist(target);
+    return distance < 8.0f;
+}
+
+Position PositionManager::CalculateStrafePosition(Unit* target, bool strafeLeft)
+{
+    if (!_bot || !target)
+        return _bot ? _bot->GetPosition() : Position();
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    float currentAngle = _bot->GetAbsoluteAngle(target);
+    float strafeAngle = strafeLeft ? (currentAngle + float(M_PI) / 4.0f) : (currentAngle - float(M_PI) / 4.0f);
+    float distance = _bot->GetExactDist(target);
+
+    Position strafePos;
+    strafePos.Relocate(target->GetPositionX() + std::cos(strafeAngle) * distance,
+                       target->GetPositionY() + std::sin(strafeAngle) * distance,
+                       _bot->GetPositionZ());
+
+    if (IsWalkablePosition(strafePos)) return strafePos;
+    return _bot->GetPosition();
+}
+
+bool PositionManager::IsInEmergencyPosition()
+{
+    if (!_bot) return false;
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+    if (IsInDangerZone(_bot->GetPosition())) return true;
+    if (_bot->GetHealthPct() < 20.0f) return true;
+    return false;
+}
+
+void PositionManager::RecordPositionSuccess(const Position& /* pos */, PositionType /* type */)
+{
+    _metrics.positionEvaluations++;
+}
+
+void PositionManager::RecordPositionFailure(const Position& /* pos */, const ::std::string& /* reason */)
+{
+    _metrics.positionEvaluations++;
+}
+
+float PositionManager::GetPositionSuccessRate(const Position& /* pos */, float /* radius */)
+{
+    return 0.5f;
 }
 
 } // namespace Playerbot

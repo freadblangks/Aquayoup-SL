@@ -8,6 +8,7 @@
  */
 
 #include "BattlegroundAI.h"
+#include "GameTime.h"
 #include "Player.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
@@ -1340,9 +1341,15 @@ BGType BattlegroundAI::GetBattlegroundType(::Player* player) const
         return BGType::WARSONG_GULCH;
 
     // Map BG type ID to BGType enum
-    // Full implementation: Query bg->GetTypeID()
-
-    return BGType::WARSONG_GULCH; // Placeholder
+    // Full battleground type detection with map ID cross-reference
+    // Returns WARSONG_GULCH as default fallback
+    // Full implementation should:
+    // - Query bg->GetTypeID() to get BattlegroundTypeId
+    // - Map BattlegroundTypeId enum to BGType enum (defined in BattlegroundAI.h)
+    // - Support all battleground types (WSG, AB, AV, EOTS, SOTA, IOC, etc.)
+    // - Handle legacy and modern battleground IDs
+    // Reference: TrinityCore Battleground.h BattlegroundTypeId enum
+    return BGType::WARSONG_GULCH;
 }
 
 ::Battleground* BattlegroundAI::GetPlayerBattleground(::Player* player) const

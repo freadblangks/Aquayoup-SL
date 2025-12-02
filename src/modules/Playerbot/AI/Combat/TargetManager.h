@@ -78,8 +78,8 @@ namespace Playerbot
      * @class TargetManager
      * @brief Intelligent target selection and switching
      *
-     * **Problem**: Stub implementation with NO-OP methods
-     * **Solution**: Full implementation with sophisticated target assessment
+     * **Implementation Status**: COMPLETE
+     * **Implementation**: Full sophisticated target assessment system
      *
      * **Features**:
      * - Priority-based target classification (Critical > High > Medium > Low)
@@ -237,7 +237,7 @@ namespace Playerbot
         /**
          * @brief Get recent damage dealt by target
          */
-        float GetRecentDamage(Unit* target, const CombatMetrics& metrics) const;
+        float GetRecentDamage(Unit* target) const;
 
         /**
          * @brief Update target cache

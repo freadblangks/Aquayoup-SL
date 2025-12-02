@@ -151,8 +151,12 @@ public:
         , _targetManager(botPtr)
         // Phase 5D: Target selection
         , _crowdControlManager(botPtr)      // Phase 5D: CC coordination
+        , _resourceInitialized(false)
     {
-        InitializeResource();
+        // CRITICAL: Do NOT call InitializeResource() here!
+        // During bot constructor chain, Player power systems are NOT initialized.
+        // Calling GetMaxPower()/GetPower() causes ACCESS_VIOLATION crash.
+        // Resource initialization is deferred to first UpdateCooldowns() when bot IsInWorld().
     }
 
     virtual ~CombatSpecializationTemplate() = default;
@@ -172,6 +176,14 @@ protected:
      */
     void UpdateCooldowns(uint32 diff) final override
     {
+        // CRITICAL: Deferred resource initialization - bot's power systems must be ready
+        // Before calling GetMaxPower()/GetPower() in complex resource Initialize() methods
+        if (!_resourceInitialized && GetBot() && GetBot()->IsInWorld())
+        {
+            InitializeResource();
+            _resourceInitialized = true;
+        }
+
         // Thread-safe cooldown update
         ::std::lock_guard lock(_cooldownMutex);
 
@@ -285,7 +297,8 @@ protected:
         ClassAI::OnCombatStart(target);
 
         _combatStartTime = GameTime::GetGameTimeMS();
-        _currentTarget = target;        _consecutiveFailedCasts = 0;
+        _currentTarget = target;
+        _consecutiveFailedCasts = 0;
 
         // Reset performance metrics for this combat
         _performanceMetrics.combatStartTime = ::std::chrono::steady_clock::now();
@@ -392,14 +405,16 @@ protected:
      *
      * Example usage in rotation:
      * @code
-     * void UpdateRotation(::Unit* target) override {
+     * void UpdateRotation(::Unit* target) override
+     {
      *     CombatSituation situation{};
      *     situation.enemyCount = GetEnemiesInRange(10.0f);
      *     situation.inMelee = GetBot()->GetDistance(target) <= 5.0f;
      *
      *     GetMovementIntegration().Update(diff, situation);
      *
-     *     if (GetMovementIntegration().NeedsEmergencyMovement()) {
+     *     if (GetMovementIntegration().NeedsEmergencyMovement())
+     {
      *         Position safePos = GetMovementIntegration().GetOptimalPosition();
      *         MoveTo(safePos);
      *     }
@@ -415,7 +430,8 @@ protected:
      * Example usage:
      * @code
      * ::Unit* target = GetTargetManager().SelectBestTarget();
-     * if (target && ShouldSwitchTarget(target)) {
+     * if (target && ShouldSwitchTarget(target))
+     {
      *     SetTarget(target->GetGUID());
      * }
      * @endcode
@@ -430,7 +446,8 @@ protected:
      * @code
      * if (enemyCount >= 3) {
      *     ::Unit* ccTarget = GetCrowdControlManager().GetBestCCTarget();
-     *     if (ccTarget && !GetCrowdControlManager().HasDiminishingReturns(ccTarget, MECHANIC_POLYMORPH)) {
+     *     if (ccTarget && !GetCrowdControlManager().HasDiminishingReturns(ccTarget, MECHANIC_POLYMORPH))
+     {
      *         CastSpell(ccTarget, POLYMORPH);
      *         GetCrowdControlManager().ApplyCrowdControl(ccTarget, MECHANIC_POLYMORPH, 8000);
      *     }
@@ -620,7 +637,8 @@ protected:
         Trinity::AnyUnfriendlyUnitInObjectRangeCheck u_check(bot, bot, range);
         Trinity::UnitListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> searcher(bot, targets, u_check);
         // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitAllObjects
-        Map* map = bot->GetMap();        if (map)
+        Map* map = bot->GetMap();
+        if (map)
         {
 
             auto* spatialGrid = Playerbot::SpatialGridManager::Instance().GetGrid(map);
@@ -707,6 +725,9 @@ protected:
     // Smart target selection and switching
     CrowdControlManager _crowdControlManager;       // CC coordination and DR tracking
 
+    // Deferred initialization flag (power systems not ready during constructor)
+    bool _resourceInitialized;
+
     // Constants
     static constexpr uint32 GLOBAL_COOLDOWN_MS = 1500;
     static constexpr uint32 MAX_FAILED_CASTS = 5;
@@ -723,7 +744,8 @@ protected:
 template<typename ResourceType>    requires ValidResource<ResourceType>
 class MeleeDpsSpecialization : public CombatSpecializationTemplate<ResourceType>
 {
-public:    explicit MeleeDpsSpecialization(Player* bot)        : CombatSpecializationTemplate<ResourceType>(bot)    {
+public:    explicit MeleeDpsSpecialization(Player* bot)        : CombatSpecializationTemplate<ResourceType>(bot)
+{
     }
 
     float GetOptimalRange(::Unit* target) override final
@@ -1053,7 +1075,8 @@ protected:
      *
      * Example usage in tank spec:
      * @code
-     * void UpdateRotation(::Unit* target) override {
+     * void UpdateRotation(::Unit* target) override
+     {
      *     // Create combat metrics
      *     CombatMetrics metrics{};
      *     metrics.damageTaken = CalculateRecentDamage();
@@ -1116,7 +1139,8 @@ protected:
      *
      * Call this in your tank spec constructor to register your defensives:
      * @code
-     * ProtectionWarriorRefactored(Player* bot) : TankSpecialization(bot) {
+     * ProtectionWarriorRefactored(Player* bot) : TankSpecialization(bot)
+     {
      *     // Register warrior defensives
      *     GetDefensiveManager().RegisterDefensive(DefensiveCooldown(
      *         SHIELD_WALL, 0.4f, 8000, 240000, DefensivePriority::HIGH));

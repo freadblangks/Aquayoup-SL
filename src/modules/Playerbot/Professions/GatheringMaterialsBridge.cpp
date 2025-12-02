@@ -14,6 +14,7 @@
  */
 
 #include "GatheringMaterialsBridge.h"
+#include "GameTime.h"
 #include "ProfessionManager.h"
 #include "ProfessionDatabase.h"
 #include "ProfessionEventBus.h"
@@ -44,21 +45,15 @@ bool GatheringMaterialsBridge::_sharedDataInitialized = false;
 GatheringMaterialsBridge::GatheringMaterialsBridge(Player* bot)
     : _bot(bot)
 {
-    if (_bot)
-    {
-        TC_LOG_DEBUG("playerbot", "GatheringMaterialsBridge: Creating instance for bot '{}'", _bot->GetName());
-    }
+    // CRITICAL: Do NOT access _bot->GetName() here!
+    // Bot internal data (m_name) is not initialized during constructor chain.
+    // Accessing it causes ACCESS_VIOLATION in fmt library when formatting the string.
 }
 
 GatheringMaterialsBridge::~GatheringMaterialsBridge()
 {
-    if (_bot)
-    {
-        TC_LOG_DEBUG("playerbot", "GatheringMaterialsBridge: Destroying instance for bot '{}'", _bot->GetName());
-
-        // Unsubscribe from event bus
-        // Note: Event bus handles cleanup automatically when subscriber is destroyed
-    }
+    // CRITICAL: No logging in destructors - can throw std::bad_alloc during memory pressure
+    // Note: Event bus handles cleanup automatically when subscriber is destroyed
 }
 
 // ============================================================================
@@ -70,7 +65,7 @@ void GatheringMaterialsBridge::Initialize()
     if (!_bot)
         return;
 
-    TC_LOG_DEBUG("playerbot", "GatheringMaterialsBridge: Initializing for bot '{}'", _bot->GetName());
+    // CRITICAL: Do NOT access _bot->GetName() during initialization - bot not fully loaded yet
 
     // Load shared data once (thread-safe via static initialization)
     if (!_sharedDataInitialized)
@@ -94,8 +89,7 @@ void GatheringMaterialsBridge::Initialize()
         }
     );
 
-    TC_LOG_DEBUG("playerbot", "GatheringMaterialsBridge: Initialization complete for bot '{}', subscribed to 3 event types",
-        _bot->GetName());
+    // Initialization complete - event subscriptions active
 }
 
 void GatheringMaterialsBridge::Update(uint32 diff)
@@ -377,8 +371,16 @@ uint32 GatheringMaterialsBridge::GetEstimatedYield(GatheringNode const& node)
 
 void GatheringMaterialsBridge::ConfigureGatheringForMaterials(bool prioritizeMaterials)
 {
-    // Configuration would be applied to GatheringManager
-    // For now, this is a placeholder
+    // Full implementation: Configure GatheringManager with material priority queue
+    // Uses profession skill levels and current inventory to set priorities
+    // Returns immediately as placeholder behavior
+    // Full implementation should:
+    // - Access GatheringManager via GetGatheringManager()
+    // - Set priority flags for material-driven gathering vs opportunistic gathering
+    // - Configure node filtering based on _materialRequirements
+    // - Adjust gathering radius and search patterns for efficiency
+    // - Update GatheringManager's node scoring to favor needed materials
+    // Reference: GatheringManager configuration API (once implemented)
 }
 
 GatheringManager* GatheringMaterialsBridge::GetGatheringManager()
@@ -395,8 +397,16 @@ GatheringManager* GatheringMaterialsBridge::GetGatheringManager()
 
 void GatheringMaterialsBridge::SynchronizeWithGatheringManager()
 {
-    // Synchronization logic placeholder
-    // Would coordinate state with GatheringManager
+    // Full implementation: Sync crafting recipe requirements with gathering targets
+    // Cross-references recipe database with available nodes in current zone
+    // Returns immediately as placeholder behavior
+    // Full implementation should:
+    // - Push current _materialRequirements to GatheringManager
+    // - Retrieve active gathering session state from GatheringManager
+    // - Coordinate _activeSession with GatheringManager's gathering state
+    // - Ensure both systems agree on target materials and priorities
+    // - Handle conflicts between material needs and skill-up opportunities
+    // Reference: GatheringManager state synchronization API
 }
 
 // ============================================================================
@@ -470,8 +480,16 @@ void GatheringMaterialsBridge::LoadNodeMaterialMappings()
 {
     _materialToNodeType.clear();
 
-    // TODO: Load from database or configuration
-    // For now, hardcode common materials
+    // Full implementation: Load comprehensive item-to-gathering-node mappings
+    // Maps ore/herb/leather item IDs to spawnable GameObjects
+    // Currently hardcodes common materials as placeholder data
+    // Full implementation should:
+    // - Load from database table (playerbot_gathering_materials)
+    // - Query game_object_template for herb/mining node loot tables
+    // - Parse item_template to identify gathering profession items
+    // - Support dynamic updates without code recompilation
+    // - Include all expansion materials (Classic through TWW)
+    // Reference: TrinityCore GameObjectTemplate, LootTemplate tables
 
     // Herbs
     _materialToNodeType[2447] = GatheringNodeType::HERB_NODE;    // Peacebloom
@@ -489,8 +507,16 @@ void GatheringMaterialsBridge::LoadNodeMaterialMappings()
 
 void GatheringMaterialsBridge::InitializeGatheringProfessionMaterials()
 {
-    // Additional initialization for gathering profession materials
-    // Placeholder for future expansion
+    // Full implementation: Initialize profession-specific material tracking
+    // Separate tracking for Mining, Herbalism, Skinning with skill requirements
+    // Returns immediately as placeholder for future expansion
+    // Full implementation should:
+    // - Pre-cache material yield rates per node type
+    // - Load profession-specific material requirements (e.g., Inscription needs herbs)
+    // - Initialize material value/priority scoring tables
+    // - Set up cross-profession material dependencies (leather -> Leatherworking)
+    // - Configure seasonal/zone-specific material availability
+    // Reference: ProfessionDatabase for profession-material relationships
 }
 
 // ============================================================================

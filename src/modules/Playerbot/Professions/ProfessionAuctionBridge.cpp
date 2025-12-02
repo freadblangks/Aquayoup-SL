@@ -34,7 +34,8 @@ namespace Playerbot
 // ============================================================================
 
 // NOTE: AuctionHouse is now per-bot (Phase 7), access via GetGameSystems(_bot)->GetAuctionHouse()
-// Removed: AuctionHouse* ProfessionAuctionBridge::_auctionHouse = nullptr;
+// Temporary: Re-enabled for linker compatibility until full refactoring is complete
+AuctionHouse* ProfessionAuctionBridge::_auctionHouse = nullptr;
 ProfessionAuctionStatistics ProfessionAuctionBridge::_globalStatistics;
 bool ProfessionAuctionBridge::_sharedDataInitialized = false;
 
@@ -45,18 +46,15 @@ bool ProfessionAuctionBridge::_sharedDataInitialized = false;
 ProfessionAuctionBridge::ProfessionAuctionBridge(Player* bot)
     : _bot(bot)
 {
-    if (_bot)
-    {
-        TC_LOG_DEBUG("playerbot", "ProfessionAuctionBridge: Creating instance for bot '{}'", _bot->GetName());
-    }
+    // CRITICAL: Do NOT call _bot->GetName() in constructor!
+    // Bot may not be fully in world yet during GameSystemsManager::Initialize(),
+    // and Player::m_name is not initialized, causing ACCESS_VIOLATION.
+    // Logging with bot identity deferred to first Update() call.
 }
 
 ProfessionAuctionBridge::~ProfessionAuctionBridge()
 {
-    if (_bot)
-    {
-        TC_LOG_DEBUG("playerbot", "ProfessionAuctionBridge: Destroying instance for bot '{}'", _bot->GetName());
-    }
+    // CRITICAL: No logging in destructors - can throw std::bad_alloc during memory pressure
     // Event bus unsubscription handled automatically by ProfessionEventBus
 }
 
@@ -90,7 +88,10 @@ void ProfessionAuctionBridge::Initialize()
         }
     );
 
-    TC_LOG_DEBUG("playerbot", "ProfessionAuctionBridge: Initialized for bot '{}', subscribed to 2 event types", _bot->GetName());
+    // CRITICAL: Do NOT call _bot->GetName() in Initialize()!
+    // Bot may not be fully in world yet during GameSystemsManager::Initialize(),
+    // and Player::m_name is not initialized, causing ACCESS_VIOLATION.
+    // Logging with bot identity deferred to first Update() call.
 }
 
 void ProfessionAuctionBridge::Update(::Player* player, uint32 diff)
@@ -929,6 +930,20 @@ void ProfessionAuctionBridge::HandleProfessionEvent(ProfessionEvent const& event
             // Ignore other event types
             break;
     }
+}
+
+ProfessionAuctionStatistics const& ProfessionAuctionBridge::GetPlayerStatistics(uint32 playerGuid) const
+{
+    // Since this is now per-bot instance, return the bot's statistics
+    // The playerGuid parameter is for interface compatibility but we use _bot's stats
+    if (!_bot)
+    {
+        TC_LOG_ERROR("playerbot.professionauction", "ProfessionAuctionBridge::GetPlayerStatistics: null bot!");
+        return _globalStatistics; // Return global stats as fallback
+    }
+
+    // Return bot's local statistics
+    return _statistics;
 }
 
 } // namespace Playerbot

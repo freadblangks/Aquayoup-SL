@@ -112,14 +112,16 @@ struct ManaAstralPowerResource
     uint32 maxAstralPower{100};
 
     bool available{true};
-    bool Consume(uint32 manaCost) {
+    bool Consume(uint32 manaCost)
+    {
         if (mana >= manaCost) {
             mana -= manaCost;
             return true;
         }
         return false;
     }
-    void Regenerate(uint32 diff) {
+    void Regenerate(uint32 diff)
+    {
         // Resource regeneration logic (simplified)
         available = true;
     }
@@ -133,12 +135,28 @@ struct ManaAstralPowerResource
     }
 
 
-    void Initialize(Player* bot) {
-        if (bot) {
-            maxMana = bot->GetMaxPower(POWER_MANA);
-            mana = bot->GetPower(POWER_MANA);        }
+    void Initialize(Player* bot)
+    {
+        // CRITICAL: Do NOT call bot->GetMaxPower() or bot->GetPower() here!
+        // This is called from constructor before bot is fully in world.
+        // Mana values will be fetched lazily in GetCurrent()/GetMax() or
+        // on first Update() when bot->IsInWorld() returns true.
         astralPower = 0;
+        _initialized = false;
     }
+
+    void DeferredInitialize(Player* bot)
+    {
+        if (bot && bot->IsInWorld() && !_initialized)
+        {
+            maxMana = bot->GetMaxPower(POWER_MANA);
+            mana = bot->GetPower(POWER_MANA);
+            _initialized = true;
+        }
+    }
+
+private:
+    bool _initialized = false;
 };
 
 // ============================================================================
@@ -293,23 +311,29 @@ public:
     using Base::CanCastSpell;
     using Base::_resource;
     explicit BalanceDruidRefactored(Player* bot)        : RangedDpsSpecialization<ManaAstralPowerResource>(bot)
-        
+
         , _eclipseTracker()
         , _dotTracker()
         , _starfallActive(false)
         , _starfallEndTime(0)
         , _shootingStarsProc(false)
-    {        // Initialize mana/astral power resources
+    {
+        // CRITICAL: Do NOT call bot->GetMaxPower(), bot->GetPower(), or bot->GetName() here!
+        // Bot is not fully in world during constructor. Resource initialization deferred
+        // to first UpdateRotation() call via DeferredInitialize().
         this->_resource.Initialize(bot);
-        TC_LOG_DEBUG("playerbot", "BalanceDruidRefactored initialized for {}", bot->GetName());
 
         // Phase 5: Initialize decision systems
         InitializeBalanceMechanics();
     }
 
-    void UpdateRotation(::Unit* target) override    {
+    void UpdateRotation(::Unit* target) override
+    {
         if (!target || !target->IsAlive() || !target->IsHostileTo(this->GetBot()))
             return;
+
+        // Deferred initialization of mana resources (safe now that bot is in world)
+        this->_resource.DeferredInitialize(this->GetBot());
 
         // Update Balance state
         UpdateBalanceState(target);
@@ -345,7 +369,8 @@ public:
 protected:
     void ExecuteSingleTargetRotation(::Unit* target)
     {
-        ObjectGuid targetGuid = target->GetGUID();        uint32 ap = this->_resource.astralPower;
+        ObjectGuid targetGuid = target->GetGUID();
+        uint32 ap = this->_resource.astralPower;
 
         // Priority 1: Use Shooting Stars proc (free Starsurge)
         if (_shootingStarsProc && this->CanCastSpell(STARSURGE, target))

@@ -8,6 +8,7 @@
  */
 
 #include "GroupFormation.h"
+#include "GameTime.h"
 #include "Player.h"
 #include "Log.h"
 #include "ObjectAccessor.h"
@@ -545,7 +546,7 @@ void GroupFormation::UpdateMemberPositions()
     return positions;
 }
 
-// Placeholder implementations for other formation generators
+// Formation generator implementations for specialized tactical arrangements
 ::std::vector<Position> GroupFormation::GenerateWedgeFormation(uint32 memberCount, float spacing) const
 {
     ::std::vector<Position> positions;

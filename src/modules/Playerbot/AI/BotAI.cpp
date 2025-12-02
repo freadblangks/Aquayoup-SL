@@ -11,6 +11,7 @@
  */
 
 #include "BotAI.h"
+#include "GameTime.h"
 #include "Core/Managers/GameSystemsManager.h"
 #include "Advanced/TacticalCoordinator.h"
 #include "Strategy/Strategy.h"
@@ -41,6 +42,7 @@
 #include "Timer.h"
 #include "DatabaseEnv.h"
 #include "QueryResult.h"
+#include "Core/PlayerBotHooks.h"
 #include <chrono>
 #include <set>
 #include <unordered_map>
@@ -74,11 +76,14 @@ BotAI::BotAI(Player* bot) : _bot(bot)
     _gameSystems = std::make_unique<GameSystemsManager>(_bot, this);
     _gameSystems->Initialize(_bot);
 
-    TC_LOG_INFO("module.playerbot", "📋 GAME SYSTEMS FACADE: {} - All 17 managers initialized via facade",
-                _bot->GetName());
+    // CRITICAL: Do NOT access _bot->GetName() in constructor - bot data not initialized yet
 
     // Phase 4: Initialize Shared Blackboard (thread-safe shared state system)
-    _sharedBlackboard = BlackboardManager::GetBotBlackboard(_bot->GetGUID());
+    _sharedBlackboard = nullptr; // Deferred to first Update() when bot IsInWorld()
+
+    // Initialize behavior priority manager BEFORE strategies
+    // This must exist before strategies are added so they can auto-register
+    _priorityManager = std::make_unique<BehaviorPriorityManager>(this);
 
     // Initialize default strategies for basic functionality
     InitializeDefaultStrategies();
@@ -89,8 +94,28 @@ BotAI::BotAI(Player* bot) : _bot(bot)
     // Phase 4: Subscribe to all event buses for comprehensive event handling
     SubscribeToEventBuses();
 
+    // CRITICAL FIX: Group validation DEFERRED to first UpdateAI() call!
+    // Accessing _bot->GetGroup() and iterating group members in constructor causes
+    // ACCESS_VIOLATION because Player/Group internal structures are not initialized yet.
+    // The bot is not in world during construction, so GetGroup() may return corrupted data.
+    // Group validation logic moved to ValidateExistingGroupMembership() called in UpdateAI().
+}
+
+// ============================================================================
+// DEFERRED GROUP VALIDATION - Called from first UpdateAI() when bot IsInWorld()
+// ============================================================================
+// CRITICAL FIX: This logic was moved from constructor to avoid ACCESS_VIOLATION.
+// During constructor, bot is not in world and Group/GroupReference data may be invalid.
+
+void BotAI::ValidateExistingGroupMembership()
+{
+    // Only run once
+    if (_groupValidationDone)
+        return;
+    _groupValidationDone = true;
+
     // Check if bot is already in a VALID group (e.g., after server restart)
-    // CRITICAL FIX: Groups should persist if there's at least one real player character
+    // Groups should persist if there's at least one real player character
     // who has been offline for less than 1 hour. This applies to all group sizes:
     // - 2-person groups (1 player + 1 bot)
     // - 5-person dungeon groups (1 player + 4 bots)
@@ -101,7 +126,7 @@ BotAI::BotAI(Player* bot) : _bot(bot)
         bool hasValidPlayer = false;
         ObjectGuid playerGuidToCheck = ObjectGuid::Empty;
 
-// Check all group members for a real player character
+        // Check all group members for a real player character
         for (GroupReference const& itr : group->GetMembers())
         {
             Player* member = itr.GetSource();
@@ -118,21 +143,27 @@ BotAI::BotAI(Player* bot) : _bot(bot)
             {
                 // Player is currently online
                 hasValidPlayer = true;
-                TC_LOG_INFO("playerbot", "Bot {} group validation: Found online player {} in group",_bot->GetName(), member->GetName());
-                break;}
+                TC_LOG_DEBUG("module.playerbot.ai", "ValidateExistingGroupMembership: Bot {} found valid online player {} in group",
+                             _bot->GetName(), member->GetName());
+                break;
+            }
             else
             {
                 // Player is offline - need to check logout time from database
                 playerGuidToCheck = member->GetGUID();
-                TC_LOG_INFO("playerbot", "Bot {} group validation: Found offline player {} - will check logout time", _bot->GetName(), member->GetName());
+                TC_LOG_DEBUG("module.playerbot.ai", "ValidateExistingGroupMembership: Bot {} found offline player {} in group, checking logout time",
+                             _bot->GetName(), member->GetGUID().GetCounter());
                 break;
             }
-        }// If we found an offline player, check their logout time via database query
+        }
+
+        // If we found an offline player, check their logout time via database query
         if (!hasValidPlayer && !playerGuidToCheck.IsEmpty())
         {
             // Query the characters database for logout_time
             QueryResult result = CharacterDatabase.PQuery(
-                "SELECT logout_time FROM characters WHERE guid = {}", playerGuidToCheck.GetCounter());if (result)
+                "SELECT logout_time FROM characters WHERE guid = {}", playerGuidToCheck.GetCounter());
+            if (result)
             {
                 Field* fields = result->Fetch();
                 uint64 logoutTime = fields[0].GetUInt64();
@@ -143,29 +174,39 @@ BotAI::BotAI(Player* bot) : _bot(bot)
                 if (timeSinceLogout < 3600)
                 {
                     hasValidPlayer = true;
-                    TC_LOG_INFO("playerbot", "Bot {} group validation: Player offline for {}s (< 1 hour), group persists",_bot->GetName(), timeSinceLogout);
+                    TC_LOG_DEBUG("module.playerbot.ai", "ValidateExistingGroupMembership: Bot {} - offline player {} logged out {} seconds ago (valid)",
+                                 _bot->GetName(), playerGuidToCheck.GetCounter(), timeSinceLogout);
                 }
                 else
                 {
-                    TC_LOG_INFO("playerbot", "Bot {} group validation: Player offline for {}s (> 1 hour), group invalid",_bot->GetName(), timeSinceLogout);}
+                    TC_LOG_DEBUG("module.playerbot.ai", "ValidateExistingGroupMembership: Bot {} - offline player {} logged out {} seconds ago (expired)",
+                                 _bot->GetName(), playerGuidToCheck.GetCounter(), timeSinceLogout);
+                }
             }
         }
 
         if (hasValidPlayer)
         {
             // Valid group with active or recently logged out player
-            TC_LOG_INFO("playerbot", "Bot {} in valid group (members: {}), activating follow strategy",_bot->GetName(), group->GetMembersCount());
+            TC_LOG_INFO("module.playerbot.ai", "ValidateExistingGroupMembership: Bot {} has valid group, calling OnGroupJoined",
+                        _bot->GetName());
             OnGroupJoined(group);
         }
         else
         {
             // No valid player found - all offline > 1 hour or only bots
-            TC_LOG_WARN("playerbot", "Bot {} group has no valid player (all offline > 1 hour), disbanding group",_bot->GetName());
+            TC_LOG_INFO("module.playerbot.ai", "ValidateExistingGroupMembership: Bot {} has no valid player in group, leaving group",
+                        _bot->GetName());
             // Leave the invalid group
             _bot->RemoveFromGroup();
             _aiState = BotAIState::SOLO; // Explicitly set to SOLO
         }
-    }TC_LOG_DEBUG("playerbots.ai", "BotAI created for bot {}", _bot->GetGUID().ToString());
+    }
+    else
+    {
+        TC_LOG_DEBUG("module.playerbot.ai", "ValidateExistingGroupMembership: Bot {} is not in a group",
+                     _bot->GetName());
+    }
 }
 
 BotAI::~BotAI()
@@ -185,13 +226,13 @@ BotAI::~BotAI()
     // no risk of forgetting a manager or getting the order wrong.
     // ========================================================================
 
-    TC_LOG_DEBUG("module.playerbot", "BotAI::~BotAI: Facade will destroy all managers for bot '{}'",
-        _bot ? _bot->GetName() : "Unknown");
+    // CRITICAL: Do NOT call _bot->GetName() in destructor!
+    // During destruction, _bot may be in invalid state where GetName() returns
+    // garbage data, causing std::bad_alloc when string tries huge allocation.
 
     // Phase 4: Cleanup Shared Blackboard
     if (_sharedBlackboard && _bot)
     {
-        TC_LOG_DEBUG("module.playerbot", "BotAI::~BotAI: Removing bot from BlackboardManager");
         BlackboardManager::RemoveBotBlackboard(_bot->GetGUID());
         _sharedBlackboard = nullptr;
     }
@@ -199,9 +240,6 @@ BotAI::~BotAI()
     // Facade (_gameSystems) will be automatically destroyed here,
     // which triggers GameSystemsManager::~GameSystemsManager()
     // and cleans up all 17 managers in correct dependency order
-
-    TC_LOG_INFO("module.playerbot", "BotAI::~BotAI: Destructor complete for bot '{}'",
-        _bot ? _bot->GetName() : "Unknown");
 }
 
 // ============================================================================
@@ -221,10 +259,13 @@ void BotAI::UpdateAI(uint32 diff)
     // Timing: This runs in UpdateAI() which is called DURING Player::Update(), BEFORE EventProcessor::Update()
     if (!_firstUpdateComplete)
     {
-        // Core Fix Applied: SpellEvent::~SpellEvent() now automatically clears m_spellModTakingSpell (Spell.cpp:8455)
-        // No longer need to manually clear - KillAllEvents() will properly clean up spell mods
-        _bot->m_Events.KillAllEvents(false);  // false = graceful shutdown, not forced_firstUpdateComplete = true;
-        TC_LOG_DEBUG("module.playerbot", "🧹 Bot {} cleared login spell events on FIRST UPDATE to prevent m_spellModTakingSpell crash", _bot->GetName());
+        // Deferred blackboard initialization - GetGUID() unsafe in constructor
+        if (!_sharedBlackboard)
+            _sharedBlackboard = BlackboardManager::GetBotBlackboard(_bot->GetGUID());
+
+        // Core Fix Applied: SpellEvent destructor now clears m_spellModTakingSpell
+        _bot->m_Events.KillAllEvents(false);
+        _firstUpdateComplete = true;
     }
 
     // DIAGNOSTIC: Log UpdateAI entry for first bot only, once per 10 seconds
@@ -247,6 +288,14 @@ void BotAI::UpdateAI(uint32 diff)
 
     if (!_bot || !_bot->IsInWorld())
         return;
+
+    // ========================================================================
+    // DEFERRED GROUP VALIDATION - Now safe because bot is in world
+    // ========================================================================
+    // CRITICAL FIX: Moved from constructor to avoid ACCESS_VIOLATION.
+    // Group iteration in constructor caused crashes because Player/Group data
+    // is not initialized during construction.
+    ValidateExistingGroupMembership();
 
     // ========================================================================
     // STALL DETECTION - Record update timestamp for health monitoring
@@ -349,7 +398,8 @@ void BotAI::UpdateAI(uint32 diff)
                 // Catch any exceptions during member access (e.g., destroyed objects)
 TC_LOG_ERROR("playerbot", "Exception while accessing group member for bot {}", _bot->GetName());
                 continue;}
-        }_objectCache.SetGroupLeader(leader);
+        }
+        _objectCache.SetGroupLeader(leader);
         _objectCache.SetGroupMembers(members);// Follow target is usually the leader (only if leader is online)
         if (leader)
             _objectCache.SetFollowTarget(leader);
@@ -358,7 +408,8 @@ TC_LOG_ERROR("playerbot", "Exception while accessing group member for bot {}", _
         _objectCache.SetGroupLeader(nullptr);
         _objectCache.SetGroupMembers({});
         _objectCache.SetFollowTarget(nullptr);
-    }// ========================================================================// PHASE 1: CORE BEHAVIORS - Always run every frame
+    }
+    // ========================================================================// PHASE 1: CORE BEHAVIORS - Always run every frame
     // ========================================================================
 
     // Update internal values and caches
@@ -399,7 +450,8 @@ TC_LOG_ERROR("playerbot", "Exception while accessing group member for bot {}", _
         // ClassAI handles rotation, cooldowns, targeting
         // But NOT movement - that's already handled by strategies
         OnCombatUpdate(diff);
-    }// ========================================================================
+    }
+    // ========================================================================
     // PHASE 4: GROUP INVITATION PROCESSING - Critical for joining groups
     // ========================================================================
     // Process pending group invitations
@@ -489,7 +541,8 @@ TC_LOG_ERROR("playerbot", "Exception while accessing group member for bot {}", _
         }
 
         OnGroupJoined(_bot->GetGroup());
-    }// FIX #2: Handle bot leaving group
+    }
+    // FIX #2: Handle bot leaving group
     else if (_wasInGroup && !isInGroup)
     {
         TC_LOG_INFO("playerbot", "Bot {} left group, calling OnGroupLeft()", _bot->GetName());
@@ -629,10 +682,12 @@ void BotAI::UpdateStrategies(uint32 diff)
         {
             if (shouldLogStrategy)TC_LOG_ERROR("module.playerbot", "🚀 CALLING UpdateFollowBehavior for bot {}", _bot->GetName());
             followBehavior->UpdateFollowBehavior(this, diff);
-        }else
+        }
+        else
         {
             // Other strategies can use their normal update
-            if (shouldLogStrategy){
+            if (shouldLogStrategy)
+            {
                 TC_LOG_ERROR("module.playerbot", "🚀 CALLING UpdateBehavior for bot {} strategy '{}'",_bot->GetName(), selectedStrategy->GetName());
             }
             selectedStrategy->UpdateBehavior(this, diff);
@@ -675,7 +730,8 @@ void BotAI::UpdateMovement(uint32 diff)
 // ============================================================================
 // COMBAT STATE MANAGEMENT// ============================================================================
 
-void BotAI::UpdateCombatState(uint32 diff){
+void BotAI::UpdateCombatState(uint32 diff)
+{
     bool wasInCombat = IsInCombat();
     bool isInCombat = _bot && _bot->IsInCombat();// DIAGNOSTIC: Log combat state every 2 seconds
     static uint32 lastCombatStateLog = 0;
@@ -715,7 +771,8 @@ void BotAI::UpdateCombatState(uint32 diff){
             {
                 TC_LOG_ERROR("playerbot.nullcheck", "Null pointer: target in method GetName");
                 return;
-            }TC_LOG_ERROR("module.playerbot", "🎯 Target from GetVictim(): {}", target ? target->GetName() : "null");
+            }
+            TC_LOG_ERROR("module.playerbot", "🎯 Target from GetVictim(): {}", target ? target->GetName() : "null");
         }
 
         if (target)
@@ -766,11 +823,13 @@ void BotAI::ProcessTriggers()
 }
 
 // ============================================================================
-// ACTION EXECUTION// ============================================================================
+// ACTION EXECUTION
+// ============================================================================
 
 void BotAI::UpdateActions(uint32 diff)
 {
-    // Execute current action if in progressif (_currentAction)
+    // Execute current action if in progress
+    if (_currentAction)
     {
         // Check if action is still valid
         if (!_currentAction->IsUseful(this))
@@ -781,7 +840,8 @@ void BotAI::UpdateActions(uint32 diff)
         {
             // Action still in progress
             return;
-        }}
+        }
+    }
 
     // Process triggered actions first (higher priority)
     if (!_triggeredActions.empty())
@@ -791,7 +851,8 @@ void BotAI::UpdateActions(uint32 diff)
         {
             auto execResult = ExecuteActionInternal(result.suggestedAction.get(), result.context);
             if (execResult == ActionResult::SUCCESS || execResult == ActionResult::IN_PROGRESS)
-            {_currentAction = result.suggestedAction;
+            {
+                _currentAction = result.suggestedAction;
                 _performanceMetrics.actionsExecuted++;
             }
         }
@@ -819,11 +880,13 @@ void BotAI::UpdateActions(uint32 diff)
 }
 
 // ============================================================================
-// SOLO BEHAVIORS - Autonomous play when not in group// ============================================================================
+// SOLO BEHAVIORS - Autonomous play when not in group
+// ============================================================================
 
 void BotAI::UpdateSoloBehaviors(uint32 diff)
 {
-    // Only run solo behaviors when in solo play mode (not grouped/following)if (IsInCombat() || IsFollowing())
+    // Only run solo behaviors when in solo play mode (not grouped/following)
+    if (IsInCombat() || IsFollowing())
         return;
 
     uint32 currentTime = GameTime::GetGameTimeMS();
@@ -1212,7 +1275,8 @@ void BotAI::HandleGroupChange()
     {
         OnGroupLeft();
     }
-}// ============================================================================
+}
+// ============================================================================
 // STRATEGY MANAGEMENT
 // ============================================================================
 
@@ -1227,7 +1291,8 @@ void BotAI::AddStrategy(std::unique_ptr<Strategy> strategy)
     _strategies[name] = std::move(strategy);
 
     // Auto-register with priority manager based on strategy name
-    if (_priorityManager){
+    if (_priorityManager)
+    {
         BehaviorPriority priority = BehaviorPriority::SOLO; // Default
         bool exclusive = false;
 
@@ -1246,12 +1311,14 @@ void BotAI::AddStrategy(std::unique_ptr<Strategy> strategy)
         }
         else if (name.find("cast") != std::string::npos)
         {priority = BehaviorPriority::CASTING;
-        }else if (name == "quest")
+        }
+        else if (name == "quest")
         {
             // Quest strategy gets FOLLOW priority (50) to ensure it runs for solo bots
             // This allows quests to take priority over gathering/trading/social
             priority = BehaviorPriority::FOLLOW;
-        }else if (name == "loot")
+        }
+        else if (name == "loot")
         {// Loot strategy gets MOVEMENT priority (45) - slightly lower than quest
             priority = BehaviorPriority::MOVEMENT;
         }

@@ -8,6 +8,7 @@
  */
 
 #include "FarmingCoordinator.h"
+#include "GameTime.h"
 #include "ProfessionManager.h"
 #include "GatheringManager.h"
 #include "../Core/Managers/GameSystemsManager.h"
@@ -49,12 +50,10 @@ FarmingCoordinator::FarmingCoordinator(Player* bot)
 
 FarmingCoordinator::~FarmingCoordinator()
 {
-    // Cleanup per-bot resources
-    if (_activeSession.isActive)
-    {
-        TC_LOG_DEBUG("playerbots", "FarmingCoordinator: Cleaning up active session for bot {}",
-            _bot ? _bot->GetName() : "unknown");
-    }
+    // CRITICAL: Do NOT call _bot->GetName() in destructor!
+    // During destruction, _bot may be in invalid state where GetName() returns
+    // garbage data, causing ACCESS_VIOLATION or std::bad_alloc.
+    // IsInWorld() guard is NOT reliable during destruction sequence.
 }
 
 // ============================================================================
@@ -64,8 +63,11 @@ FarmingCoordinator::~FarmingCoordinator()
 void FarmingCoordinator::Initialize()
 {
     // Per-bot initialization (zones already loaded in constructor)
-    TC_LOG_DEBUG("playerbots", "FarmingCoordinator: Initialized for bot {}",
-        _bot ? _bot->GetName() : "unknown");
+    // CRITICAL: Do NOT access _bot->GetName() here!
+    // Initialize() is called from GameSystemsManager::Initialize() during BotAI
+    // constructor, when bot's m_name string is not initialized yet. Accessing it
+    // causes ACCESS_VIOLATION in std::string copy constructor.
+    // Logging deferred to first Update() call when bot is fully in world.
 }
 
 void FarmingCoordinator::Update(::Player* player, uint32 diff)

@@ -406,7 +406,8 @@ BotSession::~BotSession()
     uint32 accountId = 0;
     try {
         accountId = GetAccountId();
-    } catch (...) {
+    } catch (...)
+    {
         accountId = _bnetAccountId; // Fallback to stored value
     }
 
@@ -422,11 +423,13 @@ BotSession::~BotSession()
     constexpr auto MAX_WAIT_TIME = ::std::chrono::milliseconds(500);
 
     while (_packetProcessing.load() &&
-           (::std::chrono::steady_clock::now() - waitStart) < MAX_WAIT_TIME) {
+           (::std::chrono::steady_clock::now() - waitStart) < MAX_WAIT_TIME)
+           {
         ::std::this_thread::sleep_for(::std::chrono::milliseconds(1));
     }
 
-    if (_packetProcessing.load()) {
+    if (_packetProcessing.load())
+    {
         TC_LOG_WARN("module.playerbot.session", "BotSession destructor: Packet processing still active after 500ms wait for account {}", accountId);
     }
 
@@ -439,16 +442,19 @@ BotSession::~BotSession()
             // Core Fix Applied: SpellEvent::~SpellEvent() now automatically clears m_spellModTakingSpell (Spell.cpp:8455)
             player->m_Events.KillAllEvents(false);
             TC_LOG_DEBUG("module.playerbot.session", "Bot {} cleared spell events during logout", player->GetName());
-        } catch (...) {
+        } catch (...)
+        {
             TC_LOG_ERROR("module.playerbot.session", "Exception clearing spell events during logout for account {}", accountId);
         }
     }
 
     // MEMORY SAFETY: Clean up AI with exception protection
-    if (_ai) {
+    if (_ai)
+    {
         try {
             delete _ai;
-        } catch (...) {
+        } catch (...)
+        {
             TC_LOG_ERROR("module.playerbot.session", "Exception destroying AI for account {}", accountId);
         }
         _ai = nullptr;
@@ -457,7 +463,8 @@ BotSession::~BotSession()
     // THREAD SAFETY: Login state cleanup (synchronous mode requires minimal cleanup)
     try {
         _loginState.store(LoginState::NONE);
-    } catch (...) {
+    } catch (...)
+    {
         TC_LOG_ERROR("module.playerbot.session", "Exception clearing login state for account {}", accountId);
     }
 
@@ -474,7 +481,8 @@ BotSession::~BotSession()
             TC_LOG_WARN("module.playerbot.session", "BotSession destructor: Could not acquire mutex for packet cleanup (account: {})", accountId);
             // Don't hang the destructor - let the process handle cleanup
         }
-    } catch (...) {
+    } catch (...)
+    {
         // CRITICAL: Never throw from destructor - just log and continue
         TC_LOG_ERROR("module.playerbot.session", "BotSession destructor: Exception during packet cleanup for account {}", accountId);
     }
@@ -497,7 +505,8 @@ CharacterDatabasePreparedStatement* BotSession::GetSafePreparedStatement(Charact
         static_cast<uint32>(statementId), statementName);
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(statementId);
-    if (!stmt) {
+    if (!stmt)
+    {
         TC_LOG_ERROR("module.playerbot", "BotSession::GetSafePreparedStatement: Failed to get prepared statement {} (index: {})",
                      statementName, static_cast<uint32>(statementId));
         return nullptr;
@@ -552,11 +561,13 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
     ::std::unique_lock<::std::timed_mutex> lock(_updateMutex, ::std::defer_lock);
 
     // Try to acquire lock with 100ms timeout
-    if (!lock.try_lock_for(::std::chrono::milliseconds(100))) {
+    if (!lock.try_lock_for(::std::chrono::milliseconds(100)))
+    {
         // Failed to acquire lock within 100ms
 
         // Check if shutting down - bail immediately
-    if (_destroyed.load() || !_active.load()) {
+    if (_destroyed.load() || !_active.load())
+    {
             return false;  // Shutdown detected - exit gracefully
         }
 
@@ -572,7 +583,8 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
     uint32 thisUpdateId = ++updateCounter;
 
     // CRITICAL MEMORY CORRUPTION DETECTION: Comprehensive session validation
-    if (!_active.load() || _destroyed.load()) {
+    if (!_active.load() || _destroyed.load())
+    {
         if (thisUpdateId <= 200) { // Log first 200 per-session failures
             TC_LOG_WARN("module.playerbot.session", " Update #{} EARLY RETURN: _active={} _destroyed={}",
                 thisUpdateId, _active.load(), _destroyed.load());
@@ -584,7 +596,8 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
     // This prevents Map.cpp:686 crash by deferring player removal to main thread
     // forceExit is set by KickPlayer() when BotWorldEntry::Cleanup() is called
     // m_playerLogout is set by LogoutPlayer()
-    if (forceExit || m_playerLogout) {
+    if (forceExit || m_playerLogout)
+    {
         TC_LOG_DEBUG("module.playerbot.session",
             "BotSession logout/kick requested for account {} (forceExit={}, m_playerLogout={}) - returning false for safe deletion",
             GetAccountId(), forceExit, m_playerLogout);
@@ -609,7 +622,8 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
 
     // THREAD SAFETY: Validate we're not in a recursive Update call
     static thread_local bool inUpdateCall = false;
-    if (inUpdateCall) {
+    if (inUpdateCall)
+    {
         TC_LOG_ERROR("module.playerbot.session", " Update #{} EARLY RETURN: Recursive call detected for account {}", thisUpdateId, accountId);
         return false;
     }
@@ -876,7 +890,8 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
         // CRITICAL FIX: Add comprehensive memory safety validation to prevent ACCESS_VIOLATION
         Player* player = GetPlayer();
         // Removed excessive per-tick logging
-    if (_ai && player && _active.load() && !_destroyed.load()) {
+    if (_ai && player && _active.load() && !_destroyed.load())
+    {
 
             // MEMORY CORRUPTION DETECTION: Validate player object pointer before access
             // Check for common corruption patterns (null and debug heap patterns only)
@@ -890,7 +905,8 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
             }
 
             // Additional check: pointer should be within reasonable address space (not too low)
-    if (playerPtr < 0x10000) {
+    if (playerPtr < 0x10000)
+    {
                 TC_LOG_ERROR("module.playerbot.session", "MEMORY CORRUPTION: Player pointer 0x{:X} in low address space for account {}", playerPtr, accountId);
                 _active.store(false);
                 _ai = nullptr;
@@ -907,24 +923,28 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
                 try {
                     // Test minimal access first - GetGUID is usually safe
                     ObjectGuid playerGuid = player->GetGUID();
-                    if (playerGuid.IsEmpty()) {
+                    if (playerGuid.IsEmpty())
+                    {
                         TC_LOG_ERROR("module.playerbot.session", "Player has invalid GUID for account {}", accountId);
                         playerIsValid = false;
                     } else {
                         playerIsValid = true;
                     }
                 }
-                catch (...) {
+                catch (...)
+                {
                     TC_LOG_ERROR("module.playerbot.session", "Access violation in Player::GetGUID() for account {}", accountId);
                     playerIsValid = false;
                 }
 
                 // Layer 2: World state validation (only if basic validation passed)
-    if (playerIsValid) {
+    if (playerIsValid)
+    {
                     try {
                         playerIsInWorld = player->IsInWorld();
                     }
-                    catch (...) {
+                    catch (...)
+                    {
                         TC_LOG_ERROR("module.playerbot.session", "Access violation in Player::IsInWorld() for account {}", accountId);
                         playerIsValid = false;
                         playerIsInWorld = false;
@@ -966,7 +986,8 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
                 }
 
                 // Use SNAPSHOT values (not original variables) to prevent race conditions
-    if (validSnapshot && inWorldSnapshot && aiSnapshot && activeSnapshot) {
+    if (validSnapshot && inWorldSnapshot && aiSnapshot && activeSnapshot)
+    {
                     if (shouldLog)
                     {
                         TC_LOG_INFO("module.playerbot.session", " ALL CONDITIONS MET - Calling UpdateAI for account {}", accountId);
@@ -975,11 +996,13 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
                         // Call UpdateAI using snapshot pointer (guaranteed non-null and stable)
                         aiSnapshot->UpdateAI(diff);
                     }
-                    catch (::std::exception const& e) {
+                    catch (::std::exception const& e)
+                    {
                         TC_LOG_ERROR("module.playerbot.session", "Exception in BotAI::Update for account {}: {}", accountId, e.what());
                         // Don't propagate AI exceptions to prevent session crashes
                     }
-                    catch (...) {
+                    catch (...)
+                    {
                         TC_LOG_ERROR("module.playerbot.session", "Access violation in BotAI::Update for account {}", accountId);
                         // Clear AI to prevent further crashes
                         _ai = nullptr;
@@ -988,7 +1011,8 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
                     // Removed excessive per-tick logging
                 }
             }
-            catch (...) {
+            catch (...)
+            {
                 TC_LOG_ERROR("module.playerbot.session", "Critical exception in AI processing for account {}", accountId);
                 // Deactivate session completely to prevent memory corruption cascade
                 _active.store(false);
@@ -1022,12 +1046,14 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
 
         return true; // Bot sessions always return success
     }
-    catch (::std::exception const& e) {
+    catch (::std::exception const& e)
+    {
         TC_LOG_ERROR("module.playerbot.session",
             "Exception in BotSession::Update for account {}: {}", GetAccountId(), e.what());
         return false;
     }
-    catch (...) {
+    catch (...)
+    {
         TC_LOG_ERROR("module.playerbot.session",
             "Unknown exception in BotSession::Update for account {}", GetAccountId());
         return false;
@@ -1037,7 +1063,8 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
 void BotSession::ProcessBotPackets()
 {
     // CRITICAL SAFETY CHECK: Prevent access to destroyed objects
-    if (_destroyed.load() || !_active.load()) {
+    if (_destroyed.load() || !_active.load())
+    {
         return; // Object is being destroyed or inactive, abort immediately
     }
 
@@ -1056,7 +1083,8 @@ void BotSession::ProcessBotPackets()
     // LOCK-FREE IMPLEMENTATION: Use double-checked locking with atomic flag
     // This eliminates the recursive_timed_mutex that was causing deadlocks
     bool expected = false;
-    if (!_packetProcessing.compare_exchange_strong(expected, true)) {
+    if (!_packetProcessing.compare_exchange_strong(expected, true))
+    {
         // Another thread is already processing packets - safe to skip
         TC_LOG_DEBUG("module.playerbot.session", "Packet processing already in progress for account {}, skipping", GetAccountId());
         return;
@@ -1070,7 +1098,8 @@ void BotSession::ProcessBotPackets()
     } guard(_packetProcessing);
 
     // Double-check destroyed flag after acquiring processing rights
-    if (_destroyed.load() || !_active.load()) {
+    if (_destroyed.load() || !_active.load())
+    {
         return; // Object was destroyed while waiting
     }
 
@@ -1098,8 +1127,10 @@ void BotSession::ProcessBotPackets()
     } // Release lock immediately
 
     // PHASE 2: Process packets without holding any locks (deadlock-free)
-    for (auto& packet : incomingBatch) {
-        if (_destroyed.load() || !_active.load()) {
+    for (auto& packet : incomingBatch)
+    {
+        if (_destroyed.load() || !_active.load())
+        {
             break; // Stop processing if session is being destroyed
         }
 
@@ -1108,16 +1139,19 @@ void BotSession::ProcessBotPackets()
             // This is safe to call without locks
             WorldSession::QueuePacket(packet.get());
         }
-        catch (::std::exception const& e) {
+        catch (::std::exception const& e)
+        {
             TC_LOG_ERROR("module.playerbot.session", "Exception processing incoming packet for account {}: {}", GetAccountId(), e.what());
         }
-        catch (...) {
+        catch (...)
+        {
             TC_LOG_ERROR("module.playerbot.session", "Unknown exception processing incoming packet for account {}", GetAccountId());
         }
     }
 
     // Removed noisy packet statistics logging - was spamming logs
-    // if (!outgoingBatch.empty()) {
+    // if (!outgoingBatch.empty())
+    // {
     //     TC_LOG_DEBUG("module.playerbot.session", "Processed {} outgoing packets for account {}", outgoingBatch.size(), GetAccountId());
     // }
 }
@@ -1693,111 +1727,113 @@ void BotSession::HandleGroupInvitation(WorldPacket const& packet)
             return;
         }
 
-        // Critical fix: Set up proper group invitation state using TrinityCore APIs
-        Group* inviterGroup = inviter->GetGroup();
-        if (!inviterGroup)
-        {
-            // Inviter is forming a new group - create the group properly
-            inviterGroup = new Group;
-            if (!inviterGroup->Create(inviter))
-            {
-                TC_LOG_ERROR("module.playerbot.group", "HandleGroupInvitation: Failed to create new group for inviter {}", inviterName);
-                delete inviterGroup;
-                return;
-            }
-            sGroupMgr->AddGroup(inviterGroup);
+        // FIX: Use TrinityCore's standard group invite acceptance flow
+        // TrinityCore's HandlePartyInviteOpcode already:
+        // 1. Created/retrieved the group
+        // 2. Called AddInvite(bot) which sets bot->SetGroupInvite(group)
+        // 3. Sent SMSG_PARTY_INVITE to us
+        // We just need to "accept" like HandlePartyInviteResponseOpcode does
 
-            TC_LOG_INFO("module.playerbot.group", "Created new group {} for inviter {} to invite bot {}",
-                inviterGroup->GetGUID().ToString(), inviterName, bot->GetName());
-        }
+        // Get the pending invite group that TrinityCore already set up
+        Group* group = bot->GetGroupInvite();
 
-        // Add the bot as an invitee to the group using TrinityCore APIs
-        // This is the critical missing piece that sets bot->SetGroupInvite()
-
-        // Diagnostic logging: Check why AddInvite might fail
         TC_LOG_INFO("module.playerbot.group", "Bot {} invitation diagnostics:", bot->GetName());
-        TC_LOG_INFO("module.playerbot.group", "  - Bot exists: {}", bot != nullptr);
         TC_LOG_INFO("module.playerbot.group", "  - Bot current group: {}",
             bot->GetGroup() ? bot->GetGroup()->GetGUID().ToString() : "None");
-        TC_LOG_INFO("module.playerbot.group", "  - Bot current group invite: {}",
-            bot->GetGroupInvite() ? bot->GetGroupInvite()->GetGUID().ToString() : "None");
-        TC_LOG_INFO("module.playerbot.group", "  - Inviter group: {}", inviterGroup->GetGUID().ToString());
-        TC_LOG_INFO("module.playerbot.group", "  - Inviter group size: {}", inviterGroup->GetMembersCount());
+        TC_LOG_INFO("module.playerbot.group", "  - Bot pending invite: {}",
+            group ? group->GetGUID().ToString() : "None");
+        TC_LOG_INFO("module.playerbot.group", "  - Inviter GUID: {}", inviterGUID.ToString());
 
-        // Handle existing group invitation state
-    if (bot->GetGroupInvite())
+        if (!group)
         {
-            TC_LOG_INFO("module.playerbot.group", "Bot {} already has group invitation from group {}, removing old invitation",
-                bot->GetName(), bot->GetGroupInvite()->GetGUID().ToString());
-            bot->GetGroupInvite()->RemoveInvite(bot);
-        }
-
-        // Handle existing group membership
-    if (bot->GetGroup())
-        {
-            TC_LOG_INFO("module.playerbot.group", "Bot {} is already in group {}, cannot invite",
-                bot->GetName(), bot->GetGroup()->GetGUID().ToString());
+            TC_LOG_ERROR("module.playerbot.group", "HandleGroupInvitation: Bot {} has no pending group invite! "
+                "This means TrinityCore's AddInvite() was not called or was cleared.", bot->GetName());
             return;
         }
 
-        if (inviterGroup->AddInvite(bot))
+        // Safety check: bot shouldn't already be in a group
+        if (bot->GetGroup())
         {
-            TC_LOG_INFO("module.playerbot.group", "Successfully added bot {} to group {} invitee list (inviter: {})",
-                bot->GetName(), inviterGroup->GetGUID().ToString(), inviterName);
+            TC_LOG_WARN("module.playerbot.group", "Bot {} is already in group {}, declining invite",
+                bot->GetName(), bot->GetGroup()->GetGUID().ToString());
+            group->RemoveInvite(bot);
+            return;
+        }
 
-            // Verify that the bot now has a group invitation
-    if (bot->GetGroupInvite() == inviterGroup)
+        // Follow TrinityCore's HandlePartyInviteResponseOpcode logic:
+        // 1. Remove from invitee list
+        group->RemoveInvite(bot);
+
+        // 2. Sanity check - bot shouldn't be the leader
+        if (group->GetLeaderGUID() == bot->GetGUID())
+        {
+            TC_LOG_ERROR("module.playerbot.group", "HandleGroupInvitation: Bot {} tried to accept invite to own group!",
+                bot->GetName());
+            return;
+        }
+
+        // 3. Check if group is full
+        if (group->IsFull())
+        {
+            TC_LOG_WARN("module.playerbot.group", "HandleGroupInvitation: Group is full, bot {} cannot join",
+                bot->GetName());
+            return;
+        }
+
+        // 4. Get the leader
+        Player* leader = ObjectAccessor::FindPlayer(group->GetLeaderGUID());
+
+        // 5. If group not yet created (first member accepting), create it now
+        if (!group->IsCreated())
+        {
+            if (!leader)
             {
-                TC_LOG_INFO("module.playerbot.group", " Confirmed: Bot {} has group invitation state set", bot->GetName());
-
-                // CLEAN APPROACH: Auto-accept and join the group using TrinityCore API
-                // This removes the legacy GroupInvitationHandler fallback path
-
-                // Accept the invitation by adding bot to the group
-    if (inviterGroup->AddMember(bot))
-                {
-                    TC_LOG_INFO("module.playerbot.group", " Bot {} successfully joined group {} (inviter: {})",
-                        bot->GetName(), inviterGroup->GetGUID().ToString(), inviterName);
-
-                    // PHASE 0 - Quick Win #3: Dispatch GROUP_JOINED event for instant reaction
-                    // This eliminates the 1-second polling lag
-    if (_ai && _ai->GetEventDispatcher())
-                    {
-                        Events::BotEvent evt(StateMachine::EventType::GROUP_JOINED, bot->GetGUID(), inviterGroup->GetLeaderGUID());
-                        _ai->GetEventDispatcher()->Dispatch(::std::move(evt));
-                        TC_LOG_INFO("module.playerbot.group", " GROUP_JOINED event dispatched for bot {}", bot->GetName());
-                    }
-
-                    // Activate follow behavior through BotAI lifecycle hook
-    if (_ai)
-                    {
-                        TC_LOG_ERROR("module.playerbot.group", " CALLING OnGroupJoined for bot {} with group {}",
-                                    bot->GetName(), (void*)inviterGroup);
-                        _ai->OnGroupJoined(inviterGroup);
-                        TC_LOG_ERROR("module.playerbot.group", " OnGroupJoined COMPLETED for bot {}", bot->GetName());
-                    }
-                    else
-                    {
-                        TC_LOG_ERROR("module.playerbot.group", " CRITICAL: _ai is NULL for bot {}", bot->GetName());
-                    }
-
-                    TC_LOG_INFO("module.playerbot.group", " Bot {} follow behavior activated", bot->GetName());
-                }
-                else
-                {
-                    TC_LOG_ERROR("module.playerbot.group", " Failed to add bot {} to group {} (AddMember failed)",
-                        bot->GetName(), inviterGroup->GetGUID().ToString());
-                }
+                TC_LOG_ERROR("module.playerbot.group", "HandleGroupInvitation: Leader not found for uncreated group");
+                group->RemoveAllInvites();
+                return;
             }
-            else
-            {
-                TC_LOG_ERROR("module.playerbot.group", " Bot {} group invitation state not set after AddInvite", bot->GetName());
-            }
+
+            group->RemoveInvite(leader);
+            group->Create(leader);
+            sGroupMgr->AddGroup(group);
+
+            TC_LOG_INFO("module.playerbot.group", "Created group {} with leader {} for bot {} to join",
+                group->GetGUID().ToString(), leader->GetName(), bot->GetName());
+        }
+
+        // 6. Add bot as member (this is the actual "accept")
+        if (!group->AddMember(bot))
+        {
+            TC_LOG_ERROR("module.playerbot.group", "HandleGroupInvitation: Failed to add bot {} to group {}",
+                bot->GetName(), group->GetGUID().ToString());
+            return;
+        }
+
+        // 7. Broadcast update to all group members
+        group->BroadcastGroupUpdate();
+
+        TC_LOG_INFO("module.playerbot.group", "Bot {} successfully joined group {} (leader: {})",
+            bot->GetName(), group->GetGUID().ToString(),
+            leader ? leader->GetName() : group->GetLeaderGUID().ToString());
+
+        // 8. Dispatch GROUP_JOINED event for instant bot reaction
+        if (_ai && _ai->GetEventDispatcher())
+        {
+            Events::BotEvent evt(StateMachine::EventType::GROUP_JOINED, bot->GetGUID(), group->GetLeaderGUID());
+            _ai->GetEventDispatcher()->Dispatch(::std::move(evt));
+            TC_LOG_DEBUG("module.playerbot.group", "GROUP_JOINED event dispatched for bot {}", bot->GetName());
+        }
+
+        // 9. Activate follow behavior through BotAI lifecycle hook
+        if (_ai)
+        {
+            TC_LOG_INFO("module.playerbot.group", "Calling OnGroupJoined for bot {} with group {}",
+                bot->GetName(), group->GetGUID().ToString());
+            _ai->OnGroupJoined(group);
         }
         else
         {
-            TC_LOG_ERROR("module.playerbot.group", "Failed to add bot {} to group {} invitee list (AddInvite failed)",
-                bot->GetName(), inviterGroup->GetGUID().ToString());
+            TC_LOG_ERROR("module.playerbot.group", "CRITICAL: _ai is NULL for bot {}", bot->GetName());
         }
     }
     catch (::std::exception const& e)

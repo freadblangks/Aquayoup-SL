@@ -73,31 +73,41 @@ namespace Advanced
 
     void GroupCoordinator::Initialize()
     {
-        // Determine initial role
-        m_assignedRole = DetermineRole();
-        m_preferredRole = m_assignedRole;
+        // CRITICAL: Do NOT access bot data during initialization!
+        // Bot may not be fully in world yet when Initialize() is called from
+        // GameSystemsManager::Initialize() during BotAI constructor.
+        // Defer all bot data access to first Update() call.
 
-        // Initialize tactical coordinator if in a group
-        if (m_bot->GetGroup())
-        {
-            // Create shared tactical coordinator for the group
-            // Note: In a production implementation, this should be shared across all group members
-            // For now, each bot creates its own instance
-            m_tacticalCoordinator = std::make_shared<TacticalCoordinator>(m_bot->GetGroup());
-            m_tacticalCoordinator->Initialize();
-        }
+        // Just set defaults - actual initialization will happen in Update() when bot is in world
+        m_assignedRole = GroupRole::UNDEFINED;
+        m_preferredRole = GroupRole::UNDEFINED;
 
-        // Load boss strategies
-        LoadBossStrategies();
-
-        TC_LOG_DEBUG("bot.playerbot", "GroupCoordinator initialized for bot %s (Role: %u)",
-            m_bot->GetName().c_str(), static_cast<uint32>(m_assignedRole));
+        // NOTE: TacticalCoordinator creation deferred to UpdateGroupState() when bot is in world
+        // NOTE: Boss strategies loading deferred to first Update() when bot is in world
+        // NOTE: Logging with bot name deferred to avoid crash on uninitialized m_name
     }
 
     void GroupCoordinator::Update(uint32 diff)
     {
         if (!m_enabled || !m_bot || !m_bot->IsInWorld())
             return;
+
+        // Deferred initialization - now safe to access bot data
+        if (m_assignedRole == GroupRole::UNDEFINED)
+        {
+            m_assignedRole = DetermineRole();
+            m_preferredRole = m_assignedRole;
+            LoadBossStrategies();
+            TC_LOG_DEBUG("bot.playerbot", "GroupCoordinator deferred init for bot {} (Role: {})",
+                m_bot->GetName(), static_cast<uint32>(m_assignedRole));
+        }
+
+        // Create TacticalCoordinator on-demand when bot joins a group
+        if (!m_tacticalCoordinator && m_bot->GetGroup())
+        {
+            m_tacticalCoordinator = std::make_shared<TacticalCoordinator>(m_bot->GetGroup());
+            m_tacticalCoordinator->Initialize();
+        }
 
         StartPerformanceTimer();
 
@@ -147,7 +157,10 @@ namespace Advanced
     void GroupCoordinator::Shutdown()
     {
         m_enabled = false;
-        if (IsInGroup())
+        // CRITICAL: Only attempt to leave group if bot is valid and in world
+        // During destruction, m_bot may be in an invalid state and calling
+        // Group::RemoveMember can crash when iterating the group's member list
+        if (m_bot && m_bot->IsInWorld() && IsInGroup())
             LeaveGroup();
         Reset();
     }
@@ -166,6 +179,12 @@ namespace Advanced
 
     bool GroupCoordinator::LeaveGroup()
     {
+        // CRITICAL: Check bot validity before any group operations
+        // During destruction, m_bot may not be in world and Group::RemoveMember
+        // can crash when iterating the member list (std::list::begin() crash)
+        if (!m_bot || !m_bot->IsInWorld())
+            return false;
+
         if (!IsInGroup())
             return false;
 
@@ -175,7 +194,7 @@ namespace Advanced
         m_currentGroup = nullptr;
         m_currentState = GroupState::IDLE;
 
-        TC_LOG_DEBUG("bot.playerbot", "Bot %s left group", m_bot->GetName().c_str());
+        TC_LOG_DEBUG("bot.playerbot", "Bot {} left group", m_bot->GetGUID().ToString());
         return true;
     }
 
@@ -507,6 +526,12 @@ namespace Advanced
     GroupCoordinator::GroupComposition GroupCoordinator::AnalyzeGroupComposition() const
     {
         GroupComposition comp;
+
+        // CRITICAL: Early return if bot is not in world or not valid
+        // During construction/initialization, m_bot may not be fully initialized
+        // and accessing group->GetMembers() can cause ACCESS_VIOLATION crash
+        if (!m_bot || !m_bot->IsInWorld())
+            return comp;
 
         Group* group = GetGroup();
         if (!group)
@@ -1191,29 +1216,32 @@ namespace Advanced
 
     void GroupCoordinator::OnGroupCompositionChanged(GroupEvent const& event)
     {
-        if (!m_enabled || !m_bot || !IsInGroup())
+        // CRITICAL: Check bot validity AND IsInWorld() before ANY bot access
+        // During destruction or initialization, m_bot may not be in world and
+        // accessing GetName(), GetGroup(), or iterating group members can crash
+        if (!m_enabled || !m_bot || !m_bot->IsInWorld() || !IsInGroup())
             return;
 
         // Handle member join/leave events
-        TC_LOG_DEBUG("bot.playerbot", "Bot %s received group composition change (Type: %u)",
-            m_bot->GetName().c_str(), static_cast<uint32>(event.type));
+        TC_LOG_DEBUG("bot.playerbot", "Bot {} received group composition change (Type: {})",
+            m_bot->GetGUID().ToString(), static_cast<uint32>(event.type));
 
         // Analyze new group composition
         GroupComposition comp = AnalyzeGroupComposition();
 
         // Log composition changes
-        TC_LOG_DEBUG("bot.playerbot", "Bot %s group composition - Tanks: %u, Healers: %u, DPS: %u, Total: %u, Balanced: %s",
-            m_bot->GetName().c_str(), comp.tanks, comp.healers, comp.dps, comp.total,
+        TC_LOG_DEBUG("bot.playerbot", "Bot {} group composition - Tanks: {}, Healers: {}, DPS: {}, Total: {}, Balanced: {}",
+            m_bot->GetGUID().ToString(), comp.tanks, comp.healers, comp.dps, comp.total,
             comp.isBalanced ? "Yes" : "No");
 
         // If group became unbalanced, consider suggesting role changes
-    if (!comp.isBalanced)
+        if (!comp.isBalanced)
         {
             GroupRole neededRole = GetNeededRole();
             if (CanFillRole(neededRole) && neededRole != m_assignedRole)
             {
-                TC_LOG_DEBUG("bot.playerbot", "Bot %s could fill needed role %u (current: %u)",
-                    m_bot->GetName().c_str(), static_cast<uint32>(neededRole),
+                TC_LOG_DEBUG("bot.playerbot", "Bot {} could fill needed role {} (current: {})",
+                    m_bot->GetGUID().ToString(), static_cast<uint32>(neededRole),
                     static_cast<uint32>(m_assignedRole));
             }
         }

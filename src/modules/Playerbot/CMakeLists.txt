@@ -84,6 +84,23 @@ set(PLAYERBOT_SOURCES
 
     # AI system (AI Framework implementation)
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAI.cpp
+    # Phase 5: AI Decision Systems
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/DecisionFusionSystem.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/DecisionFusionSystem.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/ActionPriorityQueue.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/ActionPriorityQueue.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/BehaviorTree.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/BehaviorTree.h
+    # AI Common - Scoring and Utility Systems
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Common/ActionScoringEngine.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Common/ActionScoringEngine.h
+    # AI Services - Combat Support Systems
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Services/ThreatAssistant.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Services/ThreatAssistant.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Services/HealingTargetSelector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Services/HealingTargetSelector.h
+
+
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAI.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAI_HybridAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAIFactory.cpp
@@ -166,6 +183,10 @@ set(PLAYERBOT_SOURCES
     # Core Integration Hooks
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/PlayerBotHooks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/PlayerBotHooks.h
+    # Core Helper Functions - GetBotAI, GetGameSystems
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/PlayerBotHelpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/PlayerBotHelpers.h
+
 
     # Phase 7.1: Manager System Architecture - Observer-Manager Integration Layer
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Managers/IManagerBase.h
@@ -364,7 +385,10 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupInvitationHandler.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleDefinitions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleDefinitions.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleAssignment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleAssignment.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupRoleEnums.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupRoleUtils.cpp
 
     # Group Event System - Event-Driven Architecture for Group Coordination
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventBus.h
@@ -376,6 +400,13 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/PlayerbotGroupScript.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupStateMachine.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupStateMachine.h
+
+    
+    # Phase 2: PvP AI Systems
+    ${CMAKE_CURRENT_SOURCE_DIR}/PvP/ArenaAI.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/PvP/ArenaAI.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/PvP/PvPCombatAI.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/PvP/PvPCombatAI.h
 
     # Network Packet Sniffer - Centralized Event Detection System
     ${CMAKE_CURRENT_SOURCE_DIR}/Network/PlayerbotPacketSniffer.cpp
@@ -416,6 +447,25 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEventBus.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEvents.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Social/SocialEvents.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/AuctionHouse.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/AuctionHouse.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/MarketAnalysis.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/MarketAnalysis.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/GuildIntegration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/GuildIntegration.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/GuildBankManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/GuildBankManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/GuildEventCoordinator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/GuildEventCoordinator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/LootDistribution.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/LootDistribution.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/UnifiedLootManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/UnifiedLootManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/TradeManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/TradeManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/TradeManager_Events.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/TradeSystem.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Social/TradeSystem.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEventBus.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEvents.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Auction/AuctionEvents.h
@@ -458,12 +508,14 @@ set(PLAYERBOT_SOURCES
 
     # Phase 2: Companion Systems - Mount and Battle Pet Management
     # TODO: Re-enable when API compatibility is fixed (see PlayerbotWorldScript.cpp)
-    # ${CMAKE_CURRENT_SOURCE_DIR}/Companion/MountManager.cpp
-    # ${CMAKE_CURRENT_SOURCE_DIR}/Companion/MountManager.h
-    # ${CMAKE_CURRENT_SOURCE_DIR}/Companion/BattlePetManager.cpp
-    # ${CMAKE_CURRENT_SOURCE_DIR}/Companion/BattlePetManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Companion/MountManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Companion/MountManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Companion/BattlePetManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Companion/BattlePetManager.h
 
     # Phase 2: Bot Lifecycle Management System
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotLifecycleManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotLifecycleManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawner.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotCharacterCreator.cpp
@@ -572,7 +624,22 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/ThreatAbilities.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/ThreatCoordinator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/ThreatCoordinator.h
-# Phase 2 Day 14: Combat AI Integration    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CombatAIIntegrator.cpp    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CombatAIIntegrator.h    ${CMAKE_CURRENT_SOURCE_DIR}/AI/EnhancedBotAI.cpp    ${CMAKE_CURRENT_SOURCE_DIR}/AI/EnhancedBotAI.h
+
+    # Formation and Advanced Combat Systems
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/FormationManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/FormationManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CombatStateAnalyzer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CombatStateAnalyzer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/LineOfSightManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/LineOfSightManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/InterruptDatabase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/InterruptDatabase.h
+
+    # Phase 2 Day 14: Combat AI Integration
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CombatAIIntegrator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CombatAIIntegrator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/EnhancedBotAI.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/EnhancedBotAI.h
 
     # Phase 2: Interface Definitions (header-only)
     ${CMAKE_CURRENT_SOURCE_DIR}/Interfaces/IBotSpawner.h
@@ -702,6 +769,8 @@ set(PLAYERBOT_SOURCES
     # Advanced Features - Group/Raid, Social, Advanced Behaviors
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/GroupCoordinator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/GroupCoordinator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/TacticalCoordinator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/TacticalCoordinator.h
     # Advanced/EconomyManager REMOVED - Duplicate of Economy/AuctionManager (production system)
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/SocialManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Advanced/SocialManager.h
@@ -793,6 +862,14 @@ set(PLAYERBOT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/AdaptiveBehaviorManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CombatBehaviorIntegration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CombatBehaviorIntegration.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/TargetManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/TargetManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CrowdControlManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/CrowdControlManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/DefensiveManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/DefensiveManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/MovementIntegration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Combat/MovementIntegration.h
 
     # Phase 4: Advanced Combat Utilities (Enterprise-Grade Combat Coordination)
     # Implements missing combat coordination utilities for all 119 ClassAI implementations
@@ -861,6 +938,23 @@ source_group("Database" FILES
 
 source_group("AI" FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAI.cpp
+    # Phase 5: AI Decision Systems
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/DecisionFusionSystem.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/DecisionFusionSystem.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/ActionPriorityQueue.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/ActionPriorityQueue.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/BehaviorTree.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Decision/BehaviorTree.h
+    # AI Common - Scoring and Utility Systems
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Common/ActionScoringEngine.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Common/ActionScoringEngine.h
+    # AI Services - Combat Support Systems
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Services/ThreatAssistant.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Services/ThreatAssistant.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Services/HealingTargetSelector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Services/HealingTargetSelector.h
+
+
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAI.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BotAIFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/BehaviorManager.cpp
@@ -961,7 +1055,10 @@ source_group("Group" FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupInvitationHandler.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleDefinitions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleDefinitions.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleAssignment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/RoleAssignment.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupRoleEnums.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupRoleUtils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEventBus.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEvents.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupEvents.h
@@ -1080,6 +1177,8 @@ source_group("Character" FILES
 # )
 
 source_group("Lifecycle" FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotLifecycleManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotLifecycleManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotSpawner.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotLifecycleMgr.cpp
@@ -1385,13 +1484,13 @@ target_include_directories(playerbot
         ${CMAKE_CURRENT_SOURCE_DIR}/Packets
         ${CMAKE_SOURCE_DIR}/src/modules/Common
         ${MYSQL_INCLUDE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle
+        ${PLAYERBOT_INCLUDE_DIRS}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Account
         ${CMAKE_CURRENT_SOURCE_DIR}/Character
-        ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle
         ${CMAKE_CURRENT_SOURCE_DIR}/Scripts
         ${CMAKE_CURRENT_BINARY_DIR}
-        ${PLAYERBOT_INCLUDE_DIRS}
 )
 
 # Link against TrinityCore and enterprise dependencies
@@ -1404,10 +1503,11 @@ target_link_libraries(playerbot
         common
         # Shared module libraries
         modules-common
-    PRIVATE
-        # Enterprise dependencies
-        ${PLAYERBOT_LIBRARIES}
+        # Enterprise dependencies (PUBLIC because BotSpawner.h uses TBB headers)
         playerbot-dependencies
+    PRIVATE
+        # Additional libraries
+        ${PLAYERBOT_LIBRARIES}
         # MySQL libraries for database connection
         ${MYSQL_LIBRARY}
 )

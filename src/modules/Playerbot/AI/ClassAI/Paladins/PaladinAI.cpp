@@ -21,12 +21,14 @@
 #include "Group.h"
 #include "../../../Spatial/SpatialGridManager.h"
 #include "../../../Spatial/SpatialGridQueryHelpers.h"  // PHASE 5F: Thread-safe queries
+#include "../../../Group/RoleDefinitions.h"  // For tank detection
 #include "GameTime.h"
 
 namespace Playerbot
 {
 
-PaladinAI::PaladinAI(Player* bot) : ClassAI(bot){
+PaladinAI::PaladinAI(Player* bot) : ClassAI(bot)
+{
     _lastBlessingTime = 0;
     _lastAuraChange = 0;
     _lastConsecration = 0;
@@ -240,14 +242,16 @@ bool PaladinAI::CanUseAbility(uint32 spellId)
 
     return true;}
 
-void PaladinAI::OnCombatStart(::Unit* target){
+void PaladinAI::OnCombatStart(::Unit* target)
+{
     _paladinMetrics.combatStartTime = ::std::chrono::steady_clock::now();
 
     TC_LOG_DEBUG("module.playerbot.ai", "PaladinAI {} entering combat with {}",
                  GetBot()->GetName(), target->GetName());
 
     _inCombat = true;
-    _currentTarget = target->GetGUID();    _combatTime = 0;
+    _currentTarget = target->GetGUID();
+    _combatTime = 0;
 }
 
 void PaladinAI::OnCombatEnd()
@@ -564,7 +568,8 @@ void PaladinAI::UseOffensiveCooldowns()
     }
 
     // Execution Sentence on primary target
-    Unit* target = GetBot()->GetSelectedUnit();    if (target && CanUseAbility(EXECUTION_SENTENCE))
+    Unit* target = GetBot()->GetSelectedUnit();
+    if (target && CanUseAbility(EXECUTION_SENTENCE))
     {
         if (CastSpell(EXECUTION_SENTENCE, target))
         {
@@ -1030,7 +1035,8 @@ bool PaladinAI::IsAllyInDanger() const
     return false;
 }
 
-bool PaladinAI::ShouldUseLayOnHands() const{
+bool PaladinAI::ShouldUseLayOnHands() const
+{
     if (!GetBot())        return false;    // Use on self if critical
     if (GetBot()->GetHealthPct() < LAY_ON_HANDS_THRESHOLD)        return true;
 
@@ -1038,10 +1044,19 @@ bool PaladinAI::ShouldUseLayOnHands() const{
     Group* group = GetBot()->GetGroup();
     if (group)
     {
-        for (GroupReference const& itr : group->GetMembers())        {
+        for (GroupReference const& itr : group->GetMembers())
+        {
             Player* member = itr.GetSource();
-            // TODO: Check if member is tank
-    if (member && member != GetBot() && member->GetHealthPct() < LAY_ON_HANDS_THRESHOLD)
+            if (!member || member == GetBot())
+                continue;
+
+            // Check if member is a tank using RoleDefinitions
+            uint8 classId = member->GetClass();
+            uint8 specId = static_cast<uint8>(member->GetPrimarySpecialization());
+            GroupRole memberRole = RoleDefinitions::GetPrimaryRole(classId, specId);
+
+            // Prioritize tanks for Lay on Hands (they keep the group alive)
+            if (memberRole == GroupRole::TANK && member->GetHealthPct() < LAY_ON_HANDS_THRESHOLD)
                 return true;
         }
     }
@@ -1066,7 +1081,8 @@ Position PaladinAI::CalculateOptimalMeleePosition(::Unit* target)
     return Position(x, y, z, angle);
 }
 
-bool PaladinAI::IsValidTarget(::Unit* target){
+bool PaladinAI::IsValidTarget(::Unit* target)
+{
     return target && target->IsAlive() && GetBot()->IsValidAttackTarget(target);
 }
 

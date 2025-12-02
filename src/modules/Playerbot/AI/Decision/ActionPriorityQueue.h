@@ -12,6 +12,7 @@
 
 #include "Define.h"
 #include "ObjectGuid.h"
+#include "../Common/ActionScoringEngine.h"  // For CombatContext enum
 #include <vector>
 #include <queue>
 #include <unordered_map>
@@ -25,7 +26,6 @@ namespace bot { namespace ai {
 
 // Forward declarations
 struct DecisionVote;
-enum class CombatContext : uint8;
 
 /**
  * @enum SpellPriority
@@ -38,7 +38,7 @@ enum class SpellPriority : uint8
     HIGH = 70,          // Core rotation abilities (Fireball, Mortal Strike)
     MEDIUM = 50,        // Situational abilities (AoE, CC)
     LOW = 30,           // Filler abilities (Frostbolt, Auto-attack)
-    OPTIONAL = 10       // Optional abilities (buffs outside combat)
+    OPTIONAL_PRIORITY = 10       // Optional abilities (buffs outside combat)
 };
 
 /**

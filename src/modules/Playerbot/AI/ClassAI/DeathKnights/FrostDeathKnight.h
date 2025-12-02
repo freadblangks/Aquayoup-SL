@@ -109,21 +109,25 @@ struct FrostRuneRunicPowerResource
     uint32 maxRunicPower{100};
     bool available{true};
 
-    bool Consume(uint32 runesCost) {
+    bool Consume(uint32 runesCost)
+    {
         uint32 totalRunes = bloodRunes + frostRunes + unholyRunes;
         if (totalRunes >= runesCost) {
             uint32 remaining = runesCost;
-            if (bloodRunes > 0) {
+            if (bloodRunes > 0)
+            {
                 uint32 toConsume = ::std::min(bloodRunes, remaining);
                 bloodRunes -= toConsume;
                 remaining -= toConsume;
             }
-            if (remaining > 0 && frostRunes > 0) {
+            if (remaining > 0 && frostRunes > 0)
+            {
                 uint32 toConsume = ::std::min(frostRunes, remaining);
                 frostRunes -= toConsume;
                 remaining -= toConsume;
             }
-            if (remaining > 0 && unholyRunes > 0) {
+            if (remaining > 0 && unholyRunes > 0)
+            {
                 uint32 toConsume = ::std::min(unholyRunes, remaining);
                 unholyRunes -= toConsume;
                 remaining -= toConsume;
@@ -134,13 +138,15 @@ struct FrostRuneRunicPowerResource
         return false;
     }
 
-    void Regenerate(uint32 diff) {
+    void Regenerate(uint32 diff)
+    {
         // Runes regenerate over time
         static uint32 regenTimer = 0;
         regenTimer += diff;
         if (regenTimer >= 10000) { // 10 seconds per rune
             uint32 totalRunes = bloodRunes + frostRunes + unholyRunes;
-            if (totalRunes < 6) {
+            if (totalRunes < 6)
+            {
                 if (bloodRunes < 2) bloodRunes++;
                 else if (frostRunes < 2) frostRunes++;
                 else if (unholyRunes < 2) unholyRunes++;
@@ -158,7 +164,8 @@ struct FrostRuneRunicPowerResource
         return 6; // Max 6 runes
     }
 
-    void Initialize(Player* bot) {
+    void Initialize(Player* bot)
+    {
         bloodRunes = 2;
         frostRunes = 2;
         unholyRunes = 2;
@@ -282,7 +289,8 @@ public:
         InitializeFrostMechanics();
     }
 
-    void UpdateRotation(::Unit* target) override    {
+    void UpdateRotation(::Unit* target) override
+    {
         if (!target || !target->IsAlive() || !target->IsHostileTo(this->GetBot()))
             return;
 
@@ -607,8 +615,13 @@ private:
     void InitializeFrostMechanics()
     {        // REMOVED: using namespace bot::ai; (conflicts with ::bot::ai::)
         // REMOVED: using namespace BehaviorTreeBuilder; (not needed)
-        // TODO: GetBotAI() doesn't exist on Player - this needs proper BotAI integration
-        // Commenting out for now to fix compilation errors
+        // DESIGN NOTE: BotAI integration for ActionPriorityQueue and BehaviorTree registration
+        // Implementation should include:
+        // - Proper BotAI retrieval from Player instance (via custom Player extension or bot registry)
+        // - ActionPriorityQueue registration for Frost DK spells (Icebound Fortitude, Pillar of Frost, Empower Rune Weapon, Obliterate, Howling Blast, Frost Strike, Breath of Sindragosa, Remorseless Winter, Horn of Winter)
+        // - BehaviorTree construction with burst cooldowns, priority procs (Killing Machine/Rime), runic power/rune spenders
+        // Reference: WoW 11.2 Death Knight mechanics, Frost specialization burst windows and proc management
+        // Commenting out for now until BotAI integration is implemented
         /*
         BotAI* ai = this->GetBot()->GetBotAI();
         if (!ai) return;

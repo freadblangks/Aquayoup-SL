@@ -14,6 +14,7 @@
 #include "Player.h"
 #include "Guild.h"
 #include "Item.h"
+#include "GameTime.h"
 #include "Core/DI/Interfaces/IGuildBankManager.h"
 #include <unordered_map>
 #include <vector>
@@ -132,6 +133,8 @@ public:
         float organizationLevel;
         uint32 lastAnalysisTime;
 
+        BankAnalysis() : guildId(0), utilizationRate(0.0f)
+            , organizationLevel(0.5f), lastAnalysisTime(GameTime::GetGameTimeMS()) {}
         BankAnalysis(uint32 gId) : guildId(gId), utilizationRate(0.0f)
             , organizationLevel(0.5f), lastAnalysisTime(GameTime::GetGameTimeMS()) {}
     };
@@ -175,6 +178,9 @@ public:
         float contributionScore;
         float trustLevel;
 
+        MemberBankProfile() : playerGuid(0), guildId(0)
+            , totalDeposits(0), totalWithdrawals(0), lastBankAccess(GameTime::GetGameTimeMS())
+            , contributionScore(0.5f), trustLevel(0.8f) {}
         MemberBankProfile(uint32 pGuid, uint32 gId) : playerGuid(pGuid), guildId(gId)
             , totalDeposits(0), totalWithdrawals(0), lastBankAccess(GameTime::GetGameTimeMS())
             , contributionScore(0.5f), trustLevel(0.8f) {}
@@ -204,7 +210,8 @@ public:
         std::atomic<float> organizationScore{0.8f};
         std::atomic<float> memberSatisfaction{0.85f};
 
-        void Reset() {
+        void Reset()
+        {
             totalDeposits = 0; totalWithdrawals = 0; itemsMoved = 0;
             organizationActions = 0; totalBankValue = 0; utilizationRate = 0.7f;
             organizationScore = 0.8f; memberSatisfaction = 0.85f;
@@ -250,6 +257,8 @@ private:
         uint32 organizationFrequency;
         uint32 lastOrganization;
 
+        BankConfiguration() : guildId(0), autoOrganizationEnabled(true)
+            , organizationFrequency(86400000), lastOrganization(GameTime::GetGameTimeMS()) {}
         BankConfiguration(uint32 gId) : guildId(gId), autoOrganizationEnabled(true)
             , organizationFrequency(86400000), lastOrganization(GameTime::GetGameTimeMS()) {}
     };
@@ -270,6 +279,8 @@ private:
     std::vector<std::pair<uint32, uint32>> PlanItemMoves(Guild* guild, const BankOrganizationPlan& plan);
     void ExecuteItemMove(uint32 fromTab, uint32 fromSlot, uint32 toTab, uint32 toSlot);
     float EvaluateOrganizationEfficiency(Guild* guild);
+    std::vector<GuildBankItem> GetDuplicatesAnalysis(Guild* guild);
+    std::vector<GuildBankItem> GetExpiredItemsAnalysis(Guild* guild);
 
     // Item analysis
     void AnalyzeItemDistribution(Guild* guild, BankAnalysis& analysis);

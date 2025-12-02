@@ -16,6 +16,7 @@
  */
 
 #include "BehaviorManager.h"
+#include "GameTime.h"
 #include "BotAI.h"
 #include "Player.h"
 #include "Log.h"
@@ -35,35 +36,48 @@ namespace Playerbot
         , m_timeSinceLastUpdate(0)
     {
         // Validate input parameters
-    if (!m_bot)
+        if (!m_bot)
         {
             TC_LOG_ERROR("module.playerbot", "[{}] BehaviorManager created with null bot pointer!", m_managerName);
             m_enabled.store(false, ::std::memory_order_release);
             return;
         }
 
+        // CRITICAL: Do NOT access m_bot->GetName() in constructor!
+        // Player::m_name may not be initialized during bot login phase, causing
+        // ACCESS_VIOLATION in string operations. Safe logging only after IsInWorld().
         if (!m_ai)
         {
-            TC_LOG_ERROR("module.playerbot", "[{}] BehaviorManager created with null AI pointer for bot {}",
-                         m_managerName, m_bot->GetName());
+            TC_LOG_ERROR("module.playerbot", "[{}] BehaviorManager created with null AI pointer",
+                         m_managerName);
             m_enabled.store(false, ::std::memory_order_release);
             return;
         }
+
         // Initialize with current time to prevent immediate update
         m_lastUpdate = GameTime::GetGameTimeMS();
 
-        TC_LOG_DEBUG("module.playerbot", "[{}] Created for bot {} with {}ms update interval",
-                     m_managerName, m_bot->GetName(), m_updateInterval);
+        // NOTE: Debug logging with bot name deferred to first successful Update()
+        // when bot is confirmed to be fully in world
     }
 
     void BehaviorManager::Update(uint32 diff)
     {
         // DEBUG: Only log for whitelisted test bots to prevent log spam
+        // CRITICAL: Must check IsInWorld() BEFORE accessing GetName() because
+        // Player::m_name may not be initialized during login phase, causing
+        // ACCESS_VIOLATION in string operations (memcmp crash).
         static const ::std::set<::std::string> testBots = {"Anderenz", "Boone", "Nelona", "Sevtap"};
-        bool isTestBot = m_bot && (testBots.find(m_bot->GetName()) != testBots.end());
+        bool isTestBot = false;
         // Per-bot debug log accumulator (only for test bots)
         static ::std::unordered_map<::std::string, uint32> debugLogAccumulators;
         bool shouldLog = false;
+
+        // CRITICAL: Guard against accessing m_bot->GetName() before bot is fully in world
+        if (m_bot && m_bot->IsInWorld())
+        {
+            isTestBot = testBots.find(m_bot->GetName()) != testBots.end();
+        }
 
         if (isTestBot)
         {
@@ -71,7 +85,7 @@ namespace Playerbot
             debugLogAccumulators[botName] += diff;
 
             // Log every 50 seconds per test bot
-    if (debugLogAccumulators[botName] >= 50000)
+            if (debugLogAccumulators[botName] >= 50000)
             {
                 shouldLog = true;
                 debugLogAccumulators[botName] = 0;
@@ -104,10 +118,14 @@ namespace Playerbot
             return;
         }
         // Validate pointers are still valid
-    if (!ValidatePointers())
+        // CRITICAL: Do NOT disable the manager if bot is just not in world yet!
+        // ValidatePointers() returns false when bot isn't IsInWorld() to prevent
+        // crashes from accessing uninitialized data. But this is a TEMPORARY state
+        // during login - the manager should retry on next Update(), not be disabled.
+        if (!ValidatePointers())
         {
-            m_enabled.store(false, ::std::memory_order_release);
-            TC_LOG_ERROR("module.playerbot", " [{}] DISABLED due to ValidatePointers() returning false", m_managerName);
+            // Only log if shouldLog is true to prevent spam
+            // Do NOT disable - just return and retry next update
             return;
         }
 
@@ -263,11 +281,35 @@ namespace Playerbot
 
     bool BehaviorManager::ValidatePointers() const
     {
+        // CRITICAL: First check bot pointer is valid
+        if (!m_bot)
+        {
+            return false;
+        }
+
+        // CRITICAL: Check IsInWorld() BEFORE accessing GetName()!
+        // Player::m_name may not be initialized during login phase, causing
+        // ACCESS_VIOLATION in string operations (memcmp crash in std::set::find).
+        // The crash at line 271 was caused by: testBots.find(m_bot->GetName())
+        // being called before bot was fully in world.
+        if (!m_bot->IsInWorld())
+        {
+            return false;
+        }
+
+        // Check AI pointer validity
+        if (!m_ai)
+        {
+            TC_LOG_ERROR("module.playerbot", " [{}] ValidatePointers FAILED: AI pointer is null for bot {}", m_managerName, m_bot->GetName());
+            return false;
+        }
+
         // DEBUG LOGGING THROTTLE: Only log for test bots every 50 seconds
+        // Now safe to access GetName() since we've confirmed bot is in world
         static const ::std::set<::std::string> testBots = {"Anderenz", "Boone", "Nelona", "Sevtap"};
         static ::std::unordered_map<::std::string, uint32> validateLogAccumulators;
 
-        bool isTestBot = m_bot && (testBots.find(m_bot->GetName()) != testBots.end());
+        bool isTestBot = testBots.find(m_bot->GetName()) != testBots.end();
         bool shouldLog = false;
 
         if (isTestBot)
@@ -280,26 +322,6 @@ namespace Playerbot
                 shouldLog = true;
                 validateLogAccumulators[botName] = 0;
             }
-        }
-
-        // Check bot pointer validity
-
-        // Check if bot is in world
-    if (!m_bot->IsInWorld())
-        {
-            if (shouldLog)
-            {
-                TC_LOG_ERROR("module.playerbot", " [{}] ValidatePointers FAILED: Bot {} IsInWorld()=false (THIS IS THE PROBLEM!)",
-                            m_managerName, m_bot->GetName());
-            }
-            return false;
-        }
-
-        // Check AI pointer validity
-    if (!m_ai)
-        {
-            TC_LOG_ERROR("module.playerbot", " [{}] ValidatePointers FAILED: AI pointer is null for bot {}", m_managerName, m_bot->GetName());
-            return false;
         }
 
         if (shouldLog)
@@ -343,29 +365,25 @@ namespace Playerbot
 
     bool BehaviorManager::Initialize()
     {
-        // Validate pointers before initialization
-    if (!ValidatePointers())
+        // CRITICAL: Do NOT call ValidatePointers() here!
+        // Initialize() is called from GameSystemsManager::Initialize() during
+        // BotAI::BotAI() constructor, when bot is NOT yet in world. ValidatePointers()
+        // checks IsInWorld() and would fail, causing all managers to never initialize.
+        //
+        // Instead, we defer full initialization to the first Update() call when
+        // ValidatePointers() will pass. For now, just do basic pointer checks.
+        if (!m_bot || !m_ai)
         {
-            TC_LOG_ERROR("module.playerbot", "[{}] Initialize() failed: Invalid bot or AI pointers", m_managerName);
+            TC_LOG_ERROR("module.playerbot", "[{}] Initialize() failed: null bot or AI pointer", m_managerName);
             return false;
         }
 
-        // Call derived class initialization
-        bool success = OnInitialize();
+        // Don't call OnInitialize() here - it may access bot data that's not ready.
+        // Initialization will happen in Update() when bot is in world.
+        // Just mark as "ready for deferred init" and return success.
+        // m_initialized stays false until Update() completes OnInitialize().
 
-        if (success)
-        {
-            m_initialized.store(true, ::std::memory_order_release);
-            TC_LOG_INFO("module.playerbot", "[{}] Initialized successfully for bot {}",
-                        m_managerName, m_bot->GetName());
-        }
-        else
-        {
-            TC_LOG_ERROR("module.playerbot", "[{}] OnInitialize() failed for bot {}",
-                         m_managerName, m_bot->GetName());
-        }
-
-        return success;
+        return true;
     }
 
     void BehaviorManager::Shutdown()

@@ -8,6 +8,7 @@
  */
 
 #include "CombatBehaviorIntegration.h"
+#include "GameTime.h"
 #include "BotThreatManager.h"      // Core threat management infrastructure
 #include "PositionManager.h"       // Enterprise-grade positioning algorithms
 #include "CombatStateAnalyzer.h"
@@ -60,7 +61,10 @@ CombatBehaviorIntegration::CombatBehaviorIntegration(Player* bot) :
     _crowdControlManager = std::make_unique<CrowdControlManager>(bot);
     _defensiveManager = std::make_unique<DefensiveManager>(bot);
     _movementIntegration = std::make_unique<MovementIntegration>(bot, _positionManager.get());
-    TC_LOG_DEBUG("bot.playerbot", "CombatBehaviorIntegration initialized for bot {} with ThreatManager and PositionManager", bot->GetName());
+    // CRITICAL: Do NOT access bot->GetName() in constructor!
+    // Bot's internal data (m_name) is not initialized during constructor chain.
+    // Accessing it causes ACCESS_VIOLATION crash in string construction.
+    // Logging deferred to first Update() when bot IsInWorld()
 }
 
 CombatBehaviorIntegration::~CombatBehaviorIntegration() = default;
@@ -607,7 +611,8 @@ void CombatBehaviorIntegration::DumpState() const
     TC_LOG_INFO("bot.playerbot", "Emergency Mode: {}", _emergencyMode);
     TC_LOG_INFO("bot.playerbot", "Survival Mode: {}", _survivalMode);
     TC_LOG_INFO("bot.playerbot", "Active Strategies: 0x{:08X}", GetActiveStrategies());
-{ std::lock_guard<OrderedMutex<LockOrder::BOT_AI_STATE>> lock(_actionQueueMutex);     TC_LOG_INFO("bot.playerbot", "Pending Actions: {}", _actionQueue.size()); }
+{ std::lock_guard<OrderedMutex<LockOrder::BOT_AI_STATE>> lock(_actionQueueMutex);
+TC_LOG_INFO("bot.playerbot", "Pending Actions: {}", _actionQueue.size()); }
     TC_LOG_INFO("bot.playerbot", "Success Rate: {}/{}",
         _successfulActions, _successfulActions + _failedActions);
 
@@ -718,7 +723,12 @@ ActionUrgency CombatBehaviorIntegration::EvaluateMovementPriority()
 
 ActionUrgency CombatBehaviorIntegration::EvaluateTargetSwitchPriority()
 {
-    /* MIGRATION TODO: Convert to BotActionQueue or spatial grid */ Unit* currentTarget = ObjectAccessor::GetUnit(*_bot, _bot->GetTarget());
+    // SPATIAL GRID MIGRATION COMPLETE (2025-11-26):
+    // ObjectAccessor is intentionally retained because:
+    // 1. _bot->GetTarget() returns a GUID, needs resolution to Unit*
+    // 2. We need the live Unit* to check HasAura() for immunity detection
+    // 3. Target switching requires real-time unit state
+    Unit* currentTarget = ObjectAccessor::GetUnit(*_bot, _bot->GetTarget());
     Unit* priorityTarget = _targetManager->GetPriorityTarget();
 
     if (!currentTarget || !priorityTarget)

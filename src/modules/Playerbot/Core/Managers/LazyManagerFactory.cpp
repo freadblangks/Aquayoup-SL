@@ -25,15 +25,19 @@ namespace Playerbot
 LazyManagerFactory::LazyManagerFactory(Player* bot, BotAI* ai)
     : _bot(bot), _ai(ai)
 {
-
-    TC_LOG_DEBUG("module.playerbot.lazy", "LazyManagerFactory initialized for bot {} - Managers will be created on-demand",
-                 _bot->GetName());
+    // CRITICAL: Do NOT access _bot->GetName() or _bot->GetGUID() in constructor!
+    // Bot may not be fully in world yet during BotAI construction,
+    // and Player::m_name/m_guid are not initialized, causing ACCESS_VIOLATION.
+    // Logging deferred to lazy getter methods when bot is IsInWorld().
 }
 LazyManagerFactory::~LazyManagerFactory()
 {
     ShutdownAll();
-    TC_LOG_DEBUG("module.playerbot.lazy", "LazyManagerFactory destroyed for bot {} - {} managers initialized, total init time: {}ms",
-                 _bot ? _bot->GetName() : "Unknown",
+    // CRITICAL: Do NOT call _bot->GetName() in destructor!
+    // During destruction, _bot may be in invalid state where GetName() returns
+    // garbage data, causing ACCESS_VIOLATION or std::bad_alloc.
+    // Only log manager statistics without bot identity.
+    TC_LOG_DEBUG("module.playerbot.lazy", "LazyManagerFactory destroyed - {} managers initialized, total init time: {}ms",
                  _initCount.load(),
                  _totalInitTime.count());
 }

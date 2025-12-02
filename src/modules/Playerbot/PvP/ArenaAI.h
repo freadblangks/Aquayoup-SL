@@ -380,12 +380,31 @@ public:
     ArenaAI& operator=(ArenaAI const&) = delete;
 
 private:
+    // Bot reference (owned externally)
+    Player* _bot;
+
+    // Static shared data across all bot instances
+    static std::unordered_map<uint32, std::vector<ArenaPillar>> _arenaMapPillars;
+    static ArenaMetrics _globalMetrics;
+    static bool _initialized;
+
+    // Per-instance state
+    uint32 _lastUpdateTime{0};
+    ObjectGuid _focusTarget;
+    ArenaMatchState _matchState;
+    ArenaProfile _profile;
+    ArenaMetrics _metrics;
+    TeamComposition _teamComposition{TeamComposition::DOUBLE_DPS_HEALER};
+    TeamComposition _enemyComposition{TeamComposition::DOUBLE_DPS_HEALER};
+    bool _burstReady{false};
+
 
     // ============================================================================
     // HELPER FUNCTIONS
     // ============================================================================
 
     ArenaBracket GetArenaBracket() const;
+    uint8 GetBracketTeamSize(ArenaBracket bracket) const;
     TeamComposition GetTeamComposition() const;
     TeamComposition GetEnemyTeamComposition() const;
     std::vector<::Player*> GetTeammates() const;
@@ -393,6 +412,52 @@ private:
     bool IsInLineOfSight(::Unit* target) const;
     float GetOptimalRangeForClass() const;
     bool IsTeammateInDanger(::Player* teammate) const;
+
+    // ============================================================================
+    // RATING SYSTEM HELPERS
+    // ============================================================================
+
+    /**
+     * @brief Estimate opponent team's rating based on match state
+     * @return Estimated opponent rating
+     */
+    uint32 EstimateOpponentRating() const;
+
+    /**
+     * @brief Record match result for performance tracking
+     * @param won Whether the match was won
+     * @param oldRating Rating before match
+     * @param newRating Rating after match
+     * @param opponentRating Estimated opponent rating
+     * @param duration Match duration in seconds
+     */
+    void RecordMatchResult(bool won, uint32 oldRating, uint32 newRating,
+        uint32 opponentRating, uint32 duration);
+
+    // ============================================================================
+    // TARGET ANALYSIS HELPERS
+    // ============================================================================
+
+    /**
+     * @brief Calculate priority score for target selection
+     * @param target The target to evaluate
+     * @return Priority score (lower = higher priority)
+     */
+    float CalculateTargetPriorityScore(::Unit* target) const;
+
+    /**
+     * @brief Check if target is under pressure from teammates
+     * @param target The target to check
+     * @return True if target is being focused by team
+     */
+    bool IsTargetUnderTeamPressure(::Unit* target) const;
+
+    /**
+     * @brief Check if target has defensive cooldown active
+     * @param target The target to check
+     * @return True if target has major defensive active
+     */
+    bool HasDefensiveCooldownActive(::Unit* target) const;
 
     // ============================================================================
     // PILLAR DATABASE
@@ -436,12 +501,8 @@ private:
     // Pillar database (mapId -> pillars)
     std::unordered_map<uint32, std::vector<ArenaPillar>> _arenaPillars;
 
-    // Burst coordination (playerGuid -> burst ready)
-    std::unordered_map<uint32, bool> _burstReady;
-
     // Metrics
     std::unordered_map<uint32, ArenaMetrics> _playerMetrics;
-    ArenaMetrics _globalMetrics;
 
     mutable Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BEHAVIOR_MANAGER> _mutex;
 

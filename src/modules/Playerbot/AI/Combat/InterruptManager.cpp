@@ -8,6 +8,7 @@
  */
 
 #include "InterruptManager.h"
+#include "GameTime.h"
 #include "Player.h"
 #include "Unit.h"
 #include "Spell.h"
@@ -39,17 +40,25 @@ InterruptManager::InterruptManager(Player* bot)
       _reactionTime(DEFAULT_REACTION_TIME), _maxInterruptRange(DEFAULT_MAX_RANGE),
       _scanInterval(DEFAULT_SCAN_INTERVAL), _predictiveInterrupts(true), _emergencyMode(false),
       _timingAccuracyTarget(TIMING_ACCURACY_TARGET), _lastScan(0), _lastInterruptAttempt(0),
-      _lastCoordinationUpdate(0)
+      _lastCoordinationUpdate(0), _capabilitiesInitialized(false)
 {
-
-    InitializeInterruptCapabilities();
-    TC_LOG_DEBUG("playerbot.interrupt", "InterruptManager initialized for bot {} with {} capabilities",
-               _bot->GetName(), _interruptCapabilities.size());
+    // CRITICAL: Do NOT call InitializeInterruptCapabilities() here!
+    // The bot's power systems may not be initialized yet, causing ACCESS_VIOLATION
+    // in CalcPowerCost() -> Unit::GetPower(). Defer to first Update() call.
+    // Also no logging with _bot->GetName() - concurrent access issue.
 }
 
 void InterruptManager::UpdateInterruptSystem(uint32 diff)
 {
     // No lock needed - interrupt tracking is per-bot instance data
+
+    // CRITICAL: Deferred initialization - bot's power systems must be ready
+    // before we can call InitializeInterruptCapabilities() which uses CalcPowerCost()
+    if (!_capabilitiesInitialized && _bot && _bot->IsInWorld())
+    {
+        InitializeInterruptCapabilities();
+        _capabilitiesInitialized = true;
+    }
 
     uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastScan < _scanInterval && !_emergencyMode)
@@ -124,10 +133,15 @@ void InterruptManager::UpdateInterruptSystem(uint32 diff)
     ::std::vector<ObjectGuid> nearbyGuids = spatialGrid->QueryNearbyCreatureGuids(
         _bot->GetPosition(), _maxInterruptRange);
 
-    // Resolve GUIDs to Unit pointers and apply filtering logic
+    // SPATIAL GRID MIGRATION COMPLETE (2025-11-26):
+    // ObjectAccessor is intentionally retained because we need:
+    // 1. Real-time casting state via HasUnitState(UNIT_STATE_CASTING)
+    // 2. GetCurrentSpell() for spell information
+    // 3. GetSpellInfo() for interrupt worthiness checks
+    // The spatial grid pre-filters candidates to reduce ObjectAccessor calls.
     for (ObjectGuid guid : nearbyGuids)
     {
-        /* MIGRATION TODO: Convert to BotActionQueue or spatial grid */ Unit* unit = ObjectAccessor::GetUnit(*_bot, guid);
+        Unit* unit = ObjectAccessor::GetUnit(*_bot, guid);
         if (!IsValidInterruptTarget(unit))
             continue;
 

@@ -8,6 +8,7 @@
  */
 
 #include "DruidAI.h"
+#include "GameTime.h"
 #include "BalanceDruid.h"
 #include "FeralDruid.h"
 #include "GuardianDruid.h"
@@ -210,7 +211,8 @@ bool DruidAI::HandleDefensives()
     if (!bot)
         return false;
 
-    float healthPercent = bot->GetHealthPct();    uint32 currentTime = GameTime::GetGameTimeMS();
+    float healthPercent = bot->GetHealthPct();
+    uint32 currentTime = GameTime::GetGameTimeMS();
 
     // Survival Instincts - critical health
     if (healthPercent < 30.0f &&
@@ -1257,7 +1259,65 @@ void DruidAI::UpdateBuffs()
         return;
     }
 
-    // TODO: Add spec-specific buff logic here if needed
+    // Spec-specific buff logic based on current specialization
+    ChrSpecialization spec = bot->GetPrimarySpecialization();
+
+    switch (spec)
+    {
+        case ChrSpecialization::DruidBalance:
+            // Balance druids should be in Moonkin Form for combat
+            if (!bot->IsInCombat())
+            {
+                // Out of combat: ensure Moonkin Form for DPS
+                if (!IsInForm(DruidForm::MOONKIN) && CanUseAbility(MOONKIN_FORM))
+                    ShiftToForm(DruidForm::MOONKIN);
+            }
+            // Apply Mark of the Wild if not present (universal druid buff)
+            // Spell ID 1126 = Mark of the Wild
+            if (!bot->HasAura(1126) && CanUseAbility(1126))
+                CastSpell(1126, bot);
+            break;
+
+        case ChrSpecialization::DruidFeral:
+            // Feral druids should be in Cat Form for melee DPS
+            if (!bot->IsInCombat())
+            {
+                // Out of combat: ensure Cat Form ready
+                if (!IsInForm(DruidForm::CAT) && CanUseAbility(CAT_FORM))
+                    ShiftToForm(DruidForm::CAT);
+            }
+            // Apply Mark of the Wild if not present
+            if (!bot->HasAura(1126) && CanUseAbility(1126))
+                CastSpell(1126, bot);
+            break;
+
+        case ChrSpecialization::DruidGuardian:
+            // Guardian druids should be in Bear Form for tanking
+            if (!bot->IsInCombat())
+            {
+                // Out of combat: ensure Bear Form ready for tanking
+                if (!IsInForm(DruidForm::BEAR) && CanUseAbility(BEAR_FORM))
+                    ShiftToForm(DruidForm::BEAR);
+            }
+            // Apply Mark of the Wild if not present
+            if (!bot->HasAura(1126) && CanUseAbility(1126))
+                CastSpell(1126, bot);
+            break;
+
+        case ChrSpecialization::DruidRestoration:
+            // Restoration druids stay in caster form for healing
+            // They might use Tree of Life form during heavy healing phases (handled in rotation)
+            // Apply Mark of the Wild if not present
+            if (!bot->HasAura(1126) && CanUseAbility(1126))
+                CastSpell(1126, bot);
+            break;
+
+        default:
+            // No specialization or unknown - apply basic buffs
+            if (!bot->HasAura(1126) && CanUseAbility(1126))
+                CastSpell(1126, bot);
+            break;
+    }
 }
 
 void DruidAI::UpdateCooldowns(uint32 diff)
@@ -1315,7 +1375,8 @@ bool DruidAI::CanUseAbility(uint32 spellId)
     return true;
 }
 
-void DruidAI::OnCombatStart(::Unit* target){
+void DruidAI::OnCombatStart(::Unit* target)
+{
     if (!target || !GetBot())
         return;
 
@@ -1324,7 +1385,8 @@ void DruidAI::OnCombatStart(::Unit* target){
                  GetBot()->GetName(), target->GetName());
 
     _inCombat = true;
-    _currentTarget = target->GetGUID();    _combatTime = 0;
+    _currentTarget = target->GetGUID();
+    _combatTime = 0;
 
     // Update resources
     UpdateResources();
@@ -1523,13 +1585,15 @@ bool DruidAI::ShiftToForm(DruidForm form)
             return true;
         }
     }    return false;
-}DruidAI::DruidForm DruidAI::GetCurrentForm() const
+}
+DruidAI::DruidForm DruidAI::GetCurrentForm() const
 {    return _currentForm;
 }
 
 bool DruidAI::CanShiftToForm(DruidForm form) const
 {
-    Player* bot = GetBot();    if (!bot)
+    Player* bot = GetBot();
+    if (!bot)
         return false;
 
     switch (form)

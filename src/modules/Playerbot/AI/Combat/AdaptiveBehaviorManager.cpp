@@ -8,6 +8,9 @@
  */
 
 #include "AdaptiveBehaviorManager.h"
+#include "Item.h"
+#include "ItemTemplate.h"
+#include "GameTime.h"
 #include "../Decision/DecisionFusionSystem.h"
 #include "../Common/ActionScoringEngine.h"
 #include "Player.h"
@@ -40,10 +43,15 @@ AdaptiveBehaviorManager::AdaptiveBehaviorManager(::Player* bot) :
     _totalUpdateTime(0),
     _updateCount(0),
     _compositionCacheTime(0),
-    _roleCacheTime(0)
+    _roleCacheTime(0),
+    _rolesInitialized(false)
 {
     InitializeDefaultProfiles();
-    AssignRoles();
+    // CRITICAL: Do NOT call AssignRoles() in constructor!
+    // Bot's inventory and internal state may not be fully loaded yet during
+    // ClassAI/BotAI construction. GetGearScore() accesses item templates which
+    // can crash if inventory is not loaded. AssignRoles is deferred to first
+    // Update() when bot IsInWorld().
 }
 
 AdaptiveBehaviorManager::~AdaptiveBehaviorManager() = default;
@@ -61,7 +69,7 @@ void AdaptiveBehaviorManager::CreateEmergencyTankProfile()
 {
     BehaviorProfile profile;
     profile.name = "EmergencyTank";
-    profile.priority = BehaviorPriority::EMERGENCY;
+    profile.priority = AdaptiveBehaviorPriority::EMERGENCY;
     profile.strategyFlags = STRATEGY_EMERGENCY_TANK | STRATEGY_DEFENSIVE | STRATEGY_USE_COOLDOWNS;
     profile.minDuration = 5000;
     profile.maxDuration = 30000;
@@ -85,7 +93,7 @@ void AdaptiveBehaviorManager::CreateAOEProfile()
 {
     BehaviorProfile profile;
     profile.name = "AOEMode";
-    profile.priority = BehaviorPriority::HIGH;
+    profile.priority = AdaptiveBehaviorPriority::HIGH;
     profile.strategyFlags = STRATEGY_AOE_FOCUS | STRATEGY_AGGRESSIVE;
     profile.minDuration = 3000;
     profile.maxDuration = 20000;
@@ -109,7 +117,7 @@ void AdaptiveBehaviorManager::CreateSurvivalProfile()
 {
     BehaviorProfile profile;
     profile.name = "Survival";
-    profile.priority = BehaviorPriority::CRITICAL;
+    profile.priority = AdaptiveBehaviorPriority::CRITICAL;
     profile.strategyFlags = STRATEGY_SURVIVAL | STRATEGY_DEFENSIVE | STRATEGY_USE_CONSUMABLES | STRATEGY_USE_COOLDOWNS;
     profile.minDuration = 5000;
     profile.maxDuration = 15000;
@@ -134,7 +142,7 @@ void AdaptiveBehaviorManager::CreateBurstProfile()
 {
     BehaviorProfile profile;
     profile.name = "BurstPhase";
-    profile.priority = BehaviorPriority::HIGH;
+    profile.priority = AdaptiveBehaviorPriority::HIGH;
     profile.strategyFlags = STRATEGY_BURST_DAMAGE | STRATEGY_AGGRESSIVE | STRATEGY_USE_COOLDOWNS | STRATEGY_USE_CONSUMABLES;
     profile.minDuration = 10000;
     profile.maxDuration = 30000;
@@ -157,7 +165,7 @@ void AdaptiveBehaviorManager::CreateResourceConservationProfile()
 {
     BehaviorProfile profile;
     profile.name = "ResourceConservation";
-    profile.priority = BehaviorPriority::NORMAL;
+    profile.priority = AdaptiveBehaviorPriority::NORMAL;
     profile.strategyFlags = STRATEGY_CONSERVE_MANA | STRATEGY_SAVE_COOLDOWNS;
     profile.minDuration = 10000;
     profile.maxDuration = 60000;
@@ -179,6 +187,14 @@ void AdaptiveBehaviorManager::CreateResourceConservationProfile()
 void AdaptiveBehaviorManager::Update(uint32 diff, const CombatMetrics& metrics, CombatSituation situation)
 {
     uint32 startTime = GameTime::GetGameTimeMS();
+
+    // Deferred role initialization - only when bot is fully in world
+    // This cannot be done in constructor as inventory is not yet loaded
+    if (!_rolesInitialized && _bot && _bot->IsInWorld())
+    {
+        AssignRoles();
+        _rolesInitialized = true;
+    }
 
     _updateTimer += diff;
 
@@ -233,7 +249,7 @@ void AdaptiveBehaviorManager::UpdateBehavior(const CombatMetrics& metrics, Comba
 void AdaptiveBehaviorManager::UpdateProfiles(uint32 diff, const CombatMetrics& metrics, CombatSituation situation)
 {
     BehaviorProfile* highestPriorityProfile = nullptr;
-    BehaviorPriority highestPriority = BehaviorPriority::LOW;
+    AdaptiveBehaviorPriority highestPriority = AdaptiveBehaviorPriority::LOW;
 
     for (BehaviorProfile& profile : _profiles)
     {
@@ -690,13 +706,13 @@ void AdaptiveBehaviorManager::AdjustBehaviorWeights()
         float successRate = GetDecisionSuccessRate(profile.name);
 
         // Adjust priority based on success rate
-    if (successRate > 80.0f && profile.priority < BehaviorPriority::CRITICAL)
+    if (successRate > 80.0f && profile.priority < AdaptiveBehaviorPriority::CRITICAL)
         {
-            profile.priority = static_cast<BehaviorPriority>(static_cast<uint8>(profile.priority) + 1);
+            profile.priority = static_cast<AdaptiveBehaviorPriority>(static_cast<uint8>(profile.priority) + 1);
         }
-        else if (successRate < 40.0f && profile.priority > BehaviorPriority::LOW)
+        else if (successRate < 40.0f && profile.priority > AdaptiveBehaviorPriority::LOW)
         {
-            profile.priority = static_cast<BehaviorPriority>(static_cast<uint8>(profile.priority) - 1);
+            profile.priority = static_cast<AdaptiveBehaviorPriority>(static_cast<uint8>(profile.priority) - 1);
         }
     }
 }
@@ -1041,9 +1057,118 @@ bool AdaptiveBehaviorManager::HasCrowdControl() const
 
 float AdaptiveBehaviorManager::GetGearScore() const
 {
-    // Simplified gear score calculation
-    // In production would calculate from actual equipped items
-    return 3000.0f; // Placeholder
+    // Full implementation: Calculate comprehensive gear score from equipped items
+    if (!_bot)
+        return 3000.0f;  // Baseline if no bot
+
+    float totalScore = 0.0f;
+    uint32 slotCount = 0;
+    uint32 itemLevelSum = 0;
+
+    // Slot importance multipliers (TWW 11.2 weights)
+    static const std::unordered_map<uint8, float> slotMultipliers = {
+        {EQUIPMENT_SLOT_HEAD, 1.2f},
+        {EQUIPMENT_SLOT_NECK, 0.9f},
+        {EQUIPMENT_SLOT_SHOULDERS, 1.1f},
+        {EQUIPMENT_SLOT_BODY, 0.0f},       // Shirt - no stats
+        {EQUIPMENT_SLOT_CHEST, 1.2f},
+        {EQUIPMENT_SLOT_WAIST, 1.0f},
+        {EQUIPMENT_SLOT_LEGS, 1.2f},
+        {EQUIPMENT_SLOT_FEET, 1.0f},
+        {EQUIPMENT_SLOT_WRISTS, 0.9f},
+        {EQUIPMENT_SLOT_HANDS, 1.0f},
+        {EQUIPMENT_SLOT_FINGER1, 0.85f},
+        {EQUIPMENT_SLOT_FINGER2, 0.85f},
+        {EQUIPMENT_SLOT_TRINKET1, 1.1f},
+        {EQUIPMENT_SLOT_TRINKET2, 1.1f},
+        {EQUIPMENT_SLOT_BACK, 0.9f},
+        {EQUIPMENT_SLOT_MAINHAND, 1.5f},   // Weapons are highly weighted
+        {EQUIPMENT_SLOT_OFFHAND, 1.2f},
+        {EQUIPMENT_SLOT_RANGED, 1.0f}      // Legacy slot
+    };
+
+    // Quality multipliers
+    static const std::unordered_map<uint32, float> qualityMultipliers = {
+        {ITEM_QUALITY_POOR, 0.5f},
+        {ITEM_QUALITY_NORMAL, 0.7f},
+        {ITEM_QUALITY_UNCOMMON, 0.85f},
+        {ITEM_QUALITY_RARE, 1.0f},
+        {ITEM_QUALITY_EPIC, 1.15f},
+        {ITEM_QUALITY_LEGENDARY, 1.3f},
+        {ITEM_QUALITY_ARTIFACT, 1.4f}
+    };
+
+    // Iterate through all equipment slots
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+    {
+        Item* item = _bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+        if (!item)
+            continue;
+
+        ItemTemplate const* itemTemplate = item->GetTemplate();
+        if (!itemTemplate)
+            continue;
+
+        // Skip items with no stats (shirts, tabards)
+        auto slotIt = slotMultipliers.find(slot);
+        if (slotIt == slotMultipliers.end() || slotIt->second == 0.0f)
+            continue;
+
+        float slotMultiplier = slotIt->second;
+
+        // Get item level
+        uint32 itemLevel = itemTemplate->GetBaseItemLevel();
+        itemLevelSum += itemLevel;
+
+        // Get quality multiplier
+        float qualityMult = 1.0f;
+        auto qualIt = qualityMultipliers.find(itemTemplate->GetQuality());
+        if (qualIt != qualityMultipliers.end())
+            qualityMult = qualIt->second;
+
+        // Calculate slot score: itemLevel * slotWeight * qualityMult
+        float slotScore = static_cast<float>(itemLevel) * slotMultiplier * qualityMult;
+
+        // Bonus for gem sockets (TWW 11.2: each socket adds ~2% value)
+        uint32 socketCount = 0;
+        for (uint32 i = 0; i < MAX_ITEM_PROTO_SOCKETS; ++i)
+        {
+            if (itemTemplate->GetSocketColor(i) != SocketColor(0))
+                socketCount++;
+        }
+        if (socketCount > 0)
+            slotScore *= (1.0f + 0.02f * socketCount);
+
+        // Bonus for enchantments (enchanted items get 5% boost)
+        if (item->GetEnchantmentId(PERM_ENCHANTMENT_SLOT) != 0)
+            slotScore *= 1.05f;
+
+        totalScore += slotScore;
+        slotCount++;
+    }
+
+    // Calculate average item level for reference
+    float avgItemLevel = slotCount > 0 ? static_cast<float>(itemLevelSum) / slotCount : 0.0f;
+
+    // Base score formula: (total weighted score / expected slots) * 100
+    // Expected filled slots for a fully geared character: ~16 (excluding shirt, tabard)
+    constexpr float EXPECTED_SLOT_COUNT = 16.0f;
+    float normalizedScore = slotCount > 0 ? (totalScore / EXPECTED_SLOT_COUNT) * 100.0f : 0.0f;
+
+    // Add average item level contribution (ilvl 400+ = 4000+ gear score)
+    float ilvlContribution = avgItemLevel * 10.0f;
+
+    // Final gear score combines weighted slot scores and item level
+    float finalScore = normalizedScore + ilvlContribution;
+
+    // Clamp to reasonable bounds (0 to 10000)
+    finalScore = std::clamp(finalScore, 0.0f, 10000.0f);
+
+    TC_LOG_DEBUG("playerbot", "AdaptiveBehaviorManager::GetGearScore - Bot %s: "
+        "slots=%u, avgIlvl=%.1f, weightedScore=%.1f, final=%.1f",
+        _bot->GetName().c_str(), slotCount, avgItemLevel, normalizedScore, finalScore);
+
+    return finalScore;
 }
 
 void AdaptiveBehaviorManager::Reset()
@@ -1084,10 +1209,74 @@ void AdaptiveBehaviorManager::ResetStrategies()
 
 Playerbot::bot::ai::DecisionVote AdaptiveBehaviorManager::GetRecommendedAction(Unit* target, Playerbot::bot::ai::CombatContext context) const
 {
-    // TODO: DecisionVote and DecisionSource not fully defined (only forward-declared)
-    // TODO: Implement when DecisionFusionSystem.h provides full definitions
-    (void)target; (void)context; // Suppress unused warnings
-    return Playerbot::bot::ai::DecisionVote{}; // Return default-constructed vote
+    using namespace Playerbot::bot::ai;
+
+    // Create vote based on active profile and strategies
+    DecisionVote vote;
+    vote.source = DecisionSource::ADAPTIVE_BEHAVIOR;
+    vote.target = target;
+    vote.confidence = 0.0f;
+    vote.urgency = 0.0f;
+
+    if (!_bot || !_activeProfile)
+    {
+        vote.reasoning = "No active profile";
+        return vote;
+    }
+
+    // Base confidence on profile effectiveness
+    vote.confidence = 0.5f;  // Moderate baseline confidence
+
+    // Evaluate urgency based on combat context
+    float healthPct = _bot->GetHealthPct();
+    if (healthPct < 20.0f)
+    {
+        vote.urgency = 0.95f;
+        vote.reasoning = "Emergency: Low health, prioritize survival";
+    }
+    else if (healthPct < 40.0f)
+    {
+        vote.urgency = 0.7f;
+        vote.reasoning = "Warning: Moderate health, consider defensive options";
+    }
+    else if (target && target->GetHealthPct() < 20.0f)
+    {
+        vote.urgency = 0.8f;
+        vote.reasoning = "Execute phase: Target low health, prioritize finishing blows";
+    }
+    else
+    {
+        vote.urgency = 0.4f;
+        vote.reasoning = "Normal combat: Standard priority";
+    }
+
+    // Adjust confidence based on active strategies
+    if (_activeStrategies & STRATEGY_AGGRESSIVE)
+    {
+        vote.confidence += 0.1f;
+        vote.reasoning += "; Aggressive strategy active";
+    }
+    if (_activeStrategies & STRATEGY_DEFENSIVE)
+    {
+        vote.confidence += 0.15f;
+        vote.reasoning += "; Defensive strategy active";
+    }
+    if (_activeStrategies & STRATEGY_BURST_DAMAGE)
+    {
+        vote.confidence += 0.1f;
+        vote.urgency += 0.2f;  // Burst increases urgency
+        vote.reasoning += "; Burst strategy active";
+    }
+
+    // Clamp values
+    vote.confidence = std::clamp(vote.confidence, 0.0f, 1.0f);
+    vote.urgency = std::clamp(vote.urgency, 0.0f, 1.0f);
+
+    // Action ID would typically come from the active profile's recommended action
+    // For now, return 0 to indicate "defer to other systems for specific action"
+    vote.actionId = 0;
+
+    return vote;
 }
 
 } // namespace Playerbot

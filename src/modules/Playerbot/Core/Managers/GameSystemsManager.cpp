@@ -43,219 +43,67 @@ namespace Playerbot
 GameSystemsManager::GameSystemsManager(Player* bot, BotAI* botAI)
     : _bot(bot), _botAI(botAI)
 {
-    TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Constructing facade for bot '{}'",
-        _bot ? _bot->GetName() : "Unknown");
-
+    // CRITICAL: No logging with _bot->GetName() in constructor/Initialize()
+    // Player's m_name can be corrupted during concurrent access, causing ACCESS_VIOLATION
     // Manager instances will be created in Initialize()
 }
 
 GameSystemsManager::~GameSystemsManager()
 {
-    TC_LOG_DEBUG("module.playerbot", "GameSystemsManager::~GameSystemsManager: Begin cleanup for bot '{}'",
-        _bot ? _bot->GetName() : "Unknown");
-
     // ========================================================================
-    // CRITICAL: Explicit Manager Destruction Order
+    // CRITICAL: Destructor must be COMPLETELY ALLOCATION-FREE!
     // ========================================================================
+    // This destructor may be called during stack unwinding from exceptions
+    // (e.g., std::bad_alloc). During memory pressure:
+    // - TC_LOG_* macros allocate std::string internally
+    // - Any allocation can throw std::bad_alloc
+    // - Exceptions from destructors during unwinding = std::terminate()
     //
-    // Problem: C++ destroys members in REVERSE declaration order
-    // - _eventDispatcher destroyed BEFORE _combatStateManager
-    // - Managers try to UnsubscribeAll() from already-destroyed EventDispatcher
-    // - Results in ACCESS_VIOLATION
-    //
-    // Solution: Manually destroy managers HERE in correct dependency order
-    // - Ensures EventDispatcher is still alive during manager cleanup
-    // - Managers can safely call UnsubscribeAll() during OnShutdown()
-    //
-    // Destruction Order (CORRECT):
-    // 1. Manual reset() of managers (HERE) ← Managers alive, EventDispatcher alive ✅
-    // 2. Automatic _eventDispatcher destruction ← All managers gone, safe ✅
+    // Solution: NO LOGGING, NO ALLOCATIONS. Just reset the unique_ptrs.
+    // The manager destructors themselves should also be allocation-free.
     // ========================================================================
 
-    // 1. Combat state manager - monitors other managers
-    if (_combatStateManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying CombatStateManager");
-        _combatStateManager.reset();
-    }
+    // Explicit destruction order to ensure EventDispatcher outlives managers
+    // (managers may call UnsubscribeAll() in their destructors)
 
-    // 2. Death recovery manager - may interact with combat
-    if (_deathRecoveryManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying DeathRecoveryManager");
-        _deathRecoveryManager.reset();
-    }
+    // 1. High-level systems first
+    _combatStateManager.reset();
+    _deathRecoveryManager.reset();
+    _unifiedMovementCoordinator.reset();
 
-    // 3. Movement system
-    if (_unifiedMovementCoordinator)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying UnifiedMovementCoordinator");
-        _unifiedMovementCoordinator.reset();
-    }
+    // 2. Game system managers
+    _questManager.reset();
+    _tradeManager.reset();
+    _gatheringManager.reset();
+    _professionManager.reset();
+    _gatheringMaterialsBridge.reset();
+    _auctionMaterialsBridge.reset();
+    _professionAuctionBridge.reset();
+    _auctionManager.reset();
+    _bankingManager.reset();
+    _equipmentManager.reset();
+    _mountManager.reset();
+    _battlePetManager.reset();
+    _arenaAI.reset();
+    _pvpCombatAI.reset();
+    _auctionHouse.reset();
+    _farmingCoordinator.reset();
+    _groupCoordinator.reset();
 
-    // 4. Game system managers (order doesn't matter, no interdependencies)
-    if (_questManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying QuestManager");
-        _questManager.reset();
-    }
+    // 3. Support systems
+    _targetScanner.reset();
+    _groupInvitationHandler.reset();
+    _priorityManager.reset();
 
-    if (_tradeManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying TradeManager");
-        _tradeManager.reset();
-    }
+    // 4. Decision systems
+    _decisionFusion.reset();
+    _actionPriorityQueue.reset();
+    _behaviorTree.reset();
+    _hybridAI.reset();
 
-    if (_gatheringManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying GatheringManager");
-        _gatheringManager.reset();
-    }
-
-    if (_professionManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying ProfessionManager");
-        _professionManager.reset();
-    }
-
-    if (_gatheringMaterialsBridge)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying GatheringMaterialsBridge");
-        _gatheringMaterialsBridge.reset();
-    }
-
-    if (_auctionMaterialsBridge)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying AuctionMaterialsBridge");
-        _auctionMaterialsBridge.reset();
-    }
-
-    if (_professionAuctionBridge)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying ProfessionAuctionBridge");
-        _professionAuctionBridge.reset();
-    }
-
-    if (_auctionManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying AuctionManager");
-        _auctionManager.reset();
-    }
-
-    if (_bankingManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying BankingManager");
-        _bankingManager.reset();
-    }
-
-    if (_equipmentManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying EquipmentManager");
-        _equipmentManager.reset();
-    }
-
-    if (_mountManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying MountManager");
-        _mountManager.reset();
-    }
-
-    if (_battlePetManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying BattlePetManager");
-        _battlePetManager.reset();
-    }
-
-    if (_arenaAI)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying ArenaAI");
-        _arenaAI.reset();
-    }
-
-    if (_pvpCombatAI)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying PvPCombatAI");
-        _pvpCombatAI.reset();
-    }
-
-    if (_auctionHouse)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying AuctionHouse");
-        _auctionHouse.reset();
-    }
-
-    if (_farmingCoordinator)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying FarmingCoordinator");
-        _farmingCoordinator.reset();
-    }
-
-    if (_groupCoordinator)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying GroupCoordinator");
-        _groupCoordinator.reset();
-    }
-
-    // 5. Support systems
-    if (_targetScanner)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying TargetScanner");
-        _targetScanner.reset();
-    }
-
-    if (_groupInvitationHandler)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying GroupInvitationHandler");
-        _groupInvitationHandler.reset();
-    }
-
-    if (_priorityManager)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying BehaviorPriorityManager");
-        _priorityManager.reset();
-    }
-
-    // 6. Decision systems
-    if (_decisionFusion)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying DecisionFusionSystem");
-        _decisionFusion.reset();
-    }
-
-    if (_actionPriorityQueue)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying ActionPriorityQueue");
-        _actionPriorityQueue.reset();
-    }
-
-    if (_behaviorTree)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying BehaviorTree");
-        _behaviorTree.reset();
-    }
-
-    if (_hybridAI)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying HybridAIController");
-        _hybridAI.reset();
-    }
-
-    // 7. Finally: Manager registry and event dispatcher
-    if (_managerRegistry)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying ManagerRegistry");
-        _managerRegistry.reset();
-    }
-
-    if (_eventDispatcher)
-    {
-        TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Destroying EventDispatcher");
-        _eventDispatcher.reset();
-    }
-
-    TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: ✅ All managers destroyed");
-    TC_LOG_INFO("module.playerbot", "GameSystemsManager: Destructor complete for bot '{}'",
-        _bot ? _bot->GetName() : "Unknown");
+    // 5. Finally: Registry and event dispatcher (must be last)
+    _managerRegistry.reset();
+    _eventDispatcher.reset();
 }
 
 // ============================================================================
@@ -265,16 +113,10 @@ GameSystemsManager::~GameSystemsManager()
 void GameSystemsManager::Initialize(Player* bot)
 {
     if (_initialized)
-    {
-        TC_LOG_WARN("module.playerbot", "GameSystemsManager: Already initialized for bot '{}'",
-            bot ? bot->GetName() : "Unknown");
-        return;
-    }
+        return;  // No logging - GetName() unsafe during concurrent access
 
     _bot = bot;
-
-    TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Initializing all managers for bot '{}'",
-        _bot ? _bot->GetName() : "Unknown");
+    // CRITICAL: No logging with _bot->GetName() - concurrent access during initialization
 
     // ========================================================================
     // PHASE 1: Create Manager Instances (in dependency order)
@@ -342,8 +184,7 @@ void GameSystemsManager::Initialize(Player* bot)
     // Combat state manager
     _combatStateManager = std::make_unique<CombatStateManager>(_bot, _botAI);
 
-    TC_LOG_INFO("module.playerbot", "📋 MANAGERS CREATED: {} - Quest, Trade, Gathering, Auction, Group, DeathRecovery, UnifiedMovement, CombatState systems ready",
-        _bot->GetName());
+    // Manager creation complete - no logging to avoid GetName() during init
 
     // ========================================================================
     // PHASE 2: Event System
@@ -353,8 +194,7 @@ void GameSystemsManager::Initialize(Player* bot)
     _eventDispatcher = std::make_unique<Events::EventDispatcher>(512);  // Initial queue size: 512 events
     _managerRegistry = std::make_unique<ManagerRegistry>();
 
-    TC_LOG_INFO("module.playerbot", "🔄 EVENT DISPATCHER & MANAGER REGISTRY: {} - Phase 7.1 integration ready",
-        _bot->GetName());
+    // Event system ready - no logging during init
 
     // ========================================================================
     // PHASE 3: Decision Systems
@@ -363,20 +203,17 @@ void GameSystemsManager::Initialize(Player* bot)
     // Decision fusion system
     _decisionFusion = std::make_unique<bot::ai::DecisionFusionSystem>();
 
-    TC_LOG_INFO("module.playerbot", "🎯 DECISION FUSION SYSTEM: {} - Phase 5E unified arbitration ready",
-        _bot->GetName());
+    // Decision fusion ready - no logging during init
 
     // Action priority queue
     _actionPriorityQueue = std::make_unique<bot::ai::ActionPriorityQueue>();
 
-    TC_LOG_INFO("module.playerbot", "📋 ACTION PRIORITY QUEUE: {} - Phase 5 spell priority system ready",
-        _bot->GetName());
+    // Action queue ready - no logging during init
 
     // Behavior tree
     _behaviorTree = std::make_unique<bot::ai::BehaviorTree>("DefaultTree");
 
-    TC_LOG_INFO("module.playerbot", "🌲 BEHAVIOR TREE: {} - Phase 5 hierarchical decision system ready",
-        _bot->GetName());
+    // Behavior tree ready - no logging during init
 
     // ========================================================================
     // PHASE 4: Hybrid AI System
@@ -484,24 +321,17 @@ void GameSystemsManager::Initialize(Player* bot)
         // Subscribe managers to events
         SubscribeManagersToEvents();
 
-        TC_LOG_INFO("module.playerbot.managers",
-            "🎯 PHASE 7.1 INTEGRATION COMPLETE: {} - {} managers initialized, events subscribed",
-            _bot->GetName(),
-            (_questManager ? 1 : 0) + (_tradeManager ? 1 : 0) + (_gatheringManager ? 1 : 0) +
-            (_auctionManager ? 1 : 0) + (_combatStateManager ? 1 : 0));
+        // Phase 7.1 integration complete - no logging during init
     }
 
     _initialized = true;
 
-    TC_LOG_INFO("module.playerbot", "✅ GameSystemsManager: Initialization complete for bot '{}'",
-        _bot ? _bot->GetName() : "Unknown");
+    // Initialization complete - no logging to avoid GetName() crash
 }
 
 void GameSystemsManager::Shutdown()
 {
-    TC_LOG_DEBUG("module.playerbot", "GameSystemsManager: Shutting down all managers for bot '{}'",
-        _bot ? _bot->GetName() : "Unknown");
-
+    // CRITICAL: No logging - GetName() unsafe during shutdown
     // Managers will be destroyed in destructor with proper order
     _initialized = false;
 }
@@ -515,9 +345,7 @@ void GameSystemsManager::InitializeHybridAI()
     // Initialize Hybrid AI Decision System (Utility AI + Behavior Trees)
     // Pass BotAI pointer to HybridAIController
     _hybridAI = std::make_unique<HybridAIController>(_botAI);
-
-    TC_LOG_INFO("module.playerbot", "🤖 HYBRID AI CONTROLLER: {} - Hybrid decision system ready",
-        _bot ? _bot->GetName() : "Unknown");
+    // CRITICAL: No logging with GetName() - causes ACCESS_VIOLATION during concurrent init
 }
 
 // ============================================================================

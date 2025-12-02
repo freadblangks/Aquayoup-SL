@@ -8,6 +8,7 @@
  */
 
 #include "FormationManager.h"
+#include "GameTime.h"
 #include "Player.h"
 #include "Group.h"
 #include "Map.h"
@@ -15,10 +16,13 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
+#include "ObjectAccessor.h"
+#include "Movement/MotionMaster.h"
 #include "Movement/UnifiedMovementCoordinator.h"
 #include "../../Movement/Arbiter/MovementPriorityMapper.h"
 #include "../BotAI.h"
 #include "UnitAI.h"
+#include "DataStores/DBCEnums.h"
 #include <algorithm>
 #include <cmath>
 
@@ -27,7 +31,7 @@ namespace Playerbot
 
 FormationManager::FormationManager(Player* bot)
     : _bot(bot), _leader(nullptr), _isLeader(false), _inFormation(false),
-      _currentFormation(FormationType::NONE), _movementState(MovementState::STATIONARY),
+      _currentFormation(FormationType::NONE), _movementState(FormationMovementState::STATIONARY),
       _currentIntegrity(FormationIntegrity::PERFECT), _formationOrientation(0.0f),
       _isMovingToDestination(false), _updateInterval(DEFAULT_UPDATE_INTERVAL),
       _cohesionRadius(DEFAULT_COHESION_RADIUS), _formationSpacing(DEFAULT_FORMATION_SPACING),
@@ -35,9 +39,9 @@ FormationManager::FormationManager(Player* bot)
       _adaptiveFormations(true), _emergencyScatter(false), _lastUpdate(0),
       _lastIntegrityCheck(0), _lastReformation(0)
 {
-
     InitializeFormationConfigs();
-    TC_LOG_DEBUG("playerbot.formation", "FormationManager initialized for bot {}", _bot->GetName());
+    // CRITICAL: No logging with _bot->GetName() in constructor
+    // Player's m_name can be corrupted during concurrent access, causing ACCESS_VIOLATION
 }
 
 bool FormationManager::JoinFormation(const ::std::vector<Player*>& groupMembers, FormationType formation)
@@ -121,7 +125,7 @@ bool FormationManager::LeaveFormation()
 
     _inFormation = false;
     _currentFormation = FormationType::NONE;
-    _movementState = MovementState::STATIONARY;
+    _movementState = FormationMovementState::STATIONARY;
     _members.clear();
     _leader = nullptr;
     _isLeader = false;
@@ -144,7 +148,7 @@ bool FormationManager::ChangeFormation(FormationType newFormation)
     auto startTime = ::std::chrono::steady_clock::now();
 
     _currentFormation = newFormation;
-    _movementState = MovementState::REFORMING;
+    _movementState = FormationMovementState::REFORMING;
 
     AssignFormationPositions();
     _metrics.formationChanges++;
@@ -180,7 +184,7 @@ void FormationManager::UpdateFormation(uint32 diff)
             MonitorFormationIntegrity();
             _lastIntegrityCheck = currentTime;
         }
-        if (_movementState == MovementState::MOVING)
+        if (_movementState == FormationMovementState::MOVING)
         {
             MaintainFormationDuringMovement();
         }
@@ -220,7 +224,7 @@ bool FormationManager::ExecuteFormationCommand(const FormationCommand& command)
 
         _movementState = command.movementState;
 
-        if (!command.targetPosition.IsEmpty())
+        if (command.targetPosition.GetPositionX() != 0.0f || command.targetPosition.GetPositionY() != 0.0f || command.targetPosition.GetPositionZ() != 0.0f)
         {
             _targetDestination = command.targetPosition;
             _isMovingToDestination = true;
@@ -250,7 +254,7 @@ bool FormationManager::MoveFormationToPosition(const Position& targetPos, float 
     FormationCommand command;
     command.targetPosition = targetPos;
     command.targetOrientation = orientation != 0.0f ? orientation : _formationOrientation;
-    command.movementState = MovementState::MOVING;
+    command.movementState = FormationMovementState::MOVING;
     command.maintainCohesion = true;
     command.reason = "Formation movement";
     return ExecuteFormationCommand(command);
@@ -462,7 +466,7 @@ void FormationManager::TransitionToCombatFormation(const ::std::vector<Unit*>& e
     if (combatFormation != _currentFormation)
     {
         ChangeFormation(combatFormation);
-        _movementState = MovementState::COMBAT;
+        _movementState = FormationMovementState::COMBAT;
     }
 }
 
@@ -689,7 +693,7 @@ void FormationManager::TriggerReformationIfNeeded()
         return;
 
     AssignFormationPositions();
-    _movementState = MovementState::REFORMING;
+    _movementState = FormationMovementState::REFORMING;
     _metrics.reformationEvents++;
 
     TC_LOG_DEBUG("playerbot.formation", "Formation {} triggered reformation due to poor integrity",
@@ -728,17 +732,17 @@ FormationRole FormationManager::DeterminePlayerRole(Player* player)
         return FormationRole::SUPPORT;
 
     uint8 playerClass = player->GetClass();
-    uint32 spec = player->GetUInt32Value(PLAYER_FIELD_CURRENT_SPEC_ID);
+    ChrSpecialization spec = player->GetPrimarySpecialization();
 
     switch (playerClass)
     {
         case CLASS_WARRIOR:
-            return (spec == TALENT_SPEC_WARRIOR_PROTECTION) ? FormationRole::TANK : FormationRole::MELEE_DPS;
+            return (spec == ChrSpecialization::WarriorProtection) ? FormationRole::TANK : FormationRole::MELEE_DPS;
 
         case CLASS_PALADIN:
-            if (spec == TALENT_SPEC_PALADIN_PROTECTION)
+            if (spec == ChrSpecialization::PaladinProtection)
                 return FormationRole::TANK;
-            else if (spec == TALENT_SPEC_PALADIN_HOLY)
+            else if (spec == ChrSpecialization::PaladinHoly)
                 return FormationRole::HEALER;
             else
                 return FormationRole::MELEE_DPS;
@@ -749,41 +753,45 @@ FormationRole FormationManager::DeterminePlayerRole(Player* player)
             return FormationRole::RANGED_DPS;
 
         case CLASS_ROGUE:
-        case CLASS_DEATH_KNIGHT:
-        case CLASS_DEMON_HUNTER:
             return FormationRole::MELEE_DPS;
 
+        case CLASS_DEATH_KNIGHT:
+            return (spec == ChrSpecialization::DeathKnightBlood) ? FormationRole::TANK : FormationRole::MELEE_DPS;
+
+        case CLASS_DEMON_HUNTER:
+            return (spec == ChrSpecialization::DemonHunterVengeance) ? FormationRole::TANK : FormationRole::MELEE_DPS;
+
         case CLASS_PRIEST:
-            return (spec == TALENT_SPEC_PRIEST_SHADOW) ? FormationRole::RANGED_DPS : FormationRole::HEALER;
+            return (spec == ChrSpecialization::PriestShadow) ? FormationRole::RANGED_DPS : FormationRole::HEALER;
 
         case CLASS_SHAMAN:
-            if (spec == TALENT_SPEC_SHAMAN_RESTORATION)
+            if (spec == ChrSpecialization::ShamanRestoration)
                 return FormationRole::HEALER;
-            else if (spec == TALENT_SPEC_SHAMAN_ELEMENTAL)
+            else if (spec == ChrSpecialization::ShamanElemental)
                 return FormationRole::RANGED_DPS;
             else
                 return FormationRole::MELEE_DPS;
 
         case CLASS_DRUID:
-            if (spec == TALENT_SPEC_DRUID_BEAR)
+            if (spec == ChrSpecialization::DruidGuardian)
                 return FormationRole::TANK;
-            else if (spec == TALENT_SPEC_DRUID_RESTORATION)
+            else if (spec == ChrSpecialization::DruidRestoration)
                 return FormationRole::HEALER;
-            else if (spec == TALENT_SPEC_DRUID_BALANCE)
+            else if (spec == ChrSpecialization::DruidBalance)
                 return FormationRole::RANGED_DPS;
             else
                 return FormationRole::MELEE_DPS;
 
         case CLASS_MONK:
-            if (spec == TALENT_SPEC_MONK_BREWMASTER)
+            if (spec == ChrSpecialization::MonkBrewmaster)
                 return FormationRole::TANK;
-            else if (spec == TALENT_SPEC_MONK_MISTWEAVER)
+            else if (spec == ChrSpecialization::MonkMistweaver)
                 return FormationRole::HEALER;
             else
                 return FormationRole::MELEE_DPS;
 
         case CLASS_EVOKER:
-            return (spec == TALENT_SPEC_EVOKER_PRESERVATION) ? FormationRole::HEALER : FormationRole::RANGED_DPS;
+            return (spec == ChrSpecialization::EvokerPreservation) ? FormationRole::HEALER : FormationRole::RANGED_DPS;
 
         default:
             return FormationRole::SUPPORT;
@@ -1138,6 +1146,596 @@ std::vector<Position> FormationManager::CalculateRaidFormation(const Position& l
     }
 
     return positions;
+}
+
+void FormationManager::CalculateMovementTargets()
+{
+    if (!_isLeader || !_leader || _members.empty())
+        return;
+
+    // Calculate target positions for each member based on current formation
+    Position leaderPos = _leader->GetPosition();
+    float orientation = _formationOrientation;
+
+    std::vector<Position> targetPositions;
+    switch (_currentFormation)
+    {
+        case FormationType::LINE:
+            targetPositions = CalculateLineFormation(leaderPos, orientation);
+            break;
+        case FormationType::WEDGE:
+            targetPositions = CalculateWedgeFormation(leaderPos, orientation);
+            break;
+        case FormationType::COLUMN:
+            targetPositions = CalculateColumnFormation(leaderPos, orientation);
+            break;
+        case FormationType::DIAMOND:
+            targetPositions = CalculateDiamondFormation(leaderPos, orientation);
+            break;
+        case FormationType::CIRCLE:
+            targetPositions = CalculateCircleFormation(leaderPos);
+            break;
+        case FormationType::SPREAD:
+        case FormationType::BOX:
+            targetPositions = CalculateBoxFormation(leaderPos, orientation);
+            break;
+        case FormationType::DUNGEON:
+            targetPositions = CalculateDungeonFormation(leaderPos, orientation);
+            break;
+        case FormationType::RAID:
+            targetPositions = CalculateRaidFormation(leaderPos, orientation);
+            break;
+        default:
+            return;
+    }
+
+    // Update member target positions
+    for (size_t i = 0; i < _members.size() && i < targetPositions.size(); ++i)
+    {
+        _members[i].targetPosition = targetPositions[i];
+    }
+}
+
+void FormationManager::IssueMovementCommands()
+{
+    if (!_bot || _members.empty())
+        return;
+
+    // Issue movement commands to members to reach their target positions
+    for (auto& member : _members)
+    {
+        if (!member.player || !member.player->IsInWorld())
+            continue;
+
+        // Check if member needs to move to target position
+        float distanceToTarget = member.player->GetExactDist(&member.targetPosition);
+        if (distanceToTarget > _formationSpacing * 0.5f)
+        {
+            // Member is too far from target position, issue movement command
+            member.player->GetMotionMaster()->MovePoint(0, member.targetPosition);
+            member.isMoving = true;
+            member.isInPosition = false;
+        }
+        else
+        {
+            member.isMoving = false;
+            member.isInPosition = true;
+        }
+    }
+}
+
+void FormationManager::AdjustForTerrain()
+{
+    if (!_bot || !_bot->IsInWorld())
+        return;
+
+    Map* map = _bot->GetMap();
+    if (!map)
+        return;
+
+    // Adjust member positions based on terrain height and obstacles
+    for (auto& member : _members)
+    {
+        if (!member.player || !member.player->IsInWorld())
+            continue;
+
+        // Get terrain height at target position
+        float targetZ = map->GetHeight(_bot->GetPhaseShift(),
+            member.targetPosition.GetPositionX(),
+            member.targetPosition.GetPositionY(),
+            member.targetPosition.GetPositionZ() + 2.0f,
+            true,
+            50.0f);
+
+        // Adjust Z coordinate to terrain height
+        if (targetZ > INVALID_HEIGHT)
+        {
+            member.targetPosition.m_positionZ = targetZ;
+        }
+
+        // Check for water and adjust if needed
+        if (map->IsInWater(_bot->GetPhaseShift(),
+            member.targetPosition.GetPositionX(),
+            member.targetPosition.GetPositionY(),
+            member.targetPosition.GetPositionZ()))
+        {
+            // If in water, try to find nearby land position
+            float landZ = map->GetHeight(_bot->GetPhaseShift(),
+                member.targetPosition.GetPositionX(),
+                member.targetPosition.GetPositionY(),
+                member.targetPosition.GetPositionZ() + 5.0f,
+                false);
+
+            if (landZ > INVALID_HEIGHT && landZ > member.targetPosition.GetPositionZ())
+            {
+                member.targetPosition.m_positionZ = landZ;
+            }
+        }
+    }
+}
+
+void FormationManager::AdjustForGroupSize()
+{
+    if (_members.empty())
+        return;
+
+    // Adjust formation spacing based on group size
+    uint32 memberCount = static_cast<uint32>(_members.size());
+
+    if (memberCount <= 2)
+    {
+        // Small group: tighter formation
+        _formationSpacing = DEFAULT_FORMATION_SPACING * 0.8f;
+    }
+    else if (memberCount <= 5)
+    {
+        // Normal dungeon group: standard spacing
+        _formationSpacing = DEFAULT_FORMATION_SPACING;
+    }
+    else if (memberCount <= 10)
+    {
+        // Large group: wider spacing
+        _formationSpacing = DEFAULT_FORMATION_SPACING * 1.2f;
+    }
+    else
+    {
+        // Raid group: much wider spacing
+        _formationSpacing = DEFAULT_FORMATION_SPACING * 1.5f;
+    }
+
+    // Adjust cohesion radius proportionally
+    _cohesionRadius = _formationSpacing * 3.0f;
+}
+
+void FormationManager::MaintainFormationDuringMovement()
+{
+    if (!_isLeader || !_leader || _members.empty())
+        return;
+
+    // Check if leader is moving
+    if (!_leader->isMoving())
+    {
+        _movementState = FormationMovementState::STATIONARY;
+        return;
+    }
+
+    _movementState = FormationMovementState::MOVING;
+
+    // Recalculate formation orientation based on leader's movement direction
+    float leaderOrientation = _leader->GetOrientation();
+    if (std::abs(_formationOrientation - leaderOrientation) > 0.1f)
+    {
+        _formationOrientation = leaderOrientation;
+        CalculateMovementTargets();
+    }
+
+    // Check formation integrity during movement
+    uint32 membersOutOfPosition = 0;
+    for (const auto& member : _members)
+    {
+        if (!member.player || !member.player->IsInWorld())
+            continue;
+
+        float distanceToLeader = member.player->GetExactDist(_leader);
+        if (distanceToLeader > _cohesionRadius)
+        {
+            ++membersOutOfPosition;
+        }
+    }
+
+    // If too many members are out of position, trigger reformation
+    float outOfPositionRatio = static_cast<float>(membersOutOfPosition) / static_cast<float>(_members.size());
+    if (outOfPositionRatio > _reformationThreshold)
+    {
+        _movementState = FormationMovementState::REFORMING;
+        _currentIntegrity = FormationIntegrity::BROKEN;
+        _lastReformation = GameTime::GetGameTimeMS();
+
+        // Issue new movement commands to bring members back
+        IssueMovementCommands();
+    }
+    else if (outOfPositionRatio > (_reformationThreshold * 0.5f))
+    {
+        _currentIntegrity = FormationIntegrity::ACCEPTABLE;
+    }
+    else
+    {
+        _currentIntegrity = FormationIntegrity::GOOD;
+    }
+}
+
+void FormationManager::ActivateEmergencyScatter()
+{
+    if (!_isLeader || !_leader || _members.empty())
+        return;
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::ActivateEmergencyScatter: Activating emergency scatter for leader {}",
+                 _leader->GetName());
+
+    // Set scatter mode
+    _currentFormation = FormationType::SPREAD;
+    _emergencyScatter = true;
+    _lastReformation = GameTime::GetGameTimeMS(); // Track when scatter started
+
+    // Calculate scatter positions in all directions from leader
+    Position leaderPos = _leader->GetPosition();
+    float scatterDistance = _formationSpacing * 3.0f; // Scatter far from center
+
+    for (size_t i = 0; i < _members.size(); ++i)
+    {
+        if (!_members[i].player)
+            continue;
+
+        // Calculate angle based on member index to spread evenly
+        float angle = (2.0f * M_PI * i) / _members.size();
+        float x = leaderPos.GetPositionX() + scatterDistance * std::cos(angle);
+        float y = leaderPos.GetPositionY() + scatterDistance * std::sin(angle);
+        float z = leaderPos.GetPositionZ();
+
+        // Adjust for terrain
+        Map* map = _leader->GetMap();
+        if (map)
+        {
+            float groundZ = map->GetHeight(_leader->GetPhaseShift(), x, y, z + 2.0f);
+            if (groundZ > INVALID_HEIGHT)
+                z = groundZ;
+        }
+
+        _members[i].targetPosition = Position(x, y, z);
+        _members[i].player->GetMotionMaster()->MovePoint(0, _members[i].targetPosition);
+        _members[i].isMoving = true;
+        _members[i].isInPosition = false;
+    }
+
+    _currentIntegrity = FormationIntegrity::BROKEN;
+}
+
+void FormationManager::DeactivateEmergencyScatter()
+{
+    if (!_isLeader || !_leader)
+        return;
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::DeactivateEmergencyScatter: Deactivating emergency scatter for leader {}",
+                 _leader->GetName());
+
+    _emergencyScatter = false;
+
+    // Reform to previous formation type
+    CalculateMovementTargets();
+    IssueMovementCommands();
+}
+
+void FormationManager::HandleEmergencyRegroup(const Position& /* rallyPoint */)
+{
+    if (!_isLeader || !_leader || _members.empty())
+        return;
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::HandleEmergencyRegroup: Emergency regroup for leader {}",
+                 _leader->GetName());
+
+    // Deactivate scatter if active
+    if (_emergencyScatter)
+        DeactivateEmergencyScatter();
+
+    // Set tight formation
+    float originalSpacing = _formationSpacing;
+    _formationSpacing = DEFAULT_FORMATION_SPACING * 0.5f; // Tighter formation for regroup
+
+    // Use column formation for easy regrouping
+    FormationType originalType = _currentFormation;
+    _currentFormation = FormationType::COLUMN;
+
+    // Calculate tight positions around leader
+    CalculateMovementTargets();
+
+    // Issue urgent movement commands
+    for (auto& member : _members)
+    {
+        if (!member.player || !member.player->IsAlive())
+            continue;
+
+        member.player->GetMotionMaster()->Clear();
+        member.player->GetMotionMaster()->MovePoint(0, member.targetPosition, true, {}, 7.0f); // Run speed
+        member.isMoving = true;
+        member.isInPosition = false;
+    }
+
+    // Restore original settings after movement
+    _formationSpacing = originalSpacing;
+    _currentFormation = originalType;
+    _lastReformation = GameTime::GetGameTimeMS();
+    _currentIntegrity = FormationIntegrity::BROKEN;
+}
+
+void FormationManager::HandleMemberDisconnection(Player* disconnectedMember)
+{
+    if (!disconnectedMember)
+        return;
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::HandleMemberDisconnection: Removing {} from formation",
+                 disconnectedMember->GetName());
+
+    // Find and remove the member
+    auto it = std::find_if(_members.begin(), _members.end(),
+        [disconnectedMember](const FormationMember& member) {
+            return member.player == disconnectedMember;
+        });
+
+    if (it != _members.end())
+    {
+        _members.erase(it);
+
+        // Adjust formation for new group size
+        if (!_members.empty())
+        {
+            AdjustForGroupSize();
+            CalculateMovementTargets();
+            IssueMovementCommands();
+        }
+        else
+        {
+            // No members left, clear formation
+            _currentFormation = FormationType::NONE;
+            _currentIntegrity = FormationIntegrity::BROKEN;
+        }
+    }
+}
+
+bool FormationManager::SetFormationLeader(Player* leader)
+{
+    if (!leader)
+        return false;
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::SetFormationLeader: Setting leader to {} for bot {}",
+                 leader->GetName(), _bot ? _bot->GetName() : "null");
+
+    _leader = leader;
+    _isLeader = (_bot == leader);
+
+    if (_inFormation && !_members.empty())
+    {
+        AssignFormationPositions();
+        CalculateMovementTargets();
+    }
+
+    return true;
+}
+
+bool FormationManager::AdjustFormationForCombat(const ::std::vector<Unit*>& threats)
+{
+    if (!_bot || threats.empty())
+        return false;
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::AdjustFormationForCombat: Adjusting for {} threats",
+                 threats.size());
+
+    TransitionToCombatFormation(threats);
+    AdjustForThreatSpread(threats);
+
+    return true;
+}
+
+::std::vector<Player*> FormationManager::GetOutOfPositionMembers(float tolerance)
+{
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    ::std::vector<Player*> outOfPosition;
+
+    for (const auto& member : _members)
+    {
+        if (!member.player || !member.player->IsAlive())
+            continue;
+
+        float distance = member.player->GetExactDist(&member.assignedPosition);
+        if (distance > tolerance)
+        {
+            outOfPosition.push_back(member.player);
+        }
+    }
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::GetOutOfPositionMembers: {} members out of position (tolerance: {})",
+                 outOfPosition.size(), tolerance);
+
+    return outOfPosition;
+}
+
+void FormationManager::TransitionToTravelFormation()
+{
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::TransitionToTravelFormation: Transitioning to travel formation");
+
+    _currentFormation = FormationType::COLUMN;
+    _movementState = FormationMovementState::MOVING;
+    _formationSpacing = DEFAULT_FORMATION_SPACING * 1.2f;
+
+    AssignFormationPositions();
+    CalculateMovementTargets();
+    IssueMovementCommands();
+
+    _metrics.formationChanges++;
+}
+
+void FormationManager::AdjustForThreatSpread(const ::std::vector<Unit*>& threats)
+{
+    if (threats.empty())
+        return;
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::AdjustForThreatSpread: Adjusting for {} threats",
+                 threats.size());
+
+    Position threatCenter;
+    float sumX = 0.0f, sumY = 0.0f, sumZ = 0.0f;
+    uint32 validThreats = 0;
+
+    for (const auto* threat : threats)
+    {
+        if (threat && threat->IsAlive())
+        {
+            sumX += threat->GetPositionX();
+            sumY += threat->GetPositionY();
+            sumZ += threat->GetPositionZ();
+            validThreats++;
+        }
+    }
+
+    if (validThreats == 0)
+        return;
+
+    threatCenter.Relocate(sumX / validThreats, sumY / validThreats, sumZ / validThreats);
+
+    if (_leader)
+    {
+        _formationOrientation = _leader->GetAbsoluteAngle(&threatCenter);
+    }
+
+    if (validThreats > 3)
+    {
+        _formationSpacing = DEFAULT_FORMATION_SPACING * 1.5f;
+    }
+
+    AssignFormationPositions();
+    CalculateMovementTargets();
+}
+
+void FormationManager::HandleFormationBreakage()
+{
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::HandleFormationBreakage: Handling formation breakage");
+
+    _currentIntegrity = FormationIntegrity::BROKEN;
+    _metrics.cohesionBreaks++;
+
+    if (_leader && _leader->IsAlive())
+    {
+        Position leaderPos = _leader->GetPosition();
+
+        for (auto& member : _members)
+        {
+            if (!member.player || !member.player->IsAlive())
+                continue;
+
+            member.targetPosition = leaderPos;
+            member.isInPosition = false;
+            member.player->GetMotionMaster()->MovePoint(0, leaderPos, true, {}, 7.0f);
+            member.isMoving = true;
+        }
+    }
+
+    _lastReformation = GameTime::GetGameTimeMS();
+}
+
+FormationType FormationManager::DetermineOptimalFormation(const ::std::vector<Player*>& members)
+{
+    if (members.empty())
+        return FormationType::NONE;
+
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    uint32 memberCount = static_cast<uint32>(members.size());
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::DetermineOptimalFormation: Determining for {} members",
+                 memberCount);
+
+    uint32 tanks = 0, healers = 0, melee = 0, ranged = 0;
+
+    for (const auto* player : members)
+    {
+        if (!player)
+            continue;
+
+        FormationRole role = DeterminePlayerRole(const_cast<Player*>(player));
+        switch (role)
+        {
+            case FormationRole::TANK: tanks++; break;
+            case FormationRole::HEALER: healers++; break;
+            case FormationRole::MELEE_DPS: melee++; break;
+            case FormationRole::RANGED_DPS: ranged++; break;
+            default: break;
+        }
+    }
+
+    if (memberCount <= 5)
+    {
+        if (tanks >= 1 && healers >= 1)
+            return FormationType::DUNGEON;
+        return FormationType::WEDGE;
+    }
+    else if (memberCount <= 10)
+    {
+        if (ranged > melee)
+            return FormationType::LINE;
+        return FormationType::BOX;
+    }
+    else
+    {
+        return FormationType::RAID;
+    }
+}
+
+FormationConfig FormationManager::GetFormationConfig(FormationType formation)
+{
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    auto it = _formationConfigs.find(formation);
+    if (it != _formationConfigs.end())
+    {
+        return it->second;
+    }
+
+    FormationConfig defaultConfig;
+    defaultConfig.type = formation;
+    defaultConfig.baseSpacing = DEFAULT_FORMATION_SPACING;
+    defaultConfig.cohesionRadius = DEFAULT_COHESION_RADIUS;
+    defaultConfig.reformationThreshold = DEFAULT_REFORMATION_THRESHOLD;
+    return defaultConfig;
+}
+
+void FormationManager::SetFormationConfig(FormationType formation, const FormationConfig& config)
+{
+    std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
+
+    TC_LOG_DEBUG("playerbot.formation", "FormationManager::SetFormationConfig: Setting config for formation type {}",
+                 static_cast<uint8>(formation));
+
+    _formationConfigs[formation] = config;
+
+    if (_currentFormation == formation && _inFormation)
+    {
+        _formationSpacing = config.baseSpacing;
+        _cohesionRadius = config.cohesionRadius;
+        _reformationThreshold = config.reformationThreshold;
+
+        AssignFormationPositions();
+        CalculateMovementTargets();
+    }
 }
 
 } // namespace Playerbot

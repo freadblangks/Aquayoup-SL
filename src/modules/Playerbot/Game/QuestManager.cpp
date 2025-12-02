@@ -8,6 +8,7 @@
  */
 
 #include "QuestManager.h"
+#include "GameTime.h"
 #include "BotAI.h"
 #include "Player.h"
 #include "Creature.h"
@@ -135,12 +136,19 @@ namespace Playerbot
         if (!bot)
             return;
 
+        // CRITICAL: Check IsInWorld() before accessing quest data!
+        // During bot login, the quest status map (m_QuestStatus) may not be fully
+        // loaded yet. Accessing it causes ACCESS_VIOLATION in Player::GetQuestStatus()
+        // as std::map::find() crashes on uninitialized tree structure.
+        if (!bot->IsInWorld())
+            return;
+
         m_questCache.clear();
         m_activeQuests.clear();
         m_completableQuests.clear();
 
         // Cache all quest statuses
-    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SLOT; ++slot)
+        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SLOT; ++slot)
         {
             uint32 questId = bot->GetQuestSlotQuestId(slot);
             if (questId == 0)
@@ -231,13 +239,18 @@ namespace Playerbot
         // Configuration is loaded from constructor defaults
         // Future: Load from PlayerbotConfig when implemented
 
-        // Initialize quest cache
-        UpdateQuestCache();
+        // CRITICAL: Do NOT call UpdateQuestCache() during initialization!
+        // The bot's quest status map (m_QuestStatus) is not loaded yet during the login
+        // phase, causing ACCESS_VIOLATION in Player::GetQuestStatus() when it accesses
+        // the internal std::map<uint32, QuestStatusData>. The map's tree structure
+        // may not be initialized yet, causing crash in std::_Tree::_Find_lower_bound.
+        // Quest cache update will happen on first OnUpdate() call when bot is in world.
 
-        // Initial quest giver scan
-        ScanForQuests();
+        // CRITICAL: Do NOT scan for quests during initialization!
+        // The bot may not be in the world yet, causing ACCESS_VIOLATION when
+        // SpatialGridManager::GetGrid() calls map->GetId() on invalid Map pointer.
+        // Quest scanning will happen on first Update() call when bot is in world.
 
-        TC_LOG_DEBUG("bot.playerbot", "QuestManager initialized for bot %s", GetBot()->GetName().c_str());
         return true;  // Initialization successful
     }
 
@@ -533,6 +546,11 @@ namespace Playerbot
 
     void QuestManager::ScanCreatureQuestGivers()
     {
+        // CRITICAL: Check IsInWorld() FIRST to prevent ACCESS_VIOLATION
+        // During initialization, bot may not be in world and GetMap() returns invalid pointer
+        if (!GetBot() || !GetBot()->IsInWorld())
+            return;
+
         ::std::list<Creature*> creatures;
         Trinity::AnyUnitInObjectRangeCheck checker(GetBot(), QUEST_GIVER_SCAN_RANGE, true, true);
         Trinity::CreatureListSearcher searcher(GetBot(), creatures, checker);
@@ -610,6 +628,11 @@ namespace Playerbot
 
     void QuestManager::ScanGameObjectQuestGivers()
     {
+        // CRITICAL: Check IsInWorld() FIRST to prevent ACCESS_VIOLATION
+        // During initialization, bot may not be in world and GetMap() returns invalid pointer
+        if (!GetBot() || !GetBot()->IsInWorld())
+            return;
+
         ::std::list<GameObject*> objects;
         Trinity::AllWorldObjectsInRange checker(GetBot(), QUEST_GIVER_SCAN_RANGE);
         Trinity::GameObjectListSearcher searcher(GetBot(), objects, checker);

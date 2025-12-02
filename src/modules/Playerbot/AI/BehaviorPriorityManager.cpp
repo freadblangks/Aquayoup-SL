@@ -104,26 +104,29 @@ BehaviorPriorityManager::BehaviorPriorityManager(BotAI* ai)
 
     // ERROR STATE EXCLUSIONS (Priority 5)
     // Error state prevents all other behaviors
-    AddExclusionRule(BehaviorPriority::ERROR, BehaviorPriority::COMBAT);
-    AddExclusionRule(BehaviorPriority::ERROR, BehaviorPriority::FOLLOW);
-    AddExclusionRule(BehaviorPriority::ERROR, BehaviorPriority::MOVEMENT);
-    AddExclusionRule(BehaviorPriority::ERROR, BehaviorPriority::GATHERING);
-    AddExclusionRule(BehaviorPriority::ERROR, BehaviorPriority::TRADING);
-    AddExclusionRule(BehaviorPriority::ERROR, BehaviorPriority::SOCIAL);
-    AddExclusionRule(BehaviorPriority::ERROR, BehaviorPriority::SOLO);
-    AddExclusionRule(BehaviorPriority::ERROR, BehaviorPriority::CASTING);
-    AddExclusionRule(BehaviorPriority::ERROR, BehaviorPriority::FLEEING);
+    AddExclusionRule(BehaviorPriority::ERROR_PRIORITY, BehaviorPriority::COMBAT);
+    AddExclusionRule(BehaviorPriority::ERROR_PRIORITY, BehaviorPriority::FOLLOW);
+    AddExclusionRule(BehaviorPriority::ERROR_PRIORITY, BehaviorPriority::MOVEMENT);
+    AddExclusionRule(BehaviorPriority::ERROR_PRIORITY, BehaviorPriority::GATHERING);
+    AddExclusionRule(BehaviorPriority::ERROR_PRIORITY, BehaviorPriority::TRADING);
+    AddExclusionRule(BehaviorPriority::ERROR_PRIORITY, BehaviorPriority::SOCIAL);
+    AddExclusionRule(BehaviorPriority::ERROR_PRIORITY, BehaviorPriority::SOLO);
+    AddExclusionRule(BehaviorPriority::ERROR_PRIORITY, BehaviorPriority::CASTING);
+    AddExclusionRule(BehaviorPriority::ERROR_PRIORITY, BehaviorPriority::FLEEING);
 
-    TC_LOG_INFO("module.playerbot.priority",
-        "BehaviorPriorityManager initialized with comprehensive mutual exclusion rules for bot {}",
-        m_ai && m_ai->GetBot() ? m_ai->GetBot()->GetName() : "NULL");
+    // CRITICAL: Do NOT access m_ai->GetBot()->GetName() in constructor!
+    // Bot may not be fully in world yet, and Player::m_name is not initialized.
 }
 
 BehaviorPriorityManager::~BehaviorPriorityManager()
 {
-    TC_LOG_DEBUG("module.playerbot.priority",
-        "BehaviorPriorityManager destroyed for bot {}",
-        m_ai && m_ai->GetBot() ? m_ai->GetBot()->GetName() : "NULL");
+    // Note: Safe to access GetName() only if bot is still valid and in world
+    Player* bot = m_ai ? m_ai->GetBot() : nullptr;
+    if (bot && bot->IsInWorld())
+    {
+        TC_LOG_DEBUG("module.playerbot.priority",
+            "BehaviorPriorityManager destroyed for bot {}", bot->GetName());
+    }
 }
 
 // ========================================================================
@@ -668,7 +671,7 @@ const BehaviorMetadata* BehaviorPriorityManager::FindMetadata(Strategy* strategy
     switch (priority)
     {
         case BehaviorPriority::DEAD:      return "DEAD";
-        case BehaviorPriority::ERROR:     return "ERROR";
+        case BehaviorPriority::ERROR_PRIORITY:     return "ERROR";
         case BehaviorPriority::SOLO:      return "SOLO";
         case BehaviorPriority::SOCIAL:    return "SOCIAL";
         case BehaviorPriority::TRADING:   return "TRADING";

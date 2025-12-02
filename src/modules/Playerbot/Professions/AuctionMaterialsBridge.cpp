@@ -8,6 +8,7 @@
  */
 
 #include "AuctionMaterialsBridge.h"
+#include "GameTime.h"
 #include "GatheringMaterialsBridge.h"
 #include "ProfessionAuctionBridge.h"
 #include "ProfessionManager.h"
@@ -42,18 +43,15 @@ bool AuctionMaterialsBridge::_sharedDataInitialized = false;
 AuctionMaterialsBridge::AuctionMaterialsBridge(Player* bot)
     : _bot(bot)
 {
-    if (_bot)
-    {
-        TC_LOG_DEBUG("playerbot", "AuctionMaterialsBridge: Creating instance for bot '{}'", _bot->GetName());
-    }
+    // CRITICAL: Do NOT call _bot->GetName() in constructor!
+    // Bot may not be fully in world yet during GameSystemsManager::Initialize(),
+    // and Player::m_name is not initialized, causing ACCESS_VIOLATION.
+    // Logging with bot identity deferred to first Update() call.
 }
 
 AuctionMaterialsBridge::~AuctionMaterialsBridge()
 {
-    if (_bot)
-    {
-        TC_LOG_DEBUG("playerbot", "AuctionMaterialsBridge: Destroying instance for bot '{}'", _bot->GetName());
-    }
+    // CRITICAL: No logging in destructors - can throw std::bad_alloc during memory pressure
     // Event bus unsubscription handled automatically by ProfessionEventBus
 }
 
@@ -84,7 +82,10 @@ void AuctionMaterialsBridge::Initialize()
         }
     );
 
-    TC_LOG_DEBUG("playerbot", "AuctionMaterialsBridge: Initialized for bot '{}', subscribed to 2 event types", _bot->GetName());
+    // CRITICAL: Do NOT call _bot->GetName() in Initialize()!
+    // Bot may not be fully in world yet during GameSystemsManager::Initialize(),
+    // and Player::m_name is not initialized, causing ACCESS_VIOLATION.
+    // Logging with bot identity deferred to first Update() call.
 }
 
 void AuctionMaterialsBridge::Update(uint32 diff)
@@ -344,7 +345,165 @@ MaterialSourcingDecision AuctionMaterialsBridge::GetBestMaterialSource(
 
     // Calculate opportunity cost and net benefit
     decision.opportunityCost = CalculateOpportunityCost(decision.recommendedMethod, itemId, quantity);
-    decision.netBenefit = -decision.opportunityCost; // Simplified
+
+    // =========================================================================
+    // Full net benefit calculation with economic analysis
+    // Factors in market value, skill gains, guild benefits, and time value
+    // =========================================================================
+    float netBenefit = 0.0f;
+
+    // 1. Base cost of acquisition (negative)
+    float acquisitionCost = 0.0f;
+    switch (decision.recommendedMethod)
+    {
+        case MaterialAcquisitionMethod::GATHER:
+            acquisitionCost = float(decision.gatheringTimeCost);
+            break;
+        case MaterialAcquisitionMethod::BUY_AUCTION:
+            acquisitionCost = float(decision.auctionCost);
+            break;
+        case MaterialAcquisitionMethod::CRAFT:
+            acquisitionCost = float(decision.craftingCost);
+            break;
+        case MaterialAcquisitionMethod::VENDOR:
+            acquisitionCost = float(decision.vendorCost);
+            break;
+        default:
+            break;
+    }
+    netBenefit -= acquisitionCost;
+
+    // 2. Market value of the material (positive if we could sell it)
+    // Get current AH price for reference
+    uint32 marketPrice = GetAuctionPrice(itemId, quantity);
+    if (marketPrice > 0)
+    {
+        // Material has resale value (factor in AH cut of 5%)
+        float resaleValue = float(marketPrice) * 0.95f;
+        // Only count resale value if we're buying below market
+        if (acquisitionCost < resaleValue)
+            netBenefit += (resaleValue - acquisitionCost) * 0.3f;  // 30% weight for liquidity option
+    }
+
+    // 3. Profession skill gain value
+    // Materials used in crafting contribute to skill progression
+    ProfessionManager* profMgr = GetProfessionManager();
+    if (profMgr)
+    {
+        // Check if this material is used in any learnable recipe
+        static const std::vector<ProfessionType> allProfessions = {
+            ProfessionType::ALCHEMY, ProfessionType::BLACKSMITHING,
+            ProfessionType::ENCHANTING, ProfessionType::ENGINEERING,
+            ProfessionType::INSCRIPTION, ProfessionType::JEWELCRAFTING,
+            ProfessionType::LEATHERWORKING, ProfessionType::TAILORING
+        };
+
+        for (ProfessionType profession : allProfessions)
+        {
+            auto recipes = profMgr->GetRecipesForProfession(profession);
+            for (const RecipeInfo& recipe : recipes)
+            {
+                for (const RecipeInfo::Reagent& reagent : recipe.reagents)
+                {
+                    if (reagent.itemId == itemId)
+                    {
+                        // Material contributes to profession leveling
+                        // Value each potential skill point at goldPerHour / 10
+                        float skillPointValue = _profile.parameters.goldPerHour / 10.0f;
+
+                        // Calculate probability of skill gain
+                        float skillGainChance = 0.5f;  // Base 50% for appropriate level recipes
+
+                        // Add skill gain value to net benefit
+                        netBenefit += skillPointValue * skillGainChance * 0.5f;  // 50% weight
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Guild bank contribution value
+    // If bot is in a guild, materials have additional social value
+    if (_bot && _bot->GetGuildId() != 0)
+    {
+        // Guild contribution bonus: 10% of material value
+        float guildBonus = acquisitionCost * 0.10f;
+        netBenefit += guildBonus;
+    }
+
+    // 5. Reputation gains from faction-specific materials
+    // Some materials grant reputation when turned in or used
+    ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemId);
+    if (itemTemplate)
+    {
+        // Check for reputation-granting items (e.g., cloth turn-ins, faction materials)
+        // Simplified: Add bonus for quality materials that might have faction uses
+        if (itemTemplate->GetQuality() >= ITEM_QUALITY_UNCOMMON)
+        {
+            float repBonus = acquisitionCost * 0.05f;  // 5% reputation value estimate
+            netBenefit += repBonus;
+        }
+    }
+
+    // 6. Time-adjusted present value calculation
+    // Future profits are worth less than immediate profits
+    // Apply discount rate based on estimated time to realize value
+    uint32 timeToValue = 0;  // Seconds until value is realized
+    switch (decision.recommendedMethod)
+    {
+        case MaterialAcquisitionMethod::GATHER:
+            timeToValue = decision.gatheringTimeEstimate;
+            break;
+        case MaterialAcquisitionMethod::BUY_AUCTION:
+            timeToValue = decision.auctionTimeEstimate;
+            break;
+        case MaterialAcquisitionMethod::CRAFT:
+            timeToValue = decision.craftingTimeEstimate;
+            break;
+        case MaterialAcquisitionMethod::VENDOR:
+            timeToValue = 10;  // Instant
+            break;
+        default:
+            break;
+    }
+
+    // Apply time discount (1% per hour of delay)
+    float hoursDelay = float(timeToValue) / 3600.0f;
+    float discountFactor = 1.0f / (1.0f + 0.01f * hoursDelay);
+    netBenefit *= discountFactor;
+
+    // 7. Risk adjustment
+    // Different acquisition methods have different risk profiles
+    float riskFactor = 1.0f;
+    switch (decision.recommendedMethod)
+    {
+        case MaterialAcquisitionMethod::GATHER:
+            // Gathering has medium risk (competition, node availability)
+            riskFactor = 0.85f;
+            break;
+        case MaterialAcquisitionMethod::BUY_AUCTION:
+            // AH has low risk if item is available
+            riskFactor = decision.canBuyAuction ? 0.95f : 0.0f;
+            break;
+        case MaterialAcquisitionMethod::CRAFT:
+            // Crafting has medium-high risk (material availability)
+            riskFactor = 0.80f;
+            break;
+        case MaterialAcquisitionMethod::VENDOR:
+            // Vendor has no risk (always available at fixed price)
+            riskFactor = 1.0f;
+            break;
+        default:
+            riskFactor = 0.5f;
+            break;
+    }
+    netBenefit *= riskFactor;
+
+    // 8. Final opportunity cost deduction
+    netBenefit -= decision.opportunityCost * 0.5f;  // 50% weight for opportunity cost
+
+    decision.netBenefit = netBenefit;
 
     // Generate rationale and confidence
     decision.rationale = GenerateDecisionRationale(decision);

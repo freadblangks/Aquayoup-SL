@@ -16,6 +16,7 @@
  */
 
 #include "UnifiedInterruptSystem.h"
+#include "GameTime.h"
 #include "BotAI.h"
 #include "Player.h"
 #include "Group.h"
@@ -268,54 +269,45 @@ void UnifiedInterruptSystem::OnEnemyCastComplete(ObjectGuid casterGuid, uint32 s
     }
 }
 
-// TODO Phase 4D: std::vector<CastingSpellInfo> UnifiedInterruptSystem::GetActiveCasts() const
-// TODO Phase 4D: {
-// TODO Phase 4D:     std::lock_guard lock(_mutex);
-// TODO Phase 4D: 
-// TODO Phase 4D:     std::vector<CastingSpellInfo> casts;
-// TODO Phase 4D:     casts.reserve(_activeCasts.size());
-// TODO Phase 4D: 
-// TODO Phase 4D:
+// =====================================================================
+// ACTIVE CASTS TRACKING
+// =====================================================================
+
+::std::vector<CastingSpellInfo> UnifiedInterruptSystem::GetActiveCasts() const
+{
+    ::std::lock_guard lock(_mutex);
+
+    ::std::vector<CastingSpellInfo> casts;
+    casts.reserve(_activeCasts.size());
+
     for (auto const& [guid, castInfo] : _activeCasts)
-// TODO Phase 4D:     {
-// TODO Phase 4D:
-    if (!castInfo.interrupted)
-// TODO Phase 4D:             casts.push_back(castInfo);
-// TODO Phase 4D:     }
-// TODO Phase 4D: 
-// TODO Phase 4D:     return casts;
-// TODO Phase 4D: }
+    {
+        if (!castInfo.interrupted)
+            casts.push_back(castInfo);
+    }
+
+    return casts;
+}
 
 // =====================================================================
 // SPELL DATABASE ACCESS
 // =====================================================================
 
-// TODO Phase 4D: InterruptPriority UnifiedInterruptSystem::GetSpellPriority(uint32 spellId) const
-// TODO Phase 4D: {
-// TODO Phase 4D:     // Query InterruptDatabase for WoW 11.2 spell priority
-// TODO Phase 4D:     InterruptSpellInfo const* spellInfo = InterruptDatabase::GetSpellInfo(spellId, DIFFICULTY_NONE);
-// TODO Phase 4D:
-    if (spellInfo)
-// TODO Phase 4D:         return spellInfo->priority;
-// TODO Phase 4D: 
-// TODO Phase 4D:     // Default to MODERATE for unknown spells
-// TODO Phase 4D:     return InterruptPriority::MODERATE;
-// TODO Phase 4D: }
+InterruptPriority UnifiedInterruptSystem::GetSpellPriority(uint32 spellId, uint8 mythicLevel)
+{
+    // Query InterruptDatabase for WoW 11.2 spell priority with M+ scaling
+    return InterruptDatabase::GetSpellPriority(spellId, mythicLevel);
+}
 
-// TODO Phase 4D: InterruptSpellInfo const* UnifiedInterruptSystem::GetSpellInfo(uint32 spellId, DIFFICULTY_NONE) const
-// TODO Phase 4D: {
-// TODO Phase 4D:     return InterruptDatabase::GetSpellInfo(spellId, DIFFICULTY_NONE);
-// TODO Phase 4D: }
+bool UnifiedInterruptSystem::ShouldAlwaysInterrupt(uint32 spellId)
+{
+    return InterruptDatabase::ShouldAlwaysInterrupt(spellId);
+}
 
-// TODO Phase 4D: std::vector<InterruptSpellInfo> UnifiedInterruptSystem::GetDungeonSpells(std::string const& dungeonName) const
-// TODO Phase 4D: {
-// TODO Phase 4D:     return InterruptDatabase::GetDungeonSpells(dungeonName);
-// TODO Phase 4D: }
-
-// TODO Phase 4D: std::vector<InterruptSpellInfo> UnifiedInterruptSystem::GetSpellsByPriority(InterruptPriority minPriority) const
-// TODO Phase 4D: {
-// TODO Phase 4D:     return InterruptDatabase::GetSpellsByPriority(minPriority);
-// TODO Phase 4D: }
+SpellInterruptConfig const* UnifiedInterruptSystem::GetSpellConfig(uint32 spellId)
+{
+    return InterruptDatabase::GetSpellConfig(spellId);
+}
 
 // =====================================================================
 // DECISION MAKING AND PLANNING
@@ -362,7 +354,8 @@ void UnifiedInterruptSystem::OnEnemyCastComplete(ObjectGuid casterGuid, uint32 s
     }
 
     // Sort by priority and remaining time
-    ::std::sort(targets.begin(), targets.end(), [](UnifiedInterruptTarget const& a, UnifiedInterruptTarget const& b) {
+    ::std::sort(targets.begin(), targets.end(), [](UnifiedInterruptTarget const& a, UnifiedInterruptTarget const& b)
+    {
         if (a.priority != b.priority)
             return a.priority > b.priority;
         return a.remainingCastTime < b.remainingCastTime;
@@ -577,7 +570,8 @@ void UnifiedInterruptSystem::CoordinateGroupInterrupts(Group* group)
     }
 
     // Sort by priority
-    ::std::sort(activeCasts.begin(), activeCasts.end(), [](CastingSpellInfo const& a, CastingSpellInfo const& b) {
+    ::std::sort(activeCasts.begin(), activeCasts.end(), [](CastingSpellInfo const& a, CastingSpellInfo const& b)
+    {
         if (a.priority != b.priority)
             return a.priority > b.priority;
         return a.castStartTime < b.castStartTime;

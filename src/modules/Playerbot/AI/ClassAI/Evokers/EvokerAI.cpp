@@ -13,6 +13,8 @@
 #include "Spell.h"
 #include "SpellMgr.h"
 #include "SpellInfo.h"
+#include "SpellAuras.h"
+#include "SpellAuraEffects.h"
 #include "Unit.h"
 #include "ObjectMgr.h"
 #include "ObjectAccessor.h"
@@ -141,7 +143,8 @@ void EvokerAI::UpdateRotation(::Unit* target)
     // Priority 2: Defensives - Obsidian Scales, Renewing Blaze
     if (behaviors && behaviors->NeedsDefensive())
     {
-        float healthPct = _bot->GetHealthPct();        if (healthPct < 30.0f && CanUseAbility(OBSIDIAN_SCALES))
+        float healthPct = _bot->GetHealthPct();
+        if (healthPct < 30.0f && CanUseAbility(OBSIDIAN_SCALES))
         {
             if (CastSpell(OBSIDIAN_SCALES, _bot))
             {
@@ -153,7 +156,8 @@ void EvokerAI::UpdateRotation(::Unit* target)
 
         if (healthPct < 50.0f && CanUseAbility(RENEWING_BLAZE))
         {
-            if (CastSpell(RENEWING_BLAZE, _bot))            {
+            if (CastSpell(RENEWING_BLAZE, _bot))
+            {
                 TC_LOG_DEBUG("module.playerbot.ai", "Evoker {} used Renewing Blaze at {}% health",
                              _bot->GetName(), healthPct);
                 return;
@@ -460,8 +464,10 @@ void EvokerAI::OnCombatEnd()
         ProcessEchoHealing();
 }
 
-bool EvokerAI::HasEnoughResource(uint32 spellId){
-    const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId, GetBot()->GetMap()->GetDifficultyID());    if (!spellInfo)
+bool EvokerAI::HasEnoughResource(uint32 spellId)
+{
+    const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId, GetBot()->GetMap()->GetDifficultyID());
+    if (!spellInfo)
         return false;
 
     // Most evoker abilities require essence
@@ -533,7 +539,8 @@ Position EvokerAI::GetOptimalPosition(::Unit* target)
 
     if (distance > optimalRange || distance < optimalRange * 0.8f)
     {
-        pos = target->GetPosition();        pos.m_positionX += optimalRange * cos(target->GetOrientation() + M_PI);        pos.m_positionY += optimalRange * sin(target->GetOrientation() + M_PI);    }
+        pos = target->GetPosition();
+        pos.m_positionX += optimalRange * cos(target->GetOrientation() + M_PI);        pos.m_positionY += optimalRange * sin(target->GetOrientation() + M_PI);    }
 
     return pos;
 }
@@ -774,7 +781,8 @@ void EvokerAI::CreateEcho(::Unit* target, uint32 healAmount, uint32 numHeals)
     _activeEchoes.emplace_back(target, numHeals, healAmount);
 }
 
-void EvokerAI::ProcessEchoHealing(){
+void EvokerAI::ProcessEchoHealing()
+{
     for (auto& echo : _activeEchoes)
     {        if (echo.ShouldHeal() && echo.target)
         {
@@ -790,7 +798,8 @@ void EvokerAI::RemoveExpiredEchoes()
     _activeEchoes.erase(
         ::std::remove_if(_activeEchoes.begin(), _activeEchoes.end(),            [](const Echo& echo) { return echo.remainingHeals == 0 || !echo.target; }),
         _activeEchoes.end());
-}uint32 EvokerAI::GetActiveEchoCount()
+}
+uint32 EvokerAI::GetActiveEchoCount()
 {
     return static_cast<uint32>(_activeEchoes.size());
 }
@@ -909,7 +918,8 @@ bool EvokerAI::CanShiftAspect()
     Trinity::AnyUnitInObjectRangeCheck check(_bot, EMPOWERED_SPELL_RANGE);
     Trinity::UnitListSearcher<Trinity::AnyUnitInObjectRangeCheck> searcher(_bot, nearbyEnemies, check);
     // DEADLOCK FIX: Use lock-free spatial grid instead of Cell::VisitGridObjects
-    Map* map = _bot->GetMap();    if (!map)
+    Map* map = _bot->GetMap();
+    if (!map)
         return {};
 
     DoubleBufferedSpatialGrid* spatialGrid = sSpatialGridManager.GetGrid(map);
@@ -1192,40 +1202,457 @@ void EvokerAI::RecordEchoHealing(uint32 amount)
 }
 
 // Utility class implementations
+// Helper function to calculate mastery bonus based on spec
+static float GetEvokerMasteryBonus(Player* caster, ::Unit* target, bool isHealing)
+{
+    if (!caster)
+        return 0.0f;
+
+    float masteryPct = caster->GetRatingBonusValue(CR_MASTERY);
+    ChrSpecializationEntry const* spec = caster->GetPrimarySpecializationEntry();
+    if (!spec)
+        return 0.0f;
+
+    switch (spec->ID)
+    {
+        case 1467: // Devastation - Giantkiller: Bonus damage vs high health targets
+            if (target && !isHealing)
+            {
+                float targetHealthPct = target->GetHealthPct() / 100.0f;
+                return masteryPct * targetHealthPct * 0.012f;
+            }
+            return 0.0f;
+        case 1468: // Preservation - Lifebinder: Bonus healing
+            if (isHealing)
+                return masteryPct * 0.01f;
+            return 0.0f;
+        case 1473: // Augmentation - Timewalker: Bonus to buff effects
+            return masteryPct * 0.008f;
+        default:
+            return 0.0f;
+    }
+}
+
 uint32 EvokerCalculator::CalculateAzureStrikeDamage(Player* caster, ::Unit* target)
 {
-    return 600; // Placeholder
+    if (!caster || !target)
+        return 0;
+
+    constexpr uint32 AZURE_STRIKE_SPELL_ID = 362969;
+    constexpr float DEFAULT_COEFFICIENT = 0.35f;
+
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(AZURE_STRIKE_SPELL_ID, caster->GetMap()->GetDifficultyID());
+    int32 spellPower = caster->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_ARCANE);
+
+    float bonusCoefficient = DEFAULT_COEFFICIENT;
+    int32 baseDamage = 0;
+
+    if (spellInfo)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_SCHOOL_DAMAGE))
+            {
+                baseDamage = effect.CalcValue(caster, nullptr, target);
+                if (effect.BonusCoefficient > 0.0f)
+                    bonusCoefficient = effect.BonusCoefficient;
+                break;
+            }
+        }
+    }
+
+    float damage = static_cast<float>(baseDamage) + (spellPower * bonusCoefficient);
+    float versatility = caster->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_DONE);
+    damage *= (1.0f + versatility / 100.0f);
+
+    float masteryBonus = GetEvokerMasteryBonus(caster, target, false);
+    damage *= (1.0f + masteryBonus);
+
+    if (spellInfo)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_SCHOOL_DAMAGE))
+            {
+                damage = static_cast<float>(caster->SpellDamageBonusDone(target, spellInfo,
+                    static_cast<int32>(damage), SPELL_DIRECT_DAMAGE, effect, 1, nullptr, nullptr));
+                break;
+            }
+        }
+    }
+
+    return static_cast<uint32>(std::max(0.0f, damage));
 }
 
 uint32 EvokerCalculator::CalculateLivingFlameDamage(Player* caster, ::Unit* target)
 {
-    return 800; // Placeholder
+    if (!caster || !target)
+        return 0;
+
+    constexpr uint32 LIVING_FLAME_SPELL_ID = 361469;
+    constexpr float SPELL_POWER_COEFFICIENT = 0.60f;
+    constexpr float ATTACK_POWER_COEFFICIENT = 0.30f;
+
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(LIVING_FLAME_SPELL_ID, caster->GetMap()->GetDifficultyID());
+    int32 spellPower = caster->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE);
+    float attackPower = caster->GetTotalAttackPowerValue(BASE_ATTACK);
+
+    float bonusCoefficient = SPELL_POWER_COEFFICIENT;
+    float apCoefficient = ATTACK_POWER_COEFFICIENT;
+    int32 baseDamage = 0;
+
+    if (spellInfo)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_SCHOOL_DAMAGE))
+            {
+                baseDamage = effect.CalcValue(caster, nullptr, target);
+                if (effect.BonusCoefficient > 0.0f)
+                    bonusCoefficient = effect.BonusCoefficient;
+                if (effect.BonusCoefficientFromAP > 0.0f)
+                    apCoefficient = effect.BonusCoefficientFromAP;
+                break;
+            }
+        }
+    }
+
+    float damage = static_cast<float>(baseDamage) + (spellPower * bonusCoefficient) + (attackPower * apCoefficient);
+    float versatility = caster->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_DONE);
+    damage *= (1.0f + versatility / 100.0f);
+
+    float masteryBonus = GetEvokerMasteryBonus(caster, target, false);
+    damage *= (1.0f + masteryBonus);
+
+    if (spellInfo)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_SCHOOL_DAMAGE))
+            {
+                damage = static_cast<float>(caster->SpellDamageBonusDone(target, spellInfo,
+                    static_cast<int32>(damage), SPELL_DIRECT_DAMAGE, effect, 1, nullptr, nullptr));
+                break;
+            }
+        }
+    }
+
+    return static_cast<uint32>(std::max(0.0f, damage));
 }
 
 uint32 EvokerCalculator::CalculateEmpoweredSpellDamage(uint32 spellId, EmpowermentLevel level, Player* caster, ::Unit* target)
 {
-    uint32 baseDamage = 1000;
-    return baseDamage * (static_cast<uint32>(level) + 1); // Scales with empowerment level
+    if (!caster || !target || level == EmpowermentLevel::NONE)
+        return 0;
+
+    static const float EMPOWERMENT_MULTIPLIERS[] = { 1.0f, 1.0f, 1.4f, 1.8f, 2.2f };
+
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, caster->GetMap()->GetDifficultyID());
+    if (!spellInfo)
+        return 0;
+
+    int32 spellPower = caster->SpellBaseDamageBonusDone(spellInfo->GetSchoolMask());
+    int32 baseDamage = 0;
+    float bonusCoefficient = 0.8f;
+
+    for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+    {
+        if (effect.IsEffect(SPELL_EFFECT_SCHOOL_DAMAGE))
+        {
+            baseDamage = effect.CalcValue(caster, nullptr, target);
+            if (effect.BonusCoefficient > 0.0f)
+                bonusCoefficient = effect.BonusCoefficient;
+            break;
+        }
+    }
+
+    float damage = static_cast<float>(baseDamage) + (spellPower * bonusCoefficient);
+
+    uint8 levelIndex = static_cast<uint8>(level);
+    if (levelIndex <= 4)
+        damage *= EMPOWERMENT_MULTIPLIERS[levelIndex];
+
+    float versatility = caster->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_DONE);
+    damage *= (1.0f + versatility / 100.0f);
+
+    float masteryBonus = GetEvokerMasteryBonus(caster, target, false);
+    damage *= (1.0f + masteryBonus);
+
+    return static_cast<uint32>(std::max(0.0f, damage));
 }
 
 uint32 EvokerCalculator::CalculateEmeraldBlossomHealing(Player* caster)
 {
-    return 800; // Placeholder
+    if (!caster)
+        return 0;
+
+    constexpr uint32 EMERALD_BLOSSOM_SPELL_ID = 355913;
+    constexpr float DEFAULT_COEFFICIENT = 1.15f;
+
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(EMERALD_BLOSSOM_SPELL_ID, caster->GetMap()->GetDifficultyID());
+    int32 spellPower = caster->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_NATURE);
+
+    float bonusCoefficient = DEFAULT_COEFFICIENT;
+    int32 baseHealing = 0;
+
+    if (spellInfo)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_HEAL))
+            {
+                baseHealing = effect.CalcValue(caster, nullptr, nullptr);
+                if (effect.BonusCoefficient > 0.0f)
+                    bonusCoefficient = effect.BonusCoefficient;
+                break;
+            }
+        }
+    }
+
+    float healing = static_cast<float>(baseHealing) + (spellPower * bonusCoefficient);
+
+    // Apply versatility
+    float versatility = caster->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_DONE);
+    healing *= (1.0f + versatility / 100.0f);
+
+    // Apply Preservation mastery (Lifebinder)
+    float masteryBonus = GetEvokerMasteryBonus(caster, nullptr, true);
+    healing *= (1.0f + masteryBonus);
+
+    // Apply critical strike chance (average contribution)
+    float critChance = caster->GetRatingBonusValue(CR_CRIT_SPELL) / 100.0f;
+    healing *= (1.0f + critChance * 0.5f);
+
+    // Apply spell healing bonus modifier from gear/buffs
+    if (spellInfo)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_HEAL))
+            {
+                healing = static_cast<float>(caster->SpellHealingBonusDone(caster, spellInfo,
+                    static_cast<int32>(healing), HEAL, effect, 1, nullptr, nullptr));
+                break;
+            }
+        }
+    }
+
+    return static_cast<uint32>(std::max(0.0f, healing));
 }
 
 uint32 EvokerCalculator::CalculateVerdantEmbraceHealing(Player* caster, ::Unit* target)
 {
-    return 1200; // Placeholder
+    if (!caster)
+        return 0;
+
+    constexpr uint32 VERDANT_EMBRACE_SPELL_ID = 360995;
+    constexpr float DEFAULT_COEFFICIENT = 2.85f;
+
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(VERDANT_EMBRACE_SPELL_ID, caster->GetMap()->GetDifficultyID());
+    int32 spellPower = caster->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_NATURE);
+
+    float bonusCoefficient = DEFAULT_COEFFICIENT;
+    int32 baseHealing = 0;
+
+    if (spellInfo)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_HEAL))
+            {
+                baseHealing = effect.CalcValue(caster, nullptr, target);
+                if (effect.BonusCoefficient > 0.0f)
+                    bonusCoefficient = effect.BonusCoefficient;
+                break;
+            }
+        }
+    }
+
+    float healing = static_cast<float>(baseHealing) + (spellPower * bonusCoefficient);
+
+    // Apply versatility
+    float versatility = caster->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_DONE);
+    healing *= (1.0f + versatility / 100.0f);
+
+    // Apply Preservation mastery (Lifebinder) - scales with target missing health
+    float masteryBonus = GetEvokerMasteryBonus(caster, target, true);
+    if (target)
+    {
+        float missingHealthPct = (100.0f - target->GetHealthPct()) / 100.0f;
+        masteryBonus *= (1.0f + missingHealthPct * 0.5f);  // Up to 50% bonus on low health targets
+    }
+    healing *= (1.0f + masteryBonus);
+
+    // Apply critical strike chance
+    float critChance = caster->GetRatingBonusValue(CR_CRIT_SPELL) / 100.0f;
+    healing *= (1.0f + critChance * 0.5f);
+
+    // Apply spell healing bonus modifier
+    if (spellInfo && target)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_HEAL))
+            {
+                healing = static_cast<float>(caster->SpellHealingBonusDone(target, spellInfo,
+                    static_cast<int32>(healing), HEAL, effect, 1, nullptr, nullptr));
+                break;
+            }
+        }
+    }
+
+    return static_cast<uint32>(std::max(0.0f, healing));
 }
 
 uint32 EvokerCalculator::CalculateEchoHealing(Player* caster, ::Unit* target)
 {
-    return 300; // Placeholder
+    if (!caster)
+        return 0;
+
+    constexpr uint32 ECHO_SPELL_ID = 364343;
+    constexpr float ECHO_BASE_COEFFICIENT = 0.30f;  // Echo duplicates 30% of original heal
+
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(ECHO_SPELL_ID, caster->GetMap()->GetDifficultyID());
+    int32 spellPower = caster->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_NATURE);
+
+    float bonusCoefficient = ECHO_BASE_COEFFICIENT;
+    int32 baseHealing = 0;
+
+    if (spellInfo)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_HEAL) || effect.IsEffect(SPELL_EFFECT_HEAL_PCT))
+            {
+                baseHealing = effect.CalcValue(caster, nullptr, target);
+                if (effect.BonusCoefficient > 0.0f)
+                    bonusCoefficient = effect.BonusCoefficient;
+                break;
+            }
+        }
+    }
+
+    float healing = static_cast<float>(baseHealing) + (spellPower * bonusCoefficient);
+
+    // Apply versatility
+    float versatility = caster->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_DONE);
+    healing *= (1.0f + versatility / 100.0f);
+
+    // Apply Preservation mastery (Lifebinder)
+    float masteryBonus = GetEvokerMasteryBonus(caster, target, true);
+    healing *= (1.0f + masteryBonus);
+
+    // Echo healing is reduced when target has multiple Echoes (diminishing returns)
+    if (target && target->HasAura(ECHO_SPELL_ID, caster->GetGUID()))
+    {
+        // Simple diminishing returns - assume some reduction for existing echo
+        healing *= 0.9f;
+    }
+
+    // Apply spell healing bonus
+    if (spellInfo && target)
+    {
+        for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+        {
+            if (effect.IsEffect(SPELL_EFFECT_HEAL) || effect.IsEffect(SPELL_EFFECT_HEAL_PCT))
+            {
+                healing = static_cast<float>(caster->SpellHealingBonusDone(target, spellInfo,
+                    static_cast<int32>(healing), HEAL, effect, 1, nullptr, nullptr));
+                break;
+            }
+        }
+    }
+
+    return static_cast<uint32>(std::max(0.0f, healing));
 }
 
 EmpowermentLevel EvokerCalculator::GetOptimalEmpowermentLevel(uint32 spellId, Player* caster, ::Unit* target)
 {
-    return EmpowermentLevel::RANK_2; // Placeholder
+    if (!caster || !target)
+        return EmpowermentLevel::RANK_1;
+
+    // Get combat urgency factors
+    float targetHealthPct = target->GetHealthPct();
+    float casterHealthPct = caster->GetHealthPct();
+    bool inDanger = casterHealthPct < 40.0f;
+    bool targetDying = targetHealthPct < 20.0f;
+
+    // Fast response if caster in danger or target about to die
+    if (inDanger || targetDying)
+        return EmpowermentLevel::RANK_1;
+
+    // Get spec to determine healing vs damage priority
+    ChrSpecializationEntry const* spec = caster->GetPrimarySpecializationEntry();
+    bool isHealer = spec && spec->ID == 1468;  // Preservation
+
+    // For healers, check group health state
+    if (isHealer)
+    {
+        uint32 criticalAllies = 0;
+        uint32 injuredAllies = 0;
+
+        if (Group* group = caster->GetGroup())
+        {
+            for (auto const& member : group->GetMemberSlots())
+            {
+                if (Player* player = ObjectAccessor::FindPlayer(member.guid))
+                {
+                    float hp = player->GetHealthPct();
+                    if (hp < 30.0f)
+                        criticalAllies++;
+                    else if (hp < 70.0f)
+                        injuredAllies++;
+                }
+            }
+        }
+
+        // Emergency: fast heal
+        if (criticalAllies >= 2)
+            return EmpowermentLevel::RANK_1;
+
+        // Multiple injured: medium empowerment for throughput
+        if (injuredAllies >= 3)
+            return EmpowermentLevel::RANK_2;
+
+        // Light damage: max empowerment for efficiency
+        if (injuredAllies >= 1)
+            return EmpowermentLevel::RANK_3;
+
+        // No urgency: full empowerment
+        return EmpowermentLevel::RANK_4;
+    }
+
+    // For DPS specs, consider AoE target count
+    uint32 nearbyEnemies = 0;
+    float rangeSq = 30.0f * 30.0f;
+
+    // Count enemies in range for AoE evaluation
+    if (Map* map = caster->GetMap())
+    {
+        for (auto& itr : map->GetPlayers())
+        {
+            if (Unit* unit = itr.GetSource())
+            {
+                if (unit->IsHostileTo(caster) && unit->GetExactDistSq(target) <= rangeSq)
+                    nearbyEnemies++;
+            }
+        }
+    }
+
+    // Large AoE: max empowerment for cleave value
+    if (nearbyEnemies >= 5)
+        return EmpowermentLevel::RANK_4;
+
+    // Medium group: good empowerment
+    if (nearbyEnemies >= 3)
+        return EmpowermentLevel::RANK_3;
+
+    // Small group: balanced empowerment
+    if (nearbyEnemies >= 2)
+        return EmpowermentLevel::RANK_2;
+
+    // Single target: still use RANK_2 for decent damage
+    return EmpowermentLevel::RANK_2;
 }
 
 uint32 EvokerCalculator::CalculateEmpowermentChannelTime(EmpowermentLevel level)
@@ -1249,7 +1676,65 @@ uint32 EvokerCalculator::CalculateEssenceGeneration(uint32 spellId, Player* cast
 
 float EvokerCalculator::CalculateEssenceEfficiency(uint32 spellId, Player* caster)
 {
-    return 1.0f; // Placeholder
+    if (!caster)
+        return 1.0f;
+
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, caster->GetMap()->GetDifficultyID());
+    if (!spellInfo)
+        return 1.0f;
+
+    // Get essence cost
+    uint32 essenceCost = 0;
+    auto powerCosts = spellInfo->CalcPowerCost(caster, spellInfo->GetSchoolMask());
+    for (auto const& cost : powerCosts)
+    {
+        if (cost.Power == POWER_ESSENCE || cost.Power == POWER_MANA)
+        {
+            essenceCost = cost.Amount;
+            break;
+        }
+    }
+
+    // Generator spells have infinite efficiency
+    if (essenceCost == 0)
+        return 100.0f;
+
+    // Calculate base damage/healing value
+    float spellValue = 0.0f;
+    int32 spellPower = caster->SpellBaseDamageBonusDone(spellInfo->GetSchoolMask());
+
+    for (SpellEffectInfo const& effect : spellInfo->GetEffects())
+    {
+        if (effect.IsEffect(SPELL_EFFECT_SCHOOL_DAMAGE) || effect.IsEffect(SPELL_EFFECT_HEAL))
+        {
+            float baseValue = static_cast<float>(effect.CalcValue(caster, nullptr, nullptr));
+            float coefficient = effect.BonusCoefficient > 0.0f ? effect.BonusCoefficient : 0.5f;
+            spellValue = baseValue + (spellPower * coefficient);
+            break;
+        }
+    }
+
+    // Calculate efficiency = value per essence point
+    float efficiency = spellValue / static_cast<float>(essenceCost);
+
+    // Bonus efficiency for spells that hit multiple targets
+    switch (spellId)
+    {
+        case EvokerAI::PYRE:
+        case EvokerAI::FIRE_BREATH:
+        case EvokerAI::ETERNITYS_SURGE:
+        case EvokerAI::EMERALD_BLOSSOM:
+        case EvokerAI::DREAM_BREATH:
+        case EvokerAI::SPIRIT_BLOOM:
+            efficiency *= 1.5f;  // AoE bonus
+            break;
+        case EvokerAI::DISINTEGRATE:
+            efficiency *= 1.2f;  // Channeled bonus (sustained damage)
+            break;
+    }
+
+    // Normalize to 0-100 scale where 50 is average
+    return std::min(100.0f, efficiency / 100.0f * 50.0f);
 }
 
 bool EvokerCalculator::ShouldConserveEssence(Player* caster, uint32 currentEssence)
@@ -1274,12 +1759,163 @@ uint32 EvokerCalculator::CalculateEchoValue(Player* caster, ::Unit* target)
 
 uint32 EvokerCalculator::CalculateBuffEfficiency(uint32 spellId, Player* caster, ::Unit* target)
 {
-    return 100; // Placeholder
+    if (!caster || !target)
+        return 0;
+
+    Player* targetPlayer = target->ToPlayer();
+    if (!targetPlayer)
+        return 50;  // Non-player targets get base efficiency
+
+    uint32 efficiency = 0;
+
+    // Get target's spec for role determination
+    ChrSpecializationEntry const* targetSpec = targetPlayer->GetPrimarySpecializationEntry();
+    uint32 specId = targetSpec ? targetSpec->ID : 0;
+
+    // Role-based priority (DPS > Tank > Healer for damage buffs)
+    bool isDPS = false;
+    bool isTank = false;
+    bool isHealer = false;
+
+    // Determine role from spec
+    if (targetSpec)
+    {
+        uint32 role = targetSpec->Role;
+        isDPS = (role == 0);      // SPEC_ROLE_DPS
+        isTank = (role == 1);     // SPEC_ROLE_TANK
+        isHealer = (role == 2);   // SPEC_ROLE_HEALER
+    }
+
+    // Base efficiency by role
+    if (isDPS)
+        efficiency = 100;
+    else if (isTank)
+        efficiency = 60;
+    else if (isHealer)
+        efficiency = 40;
+    else
+        efficiency = 50;
+
+    // Modify by target's current DPS potential (approximated by attack power + spell power)
+    float attackPower = targetPlayer->GetTotalAttackPowerValue(BASE_ATTACK);
+    float spellPower = static_cast<float>(targetPlayer->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_ALL));
+    float totalPower = std::max(attackPower, spellPower);
+
+    // Scale efficiency by power level (higher geared players benefit more)
+    float powerMultiplier = std::min(2.0f, totalPower / 5000.0f);
+    efficiency = static_cast<uint32>(efficiency * powerMultiplier);
+
+    // Check for existing buff to avoid overwriting
+    switch (spellId)
+    {
+        case EvokerAI::EBON_MIGHT:
+            if (target->HasAura(395152))  // Ebon Might aura
+                efficiency = efficiency / 2;  // Reduced value if already buffed
+            break;
+        case EvokerAI::PRESCIENCE:
+            if (target->HasAura(410089))  // Prescience aura
+                efficiency = efficiency / 2;
+            break;
+    }
+
+    // Bonus for targets with active cooldowns (Lust, Trinkets, etc.)
+    if (target->HasAura(2825) ||   // Bloodlust
+        target->HasAura(32182) ||  // Heroism
+        target->HasAura(80353))    // Time Warp
+    {
+        efficiency = static_cast<uint32>(efficiency * 1.5f);
+    }
+
+    return std::min(200u, efficiency);  // Cap at 200
 }
 
 ::Unit* EvokerCalculator::GetOptimalAugmentationTarget(Player* caster, const ::std::vector<::Unit*>& allies)
 {
-    return allies.empty() ? nullptr : allies[0]; // Placeholder
+    if (!caster || allies.empty())
+        return nullptr;
+
+    ::Unit* bestTarget = nullptr;
+    uint32 bestScore = 0;
+
+    for (::Unit* ally : allies)
+    {
+        if (!ally || ally == caster || !ally->IsAlive())
+            continue;
+
+        Player* allyPlayer = ally->ToPlayer();
+        if (!allyPlayer)
+            continue;
+
+        uint32 score = 0;
+
+        // Get spec for role determination
+        ChrSpecializationEntry const* spec = allyPlayer->GetPrimarySpecializationEntry();
+        if (spec)
+        {
+            uint32 role = spec->Role;
+            // Role priority: DPS (100) > Tank (40) > Healer (20)
+            if (role == 0)       // DPS
+                score += 100;
+            else if (role == 1)  // Tank
+                score += 40;
+            else if (role == 2)  // Healer
+                score += 20;
+        }
+
+        // Melee vs Ranged bonus (melee often does more damage with uptime)
+        float distance = std::sqrt(ally->GetExactDistSq(caster->GetVictim()));
+        if (distance < 8.0f && caster->GetVictim())
+            score += 20;  // Melee bonus
+
+        // Power scaling (higher geared = more value from buffs)
+        float attackPower = allyPlayer->GetTotalAttackPowerValue(BASE_ATTACK);
+        float spellPower = static_cast<float>(allyPlayer->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_ALL));
+        float totalPower = std::max(attackPower, spellPower);
+        score += static_cast<uint32>(totalPower / 100.0f);  // +1 per 100 power
+
+        // Cooldown active bonus
+        if (ally->HasAura(2825) ||   // Bloodlust
+            ally->HasAura(32182) ||  // Heroism
+            ally->HasAura(80353))    // Time Warp
+        {
+            score += 50;
+        }
+
+        // Penalty for already having Augmentation buffs
+        if (ally->HasAura(395152))  // Ebon Might
+            score = score / 2;
+        if (ally->HasAura(410089))  // Prescience
+            score = score / 2;
+
+        // Penalty for low health (might die, wasting buff)
+        if (ally->GetHealthPct() < 30.0f)
+            score = score / 3;
+
+        // In combat bonus
+        if (ally->IsInCombat())
+            score += 10;
+
+        if (score > bestScore)
+        {
+            bestScore = score;
+            bestTarget = ally;
+        }
+    }
+
+    // Fallback to first alive DPS if no clear winner
+    if (!bestTarget)
+    {
+        for (::Unit* ally : allies)
+        {
+            if (ally && ally != caster && ally->IsAlive())
+            {
+                bestTarget = ally;
+                break;
+            }
+        }
+    }
+
+    return bestTarget;
 }
 
 void EvokerCalculator::CacheEvokerData()
@@ -1409,12 +2045,167 @@ uint32 EmpowermentController::GetSpellId() const
 
 EmpowermentLevel EmpowermentController::CalculateOptimalLevel(uint32 spellId, ::Unit* target)
 {
-    return EmpowermentLevel::RANK_2; // Placeholder
+    if (!_owner || !target)
+        return EmpowermentLevel::RANK_1;
+
+    Player* caster = _owner->GetBot();
+    if (!caster)
+        return EmpowermentLevel::RANK_1;
+
+    // Emergency situations: fast cast
+    if (caster->GetHealthPct() < 30.0f)
+        return EmpowermentLevel::RANK_1;
+
+    // Check for interrupt threats
+    bool hasInterruptThreat = false;
+    float rangeSq = 30.0f * 30.0f;
+
+    if (Map* map = caster->GetMap())
+    {
+        // Check nearby enemies for caster mobs
+        for (auto& pair : map->GetPlayers())
+        {
+            if (Player* player = pair.GetSource())
+            {
+                if (player->IsHostileTo(caster) && player->GetExactDistSq(caster) <= rangeSq)
+                {
+                    // Check if enemy is casting (potential interrupt)
+                    if (player->IsNonMeleeSpellCast(false))
+                    {
+                        hasInterruptThreat = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // High interrupt risk: fast cast
+    if (hasInterruptThreat)
+        return EmpowermentLevel::RANK_1;
+
+    // Get player's current power level (essence approximation through mana)
+    uint32 currentPowerPct = static_cast<uint32>(caster->GetPowerPct(POWER_MANA));
+
+    // Low resources: conserve with lower empowerment
+    if (currentPowerPct <= 30)
+        return EmpowermentLevel::RANK_2;
+
+    // Count nearby enemies for AoE evaluation
+    uint32 targetCount = 1;
+    ::std::list<Unit*> nearbyEnemies;
+    Trinity::AnyUnfriendlyUnitInObjectRangeCheck check(caster, caster, 30.0f);
+    Trinity::UnitListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> searcher(caster, nearbyEnemies, check);
+    Cell::VisitAllObjects(caster, searcher, 30.0f);
+    targetCount = static_cast<uint32>(nearbyEnemies.size());
+
+    // Scale empowerment with target count
+    if (targetCount >= 5)
+        return EmpowermentLevel::RANK_4;
+    else if (targetCount >= 3)
+        return EmpowermentLevel::RANK_3;
+    else if (targetCount >= 2)
+        return EmpowermentLevel::RANK_2;
+
+    // Check spec via player's primary specialization
+    ChrSpecializationEntry const* spec = caster->GetPrimarySpecializationEntry();
+    if (spec && spec->ID == 1468)  // Preservation
+    {
+        // Healer: higher empowerment for throughput
+        return EmpowermentLevel::RANK_3;
+    }
+
+    // Default: balanced empowerment
+    return EmpowermentLevel::RANK_2;
 }
 
 bool EmpowermentController::ShouldEmpowerSpell(uint32 spellId)
 {
-    return true; // Placeholder
+    if (!_owner)
+        return false;
+
+    Player* caster = _owner->GetBot();
+    if (!caster)
+        return false;
+
+    // Check if spell is empowerable
+    switch (spellId)
+    {
+        case EvokerAI::FIRE_BREATH:
+        case EvokerAI::ETERNITYS_SURGE:
+        case EvokerAI::DREAM_BREATH:
+        case EvokerAI::SPIRIT_BLOOM:
+            break;  // Valid empowered spells
+        default:
+            return false;  // Not an empowered spell
+    }
+
+    // Don't empower if currently moving
+    if (caster->isMoving())
+        return false;
+
+    // Don't empower if already channeling
+    if (_currentSpell.isChanneling)
+        return false;
+
+    // Don't empower in emergency situations
+    if (caster->GetHealthPct() < 20.0f)
+        return false;
+
+    // Check for nearby enemy casters (interrupt risk)
+    bool highInterruptRisk = false;
+    ::std::list<Unit*> nearbyEnemies;
+    Trinity::AnyUnfriendlyUnitInObjectRangeCheck check(caster, caster, 8.0f);
+    Trinity::UnitListSearcher<Trinity::AnyUnfriendlyUnitInObjectRangeCheck> searcher(caster, nearbyEnemies, check);
+    Cell::VisitAllObjects(caster, searcher, 8.0f);
+
+    if (!nearbyEnemies.empty())
+        highInterruptRisk = true;
+
+    // Avoid empowerment if high interrupt risk
+    ChrSpecializationEntry const* spec = caster->GetPrimarySpecializationEntry();
+    uint32 specId = spec ? spec->ID : 0;
+
+    if (highInterruptRisk)
+    {
+        // Healer spec might still need to empower for healing throughput
+        if (specId != 1468)  // Not Preservation
+            return false;
+    }
+
+    // Spec-specific logic
+    switch (specId)
+    {
+        case 1467:  // Devastation
+            // DPS should empower for damage, but not during movement phases
+            return !caster->isMoving();
+
+        case 1468:  // Preservation
+            // Healer should empower for throughput unless emergency
+            if (Group* group = caster->GetGroup())
+            {
+                uint32 criticalCount = 0;
+                for (auto const& member : group->GetMemberSlots())
+                {
+                    if (Player* player = ObjectAccessor::FindPlayer(member.guid))
+                    {
+                        if (player->GetHealthPct() < 30.0f)
+                            criticalCount++;
+                    }
+                }
+                // Don't empower if multiple critically injured (need fast heals)
+                if (criticalCount >= 2)
+                    return false;
+            }
+            return true;
+
+        case 1473:  // Augmentation
+            // Augmentation typically uses instant casts
+            return false;
+
+        default:
+            return true;
+    }
 }
 
 void EmpowermentController::UpdateEmpowermentLevel()
@@ -1502,7 +2293,98 @@ bool EchoController::ShouldCreateEcho(::Unit* target) const
 
 ::Unit* EchoController::GetBestEchoTarget() const
 {
-    return nullptr; // Placeholder
+    if (!_owner)
+        return nullptr;
+
+    Player* caster = _owner->GetBot();
+    if (!caster)
+        return nullptr;
+
+    constexpr uint32 ECHO_SPELL_ID = 364343;
+
+    ::Unit* bestTarget = nullptr;
+    uint32 bestScore = 0;
+
+    // Check group members
+    if (Group* group = caster->GetGroup())
+    {
+        float rangeSq = 40.0f * 40.0f;
+
+        for (auto const& member : group->GetMemberSlots())
+        {
+            Player* player = ObjectAccessor::FindPlayer(member.guid);
+            if (!player || !player->IsAlive())
+                continue;
+
+            // Skip if out of range
+            if (player->GetExactDistSq(caster) > rangeSq)
+                continue;
+
+            // Skip if already has Echo
+            if (player->HasAura(ECHO_SPELL_ID, caster->GetGUID()))
+                continue;
+
+            // Skip full health targets (Echo healing wasted)
+            if (player->GetHealthPct() > 95.0f)
+                continue;
+
+            uint32 score = 0;
+
+            // Health deficit score (lower health = higher priority)
+            float healthDeficit = 100.0f - player->GetHealthPct();
+            score += static_cast<uint32>(healthDeficit);
+
+            // Role priority
+            ChrSpecializationEntry const* spec = player->GetPrimarySpecializationEntry();
+            if (spec)
+            {
+                uint32 role = spec->Role;
+                if (role == 1)       // Tank - highest priority (constant damage intake)
+                    score += 50;
+                else if (role == 0)  // DPS - medium priority
+                    score += 30;
+                // Healers lowest priority (self-sustaining)
+            }
+
+            // Melee bonus (more likely to take damage)
+            if (player->GetVictim())
+            {
+                float distToTarget = std::sqrt(player->GetExactDistSq(player->GetVictim()));
+                if (distToTarget < 8.0f)
+                    score += 20;  // Melee range
+            }
+
+            // In combat bonus
+            if (player->IsInCombat())
+                score += 10;
+
+            // Check for harmful auras (simplified - just count them)
+            uint32 debuffCount = 0;
+            Unit::AuraApplicationMap const& auras = player->GetAppliedAuras();
+            for (auto const& auraPair : auras)
+            {
+                if (auraPair.second && auraPair.second->GetBase())
+                {
+                    SpellInfo const* spellInfo = auraPair.second->GetBase()->GetSpellInfo();
+                    if (spellInfo && !spellInfo->IsPositive())
+                        debuffCount++;
+                }
+            }
+            score += debuffCount * 5;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestTarget = player;
+            }
+        }
+    }
+
+    // If no group, consider self
+    if (!bestTarget && caster->GetHealthPct() < 90.0f && !caster->HasAura(ECHO_SPELL_ID))
+        bestTarget = caster;
+
+    return bestTarget;
 }
 
 void EchoController::UpdateEchoStates()
