@@ -1,0 +1,246 @@
+/*
+ * Copyright (C) 2024 TrinityCore <https://www.trinitycore.org/>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ */
+
+#pragma once
+
+#include "Define.h"
+#include "Threading/LockHierarchy.h"
+#include "Player.h"
+#include "Group.h"
+#include "GroupRoleEnums.h"
+#include "../Core/DI/Interfaces/IRoleAssignment.h"
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+#include <atomic>
+#include <mutex>
+#include <chrono>
+#include "GameTime.h"
+
+class Player;
+class Group;
+
+namespace Playerbot
+{
+
+struct RoleScore
+{
+    GroupRole role;
+    float effectiveness;        // 0.0 - 1.0 how well they can perform role
+    float gearScore;           // 0.0 - 1.0 gear appropriateness for role
+    float experienceScore;     // 0.0 - 1.0 bot's experience in role
+    float availabilityScore;   // 0.0 - 1.0 willingness to perform role
+    float synergy;             // 0.0 - 1.0 synergy with group composition
+    float totalScore;          // Combined weighted score
+
+    RoleScore(GroupRole r = GroupRole::NONE) : role(r), effectiveness(0.0f)
+        , gearScore(0.0f), experienceScore(0.5f), availabilityScore(1.0f)
+        , synergy(0.5f), totalScore(0.0f) {}
+
+    void CalculateTotalScore()
+    {
+        totalScore = (effectiveness * 0.4f) + (gearScore * 0.25f) +
+                    (experienceScore * 0.15f) + (availabilityScore * 0.1f) +
+                    (synergy * 0.1f);
+    }
+};
+
+struct PlayerRoleProfile
+{
+    uint32 playerGuid;
+    uint8 playerClass;
+    uint8 playerSpec;
+    uint32 playerLevel;
+    std::unordered_map<GroupRole, RoleCapability> roleCapabilities;
+    std::unordered_map<GroupRole, RoleScore> roleScores;
+    GroupRole preferredRole;
+    GroupRole assignedRole;
+    std::vector<GroupRole> alternativeRoles;
+    uint32 lastRoleUpdate;
+    bool isFlexible;
+    float overallRating;
+
+    // Default constructor required for std::pair/std::unordered_map usage
+    PlayerRoleProfile()
+        : playerGuid(0), playerClass(0), playerSpec(0), playerLevel(0)
+        , preferredRole(GroupRole::NONE), assignedRole(GroupRole::NONE)
+        , lastRoleUpdate(0), isFlexible(true), overallRating(5.0f) {}
+
+    PlayerRoleProfile(uint32 guid, uint8 cls, uint8 spec, uint32 level)
+        : playerGuid(guid), playerClass(cls), playerSpec(spec), playerLevel(level)
+        , preferredRole(GroupRole::NONE), assignedRole(GroupRole::NONE)
+        , lastRoleUpdate(GameTime::GetGameTimeMS()), isFlexible(true), overallRating(5.0f) {}
+};
+
+struct GroupComposition
+{
+    std::unordered_map<GroupRole, std::vector<uint32>> roleAssignments; // role -> player guids
+    std::unordered_map<GroupRole, uint32> roleRequirements;             // role -> count needed
+    std::unordered_map<GroupRole, uint32> roleFulfillment;              // role -> count assigned
+    float compositionScore;
+    bool isValid;
+    bool hasMainTank;
+    bool hasMainHealer;
+    uint32 dpsCount;
+    uint32 totalMembers;
+
+    GroupComposition() : compositionScore(0.0f), isValid(false)
+        , hasMainTank(false), hasMainHealer(false), dpsCount(0), totalMembers(0)
+        {
+        // Initialize role requirements for standard 5-man group
+        roleRequirements[GroupRole::TANK] = 1;
+        roleRequirements[GroupRole::HEALER] = 1;
+        roleRequirements[GroupRole::MELEE_DPS] = 2;
+        roleRequirements[GroupRole::RANGED_DPS] = 1;
+        roleRequirements[GroupRole::SUPPORT] = 0;
+    }
+};
+
+class TC_GAME_API RoleAssignment final : public IRoleAssignment
+{
+public:
+    explicit RoleAssignment(Player* bot);
+    ~RoleAssignment();
+    RoleAssignment(RoleAssignment const&) = delete;
+    RoleAssignment& operator=(RoleAssignment const&) = delete;
+
+    // Core role assignment
+    bool AssignRoles(Group* group, RoleAssignmentStrategy strategy = RoleAssignmentStrategy::OPTIMAL_ASSIGNMENT) override;
+    bool AssignRole(GroupRole role, Group* group) override;
+    bool SwapRoles(uint32 player1Guid, uint32 player2Guid, Group* group) override;
+    void OptimizeRoleDistribution(Group* group) override;
+
+    // Role analysis and scoring
+    PlayerRoleProfile AnalyzePlayerCapabilities() override;
+    std::vector<RoleScore> CalculateRoleScores(Group* group) override;
+    GroupRole RecommendRole(Group* group) override;
+    float CalculateRoleSynergy(GroupRole role, Group* group) override;
+
+    // Group composition analysis
+    GroupComposition AnalyzeGroupComposition(Group* group) override;
+    bool IsCompositionViable(const GroupComposition& composition) override;
+    std::vector<GroupRole> GetMissingRoles(Group* group) override;
+    std::vector<uint32> FindPlayersForRole(GroupRole role, const std::vector<Player*>& candidates) override;
+
+    // Dynamic role adjustment
+    void HandleRoleConflict(Group* group, GroupRole conflictedRole) override;
+    void RebalanceRoles(Group* group) override;
+    void AdaptToGroupChanges(Group* group, Player* newMember = nullptr, Player* leavingMember = nullptr) override;
+    bool CanPlayerSwitchRole(GroupRole newRole, Group* group) override;
+
+    // Content-specific role optimization
+    void OptimizeForDungeon(Group* group, uint32 dungeonId) override;
+    void OptimizeForRaid(Group* group, uint32 raidId) override;
+    void OptimizeForPvP(Group* group, uint32 battlegroundId) override;
+    void OptimizeForQuesting(Group* group, uint32 questId) override;
+
+    // Role preferences and constraints
+    void SetPlayerRolePreference(GroupRole preferredRole) override;
+    GroupRole GetPlayerRolePreference() override;
+    void SetRoleFlexibility(bool isFlexible) override;
+    void AddRoleConstraint(GroupRole role, RoleCapability capability) override;
+
+    // Role performance tracking (RolePerformance defined in IRoleAssignment.h interface)
+    RolePerformance GetPlayerRolePerformance(GroupRole role) override;
+    void UpdateRolePerformance(GroupRole role, bool wasSuccessful, float effectiveness) override;
+
+    // Role assignment validation
+    bool ValidateRoleAssignment(Group* group) override;
+    std::vector<std::string> GetRoleAssignmentIssues(Group* group) override;
+    bool CanGroupFunction(Group* group) override;
+
+    // Emergency role filling
+    bool FillEmergencyRole(Group* group, GroupRole urgentRole) override;
+    std::vector<uint32> FindEmergencyReplacements(GroupRole role, uint32 minLevel, uint32 maxLevel) override;
+    void HandleRoleEmergency(Group* group, uint32 disconnectedPlayerGuid) override;
+
+    // Role statistics and monitoring (RoleStatistics defined in IRoleAssignment.h interface)
+    RoleStatistics GetGlobalRoleStatistics() override;
+    void UpdateRoleStatistics() override;
+
+    // Configuration and settings
+    void SetRoleAssignmentStrategy(Group* group, RoleAssignmentStrategy strategy) override;
+    void SetContentTypeRequirements(uint32 contentId, const std::unordered_map<GroupRole, uint32>& requirements) override;
+    void EnableAutoRoleAssignment(bool enable) { _autoAssignmentEnabled = enable; }
+
+    // Update and maintenance
+    void Update(uint32 diff) override;
+    void RefreshPlayerProfiles() override;
+    void CleanupInactiveProfiles() override;
+
+private:
+    Player* _bot;
+
+    // Core data storage
+    std::unordered_map<uint32, PlayerRoleProfile> _playerProfiles; // playerGuid -> profile
+    std::unordered_map<uint32, GroupComposition> _groupCompositions; // groupId -> composition
+    std::unordered_map<uint32, RoleAssignmentStrategy> _groupStrategies; // groupId -> strategy
+    
+
+    // Role performance tracking
+    std::unordered_map<uint32, std::unordered_map<GroupRole, RolePerformance>> _rolePerformance; // playerGuid -> role -> performance
+    
+
+    // Content-specific requirements
+    std::unordered_map<uint32, std::unordered_map<GroupRole, uint32>> _contentRequirements; // contentId -> role requirements
+    std::unordered_map<uint32, GroupComposition> _contentOptimalCompositions; // contentId -> optimal composition
+
+    // Global settings
+    std::atomic<bool> _autoAssignmentEnabled{true};
+    RoleStatistics _globalStatistics;
+
+    // Class and specialization role mappings
+    std::unordered_map<uint8, std::unordered_map<uint8, std::vector<std::pair<GroupRole, RoleCapability>>>> _classSpecRoles;
+
+    // Helper functions
+    void InitializeClassRoleMappings();
+    void BuildPlayerProfile(PlayerRoleProfile& profile);
+    void CalculateRoleCapabilities(PlayerRoleProfile& profile);
+    void AnalyzePlayerGear(PlayerRoleProfile& profile);
+    void UpdateRoleExperience(PlayerRoleProfile& profile);
+    GroupRole DetermineOptimalRole(Group* group, RoleAssignmentStrategy strategy);
+    float CalculateCompositionScore(const GroupComposition& composition);
+    bool HasRoleConflict(Group* group, GroupRole role);
+    void ResolveRoleConflict(Group* group, GroupRole role);
+    std::vector<uint32> GetAlternativePlayers(GroupRole role, Group* group);
+    void NotifyRoleAssignment(GroupRole role, Group* group);
+    void HandleRoleAssignmentFailure(Group* group, const std::string& reason);
+
+    // Scoring algorithms
+    float CalculateClassRoleEffectiveness(uint8 playerClass, uint8 playerSpec, GroupRole role);
+    float CalculateGearScore(GroupRole role);
+    float CalculateExperienceScore(GroupRole role);
+    float CalculateSynergyScore(GroupRole role, Group* group);
+    float CalculateFlexibilityBonus(Group* group);
+
+    // Assignment strategies
+    void ExecuteOptimalStrategy(Group* group);
+    void ExecuteBalancedStrategy(Group* group);
+    void ExecuteFlexibleStrategy(Group* group);
+    void ExecuteStrictStrategy(Group* group);
+    void ExecuteHybridStrategy(Group* group);
+    void ExecuteDungeonStrategy(Group* group);
+    void ExecuteRaidStrategy(Group* group);
+    void ExecutePvPStrategy(Group* group);
+
+    // Constants
+    static constexpr float MIN_ROLE_EFFECTIVENESS = 0.3f;
+    static constexpr float ROLE_SWITCH_COOLDOWN = 30000.0f; // 30 seconds
+    static constexpr uint32 PROFILE_UPDATE_INTERVAL = 60000; // 1 minute
+    static constexpr float COMPOSITION_SCORE_THRESHOLD = 6.0f;
+    static constexpr uint32 MAX_ROLE_ASSIGNMENT_ATTEMPTS = 5;
+    static constexpr float HYBRID_CLASS_BONUS = 0.1f;
+    static constexpr float EXPERIENCE_WEIGHT = 0.15f;
+    static constexpr float GEAR_WEIGHT = 0.25f;
+    static constexpr float EFFECTIVENESS_WEIGHT = 0.4f;
+    static constexpr float SYNERGY_WEIGHT = 0.1f;
+    static constexpr float AVAILABILITY_WEIGHT = 0.1f;
+};
+
+} // namespace Playerbot
