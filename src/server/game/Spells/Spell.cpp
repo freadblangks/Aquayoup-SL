@@ -2883,6 +2883,7 @@ void Spell::TargetInfo::DoDamageAndTriggers(Spell* spell)
 
             healInfo = std::make_unique<HealInfo>(caster, spell->unitTarget, addhealth, spell->m_spellInfo, spell->m_spellInfo->GetSchoolMask());
             caster->HealBySpell(*healInfo, IsCrit);
+            caster->LeechLife(healInfo->GetHeal(), spell->m_spellInfo);
             spell->unitTarget->GetThreatManager().ForwardThreatForAssistingMe(caster, float(healInfo->GetEffectiveHeal()) * 0.5f, spell->m_spellInfo);
             spell->m_healing = healInfo->GetEffectiveHeal();
 
@@ -2924,6 +2925,7 @@ void Spell::TargetInfo::DoDamageAndTriggers(Spell* spell)
                 spell->m_damage = damageInfo.damage;
 
                 caster->DealSpellDamage(&damageInfo, true);
+                caster->LeechLife(damageInfo.damage, spell->m_spellInfo);
 
                 // Send log damage message to client
                 caster->SendSpellNonMeleeDamageLog(&damageInfo);
@@ -6051,7 +6053,7 @@ SpellCastResult Spell::CheckCast(bool strict, int32* param1 /*= nullptr*/, int32
             return castResult;
 
         // If it's not a melee spell, check if vision is obscured by SPELL_AURA_INTERFERE_ENEMY_TARGETING
-        if (m_spellInfo->DmgClass != SPELL_DAMAGE_CLASS_MELEE)
+        if (m_spellInfo->DmgClass != SPELL_DAMAGE_CLASS_MELEE && !m_spellInfo->HasAttribute(SPELL_ATTR2_IGNORE_LINE_OF_SIGHT)) // targets can be hit with spells that ignore LoS
         {
             if (Unit const* unitCaster = m_caster->ToUnit())
             {
