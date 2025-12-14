@@ -28,6 +28,8 @@
 #include "Movement/UnifiedMovementCoordinator.h"
 #include "../../Movement/Arbiter/MovementPriorityMapper.h"
 #include "UnitAI.h"
+#include "../../Session/BotSession.h"
+#include "../../Session/BotSessionManager.h"
 #include <unordered_map>  // For distance map in PrioritizeLootTargets
 #include "GameTime.h"
 
@@ -207,18 +209,84 @@ void LootStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     ::std::list<Creature*> nearbyCreatures;
     bot->GetCreatureListWithEntryInGrid(nearbyCreatures, 0, maxDistance);
 
+    uint32 deadCount = 0;
+    uint32 canHaveLootCount = 0;
+    uint32 hasRecipientCount = 0;
+
     // Filter for dead creatures with loot
     for (Creature* creature : nearbyCreatures)
     {
         if (!creature || !creature->isDead())
             continue;
 
-        // Check if creature has loot
-    if (!creature->CanHaveLoot() || !creature->hasLootRecipient())
+        // DISTANCE FILTER: GetCreatureListWithEntryInGrid uses grid cells,
+        // which can return creatures beyond maxDistance. Filter properly.
+        float distance = bot->GetExactDist(creature);
+        if (distance > maxDistance)
             continue;
+
+        deadCount++;
+
+        bool canHaveLoot = creature->CanHaveLoot();
+        bool hasRecipient = creature->hasLootRecipient();
+
+        if (canHaveLoot) canHaveLootCount++;
+        if (hasRecipient) hasRecipientCount++;
+
+        // Check if creature has loot - RELAXED: only require CanHaveLoot
+        // hasLootRecipient check removed as bots may not be properly tagged as recipients
+        if (!canHaveLoot)
+            continue;
+
+        // Check if loot has already been taken (prevents re-queueing looted corpses)
+        Loot* loot = creature->GetLootForPlayer(bot);
+        if (loot && loot->isLooted())
+            continue;  // Already looted, skip
+
+        // Check if bot is allowed to loot (is in tap list or in group with someone who tapped)
+        if (hasRecipient)
+        {
+            GuidUnorderedSet const& tapList = creature->GetTapList();
+            bool canLoot = tapList.count(bot->GetGUID()) > 0;
+
+            // If bot didn't tap, check if group member tapped
+            if (!canLoot)
+            {
+                if (Group* group = bot->GetGroup())
+                {
+                    for (ObjectGuid const& tapperGuid : tapList)
+                    {
+                        if (group->IsMember(tapperGuid))
+                        {
+                            canLoot = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Debug: Log tap list contents when bot can't loot
+            if (!canLoot)
+            {
+                TC_LOG_DEBUG("module.playerbot.strategy",
+                    "FindLootableCorpses: Bot {} ({}) NOT in tap list for creature {} (entry {}). Tap list size: {}",
+                    bot->GetName(), bot->GetGUID().ToString(),
+                    creature->GetGUID().ToString(), creature->GetEntry(),
+                    tapList.size());
+            }
+
+            if (!canLoot)
+                continue; // Not our loot
+        }
 
         // Add to lootable list
         lootableCorpses.push_back(creature->GetGUID());
+    }
+
+    if (deadCount > 0)
+    {
+        TC_LOG_DEBUG("module.playerbot.strategy", "FindLootableCorpses: Bot {} found {} dead creatures, {} canHaveLoot, {} hasRecipient, {} lootable",
+            bot->GetName(), deadCount, canHaveLootCount, hasRecipientCount, lootableCorpses.size());
     }
 
     return lootableCorpses;
@@ -278,92 +346,86 @@ bool LootStrategy::LootCorpse(BotAI* ai, ObjectGuid corpseGuid)
     if (!map)
         return false;
 
-    // DEADLOCK FIX: Use spatial grid to validate corpse state without pointer access
-    DoubleBufferedSpatialGrid* spatialGrid = sSpatialGridManager.GetGrid(map);
-    if (!spatialGrid)
-        return false;
+    TC_LOG_DEBUG("module.playerbot.strategy", "LootCorpse: Bot {} attempting to loot corpse {}",
+                 bot->GetName(), corpseGuid.ToString());
 
-    // Query nearby creatures to find our target
-    ::std::vector<DoubleBufferedSpatialGrid::CreatureSnapshot> nearbyCreatures =
-        spatialGrid->QueryNearbyCreatures(bot->GetPosition(), 50.0f);
+    // Find the creature using TrinityCore's live API (same as FindLootableCorpses)
+    // This is more reliable than spatial grid which may not have updated dead state yet
+    Creature* creature = nullptr;
+    ::std::list<Creature*> nearbyCreatures;
+    bot->GetCreatureListWithEntryInGrid(nearbyCreatures, 0, 50.0f);
 
-    // Find the corpse in snapshots
-    DoubleBufferedSpatialGrid::CreatureSnapshot const* corpseSnapshot = nullptr;
-    for (auto const& snapshot : nearbyCreatures)
+    TC_LOG_DEBUG("module.playerbot.strategy", "LootCorpse: Bot {} found {} nearby creatures",
+                 bot->GetName(), nearbyCreatures.size());
+
+    for (Creature* c : nearbyCreatures)
     {
-        if (snapshot.guid == corpseGuid)
+        if (c && c->GetGUID() == corpseGuid)
         {
-            corpseSnapshot = &snapshot;
+            creature = c;
             break;
         }
     }
 
-    // Validate corpse exists and is dead
-    if (!corpseSnapshot || !corpseSnapshot->isDead)
+    // Validate creature exists and is dead
+    if (!creature || !creature->isDead())
+    {
+        TC_LOG_DEBUG("module.playerbot.strategy", "LootCorpse: Bot {} - creature {} not found or not dead (found={}, dead={})",
+                     bot->GetName(), corpseGuid.ToString(), creature != nullptr, creature ? creature->isDead() : false);
         return false;
+    }
 
-    // Check distance using snapshot position
-    float distance = bot->GetExactDist(corpseSnapshot->position);
+    // Check distance
+    float distance = bot->GetExactDist(creature);
+    TC_LOG_DEBUG("module.playerbot.strategy", "LootCorpse: Bot {} distance to corpse {:.1f} (need <= {:.1f})",
+                 bot->GetName(), distance, INTERACTION_DISTANCE);
+
     if (distance > INTERACTION_DISTANCE)
     {
-        // Move closer using snapshot position
-        Position pos;
-        pos.Relocate(corpseSnapshot->position);
+        // Move closer to creature - MUST use arbiter (thread-safe)
+        // Direct MotionMaster calls are NOT thread-safe from worker threads!
+        Position pos = creature->GetPosition();
 
-        // PHASE 5 MIGRATION: Use Movement Arbiter with LOOT priority (40)
-        BotAI* botAI = dynamic_cast<BotAI*>(bot->GetAI());
-        if (botAI && botAI->GetUnifiedMovementCoordinator())
+        // Use the BotAI passed to this function (already validated)
+        if (ai->GetUnifiedMovementCoordinator())
         {
-            bool accepted = botAI->RequestPointMovement(
+            bool accepted = ai->RequestPointMovement(
                 PlayerBotMovementPriority::LOOT,  // Priority 40 - MINIMAL tier
                 pos,
                 "Moving to corpse for looting",
                 "LootStrategy");
 
-            if (accepted)
-            {
-                TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} moving to corpse at distance {:.1f}",
-                             bot->GetName(), distance);
-            }
-            else
-            {
-                TC_LOG_TRACE("playerbot.movement.arbiter",
-                    "LootStrategy: Movement to corpse rejected for bot {} - higher priority active",
-                    bot->GetName());
-            }
+            TC_LOG_DEBUG("module.playerbot.strategy", "LootCorpse: Bot {} movement request {} (arbiter available)",
+                         bot->GetName(), accepted ? "ACCEPTED" : "REJECTED");
         }
         else
         {
-            // FALLBACK: Direct MotionMaster call if arbiter not available
-            bot->GetMotionMaster()->MovePoint(0, pos);
-            TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} moving to corpse at distance {:.1f}",
-                         bot->GetName(), distance);
+            TC_LOG_DEBUG("module.playerbot.strategy", "LootCorpse: Bot {} NO arbiter available (gameSystems={}), cannot move!",
+                         bot->GetName(), ai->GetUnifiedMovementCoordinator() != nullptr);
         }
         return false;
     }
 
-    // PHASE 5D: Thread-safe spatial grid validation
-    auto snapshot = SpatialGridQueryHelpers::FindCreatureByGuid(bot, corpseGuid);
-    Creature* creature = nullptr;
+    // THREAD SAFETY: Bot AI updates can happen on worker threads.
+    // SendLoot() modifies _updateObjects which must happen on main thread.
+    // Queue the loot target for processing on main thread via BotSession.
 
-    if (snapshot)
+    // Get BotSession to queue loot
+    BotSession* botSession = BotSessionManager::GetBotSession(bot->GetSession());
+    if (!botSession)
     {
-        // Get Creature* for loot access (validated via snapshot first)
-    }
-
-    if (!creature)
+        TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} - no BotSession available",
+                     bot->GetName());
         return false;
-
-    // Get the loot and send it to bot
-    if (creature->m_loot)
-    {
-        bot->SendLoot(*creature->m_loot, false);
-        TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} looting corpse {}",
-                     bot->GetName(), corpseSnapshot->entry);
-        return true;
     }
 
-    return false;
+    // Queue the loot target for main thread processing
+    botSession->QueueLootTarget(corpseGuid);
+
+    TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} queued corpse {} for looting on main thread",
+                 bot->GetName(), corpseGuid.ToString());
+
+    return true;
 }
 
 bool LootStrategy::LootObject(BotAI* ai, ObjectGuid objectGuid)
@@ -404,15 +466,15 @@ bool LootStrategy::LootObject(BotAI* ai, ObjectGuid objectGuid)
     float distance = bot->GetExactDist(objectSnapshot->position);
     if (distance > INTERACTION_DISTANCE)
     {
-        // Move closer using snapshot position
+        // Move closer - MUST use arbiter (thread-safe)
+        // Direct MotionMaster calls are NOT thread-safe from worker threads!
         Position pos;
         pos.Relocate(objectSnapshot->position);
 
-        // PHASE 5 MIGRATION: Use Movement Arbiter with LOOT priority (40)
-        BotAI* botAI = dynamic_cast<BotAI*>(bot->GetAI());
-        if (botAI && botAI->GetUnifiedMovementCoordinator())
+        // Use the BotAI passed to this function (already validated)
+        if (ai->GetUnifiedMovementCoordinator())
         {
-            bool accepted = botAI->RequestPointMovement(
+            bool accepted = ai->RequestPointMovement(
                 PlayerBotMovementPriority::LOOT,  // Priority 40 - MINIMAL tier
                 pos,
                 "Moving to object for looting",
@@ -423,40 +485,28 @@ bool LootStrategy::LootObject(BotAI* ai, ObjectGuid objectGuid)
                 TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} moving to object at distance {:.1f}",
                              bot->GetName(), distance);
             }
-            else
-            {
-                TC_LOG_TRACE("playerbot.movement.arbiter",
-                    "LootStrategy: Movement to object rejected for bot {} - higher priority active",
-                    bot->GetName());
-            }
         }
-        else
-        {
-            // FALLBACK: Direct MotionMaster call if arbiter not available
-            bot->GetMotionMaster()->MovePoint(0, pos);
-            TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} moving to object at distance {:.1f}",
-                         bot->GetName(), distance);
-        }
+        // No fallback - direct MotionMaster calls crash from worker threads
         return false;
     }
 
-    // PHASE 5D: Thread-safe spatial grid validation
-    auto snapshot = SpatialGridQueryHelpers::FindGameObjectByGuid(bot, objectGuid);
-    GameObject* object = nullptr;
-
-    if (snapshot)
+    // THREAD-SAFE: Queue object use for main thread processing
+    // GameObject::Use() is NOT thread-safe - it modifies game object state and
+    // triggers Map updates that cause ACCESS_VIOLATION if called from worker threads.
+    // Solution: Defer to main thread via BotSession::QueueObjectUse()
+    BotSession* botSession = BotSessionManager::GetBotSession(bot->GetSession());
+    if (!botSession)
     {
-        // Get GameObject* for loot access (validated via snapshot first)
+        TC_LOG_DEBUG("module.playerbot.strategy", "LootObject: Bot {} has no BotSession, cannot queue object use",
+                     bot->GetName());
+        return false;
     }
 
-    if (!object)
-        return false;
+    // Queue the object for main thread Use()
+    botSession->QueueObjectUse(objectGuid);
 
-    // Use the object (opens loot)
-    object->Use(bot);
-
-    TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} looting object {}",
-                 bot->GetName(), objectSnapshot->entry);
+    TC_LOG_DEBUG("module.playerbot.strategy", "LootStrategy: Bot {} queued object {} (entry {}) for Use() on main thread",
+                 bot->GetName(), objectGuid.ToString(), objectSnapshot->entry);
 
     return true;
 }

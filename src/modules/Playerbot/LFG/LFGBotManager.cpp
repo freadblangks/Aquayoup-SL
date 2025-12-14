@@ -140,6 +140,13 @@ void LFGBotManager::OnPlayerJoinQueue(Player* player, uint8 playerRole, lfg::Lfg
 
     ObjectGuid playerGuid = player->GetGUID();
 
+    // Debug: Log raw role value and which flags are set
+    TC_LOG_INFO("module.playerbot.lfg", "LFGBotManager::OnPlayerJoinQueue - Player {} role bitmask: {} (TANK={}, HEALER={}, DPS={})",
+                player->GetName(), playerRole,
+                (playerRole & lfg::PLAYER_ROLE_TANK) ? "YES" : "no",
+                (playerRole & lfg::PLAYER_ROLE_HEALER) ? "YES" : "no",
+                (playerRole & lfg::PLAYER_ROLE_DAMAGE) ? "YES" : "no");
+
     // Calculate needed roles (assuming 5-man dungeon composition)
     uint8 tanksNeeded = 0, healersNeeded = 0, dpsNeeded = 0;
     CalculateNeededRoles(playerRole, tanksNeeded, healersNeeded, dpsNeeded);
@@ -407,6 +414,8 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
         return 0;
     }
 
+    TC_LOG_INFO("module.playerbot", "LFGBotManager::PopulateQueue - Dungeon {} requires level {}-{}", dungeonId, minLevel, maxLevel);
+
     // Determine what roles the human player has
     Player* humanPlayer = ObjectAccessor::FindPlayer(playerGuid);
     if (!humanPlayer)
@@ -614,19 +623,33 @@ void LFGBotManager::CalculateNeededRoles(uint8 humanRoles,
     healersNeeded = lfg::LFG_HEALERS_NEEDED;  // 1
     dpsNeeded = lfg::LFG_DPS_NEEDED;          // 3
 
-    // Subtract roles filled by human player
-    if (humanRoles & lfg::PLAYER_ROLE_TANK)
+    // CRITICAL FIX: Human can only fill ONE role, not multiple!
+    // When human selects multiple roles (e.g., tank+DPS), they will be assigned
+    // exactly ONE role when the group is formed. We must only subtract ONE role.
+    // Priority: Tank > Healer > DPS (rarest roles filled first)
+    bool humanRoleFilled = false;
+
+    if (!humanRoleFilled && (humanRoles & lfg::PLAYER_ROLE_TANK))
     {
         tanksNeeded = (tanksNeeded > 0) ? tanksNeeded - 1 : 0;
+        humanRoleFilled = true;
+        TC_LOG_DEBUG("module.playerbot.lfg", "CalculateNeededRoles: Human assigned as TANK");
     }
-    if (humanRoles & lfg::PLAYER_ROLE_HEALER)
+    if (!humanRoleFilled && (humanRoles & lfg::PLAYER_ROLE_HEALER))
     {
         healersNeeded = (healersNeeded > 0) ? healersNeeded - 1 : 0;
+        humanRoleFilled = true;
+        TC_LOG_DEBUG("module.playerbot.lfg", "CalculateNeededRoles: Human assigned as HEALER");
     }
-    if (humanRoles & lfg::PLAYER_ROLE_DAMAGE)
+    if (!humanRoleFilled && (humanRoles & lfg::PLAYER_ROLE_DAMAGE))
     {
         dpsNeeded = (dpsNeeded > 0) ? dpsNeeded - 1 : 0;
+        humanRoleFilled = true;
+        TC_LOG_DEBUG("module.playerbot.lfg", "CalculateNeededRoles: Human assigned as DPS");
     }
+
+    TC_LOG_INFO("module.playerbot.lfg", "CalculateNeededRoles: Need {} tanks, {} healers, {} DPS (human roles mask: {})",
+                tanksNeeded, healersNeeded, dpsNeeded, humanRoles);
 }
 
 bool LFGBotManager::QueueBot(Player* bot, uint8 role, lfg::LfgDungeonSet const& dungeons)
