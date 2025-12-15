@@ -552,26 +552,27 @@ void BotSession::SendPacket(WorldPacket const* packet, bool forced)
     // When a bot receives an LFG proposal packet, automatically accept it.
     // This is a module-only solution that intercepts the outgoing packet
     // without modifying TrinityCore core files.
+    //
+    // INFINITE LOOP FIX: UpdateProposal() sends SMSG_LFG_PROPOSAL_UPDATE to all
+    // players in the proposal (to update the UI), which would trigger this
+    // intercept again causing an infinite loop. We track which proposals have
+    // been auto-accepted to prevent re-processing the same proposal.
     // ========================================================================
     if (packet->GetOpcode() == SMSG_LFG_PROPOSAL_UPDATE)
     {
         Player* bot = GetPlayer();
         if (bot)
         {
-            TC_LOG_INFO("module.playerbot.lfg", "🎮 BotSession: Intercepted SMSG_LFG_PROPOSAL_UPDATE for bot {} - parsing and auto-accepting",
-                        bot->GetName());
-
             try
             {
                 // Clone the packet data for reading (packet is const)
-                // WorldPacket derives from ByteBuffer and has a copy constructor
                 WorldPacket packetCopy(*packet);
                 packetCopy.rpos(0);
 
                 // Parse the packet structure:
                 // 1. RideTicket (RequesterGuid + Id + Type + Time + IsCrossFaction)
                 // 2. uint64 InstanceID
-                // 3. uint32 ProposalID  <-- We need this!
+                // 3. uint32 ProposalID
 
                 // Read RideTicket
                 WorldPackets::LFG::RideTicket ticket;
@@ -581,20 +582,45 @@ void BotSession::SendPacket(WorldPacket const* packet, bool forced)
                 uint64 instanceId;
                 packetCopy >> instanceId;
 
-                // Read ProposalID - this is what we need!
+                // Read ProposalID
                 uint32 proposalId;
                 packetCopy >> proposalId;
 
-                TC_LOG_INFO("module.playerbot.lfg", "🎮 BotSession: Parsed LFG proposal - ProposalID={}, InstanceID={} for bot {}",
-                            proposalId, instanceId, bot->GetName());
+                // INFINITE LOOP FIX: Check if we've already auto-accepted this proposal
+                bool shouldAccept = false;
+                {
+                    std::lock_guard<std::mutex> lock(_lfgProposalMutex);
+                    if (_autoAcceptedProposals.count(proposalId) == 0)
+                    {
+                        // First time seeing this proposal - mark it and accept
+                        _autoAcceptedProposals.insert(proposalId);
+                        shouldAccept = true;
 
-                // Auto-accept the proposal!
-                // This calls the same method that the client would call when clicking "Accept"
-                // sLFGMgr is defined as lfg::LFGMgr::instance() via macro
-                sLFGMgr->UpdateProposal(proposalId, bot->GetGUID(), true);
+                        // Cleanup: Limit set size to prevent memory growth (keep last 10 proposals)
+                        if (_autoAcceptedProposals.size() > 10)
+                        {
+                            _autoAcceptedProposals.clear();
+                            _autoAcceptedProposals.insert(proposalId);
+                        }
+                    }
+                }
 
-                TC_LOG_INFO("module.playerbot.lfg", "✅ BotSession: Auto-accepted LFG proposal {} for bot {}",
-                            proposalId, bot->GetName());
+                if (shouldAccept)
+                {
+                    TC_LOG_INFO("module.playerbot.lfg", "🎮 BotSession: Auto-accepting LFG proposal {} for bot {}",
+                                proposalId, bot->GetName());
+
+                    // Auto-accept the proposal
+                    sLFGMgr->UpdateProposal(proposalId, bot->GetGUID(), true);
+
+                    TC_LOG_INFO("module.playerbot.lfg", "✅ BotSession: Auto-accepted LFG proposal {} for bot {}",
+                                proposalId, bot->GetName());
+                }
+                else
+                {
+                    TC_LOG_DEBUG("module.playerbot.lfg", "BotSession: Skipping already-processed LFG proposal {} for bot {}",
+                                proposalId, bot->GetName());
+                }
             }
             catch (ByteBufferPositionException const& ex)
             {
@@ -732,6 +758,133 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
 
         // Process bot-specific packets
         ProcessBotPackets();
+
+        // ========================================================================
+        // FAR TELEPORT COMPLETION (LFG Dungeon Entry Fix)
+        // ========================================================================
+        // When a bot is teleported to a different map (e.g., entering a dungeon via LFG),
+        // TrinityCore removes them from the old map and waits for a client response
+        // (CMSG_SUSPEND_TOKEN_RESPONSE) before adding them to the new map.
+        // Since bots have no client, we must simulate this response by calling
+        // HandleMoveWorldportAck() when the bot is in "teleporting far" state.
+        //
+        // INSTANCE SYNC FIX: For LFG dungeon teleports, bots must wait until another
+        // group member (the human player) has entered the dungeon first. This ensures
+        // all group members enter the SAME instance. Without this, there's a race
+        // condition where bots might create their own instance before the group's
+        // instance is established.
+        // ========================================================================
+        if (GetPlayer() && GetPlayer()->IsBeingTeleportedFar())
+        {
+            Player* bot = GetPlayer();
+            TeleportLocation const& dest = bot->GetTeleportDest();
+            MapEntry const* destMapEntry = sMapStore.LookupEntry(dest.Location.GetMapId());
+
+            bool shouldWaitForGroup = false;
+            uint32 targetInstanceId = 0;
+
+            // Check if teleporting to a dungeon with a group (LFG scenario)
+            if (destMapEntry && destMapEntry->IsDungeon())
+            {
+                Group* group = bot->GetGroup();
+                if (group && group->isLFGGroup())
+                {
+                    // Check if any group member is already in the destination dungeon
+                    bool groupMemberInDungeon = false;
+                    bool hasHumanWaitingToTeleport = false;
+                    bool thisIsFirstBot = true; // Used when all members are bots
+
+                    for (GroupReference const& ref : group->GetMembers())
+                    {
+                        Player* member = ref.GetSource();
+                        if (!member || member == bot)
+                            continue;
+
+                        // Check if member is already in the dungeon
+                        if (member->IsInWorld() && member->GetMapId() == dest.Location.GetMapId())
+                        {
+                            groupMemberInDungeon = true;
+                            targetInstanceId = member->GetInstanceId();
+                            TC_LOG_DEBUG("module.playerbot.session",
+                                "Bot {} found group member {} already in dungeon (MapId={}, InstanceId={})",
+                                bot->GetName(), member->GetName(), member->GetMapId(), targetInstanceId);
+                            break;
+                        }
+
+                        // Check if a human player is also waiting to teleport
+                        // Human players have real WorldSession with socket connection
+                        if (member->IsBeingTeleportedFar())
+                        {
+                            WorldSession* memberSession = member->GetSession();
+                            if (memberSession && !memberSession->IsBot())
+                            {
+                                hasHumanWaitingToTeleport = true;
+                                TC_LOG_DEBUG("module.playerbot.session",
+                                    "Bot {} detected human {} also waiting to teleport - will wait",
+                                    bot->GetName(), member->GetName());
+                            }
+                            else
+                            {
+                                // Another bot is also waiting - check if we should go first
+                                // Use GUID comparison to ensure deterministic ordering
+                                if (member->GetGUID() < bot->GetGUID())
+                                    thisIsFirstBot = false;
+                            }
+                        }
+                    }
+
+                    // Decide whether to wait:
+                    // - If a group member is already in dungeon: DON'T wait (join their instance)
+                    // - If a human is waiting to teleport: WAIT for them
+                    // - If only bots are waiting: First bot (by GUID) goes, others wait
+                    if (!groupMemberInDungeon)
+                    {
+                        if (hasHumanWaitingToTeleport)
+                        {
+                            shouldWaitForGroup = true;
+                            TC_LOG_DEBUG("module.playerbot.session",
+                                "Bot {} waiting for human player to enter dungeon first (MapId={})",
+                                bot->GetName(), dest.Location.GetMapId());
+                        }
+                        else if (!thisIsFirstBot)
+                        {
+                            shouldWaitForGroup = true;
+                            TC_LOG_DEBUG("module.playerbot.session",
+                                "Bot {} waiting for another bot to enter dungeon first (MapId={})",
+                                bot->GetName(), dest.Location.GetMapId());
+                        }
+                        else
+                        {
+                            TC_LOG_DEBUG("module.playerbot.session",
+                                "Bot {} is first to enter dungeon (MapId={}) - proceeding",
+                                bot->GetName(), dest.Location.GetMapId());
+                        }
+                    }
+                }
+            }
+
+            // Only complete teleport if:
+            // 1. Not a dungeon (no instance sync needed)
+            // 2. Not in an LFG group (no sync needed)
+            // 3. A group member is already in the dungeon (instance exists)
+            if (!shouldWaitForGroup)
+            {
+                TC_LOG_DEBUG("module.playerbot.session",
+                    "Bot {} completing far teleport via HandleMoveWorldportAck() (TargetInstanceId={})",
+                    bot->GetName(), targetInstanceId);
+
+                // Complete the far teleport by calling the worldport ack handler
+                // This adds the bot to the new map
+                HandleMoveWorldportAck();
+
+                TC_LOG_DEBUG("module.playerbot.session",
+                    "Bot {} far teleport completed, now IsInWorld={}, MapId={}, InstanceId={}",
+                    bot->GetName(),
+                    bot->IsInWorld(),
+                    bot->GetMapId(),
+                    bot->GetInstanceId());
+            }
+        }
 
         // =======================================================================
         // ENTERPRISE-GRADE _recvQueue PACKET PROCESSING
@@ -1584,32 +1737,26 @@ void BotSession::HandleBotPlayerLogin(BotLoginQueryHolder const& holder)
         // CRITICAL FIX: Add bot to world (missing step that prevented bots from entering world)
         pCurrChar->SendInitialPacketsBeforeAddToMap();
 
-        // THREAD SAFETY: Ensure map is created and ready before adding bot
-        // Maps are loaded on-demand when first player enters - we must ensure it's loaded
-        uint32 mapId = pCurrChar->GetMapId();
-        uint32 instanceId = pCurrChar->GetInstanceId();
-
-        TC_LOG_DEBUG("module.playerbot.session", "Bot {} attempting to join MapId={} InstanceId={}",
-            pCurrChar->GetName(), mapId, instanceId);
-
-        // CreateMap will find existing map or create it if it doesn't exist yet
-        // This is what CharacterHandler.cpp does for real players
-        Map* map = sMapMgr->CreateMap(mapId, pCurrChar);
+        // CRITICAL FIX: Player::LoadFromDB() already sets the map via SetMap() at Player.cpp:18257
+        // We MUST use pCurrChar->GetMap() to get the map that was set during LoadFromDB()
+        // DO NOT call CreateMap() separately - this can return a different map instance for
+        // instanced dungeons, causing the assertion "player->GetMap() == this" to fail in AddPlayerToMap
+        Map* map = pCurrChar->GetMap();
         if (!map)
         {
             TC_LOG_ERROR("module.playerbot.session",
-                " CRITICAL: Bot {} cannot create/find map! MapId={} InstanceId={} - Login FAILED",
-                pCurrChar->GetName(), mapId, instanceId);
+                "CRITICAL: Bot {} has no map set after LoadFromDB! MapId={} InstanceId={} - Login FAILED",
+                pCurrChar->GetName(), pCurrChar->GetMapId(), pCurrChar->GetInstanceId());
             _loginState.store(LoginState::LOGIN_FAILED);
             m_playerLoading.Clear();
             return;
         }
 
-        TC_LOG_DEBUG("module.playerbot.session", " Bot {} map ready: MapId={} InstanceId={} MapPtr=0x{:X}",
-            pCurrChar->GetName(), mapId, instanceId, reinterpret_cast<uintptr_t>(map));
+        TC_LOG_DEBUG("module.playerbot.session", "Bot {} using map from LoadFromDB: MapId={} InstanceId={} MapPtr=0x{:X}",
+            pCurrChar->GetName(), map->GetId(), map->GetInstanceId(), reinterpret_cast<uintptr_t>(map));
 
-        // Now safely add bot to the map
-    if (!map->AddPlayerToMap(pCurrChar))
+        // Now safely add bot to the map (matching CharacterHandler.cpp:1273 pattern)
+        if (!map->AddPlayerToMap(pCurrChar))
         {
             TC_LOG_ERROR("module.playerbot.session", "Failed to add bot player {} to map", characterGuid.ToString());
             _loginState.store(LoginState::LOGIN_FAILED);
