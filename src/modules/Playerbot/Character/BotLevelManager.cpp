@@ -63,6 +63,27 @@ bool BotLevelManager::Initialize()
     _talentManager = BotTalentManager::instance();
     _positioner = BotWorldPositioner::instance();
 
+    // Initialize level distribution system (CRITICAL: loads bracket configuration)
+    if (!_distribution->LoadConfig())
+    {
+        TC_LOG_ERROR("playerbot", "BotLevelManager::Initialize() - BotLevelDistribution failed to load config");
+        return false;
+    }
+
+    // Initialize talent manager (CRITICAL: loads talent loadouts, has blocking wait in SelectSpecialization)
+    if (!_talentManager->LoadLoadouts())
+    {
+        TC_LOG_ERROR("playerbot", "BotLevelManager::Initialize() - BotTalentManager failed to load loadouts");
+        return false;
+    }
+
+    // Initialize world positioner (loads zone placements)
+    if (!_positioner->LoadZones())
+    {
+        TC_LOG_ERROR("playerbot", "BotLevelManager::Initialize() - BotWorldPositioner failed to load zones");
+        return false;
+    }
+
     // Verify all subsystems are ready
     if (!_gearFactory->IsReady())
     {
@@ -132,6 +153,24 @@ uint64 BotLevelManager::CreateBotAsync(Player* bot)
     task->botGuid = bot->GetGUID();
     task->accountId = bot->GetSession()->GetAccountId();
     task->botName = bot->GetName();
+
+    // ================================================================
+    // CRITICAL FIX: Initialize task fields from bot Player object
+    // ================================================================
+    // Without this, task->faction/race/cls/gender default to 0,
+    // causing SelectLevel() to fail with "No bracket for faction 0"
+    // ================================================================
+    task->race = bot->GetRace();
+    task->cls = bot->GetClass();
+    task->gender = bot->GetNativeGender();
+
+    // Get faction (TeamId): TEAM_ALLIANCE=0, TEAM_HORDE=1
+    // Note: Alliance races: Human(1), Dwarf(3), NightElf(4), Gnome(7), Draenei(11), Worgen(22), Pandaren-Alliance(25)
+    // Horde races: Orc(2), Undead(5), Tauren(6), Troll(8), BloodElf(10), Goblin(9), Pandaren-Horde(26)
+    task->faction = bot->GetTeamId();
+
+    TC_LOG_DEBUG("playerbot", "BotLevelManager::CreateBotAsync() - Bot {}: race={}, class={}, faction={}",
+        task->botName, task->race, task->cls, static_cast<uint32>(task->faction));
 
     // Submit to ThreadPool for asynchronous data preparation (Phase 1)
     // Worker thread will prepare all bot data (level, gear, talents, zone) without Player API calls
