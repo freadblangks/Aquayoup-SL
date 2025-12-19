@@ -161,6 +161,16 @@ void BotWorldSessionMgr::Shutdown()
                 player->RemoveAurasDueToSpell(71328); // LFG_SPELL_DUNGEON_COOLDOWN
                 player->RemoveAurasDueToSpell(71041); // LFG_SPELL_DUNGEON_DESERTER
                 player->RemoveAurasDueToSpell(72221); // LFG_SPELL_LUCK_OF_THE_DRAW
+
+                // CRITICAL FIX: Exit vehicle before logout (Vehicle crash prevention)
+                if (player->GetVehicle())
+                {
+                    player->ExitVehicle();
+                }
+
+                // CRITICAL FIX (Map.cpp:1942 crash): Remove from _updateObjects BEFORE logout
+                // This prevents Map::SendObjectUpdates from accessing the bot after destruction.
+                static_cast<Object*>(player)->ClearUpdateMask(true);
             }
             catch (...)
             {
@@ -744,51 +754,51 @@ void BotWorldSessionMgr::UpdateSessions(uint32 diff)
                     // IMPROVEMENT #1: ADAPTIVE AutoAdjustPriority frequency based on bot activity
                     // Active bots (combat/group) = more frequent checks (250ms)
                     // Idle bots (high health, not moving) = less frequent checks (2.5s)
-    if (enterpriseMode && session->IsLoginComplete())
+                    if (enterpriseMode && session->IsLoginComplete())
                     {
                         Player* bot = session->GetPlayer();
+                        // CRITICAL FIX: Do NOT logout bots that are temporarily not in world!
+                        // During teleportation, map changes, or loading screens, bots can have
+                        // IsInWorld() == false temporarily. This is NORMAL and should NOT trigger logout.
+                        // Only skip the priority adjustment if bot is not available.
                         if (!bot || !bot->IsInWorld())
                         {
-                            TC_LOG_WARN("module.playerbot.session", "?? Bot disconnected: {}", guid.ToString());
-
-                            // PLAYERBOT FIX: Do NOT call LogoutPlayer() from worker thread!
-                            // This causes Map.cpp:686 crash by removing player from map on worker thread
-                            // Instead, push to _asyncDisconnections - main thread will handle cleanup
-                            // if (session->GetPlayer())
-                            //     session->LogoutPlayer(true);  // REMOVED - worker thread unsafe!
-
-                            _asyncDisconnections.push(guid);  // Lock-free push - main thread handles logout
-                            return;
+                            // Bot is transitioning (teleporting, loading) - skip priority check but DON'T logout
+                            TC_LOG_TRACE("module.playerbot.session", "Bot {} not in world (transitioning?) - skipping priority adjustment", guid.ToString());
+                            // DO NOT push to _asyncDisconnections - bot is just transitioning!
                         }
-
-                        // Adaptive frequency: Adjust interval based on bot activity
-                        uint32 adjustInterval = 10; // Default 500ms
-    if (bot->IsInCombat() || bot->GetGroup())
-                            adjustInterval = 5;  // Active bots: 250ms (more responsive)
-                        else if (!bot->isMoving() && bot->GetHealthPct() > 80.0f)
-                            adjustInterval = 50; // Idle healthy bots: 2.5s (save CPU)
-                        // Call AutoAdjustPriority at adaptive interval
-    if (tickCounter % adjustInterval == 0)
-                        {
-                            sBotPriorityMgr->AutoAdjustPriority(bot, currentTime);
-                        }
-                        // Fast-path critical state detection on other ticks (lightweight checks only)
                         else
                         {
-                            // Immediate priority boost for critical situations (no group/movement checks)
-    if (bot->IsInCombat())
+                            // Adaptive frequency: Adjust interval based on bot activity
+                            uint32 adjustInterval = 10; // Default 500ms
+                            if (bot->IsInCombat() || bot->GetGroup())
+                                adjustInterval = 5;  // Active bots: 250ms (more responsive)
+                            else if (!bot->isMoving() && bot->GetHealthPct() > 80.0f)
+                                adjustInterval = 50; // Idle healthy bots: 2.5s (save CPU)
+
+                            // Call AutoAdjustPriority at adaptive interval
+                            if (tickCounter % adjustInterval == 0)
                             {
-                                sBotPriorityMgr->SetPriority(guid, BotPriority::HIGH);
+                                sBotPriorityMgr->AutoAdjustPriority(bot, currentTime);
                             }
-                            else if (bot->GetHealthPct() < 20.0f)
+                            // Fast-path critical state detection on other ticks (lightweight checks only)
+                            else
                             {
-                                sBotPriorityMgr->SetPriority(guid, BotPriority::EMERGENCY);
-                            }
-                            // CRITICAL FIX: Pending group invitation needs fast response
-                            // Without this boost, bot may timeout waiting for next update
-                            else if (bot->GetGroupInvite())
-                            {
-                                sBotPriorityMgr->SetPriority(guid, BotPriority::MEDIUM);
+                                // Immediate priority boost for critical situations (no group/movement checks)
+                                if (bot->IsInCombat())
+                                {
+                                    sBotPriorityMgr->SetPriority(guid, BotPriority::HIGH);
+                                }
+                                else if (bot->GetHealthPct() < 20.0f)
+                                {
+                                    sBotPriorityMgr->SetPriority(guid, BotPriority::EMERGENCY);
+                                }
+                                // CRITICAL FIX: Pending group invitation needs fast response
+                                // Without this boost, bot may timeout waiting for next update
+                                else if (bot->GetGroupInvite())
+                                {
+                                    sBotPriorityMgr->SetPriority(guid, BotPriority::MEDIUM);
+                                }
                             }
                         }
                     }
@@ -810,7 +820,26 @@ void BotWorldSessionMgr::UpdateSessions(uint32 diff)
             };
 
         // Execute either parallel (ThreadPool) or sequential (direct call)
-    if (useThreadPool)
+        // ============================================================================
+        // CRITICAL FIX: Sessions with pending login MUST run on main thread!
+        // ============================================================================
+        // Problem: When LOGIN_IN_PROGRESS, the session has a pending SQL callback that
+        //          will call HandleBotPlayerLogin → Map::AddPlayerToMap.
+        //          Map operations are NOT thread-safe and MUST run on the map update thread.
+        //          Running this on a thread pool worker causes ACCESS_VIOLATION crash in
+        //          TerrainInfo::LoadMapAndVMap when acquiring the terrain mutex.
+        //
+        // Solution: Force sequential (main thread) execution for sessions that are
+        //           actively logging in. Once login is complete, they can use thread pool.
+        // ============================================================================
+        bool useThreadPoolForThisSession = useThreadPool;
+        if (botSession->GetLoginState() == BotSession::LoginState::LOGIN_IN_PROGRESS)
+        {
+            useThreadPoolForThisSession = false;  // Force main thread for login operations
+            TC_LOG_DEBUG("module.playerbot.session", "?? Bot {} has pending login - forcing main thread update", guid.ToString());
+        }
+
+    if (useThreadPoolForThisSession)
         {
             // OPTION 5: Fire-and-forget submission (no future storage)
             try
@@ -990,9 +1019,37 @@ void BotWorldSessionMgr::UpdateSessions(uint32 diff)
                     if (session->GetPlayer() && session->GetPlayer()->IsInWorld())
                     {
                         try {
+                            // ============================================================
+                            // CRITICAL FIX: Exit vehicle BEFORE logout to prevent crash
+                            // ============================================================
+                            // Problem: If bot is a vehicle passenger with pending VehicleJoinEvent,
+                            //          LogoutPlayer() destroys the bot but the event still has a
+                            //          dangling Vehicle* pointer. When Map::MoveAllCreaturesInMoveList
+                            //          processes the bot and calls EventProcessor::KillAllEvents,
+                            //          VehicleJoinEvent::Abort crashes accessing the freed Vehicle.
+                            //
+                            // Solution: Force bot to exit any vehicle BEFORE logout.
+                            //           This properly cleans up vehicle events and references.
+                            // ============================================================
+                            Player* bot = session->GetPlayer();
+                            if (bot->GetVehicle())
+                            {
+                                TC_LOG_DEBUG("module.playerbot.session",
+                                    "Bot {} exiting vehicle before logout (Vehicle crash prevention)",
+                                    bot->GetGUID().GetCounter());
+                                bot->ExitVehicle();
+                            }
+
+                            // CRITICAL FIX (Map.cpp:1942 crash): Remove from _updateObjects BEFORE logout
+                            // This prevents Map::SendObjectUpdates from accessing the bot after destruction.
+                            // ClearUpdateMask(true) calls RemoveFromObjectUpdate() which removes the
+                            // player from Map::_updateObjects, ensuring MapUpdater worker threads
+                            // won't access the destroyed player.
+                            static_cast<Object*>(bot)->ClearUpdateMask(true);
+
                             TC_LOG_DEBUG("module.playerbot.session",
                                 "Deferred logout for bot {} (Cell::Visit crash prevention)",
-                                session->GetPlayer()->GetGUID().GetCounter());
+                                bot->GetGUID().GetCounter());
                             session->LogoutPlayer(true);
                         }
                         catch (...)
