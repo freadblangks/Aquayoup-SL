@@ -557,30 +557,92 @@ bool WarlockAI::SummonPet()
     if (bot->IsInCombat() && GetNearbyEnemyCount(5.0f) > 0)
         return false;
 
-    uint32 summonSpell = 0;
-    uint32 spec = static_cast<uint32>(bot->GetPrimarySpecialization());    // Choose pet based on spec and situation
-    // Spec IDs: 265 = Affliction, 266 = Demonology, 267 = Destruction
-    if (static_cast<uint32>(spec) == 265) // Affliction
-    {
-        // Felhunter for interrupt and dispel
-        summonSpell = SUMMON_FELHUNTER;
-    }
-    else if (static_cast<uint32>(spec) == 266) // Demonology
-  
-    {
-        // Felguard if available, otherwise Voidwalker
-    if (bot->HasSpell(SUMMON_FELGUARD))
+    // ========================================================================
+    // CRITICAL FIX: Stop movement before casting summon spells
+    // ========================================================================
+    // Pet summon spells have 6-second cast times and REQUIRE standing still.
+    // If the bot is moving, the cast will fail with SPELL_FAILED_MOVING.
+    // We must stop movement and clear ALL movement flags/state.
+    // ========================================================================
 
+    // Check for ANY movement state (even if visually not moving, flags may be set)
+    // Use TrinityCore 11.2 predefined masks for movement detection
+    bool hasMovementFlags = bot->HasUnitMovementFlag(MOVEMENTFLAG_MASK_MOVING | MOVEMENTFLAG_MASK_TURNING);
+
+    if (bot->isMoving() || hasMovementFlags || bot->HasUnitState(UNIT_STATE_MOVING))
+    {
+        // Aggressively clear ALL movement state
+        bot->StopMoving();
+        bot->GetMotionMaster()->Clear(MOTION_PRIORITY_NORMAL);
+        bot->GetMotionMaster()->MoveIdle();
+
+        // Clear movement flags using TrinityCore 11.2 masks
+        bot->RemoveUnitMovementFlag(MOVEMENTFLAG_MASK_MOVING | MOVEMENTFLAG_MASK_TURNING);
+
+        // Clear unit state
+        bot->ClearUnitState(UNIT_STATE_MOVING | UNIT_STATE_CHASE | UNIT_STATE_FOLLOW);
+
+        TC_LOG_DEBUG("playerbot.warlock", "Warlock {} clearing movement state to summon pet (isMoving={}, hasFlags={}, hasState={})",
+                     bot->GetName(), bot->isMoving(), hasMovementFlags, bot->HasUnitState(UNIT_STATE_MOVING));
+
+        // Return false - we'll try again next update when fully stopped
+        return false;
+    }
+
+    uint32 summonSpell = 0;
+    uint32 spec = static_cast<uint32>(bot->GetPrimarySpecialization());
+
+    // Determine if bot is solo or in a group
+    bool isInGroup = bot->GetGroup() != nullptr;
+    bool isSolo = !isInGroup;
+
+    // ========================================================================
+    // PET SELECTION LOGIC - Context-aware (Solo vs Group)
+    // ========================================================================
+    // Solo: Prefer tanky pets (Voidwalker/Felguard) - bot needs survivability
+    // Group: Can use utility pets (Felhunter for interrupts) or DPS pets (Imp)
+    //
+    // Spec IDs: 265 = Affliction, 266 = Demonology, 267 = Destruction
+    // ========================================================================
+
+    if (static_cast<uint32>(spec) == 266) // Demonology
+    {
+        // Demonology ALWAYS uses Felguard if available - it's their signature pet
+        // Felguard is tanky AND does great damage
+        if (bot->HasSpell(SUMMON_FELGUARD))
             summonSpell = SUMMON_FELGUARD;
         else
-
             summonSpell = SUMMON_VOIDWALKER;
     }
-    else if (static_cast<uint32>(spec) == 267) // Destruction
-  
+    else if (isSolo)
     {
-        // Imp for damage
-        summonSpell = SUMMON_IMP;
+        // SOLO CONTENT: Voidwalker for ALL non-Demo specs
+        // - Voidwalker tanks mobs while Warlock does damage
+        // - Affliction DoTs + Voidwalker tank = safe leveling
+        // - Destruction burst + Voidwalker tank = safe questing
+        if (bot->HasSpell(SUMMON_VOIDWALKER))
+            summonSpell = SUMMON_VOIDWALKER;
+        else if (bot->HasSpell(SUMMON_IMP))
+            summonSpell = SUMMON_IMP; // Fallback for low level
+    }
+    else // In group
+    {
+        // GROUP CONTENT: Utility or DPS pets based on spec
+        if (static_cast<uint32>(spec) == 265) // Affliction
+        {
+            // Felhunter for Spell Lock (interrupt) and Devour Magic (dispel)
+            // Useful in dungeons/raids for interrupt rotation
+            if (bot->HasSpell(SUMMON_FELHUNTER))
+                summonSpell = SUMMON_FELHUNTER;
+            else
+                summonSpell = SUMMON_IMP;
+        }
+        else if (static_cast<uint32>(spec) == 267) // Destruction
+        {
+            // Imp for extra DPS in group content
+            // Tank is handling aggro, so Warlock can maximize damage
+            summonSpell = SUMMON_IMP;
+        }
     }    
     // Fallback to basic pets if specialized ones aren't available
     if (!bot->HasSpell(summonSpell))

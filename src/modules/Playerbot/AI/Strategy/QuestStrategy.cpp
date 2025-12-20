@@ -4094,6 +4094,9 @@ bool QuestStrategy::CompleteQuestTurnInAtGameObject(BotAI* ai, uint32 questId, G
         TC_LOG_ERROR("module.playerbot.quest", "✅ CompleteQuestTurnInAtGameObject: Bot {} successfully completed quest {} with reward choice {} (itemId: {})",
                      bot->GetName(), questId, selectedRewardIndex, selectedItemId);
 
+        // Clear failure count on success
+        _questTurnInFailures.erase(questId);
+
         // Increment quest completion counter
         _questsCompleted++;
 
@@ -4101,8 +4104,30 @@ bool QuestStrategy::CompleteQuestTurnInAtGameObject(BotAI* ai, uint32 questId, G
     }
     else
     {
-        TC_LOG_ERROR("module.playerbot.quest", "❌ CompleteQuestTurnInAtGameObject: Bot {} failed CanRewardQuest check for quest {} (missing requirements?)",
-                     bot->GetName(), questId);
+        // Track consecutive failures to prevent infinite loops
+        _questTurnInFailures[questId]++;
+        uint32 failureCount = _questTurnInFailures[questId];
+
+        TC_LOG_ERROR("module.playerbot.quest", "❌ CompleteQuestTurnInAtGameObject: Bot {} failed CanRewardQuest check for quest {} (failure #{}, missing requirements?)",
+                     bot->GetName(), questId, failureCount);
+
+        // After MAX_QUEST_TURNIN_FAILURES consecutive failures, abandon the quest
+        if (failureCount >= MAX_QUEST_TURNIN_FAILURES)
+        {
+            TC_LOG_ERROR("module.playerbot.quest", "🗑️ CompleteQuestTurnInAtGameObject: Bot {} ABANDONING quest {} ({}) after {} consecutive turn-in failures",
+                         bot->GetName(), questId, quest->GetLogTitle(), failureCount);
+
+            bot->AbandonQuest(questId);
+            _questTurnInFailures.erase(questId);
+
+            // Blacklist this quest to prevent re-accepting it immediately
+            if (_acceptanceManager)
+                _acceptanceManager->BlacklistQuest(questId);
+
+            TC_LOG_INFO("module.playerbot.quest", "✅ Bot {} abandoned broken quest {} - will search for new quests",
+                        bot->GetName(), questId);
+        }
+
         return false;
     }
 }
@@ -4246,6 +4271,9 @@ bool QuestStrategy::CompleteQuestTurnIn(BotAI* ai, uint32 questId, ::Unit* quest
         TC_LOG_ERROR("module.playerbot.quest", "✅ CompleteQuestTurnIn: Bot {} successfully completed quest {} with reward choice {} (itemId: {})",
                      bot->GetName(), questId, selectedRewardIndex, selectedItemId);
 
+        // Clear failure count on success
+        _questTurnInFailures.erase(questId);
+
         // Increment quest completion counter
         _questsCompleted++;
 
@@ -4253,8 +4281,32 @@ bool QuestStrategy::CompleteQuestTurnIn(BotAI* ai, uint32 questId, ::Unit* quest
     }
     else
     {
-        TC_LOG_ERROR("module.playerbot.quest", "❌ CompleteQuestTurnIn: Bot {} failed CanRewardQuest check for quest {} (missing requirements?)",
-                     bot->GetName(), questId);
+        // Track consecutive failures to prevent infinite loops
+        _questTurnInFailures[questId]++;
+        uint32 failureCount = _questTurnInFailures[questId];
+
+        TC_LOG_ERROR("module.playerbot.quest", "❌ CompleteQuestTurnIn: Bot {} failed CanRewardQuest check for quest {} (failure #{}, missing requirements?)",
+                     bot->GetName(), questId, failureCount);
+
+        // After MAX_QUEST_TURNIN_FAILURES consecutive failures, abandon the quest
+        // This prevents infinite loops on quests with missing required items (e.g., delivery quests where item was lost)
+        if (failureCount >= MAX_QUEST_TURNIN_FAILURES)
+        {
+            TC_LOG_ERROR("module.playerbot.quest", "🗑️ CompleteQuestTurnIn: Bot {} ABANDONING quest {} ({}) after {} consecutive turn-in failures - likely missing required item",
+                         bot->GetName(), questId, quest->GetLogTitle(), failureCount);
+
+            // Abandon the quest
+            bot->AbandonQuest(questId);
+            _questTurnInFailures.erase(questId);
+
+            // Blacklist this quest to prevent re-accepting it immediately
+            if (_acceptanceManager)
+                _acceptanceManager->BlacklistQuest(questId);
+
+            TC_LOG_INFO("module.playerbot.quest", "✅ Bot {} abandoned broken quest {} - will search for new quests",
+                        bot->GetName(), questId);
+        }
+
         return false;
     }
 }
