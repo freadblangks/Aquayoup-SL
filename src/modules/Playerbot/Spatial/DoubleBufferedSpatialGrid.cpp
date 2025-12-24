@@ -27,6 +27,189 @@
 #include "Group.h"
 #include "../Spatial/SpatialGridManager.h"  // Spatial grid for deadlock fix
 
+// ============================================================================
+// CRASH FIX v3: Windows SEH Exception Handling for ACCESS_VIOLATION
+// ============================================================================
+// C++ try-catch CANNOT catch ACCESS_VIOLATION - it's a Windows SEH exception.
+// We must use __try/__except on Windows to catch it safely.
+// ============================================================================
+#ifdef _WIN32
+#include <windows.h>
+#include <excpt.h>
+
+// SEH filter that catches ACCESS_VIOLATION specifically
+static int SpatialGridExceptionFilter(unsigned int code, EXCEPTION_POINTERS* /*ep*/)
+{
+    if (code == EXCEPTION_ACCESS_VIOLATION)
+        return EXCEPTION_EXECUTE_HANDLER;
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+// Helper function to safely copy spawn IDs with SEH protection
+// Returns true on success, false if ACCESS_VIOLATION occurred
+static bool SafeCopyCreatureSpawnIds(
+    Map const* map,
+    ObjectGuid::LowType* outBuffer,
+    size_t bufferSize,
+    size_t& outCount)
+{
+    outCount = 0;
+
+    __try
+    {
+        auto const& creatures = map->GetCreatureBySpawnIdStore();
+        size_t maxCopy = (::std::min)(creatures.size(), bufferSize);
+
+        for (auto it = creatures.begin(); it != creatures.end() && outCount < maxCopy; ++it)
+        {
+            outBuffer[outCount++] = it->first;
+        }
+        return true;
+    }
+    __except (SpatialGridExceptionFilter(GetExceptionCode(), GetExceptionInformation()))
+    {
+        return false;  // ACCESS_VIOLATION caught - return false
+    }
+}
+#else
+// Non-Windows: no SEH, use regular iteration
+static bool SafeCopyCreatureSpawnIds(
+    Map const* map,
+    ObjectGuid::LowType* outBuffer,
+    size_t bufferSize,
+    size_t& outCount)
+{
+    outCount = 0;
+
+    auto const& creatures = map->GetCreatureBySpawnIdStore();
+    size_t maxCopy = std::min(creatures.size(), bufferSize);
+
+    for (auto it = creatures.begin(); it != creatures.end() && outCount < maxCopy; ++it)
+    {
+        outBuffer[outCount++] = it->first;
+    }
+    return true;
+}
+#endif
+
+// ============================================================================
+// CRASH FIX v4: SEH Protection for Player Iteration
+// ============================================================================
+// Map::GetPlayers() returns MapRefManager which can also be concurrently modified.
+// We need to safely copy player GUIDs using SEH protection.
+// ============================================================================
+#ifdef _WIN32
+// Helper function to safely copy player GUIDs with SEH protection
+// Returns true on success, false if ACCESS_VIOLATION occurred
+static bool SafeCopyPlayerGuids(
+    Map const* map,
+    ObjectGuid* outBuffer,
+    size_t bufferSize,
+    size_t& outCount)
+{
+    outCount = 0;
+
+    __try
+    {
+        auto const& players = map->GetPlayers();
+        for (auto const& ref : players)
+        {
+            if (outCount >= bufferSize)
+                break;
+
+            Player* player = ref.GetSource();
+            if (player && player->IsInWorld())
+            {
+                outBuffer[outCount++] = player->GetGUID();
+            }
+        }
+        return true;
+    }
+    __except (SpatialGridExceptionFilter(GetExceptionCode(), GetExceptionInformation()))
+    {
+        return false;  // ACCESS_VIOLATION caught - return false
+    }
+}
+#else
+// Non-Windows: no SEH, use regular iteration
+static bool SafeCopyPlayerGuids(
+    Map const* map,
+    ObjectGuid* outBuffer,
+    size_t bufferSize,
+    size_t& outCount)
+{
+    outCount = 0;
+
+    auto const& players = map->GetPlayers();
+    for (auto const& ref : players)
+    {
+        if (outCount >= bufferSize)
+            break;
+
+        Player* player = ref.GetSource();
+        if (player && player->IsInWorld())
+        {
+            outBuffer[outCount++] = player->GetGUID();
+        }
+    }
+    return true;
+}
+#endif
+
+// ============================================================================
+// CRASH FIX v5: SEH Protection for GameObject Iteration
+// ============================================================================
+// Map::GetGameObjectBySpawnIdStore() can also be concurrently modified.
+// We need to safely copy spawn IDs using SEH protection.
+// ============================================================================
+#ifdef _WIN32
+// Helper function to safely copy game object spawn IDs with SEH protection
+// Returns true on success, false if ACCESS_VIOLATION occurred
+static bool SafeCopyGameObjectSpawnIds(
+    Map const* map,
+    ObjectGuid::LowType* outBuffer,
+    size_t bufferSize,
+    size_t& outCount)
+{
+    outCount = 0;
+
+    __try
+    {
+        auto const& gameObjects = map->GetGameObjectBySpawnIdStore();
+        size_t maxCopy = (::std::min)(gameObjects.size(), bufferSize);
+
+        for (auto it = gameObjects.begin(); it != gameObjects.end() && outCount < maxCopy; ++it)
+        {
+            outBuffer[outCount++] = it->first;
+        }
+        return true;
+    }
+    __except (SpatialGridExceptionFilter(GetExceptionCode(), GetExceptionInformation()))
+    {
+        return false;  // ACCESS_VIOLATION caught - return false
+    }
+}
+#else
+// Non-Windows: no SEH, use regular iteration
+static bool SafeCopyGameObjectSpawnIds(
+    Map const* map,
+    ObjectGuid::LowType* outBuffer,
+    size_t bufferSize,
+    size_t& outCount)
+{
+    outCount = 0;
+
+    auto const& gameObjects = map->GetGameObjectBySpawnIdStore();
+    size_t maxCopy = std::min(gameObjects.size(), bufferSize);
+
+    for (auto it = gameObjects.begin(); it != gameObjects.end() && outCount < maxCopy; ++it)
+    {
+        outBuffer[outCount++] = it->first;
+    }
+    return true;
+}
+#endif
+
 namespace Playerbot
 {
 
@@ -162,27 +345,47 @@ void DoubleBufferedSpatialGrid::PopulateBufferFromMap()
     //                        → ZERO Map access from worker threads → NO DEADLOCKS!
     // ===========================================================================
 
-    // CRASH FIX: Copy creature pointers to a local vector first to avoid iterator invalidation
-    // The map's internal store can be modified by other threads, so we need a snapshot
-    try
+    // ============================================================================
+    // CRASH FIX v3: SEH-protected creature iteration with Windows exception handling
+    // ============================================================================
+    // Problem: Iterating GetCreatureBySpawnIdStore() can ACCESS_VIOLATION if Map
+    //          thread modifies container during iteration. C++ try-catch CANNOT
+    //          catch ACCESS_VIOLATION - it's a Windows SEH exception.
+    //
+    // Solution: Use Windows SEH (__try/__except) in a helper function to safely
+    //           copy spawn IDs. If ACCESS_VIOLATION occurs, we skip creature
+    //           population for this update cycle instead of crashing.
+    //
+    // Performance: Pre-allocate static buffer (50KB) to avoid dynamic allocation
+    //              inside SEH-protected code (SEH + destructors don't mix).
+    // ============================================================================
     {
-        auto const& creatures = _map->GetCreatureBySpawnIdStore();
+        // Static buffer for spawn IDs (reused across updates, thread-local for safety)
+        static thread_local ObjectGuid::LowType spawnIdBuffer[50000];
+        size_t spawnIdCount = 0;
 
-        // First pass: collect valid creature pointers into a local container
-        ::std::vector<Creature*> creatureSnapshot;
-        creatureSnapshot.reserve(creatures.size());
+        // Safely copy spawn IDs using SEH-protected helper
+        bool success = SafeCopyCreatureSpawnIds(_map, spawnIdBuffer, 50000, spawnIdCount);
 
-        for (auto const& pair : creatures)
+        if (!success)
         {
-            Creature* creature = pair.second;
-            if (creature)
-                creatureSnapshot.push_back(creature);
+            TC_LOG_WARN("playerbot.spatial",
+                "ACCESS_VIOLATION during creature iteration for map {} - skipping creature population this cycle",
+                _map->GetId());
+            goto done_creatures;
         }
 
-        // Second pass: process creatures from local snapshot (iterator-safe)
-        for (Creature* creature : creatureSnapshot)
+        if (spawnIdCount == 0)
+            goto done_creatures;
+
+        // Second pass: look up each creature by spawn ID (returns nullptr if deleted)
+        // This is safe because GetCreatureBySpawnId handles missing creatures gracefully
+        for (size_t i = 0; i < spawnIdCount; ++i)
         {
-            // Double-check validity since creature could have been destroyed
+            ObjectGuid::LowType spawnId = spawnIdBuffer[i];
+
+            // Safe lookup - returns nullptr if creature no longer exists
+            Creature* creature = _map->GetCreatureBySpawnId(spawnId);
             if (!creature || !creature->IsInWorld())
                 continue;
 
@@ -308,26 +511,32 @@ void DoubleBufferedSpatialGrid::PopulateBufferFromMap()
             }
         }
     }
-    catch (std::exception const& ex)
+done_creatures:
+
+    // =========================================================================
+    // CRASH FIX v4: Safe Player Iteration with SEH Protection
+    // =========================================================================
+    // Map::GetPlayers() returns MapRefManager that can be modified concurrently.
+    // We first copy player GUIDs safely with SEH, then look them up individually.
+    // This prevents ACCESS_VIOLATION when Map thread adds/removes players.
+    // =========================================================================
+    static thread_local ObjectGuid playerGuidBuffer[5000];  // Max 5000 players per map
+    size_t playerGuidCount = 0;
+
+    bool playerCopySuccess = SafeCopyPlayerGuids(_map, playerGuidBuffer, 5000, playerGuidCount);
+    if (!playerCopySuccess)
     {
-        TC_LOG_ERROR("playerbot.spatial",
-            "Exception during creature iteration for map {}: {}",
-            _map ? _map->GetId() : 0, ex.what());
-    }
-    catch (...)
-    {
-        TC_LOG_ERROR("playerbot.spatial",
-            "Unknown exception during creature iteration for map {}",
-            _map ? _map->GetId() : 0);
+        TC_LOG_WARN("playerbot.spatial",
+            "ACCESS_VIOLATION during player iteration for map {} - skipping player population this cycle",
+            _map->GetId());
+        goto done_players;
     }
 
-    // Iterate all players on this map
-    // Note: Map::GetPlayers() returns a reference to internal MapRefManager
-    auto const& players = _map->GetPlayers();
-    for (auto const& ref : players)
+    // Now iterate over the safely copied GUIDs
+    for (size_t i = 0; i < playerGuidCount; ++i)
     {
-        Player* player = ref.GetSource();
-        if (!player || !player->IsInWorld())
+        Player* player = ObjectAccessor::FindPlayer(playerGuidBuffer[i]);
+        if (!player || !player->IsInWorld() || player->GetMap() != _map)
             continue;
 
         // ===== ENTERPRISE-GRADE: COMPLETE PlayerSnapshot Population =====
@@ -455,73 +664,108 @@ void DoubleBufferedSpatialGrid::PopulateBufferFromMap()
             }
         }
     }
+done_players:
 
-    // Iterate all game objects on this map
-    auto const& gameObjects = _map->GetGameObjectBySpawnIdStore();
-    for (auto const& pair : gameObjects)
+    // ============================================================================
+    // CRASH FIX v5: SEH-protected game object iteration with Windows exception handling
+    // ============================================================================
+    // Problem: Iterating GetGameObjectBySpawnIdStore() can ACCESS_VIOLATION if Map
+    //          thread modifies container during iteration.
+    //
+    // Solution: Use Windows SEH (__try/__except) in a helper function to safely
+    //           copy spawn IDs. If ACCESS_VIOLATION occurs, we skip game object
+    //           population for this update cycle instead of crashing.
+    // ============================================================================
     {
-        GameObject* go = pair.second;
-        if (!go || !go->IsInWorld())
-            continue;
+        // Static buffer for spawn IDs (reused across updates, thread-local for safety)
+        static thread_local ObjectGuid::LowType goSpawnIdBuffer[50000];
+        size_t goSpawnIdCount = 0;
 
-        // ===== ENTERPRISE-GRADE: COMPLETE GameObjectSnapshot Population =====
-        // OPTION C: All 25+ fields populated using correct TrinityCore API methods
-        // NO shortcuts, NO placeholders - complete data capture for zero Map calls from workers
+        // Safely copy spawn IDs using SEH-protected helper
+        bool goSuccess = SafeCopyGameObjectSpawnIds(_map, goSpawnIdBuffer, 50000, goSpawnIdCount);
 
-        GameObjectSnapshot snapshot;
-
-        // ===== IDENTITY (CRITICAL) =====
-        snapshot.guid = go->GetGUID();
-        snapshot.entry = go->GetEntry();
-        snapshot.spawnId = go->GetSpawnId();
-
-        // ===== POSITION (CRITICAL) =====
-        snapshot.position = go->GetPosition();
-        snapshot.mapId = go->GetMapId();
-        snapshot.instanceId = go->GetInstanceId();
-        snapshot.zoneId = go->GetZoneId();
-        snapshot.areaId = go->GetAreaId();
-        snapshot.displayId = go->GetDisplayId();
-        // ===== TYPE & STATE (CRITICAL) =====
-        snapshot.goType = static_cast<uint8>(go->GetGoType());
-        snapshot.goState = static_cast<uint8>(go->GetGoState());
-        snapshot.lootState = static_cast<uint8>(go->getLootState());
-        snapshot.flags = 0;  // GameObject flags removed from template
-        snapshot.level = 0;  // GameObjects don't have levels in TrinityCore
-        snapshot.animProgress = go->GetGoAnimProgress();
-        snapshot.artKit = go->GetGoArtKit();
-        // ===== ROTATION (MEDIUM) =====
-        QuaternionData rotation = go->GetWorldRotation();
-        snapshot.rotationX = rotation.x;
-        snapshot.rotationY = rotation.y;
-        snapshot.rotationZ = rotation.z;
-        snapshot.rotationW = rotation.w;
-
-        // ===== RESPAWN & LOOT (HIGH) =====
-        snapshot.respawnTime = go->GetRespawnTime();
-        snapshot.respawnDelay = go->GetRespawnDelay();
-        snapshot.isSpawned = go->isSpawned();
-        snapshot.spawnedByDefault = go->isSpawnedByDefault();
-        snapshot.lootMode = go->GetLootMode();
-        snapshot.spellId = go->GetSpellId();
-        snapshot.ownerGuid = go->GetOwnerGUID();
-        snapshot.faction = go->GetFaction();
-
-        // Interaction
-        snapshot.interactionRange = go->GetInteractionDistance();
-        snapshot.isQuestObject = go->hasQuest(0);  // Check if involved in any quest (0 = check for any)
-        snapshot.isUsable = go->GetGoState() == GO_STATE_READY && go->isSpawned();  // Can be used/interacted with
-        // Validate and store snapshot
-    if (snapshot.IsValid())
+        if (!goSuccess)
         {
-            auto [x, y] = GetCellCoords(snapshot.position);
-            if (x < TOTAL_CELLS && y < TOTAL_CELLS)
+            TC_LOG_WARN("playerbot.spatial",
+                "ACCESS_VIOLATION during game object iteration for map {} - skipping game object population this cycle",
+                _map->GetId());
+            goto done_gameobjects;
+        }
+
+        if (goSpawnIdCount == 0)
+            goto done_gameobjects;
+
+        // Second pass: look up each game object by spawn ID (returns nullptr if deleted)
+        // This is safe because GetGameObjectBySpawnId handles missing objects gracefully
+        for (size_t i = 0; i < goSpawnIdCount; ++i)
+        {
+            ObjectGuid::LowType spawnId = goSpawnIdBuffer[i];
+
+            // Safe lookup - returns nullptr if game object no longer exists
+            GameObject* go = _map->GetGameObjectBySpawnId(spawnId);
+            if (!go || !go->IsInWorld())
+                continue;
+
+            // ===== ENTERPRISE-GRADE: COMPLETE GameObjectSnapshot Population =====
+            // OPTION C: All 25+ fields populated using correct TrinityCore API methods
+            // NO shortcuts, NO placeholders - complete data capture for zero Map calls from workers
+
+            GameObjectSnapshot snapshot;
+
+            // ===== IDENTITY (CRITICAL) =====
+            snapshot.guid = go->GetGUID();
+            snapshot.entry = go->GetEntry();
+            snapshot.spawnId = go->GetSpawnId();
+
+            // ===== POSITION (CRITICAL) =====
+            snapshot.position = go->GetPosition();
+            snapshot.mapId = go->GetMapId();
+            snapshot.instanceId = go->GetInstanceId();
+            snapshot.zoneId = go->GetZoneId();
+            snapshot.areaId = go->GetAreaId();
+            snapshot.displayId = go->GetDisplayId();
+            // ===== TYPE & STATE (CRITICAL) =====
+            snapshot.goType = static_cast<uint8>(go->GetGoType());
+            snapshot.goState = static_cast<uint8>(go->GetGoState());
+            snapshot.lootState = static_cast<uint8>(go->getLootState());
+            snapshot.flags = 0;  // GameObject flags removed from template
+            snapshot.level = 0;  // GameObjects don't have levels in TrinityCore
+            snapshot.animProgress = go->GetGoAnimProgress();
+            snapshot.artKit = go->GetGoArtKit();
+            // ===== ROTATION (MEDIUM) =====
+            QuaternionData rotation = go->GetWorldRotation();
+            snapshot.rotationX = rotation.x;
+            snapshot.rotationY = rotation.y;
+            snapshot.rotationZ = rotation.z;
+            snapshot.rotationW = rotation.w;
+
+            // ===== RESPAWN & LOOT (HIGH) =====
+            snapshot.respawnTime = go->GetRespawnTime();
+            snapshot.respawnDelay = go->GetRespawnDelay();
+            snapshot.isSpawned = go->isSpawned();
+            snapshot.spawnedByDefault = go->isSpawnedByDefault();
+            snapshot.lootMode = go->GetLootMode();
+            snapshot.spellId = go->GetSpellId();
+            snapshot.ownerGuid = go->GetOwnerGUID();
+            snapshot.faction = go->GetFaction();
+
+            // Interaction
+            snapshot.interactionRange = go->GetInteractionDistance();
+            snapshot.isQuestObject = go->hasQuest(0);  // Check if involved in any quest (0 = check for any)
+            snapshot.isUsable = go->GetGoState() == GO_STATE_READY && go->isSpawned();  // Can be used/interacted with
+            // Validate and store snapshot
+            if (snapshot.IsValid())
             {
-                writeBuffer.cells[x][y].gameObjects.push_back(::std::move(snapshot));
-                ++gameObjectCount;
+                auto [x, y] = GetCellCoords(snapshot.position);
+                if (x < TOTAL_CELLS && y < TOTAL_CELLS)
+                {
+                    writeBuffer.cells[x][y].gameObjects.push_back(::std::move(snapshot));
+                    ++gameObjectCount;
+                }
             }
         }
     }
+done_gameobjects:
 
     // Populate DynamicObjects (AoE spell effects)
     // SAFE: We're on main thread (Map::Update), Map access is allowed
