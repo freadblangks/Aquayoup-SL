@@ -43,6 +43,8 @@
 enum PriestSpells
 {
     SPELL_PRIEST_ABYSSAL_REVERIE                    = 373054,
+    SPELL_PRIEST_ANGELIC_BULWARK_BUFF               = 114214,
+    SPELL_PRIEST_ANGELIC_BULWARK_DEBUFF             = 114216,
     SPELL_PRIEST_ANGELIC_FEATHER_AREATRIGGER        = 158624,
     SPELL_PRIEST_ANGELIC_FEATHER_AURA               = 121557,
     SPELL_PRIEST_ANSWERED_PRAYERS                   = 394289,
@@ -140,6 +142,7 @@ enum PriestSpells
     SPELL_PRIEST_MIND_BOMB_STUN                     = 226943,
     SPELL_PRIEST_MISERY                             = 238558,
     SPELL_PRIEST_ORACULAR_HEAL                      = 26170,
+    SPELL_PRIEST_PAIN_SUPPRESSION                   = 33206,
     SPELL_PRIEST_PAIN_TRANSFORMATION                = 372991,
     SPELL_PRIEST_PAIN_TRANSFORMATION_HEAL           = 372994,
     SPELL_PRIEST_PENANCE                            = 47540,
@@ -163,6 +166,7 @@ enum PriestSpells
     SPELL_PRIEST_PRAYER_OF_MENDING_HEAL             = 33110,
     SPELL_PRIEST_PRAYER_OF_MENDING_JUMP             = 155793,
     SPELL_PRIEST_PROTECTIVE_LIGHT_AURA              = 193065,
+    SPELL_PRIEST_PROTECTOR_OF_THE_FRAIL             = 373035,
     SPELL_PRIEST_PURGE_THE_WICKED                   = 204197,
     SPELL_PRIEST_PURGE_THE_WICKED_DUMMY             = 204215,
     SPELL_PRIEST_PURGE_THE_WICKED_PERIODIC          = 204213,
@@ -264,6 +268,44 @@ class RaidCheck
 
     private:
         Unit const* _caster;
+};
+
+// 108945 - Angelic Bulwark
+class spell_pri_angelic_bulwark : public AuraScript
+{
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        return ValidateSpellInfo({ SPELL_PRIEST_ANGELIC_BULWARK_BUFF, SPELL_PRIEST_ANGELIC_BULWARK_DEBUFF })
+            && ValidateSpellEffect({ { spellInfo->Id, EFFECT_1 } });
+    }
+
+    bool CheckProc(ProcEventInfo const& eventInfo) const
+    {
+        return eventInfo.GetDamageInfo() && !eventInfo.GetActionTarget()->HasAura(SPELL_PRIEST_ANGELIC_BULWARK_DEBUFF)
+            && eventInfo.GetActionTarget()->HealthBelowPctDamaged(GetEffect(EFFECT_0)->GetAmount(), eventInfo.GetDamageInfo()->GetDamage());
+    }
+
+    void HandleProc(ProcEventInfo const& eventInfo) const
+    {
+        Unit* caster = eventInfo.GetActionTarget();
+        if (!caster)
+            return;
+
+        int32 absorb = caster->CountPctFromMaxHealth(GetEffect(EFFECT_1)->GetAmount());
+
+        caster->CastSpell(caster, SPELL_PRIEST_ANGELIC_BULWARK_BUFF, CastSpellExtraArgsInit
+        {
+            .TriggerFlags = TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR,
+            .SpellValueOverrides = { { SPELLVALUE_BASE_POINT0, absorb } }
+        });
+        caster->CastSpell(caster, SPELL_PRIEST_ANGELIC_BULWARK_DEBUFF, TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_pri_angelic_bulwark::CheckProc);
+        OnProc += AuraProcFn(spell_pri_angelic_bulwark::HandleProc);
+    }
 };
 
 // 121536 - Angelic Feather talent
@@ -2846,6 +2888,28 @@ class spell_pri_assured_safety : public spell_pri_prayer_of_mending_SpellScriptB
     }
 };
 
+// 373036 - Protector of the Frail
+class spell_pri_protector_of_the_frail : public SpellScript
+{
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellEffect({ { SPELL_PRIEST_PROTECTOR_OF_THE_FRAIL, EFFECT_1 } });
+    }
+
+    void HandleEffectHit(SpellEffIndex /*effIndex*/) const
+    {
+        Unit* caster = GetCaster();
+
+        int32 cdReduction = sSpellMgr->AssertSpellInfo(SPELL_PRIEST_PROTECTOR_OF_THE_FRAIL, GetCastDifficulty())->GetEffect(EFFECT_1).CalcValue(caster);
+        caster->GetSpellHistory()->ModifyCooldown(SPELL_PRIEST_PAIN_SUPPRESSION, Milliseconds(cdReduction));
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_pri_protector_of_the_frail::HandleEffectHit, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
+
 // 204197 - Purge the Wicked
 // Called by Penance - 47540, Dark Reprimand - 400169
 class spell_pri_purge_the_wicked : public SpellScript
@@ -3188,7 +3252,7 @@ class spell_pri_shadow_covenant : public SpellScript
     void HandleAfterCast() const
     {
         GetCaster()->CastSpell(GetCaster(), SPELL_PRIEST_SHADOW_COVENANT_EFFECT, CastSpellExtraArgsInit{
-            .TriggerFlags = TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR,
+            .TriggerFlags = TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR | TRIGGERED_IGNORE_SHAPESHIFT,
             .TriggeringSpell = GetSpell()
         });
     }
@@ -4156,53 +4220,6 @@ class spell_pri_luminous_barrier : public AuraScript
     }
 };
 
-// 108945 - Angelic Bulwark
-class spell_pri_angelic_bulwark : public AuraScript
-{
-
-    bool Validate(SpellInfo const* spellInfo) override
-    {
-        return spellInfo->GetEffect(EFFECT_1).IsEffect(SPELL_EFFECT_APPLY_AURA);
-    }
-
-    bool CheckProc(ProcEventInfo& procInfo)
-    {
-        auto damageInfo = procInfo.GetDamageInfo();
-        Unit* target = procInfo.GetActionTarget();
-        auto auraEffect = GetEffect(EFFECT_0);
-
-        if (!damageInfo || !damageInfo->GetDamage() || !target || !auraEffect)
-            return false;
-
-        if (target->HasAura(114216))
-            return false;
-
-        uint32 health = target->GetHealth();
-        uint32 threashold = CalculatePct(target->GetMaxHealth(), auraEffect->GetAmount());
-
-        return (health - damageInfo->GetDamage() < threashold);
-    }
-
-    void HandleEffectProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        Unit* target = eventInfo.GetActionTarget();
-
-        int32 basePoints = GetSpellInfo()->GetEffect(EFFECT_1).BasePoints;
-        int32 bp0 = CalculatePct(target->GetMaxHealth(), basePoints);
-        CastSpellExtraArgs args(aurEff);
-        args.AddSpellBP0(bp0);
-
-        target->CastSpell(target, 114214, args);
-        target->CastSpell(target, 114216, true);
-    }
-
-    void Register() override
-    {
-        DoCheckProc += AuraCheckProcFn(spell_pri_angelic_bulwark::CheckProc);
-        OnEffectProc += AuraEffectProcFn(spell_pri_angelic_bulwark::HandleEffectProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
-    }
-};
-
 // 8122 - Mental Scream
 class spell_pri_mental_scream : public AuraScript
 {
@@ -4537,6 +4554,7 @@ struct at_pri_power_word_barrier : AreaTriggerAI
 
 void AddSC_priest_spell_scripts()
 {
+    RegisterSpellScript(spell_pri_angelic_bulwark);
     RegisterSpellScript(spell_pri_angelic_feather_trigger);
     RegisterAreaTriggerAI(areatrigger_pri_angelic_feather);
     RegisterSpellScript(spell_pri_abyssal_reverie);
@@ -4602,6 +4620,7 @@ void AddSC_priest_spell_scripts()
     RegisterSpellAndAuraScriptPair(spell_pri_prayer_of_mending, spell_pri_prayer_of_mending_aura);
     RegisterSpellScript(spell_pri_prayer_of_mending_jump);
     RegisterSpellScript(spell_pri_protective_light);
+    RegisterSpellScript(spell_pri_protector_of_the_frail);
     RegisterSpellScript(spell_pri_holy_10_1_class_set_2pc);
     RegisterSpellScript(spell_pri_holy_10_1_class_set_2pc_chooser);
     RegisterSpellScript(spell_pri_holy_10_1_class_set_4pc);
@@ -4642,7 +4661,6 @@ void AddSC_priest_spell_scripts()
     //New
     RegisterSpellAndAuraScriptPair(spell_pri_penance_620, spell_pri_penance_620_aura);
     RegisterSpellScript(spell_pri_luminous_barrier);
-    RegisterSpellScript(spell_pri_angelic_bulwark);
     RegisterSpellScript(spell_pri_mental_scream);
     RegisterSpellScript(spell_pri_voidform);
     RegisterSpellScript(spell_pri_void_eruption);
