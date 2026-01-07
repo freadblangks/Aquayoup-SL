@@ -215,22 +215,24 @@ namespace Playerbot
 
 DoubleBufferedSpatialGrid::DoubleBufferedSpatialGrid(Map* map)
     : _map(map)
+    , _mapId(map ? map->GetId() : 0)
     , _startTime(::std::chrono::steady_clock::now())
 {
     ASSERT(map, "DoubleBufferedSpatialGrid requires valid Map pointer");
 
     TC_LOG_INFO("playerbot.spatial",
         "DoubleBufferedSpatialGrid created for map {} ({})",
-        map->GetId(), map->GetMapName());
+        _mapId, map->GetMapName());
 }
 
 DoubleBufferedSpatialGrid::~DoubleBufferedSpatialGrid()
 {
     Stop();
 
+    // Note: _map may be invalid at destruction time, so we don't dereference it
     TC_LOG_INFO("playerbot.spatial",
-        "DoubleBufferedSpatialGrid destroyed for map {} - Total queries: {}, Updates: {}, Swaps: {}",
-        _map->GetId(), _totalQueries.load(), _totalUpdates.load(), _totalSwaps.load());
+        "DoubleBufferedSpatialGrid destroyed - Total queries: {}, Updates: {}, Swaps: {}",
+        _totalQueries.load(), _totalUpdates.load(), _totalSwaps.load());
 }
 
 void DoubleBufferedSpatialGrid::Start()
@@ -240,21 +242,28 @@ void DoubleBufferedSpatialGrid::Start()
     // causing deadlocks with main thread and bot threads
     // Solution: Spatial grid now updated synchronously from Map::Update
 
-    TC_LOG_INFO("playerbot.spatial",
-        "Spatial grid initialized for map {} (synchronous updates, no background thread)",
-        _map->GetId());
+    if (_map)
+    {
+        TC_LOG_INFO("playerbot.spatial",
+            "Spatial grid initialized for map {} (synchronous updates, no background thread)",
+            _mapId);
 
-    // Do initial population
-    PopulateBufferFromMap();
-    SwapBuffers();
+        // Do initial population
+        PopulateBufferFromMap();
+        SwapBuffers();
+    }
+    else
+    {
+        TC_LOG_ERROR("playerbot.spatial",
+            "Spatial grid Start() called with null Map pointer!");
+    }
 }
 
 void DoubleBufferedSpatialGrid::Stop()
 {
     // CRITICAL DEADLOCK FIX: No background thread to stop anymore
     TC_LOG_INFO("playerbot.spatial",
-        "Spatial grid stopped for map {} (synchronous mode, no thread to join)",
-        _map->GetId());
+        "Spatial grid stopped (synchronous mode, no thread to join)");
 }
 
 bool DoubleBufferedSpatialGrid::ShouldUpdate() const
@@ -266,6 +275,13 @@ bool DoubleBufferedSpatialGrid::ShouldUpdate() const
 
 void DoubleBufferedSpatialGrid::Update() const
 {
+    // CRITICAL SAFETY CHECK: Verify map pointer is valid before any operations
+    if (!_map)
+    {
+        TC_LOG_ERROR("playerbot.spatial", "Update() called with null map pointer - skipping update");
+        return;
+    }
+
     // CRITICAL DEADLOCK FIX: On-demand synchronous update with rate limiting
     // Only one thread can update at a time (mutex protected)
     // Other threads will skip if update is already in progress
@@ -282,10 +298,19 @@ void DoubleBufferedSpatialGrid::Update() const
     if (!ShouldUpdate())
         return;
 
+    // Cache mapId before potentially long operations (in case _map becomes invalid)
+    uint32 mapId = _map->GetId();
     auto cycleStart = ::std::chrono::steady_clock::now();
 
     try
     {
+        // Re-check map validity before population (could have changed during lock acquisition)
+        if (!_map)
+        {
+            TC_LOG_WARN("playerbot.spatial", "Map pointer became null during update - skipping");
+            return;
+        }
+
         // Populate inactive buffer from Map entities
         const_cast<DoubleBufferedSpatialGrid*>(this)->PopulateBufferFromMap();
 
@@ -299,7 +324,7 @@ void DoubleBufferedSpatialGrid::Update() const
     {
         TC_LOG_ERROR("playerbot.spatial",
             "Exception in spatial grid update for map {}: {}",
-            _map->GetId(), ex.what());
+            mapId, ex.what());
     }
 
     auto cycleEnd = ::std::chrono::steady_clock::now();
@@ -308,7 +333,7 @@ void DoubleBufferedSpatialGrid::Update() const
     if (elapsed.count() > 10)  // Warn if update takes >10ms
         TC_LOG_WARN("playerbot.spatial",
             "Spatial grid update took {}ms for map {}",
-            elapsed.count(), _map->GetId());
+            elapsed.count(), mapId);
 }
 
 void DoubleBufferedSpatialGrid::PopulateBufferFromMap()
@@ -319,6 +344,10 @@ void DoubleBufferedSpatialGrid::PopulateBufferFromMap()
         TC_LOG_ERROR("playerbot.spatial", "PopulateBufferFromMap called with null map pointer!");
         return;
     }
+
+    // CRITICAL FIX: Cache mapId IMMEDIATELY at function start for safe logging
+    // This prevents crash if _map becomes invalid during execution (rare but possible)
+    uint32 cachedMapId = _map->GetId();
 
     auto start = ::std::chrono::high_resolution_clock::now();
 
@@ -371,7 +400,7 @@ void DoubleBufferedSpatialGrid::PopulateBufferFromMap()
         {
             TC_LOG_WARN("playerbot.spatial",
                 "ACCESS_VIOLATION during creature iteration for map {} - skipping creature population this cycle",
-                _map->GetId());
+                cachedMapId);
             goto done_creatures;
         }
 
@@ -505,7 +534,8 @@ void DoubleBufferedSpatialGrid::PopulateBufferFromMap()
             auto [x, y] = GetCellCoords(snapshot.position);
             if (x < TOTAL_CELLS && y < TOTAL_CELLS)
             {
-                writeBuffer.cells[x][y].creatures.push_back(::std::move(snapshot));
+                // SPARSE STORAGE: Use GetOrCreateCell() to allocate only populated cells
+                writeBuffer.GetOrCreateCell(x, y).creatures.push_back(::std::move(snapshot));
                 ++creatureCount;
             }
             }
@@ -528,7 +558,7 @@ done_creatures:
     {
         TC_LOG_WARN("playerbot.spatial",
             "ACCESS_VIOLATION during player iteration for map {} - skipping player population this cycle",
-            _map->GetId());
+            cachedMapId);
         goto done_players;
     }
 
@@ -659,7 +689,8 @@ done_creatures:
             auto [x, y] = GetCellCoords(snapshot.position);
             if (x < TOTAL_CELLS && y < TOTAL_CELLS)
             {
-                writeBuffer.cells[x][y].players.push_back(::std::move(snapshot));
+                // SPARSE STORAGE: Use GetOrCreateCell() to allocate only populated cells
+                writeBuffer.GetOrCreateCell(x, y).players.push_back(::std::move(snapshot));
                 ++playerCount;
             }
         }
@@ -688,7 +719,7 @@ done_players:
         {
             TC_LOG_WARN("playerbot.spatial",
                 "ACCESS_VIOLATION during game object iteration for map {} - skipping game object population this cycle",
-                _map->GetId());
+                cachedMapId);
             goto done_gameobjects;
         }
 
@@ -759,7 +790,8 @@ done_players:
                 auto [x, y] = GetCellCoords(snapshot.position);
                 if (x < TOTAL_CELLS && y < TOTAL_CELLS)
                 {
-                    writeBuffer.cells[x][y].gameObjects.push_back(::std::move(snapshot));
+                    // SPARSE STORAGE: Use GetOrCreateCell() to allocate only populated cells
+                    writeBuffer.GetOrCreateCell(x, y).gameObjects.push_back(::std::move(snapshot));
                     ++gameObjectCount;
                 }
             }
@@ -813,7 +845,8 @@ done_gameobjects:
             auto [x, y] = GetCellCoords(snapshot.position);
             if (x < TOTAL_CELLS && y < TOTAL_CELLS)
             {
-                writeBuffer.cells[x][y].dynamicObjects.push_back(::std::move(snapshot));
+                // SPARSE STORAGE: Use GetOrCreateCell() to allocate only populated cells
+                writeBuffer.GetOrCreateCell(x, y).dynamicObjects.push_back(::std::move(snapshot));
                 ++dynamicObjectCount;
             }
         }
@@ -895,7 +928,8 @@ done_gameobjects:
             auto [x, y] = GetCellCoords(snapshot.position);
             if (x < TOTAL_CELLS && y < TOTAL_CELLS)
             {
-                writeBuffer.cells[x][y].areaTriggers.push_back(::std::move(snapshot));
+                // SPARSE STORAGE: Use GetOrCreateCell() to allocate only populated cells
+                writeBuffer.GetOrCreateCell(x, y).areaTriggers.push_back(::std::move(snapshot));
                 ++areaTriggerCount;
             }
         }
@@ -905,13 +939,31 @@ done_gameobjects:
                                    dynamicObjectCount + areaTriggerCount;
     writeBuffer.lastUpdate = ::std::chrono::steady_clock::now();
 
+    // Update memory tracking
+    size_t currentMemory = writeBuffer.GetMemoryUsageBytes();
+    _currentMemoryUsage.store(currentMemory, ::std::memory_order_relaxed);
+
+    // Update peak memory if exceeded
+    size_t currentPeak = _peakMemoryUsage.load(::std::memory_order_relaxed);
+    while (currentMemory > currentPeak &&
+           !_peakMemoryUsage.compare_exchange_weak(currentPeak, currentMemory,
+                                                    ::std::memory_order_relaxed,
+                                                    ::std::memory_order_relaxed))
+    {
+        // Retry with updated currentPeak
+    }
+
     auto end = ::std::chrono::high_resolution_clock::now();
     auto duration = ::std::chrono::duration_cast<::std::chrono::microseconds>(end - start);
     _lastUpdateDurationUs.store(static_cast<uint32>(duration.count()), ::std::memory_order_relaxed);
 
     TC_LOG_TRACE("playerbot.spatial",
-        "PopulateBufferFromMap: map {} - {} creatures, {} players, {} gameobjects, {} dynobjects, {} areatriggers in {}?s",
-        _map->GetId(), creatureCount, playerCount, gameObjectCount, dynamicObjectCount, areaTriggerCount, duration.count());
+        "PopulateBufferFromMap: map {} - {} creatures, {} players, {} gameobjects, {} dynobjects, {} areatriggers "
+        "in {} cells, {:.2f} MB, {}us",
+        cachedMapId, creatureCount, playerCount, gameObjectCount, dynamicObjectCount, areaTriggerCount,
+        writeBuffer.activeCellCount,
+        static_cast<float>(currentMemory) / (1024.0f * 1024.0f),
+        duration.count());
 }
 
 void DoubleBufferedSpatialGrid::SwapBuffers()
@@ -923,7 +975,7 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
 
     TC_LOG_TRACE("playerbot.spatial",
         "SwapBuffers: map {} - Read buffer now {}, swap #{}",
-        _map->GetId(), _readBufferIndex.load(), _totalSwaps.load());
+        _mapId, _readBufferIndex.load(), _totalSwaps.load());
 }
 
 // ===========================================================================
@@ -950,11 +1002,14 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
         if (x >= TOTAL_CELLS || y >= TOTAL_CELLS)
             continue;
 
-        auto const& cell = readBuffer.cells[x][y];
+        // SPARSE STORAGE: Use GetCell() which returns nullptr for empty cells
+        CellContents const* cell = readBuffer.GetCell(x, y);
+        if (!cell)
+            continue;  // Cell is empty in sparse storage
 
         // Add creatures from this cell with accurate distance filtering
         // Note: Cells are coarse (66 yards), so we need exact distance checks
-    for (CreatureSnapshot const& snapshot : cell.creatures)
+        for (CreatureSnapshot const& snapshot : cell->creatures)
         {
             // Accurate distance check using snapshot position
             float distSq = pos.GetExactDistSq(snapshot.position);
@@ -966,7 +1021,7 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
     }
 
     TC_LOG_TRACE("playerbot.spatial",
-        "QueryNearbyCreatures: pos({:.1f},{:.1f}) radius {:.1f} ? {} results",
+        "QueryNearbyCreatures: pos({:.1f},{:.1f}) radius {:.1f} -> {} results",
         pos.GetPositionX(), pos.GetPositionY(), radius, results.size());
 
     return results;
@@ -987,10 +1042,13 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
         if (x >= TOTAL_CELLS || y >= TOTAL_CELLS)
             continue;
 
-        auto const& cell = readBuffer.cells[x][y];
+        // SPARSE STORAGE: Use GetCell() which returns nullptr for empty cells
+        CellContents const* cell = readBuffer.GetCell(x, y);
+        if (!cell)
+            continue;  // Cell is empty in sparse storage
 
         // Add players from this cell with accurate distance filtering
-    for (PlayerSnapshot const& snapshot : cell.players)
+        for (PlayerSnapshot const& snapshot : cell->players)
         {
             float distSq = pos.GetExactDistSq(snapshot.position);
             if (distSq <= radiusSq)
@@ -1001,7 +1059,7 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
     }
 
     TC_LOG_TRACE("playerbot.spatial",
-        "QueryNearbyPlayers: pos({:.1f},{:.1f}) radius {:.1f} ? {} results",
+        "QueryNearbyPlayers: pos({:.1f},{:.1f}) radius {:.1f} -> {} results",
         pos.GetPositionX(), pos.GetPositionY(), radius, results.size());
 
     return results;
@@ -1022,10 +1080,13 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
         if (x >= TOTAL_CELLS || y >= TOTAL_CELLS)
             continue;
 
-        auto const& cell = readBuffer.cells[x][y];
+        // SPARSE STORAGE: Use GetCell() which returns nullptr for empty cells
+        CellContents const* cell = readBuffer.GetCell(x, y);
+        if (!cell)
+            continue;  // Cell is empty in sparse storage
 
         // Add game objects from this cell with accurate distance filtering
-    for (GameObjectSnapshot const& snapshot : cell.gameObjects)
+        for (GameObjectSnapshot const& snapshot : cell->gameObjects)
         {
             float distSq = pos.GetExactDistSq(snapshot.position);
             if (distSq <= radiusSq)
@@ -1036,7 +1097,7 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
     }
 
     TC_LOG_TRACE("playerbot.spatial",
-        "QueryNearbyGameObjects: pos({:.1f},{:.1f}) radius {:.1f} ? {} results",
+        "QueryNearbyGameObjects: pos({:.1f},{:.1f}) radius {:.1f} -> {} results",
         pos.GetPositionX(), pos.GetPositionY(), radius, results.size());
 
     return results;
@@ -1057,10 +1118,13 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
         if (x >= TOTAL_CELLS || y >= TOTAL_CELLS)
             continue;
 
-        auto const& cell = readBuffer.cells[x][y];
+        // SPARSE STORAGE: Use GetCell() which returns nullptr for empty cells
+        CellContents const* cell = readBuffer.GetCell(x, y);
+        if (!cell)
+            continue;  // Cell is empty in sparse storage
 
         // Add area triggers from this cell with accurate distance filtering
-    for (AreaTriggerSnapshot const& snapshot : cell.areaTriggers)
+        for (AreaTriggerSnapshot const& snapshot : cell->areaTriggers)
         {
             float distSq = pos.GetExactDistSq(snapshot.position);
             if (distSq <= radiusSq)
@@ -1071,7 +1135,7 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
     }
 
     TC_LOG_TRACE("playerbot.spatial",
-        "QueryNearbyAreaTriggers: pos({:.1f},{:.1f}) radius {:.1f} ? {} results",
+        "QueryNearbyAreaTriggers: pos({:.1f},{:.1f}) radius {:.1f} -> {} results",
         pos.GetPositionX(), pos.GetPositionY(), radius, results.size());
 
     return results;
@@ -1092,10 +1156,13 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
         if (x >= TOTAL_CELLS || y >= TOTAL_CELLS)
             continue;
 
-        auto const& cell = readBuffer.cells[x][y];
+        // SPARSE STORAGE: Use GetCell() which returns nullptr for empty cells
+        CellContents const* cell = readBuffer.GetCell(x, y);
+        if (!cell)
+            continue;  // Cell is empty in sparse storage
 
         // Add dynamic objects from this cell with accurate distance filtering
-    for (DynamicObjectSnapshot const& snapshot : cell.dynamicObjects)
+        for (DynamicObjectSnapshot const& snapshot : cell->dynamicObjects)
         {
             float distSq = pos.GetExactDistSq(snapshot.position);
             if (distSq <= radiusSq)
@@ -1106,7 +1173,7 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
     }
 
     TC_LOG_TRACE("playerbot.spatial",
-        "QueryNearbyDynamicObjects: pos({:.1f},{:.1f}) radius {:.1f} ? {} results",
+        "QueryNearbyDynamicObjects: pos({:.1f},{:.1f}) radius {:.1f} -> {} results",
         pos.GetPositionX(), pos.GetPositionY(), radius, results.size());
 
     return results;
@@ -1155,13 +1222,16 @@ void DoubleBufferedSpatialGrid::SwapBuffers()
 DoubleBufferedSpatialGrid::CellContents const& DoubleBufferedSpatialGrid::GetCell(
     uint32 x, uint32 y) const
 {
-    static CellContents emptyCell;
+    // Thread-local static for empty cell return (avoids allocation)
+    static thread_local CellContents emptyCell;
 
     if (x >= TOTAL_CELLS || y >= TOTAL_CELLS)
         return emptyCell;
 
+    // SPARSE STORAGE: Use GetCell() which returns nullptr for empty cells
     auto const& readBuffer = GetReadBuffer();
-    return readBuffer.cells[x][y];
+    CellContents const* cell = readBuffer.GetCell(x, y);
+    return cell ? *cell : emptyCell;
 }
 
 DoubleBufferedSpatialGrid::Statistics DoubleBufferedSpatialGrid::GetStatistics() const
@@ -1171,7 +1241,13 @@ DoubleBufferedSpatialGrid::Statistics DoubleBufferedSpatialGrid::GetStatistics()
     stats.totalUpdates = _totalUpdates.load(::std::memory_order_relaxed);
     stats.totalSwaps = _totalSwaps.load(::std::memory_order_relaxed);
     stats.lastUpdateDurationUs = _lastUpdateDurationUs.load(::std::memory_order_relaxed);
-    stats.currentPopulation = GetReadBuffer().populationCount;
+
+    // SPARSE STORAGE: Include active cell count and memory usage
+    auto const& readBuffer = GetReadBuffer();
+    stats.currentPopulation = readBuffer.populationCount;
+    stats.activeCellCount = readBuffer.activeCellCount;
+    stats.memoryUsageBytes = _currentMemoryUsage.load(::std::memory_order_relaxed);
+    stats.peakMemoryUsageBytes = _peakMemoryUsage.load(::std::memory_order_relaxed);
     stats.startTime = _startTime;
 
     return stats;

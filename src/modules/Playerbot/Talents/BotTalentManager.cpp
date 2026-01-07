@@ -21,6 +21,7 @@
 #include "PlayerbotDatabase.h"
 #include "Log.h"
 #include "Config.h"
+#include "Config/PlayerbotConfig.h"
 #include "Group/RoleDefinitions.h"
 #include "DB2Stores.h"
 #include "SpellInfo.h"
@@ -48,6 +49,23 @@ BotTalentManager* BotTalentManager::instance()
 bool BotTalentManager::LoadLoadouts()
 {
     TC_LOG_INFO("playerbot", "BotTalentManager: Loading talent loadouts...");
+
+    // Load configuration from PlayerbotConfig
+    _enabled = sPlayerbotConfig->GetBool("Playerbot.TalentManager.Enable", true);
+    _useOptimalBuilds = sPlayerbotConfig->GetBool("Playerbot.TalentManager.UseOptimalBuilds", true);
+    _randomizeMinor = sPlayerbotConfig->GetBool("Playerbot.TalentManager.RandomizeMinor", true);
+    _adaptToContent = sPlayerbotConfig->GetBool("Playerbot.TalentManager.AdaptToContent", true);
+    _respecFrequencyHours = sPlayerbotConfig->GetInt("Playerbot.TalentManager.RespecFrequency", 24);
+    _useHeroTalents = sPlayerbotConfig->GetBool("Playerbot.TalentManager.UseHeroTalents", true);
+
+    TC_LOG_DEBUG("playerbot", "BotTalentManager: Config loaded - Enable=%d, UseOptimal=%d, RandomizeMinor=%d, UseHeroTalents=%d",
+        _enabled, _useOptimalBuilds, _randomizeMinor, _useHeroTalents);
+
+    if (!_enabled)
+    {
+        TC_LOG_INFO("playerbot", "BotTalentManager: Disabled via config");
+        return true;
+    }
 
     auto startTime = ::std::chrono::steady_clock::now();
 
@@ -130,11 +148,13 @@ void BotTalentManager::LoadLoadoutsFromDatabase()
 
     if (!result)
     {
-        TC_LOG_WARN("playerbot", "BotTalentManager: No loadouts found in database (table may not exist)");
+        // Not a warning - DB2 fallback is expected behavior when table is empty or doesn't exist
+        TC_LOG_INFO("playerbot", "BotTalentManager: No loadouts found in playerbot_talent_loadouts table. Using DB2 defaults only.");
         return;
     }
 
     uint32 loadedCount = 0;
+    uint32 parseErrors = 0;
 
     do
     {
@@ -148,6 +168,7 @@ void BotTalentManager::LoadLoadoutsFromDatabase()
         loadout.description = fields[6].GetString();
 
         // Parse talent string (comma-separated talent entry IDs)
+        // Robust parsing: handles empty tokens, invalid numbers, and malformed data
         ::std::string talentString = fields[4].GetString();
         if (!talentString.empty())
         {
@@ -155,12 +176,20 @@ void BotTalentManager::LoadLoadoutsFromDatabase()
             ::std::string token;
             while (::std::getline(ss, token, ','))
             {
-                uint32 talentEntry = ::std::stoul(token);
-                loadout.talentEntries.push_back(talentEntry);
+                try
+                {
+                    if (!token.empty())
+                        loadout.talentEntries.push_back(::std::stoul(token));
+                }
+                catch (...)
+                {
+                    // Skip invalid tokens (empty, non-numeric, overflow)
+                    ++parseErrors;
+                }
             }
         }
 
-        // Parse hero talent string
+        // Parse hero talent string with same robust parsing
         ::std::string heroTalentString = fields[5].GetString();
         if (!heroTalentString.empty())
         {
@@ -168,8 +197,16 @@ void BotTalentManager::LoadLoadoutsFromDatabase()
             ::std::string token;
             while (::std::getline(ss, token, ','))
             {
-                uint32 heroTalentEntry = ::std::stoul(token);
-                loadout.heroTalentEntries.push_back(heroTalentEntry);
+                try
+                {
+                    if (!token.empty())
+                        loadout.heroTalentEntries.push_back(::std::stoul(token));
+                }
+                catch (...)
+                {
+                    // Skip invalid tokens (empty, non-numeric, overflow)
+                    ++parseErrors;
+                }
             }
         }
 
@@ -181,6 +218,11 @@ void BotTalentManager::LoadLoadoutsFromDatabase()
     } while (result->NextRow());
 
     TC_LOG_INFO("playerbot", "BotTalentManager: Loaded {} loadouts from database", loadedCount);
+
+    if (parseErrors > 0)
+    {
+        TC_LOG_WARN("playerbot", "BotTalentManager: {} invalid talent tokens were skipped during parsing. Check talent_string/hero_talent_string data.", parseErrors);
+    }
 }
 
 void BotTalentManager::PopulateEmptyLoadoutsFromDB2()
