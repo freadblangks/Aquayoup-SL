@@ -202,6 +202,75 @@ void QuestStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
         TC_LOG_ERROR("module.playerbot.quest", "⚔️ UpdateBehavior: Bot {} in combat, skipping", bot->GetName());
         return;
     }
+
+    // ========================================================================
+    // PERSISTENT TRAVEL MANAGER UPDATE
+    // ========================================================================
+    // If we have an active multi-leg travel route (ships, zeppelins, portals),
+    // we must update it every tick to progress through the journey states:
+    // WALKING_TO_TRANSPORT -> WAITING_FOR_TRANSPORT -> ON_TRANSPORT -> ARRIVING
+
+    // DIAGNOSTIC: Log travel manager state BEFORE checking IsTraveling
+    if (_travelManager)
+    {
+        bool isTraveling = _travelManager->IsTraveling();
+        TravelState currentState = _travelManager->GetCurrentState();
+        TravelRoute const* route = _travelManager->GetCurrentRoute();
+        uint32 legCount = route ? route->totalLegs : 0;
+        uint32 currentLegIdx = route ? route->currentLegIndex : 0;
+
+        TC_LOG_DEBUG("module.playerbot.quest",
+            "🔍 UpdateBehavior PRE-CHECK: Bot {} - manager exists, IsTraveling={}, state={}, legs={}, currentLeg={}, quest={}",
+            bot->GetName(), isTraveling, static_cast<int>(currentState), legCount, currentLegIdx, _lastTravelQuestId);
+    }
+
+    if (_travelManager && _travelManager->IsTraveling())
+    {
+        TC_LOG_DEBUG("module.playerbot.quest",
+            "🚢 UpdateBehavior: Bot {} updating active travel route (quest {})",
+            bot->GetName(), _lastTravelQuestId);
+
+        // Update() returns true while route is still active, false when done
+        bool stillTraveling = _travelManager->Update(diff);
+
+        if (stillTraveling)
+        {
+            // Route still in progress - don't do normal quest processing
+            // Let the travel system handle movement
+            return;
+        }
+
+        // Route finished - check if completed or failed
+        TravelState finalState = _travelManager->GetCurrentState();
+        if (finalState == TravelState::COMPLETED)
+        {
+            TC_LOG_INFO("module.playerbot.quest",
+                "✅ UpdateBehavior: Bot {} completed multi-leg travel route for quest {}",
+                bot->GetName(), _lastTravelQuestId);
+
+            // Clear failure tracking on success
+            _travelFailures.erase(_lastTravelQuestId);
+        }
+        else
+        {
+            // Track travel failure to prevent infinite retry loops
+            uint32 now = GameTime::GetGameTimeMS();
+            auto& failInfo = _travelFailures[_lastTravelQuestId];
+            failInfo.lastFailureTime = now;
+            failInfo.failureCount++;
+
+            TC_LOG_WARN("module.playerbot.quest",
+                "❌ UpdateBehavior: Bot {} travel route FAILED (attempt {}/{}) for quest {} - cooldown {} minutes",
+                bot->GetName(), failInfo.failureCount, MAX_TRAVEL_FAILURES,
+                _lastTravelQuestId, TRAVEL_FAILURE_COOLDOWN_MS / 60000);
+        }
+
+        // Clean up travel manager
+        _travelManager.reset();
+        _lastTravelQuestId = 0;
+        // Continue to normal quest processing
+    }
+
     // Update objective tracker periodically
     uint32 currentTime = GameTime::GetGameTimeMS();
     if (currentTime - _lastObjectiveUpdate > 2000) // Every 2 seconds
@@ -2098,21 +2167,51 @@ void QuestStrategy::TurnInQuest(BotAI* ai, uint32 questId)
         // ========================================================================
         // TRAVEL METHOD 3: Multi-Station Travel (ships, zeppelins, portals)
         // ========================================================================
-        // Use TravelRouteManager for complex multi-hop routes like:
-        // - FlightMaster -> Ship -> FlightMaster
-        // - FlightMaster -> Portal -> FlightMaster
-        // - Hearthstone -> FlightMaster -> Zeppelin -> FlightMaster
+        // Use PERSISTENT TravelRouteManager for complex multi-hop routes.
+        // The manager handles state across update ticks for proper transport boarding:
+        // WALKING_TO_TRANSPORT -> WAITING_FOR_TRANSPORT -> ON_TRANSPORT -> ARRIVING
         if (!travelInitiated)
         {
+            // Check for travel failure cooldown to prevent infinite loops
+            uint32 now = GameTime::GetGameTimeMS();
+            auto failIt = _travelFailures.find(questId);
+            if (failIt != _travelFailures.end())
+            {
+                TravelFailureInfo& failInfo = failIt->second;
+
+                // Check if max failures reached
+                if (failInfo.failureCount >= MAX_TRAVEL_FAILURES)
+                {
+                    TC_LOG_WARN("module.playerbot.quest",
+                        "⛔ TurnInQuest: Bot {} giving up on quest {} travel - max failures ({}) reached",
+                        bot->GetName(), questId, MAX_TRAVEL_FAILURES);
+                    return; // Skip this quest, try other quests
+                }
+
+                // Check cooldown
+                uint32 timeSinceFailure = now - failInfo.lastFailureTime;
+                if (timeSinceFailure < TRAVEL_FAILURE_COOLDOWN_MS)
+                {
+                    uint32 remainingCooldown = (TRAVEL_FAILURE_COOLDOWN_MS - timeSinceFailure) / 1000;
+                    TC_LOG_DEBUG("module.playerbot.quest",
+                        "⏳ TurnInQuest: Bot {} travel for quest {} on cooldown - {}s remaining (attempt {}/{})",
+                        bot->GetName(), questId, remainingCooldown, failInfo.failureCount, MAX_TRAVEL_FAILURES);
+                    return; // On cooldown, try other quests
+                }
+            }
+
             TC_LOG_ERROR("module.playerbot.quest", "🚢 TurnInQuest: Bot {} attempting multi-station travel planning to MAP {}",
                          bot->GetName(), location.targetMapId);
 
-            // Create TravelRouteManager and plan route
-            TravelRouteManager travelMgr(bot);
-
-            if (travelMgr.CanReachMap(bot->GetMapId(), location.targetMapId))
+            // Create persistent TravelRouteManager if needed
+            if (!_travelManager)
             {
-                TravelRoute route = travelMgr.PlanRoute(location.targetMapId, location.position);
+                _travelManager = std::make_unique<TravelRouteManager>(bot);
+            }
+
+            if (_travelManager->CanReachMap(bot->GetMapId(), location.targetMapId))
+            {
+                TravelRoute route = _travelManager->PlanRoute(location.targetMapId, location.position);
 
                 if (!route.legs.empty() && route.overallState != TravelState::FAILED)
                 {
@@ -2136,90 +2235,30 @@ void QuestStrategy::TurnInQuest(BotAI* ai, uint32 questId)
                             case TransportType::WALK: typeStr = "Walk"; break;
                             default: typeStr = "Unknown"; break;
                         }
-                        TC_LOG_ERROR("module.playerbot.quest", "   📍 Leg {}: {} - {} (MAP {} -> MAP {})",
+                        TC_LOG_INFO("module.playerbot.quest", "   📍 Leg {}: {} - {} (MAP {} -> MAP {})",
                                      leg.legIndex + 1, typeStr, leg.description,
                                      leg.startMapId, leg.endMapId);
                     }
 
-                    // Start the first leg - walk/taxi to first transport departure point
-                    TravelLeg const& firstLeg = route.legs[0];
-
-                    if (firstLeg.type == TransportType::WALK)
+                    // START THE ROUTE - TravelRouteManager handles all leg progression!
+                    // The UpdateBehavior() loop will call _travelManager->Update() each tick
+                    // to progress through: WALKING -> WAITING -> ON_TRANSPORT -> ARRIVING
+                    if (_travelManager->StartRoute(std::move(route)))
                     {
-                        // Walk to destination
-                        if (BotMovementUtil::MoveToPosition(bot, firstLeg.endPosition))
-                        {
-                            TC_LOG_ERROR("module.playerbot.quest", "✅ TurnInQuest: Bot {} starting multi-station journey - walking to first waypoint",
-                                         bot->GetName());
-                            travelInitiated = true;
-                        }
+                        _lastTravelQuestId = questId;
+                        TC_LOG_INFO("module.playerbot.quest",
+                            "✅ TurnInQuest: Bot {} started multi-station travel for quest {} - travel manager will handle journey",
+                            bot->GetName(), questId);
+                        travelInitiated = true;
+                        // Return immediately - UpdateBehavior's travel update loop takes over
+                        return;
                     }
-                    else if (firstLeg.type == TransportType::TAXI_FLIGHT)
+                    else
                     {
-                        // Need to find and walk to flight master first
-                        auto fmOpt = FlightMasterManager::FindNearestFlightMaster(bot);
-                        if (fmOpt.has_value())
-                        {
-                            if (fmOpt->distanceFromPlayer < 10.0f)
-                            {
-                                // At flight master - take flight
-                                FlightResult result = FlightMasterManager().FlyToTaxiNode(bot, firstLeg.taxiEndNode, FlightPathStrategy::SHORTEST_DISTANCE);
-                                if (result == FlightResult::SUCCESS)
-                                {
-                                    TC_LOG_ERROR("module.playerbot.quest", "✅ TurnInQuest: Bot {} starting multi-station journey via taxi",
-                                                 bot->GetName());
-                                    travelInitiated = true;
-                                }
-                            }
-                            else
-                            {
-                                // Walk to flight master
-                                if (BotMovementUtil::MoveToPosition(bot, fmOpt->position))
-                                {
-                                    TC_LOG_ERROR("module.playerbot.quest", "✅ TurnInQuest: Bot {} walking to flight master for multi-station journey",
-                                                 bot->GetName());
-                                    travelInitiated = true;
-                                }
-                            }
-                        }
-                    }
-                    else if (firstLeg.connection)
-                    {
-                        // Transport leg (ship/zeppelin/portal) - walk to departure point
-                        float distToDeparture = bot->GetExactDist(firstLeg.startPosition);
-                        if (distToDeparture < 30.0f)
-                        {
-                            // Close to transport - wait for it or use portal
-                            if (firstLeg.type == TransportType::PORTAL)
-                            {
-                                // Teleport via portal
-                                bot->TeleportTo(firstLeg.endMapId,
-                                                firstLeg.endPosition.GetPositionX(),
-                                                firstLeg.endPosition.GetPositionY(),
-                                                firstLeg.endPosition.GetPositionZ(),
-                                                firstLeg.endPosition.GetOrientation());
-                                TC_LOG_ERROR("module.playerbot.quest", "✅ TurnInQuest: Bot {} used portal for multi-station journey",
-                                             bot->GetName());
-                                travelInitiated = true;
-                            }
-                            else
-                            {
-                                // Wait for ship/zeppelin (simplified - just log)
-                                TC_LOG_ERROR("module.playerbot.quest", "⏳ TurnInQuest: Bot {} waiting for {} at departure point",
-                                             bot->GetName(), firstLeg.description);
-                                travelInitiated = true; // Mark as initiated to not defer
-                            }
-                        }
-                        else
-                        {
-                            // Walk to transport departure
-                            if (BotMovementUtil::MoveToPosition(bot, firstLeg.startPosition))
-                            {
-                                TC_LOG_ERROR("module.playerbot.quest", "✅ TurnInQuest: Bot {} walking to {} departure point",
-                                             bot->GetName(), firstLeg.description);
-                                travelInitiated = true;
-                            }
-                        }
+                        TC_LOG_WARN("module.playerbot.quest",
+                            "❌ TurnInQuest: Bot {} failed to start route for quest {}",
+                            bot->GetName(), questId);
+                        _travelManager.reset();
                     }
                 }
                 else

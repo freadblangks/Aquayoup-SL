@@ -5,6 +5,7 @@
  */
 
 #include "TravelRouteManager.h"
+#include "PortalDatabase.h"
 #include "Player.h"
 #include "ObjectAccessor.h"
 #include "MotionMaster.h"
@@ -12,12 +13,16 @@
 #include "GameTime.h"
 #include "SpellHistory.h"
 #include "Spell.h"
+#include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "ObjectMgr.h"
 #include "Transport.h"
 #include "TransportMgr.h"
 #include "Map.h"
 #include "WorldSession.h"
+#include "GameObject.h"
+#include "GameObjectData.h"
+#include "MovementPackets.h"
 #include "../Game/FlightMasterManager.h"
 #include <queue>
 #include <algorithm>
@@ -1518,6 +1523,7 @@ TravelRouteManager::TravelRouteManager(Player* bot)
     : m_bot(bot)
     , m_lastRoutePlanTime(0)
     , m_lastStateUpdateTime(0)
+    , m_transportStationaryStartTime(0)
 {
     // Initialize static transport connections on first instance
     if (!s_connectionsInitialized)
@@ -1819,6 +1825,18 @@ bool TravelRouteManager::AddTaxiLeg(TravelRoute& route, uint32 mapId, Position c
         return false;
     }
 
+    // CRITICAL: Validate that a flight path actually EXISTS between these nodes
+    // This prevents creating invalid taxi legs for cross-continent routes where
+    // no taxi connection exists (e.g., Ratchet to Eastern Kingdoms)
+    if (!FlightMasterManager::HasValidFlightPath(startNode, endNode, m_bot))
+    {
+        TC_LOG_WARN("module.playerbot.travel",
+            "TravelRouteManager::AddTaxiLeg - NO VALID FLIGHT PATH from node {} to node {} on map {} - "
+            "leg creation REJECTED (likely cross-continent or disconnected nodes)",
+            startNode, endNode, mapId);
+        return false;
+    }
+
     TravelLeg leg;
     leg.legIndex = static_cast<uint32>(route.legs.size());
     leg.type = TransportType::TAXI_FLIGHT;
@@ -1921,6 +1939,27 @@ bool TravelRouteManager::StartRoute(TravelRoute&& route)
         return false;
     }
 
+    // DIAGNOSTIC: Log incoming route details BEFORE moving
+    TC_LOG_DEBUG("module.playerbot.travel",
+        "🔍 StartRoute: Bot {} - incoming route has {} legs, overallState={}",
+        m_bot ? m_bot->GetName() : "NULL",
+        route.legs.size(),
+        static_cast<int>(route.overallState));
+
+    for (size_t i = 0; i < route.legs.size(); ++i)
+    {
+        auto const& leg = route.legs[i];
+        TC_LOG_DEBUG("module.playerbot.travel",
+            "🔍 StartRoute: Bot {} - leg {} type={} desc='{}' state={} start=({:.1f},{:.1f},{:.1f}) end=({:.1f},{:.1f},{:.1f})",
+            m_bot ? m_bot->GetName() : "NULL",
+            i,
+            static_cast<int>(leg.type),
+            leg.description,
+            static_cast<int>(leg.currentState),
+            leg.startPosition.GetPositionX(), leg.startPosition.GetPositionY(), leg.startPosition.GetPositionZ(),
+            leg.endPosition.GetPositionX(), leg.endPosition.GetPositionY(), leg.endPosition.GetPositionZ());
+    }
+
     m_activeRoute = std::make_unique<TravelRoute>(std::move(route));
     m_activeRoute->overallState = TravelState::WALKING_TO_TRANSPORT;
     m_activeRoute->routeStartTime = static_cast<uint32>(GameTime::GetGameTimeMS());
@@ -1942,8 +1981,25 @@ bool TravelRouteManager::StartRoute(TravelRoute&& route)
 
 bool TravelRouteManager::Update(uint32 diff)
 {
+    // DIAGNOSTIC: Log entry state
+    TC_LOG_DEBUG("module.playerbot.travel",
+        "🔍 Update ENTRY: Bot {} - activeRoute={}, IsActive={}, overallState={}, legs={}, currentLegIdx={}",
+        m_bot ? m_bot->GetName() : "NULL",
+        m_activeRoute ? "YES" : "NO",
+        m_activeRoute ? (m_activeRoute->IsActive() ? "YES" : "NO") : "N/A",
+        m_activeRoute ? static_cast<int>(m_activeRoute->overallState) : -1,
+        m_activeRoute ? m_activeRoute->legs.size() : 0,
+        m_activeRoute ? m_activeRoute->currentLegIndex : 0);
+
     if (!m_activeRoute || !m_activeRoute->IsActive())
+    {
+        TC_LOG_DEBUG("module.playerbot.travel",
+            "🔍 Update returning FALSE (no active route): Bot {} - activeRoute={}, IsActive={}",
+            m_bot ? m_bot->GetName() : "NULL",
+            m_activeRoute ? "YES" : "NO",
+            m_activeRoute ? (m_activeRoute->IsActive() ? "YES" : "NO") : "N/A");
         return false;
+    }
 
     uint32 now = static_cast<uint32>(GameTime::GetGameTimeMS());
     if (now - m_lastStateUpdateTime < STATE_UPDATE_INTERVAL_MS)
@@ -1959,8 +2015,10 @@ bool TravelRouteManager::Update(uint32 diff)
         m_stats.routesCompleted++;
         m_stats.totalTravelTimeMs += now - m_activeRoute->routeStartTime;
 
-        TC_LOG_INFO("module.playerbot.travel", "TravelRouteManager: Route completed for {}",
-                    m_bot ? m_bot->GetName() : "NULL");
+        TC_LOG_INFO("module.playerbot.travel",
+            "TravelRouteManager: Route completed for {} (no more legs - legIdx {} >= size {})",
+            m_bot ? m_bot->GetName() : "NULL",
+            m_activeRoute->currentLegIndex, m_activeRoute->legs.size());
 
         if (m_activeRoute->onCompleted)
             m_activeRoute->onCompleted(*m_activeRoute);
@@ -1968,14 +2026,41 @@ bool TravelRouteManager::Update(uint32 diff)
         return false;
     }
 
+    // DIAGNOSTIC: Log leg state BEFORE UpdateLegState
+    TC_LOG_DEBUG("module.playerbot.travel",
+        "🔍 Update BEFORE UpdateLegState: Bot {} - leg {} type={} state={}",
+        m_bot ? m_bot->GetName() : "NULL",
+        currentLeg->legIndex,
+        static_cast<int>(currentLeg->type),
+        static_cast<int>(currentLeg->currentState));
+
     // Update current leg state
     UpdateLegState(*currentLeg, diff);
+
+    // DIAGNOSTIC: Log leg state AFTER UpdateLegState
+    TC_LOG_DEBUG("module.playerbot.travel",
+        "🔍 Update AFTER UpdateLegState: Bot {} - leg {} state={}",
+        m_bot ? m_bot->GetName() : "NULL",
+        currentLeg->legIndex,
+        static_cast<int>(currentLeg->currentState));
 
     // Check if current leg completed
     if (currentLeg->currentState == TravelState::COMPLETED)
     {
+        TC_LOG_DEBUG("module.playerbot.travel",
+            "🔍 Update: Bot {} leg {} COMPLETED, advancing to next leg",
+            m_bot ? m_bot->GetName() : "NULL", currentLeg->legIndex);
         m_stats.totalLegsCompleted++;
         AdvanceToNextLeg();
+
+        // DIAGNOSTIC: Check if route completed after advancing
+        if (m_activeRoute->overallState == TravelState::COMPLETED)
+        {
+            TC_LOG_DEBUG("module.playerbot.travel",
+                "🔍 Update: Bot {} route COMPLETED after AdvanceToNextLeg (currentLegIdx={}, legs={})",
+                m_bot ? m_bot->GetName() : "NULL",
+                m_activeRoute->currentLegIndex, m_activeRoute->legs.size());
+        }
     }
     else if (currentLeg->currentState == TravelState::FAILED)
     {
@@ -1991,6 +2076,17 @@ bool TravelRouteManager::Update(uint32 diff)
         return false;
     }
 
+    // DIAGNOSTIC: Final check - did route state change during this update?
+    bool stillActive = m_activeRoute->IsActive();
+    TC_LOG_DEBUG("module.playerbot.travel",
+        "🔍 Update returning TRUE (still processing): Bot {} - overallState={}, stillActive={}",
+        m_bot ? m_bot->GetName() : "NULL",
+        static_cast<int>(m_activeRoute->overallState),
+        stillActive ? "YES" : "NO");
+
+    // NOTE: Always return true here. If route just completed via AdvanceToNextLeg,
+    // the NEXT Update() call will detect IsActive()=false and return false properly.
+    // This gives one more tick to process the state change.
     return true;
 }
 
@@ -2015,8 +2111,14 @@ void TravelRouteManager::UpdateLegState(TravelLeg& leg, uint32 /*diff*/)
         case TransportType::WALK:
         {
             // Check if we've arrived
-            if (IsNearPosition(leg.endPosition, 15.0f))
+            bool atDestination = IsNearPosition(leg.endPosition, 15.0f);
+            if (atDestination)
             {
+                TC_LOG_DEBUG("module.playerbot.travel",
+                    "🔍 WALK leg {} COMPLETED: Bot {} at ({:.1f}, {:.1f}, {:.1f}) is within 15 yards of destination ({:.1f}, {:.1f}, {:.1f})",
+                    leg.legIndex, m_bot->GetName(),
+                    m_bot->GetPositionX(), m_bot->GetPositionY(), m_bot->GetPositionZ(),
+                    leg.endPosition.GetPositionX(), leg.endPosition.GetPositionY(), leg.endPosition.GetPositionZ());
                 leg.currentState = TravelState::COMPLETED;
             }
             else if (leg.currentState == TravelState::IDLE || leg.currentState == TravelState::WALKING_TO_TRANSPORT)
@@ -2066,10 +2168,19 @@ void TravelRouteManager::AdvanceToNextLeg()
     if (!m_activeRoute)
         return;
 
+    uint32 prevLegIndex = m_activeRoute->currentLegIndex;
     m_activeRoute->currentLegIndex++;
+
+    TC_LOG_DEBUG("module.playerbot.travel",
+        "🔍 AdvanceToNextLeg: Bot {} - advanced from leg {} to leg {}, totalLegs={}",
+        m_bot ? m_bot->GetName() : "NULL",
+        prevLegIndex, m_activeRoute->currentLegIndex, m_activeRoute->legs.size());
 
     if (m_activeRoute->currentLegIndex >= m_activeRoute->legs.size())
     {
+        TC_LOG_DEBUG("module.playerbot.travel",
+            "🔍 AdvanceToNextLeg: Bot {} - NO MORE LEGS, marking route COMPLETED",
+            m_bot ? m_bot->GetName() : "NULL");
         m_activeRoute->overallState = TravelState::COMPLETED;
         return;
     }
@@ -2150,48 +2261,183 @@ void TravelRouteManager::HandleOnTransport(TravelLeg& leg)
 
         case TravelState::WAITING_FOR_TRANSPORT:
         {
-            // Look for transport at departure dock
-            ::Transport* transport = FindTransportAtPosition(leg.startPosition, leg.connection->transportEntry, 100.0f);
+            // ========================================================================
+            // TRANSPORT BOARDING LOGIC
+            // ========================================================================
+            // Ships/zeppelins don't use IsStopped() for natural dock pauses.
+            // IsStopped() only works for player-requested stops.
+            //
+            // We use TWO methods to detect when transport is at dock:
+            // 1. Distance-based: Transport within 50yd of dock position
+            // 2. Movement-based: Transport hasn't moved for 2+ seconds (safety check)
+            //
+            // Bot boarding range: 30yd (based on observed minimum of ~18.7yd)
+            // ========================================================================
 
-            if (transport && transport->IsStopped())
+            // Look for transport (150yd radius to track it even when sailing)
+            ::Transport* transport = FindTransportAtPosition(leg.startPosition, leg.connection->transportEntry, 150.0f);
+
+            if (transport)
             {
-                // Transport is here and stopped - BOARD IT!
-                TC_LOG_INFO("module.playerbot.travel",
-                    "HandleOnTransport: Bot {} boarding {} (transport entry {})",
-                    m_bot->GetName(), leg.connection->name, transport->GetEntry());
+                // Get current transport position
+                Position currentTransportPos = transport->GetPosition();
 
-                // Calculate offset position on the transport (center of transport)
-                Position offset = transport->GetPositionOffsetTo(*m_bot);
+                // Calculate distances
+                float transportToDockDist = transport->GetDistance(leg.startPosition);
+                float botToTransportDist = m_bot->GetDistance(transport);
 
-                // Board the transport
-                transport->AddPassenger(m_bot, offset);
+                // ====================================================================
+                // MOVEMENT TRACKING: Check if transport has stopped moving
+                // ====================================================================
+                float distanceMoved = m_lastTransportPosition.GetExactDist(&currentTransportPos);
+                bool transportHasMoved = distanceMoved > TRANSPORT_MOVEMENT_THRESHOLD;
 
-                // Store transport GUID for tracking
-                m_currentTransportGuid = transport->GetGUID();
+                if (transportHasMoved)
+                {
+                    // Transport is moving - reset stationary timer
+                    m_transportStationaryStartTime = now;
+                    m_lastTransportPosition = currentTransportPos;
+                }
 
-                leg.currentState = TravelState::ON_TRANSPORT;
-                leg.stateStartTime = now;
+                // Calculate how long transport has been stationary
+                uint32 stationaryDuration = now - m_transportStationaryStartTime;
+                bool transportIsStopped = (stationaryDuration >= TRANSPORT_STOPPED_DURATION_MS);
+
+                TC_LOG_DEBUG("module.playerbot.travel",
+                    "WAITING_FOR_TRANSPORT: Bot {} - transport {} at ({:.1f}, {:.1f}, {:.1f}), "
+                    "dock={:.1f}yd, bot={:.1f}yd, moved={:.2f}yd, stationary={}ms, stopped={}",
+                    m_bot->GetName(), transport->GetEntry(),
+                    transport->GetPositionX(), transport->GetPositionY(), transport->GetPositionZ(),
+                    transportToDockDist, botToTransportDist, distanceMoved, stationaryDuration,
+                    transportIsStopped ? "YES" : "NO");
+
+                // ====================================================================
+                // BOARDING CONDITIONS
+                // ====================================================================
+                // Primary: Transport within 50yd of dock AND stopped for 2+ seconds
+                // Fallback: Transport within 30yd of dock (very close = definitely at dock)
+                constexpr float TRANSPORT_AT_DOCK_RANGE = 50.0f;
+                constexpr float TRANSPORT_VERY_CLOSE_RANGE = 30.0f;
+                constexpr float BOT_BOARDING_RANGE = 30.0f;  // Based on observed ~18.7yd minimum
+
+                bool transportAtDock = (transportToDockDist <= TRANSPORT_AT_DOCK_RANGE && transportIsStopped) ||
+                                       (transportToDockDist <= TRANSPORT_VERY_CLOSE_RANGE);
+
+                if (transportAtDock)
+                {
+                    // Transport is at dock! Now check if bot is close enough to board
+                    if (botToTransportDist <= BOT_BOARDING_RANGE)
+                    {
+                        // ================================================================
+                        // VISUAL BOARDING: Walk bot onto the transport deck first
+                        // ================================================================
+                        // Instead of teleporting the bot, we:
+                        // 1. Calculate a position ON the transport deck
+                        // 2. Have the bot walk to that position
+                        // 3. Once close enough, add as passenger
+                        // ================================================================
+
+                        // Calculate world position on transport deck
+                        Position boardingOffset;
+                        boardingOffset.Relocate(0.0f, 0.0f, 2.0f, m_bot->GetOrientation());
+                        Position deckWorldPos = transport->GetPositionWithOffset(boardingOffset);
+
+                        // Check if bot is already on/very close to the deck
+                        float distToDeck = m_bot->GetExactDist(&deckWorldPos);
+
+                        if (distToDeck < 5.0f)
+                        {
+                            // Bot is on the deck - now add as passenger!
+                            TC_LOG_INFO("module.playerbot.travel",
+                                "HandleOnTransport: Bot {} BOARDING {} (entry {}) - on deck at {:.1f}yd",
+                                m_bot->GetName(), leg.connection->name, transport->GetEntry(), distToDeck);
+
+                            // Add bot as passenger with the deck offset
+                            transport->AddPassenger(m_bot, boardingOffset);
+
+                            // Ensure bot position is synchronized with transport
+                            if (Map* map = m_bot->GetMap())
+                            {
+                                map->PlayerRelocation(m_bot, deckWorldPos.GetPositionX(),
+                                    deckWorldPos.GetPositionY(), deckWorldPos.GetPositionZ(),
+                                    deckWorldPos.GetOrientation());
+                                m_bot->SetFallInformation(0, deckWorldPos.GetPositionZ());
+
+                                // Broadcast movement update
+                                WorldPackets::Movement::MoveUpdate moveUpdate;
+                                moveUpdate.Status = &m_bot->m_movementInfo;
+                                m_bot->SendMessageToSet(moveUpdate.Write(), false);
+                            }
+
+                            TC_LOG_INFO("module.playerbot.travel",
+                                "HandleOnTransport: Bot {} now passenger on transport at ({:.1f}, {:.1f}, {:.1f})",
+                                m_bot->GetName(), deckWorldPos.GetPositionX(), deckWorldPos.GetPositionY(), deckWorldPos.GetPositionZ());
+
+                            m_currentTransportGuid = transport->GetGUID();
+                            m_transportStationaryStartTime = 0;
+
+                            leg.currentState = TravelState::ON_TRANSPORT;
+                            leg.stateStartTime = now;
+                        }
+                        else
+                        {
+                            // Bot needs to walk onto the deck
+                            TC_LOG_DEBUG("module.playerbot.travel",
+                                "HandleOnTransport: Bot {} walking onto {} deck ({:.1f}yd away)",
+                                m_bot->GetName(), leg.connection->name, distToDeck);
+
+                            m_bot->GetMotionMaster()->MovePoint(0, deckWorldPos);
+                        }
+                    }
+                    else
+                    {
+                        // Transport at dock but bot too far - walk towards the gangway/ramp
+                        // Use a position between bot and transport deck as intermediate point
+                        Position boardingOffset;
+                        boardingOffset.Relocate(0.0f, 0.0f, 2.0f, m_bot->GetOrientation());
+                        Position deckWorldPos = transport->GetPositionWithOffset(boardingOffset);
+
+                        TC_LOG_DEBUG("module.playerbot.travel",
+                            "HandleOnTransport: Bot {} - transport at dock, walking to gangway ({:.1f}yd to deck)",
+                            m_bot->GetName(), botToTransportDist);
+
+                        // Move towards the transport deck position
+                        m_bot->GetMotionMaster()->MovePoint(0, deckWorldPos);
+                    }
+                }
+                else
+                {
+                    // Transport not at dock yet - still sailing
+                    TC_LOG_DEBUG("module.playerbot.travel",
+                        "HandleOnTransport: Bot {} - transport not at dock ({:.1f}yd, stopped={})",
+                        m_bot->GetName(), transportToDockDist, transportIsStopped ? "YES" : "NO");
+                }
             }
             else
             {
-                // Transport not here yet - check for timeout
-                uint32 elapsed = now - leg.stateStartTime;
-                uint32 maxWaitTime = (leg.connection->waitTimeSeconds + 120) * 1000; // Add 2 min buffer
+                // Transport not found - reset tracking
+                m_transportStationaryStartTime = now;
+                TC_LOG_DEBUG("module.playerbot.travel",
+                    "WAITING_FOR_TRANSPORT: Bot {} - transport entry {} not found",
+                    m_bot->GetName(), leg.connection->transportEntry);
+            }
 
-                if (elapsed > maxWaitTime)
-                {
-                    TC_LOG_WARN("module.playerbot.travel",
-                        "HandleOnTransport: Bot {} timed out waiting for {} after {}s",
-                        m_bot->GetName(), leg.connection->name, elapsed / 1000);
-                    leg.currentState = TravelState::FAILED;
-                }
-                else if (elapsed % 30000 < 500) // Log every 30 seconds
-                {
-                    TC_LOG_DEBUG("module.playerbot.travel",
-                        "HandleOnTransport: Bot {} waiting for {} - {}s elapsed, transport {}",
-                        m_bot->GetName(), leg.connection->name, elapsed / 1000,
-                        transport ? "nearby but moving" : "not found");
-                }
+            // Check for timeout
+            uint32 elapsed = now - leg.stateStartTime;
+            uint32 maxWaitTime = (leg.connection->waitTimeSeconds + 180) * 1000; // Add 3 min buffer
+
+            if (elapsed > maxWaitTime)
+            {
+                TC_LOG_WARN("module.playerbot.travel",
+                    "HandleOnTransport: Bot {} timed out waiting for {} after {}s",
+                    m_bot->GetName(), leg.connection->name, elapsed / 1000);
+                leg.currentState = TravelState::FAILED;
+            }
+            else if (elapsed % 30000 < 500) // Log every 30 seconds
+            {
+                TC_LOG_DEBUG("module.playerbot.travel",
+                    "HandleOnTransport: Bot {} waiting for {} - {}s elapsed",
+                    m_bot->GetName(), leg.connection->name, elapsed / 1000);
             }
             break;
         }
@@ -2201,39 +2447,91 @@ void TravelRouteManager::HandleOnTransport(TravelLeg& leg)
             // Check if we're still on the transport
             ::Transport* transport = dynamic_cast<::Transport*>(m_bot->GetTransport());
 
+            TC_LOG_DEBUG("module.playerbot.travel",
+                "ON_TRANSPORT: Bot {} - GetTransport={}, botMap={}, destMap={}, botPos=({:.1f},{:.1f},{:.1f})",
+                m_bot->GetName(),
+                transport ? std::to_string(transport->GetEntry()).c_str() : "NULL",
+                m_bot->GetMapId(), leg.endMapId,
+                m_bot->GetPositionX(), m_bot->GetPositionY(), m_bot->GetPositionZ());
+
             if (!transport)
             {
-                // Bot somehow got off the transport - try to recover
-                TC_LOG_WARN("module.playerbot.travel",
-                    "HandleOnTransport: Bot {} is no longer on transport! Checking if arrived...",
-                    m_bot->GetName());
+                // Bot is not on a transport - check if arrived at destination map
+                TC_LOG_DEBUG("module.playerbot.travel",
+                    "ON_TRANSPORT: Bot {} not on transport - checking arrival (botMap={}, destMap={})",
+                    m_bot->GetName(), m_bot->GetMapId(), leg.endMapId);
 
-                // Check if we've arrived at destination
-                if (m_bot->GetMapId() == leg.endMapId && IsNearPosition(leg.endPosition, 100.0f))
+                // Check if we've arrived at destination MAP (not just position - ship might drop us anywhere)
+                if (m_bot->GetMapId() == leg.endMapId)
                 {
                     TC_LOG_INFO("module.playerbot.travel",
-                        "HandleOnTransport: Bot {} has arrived at destination via {}",
-                        m_bot->GetName(), leg.connection->name);
+                        "HandleOnTransport: Bot {} arrived at destination MAP {} via {}",
+                        m_bot->GetName(), leg.endMapId, leg.connection->name);
                     leg.currentState = TravelState::COMPLETED;
                 }
                 else
                 {
-                    // Not at destination - failed
-                    leg.currentState = TravelState::FAILED;
+                    // Check distance to destination as fallback
+                    float distToDest = m_bot->GetDistance(leg.endPosition);
+                    if (distToDest < 500.0f)
+                    {
+                        TC_LOG_INFO("module.playerbot.travel",
+                            "HandleOnTransport: Bot {} near destination ({:.1f}yd) via {}",
+                            m_bot->GetName(), distToDest, leg.connection->name);
+                        leg.currentState = TravelState::COMPLETED;
+                    }
+                    else
+                    {
+                        TC_LOG_WARN("module.playerbot.travel",
+                            "HandleOnTransport: Bot {} not at destination (map {} vs {}, dist={:.1f}yd) - FAILED",
+                            m_bot->GetName(), m_bot->GetMapId(), leg.endMapId, distToDest);
+                        leg.currentState = TravelState::FAILED;
+                    }
                 }
                 m_currentTransportGuid.Clear();
                 break;
             }
 
-            // Check if transport has arrived at destination
+            // Still on transport - check if arrived at destination
             float distToArrival = transport->GetDistance(leg.endPosition);
 
-            if (transport->IsStopped() && distToArrival < 150.0f)
+            // ====================================================================
+            // DISEMBARKATION: Track transport movement to detect when stopped
+            // ====================================================================
+            // Same logic as boarding - transport must be STOPPED for 2+ seconds
+            // before we disembark, otherwise bot might fall into the ocean!
+            // ====================================================================
+            Position currentTransportPos = transport->GetPosition();
+            float distanceMoved = m_lastTransportPosition.GetExactDist(&currentTransportPos);
+            bool transportHasMoved = distanceMoved > TRANSPORT_MOVEMENT_THRESHOLD;
+
+            if (transportHasMoved)
             {
-                // Transport stopped near destination - DISEMBARK!
+                // Transport is still moving - reset stationary timer
+                m_transportStationaryStartTime = now;
+                m_lastTransportPosition = currentTransportPos;
+            }
+
+            uint32 stationaryDuration = now - m_transportStationaryStartTime;
+            bool transportIsStopped = (stationaryDuration >= TRANSPORT_STOPPED_DURATION_MS);
+
+            TC_LOG_DEBUG("module.playerbot.travel",
+                "ON_TRANSPORT: Bot {} on transport {} - distToArrival={:.1f}yd, transportMap={}, destMap={}, stopped={}",
+                m_bot->GetName(), transport->GetEntry(), distToArrival,
+                transport->GetMapId(), leg.endMapId, transportIsStopped ? "YES" : "NO");
+
+            // Disembark conditions:
+            // 1. Transport is on destination map
+            // 2. Transport is within 100yd of destination dock
+            // 3. Transport has STOPPED for at least 2 seconds
+            constexpr float DISEMBARK_DISTANCE = 100.0f;
+
+            if (transport->GetMapId() == leg.endMapId && distToArrival < DISEMBARK_DISTANCE && transportIsStopped)
+            {
+                // Transport stopped at destination dock - DISEMBARK!
                 TC_LOG_INFO("module.playerbot.travel",
-                    "HandleOnTransport: Bot {} disembarking {} at destination",
-                    m_bot->GetName(), leg.connection->name);
+                    "HandleOnTransport: Bot {} disembarking {} at destination (stopped for {}ms)",
+                    m_bot->GetName(), leg.connection->name, stationaryDuration);
 
                 // Remove from transport
                 transport->RemovePassenger(m_bot);
@@ -2243,6 +2541,13 @@ void TravelRouteManager::HandleOnTransport(TravelLeg& leg)
                 m_bot->GetMotionMaster()->MovePoint(0, leg.endPosition);
                 leg.currentState = TravelState::ARRIVING;
                 leg.stateStartTime = now;
+            }
+            else if (transport->GetMapId() == leg.endMapId && distToArrival < DISEMBARK_DISTANCE)
+            {
+                // Near destination but transport still moving - wait for it to stop
+                TC_LOG_DEBUG("module.playerbot.travel",
+                    "ON_TRANSPORT: Bot {} waiting for {} to stop at dock (stationary {}ms)",
+                    m_bot->GetName(), leg.connection->name, stationaryDuration);
             }
             else
             {
@@ -2305,63 +2610,277 @@ void TravelRouteManager::HandleOnTransport(TravelLeg& leg)
 ::Transport* TravelRouteManager::FindTransportAtPosition(Position const& /*pos*/, uint32 transportEntry, float range) const
 {
     if (!m_bot || !m_bot->GetMap())
+    {
+        TC_LOG_DEBUG("module.playerbot.travel",
+            "FindTransportAtPosition: No bot or map - returning nullptr");
         return nullptr;
+    }
 
-    // Method 1: If we have a specific transport entry, search by entry
+    TC_LOG_DEBUG("module.playerbot.travel",
+        "FindTransportAtPosition: Bot {} at ({:.1f}, {:.1f}, {:.1f}) searching for entry {} within {:.0f}yd",
+        m_bot->GetName(),
+        m_bot->GetPositionX(), m_bot->GetPositionY(), m_bot->GetPositionZ(),
+        transportEntry, range);
+
+    // ========================================================================
+    // TRANSPORT LOOKUP - CORRECT METHOD
+    // ========================================================================
+    // Transports (ships, zeppelins) are NOT stored in the regular GameObject grid!
+    // They are managed by TransportMgr and stored in Map::_transports.
+    // FindNearestGameObject() will NOT find them!
+    //
+    // Correct approach: Use Player::m_visibleTransports which contains GUIDs
+    // of all transports visible to the player, then look them up via Map::GetTransport()
+    // ========================================================================
+
+    Map* map = m_bot->GetMap();
+    ::Transport* bestTransport = nullptr;
+    float bestDistance = range;
+
+    // Method 1: Search through visible transports (CORRECT for ships/zeppelins)
+    TC_LOG_DEBUG("module.playerbot.travel",
+        "FindTransportAtPosition: Bot {} has {} visible transports",
+        m_bot->GetName(), m_bot->m_visibleTransports.size());
+
+    for (ObjectGuid const& transportGuid : m_bot->m_visibleTransports)
+    {
+        ::Transport* transport = map->GetTransport(transportGuid);
+        if (!transport)
+        {
+            TC_LOG_DEBUG("module.playerbot.travel",
+                "FindTransportAtPosition: Transport GUID {} not found on map",
+                transportGuid.ToString());
+            continue;
+        }
+
+        TC_LOG_DEBUG("module.playerbot.travel",
+            "FindTransportAtPosition: Checking transport entry {} '{}' at ({:.1f}, {:.1f}, {:.1f})",
+            transport->GetEntry(),
+            transport->GetName(),
+            transport->GetPositionX(), transport->GetPositionY(), transport->GetPositionZ());
+
+        // Check entry match if specified
+        if (transportEntry != 0 && transport->GetEntry() != transportEntry)
+        {
+            TC_LOG_DEBUG("module.playerbot.travel",
+                "FindTransportAtPosition: Entry mismatch - wanted {}, got {}",
+                transportEntry, transport->GetEntry());
+            continue;
+        }
+
+        // Check distance
+        float dist = m_bot->GetDistance(transport);
+        TC_LOG_DEBUG("module.playerbot.travel",
+            "FindTransportAtPosition: Transport {} distance={:.1f}, range={:.1f}",
+            transport->GetEntry(), dist, range);
+
+        if (dist <= bestDistance)
+        {
+            bestDistance = dist;
+            bestTransport = transport;
+            TC_LOG_DEBUG("module.playerbot.travel",
+                "FindTransportAtPosition: New best candidate - entry {} at {:.1f}yd",
+                transport->GetEntry(), dist);
+        }
+    }
+
+    if (bestTransport)
+    {
+        TC_LOG_DEBUG("module.playerbot.travel",
+            "FindTransportAtPosition: FOUND transport entry {} '{}' at {:.1f}yd - IsStopped={}",
+            bestTransport->GetEntry(), bestTransport->GetName(), bestDistance,
+            bestTransport->IsStopped() ? "YES" : "NO");
+        return bestTransport;
+    }
+
+    // Log all visible transport entries to help diagnose entry mismatches
+    if (transportEntry != 0 && !m_bot->m_visibleTransports.empty())
+    {
+        std::string visibleEntries;
+        for (ObjectGuid const& transportGuid : m_bot->m_visibleTransports)
+        {
+            if (::Transport* transport = map->GetTransport(transportGuid))
+            {
+                if (!visibleEntries.empty())
+                    visibleEntries += ", ";
+                visibleEntries += std::to_string(transport->GetEntry()) + " (" + transport->GetName() + ")";
+            }
+        }
+        TC_LOG_INFO("module.playerbot.travel",
+            "FindTransportAtPosition: Bot {} looking for entry {} but visible transports are: [{}]",
+            m_bot->GetName(), transportEntry, visibleEntries);
+    }
+
+    // Method 2: Fallback - try FindNearestGameObject (rarely works for transports, but try anyway)
+    // This might work for some static transport-like objects
     if (transportEntry != 0)
     {
-        // FindNearestGameObject finds a GameObject with given entry within range of the bot
         GameObject* go = m_bot->FindNearestGameObject(transportEntry, range, false);
         if (go)
         {
-            // ToTransport() returns Transport* if GO type is GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT
+            TC_LOG_DEBUG("module.playerbot.travel",
+                "FindTransportAtPosition: Fallback found GameObject entry {} type={}",
+                go->GetEntry(), static_cast<int>(go->GetGoType()));
+
             if (::Transport* transport = go->ToTransport())
             {
+                TC_LOG_DEBUG("module.playerbot.travel",
+                    "FindTransportAtPosition: Fallback GameObject is a Transport");
                 return transport;
             }
         }
     }
 
-    // Method 2: Search for any nearby transport by type
-    // GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT (15) is the type for ships/zeppelins
-    GameObject* go = m_bot->FindNearestGameObjectOfType(GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT, range);
-    if (go)
-    {
-        return go->ToTransport();
-    }
-
+    TC_LOG_DEBUG("module.playerbot.travel",
+        "FindTransportAtPosition: No transport found - visibleTransports={}, entry={}",
+        m_bot->m_visibleTransports.size(), transportEntry);
     return nullptr;
 }
 
 void TravelRouteManager::HandlePortal(TravelLeg& leg)
 {
     // ========================================================================
-    // ENTERPRISE-GRADE PORTAL HANDLING
+    // ENTERPRISE-GRADE PORTAL HANDLING WITH DATABASE LOOKUP
     // ========================================================================
-    // Implements proper portal usage with validation:
-    // 1. Walk to portal location
-    // 2. Validate portal exists (optional - for city portals we just teleport)
-    // 3. Use portal spell or direct teleport for static portals
-    // 4. Validate arrival at destination
+    // Priority order for finding portal locations:
+    // 1. PortalDatabase lookup (accurate spawn positions from DB)
+    // 2. Dynamic runtime search (FindNearbyPortalObjects)
+    // 3. Fallback to connection data (hardcoded coordinates)
+    //
+    // Steps:
+    // 1. Walk to portal location (determined by priority above)
+    // 2. Use portal spell OR interact with portal GameObject
+    // 3. Validate arrival at destination
     // ========================================================================
 
-    if (!m_bot || !leg.connection)
+    if (!m_bot)
     {
         leg.currentState = TravelState::FAILED;
         return;
     }
 
-    // Re-validate faction before using portal
-    if (!CanUseConnection(leg.connection))
-    {
-        TC_LOG_WARN("module.playerbot.travel",
-            "HandlePortal: Bot {} can no longer use portal {} (faction/level changed)",
-            m_bot->GetName(), leg.connection->name);
-        leg.currentState = TravelState::FAILED;
-        return;
-    }
+    // Get connection name for logging (may be nullptr)
+    std::string portalName = leg.connection ? leg.connection->name : "Unknown Portal";
 
     uint32 now = static_cast<uint32>(GameTime::GetGameTimeMS());
+
+    // ========================================================================
+    // PORTAL POSITION RESOLUTION
+    // ========================================================================
+    // On first entry (IDLE state), resolve actual portal position using:
+    // 1. PortalDatabase (most accurate)
+    // 2. Dynamic search (fallback)
+    // 3. Connection data (last resort)
+    // ========================================================================
+
+    if (leg.currentState == TravelState::IDLE)
+    {
+        Position resolvedPortalPos = leg.startPosition;  // Default to connection data
+        Position resolvedDestPos = leg.endPosition;
+        bool foundPortal = false;
+
+        // === STEP 1: Try PortalDatabase ===
+        PortalDatabase& portalDb = PortalDatabase::Instance();
+        if (portalDb.IsInitialized())
+        {
+            // Look for best portal to our destination
+            PortalInfo const* portalInfo = portalDb.GetBestPortalForDestination(
+                m_bot, leg.endMapId, leg.endPosition);
+
+            if (portalInfo && portalInfo->CanPlayerUse(m_bot))
+            {
+                resolvedPortalPos = portalInfo->sourcePosition;
+                resolvedDestPos = portalInfo->destinationPosition;
+                portalName = portalInfo->name;
+                foundPortal = true;
+
+                TC_LOG_DEBUG("module.playerbot.travel",
+                    "HandlePortal: Bot {} found portal '{}' (entry {}) in database at ({:.1f}, {:.1f}, {:.1f})",
+                    m_bot->GetName(), portalInfo->name, portalInfo->gameObjectEntry,
+                    resolvedPortalPos.GetPositionX(), resolvedPortalPos.GetPositionY(), resolvedPortalPos.GetPositionZ());
+            }
+        }
+
+        // === STEP 2: Dynamic search fallback ===
+        if (!foundPortal)
+        {
+            // Search for portal GameObjects near connection's estimated position
+            std::vector<GameObject*> nearbyPortals = portalDb.FindNearbyPortalObjects(m_bot, 200.0f);
+
+            for (GameObject* go : nearbyPortals)
+            {
+                if (!go || !go->isSpawned())
+                    continue;
+
+                // Get the spell from this portal
+                GameObjectTemplate const* goTemplate = go->GetGOInfo();
+                if (!goTemplate)
+                    continue;
+
+                uint32 portalSpellId = 0;
+                if (goTemplate->type == GAMEOBJECT_TYPE_SPELLCASTER)
+                    portalSpellId = goTemplate->spellCaster.spell;
+                else if (goTemplate->type == GAMEOBJECT_TYPE_GOOBER)
+                    portalSpellId = goTemplate->goober.spell;
+
+                if (portalSpellId == 0)
+                    continue;
+
+                // Check if this portal leads to our destination map
+                auto destOpt = portalDb.GetPortalDestination(portalSpellId);
+                if (destOpt && destOpt->GetMapId() == leg.endMapId)
+                {
+                    resolvedPortalPos.Relocate(go->GetPositionX(), go->GetPositionY(), go->GetPositionZ());
+                    resolvedDestPos.Relocate(destOpt->GetPositionX(), destOpt->GetPositionY(), destOpt->GetPositionZ());
+                    portalName = goTemplate->name;
+                    foundPortal = true;
+
+                    TC_LOG_DEBUG("module.playerbot.travel",
+                        "HandlePortal: Bot {} found portal '{}' dynamically at ({:.1f}, {:.1f}, {:.1f})",
+                        m_bot->GetName(), portalName,
+                        resolvedPortalPos.GetPositionX(), resolvedPortalPos.GetPositionY(), resolvedPortalPos.GetPositionZ());
+                    break;
+                }
+            }
+        }
+
+        // === STEP 3: Use connection data as last resort ===
+        if (!foundPortal && leg.connection)
+        {
+            TC_LOG_DEBUG("module.playerbot.travel",
+                "HandlePortal: Bot {} using fallback connection data for portal '{}' at ({:.1f}, {:.1f}, {:.1f})",
+                m_bot->GetName(), leg.connection->name,
+                leg.startPosition.GetPositionX(), leg.startPosition.GetPositionY(), leg.startPosition.GetPositionZ());
+            // Keep default positions from leg
+        }
+        else if (!foundPortal)
+        {
+            TC_LOG_ERROR("module.playerbot.travel",
+                "HandlePortal: Bot {} has no portal source - no database entry, no dynamic portal, no connection data",
+                m_bot->GetName());
+            leg.currentState = TravelState::FAILED;
+            return;
+        }
+
+        // Update leg with resolved positions
+        leg.startPosition = resolvedPortalPos;
+        leg.endPosition = resolvedDestPos;
+        leg.description = portalName;
+
+        // Re-validate faction if connection exists
+        if (leg.connection && !CanUseConnection(leg.connection))
+        {
+            TC_LOG_WARN("module.playerbot.travel",
+                "HandlePortal: Bot {} can no longer use portal {} (faction/level changed)",
+                m_bot->GetName(), portalName);
+            leg.currentState = TravelState::FAILED;
+            return;
+        }
+    }
+
+    // ========================================================================
+    // STATE MACHINE
+    // ========================================================================
 
     switch (leg.currentState)
     {
@@ -2376,20 +2895,21 @@ void TravelRouteManager::HandlePortal(TravelLeg& leg)
                 if (leg.currentState != TravelState::WALKING_TO_TRANSPORT)
                 {
                     TC_LOG_DEBUG("module.playerbot.travel",
-                        "HandlePortal: Bot {} walking to portal {} at ({:.1f}, {:.1f}, {:.1f}) - distance {:.1f}",
-                        m_bot->GetName(), leg.connection->name,
+                        "HandlePortal: Bot {} walking to portal '{}' at ({:.1f}, {:.1f}, {:.1f}) - distance {:.1f}",
+                        m_bot->GetName(), leg.description,
                         leg.startPosition.GetPositionX(), leg.startPosition.GetPositionY(), leg.startPosition.GetPositionZ(),
                         distToPortal);
                 }
                 m_bot->GetMotionMaster()->MovePoint(0, leg.startPosition);
                 leg.currentState = TravelState::WALKING_TO_TRANSPORT;
+                leg.stateStartTime = now;
             }
             else
             {
                 // At portal - use it
                 TC_LOG_INFO("module.playerbot.travel",
-                    "HandlePortal: Bot {} using portal {} to MAP {}",
-                    m_bot->GetName(), leg.connection->name, leg.endMapId);
+                    "HandlePortal: Bot {} using portal '{}' to MAP {}",
+                    m_bot->GetName(), leg.description, leg.endMapId);
 
                 // Validate destination is safe (not in void)
                 if (leg.endPosition.GetPositionX() == 0.0f &&
@@ -2397,8 +2917,8 @@ void TravelRouteManager::HandlePortal(TravelLeg& leg)
                     leg.endPosition.GetPositionZ() == 0.0f)
                 {
                     TC_LOG_ERROR("module.playerbot.travel",
-                        "HandlePortal: Bot {} - portal {} has invalid destination (0,0,0)! Cannot teleport.",
-                        m_bot->GetName(), leg.connection->name);
+                        "HandlePortal: Bot {} - portal '{}' has invalid destination (0,0,0)! Cannot teleport.",
+                        m_bot->GetName(), leg.description);
                     leg.currentState = TravelState::FAILED;
                     return;
                 }
@@ -2416,8 +2936,8 @@ void TravelRouteManager::HandlePortal(TravelLeg& leg)
                 else
                 {
                     TC_LOG_ERROR("module.playerbot.travel",
-                        "HandlePortal: Bot {} - TeleportTo failed for portal {}",
-                        m_bot->GetName(), leg.connection->name);
+                        "HandlePortal: Bot {} - TeleportTo failed for portal '{}'",
+                        m_bot->GetName(), leg.description);
                     leg.currentState = TravelState::FAILED;
                 }
             }
@@ -2430,8 +2950,8 @@ void TravelRouteManager::HandlePortal(TravelLeg& leg)
             if (m_bot->GetMapId() == leg.endMapId && IsNearPosition(leg.endPosition, 50.0f))
             {
                 TC_LOG_DEBUG("module.playerbot.travel",
-                    "HandlePortal: Bot {} successfully arrived via portal {}",
-                    m_bot->GetName(), leg.connection->name);
+                    "HandlePortal: Bot {} successfully arrived via portal '{}'",
+                    m_bot->GetName(), leg.description);
                 leg.currentState = TravelState::COMPLETED;
             }
             else
@@ -2440,10 +2960,21 @@ void TravelRouteManager::HandlePortal(TravelLeg& leg)
                 uint32 elapsed = now - leg.stateStartTime;
                 if (elapsed > 30000) // 30 second timeout for portal
                 {
-                    TC_LOG_WARN("module.playerbot.travel",
-                        "HandlePortal: Bot {} timed out waiting for portal teleport to complete",
-                        m_bot->GetName());
-                    leg.currentState = TravelState::FAILED;
+                    // May have arrived but at different position - check if on correct map
+                    if (m_bot->GetMapId() == leg.endMapId)
+                    {
+                        TC_LOG_DEBUG("module.playerbot.travel",
+                            "HandlePortal: Bot {} arrived on map {} (position differs from expected), marking complete",
+                            m_bot->GetName(), leg.endMapId);
+                        leg.currentState = TravelState::COMPLETED;
+                    }
+                    else
+                    {
+                        TC_LOG_WARN("module.playerbot.travel",
+                            "HandlePortal: Bot {} timed out waiting for portal teleport to complete",
+                            m_bot->GetName());
+                        leg.currentState = TravelState::FAILED;
+                    }
                 }
             }
             break;
@@ -2613,16 +3144,42 @@ void TravelRouteManager::HandleTaxiFlight(TravelLeg& leg)
                     "HandleTaxiFlight: Bot {} failed to activate taxi: {}",
                     m_bot->GetName(), FlightMasterManager::GetResultString(result));
 
-                // If flight fails due to node not discovered, fall back to walking
-                if (result == FlightResult::NODE_UNKNOWN ||
-                    result == FlightResult::PATH_NOT_FOUND)
+                // If flight fails due to node not discovered, AUTO-DISCOVER it and retry
+                if (result == FlightResult::NODE_UNKNOWN)
                 {
                     TC_LOG_INFO("module.playerbot.travel",
-                        "HandleTaxiFlight: Falling back to walking for bot {}",
-                        m_bot->GetName());
-                    m_bot->GetMotionMaster()->MovePoint(0, leg.endPosition);
-                    leg.currentState = TravelState::WALKING_TO_TRANSPORT;
-                    leg.stateStartTime = now;
+                        "HandleTaxiFlight: Bot {} auto-discovering taxi node {} and retrying",
+                        m_bot->GetName(), leg.taxiEndNode);
+
+                    // Force-learn the destination taxi node
+                    if (m_bot->m_taxi.SetTaximaskNode(leg.taxiEndNode))
+                    {
+                        TC_LOG_INFO("module.playerbot.travel",
+                            "HandleTaxiFlight: Bot {} learned taxi node {}, will retry next tick",
+                            m_bot->GetName(), leg.taxiEndNode);
+                        // Stay in current state - retry will happen next tick
+                    }
+                    else
+                    {
+                        // Failed to learn taxi node - this shouldn't happen normally
+                        // Failing the route is safer than walking to a potentially unreachable destination
+                        TC_LOG_WARN("module.playerbot.travel",
+                            "HandleTaxiFlight: Bot {} failed to learn taxi node {} - route FAILED",
+                            m_bot->GetName(), leg.taxiEndNode);
+                        leg.currentState = TravelState::FAILED;
+                    }
+                }
+                else if (result == FlightResult::PATH_NOT_FOUND)
+                {
+                    // PATH_NOT_FOUND means no taxi route exists between these nodes
+                    // This typically happens for cross-continent routes where flight paths don't connect
+                    // Falling back to walking doesn't make sense here - FAIL the route
+                    // The QuestStrategy travel failure cooldown system will handle retries
+                    TC_LOG_WARN("module.playerbot.travel",
+                        "HandleTaxiFlight: No flight path exists from node {} to node {} for bot {} - "
+                        "route FAILED (cross-continent flight not possible via taxi)",
+                        leg.taxiStartNode, leg.taxiEndNode, m_bot->GetName());
+                    leg.currentState = TravelState::FAILED;
                 }
                 else
                 {
