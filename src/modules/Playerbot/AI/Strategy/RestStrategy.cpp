@@ -48,7 +48,11 @@ void RestStrategy::OnActivate(BotAI* ai)
     if (!ai || !ai->GetBot())
         return;
 
-    TC_LOG_INFO("module.playerbot.strategy", "Rest strategy activated for bot {}", ai->GetBot()->GetName());
+    Player* bot = ai->GetBot();
+    if (!bot->IsInWorld())
+        return;
+
+    TC_LOG_INFO("module.playerbot.strategy", "Rest strategy activated for bot {}", bot->GetName());
     SetActive(true);
 }
 
@@ -57,7 +61,11 @@ void RestStrategy::OnDeactivate(BotAI* ai)
     if (!ai || !ai->GetBot())
         return;
 
-    TC_LOG_INFO("module.playerbot.strategy", "Rest strategy deactivated for bot {}", ai->GetBot()->GetName());
+    Player* bot = ai->GetBot();
+    if (!bot->IsInWorld())
+        return;
+
+    TC_LOG_INFO("module.playerbot.strategy", "Rest strategy deactivated for bot {}", bot->GetName());
     SetActive(false);
 
     _isEating = false;
@@ -71,6 +79,11 @@ bool RestStrategy::IsActive(BotAI* ai) const
         return false;
 
     Player* bot = ai->GetBot();
+
+    // CRITICAL FIX: Safety check for worker thread access during bot destruction
+    if (!bot->IsInWorld())
+        return false;
+
     // NOT active during combat (can't eat/drink in combat)
     if (bot->IsInCombat())
         return false;
@@ -85,6 +98,13 @@ float RestStrategy::GetRelevance(BotAI* ai) const
         return 0.0f;
 
     Player* bot = ai->GetBot();
+
+    // CRITICAL FIX: Safety check for worker thread access during bot destruction
+    // Bot may be destroyed/logging out between null check and method calls
+    // IsInWorld() returns false during destruction, preventing ACCESS_VIOLATION crash
+    if (!bot->IsInWorld())
+        return 0.0f;
+
     // Can't rest in combat
     if (bot->IsInCombat())
         return 0.0f;
@@ -119,6 +139,14 @@ void RestStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     if (!ai || !ai->GetBot())
         return;
     Player* bot = ai->GetBot();
+
+    // CRITICAL FIX: Safety check for worker thread access during bot destruction
+    // Bot may be destroyed/logging out between null check and method calls
+    // IsInWorld() returns false during destruction, preventing ACCESS_VIOLATION crash
+    // This prevents RCX=0 null pointer dereference when bot's internal state is destroyed
+    if (!bot->IsInWorld())
+        return;
+
     // Can't rest in combat
     if (bot->IsInCombat())
     {
@@ -172,10 +200,11 @@ void RestStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     }
 
     // Start eating if needed
-    // CRITICAL FIX: Check for existing food aura (SPELL_AURA_OBS_MOD_HEALTH = 20) to prevent assertion failure
-    // The assertion "HasEffect(effIndex) == (!apply)" fails when trying to apply an aura that already exists
+    // CRITICAL FIX: Check for existing food aura to prevent assertion failure in AuraApplication::_HandleEffect
+    // Food auras can use EITHER SPELL_AURA_OBS_MOD_HEALTH OR SPELL_AURA_MOD_REGEN (see SpellInfo.cpp:2788)
+    // The assertion "!(_effectMask & (1<<effIndex))" fails when trying to apply an aura effect that already exists
     // This can happen when _isEating flag gets out of sync with actual aura state
-    bool hasFoodAura = bot->HasAuraType(SPELL_AURA_OBS_MOD_HEALTH);
+    bool hasFoodAura = bot->HasAuraType(SPELL_AURA_OBS_MOD_HEALTH) || bot->HasAuraType(SPELL_AURA_MOD_REGEN);
     if (NeedsFood(ai) && !_isEating && !bot->IsSitState() && !hasFoodAura)
     {
         Item* food = FindFood(ai);
@@ -212,10 +241,11 @@ void RestStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
     }
 
     // Start drinking if needed
-    // CRITICAL FIX: Check for existing drink aura (SPELL_AURA_OBS_MOD_POWER = 21) to prevent assertion failure
-    // The assertion "HasEffect(effIndex) == (!apply)" fails when trying to apply an aura that already exists
+    // CRITICAL FIX: Check for existing drink aura to prevent assertion failure in AuraApplication::_HandleEffect
+    // Drink auras can use EITHER SPELL_AURA_OBS_MOD_POWER OR SPELL_AURA_MOD_POWER_REGEN (see SpellInfo.cpp:2793)
+    // The assertion "!(_effectMask & (1<<effIndex))" fails when trying to apply an aura effect that already exists
     // This can happen when _isDrinking flag gets out of sync with actual aura state
-    bool hasDrinkAura = bot->HasAuraType(SPELL_AURA_OBS_MOD_POWER);
+    bool hasDrinkAura = bot->HasAuraType(SPELL_AURA_OBS_MOD_POWER) || bot->HasAuraType(SPELL_AURA_MOD_POWER_REGEN);
     if (NeedsDrink(ai) && !_isDrinking && !bot->IsSitState() && !hasDrinkAura)
     {
         Item* drink = FindDrink(ai);
