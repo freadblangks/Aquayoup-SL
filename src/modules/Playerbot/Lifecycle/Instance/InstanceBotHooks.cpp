@@ -25,6 +25,7 @@
 #include "Battleground.h"
 #include "ObjectAccessor.h"
 #include "Log.h"
+#include "LFGMgr.h"
 
 namespace Playerbot
 {
@@ -119,12 +120,62 @@ void InstanceBotHooks::OnPlayerJoinLfg(
     request.playerGuid = player->GetGUID();
     request.dungeonId = dungeonId;
     request.playerRole = roles;
+    request.playerLevel = player->GetLevel();  // Use actual player level for bot matching
+    request.playerFaction = player->GetTeam() == ALLIANCE ? Faction::Alliance : Faction::Horde;
 
-    // Set up callbacks
-    request.onBotsReady = [playerGuid = player->GetGUID()](std::vector<ObjectGuid> const& bots)
+    TC_LOG_INFO("playerbots.instance", "OnPlayerJoinLfg: Player {} (level {}, {}) queued for dungeon {}",
+        player->GetName(), request.playerLevel,
+        request.playerFaction == Faction::Alliance ? "Alliance" : "Horde", dungeonId);
+
+    // Set up callbacks - capture context needed for LFG queue join
+    request.onBotsReady = [playerGuid = player->GetGUID(), dungeonId, roles](std::vector<ObjectGuid> const& bots)
     {
-        TC_LOG_DEBUG("playerbots.instance", "Dungeon bots ready for player {}: {} bots assigned",
+        TC_LOG_INFO("playerbots.instance", "Dungeon bots ready for player {}: {} bots assigned",
             playerGuid.ToString(), bots.size());
+
+        // Add each bot to the LFG queue
+        uint32 botsAdded = 0;
+        for (ObjectGuid const& botGuid : bots)
+        {
+            Player* bot = ObjectAccessor::FindPlayer(botGuid);
+            if (!bot)
+            {
+                TC_LOG_DEBUG("playerbots.instance", "Bot {} not online yet, skipping LFG queue add",
+                    botGuid.ToString());
+                continue;
+            }
+
+            // Determine bot role based on spec (opposite of what player needs)
+            uint8 botRoles = lfg::PLAYER_ROLE_DAMAGE; // Default to DPS
+
+            // If player is tank/healer, bot should be DPS; if player is DPS, bots fill tank/healer
+            if (!(roles & lfg::PLAYER_ROLE_TANK))
+                botRoles |= lfg::PLAYER_ROLE_TANK;
+            if (!(roles & lfg::PLAYER_ROLE_HEALER))
+                botRoles |= lfg::PLAYER_ROLE_HEALER;
+
+            // Create dungeon set for the bot
+            lfg::LfgDungeonSet dungeonSet;
+            dungeonSet.insert(dungeonId);
+
+            try
+            {
+                // Add bot to LFG queue
+                sLFGMgr->JoinLfg(bot, botRoles, dungeonSet);
+                botsAdded++;
+
+                TC_LOG_DEBUG("playerbots.instance", "Added bot {} to LFG queue for dungeon {} with roles {}",
+                    bot->GetName(), dungeonId, botRoles);
+            }
+            catch (std::exception const& e)
+            {
+                TC_LOG_ERROR("playerbots.instance", "Failed to add bot {} to LFG queue: {}",
+                    bot->GetName(), e.what());
+            }
+        }
+
+        TC_LOG_INFO("playerbots.instance", "Added {}/{} bots to LFG queue for dungeon {}",
+            botsAdded, bots.size(), dungeonId);
 
         // Notify any registered callbacks
         std::lock_guard<std::mutex> lock(_callbackMutex);
@@ -283,7 +334,8 @@ void InstanceBotHooks::OnPlayerJoinBattleground(
         // Create battleground request for orchestrator
         BattlegroundRequest request;
         request.bgTypeId = bgTypeId;
-        request.bracketLevel = bracketId;
+        request.bracketId = bracketId;
+        request.playerLevel = player->GetLevel();
         request.currentAlliancePlayers = player->GetTeam() == ALLIANCE ? 1 : 0;
         request.currentHordePlayers = player->GetTeam() == HORDE ? 1 : 0;
         request.playerFaction = player->GetTeam() == ALLIANCE ? Faction::Alliance : Faction::Horde;
@@ -428,7 +480,8 @@ void InstanceBotHooks::OnBattlegroundStarting(
     // Request bots from orchestrator (already should be reserved)
     BattlegroundRequest request;
     request.bgTypeId = bgTypeId;
-    request.bracketLevel = bg->GetBracketId();
+    request.bracketId = bg->GetBracketId();
+    // TODO: Get player level from content requirement or use bracket min level
     request.currentAlliancePlayers = allianceCount;
     request.currentHordePlayers = hordeCount;
     request.playerFaction = allianceCount > 0 ? Faction::Alliance : Faction::Horde;
@@ -515,7 +568,8 @@ void InstanceBotHooks::OnPlayerJoinArena(
     // Create arena request
     ArenaRequest request;
     request.arenaType = arenaType;
-    request.bracketLevel = bracketId;
+    request.bracketId = bracketId;
+    request.playerLevel = player->GetLevel();
     request.playerGuid = player->GetGUID();
     request.playerFaction = player->GetTeam() == ALLIANCE ? Faction::Alliance : Faction::Horde;
     request.existingTeammates = teamMembers;
@@ -719,6 +773,8 @@ void InstanceBotHooks::OnRaidNeedsBots(
     RaidRequest request;
     request.leaderGuid = leader->GetGUID();
     request.raidId = raidId;
+    request.playerLevel = leader->GetLevel();
+    request.playerFaction = leader->GetTeam() == ALLIANCE ? Faction::Alliance : Faction::Horde;
     request.currentGroupMembers = currentMembers;
     request.memberRoles = memberRoles;
 

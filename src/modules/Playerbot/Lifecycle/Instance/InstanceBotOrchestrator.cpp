@@ -744,19 +744,26 @@ bool InstanceBotOrchestrator::FulfillDungeonRequest(DungeonRequest& request)
     TC_LOG_DEBUG("playerbot.orchestrator", "InstanceBotOrchestrator::FulfillDungeonRequest - Need: {}",
         needed.ToString());
 
+    // Use player's actual level and faction from the request
+    uint32 playerLevel = request.playerLevel;
+    Faction playerFaction = request.playerFaction;
+
+    TC_LOG_DEBUG("playerbot.orchestrator", "FulfillDungeonRequest - Player level {}, faction {}",
+        playerLevel, playerFaction == Faction::Alliance ? "Alliance" : "Horde");
+
     // Collect bots
     std::vector<ObjectGuid> allBots;
 
     // Get tanks
     if (needed.tanksNeeded > 0)
     {
-        auto tanks = SelectBotsFromPool(BotRole::Tank, needed.tanksNeeded, Faction::Alliance, 80, needed.minGearScore);
+        auto tanks = SelectBotsFromPool(BotRole::Tank, needed.tanksNeeded, playerFaction, playerLevel, needed.minGearScore);
         allBots.insert(allBots.end(), tanks.begin(), tanks.end());
 
         if (tanks.size() < needed.tanksNeeded)
         {
             auto overflow = CreateOverflowBots(BotRole::Tank, needed.tanksNeeded - static_cast<uint32>(tanks.size()),
-                Faction::Alliance, 80, needed.minGearScore);
+                playerFaction, playerLevel, needed.minGearScore);
             allBots.insert(allBots.end(), overflow.begin(), overflow.end());
         }
     }
@@ -764,13 +771,13 @@ bool InstanceBotOrchestrator::FulfillDungeonRequest(DungeonRequest& request)
     // Get healers
     if (needed.healersNeeded > 0)
     {
-        auto healers = SelectBotsFromPool(BotRole::Healer, needed.healersNeeded, Faction::Alliance, 80, needed.minGearScore);
+        auto healers = SelectBotsFromPool(BotRole::Healer, needed.healersNeeded, playerFaction, playerLevel, needed.minGearScore);
         allBots.insert(allBots.end(), healers.begin(), healers.end());
 
         if (healers.size() < needed.healersNeeded)
         {
             auto overflow = CreateOverflowBots(BotRole::Healer, needed.healersNeeded - static_cast<uint32>(healers.size()),
-                Faction::Alliance, 80, needed.minGearScore);
+                playerFaction, playerLevel, needed.minGearScore);
             allBots.insert(allBots.end(), overflow.begin(), overflow.end());
         }
     }
@@ -778,13 +785,13 @@ bool InstanceBotOrchestrator::FulfillDungeonRequest(DungeonRequest& request)
     // Get DPS
     if (needed.dpsNeeded > 0)
     {
-        auto dps = SelectBotsFromPool(BotRole::DPS, needed.dpsNeeded, Faction::Alliance, 80, needed.minGearScore);
+        auto dps = SelectBotsFromPool(BotRole::DPS, needed.dpsNeeded, playerFaction, playerLevel, needed.minGearScore);
         allBots.insert(allBots.end(), dps.begin(), dps.end());
 
         if (dps.size() < needed.dpsNeeded)
         {
             auto overflow = CreateOverflowBots(BotRole::DPS, needed.dpsNeeded - static_cast<uint32>(dps.size()),
-                Faction::Alliance, 80, needed.minGearScore);
+                playerFaction, playerLevel, needed.minGearScore);
             allBots.insert(allBots.end(), overflow.begin(), overflow.end());
         }
     }
@@ -867,8 +874,8 @@ bool InstanceBotOrchestrator::FulfillRaidRequest(RaidRequest& request)
     FactoryRequest factoryReq;
     factoryReq.instanceType = InstanceType::Raid;
     factoryReq.contentId = request.raidId;
-    factoryReq.playerLevel = 80;
-    factoryReq.playerFaction = Faction::Alliance;
+    factoryReq.playerLevel = request.playerLevel;
+    factoryReq.playerFaction = request.playerFaction;
     factoryReq.tanksNeeded = needed.tanksNeeded;
     factoryReq.healersNeeded = needed.healersNeeded;
     factoryReq.dpsNeeded = needed.dpsNeeded;
@@ -922,7 +929,7 @@ bool InstanceBotOrchestrator::FulfillBattlegroundRequest(BattlegroundRequest& re
     FactoryRequest factoryReq;
     factoryReq.instanceType = InstanceType::Battleground;
     factoryReq.contentId = request.bgTypeId;
-    factoryReq.playerLevel = request.bracketLevel;
+    factoryReq.playerLevel = request.playerLevel;
     factoryReq.playerFaction = request.playerFaction;
     factoryReq.allianceNeeded = needed.allianceNeeded;
     factoryReq.hordeNeeded = needed.hordeNeeded;
@@ -989,6 +996,9 @@ bool InstanceBotOrchestrator::FulfillArenaRequest(ArenaRequest& request)
     std::vector<ObjectGuid> teammates;
     std::vector<ObjectGuid> opponents;
 
+    // Use player's actual level for bot selection
+    uint32 playerLevel = request.playerLevel;
+
     // Get teammates (same faction)
     uint32 teammatesNeeded = request.arenaType - 1 - static_cast<uint32>(request.existingTeammates.size());
     if (teammatesNeeded > 0)
@@ -996,14 +1006,14 @@ bool InstanceBotOrchestrator::FulfillArenaRequest(ArenaRequest& request)
         // Prefer 1 healer, rest DPS for arena
         if (teammatesNeeded >= 2)
         {
-            auto healer = SelectBotsFromPool(BotRole::Healer, 1, request.playerFaction, 80, needed.minGearScore);
+            auto healer = SelectBotsFromPool(BotRole::Healer, 1, request.playerFaction, playerLevel, needed.minGearScore);
             teammates.insert(teammates.end(), healer.begin(), healer.end());
             --teammatesNeeded;
         }
 
         if (teammatesNeeded > 0)
         {
-            auto dps = SelectBotsFromPool(BotRole::DPS, teammatesNeeded, request.playerFaction, 80, needed.minGearScore);
+            auto dps = SelectBotsFromPool(BotRole::DPS, teammatesNeeded, request.playerFaction, playerLevel, needed.minGearScore);
             teammates.insert(teammates.end(), dps.begin(), dps.end());
         }
     }
@@ -1016,12 +1026,12 @@ bool InstanceBotOrchestrator::FulfillArenaRequest(ArenaRequest& request)
         // Mirror team composition
         if (request.arenaType >= 3)
         {
-            auto healer = SelectBotsFromPool(BotRole::Healer, 1, opponentFaction, 80, needed.minGearScore);
+            auto healer = SelectBotsFromPool(BotRole::Healer, 1, opponentFaction, playerLevel, needed.minGearScore);
             opponents.insert(opponents.end(), healer.begin(), healer.end());
         }
 
         uint32 opponentDpsNeeded = request.arenaType - static_cast<uint32>(opponents.size());
-        auto dps = SelectBotsFromPool(BotRole::DPS, opponentDpsNeeded, opponentFaction, 80, needed.minGearScore);
+        auto dps = SelectBotsFromPool(BotRole::DPS, opponentDpsNeeded, opponentFaction, playerLevel, needed.minGearScore);
         opponents.insert(opponents.end(), dps.begin(), dps.end());
     }
 

@@ -69,6 +69,16 @@ void PlayerbotWorldScript::OnUpdate(uint32 diff)
         if (sBotLevelManager->Initialize())
         {
             TC_LOG_INFO("module.playerbot.script", "Automated World Population System initialized successfully");
+
+            // ================================================================
+            // CRITICAL FIX: Trigger initial level redistribution at startup
+            // ================================================================
+            // Existing bots in the database may not follow the level distribution.
+            // This ensures all bots are rebalanced to the configured distribution
+            // (5% Starting, 15% Chromie Time, 20% Dragonflight, 60% TWW).
+            // ================================================================
+            TC_LOG_INFO("module.playerbot.script", "PlayerbotWorldScript: Triggering initial level distribution rebalance...");
+            sBotLevelManager->RebalanceDistribution();
         }
         else
         {
@@ -77,6 +87,7 @@ void PlayerbotWorldScript::OnUpdate(uint32 diff)
 
         // Initialize performance tracking
         _lastMetricUpdate = GameTime::GetGameTimeMS();
+        _lastRebalanceCheck = GameTime::GetGameTimeMS();  // Initialize rebalance timer
         _totalUpdateTime = 0;
         _updateCount = 0;
     }
@@ -281,6 +292,41 @@ void PlayerbotWorldScript::UpdateBotSystems(uint32 diff)
             TC_LOG_ERROR("module.playerbot.script",
                 "PlayerbotWorldScript::UpdateBotSystems: BotLevelManager exception: {}", e.what());
         }
+
+        // ================================================================
+        // LEVEL DISTRIBUTION REBALANCING (every 5 minutes)
+        // ================================================================
+        // Periodically check if level distribution is balanced and trigger
+        // redistribution if needed. This ensures bots across all level brackets
+        // follow the configured distribution (5% Starting, 15% Chromie Time,
+        // 20% Dragonflight, 60% TWW).
+        // ================================================================
+        if (currentTime - _lastRebalanceCheck >= REBALANCE_INTERVAL)
+        {
+            _lastRebalanceCheck = currentTime;
+
+            try
+            {
+                if (!sBotLevelManager->IsDistributionBalanced())
+                {
+                    float deviation = sBotLevelManager->GetDistributionDeviation();
+                    TC_LOG_INFO("module.playerbot.script",
+                        "PlayerbotWorldScript: Level distribution deviation {:.1f}% - triggering rebalance",
+                        deviation);
+                    sBotLevelManager->RebalanceDistribution();
+                }
+                else if (shouldLog)
+                {
+                    TC_LOG_DEBUG("module.playerbot.script",
+                        "PlayerbotWorldScript: Level distribution is balanced");
+                }
+            }
+            catch (std::exception const& e)
+            {
+                TC_LOG_ERROR("module.playerbot.script",
+                    "PlayerbotWorldScript::UpdateBotSystems: RebalanceDistribution exception: {}", e.what());
+            }
+        }
     }
 
     if (shouldLog)
@@ -365,6 +411,10 @@ namespace Playerbot { void AddSC_PlayerbotLFGScript(); }
 void AddSC_playerbot_dragonriding();
 void AddSC_playerbot_dragonriding_glyphs();
 
+// Forward declaration for BG/Arena bot integration scripts
+namespace Playerbot { void AddSC_PlayerbotBGScript(); }
+namespace Playerbot { void AddSC_PlayerbotArenaScript(); }
+
 // Forward declaration for Instance Bot system scripts
 namespace Playerbot { void RegisterInstanceBotScripts(); }
 
@@ -389,6 +439,10 @@ void AddSC_playerbot_world()
     // Dragonriding System: Register Soar, boost abilities, and glyph collection scripts
     AddSC_playerbot_dragonriding();
     AddSC_playerbot_dragonriding_glyphs();
+
+    // BG/Arena Bot Integration: Register battleground and arena polling scripts
+    Playerbot::AddSC_PlayerbotBGScript();
+    Playerbot::AddSC_PlayerbotArenaScript();
 
     // Instance Bot System: Register pool management and LFG/BG integration scripts
     Playerbot::RegisterInstanceBotScripts();

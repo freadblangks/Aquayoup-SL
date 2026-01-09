@@ -16,6 +16,7 @@
 #include "Database/PlayerbotDatabase.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
+#include "Random.h"
 #include <fmt/format.h>
 
 namespace Playerbot
@@ -158,8 +159,50 @@ ContentRequirement const* ContentRequirementDatabase::GetRaidRequirement(uint32 
 ContentRequirement const* ContentRequirementDatabase::GetBattlegroundRequirement(uint32 bgTypeId) const
 {
     std::shared_lock<std::shared_mutex> lock(_mutex);
+
+    // Random Battleground (32) - pick a random actual BG
+    if (bgTypeId == 32)
+    {
+        return GetRandomBattlegroundRequirement_Locked();
+    }
+
     auto it = _battlegrounds.find(bgTypeId);
     return it != _battlegrounds.end() ? &it->second : nullptr;
+}
+
+ContentRequirement const* ContentRequirementDatabase::GetRandomBattlegroundRequirement_Locked() const
+{
+    // List of actual BG types to choose from (excluding Random BG itself)
+    static const std::vector<uint32> actualBGs = {
+        1,   // Alterac Valley (40v40)
+        2,   // Warsong Gulch (10v10)
+        3,   // Arathi Basin (15v15)
+        7,   // Eye of the Storm (15v15)
+        9,   // Strand of the Ancients (15v15)
+        30,  // Isle of Conquest (40v40)
+        108, // Twin Peaks (10v10)
+        120, // Battle for Gilneas (10v10)
+    };
+
+    // Pick a random BG
+    uint32 randomIndex = urand(0, actualBGs.size() - 1);
+    uint32 selectedBgId = actualBGs[randomIndex];
+
+    auto it = _battlegrounds.find(selectedBgId);
+    if (it != _battlegrounds.end())
+    {
+        TC_LOG_INFO("playerbot.content", "Random BG selected: {} ({}v{})",
+            it->second.contentName, it->second.playersPerFaction, it->second.playersPerFaction);
+        return &it->second;
+    }
+
+    // Fallback to first available BG
+    if (!_battlegrounds.empty())
+    {
+        return &_battlegrounds.begin()->second;
+    }
+
+    return nullptr;
 }
 
 ContentRequirement const* ContentRequirementDatabase::GetArenaRequirement(uint32 arenaType) const
@@ -718,6 +761,9 @@ void ContentRequirementDatabase::CreateDefaultBattlegrounds()
     deepwind.estimatedDurationMinutes = 15;
 
     AddRequirement(std::move(deepwind));
+
+    // NOTE: Random Battleground (32) is handled dynamically in GetBattlegroundRequirement()
+    // by selecting a random actual BG (AV, WSG, AB, etc.) so proper team sizes are used.
 }
 
 void ContentRequirementDatabase::CreateDefaultArenas()

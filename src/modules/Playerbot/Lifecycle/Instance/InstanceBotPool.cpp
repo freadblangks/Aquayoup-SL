@@ -9,7 +9,10 @@
 
 #include "InstanceBotPool.h"
 #include "InstanceBotOrchestrator.h"
+#include "BotCloneEngine.h"
+#include "BotTemplateRepository.h"
 #include "Config/PlayerbotConfig.h"
+#include "Session/BotWorldSessionMgr.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
 #include "Timer.h"
@@ -135,6 +138,9 @@ void InstanceBotPool::Update(uint32 diff)
         // Process reservation timeouts
         ProcessReservations();
 
+        // Retry warming bots that failed initial warmup (async DB commit delay)
+        ProcessWarmingRetries();
+
         // Check hourly reset
         CheckHourlyReset();
     }
@@ -236,48 +242,62 @@ void InstanceBotPool::WarmPool()
 
     _warmingInProgress.store(true);
 
-    TC_LOG_INFO("playerbot.pool", "Starting pool warming...");
+    TC_LOG_INFO("playerbot.pool", "Starting pool warming with level bracket distribution...");
 
     uint32 totalToCreate = _config.poolSize.GetTotalWarmPool();
     uint32 created = 0;
 
-    // Create Alliance bots
-    for (uint32 i = 0; i < _config.poolSize.allianceTanks; ++i)
-    {
-        if (CreatePoolBot(BotRole::Tank, PoolType::PvP_Alliance, 80) != ObjectGuid::Empty)
-            ++created;
-    }
-    for (uint32 i = 0; i < _config.poolSize.allianceHealers; ++i)
-    {
-        if (CreatePoolBot(BotRole::Healer, PoolType::PvP_Alliance, 80) != ObjectGuid::Empty)
-            ++created;
-    }
-    for (uint32 i = 0; i < _config.poolSize.allianceDPS; ++i)
-    {
-        if (CreatePoolBot(BotRole::DPS, PoolType::PvP_Alliance, 80) != ObjectGuid::Empty)
-            ++created;
-    }
+    // Helper lambda to get a representative level for a bracket
+    auto getLevelForBracket = [](uint32 bracket) -> uint32 {
+        uint32 minLevel, maxLevel;
+        PoolLevelConfig::GetLevelRange(bracket, minLevel, maxLevel);
+        // Use middle of the bracket for representative level
+        return (minLevel + maxLevel) / 2;
+    };
 
-    // Create Horde bots
-    for (uint32 i = 0; i < _config.poolSize.hordeTanks; ++i)
-    {
-        if (CreatePoolBot(BotRole::Tank, PoolType::PvP_Horde, 80) != ObjectGuid::Empty)
-            ++created;
-    }
-    for (uint32 i = 0; i < _config.poolSize.hordeHealers; ++i)
-    {
-        if (CreatePoolBot(BotRole::Healer, PoolType::PvP_Horde, 80) != ObjectGuid::Empty)
-            ++created;
-    }
-    for (uint32 i = 0; i < _config.poolSize.hordeDPS; ++i)
-    {
-        if (CreatePoolBot(BotRole::DPS, PoolType::PvP_Horde, 80) != ObjectGuid::Empty)
-            ++created;
-    }
+    // Helper lambda to create bots for a role distributed across level brackets
+    auto createBotsForRole = [&](BotRole role, PoolType poolType, uint32 totalCount) {
+        // Distribute bots across all 4 level brackets according to config
+        for (uint32 bracket = 0; bracket < 4; ++bracket)
+        {
+            uint32 countForBracket = static_cast<uint32>(totalCount * _config.levelConfig.bracketDistribution[bracket]);
+            // Ensure at least 1 bot per bracket if total count > 4
+            if (countForBracket == 0 && totalCount > 4)
+                countForBracket = 1;
+
+            uint32 level = getLevelForBracket(bracket);
+
+            TC_LOG_DEBUG("playerbot.pool", "WarmPool: Creating {} {} bots at level {} (bracket {})",
+                countForBracket, BotRoleToString(role), level, bracket);
+
+            for (uint32 i = 0; i < countForBracket; ++i)
+            {
+                if (CreatePoolBot(role, poolType, level) != ObjectGuid::Empty)
+                    ++created;
+            }
+        }
+    };
+
+    // Create Alliance bots distributed across level brackets
+    TC_LOG_INFO("playerbot.pool", "Creating Alliance pool bots...");
+    createBotsForRole(BotRole::Tank, PoolType::PvP_Alliance, _config.poolSize.allianceTanks);
+    createBotsForRole(BotRole::Healer, PoolType::PvP_Alliance, _config.poolSize.allianceHealers);
+    createBotsForRole(BotRole::DPS, PoolType::PvP_Alliance, _config.poolSize.allianceDPS);
+
+    // Create Horde bots distributed across level brackets
+    TC_LOG_INFO("playerbot.pool", "Creating Horde pool bots...");
+    createBotsForRole(BotRole::Tank, PoolType::PvP_Horde, _config.poolSize.hordeTanks);
+    createBotsForRole(BotRole::Healer, PoolType::PvP_Horde, _config.poolSize.hordeHealers);
+    createBotsForRole(BotRole::DPS, PoolType::PvP_Horde, _config.poolSize.hordeDPS);
 
     _warmingInProgress.store(false);
 
-    TC_LOG_INFO("playerbot.pool", "Pool warming complete: created {} of {} bots", created, totalToCreate);
+    TC_LOG_INFO("playerbot.pool", "Pool warming complete: created {} of {} bots across 4 level brackets", created, totalToCreate);
+    TC_LOG_INFO("playerbot.pool", "Level bracket distribution: 1-10 ({}%), 10-60 ({}%), 60-70 ({}%), 70-80 ({}%)",
+        static_cast<uint32>(_config.levelConfig.bracketDistribution[0] * 100),
+        static_cast<uint32>(_config.levelConfig.bracketDistribution[1] * 100),
+        static_cast<uint32>(_config.levelConfig.bracketDistribution[2] * 100),
+        static_cast<uint32>(_config.levelConfig.bracketDistribution[3] * 100));
 
     _statsDirty.store(true);
 }
@@ -1130,34 +1150,93 @@ void InstanceBotPool::SetOverflowNeededCallback(OverflowNeededCallback callback)
 
 ObjectGuid InstanceBotPool::CreatePoolBot(BotRole role, PoolType poolType, uint32 level)
 {
-    // TODO: Integrate with BotFactory to actually create the bot
-    // For now, just create an empty slot
+    // Use BotCloneEngine to create an actual bot character
+    Faction faction = GetFactionForPoolType(poolType);
 
-    ObjectGuid guid = ObjectGuid::Create<HighGuid::Player>(
-        static_cast<uint64>(std::hash<uint64>{}(
-            std::chrono::steady_clock::now().time_since_epoch().count())));
+    // Clone a bot using the template repository and clone engine
+    CloneResult result = sBotCloneEngine->Clone(role, faction, level, 0);
 
+    if (!result.success)
+    {
+        TC_LOG_WARN("playerbot.pool", "InstanceBotPool::CreatePoolBot - Failed to create bot: {}",
+            result.errorMessage);
+        return ObjectGuid::Empty;
+    }
+
+    TC_LOG_INFO("playerbot.pool", "InstanceBotPool::CreatePoolBot - Created bot {} ({}), Level {}, Role {}",
+        result.botName, result.botGuid.ToString(), level, BotRoleToString(role));
+
+    // Create slot for the newly created bot
     InstanceBotSlot slot;
-    slot.Initialize(guid, 0, "PoolBot", poolType, role);
+    slot.Initialize(result.botGuid, result.accountId, result.botName, poolType, role);
     slot.level = level;
-    slot.faction = GetFactionForPoolType(poolType);
-    slot.ForceState(PoolSlotState::Ready); // Skip warmup for now
+    slot.faction = faction;
+    slot.gearScore = result.gearScore;
+    slot.playerClass = result.playerClass;
+    slot.specId = result.specId;
+    slot.ForceState(PoolSlotState::Warming); // Bot needs to be logged in
 
     {
         std::unique_lock lock(_slotsMutex);
-        _slots[guid] = std::move(slot);
+        _slots[result.botGuid] = std::move(slot);
     }
 
-    ++_stats.activity.warmupsThisHour;
-    _statsDirty.store(true);
+    // Queue the bot for login via BotWorldSessionMgr
+    // The bot will be marked Ready once login is complete
+    if (!WarmUpBot(result.botGuid))
+    {
+        TC_LOG_WARN("playerbot.pool", "InstanceBotPool::CreatePoolBot - Failed to queue bot {} for warmup",
+            result.botGuid.ToString());
+        // Still return the GUID - bot exists in database, can be warmed later
+    }
 
-    return guid;
+    _statsDirty.store(true);
+    return result.botGuid;
 }
 
-bool InstanceBotPool::WarmUpBot(ObjectGuid /*botGuid*/)
+bool InstanceBotPool::WarmUpBot(ObjectGuid botGuid)
 {
-    // TODO: Integrate with BotSession to login the bot
-    return true;
+    // Log the bot into the world via BotWorldSessionMgr
+    // This queues the bot for rate-limited spawning
+    if (!sBotWorldSessionMgr || !sBotWorldSessionMgr->IsEnabled())
+    {
+        TC_LOG_WARN("playerbot.pool", "InstanceBotPool::WarmUpBot - BotWorldSessionMgr not available");
+        return false;
+    }
+
+    // Get account ID from slot
+    uint32 accountId = 0;
+    {
+        std::shared_lock lock(_slotsMutex);
+        auto it = _slots.find(botGuid);
+        if (it != _slots.end())
+            accountId = it->second.accountId;
+    }
+
+    if (accountId == 0)
+    {
+        TC_LOG_WARN("playerbot.pool", "InstanceBotPool::WarmUpBot - No account ID for bot {}",
+            botGuid.ToString());
+        return false;
+    }
+
+    // Queue bot for login - BotWorldSessionMgr handles rate limiting
+    // Pass bypassLimit=true to allow pool bots to exceed MaxBots limit
+    // (level distribution system will balance totals over time)
+    bool queued = sBotWorldSessionMgr->AddPlayerBot(botGuid, accountId, true /* bypassLimit */);
+
+    if (queued)
+    {
+        TC_LOG_DEBUG("playerbot.pool", "InstanceBotPool::WarmUpBot - Queued bot {} for login",
+            botGuid.ToString());
+    }
+    else
+    {
+        TC_LOG_WARN("playerbot.pool", "InstanceBotPool::WarmUpBot - Failed to queue bot {} for login",
+            botGuid.ToString());
+    }
+
+    return queued;
 }
 
 void InstanceBotPool::OnBotWarmupComplete(ObjectGuid botGuid, bool success)
@@ -1274,6 +1353,40 @@ bool InstanceBotPool::AssignBot(ObjectGuid botGuid, uint32 instanceId,
 // ============================================================================
 // INTERNAL METHODS - Pool Maintenance
 // ============================================================================
+
+void InstanceBotPool::ProcessWarmingRetries()
+{
+    // Retry warmup for bots stuck in Warming state
+    // This handles the async database commit delay - character might not be
+    // queryable immediately after creation
+    std::vector<ObjectGuid> botsToWarm;
+
+    {
+        std::shared_lock lock(_slotsMutex);
+        for (auto const& [guid, slot] : _slots)
+        {
+            if (slot.state == PoolSlotState::Warming)
+            {
+                // Only retry after 1 second to allow DB commit to complete
+                auto timeSinceStateChange = slot.TimeSinceStateChange();
+                if (timeSinceStateChange >= std::chrono::seconds(1))
+                {
+                    botsToWarm.push_back(guid);
+                }
+            }
+        }
+    }
+
+    // Try to warm each bot (outside the lock to avoid deadlock)
+    for (ObjectGuid const& guid : botsToWarm)
+    {
+        if (WarmUpBot(guid))
+        {
+            TC_LOG_DEBUG("playerbot.pool", "ProcessWarmingRetries - Successfully warmed bot {}",
+                guid.ToString());
+        }
+    }
+}
 
 void InstanceBotPool::ProcessCooldowns()
 {
