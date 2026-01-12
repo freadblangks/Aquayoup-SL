@@ -111,20 +111,30 @@ float LootStrategy::GetRelevance(BotAI* ai) const
     if (!HasInventorySpace(ai))
         return 0.0f;
 
-    // Check if there are nearby lootable targets
-    uint32 currentTime = GameTime::GetGameTimeMS();
-    if (currentTime - _lastLootScan < _lootScanInterval)
-    {
-        // Return cached relevance
-        return _currentLootTarget.IsEmpty() ? 0.0f : 60.0f;
-    }
-
-    // Scan for loot
+    // CRITICAL FIX (2026-01-11): Always scan for actual loot availability
+    // The previous caching logic relied on _currentLootTarget which could become
+    // stale (loot collected but not cleared), causing LootStrategy to return 60.0f
+    // forever and block QuestStrategy from running for bots without quests.
+    //
+    // Now we always check fresh scan results. The scan itself is still throttled
+    // in UpdateBehavior, and the actual loot operations are infrequent, so this
+    // is acceptable overhead for correct behavior selection.
     ::std::vector<ObjectGuid> corpses = FindLootableCorpses(ai);
     ::std::vector<ObjectGuid> objects = FindLootableObjects(ai);
 
     // Medium-high relevance if loot available (lower than quest=70, higher than solo=10)
-    return (!corpses.empty() || !objects.empty()) ? 60.0f : 0.0f;
+    // Returns 0.0f if no loot → allows QuestStrategy (50.0f) to run for quest seeking
+    bool hasLoot = !corpses.empty() || !objects.empty();
+
+    // DEBUG: Log what's being found when loot is detected
+    if (hasLoot)
+    {
+        TC_LOG_DEBUG("module.playerbot.strategy",
+            "LootStrategy::GetRelevance: Bot {} found {} corpses, {} objects - returning 60.0f",
+            bot->GetName(), corpses.size(), objects.size());
+    }
+
+    return hasLoot ? 60.0f : 0.0f;
 }
 void LootStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
 {
@@ -329,8 +339,28 @@ void LootStrategy::UpdateBehavior(BotAI* ai, uint32 diff)
             continue;
 
         // Check if object is lootable container (chest)
-    if (snapshot.goType != GAMEOBJECT_TYPE_CHEST)
+        if (snapshot.goType != GAMEOBJECT_TYPE_CHEST)
             continue;
+
+        // VALIDATION: Verify GameObject still exists in map before adding
+        // The spatial grid snapshot might be stale if the object was looted/despawned
+        GameObject* go = map->GetGameObject(snapshot.guid);
+        if (!go)
+        {
+            TC_LOG_DEBUG("module.playerbot.strategy",
+                "FindLootableObjects: Skipping stale snapshot {} - GameObject not found in map",
+                snapshot.guid.ToString());
+            continue;
+        }
+
+        // Check if the chest still has loot available
+        if (go->GetGoState() != GO_STATE_READY)
+        {
+            TC_LOG_DEBUG("module.playerbot.strategy",
+                "FindLootableObjects: Skipping {} - GoState is not READY (already looted?)",
+                snapshot.guid.ToString());
+            continue;
+        }
 
         // Add to lootable list
         lootableObjects.push_back(snapshot.guid);
