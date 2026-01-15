@@ -21,6 +21,7 @@
 #include "DB2Stores.h"
 #include "DatabaseEnv.h"
 #include "QueryResult.h"
+#include "../Core/PlayerBotHooks.h"
 
 namespace Playerbot
 {
@@ -123,6 +124,94 @@ bool LFGGroupCoordinator::OnGroupFormed(ObjectGuid groupGuid, uint32 dungeonId)
     // Convert to LFG group if not already
     if (!group->isLFGGroup())
         group->ConvertToLFG();
+
+    // ========================================================================
+    // CRITICAL FIX: Transfer leadership to human player if a bot is leader
+    // ========================================================================
+    // When LFG forms a group, the first queued player often becomes leader.
+    // Since bots may queue before humans, a bot can become the leader.
+    // This breaks bot follow behavior (bots don't follow themselves) and
+    // causes dungeons to get stuck at the entrance.
+    //
+    // Solution: Find the human player and make them the leader.
+    //
+    // IMPORTANT: The leader may not be loaded into the world yet (async login),
+    // so we must handle the case where ObjectAccessor::FindPlayer() returns null.
+    // In that case, we assume it's a bot and still transfer leadership to human.
+    // ========================================================================
+    ObjectGuid currentLeaderGuid = group->GetLeaderGUID();
+    Player* currentLeader = ObjectAccessor::FindPlayer(currentLeaderGuid);
+
+    // Check if current leader is a bot
+    // NOTE: If currentLeader is null, the player isn't loaded yet.
+    // Since JIT bots are created asynchronously, the bot leader may not be
+    // accessible via ObjectAccessor yet. In this case, we STILL want to
+    // transfer leadership to the human player.
+    bool leaderIsBot = false;
+    bool leaderNotFound = false;
+
+    if (currentLeader)
+    {
+        leaderIsBot = PlayerBotHooks::IsPlayerBot(currentLeader);
+    }
+    else
+    {
+        // Leader not found via ObjectAccessor - could be a JIT bot that's still loading
+        // Check if the GUID belongs to a bot account by checking BotWorldSessionMgr
+        leaderNotFound = true;
+        // Conservative approach: if leader not found and we have a human in the group,
+        // transfer leadership to the human to be safe
+        TC_LOG_DEBUG("lfg.playerbot", "LFGGroupCoordinator::OnGroupFormed - Leader {} not found in ObjectAccessor, will check for human to transfer",
+            currentLeaderGuid.ToString());
+    }
+
+    // Transfer leadership if: leader is a bot, OR leader wasn't found (possibly async bot)
+    if (leaderIsBot || leaderNotFound)
+    {
+        // Find a human player to be the leader
+        Player* humanPlayer = nullptr;
+        for (auto const& slot : group->GetMemberSlots())
+        {
+            Player* member = ObjectAccessor::FindPlayer(slot.guid);
+            if (member && !PlayerBotHooks::IsPlayerBot(member))
+            {
+                humanPlayer = member;
+                break;
+            }
+        }
+
+        if (humanPlayer)
+        {
+            // Don't transfer if human is already the leader
+            if (humanPlayer->GetGUID() == currentLeaderGuid)
+            {
+                TC_LOG_DEBUG("lfg.playerbot", "LFGGroupCoordinator::OnGroupFormed - Human {} is already the leader",
+                    humanPlayer->GetName());
+            }
+            else
+            {
+                std::string leaderName = currentLeader ? currentLeader->GetName() : currentLeaderGuid.ToString();
+                TC_LOG_INFO("lfg.playerbot", "LFGGroupCoordinator::OnGroupFormed - Transferring leadership from {} to human {}",
+                    leaderName, humanPlayer->GetName());
+
+                // Transfer leadership to the human player
+                group->ChangeLeader(humanPlayer->GetGUID());
+
+                TC_LOG_INFO("lfg.playerbot", "LFGGroupCoordinator::OnGroupFormed - Leadership transferred successfully to {}",
+                    humanPlayer->GetName());
+            }
+        }
+        else
+        {
+            TC_LOG_WARN("lfg.playerbot", "LFGGroupCoordinator::OnGroupFormed - No human player found in group {} to take leadership",
+                groupGuid.ToString());
+        }
+    }
+    else
+    {
+        TC_LOG_DEBUG("lfg.playerbot", "LFGGroupCoordinator::OnGroupFormed - Leader {} is not a bot, no transfer needed",
+            currentLeaderGuid.ToString());
+    }
 
     TC_LOG_DEBUG("lfg.playerbot", "LFGGroupCoordinator::OnGroupFormed - Group formation tracked for {}",
         groupGuid.ToString());
@@ -413,8 +502,12 @@ uint32 LFGGroupCoordinator::GetDungeonMapId(uint32 dungeonId) const
 
 bool LFGGroupCoordinator::ValidateEntranceData(uint32 mapId, float x, float y, float z) const
 {
-    // Check if map exists
-    MapEntry const* mapEntry = sMapStore.LookupEntry(mapId);
+    // Check if map exists - validates mapId is a known map
+    if (!sMapStore.LookupEntry(mapId))
+    {
+        TC_LOG_ERROR("lfg.playerbot", "Invalid map ID {} - map does not exist", mapId);
+        return false;
+    }
 
     // Check if coordinates are valid (not 0,0,0)
     if (x == 0.0f && y == 0.0f && z == 0.0f)

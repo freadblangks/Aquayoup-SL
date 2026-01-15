@@ -50,6 +50,7 @@ class AuctionManager;
 class GroupCoordinator; // Advanced/GroupCoordinator
 class DeathRecoveryManager;
 class UnifiedMovementCoordinator; // Phase 2: Unified Movement System (Week 3 complete)
+class QuestCompletion;            // Quest completion system (Phase 0: Hook integration)
 class CombatStateManager;
 enum class PlayerBotMovementPriority : uint8;
 
@@ -144,7 +145,14 @@ class TC_GAME_API BotAI : public IEventHandler<LootEvent>,
                            public IEventHandler<ProfessionEvent>
 {
 public:
-    explicit BotAI(Player* bot);
+    /**
+     * @brief Construct BotAI for a player bot
+     * @param bot The player bot to control
+     * @param instanceOnlyMode If true, creates a lightweight bot for instances only
+     *        that skips expensive non-essential managers (questing, professions, AH).
+     *        Used for JIT bots created to fill BG/LFG queues.
+     */
+    explicit BotAI(Player* bot, bool instanceOnlyMode = false);
     virtual ~BotAI();
 
     // ========================================================================
@@ -180,7 +188,7 @@ public:
      * - Throttle updates (causes following issues)
      * - Call base UpdateAI (would cause recursion)
      */
-    virtual void OnCombatUpdate(uint32 diff) {}
+    virtual void OnCombatUpdate(uint32 /*diff*/) {}
 
     /**
      * Virtual method for class-specific NON-COMBAT updates
@@ -197,7 +205,7 @@ public:
      * - Throttle updates (causes following issues)
      * - Call base UpdateAI (would cause recursion)
      */
-    virtual void OnNonCombatUpdate(uint32 diff) {}
+    virtual void OnNonCombatUpdate(uint32 /*diff*/) {}
 
     // ========================================================================
     // STATE TRANSITIONS - Clean lifecycle management
@@ -275,6 +283,36 @@ public:
     bool IsInCombat() const { return _aiState == BotAIState::COMBAT; }
     bool IsSolo() const { return _aiState == BotAIState::SOLO; }
     bool IsFollowing() const { return _aiState == BotAIState::FOLLOWING; }
+
+    // ========================================================================
+    // INSTANCE-ONLY MODE - JIT bot optimization
+    // ========================================================================
+
+    /**
+     * @brief Check if bot is in instance-only mode
+     *
+     * Instance-only bots skip expensive non-essential behaviors like:
+     * - Questing (DynamicQuestSystem, ObjectiveTracker, QuestPickup, etc.)
+     * - Professions (ProfessionManager, GatheringManager, FarmingCoordinator)
+     * - Auction House (AuctionManager, AuctionHouse, AuctionMaterialsBridge)
+     * - Banking (BankingManager, GuildBankManager)
+     *
+     * This significantly reduces CPU overhead for JIT bots that only exist
+     * to fill BG/LFG queues and will be recycled after the instance ends.
+     *
+     * @return true if bot is in instance-only mode
+     */
+    bool IsInstanceOnlyMode() const { return _instanceOnlyMode; }
+
+    /**
+     * @brief Set instance-only mode for this bot
+     *
+     * IMPORTANT: This should be called BEFORE Initialize() is called on
+     * the GameSystemsManager, as it affects which managers are created.
+     *
+     * @param enabled true to enable instance-only mode
+     */
+    void SetInstanceOnlyMode(bool enabled) { _instanceOnlyMode = enabled; }
 
     // ========================================================================
     // BOT ACCESS - Core entity access
@@ -362,9 +400,12 @@ public:
     IGameSystemsManager* GetGameSystems() { return _gameSystems.get(); }
     IGameSystemsManager const* GetGameSystems() const { return _gameSystems.get(); }
 
-    // Legacy individual getters for backward compatibility
-    QuestManager* GetQuestManager() { return _gameSystems ? _gameSystems->GetQuestManager() : nullptr; }
-    QuestManager const* GetQuestManager() const { return _gameSystems ? _gameSystems->GetQuestManager() : nullptr; }
+    // Quest helper methods - direct player data access (replaces Game/QuestManager)
+    // These provide fast, simple quest state queries without the overhead of QuestManager
+    uint32 GetActiveQuestCount() const;      // Count of active quests from player slots
+    bool IsQuestingActive() const;           // True if bot has any active quests
+    bool HasCompletableQuests() const;       // True if any quests are ready for turn-in
+    std::vector<uint32> GetCompletableQuestIds() const;  // Quest IDs ready for turn-in
 
     TradeManager* GetTradeManager() { return _gameSystems ? _gameSystems->GetTradeManager() : nullptr; }
     TradeManager const* GetTradeManager() const { return _gameSystems ? _gameSystems->GetTradeManager() : nullptr; }
@@ -430,6 +471,13 @@ public:
 
     DeathRecoveryManager* GetDeathRecoveryManager() { return _gameSystems ? _gameSystems->GetDeathRecoveryManager() : nullptr; }
     DeathRecoveryManager const* GetDeathRecoveryManager() const { return _gameSystems ? _gameSystems->GetDeathRecoveryManager() : nullptr; }
+
+    // ========================================================================
+    // QUEST COMPLETION - Phase 0 Hook Integration (Lifecycle management)
+    // ========================================================================
+
+    QuestCompletion* GetQuestCompletion() { return _gameSystems ? _gameSystems->GetQuestCompletion() : nullptr; }
+    QuestCompletion const* GetQuestCompletion() const { return _gameSystems ? _gameSystems->GetQuestCompletion() : nullptr; }
 
     // ========================================================================
     // UNIFIED MOVEMENT COORDINATOR - Phase 2 Migration / Phase 6 Facade Delegation
@@ -834,11 +882,6 @@ protected:
      */
     void UpdateValues(uint32 diff);
 
-    /**
-     * Update all BehaviorManager-based managers
-     */
-    void UpdateManagers(uint32 diff);
-
     // ========================================================================
     // HELPER METHODS - Utilities for derived classes
     // ========================================================================
@@ -919,6 +962,15 @@ protected:
 
     // Lifecycle manager (owned by BotFactory, not by BotAI)
     BotInitStateManager* _lifecycleManager = nullptr;
+
+    // ========================================================================
+    // INSTANCE-ONLY MODE - Optimized for JIT/instance bots
+    // ========================================================================
+    // When true, this bot is a JIT-created bot for instances only and skips
+    // expensive non-essential behaviors like questing, professions, and AH.
+    // This reduces server overhead significantly for bots that only exist
+    // to fill BG/LFG queues and will be recycled after the instance.
+    bool _instanceOnlyMode = false;
 
     // ========================================================================
     // PHASE 6: GAME SYSTEMS FACADE - Consolidates all 17 manager instances

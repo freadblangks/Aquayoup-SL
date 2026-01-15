@@ -12,6 +12,7 @@
 #include "Player.h"
 #include "Unit.h"
 #include "Map.h"
+#include "MapDefines.h"
 #include "Log.h"
 #include "Group.h"
 #include "GridNotifiers.h"
@@ -362,15 +363,15 @@ PositionInfo PositionManager::EvaluatePosition(const Position& pos, const Moveme
             {
                 Position currentPos = _bot->GetPosition();
                 float angle = PositionUtils::CalculateAngleBetween(targetPos, currentPos);
-                candidates = GenerateArcPositions(targetPos, context.preferredRange, angle - M_PI/3, angle + M_PI/3, 8);
+                candidates = GenerateArcPositions(targetPos, context.preferredRange, angle - static_cast<float>(M_PI) / 3.0f, angle + static_cast<float>(M_PI) / 3.0f, 8);
             }
             break;
 
         case PositionType::FLANKING:
             {
                 float targetAngle = context.target->GetOrientation();
-                float leftFlankAngle = PositionUtils::NormalizeAngle(targetAngle + M_PI/2);
-                float rightFlankAngle = PositionUtils::NormalizeAngle(targetAngle - M_PI/2);
+                float leftFlankAngle = PositionUtils::NormalizeAngle(targetAngle + static_cast<float>(M_PI) / 2.0f);
+                float rightFlankAngle = PositionUtils::NormalizeAngle(targetAngle - static_cast<float>(M_PI) / 2.0f);
 
                 candidates.push_back(PositionUtils::CalculatePositionAtAngle(targetPos, 6.0f, leftFlankAngle));
                 candidates.push_back(PositionUtils::CalculatePositionAtAngle(targetPos, 6.0f, rightFlankAngle));
@@ -380,8 +381,8 @@ PositionInfo PositionManager::EvaluatePosition(const Position& pos, const Moveme
         case PositionType::TANKING:
             {
                 float targetAngle = context.target->GetOrientation();
-                float frontAngle = PositionUtils::NormalizeAngle(targetAngle + M_PI);
-                candidates = GenerateArcPositions(targetPos, 5.0f, frontAngle - M_PI/6, frontAngle + M_PI/6, 6);
+                float frontAngle = PositionUtils::NormalizeAngle(targetAngle + static_cast<float>(M_PI));
+                candidates = GenerateArcPositions(targetPos, 5.0f, frontAngle - static_cast<float>(M_PI) / 6.0f, frontAngle + static_cast<float>(M_PI) / 6.0f, 6);
             }
             break;
 
@@ -407,7 +408,7 @@ Position PositionManager::FindMeleePosition(Unit* target, bool preferBehind)
     float targetAngle = target->GetOrientation();
     if (preferBehind)
     {
-        float behindAngle = PositionUtils::NormalizeAngle(targetAngle + M_PI);
+        float behindAngle = PositionUtils::NormalizeAngle(targetAngle + static_cast<float>(M_PI));
         return PositionUtils::CalculatePositionAtAngle(targetPos, 3.5f, behindAngle);
     }
     else
@@ -480,7 +481,7 @@ Position PositionManager::FindKitingPosition(Unit* threat, float minDistance)
     ::std::vector<Position> escapePositions;
     for (int i = -2; i <= 2; ++i)
     {
-        float angle = PositionUtils::NormalizeAngle(escapeAngle + (i * M_PI/6));
+        float angle = PositionUtils::NormalizeAngle(escapeAngle + (i * static_cast<float>(M_PI) / 6.0f));
         Position escapePos = PositionUtils::CalculatePositionAtAngle(threatPos, minDistance * 1.5f, angle);
         escapePositions.push_back(escapePos);
     }
@@ -596,7 +597,7 @@ Position PositionManager::FindHealerPosition(const std::vector<Player*>& groupMe
                 spatialGrid->QueryNearbyPlayers(_bot->GetPosition(), 40.0f);
 
             // Test different positions around the group center
-            for (float testAngle = 0; testAngle < 2 * M_PI; testAngle += static_cast<float>(M_PI / 4))
+            for (float testAngle = 0; testAngle < 2.0f * static_cast<float>(M_PI); testAngle += static_cast<float>(M_PI) / 4.0f)
             {
                 Position testPos = PositionUtils::CalculatePositionAtAngle(groupCenter, healerDistance, testAngle);
 
@@ -881,9 +882,9 @@ float PositionManager::CalculateAngleScore(const Position& pos, const MovementCo
         case PositionType::MELEE_COMBAT:
         case PositionType::FLANKING:
             {
-                float behindAngle = PositionUtils::NormalizeAngle(targetAngle + M_PI);
+                float behindAngle = PositionUtils::NormalizeAngle(targetAngle + static_cast<float>(M_PI));
                 float angleDiff = ::std::abs(PositionUtils::NormalizeAngle(positionAngle - behindAngle));
-                if (angleDiff < M_PI/6)  // Within 30 degrees behind
+                if (angleDiff < static_cast<float>(M_PI) / 6.0f)  // Within 30 degrees behind
                     score += 30.0f;
             }
             break;
@@ -892,7 +893,7 @@ float PositionManager::CalculateAngleScore(const Position& pos, const MovementCo
             {
                 float frontAngle = targetAngle;
                 float angleDiff = ::std::abs(PositionUtils::NormalizeAngle(positionAngle - frontAngle));
-                if (angleDiff < M_PI/6)  // Within 30 degrees in front
+                if (angleDiff < static_cast<float>(M_PI) / 6.0f)  // Within 30 degrees in front
                     score += 30.0f;
             }
             break;
@@ -945,7 +946,7 @@ float PositionManager::GetOptimalGroupDistance(ThreatRole role)
 
     for (uint32 i = 0; i < count; ++i)
     {
-        float angle = (2.0f * M_PI * i) / count;
+        float angle = (2.0f * static_cast<float>(M_PI) * i) / count;
         Position pos = PositionUtils::CalculatePositionAtAngle(center, radius, angle);
         positions.push_back(pos);
     }
@@ -1087,9 +1088,27 @@ float PositionManager::CalculateEscapeScore(const Position& pos, const MovementC
     }
 
     // Penalty for positions in AoE zones
-    // TODO: Implement IsInAoEZone function
-    // if (IsInAoEZone(pos))
-    //     score -= 40.0f;
+    if (IsInDangerZone(pos))
+    {
+        score -= 40.0f;
+        TC_LOG_TRACE("module.playerbot.position",
+            "ScorePositionForCombat: Position ({:.1f}, {:.1f}) is in AoE danger zone, -40 penalty",
+            pos.GetPositionX(), pos.GetPositionY());
+    }
+
+    // Check for nearby dynamic objects (ground effects, AoE spells)
+    if (_bot && _bot->GetMap())
+    {
+        // Scan for hostile ground effects near this position
+        float aoePenalty = CalculateAoEThreat(pos);
+        if (aoePenalty > 0.0f)
+        {
+            score -= aoePenalty;
+            TC_LOG_TRACE("module.playerbot.position",
+                "ScorePositionForCombat: Position ({:.1f}, {:.1f}) near AoE, -{:.1f} penalty",
+                pos.GetPositionX(), pos.GetPositionY(), aoePenalty);
+        }
+    }
 
     // Penalty for positions too close to walls/obstacles
     MovementContext tempContext;
@@ -1121,10 +1140,10 @@ float PositionUtils::CalculateAngleBetween(const Position& from, const Position&
 
 float PositionUtils::NormalizeAngle(float angle)
 {
-    while (angle > M_PI)
-        angle -= 2.0f * M_PI;
-    while (angle < -M_PI)
-        angle += 2.0f * M_PI;
+    while (angle > static_cast<float>(M_PI))
+        angle -= 2.0f * static_cast<float>(M_PI);
+    while (angle < -static_cast<float>(M_PI))
+        angle += 2.0f * static_cast<float>(M_PI);
 
     return angle;
 }
@@ -1265,7 +1284,7 @@ Position PositionManager::FindRangePosition(Unit* target, float minRange, float 
 
     float angle = preferredAngle;
     if (preferredAngle == 0.0f)
-        angle = target->GetOrientation() + float(M_PI);
+        angle = target->GetOrientation() + static_cast<float>(M_PI);
 
     Position candidatePos;
     candidatePos.Relocate(
@@ -1279,7 +1298,7 @@ Position PositionManager::FindRangePosition(Unit* target, float minRange, float 
 
     for (int i = 1; i <= 8; ++i)
     {
-        float testAngle = angle + (i * float(M_PI) / 4.0f);
+        float testAngle = angle + (i * static_cast<float>(M_PI) / 4.0f);
         candidatePos.Relocate(
             targetPos.GetPositionX() + std::cos(testAngle) * preferredRange,
             targetPos.GetPositionY() + std::sin(testAngle) * preferredRange,
@@ -1464,13 +1483,13 @@ Position PositionManager::FindFormationPosition(const ::std::vector<Player*>& gr
         default: offset = 4.0f; break;
     }
 
-    uint32 myIndex = 0;
-    for (uint32 i = 0; i < groupMembers.size(); ++i)
+    size_t myIndex = 0;
+    for (size_t i = 0; i < groupMembers.size(); ++i)
     {
         if (groupMembers[i] == _bot) { myIndex = i; break; }
     }
 
-    float angle = (2.0f * float(M_PI) * myIndex) / static_cast<float>(validMembers);
+    float angle = (2.0f * static_cast<float>(M_PI) * static_cast<float>(myIndex)) / static_cast<float>(validMembers);
     Position formationPos;
     formationPos.Relocate(center.GetPositionX() + std::cos(angle) * offset,
                          center.GetPositionY() + std::sin(angle) * offset,
@@ -1524,7 +1543,7 @@ Position PositionManager::CalculateStrafePosition(Unit* target, bool strafeLeft)
     std::lock_guard<Playerbot::OrderedRecursiveMutex<Playerbot::LockOrder::BOT_AI_STATE>> lock(_mutex);
 
     float currentAngle = _bot->GetAbsoluteAngle(target);
-    float strafeAngle = strafeLeft ? (currentAngle + float(M_PI) / 4.0f) : (currentAngle - float(M_PI) / 4.0f);
+    float strafeAngle = strafeLeft ? (currentAngle + static_cast<float>(M_PI) / 4.0f) : (currentAngle - static_cast<float>(M_PI) / 4.0f);
     float distance = _bot->GetExactDist(target);
 
     Position strafePos;
@@ -1558,6 +1577,71 @@ void PositionManager::RecordPositionFailure(const Position& /* pos */, const ::s
 float PositionManager::GetPositionSuccessRate(const Position& /* pos */, float /* radius */)
 {
     return 0.5f;
+}
+
+float PositionManager::CalculateAoEThreat(const Position& pos)
+{
+    if (!_bot || !_bot->GetMap())
+        return 0.0f;
+
+    float totalThreat = 0.0f;
+    uint32 currentTime = GameTime::GetGameTimeMS();
+
+    // Check registered AoE zones for proximity threat
+    for (const AoEZone& zone : _activeZones)
+    {
+        if (!zone.isActive || currentTime > zone.startTime + zone.duration)
+            continue;
+
+        float distToCenter = pos.GetExactDist(&zone.center);
+
+        // If inside the zone, max threat
+        if (distToCenter <= zone.radius)
+        {
+            totalThreat += zone.damageRating * 10.0f;  // Heavy penalty for being inside
+        }
+        // If near the edge, scaled threat
+        else if (distToCenter <= zone.radius + 5.0f)
+        {
+            float edgeProximity = 1.0f - ((distToCenter - zone.radius) / 5.0f);
+            totalThreat += zone.damageRating * edgeProximity * 5.0f;  // Scaled penalty near edge
+        }
+    }
+
+    // Scan for dynamic objects (ground effects) that aren't in our registered zones
+    Map* map = _bot->GetMap();
+
+    // Check for lava/slime/water hazards at position
+    LiquidData liquidData;
+    ZLiquidStatus liquidStatus = map->GetLiquidStatus(
+        _bot->GetPhaseShift(),
+        pos.GetPositionX(),
+        pos.GetPositionY(),
+        pos.GetPositionZ() + 2.0f,
+        {},  // All liquid types
+        &liquidData
+    );
+
+    if (liquidStatus != LIQUID_MAP_NO_WATER)
+    {
+        // Check for dangerous liquids
+        if (liquidData.type_flags.HasFlag(map_liquidHeaderTypeFlags::Magma) ||
+            liquidData.type_flags.HasFlag(map_liquidHeaderTypeFlags::Slime))
+        {
+            totalThreat += 50.0f;  // Very high threat for lava/slime
+        }
+        else if (liquidData.type_flags.HasFlag(map_liquidHeaderTypeFlags::Water) ||
+                 liquidData.type_flags.HasFlag(map_liquidHeaderTypeFlags::Ocean))
+        {
+            // Deep water is dangerous for non-swimming classes
+            if (liquidData.depth_level > 2.0f)
+            {
+                totalThreat += 10.0f;  // Moderate threat for deep water
+            }
+        }
+    }
+
+    return totalThreat;
 }
 
 } // namespace Playerbot

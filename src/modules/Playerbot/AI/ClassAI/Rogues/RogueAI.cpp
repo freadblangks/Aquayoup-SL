@@ -27,7 +27,7 @@
 #include "../Combat/TargetSelector.h"
 #include "../Combat/PositionManager.h"
 #include "../Combat/InterruptManager.h"
-#include "../CooldownManager.h"
+#include "../Common/CooldownManager.h"
 #include "CellImpl.h"
 #include "GridNotifiersImpl.h"
 #include "Log.h"
@@ -198,7 +198,7 @@ Position RogueCombatPositioning::CalculateOptimalPosition(Unit* target, RogueSpe
 
             {
 
-                float angle = target->GetOrientation() + M_PI; // 180 degrees behind
+                float angle = target->GetOrientation() + static_cast<float>(M_PI); // 180 degrees behind
                 float distance = 3.0f; // Close melee range
 
                 float x = target->GetPositionX() + distance * ::std::cos(angle);

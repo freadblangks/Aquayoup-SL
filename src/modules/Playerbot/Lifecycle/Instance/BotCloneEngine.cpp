@@ -16,6 +16,9 @@
 
 #include "BotCloneEngine.h"
 #include "BotTemplateRepository.h"
+#include "BotPostLoginConfigurator.h"
+#include "BotCharacterCreator.h"
+#include "BotSpawner.h"
 #include "Account/BotAccountMgr.h"
 #include "Config/PlayerbotConfig.h"
 #include "Database/PlayerbotDatabase.h"
@@ -270,7 +273,8 @@ std::vector<CloneResult> BotCloneEngine::BatchClone(BatchCloneRequest const& req
     for (uint32 i = 0; i < request.count; ++i)
     {
         BotTemplate const* tmpl = validTemplates[dist(gen)];
-        CloneResult result = ExecuteClone(tmpl, request.targetLevel, request.faction, request.minGearScore);
+        CloneResult result = ExecuteClone(tmpl, request.targetLevel, request.faction, request.minGearScore,
+            request.dungeonIdToQueue, request.battlegroundIdToQueue, request.arenaTypeToQueue);
         results.push_back(std::move(result));
     }
 
@@ -511,7 +515,10 @@ CloneResult BotCloneEngine::ExecuteClone(
     BotTemplate const* tmpl,
     uint32 targetLevel,
     Faction faction,
-    uint32 targetGearScore)
+    uint32 targetGearScore,
+    uint32 dungeonIdToQueue,
+    uint32 battlegroundIdToQueue,
+    uint32 arenaTypeToQueue)
 {
     auto startTime = std::chrono::steady_clock::now();
     CloneResult result;
@@ -525,16 +532,8 @@ CloneResult BotCloneEngine::ExecuteClone(
         return result;
     }
 
-    // Allocate resources
-    ObjectGuid guid = AllocateGuid();
-    if (guid == ObjectGuid::Empty)
-    {
-        result.success = false;
-        result.errorMessage = "Failed to allocate GUID";
-        _failedClonesThisHour.fetch_add(1);
-        return result;
-    }
-
+    // Allocate account (GUID is allocated by BotCharacterCreator)
+    ObjectGuid guid; // Will be set by BotCharacterCreator
     uint32 accountId = AllocateAccount();
     if (accountId == 0)
     {
@@ -558,29 +557,74 @@ CloneResult BotCloneEngine::ExecuteClone(
 
     // Generate name and gender
     uint8 gender = (std::rand() % 2);
-    std::string name = GenerateUniqueName(race, gender);
+    std::string name = BotCharacterCreator::GenerateDefaultBotName(race, gender);
 
     TC_LOG_DEBUG("playerbot.clone", "BotCloneEngine::ExecuteClone - Creating bot: Name={}, Race={}, Class={}, Level={}",
         name, race, tmpl->playerClass, targetLevel);
 
-    // Create the player object in database
-    if (!CreatePlayerObject(guid, accountId, name, race, tmpl->playerClass, gender, targetLevel))
+    // ========================================================================
+    // Use BotSpawner::CreateBotCharacter - the async-safe character creation API
+    // This uses sPlayerbotCharDB which properly handles sync/async database
+    // operations, preventing crashes on async-only prepared statements.
+    //
+    // NOTE: BotCharacterCreator uses CharacterDatabase.DirectCommitTransaction()
+    // which crashes on async-only statements. BotSpawner uses the safe path.
+    // ========================================================================
+    ObjectGuid createdGuid = sBotSpawner->CreateBotCharacter(
+        accountId,
+        race,
+        tmpl->playerClass,
+        gender,
+        name);
+
+    if (createdGuid.IsEmpty())
     {
         ReleaseAccount(accountId);
         result.success = false;
-        result.errorMessage = "Failed to create player object";
+        result.errorMessage = Trinity::StringFormat("BotSpawner::CreateBotCharacter failed for race={}, class={}, name={}",
+            race, tmpl->playerClass, name);
         _failedClonesThisHour.fetch_add(1);
+        TC_LOG_WARN("playerbot.clone", "BotCloneEngine::ExecuteClone - {}", result.errorMessage);
         return result;
     }
 
-    // Apply gear scaling
-    ApplyGearScaling(guid, tmpl, targetLevel, targetGearScore);
+    // Use the GUID from BotSpawner (it generates proper GUID internally)
+    guid = createdGuid;
 
-    // Apply talents
-    ApplyTalents(guid, tmpl);
+    // ========================================================================
+    // DEFERRED CONFIGURATION (Post-Login)
+    // ========================================================================
+    // Instead of applying gear/talents/action bars via direct DB manipulation
+    // (which doesn't work properly), we register a pending configuration that
+    // will be applied AFTER the bot logs in and enters the world.
+    //
+    // The BotPostLoginConfigurator will use proper Player APIs:
+    // - Player::GiveLevel() for leveling
+    // - Player::SetPrimarySpecialization() for spec
+    // - Player::LearnTalent() for talents
+    // - Player::EquipNewItem() for gear
+    //
+    // This is triggered from BotSession::HandleBotPlayerLogin() after the
+    // bot is fully in the world.
+    // ========================================================================
 
-    // Apply action bars
-    ApplyActionBars(guid, tmpl);
+    BotPendingConfiguration pendingConfig;
+    pendingConfig.botGuid = guid;
+    pendingConfig.templateId = tmpl->templateId;
+    pendingConfig.targetLevel = targetLevel;
+    pendingConfig.targetGearScore = targetGearScore;
+    pendingConfig.specId = tmpl->specId;
+    pendingConfig.templatePtr = tmpl;
+    // JIT Queue configuration - bot will queue for content after login
+    pendingConfig.dungeonIdToQueue = dungeonIdToQueue;
+    pendingConfig.battlegroundIdToQueue = battlegroundIdToQueue;
+    pendingConfig.arenaTypeToQueue = arenaTypeToQueue;
+
+    sBotPostLoginConfigurator->RegisterPendingConfig(std::move(pendingConfig));
+
+    TC_LOG_DEBUG("playerbot.clone",
+        "BotCloneEngine::ExecuteClone - Registered pending config for {} (template: {}, level: {}, GS: {})",
+        name, tmpl->templateId, targetLevel, targetGearScore);
 
     // Calculate creation time
     auto endTime = std::chrono::steady_clock::now();

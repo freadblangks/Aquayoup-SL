@@ -46,6 +46,9 @@
 #include "DatabaseEnv.h"
 #include "QueryResult.h"
 #include "Core/PlayerBotHooks.h"
+#include "../PvP/BattlegroundAI.h"
+#include "../Lifecycle/Instance/BotPostLoginConfigurator.h"
+#include "../Lifecycle/Instance/InstanceBotOrchestrator.h"
 #include <chrono>
 #include <set>
 #include <unordered_map>
@@ -61,13 +64,95 @@ bool TriggerResultComparator::operator()(TriggerResult const& a, TriggerResult c
 }
 
 // ============================================================================
+// QUEST HELPER METHODS - Direct player data access (replaces Game/QuestManager)
+// ============================================================================
+
+static constexpr uint8 MAX_QUEST_LOG_SLOT = 25;  // Maximum quest log size
+
+uint32 BotAI::GetActiveQuestCount() const
+{
+    if (!_bot || !_bot->IsInWorld())
+        return 0;
+
+    uint32 count = 0;
+    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SLOT; ++slot)
+    {
+        if (_bot->GetQuestSlotQuestId(slot) != 0)
+            ++count;
+    }
+    return count;
+}
+
+bool BotAI::IsQuestingActive() const
+{
+    return GetActiveQuestCount() > 0;
+}
+
+bool BotAI::HasCompletableQuests() const
+{
+    if (!_bot || !_bot->IsInWorld())
+        return false;
+
+    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SLOT; ++slot)
+    {
+        uint32 questId = _bot->GetQuestSlotQuestId(slot);
+        if (questId != 0 && _bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
+            return true;
+    }
+    return false;
+}
+
+std::vector<uint32> BotAI::GetCompletableQuestIds() const
+{
+    std::vector<uint32> result;
+    if (!_bot || !_bot->IsInWorld())
+        return result;
+
+    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SLOT; ++slot)
+    {
+        uint32 questId = _bot->GetQuestSlotQuestId(slot);
+        if (questId != 0 && _bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
+            result.push_back(questId);
+    }
+    return result;
+}
+
+// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
 // ============================================================================
 
-BotAI::BotAI(Player* bot) : _bot(bot)
+BotAI::BotAI(Player* bot, bool instanceOnlyMode) : _bot(bot), _instanceOnlyMode(instanceOnlyMode)
 {
     // Initialize performance tracking
     _performanceMetrics.lastUpdate = std::chrono::steady_clock::now();
+
+    // ========================================================================
+    // INSTANCE-ONLY MODE - For JIT bots created for BG/LFG queues
+    // ========================================================================
+    // When instanceOnlyMode is true, GameSystemsManager will skip creating
+    // expensive non-essential managers (questing, professions, AH, banking).
+    // This significantly reduces CPU overhead for bots that only need combat.
+    //
+    // AUTO-DETECTION: If not explicitly set, detect JIT bots by checking
+    // if they have pending configuration (JITBotFactory creates these) or
+    // are managed by the InstanceBotOrchestrator.
+    if (!_instanceOnlyMode && _bot)
+    {
+        ObjectGuid botGuid = _bot->GetGUID();
+        bool isJITBot = sBotPostLoginConfigurator->HasPendingConfiguration(botGuid) ||
+                        sInstanceBotOrchestrator->IsManagedBot(botGuid);
+        if (isJITBot)
+        {
+            _instanceOnlyMode = true;
+            TC_LOG_INFO("module.playerbot.ai", "BotAI: Auto-detected JIT bot {} - enabling INSTANCE-ONLY mode",
+                botGuid.ToString());
+        }
+    }
+
+    if (_instanceOnlyMode)
+    {
+        TC_LOG_DEBUG("module.playerbot.ai", "BotAI: Creating bot in INSTANCE-ONLY mode (lightweight)");
+    }
 
     // ========================================================================
     // PHASE 6: GAME SYSTEMS FACADE - Consolidate all 17 manager instances
@@ -442,6 +527,54 @@ void BotAI::UpdateAI(uint32 diff)
     {
 
     // ========================================================================
+    // BATTLEGROUND AI CONTEXT - Priority handler for BG situations
+    // ========================================================================
+    // CRITICAL: If bot is in an active battleground, use BattlegroundAI instead
+    // of normal solo/group strategies. The BG AI handles all BG-specific logic:
+    // - WSG/TP flag capture and defense
+    // - AB/BfG base capture and defense
+    // - AV tower/graveyard capture, boss kills
+    // - EOTS flag + base hybrid strategy
+    // - Siege weapon operation (SotA/IoC)
+    // - Team coordination and objective-based play
+    //
+    // This check MUST be before solo/group strategy activation to prevent
+    // bots from using dungeon-like follow behavior in battlegrounds.
+    if (_bot->InBattleground())
+    {
+        ::Battleground* bg = _bot->GetBattleground();
+        if (bg && bg->GetStatus() == STATUS_IN_PROGRESS)
+        {
+            // DIAGNOSTIC: Log BG AI activation (throttled to once per 10 seconds per bot)
+            static std::unordered_map<uint32, uint32> lastBGLog;
+            uint32 botId = _bot->GetGUID().GetCounter();
+            uint32 nowMs = GameTime::GetGameTimeMS();
+            if (!lastBGLog.count(botId) || (nowMs - lastBGLog[botId] > 10000))
+            {
+                TC_LOG_INFO("module.playerbot.bg", "🎮 BG AI ACTIVE: Bot {} in {} (Instance: {}, Status: IN_PROGRESS)",
+                    _bot->GetName(),
+                    bg->GetName(),
+                    bg->GetInstanceID());
+                lastBGLog[botId] = nowMs;
+            }
+
+            // Delegate to BattlegroundAI for all BG decision-making
+            BattlegroundAI::instance()->Update(_bot, diff);
+
+            // Still process combat for PvP engagements
+            UpdateCombatState(diff);
+            if (IsInCombat())
+            {
+                OnCombatUpdate(diff);
+            }
+
+            // Skip solo/group strategies - BG AI handles everything
+            // Jump directly to game systems update (Phase 6)
+            goto bg_update_complete;
+        }
+    }
+
+    // ========================================================================
     // SOLO STRATEGY ACTIVATION - Once per bot after first login
     // ========================================================================
     // For bots not in a group, activate solo-relevant strategies on first UpdateAI() call
@@ -587,6 +720,7 @@ TC_LOG_ERROR("playerbot", "Exception while accessing group member for bot {}", _
 
     }  // End of if (!isInDeathRecovery) block - normal AI skipped when dead
 
+bg_update_complete:
     // ========================================================================
     // PHASE 6: GAME SYSTEMS FACADE - All manager updates delegated to facade
     // ========================================================================
@@ -765,7 +899,7 @@ void BotAI::UpdateStrategies(uint32 diff)
 // MOVEMENT UPDATES - Strategy-controlled movement
 // ============================================================================
 
-void BotAI::UpdateMovement(uint32 diff)
+void BotAI::UpdateMovement(uint32 /*diff*/)
 {
     // CRITICAL: Movement is controlled by strategies (especially follow)
     // This method just ensures movement commands are processed
@@ -1129,6 +1263,13 @@ void BotAI::OnDeath()
     while (!_actionQueue.empty())
         _actionQueue.pop();
 
+    // Pause quest completion (Phase 0 hook integration)
+    if (auto* questCompletion = GetQuestCompletion())
+    {
+        questCompletion->PauseQuestCompletion(_bot->GetGUID().GetCounter());
+        TC_LOG_DEBUG("playerbots.ai", "Bot {} died - quest completion paused", _bot->GetName());
+    }
+
     // Initiate death recovery process
     if (auto* deathRecoveryManager = GetDeathRecoveryManager())
     {
@@ -1152,6 +1293,13 @@ void BotAI::OnRespawn()
     // Complete death recovery process
     if (auto* deathRecoveryManager = GetDeathRecoveryManager())
         deathRecoveryManager->OnResurrection();
+
+    // Resume quest completion (Phase 0 hook integration)
+    if (auto* questCompletion = GetQuestCompletion())
+    {
+        questCompletion->ResumeQuestCompletion(_bot->GetGUID().GetCounter());
+        TC_LOG_DEBUG("playerbots.ai", "Bot {} respawned - quest completion resumed", _bot->GetName());
+    }
 
     TC_LOG_DEBUG("playerbots.ai", "Bot {} respawned, AI reset, death recovery completed", _bot->GetName());
 }
@@ -1841,33 +1989,6 @@ void BotAI::UpdateValues(uint32 diff)
     // Update cached values used by triggers and actions
     // This includes distances, health percentages, resource levels, etc.
 }
-
-// ============================================================================
-// LEGACY UPDATEMANAGERS - Now handled by GameSystemsManager facade
-// ============================================================================
-// This function is deprecated and kept only for reference.
-// All functionality moved to GameSystemsManager::UpdateManagers()
-//
-// Phase 6 Migration:
-// - All manager updates → GameSystemsManager::UpdateManagers()
-// - All timers → GameSystemsManager member variables
-// - EventDispatcher processing → GameSystemsManager::UpdateManagers()
-// - ManagerRegistry updates → GameSystemsManager::UpdateManagers()
-
-void BotAI::UpdateManagers(uint32 diff)
-{
-    // DEPRECATED: This function is no longer used.
-    // All manager updates are now handled by:
-    //   _gameSystems->Update(diff)
-    //
-    // See GameSystemsManager::UpdateManagers() for the actual implementation.
-    TC_LOG_WARN("module.playerbot", "BotAI::UpdateManagers called but deprecated - using facade instead");
-}
-
-// ============================================================================
-// UNIFIED MOVEMENT COORDINATOR INTEGRATION - Convenience Methods
-// ============================================================================
-// Phase 2 Migration: Migrated from MovementArbiter to UnifiedMovementCoordinator
 
 // ============================================================================
 // UNIFIED MOVEMENT COORDINATOR DELEGATION - Phase 6 Facade Pattern

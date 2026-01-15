@@ -16,8 +16,10 @@
 #include "InstanceBotPool.h"
 #include "InstanceBotHooks.h"
 #include "JITBotFactory.h"
+#include "PoolConfiguration.h"
 #include "ContentRequirements.h"
 #include "Config/PlayerbotConfig.h"
+#include "Session/BotWorldSessionMgr.h"
 #include "Log.h"
 #include <fmt/format.h>
 
@@ -67,6 +69,34 @@ bool InstanceBotOrchestrator::Initialize()
     _arenasFilledThisHour.store(0);
     _requestsSucceeded.store(0);
     _requestsFailed.store(0);
+
+    // Wire up pool overflow callback to JIT factory
+    // When pool needs more bots than available, JIT factory creates them on-demand
+    sInstanceBotPool->SetOverflowNeededCallback(
+        [](BotRole role, Faction faction, PoolBracket bracket, uint32 count)
+        {
+            TC_LOG_INFO("playerbot.orchestrator", "Pool overflow: {} {} {} bots needed for bracket {}",
+                count, FactionToString(faction), BotRoleToString(role), PoolBracketToString(bracket));
+
+            // Submit bracket-based JIT request
+            sJITBotFactory->SubmitBracketRequest(
+                role, faction, bracket, count,
+                InstanceType::Dungeon,  // Default type, pool manages routing
+                0,  // No specific content ID
+                [bracket, role, faction](std::vector<ObjectGuid> const& bots)
+                {
+                    TC_LOG_INFO("playerbot.orchestrator", "JIT created {} bots for bracket {} - adding to pool",
+                        bots.size(), PoolBracketToString(bracket));
+
+                    // Add newly created bots back to the pool as Ready
+                    for (ObjectGuid guid : bots)
+                    {
+                        sInstanceBotPool->AddToReadyIndex(guid, role, faction, bracket);
+                    }
+                });
+        });
+
+    TC_LOG_INFO("playerbot.orchestrator", "InstanceBotOrchestrator::Initialize - Pool overflow callback wired to JIT factory");
 
     _initialized.store(true);
     TC_LOG_INFO("playerbot.orchestrator", "InstanceBotOrchestrator::Initialize - Initialization complete");
@@ -1093,8 +1123,8 @@ std::vector<ObjectGuid> InstanceBotOrchestrator::CreateOverflowBots(
     if (count == 0)
         return {};
 
-    TC_LOG_DEBUG("playerbot.orchestrator", "InstanceBotOrchestrator::CreateOverflowBots - Creating {} {} bots via JIT",
-        count, BotRoleToString(role));
+    TC_LOG_INFO("playerbot.orchestrator", "InstanceBotOrchestrator::CreateOverflowBots - Creating {} {} bots at level {} via JIT",
+        count, BotRoleToString(role), level);
 
     // Synchronous clone for immediate need
     BatchCloneRequest cloneReq;
@@ -1107,11 +1137,37 @@ std::vector<ObjectGuid> InstanceBotOrchestrator::CreateOverflowBots(
     auto results = sBotCloneEngine->BatchClone(cloneReq);
 
     std::vector<ObjectGuid> bots;
+    uint32 loginSuccessCount = 0;
+
     for (auto const& result : results)
     {
-        if (result.success)
-            bots.push_back(result.botGuid);
+        if (!result.success)
+        {
+            TC_LOG_WARN("playerbot.orchestrator", "CreateOverflowBots - Bot creation failed: {}",
+                result.errorMessage);
+            continue;
+        }
+
+        bots.push_back(result.botGuid);
+
+        // CRITICAL FIX: Login the bot so it's available in world for callbacks!
+        // Without this, ObjectAccessor::FindPlayer() will return null
+        // and bots won't be added to LFG/BG queues.
+        if (sBotWorldSessionMgr->AddPlayerBot(result.botGuid, result.accountId, true))
+        {
+            ++loginSuccessCount;
+            TC_LOG_DEBUG("playerbot.orchestrator", "CreateOverflowBots - Logged in bot {} (account {})",
+                result.botGuid.ToString(), result.accountId);
+        }
+        else
+        {
+            TC_LOG_WARN("playerbot.orchestrator", "CreateOverflowBots - Failed to login bot {} (account {})",
+                result.botGuid.ToString(), result.accountId);
+        }
     }
+
+    TC_LOG_INFO("playerbot.orchestrator", "InstanceBotOrchestrator::CreateOverflowBots - Created {} bots, logged in {}/{}",
+        bots.size(), loginSuccessCount, bots.size());
 
     return bots;
 }

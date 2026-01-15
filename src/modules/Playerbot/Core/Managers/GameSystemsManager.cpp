@@ -26,7 +26,6 @@
 #include "Professions/GatheringMaterialsBridge.h"
 #include "Professions/ProfessionAuctionBridge.h"
 #include "Professions/AuctionMaterialsBridge.h"
-// #include "Spatial/BlackboardManager.h"  // TODO: File does not exist
 
 // Manager implementations (for unique_ptr destruction)
 #include "AI/BehaviorPriorityManager.h"  // For unique_ptr<BehaviorPriorityManager> destruction
@@ -72,7 +71,6 @@ GameSystemsManager::~GameSystemsManager()
     _unifiedMovementCoordinator.reset();
 
     // 2. Game system managers
-    _questManager.reset();
     _tradeManager.reset();
     _gatheringManager.reset();
     _professionManager.reset();
@@ -118,6 +116,10 @@ void GameSystemsManager::Initialize(Player* bot)
     _bot = bot;
     // CRITICAL: No logging with _bot->GetName() - concurrent access during initialization
 
+    // Check if bot is in instance-only mode (JIT bots for BG/LFG)
+    // Instance-only mode skips expensive non-essential managers to reduce server overhead
+    bool instanceOnlyMode = _botAI && _botAI->IsInstanceOnlyMode();
+
     // ========================================================================
     // PHASE 1: Create Manager Instances (in dependency order)
     // ========================================================================
@@ -125,40 +127,54 @@ void GameSystemsManager::Initialize(Player* bot)
     // Priority-based behavior manager
     _priorityManager = std::make_unique<BehaviorPriorityManager>(_botAI);
 
-    // Group management
+    // Group management - ALWAYS NEEDED for instances
     _groupInvitationHandler = std::make_unique<GroupInvitationHandler>(_bot);
 
-    // Target scanner for autonomous enemy detection
+    // Target scanner for autonomous enemy detection - ALWAYS NEEDED for combat
     _targetScanner = std::make_unique<TargetScanner>(_bot);
 
-    // Game system managers
-    _questManager = std::make_unique<QuestManager>(_bot, _botAI);
-    _tradeManager = std::make_unique<TradeManager>(_bot, _botAI);
-    _gatheringManager = std::make_unique<GatheringManager>(_bot, _botAI);
-    _professionManager = std::make_unique<ProfessionManager>(_bot);
-    _gatheringMaterialsBridge = std::make_unique<GatheringMaterialsBridge>(_bot);
-    _auctionMaterialsBridge = std::make_unique<AuctionMaterialsBridge>(_bot);
-    _professionAuctionBridge = std::make_unique<ProfessionAuctionBridge>(_bot);
-    _farmingCoordinator = std::make_unique<FarmingCoordinator>(_bot);
-    _auctionManager = std::make_unique<AuctionManager>(_bot, _botAI);
-    _bankingManager = std::make_unique<BankingManager>(_bot);
+    // ========================================================================
+    // NON-ESSENTIAL MANAGERS - Skipped in instance-only mode to reduce overhead
+    // ========================================================================
+    if (!instanceOnlyMode)
+    {
+        // Game system managers - only for full-featured bots
+        _tradeManager = std::make_unique<TradeManager>(_bot, _botAI);
+        _gatheringManager = std::make_unique<GatheringManager>(_bot, _botAI);
+        _professionManager = std::make_unique<ProfessionManager>(_bot);
+        _gatheringMaterialsBridge = std::make_unique<GatheringMaterialsBridge>(_bot);
+        _auctionMaterialsBridge = std::make_unique<AuctionMaterialsBridge>(_bot);
+        _professionAuctionBridge = std::make_unique<ProfessionAuctionBridge>(_bot);
+        _farmingCoordinator = std::make_unique<FarmingCoordinator>(_bot);
+        _auctionManager = std::make_unique<AuctionManager>(_bot, _botAI);
+        _bankingManager = std::make_unique<BankingManager>(_bot);
+        _auctionHouse = std::make_unique<AuctionHouse>(_bot);
+        _guildBankManager = std::make_unique<GuildBankManager>(_bot);
+        _guildEventCoordinator = std::make_unique<GuildEventCoordinator>(_bot);
+        _guildIntegration = std::make_unique<GuildIntegration>(_bot);
+        _tradeSystem = std::make_unique<TradeSystem>(_bot);
+
+        // Quest system managers - only for questing bots
+        _dynamicQuestSystem = std::make_unique<DynamicQuestSystem>(_bot);
+        _objectiveTracker = std::make_unique<ObjectiveTracker>(_bot);
+        _questCompletion = std::make_unique<QuestCompletion>(_bot);
+        _questPickup = std::make_unique<QuestPickup>(_bot);
+        _questTurnIn = std::make_unique<QuestTurnIn>(_bot);
+        _questValidation = std::make_unique<QuestValidation>(_bot);
+
+        // Companion managers - only for full-featured bots
+        _mountManager = std::make_unique<MountManager>(_bot);
+        _battlePetManager = std::make_unique<BattlePetManager>(_bot);
+    }
+    // else: instance-only mode - skipping 24 non-essential managers for reduced overhead
+
+    // ========================================================================
+    // ESSENTIAL MANAGERS - Always created (needed for BG/LFG/Instance combat)
+    // ========================================================================
     _equipmentManager = std::make_unique<EquipmentManager>(_bot);
-    _mountManager = std::make_unique<MountManager>(_bot);
-    _battlePetManager = std::make_unique<BattlePetManager>(_bot);
     _arenaAI = std::make_unique<ArenaAI>(_bot);
     _pvpCombatAI = std::make_unique<PvPCombatAI>(_bot);
-    _auctionHouse = std::make_unique<AuctionHouse>(_bot);
-    _guildBankManager = std::make_unique<GuildBankManager>(_bot);
-    _guildEventCoordinator = std::make_unique<GuildEventCoordinator>(_bot);
-    _guildIntegration = std::make_unique<GuildIntegration>(_bot);
     _lootDistribution = std::make_unique<LootDistribution>(_bot);
-    _tradeSystem = std::make_unique<TradeSystem>(_bot);
-    _dynamicQuestSystem = std::make_unique<DynamicQuestSystem>(_bot);
-    _objectiveTracker = std::make_unique<ObjectiveTracker>(_bot);
-    _questCompletion = std::make_unique<QuestCompletion>(_bot);
-    _questPickup = std::make_unique<QuestPickup>(_bot);
-    _questTurnIn = std::make_unique<QuestTurnIn>(_bot);
-    _questValidation = std::make_unique<QuestValidation>(_bot);
     _roleAssignment = std::make_unique<RoleAssignment>(_bot);
     // Note: LFGBotManager is a global singleton, accessed via sLFGBotManager macro
     // _lfgBotManager = std::make_unique<LFGBotManager>(_bot);  // ERROR: Cannot instantiate singleton
@@ -227,99 +243,101 @@ void GameSystemsManager::Initialize(Player* bot)
 
     if (_managerRegistry && _eventDispatcher)
     {
-        // Initialize managers through IManagerBase interface
-        if (_questManager)
+        // Initialize NON-ESSENTIAL managers (only if not in instance-only mode)
+        if (!instanceOnlyMode)
         {
-            _questManager->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ QuestManager initialized via IManagerBase");
+            if (_tradeManager)
+            {
+                _tradeManager->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ TradeManager initialized via IManagerBase");
+            }
+
+            if (_gatheringManager)
+            {
+                _gatheringManager->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ GatheringManager initialized via IManagerBase");
+            }
+
+            if (_gatheringMaterialsBridge)
+            {
+                _gatheringMaterialsBridge->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ GatheringMaterialsBridge initialized - gathering-crafting coordination active");
+            }
+
+            if (_auctionMaterialsBridge)
+            {
+                _auctionMaterialsBridge->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ AuctionMaterialsBridge initialized - material sourcing optimization active");
+            }
+
+            if (_professionAuctionBridge)
+            {
+                _professionAuctionBridge->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ ProfessionAuctionBridge initialized - profession-auction coordination active");
+            }
+
+            if (_auctionManager)
+            {
+                _auctionManager->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ AuctionManager initialized via IManagerBase");
+            }
+
+            if (_bankingManager)
+            {
+                _bankingManager->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ BankingManager initialized - personal banking automation active");
+            }
+
+            if (_farmingCoordinator)
+            {
+                _farmingCoordinator->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ FarmingCoordinator initialized - profession farming automation active");
+            }
+
+            if (_mountManager)
+            {
+                _mountManager->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ MountManager initialized - mount automation and collection tracking active");
+            }
+
+            if (_battlePetManager)
+            {
+                _battlePetManager->Initialize();
+                TC_LOG_DEBUG("module.playerbot.managers", "✅ BattlePetManager initialized - battle pet automation and collection active");
+            }
+
+            // Subscribe non-essential managers to events
+            SubscribeManagersToEvents();
+        }
+        else
+        {
+            TC_LOG_DEBUG("module.playerbot.managers", "⚡ Instance-only mode: Skipped 24 non-essential managers for reduced overhead");
         }
 
-        if (_tradeManager)
-        {
-            _tradeManager->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ TradeManager initialized via IManagerBase");
-        }
-
-        if (_gatheringManager)
-        {
-            _gatheringManager->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ GatheringManager initialized via IManagerBase");
-        }
-
-        if (_gatheringMaterialsBridge)
-        {
-            _gatheringMaterialsBridge->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ GatheringMaterialsBridge initialized - gathering-crafting coordination active");
-        }
-
-        if (_auctionMaterialsBridge)
-        {
-            _auctionMaterialsBridge->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ AuctionMaterialsBridge initialized - material sourcing optimization active");
-        }
-
-        if (_professionAuctionBridge)
-        {
-            _professionAuctionBridge->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ ProfessionAuctionBridge initialized - profession-auction coordination active");
-        }
-
-        if (_auctionManager)
-        {
-            _auctionManager->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ AuctionManager initialized via IManagerBase");
-        }
-
-        if (_bankingManager)
-        {
-            _bankingManager->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ BankingManager initialized - personal banking automation active");
-        }
-
-        if (_farmingCoordinator)
-        {
-            _farmingCoordinator->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ FarmingCoordinator initialized - profession farming automation active");
-        }
-
-        if (_mountManager)
-        {
-            _mountManager->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ MountManager initialized - mount automation and collection tracking active");
-        }
-
-        if (_battlePetManager)
-        {
-            _battlePetManager->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ BattlePetManager initialized - battle pet automation and collection active");
-        }
-
+        // Initialize ESSENTIAL managers (always needed for combat)
         if (_arenaAI)
         {
             _arenaAI->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ ArenaAI initialized - arena PvP automation active");
+            TC_LOG_DEBUG("module.playerbot.managers", "✅ ArenaAI initialized - arena PvP automation active");
         }
 
         if (_pvpCombatAI)
         {
             _pvpCombatAI->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ PvPCombatAI initialized - PvP combat automation active");
+            TC_LOG_DEBUG("module.playerbot.managers", "✅ PvPCombatAI initialized - PvP combat automation active");
         }
 
         if (_groupCoordinator)
         {
             _groupCoordinator->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ GroupCoordinator initialized - Dungeon/Raid coordination active");
+            TC_LOG_DEBUG("module.playerbot.managers", "✅ GroupCoordinator initialized - Dungeon/Raid coordination active");
         }
 
         if (_combatStateManager)
         {
             _combatStateManager->Initialize();
-            TC_LOG_INFO("module.playerbot.managers", "✅ CombatStateManager initialized - DAMAGE_TAKEN event subscription active");
+            TC_LOG_DEBUG("module.playerbot.managers", "✅ CombatStateManager initialized - DAMAGE_TAKEN event subscription active");
         }
-
-        // Subscribe managers to events
-        SubscribeManagersToEvents();
 
         // Phase 7.1 integration complete - no logging during init
     }
@@ -354,28 +372,6 @@ void GameSystemsManager::InitializeHybridAI()
 
 void GameSystemsManager::SubscribeManagersToEvents()
 {
-    // Subscribe QuestManager to quest events
-    if (_questManager && _eventDispatcher)
-    {
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_ACCEPTED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_COMPLETED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_TURNED_IN, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_ABANDONED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_FAILED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_STATUS_CHANGED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_OBJECTIVE_COMPLETE, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_OBJECTIVE_PROGRESS, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_ITEM_COLLECTED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_CREATURE_KILLED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_EXPLORATION, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_REWARD_RECEIVED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_REWARD_CHOSEN, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_EXPERIENCE_GAINED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_REPUTATION_GAINED, _questManager.get());
-        _eventDispatcher->Subscribe(StateMachine::EventType::QUEST_CHAIN_ADVANCED, _questManager.get());
-        TC_LOG_INFO("module.playerbot.managers", "🔗 QuestManager subscribed to 16 quest events");
-    }
-
     // Subscribe TradeManager to trade events
     if (_tradeManager && _eventDispatcher)
     {
@@ -481,10 +477,6 @@ void GameSystemsManager::UpdateManagers(uint32 diff)
     // ========================================================================
     // MANAGER UPDATES - Legacy direct updates during Phase 7 transition
     // ========================================================================
-
-    // Quest manager handles quest acceptance, turn-in, and tracking
-    if (_questManager)
-        _questManager->Update(diff);
 
     // Trade manager handles vendor interactions, repairs, and consumables
     if (_tradeManager)

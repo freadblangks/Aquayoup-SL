@@ -257,22 +257,44 @@ void BlackboardManager::PropagateToGroup(ObjectGuid botGuid, uint32 groupId, ::s
     SharedBlackboard* groupBoard = GetGroupBlackboard(groupId);
 
     if (!botBoard || !groupBoard)
-        return;
-
-    // Get all keys from bot blackboard and copy to group
-    auto keys = botBoard->GetKeys();
-    for (auto const& k : keys)
     {
-        if (key.empty() || k == key)
+        TC_LOG_TRACE("module.playerbot.blackboard",
+            "PropagateToGroup: Bot or group blackboard not found (bot: {}, group: {})",
+            botGuid.GetCounter(), groupId);
+        return;
+    }
+
+    if (key.empty())
+    {
+        // Propagate all bot data to group
+        groupBoard->MergeFrom(*botBoard, true);
+
+        TC_LOG_DEBUG("module.playerbot.blackboard",
+            "PropagateToGroup: Propagated all keys from bot {} to group {}",
+            botGuid.GetCounter(), groupId);
+    }
+    else
+    {
+        // Propagate specific key using type-erased transfer
+        // The SharedBlackboard stores std::any internally, so we can use CopyKeyFrom
+        if (botBoard->Has(key))
         {
-            // Would need template magic to copy any type
-            // For now, this is a placeholder
-            // In real implementation, would use type erasure or visitor pattern
+            groupBoard->CopyKeyFrom(*botBoard, key);
+
+            TC_LOG_DEBUG("module.playerbot.blackboard",
+                "PropagateToGroup: Propagated key '{}' from bot {} to group {}",
+                key, botGuid.GetCounter(), groupId);
+        }
+        else
+        {
+            TC_LOG_TRACE("module.playerbot.blackboard",
+                "PropagateToGroup: Key '{}' not found in bot {} blackboard",
+                key, botGuid.GetCounter());
         }
     }
 }
 
-void BlackboardManager::PropagateToRaid(uint32 groupId, uint32 raidId, ::std::string const& key)
+void BlackboardManager::PropagateToRaid(uint32 groupId, uint32 raidId, ::std::string const& /*key*/)
 {
     SharedBlackboard* groupBoard = GetGroupBlackboard(groupId);
     SharedBlackboard* raidBoard = GetRaidBlackboard(raidId);
@@ -284,7 +306,7 @@ void BlackboardManager::PropagateToRaid(uint32 groupId, uint32 raidId, ::std::st
     raidBoard->MergeFrom(*groupBoard, false); // Don't overwrite existing raid data
 }
 
-void BlackboardManager::PropagateToZone(uint32 raidId, uint32 zoneId, ::std::string const& key)
+void BlackboardManager::PropagateToZone(uint32 raidId, uint32 zoneId, ::std::string const& /*key*/)
 {
     SharedBlackboard* raidBoard = GetRaidBlackboard(raidId);
     SharedBlackboard* zoneBoard = GetZoneBlackboard(zoneId);

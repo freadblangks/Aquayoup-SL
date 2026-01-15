@@ -26,7 +26,6 @@
 #include "Lifecycle/Demand/PlayerActivityTracker.h"
 #include "Lifecycle/Demand/DemandCalculator.h"
 #include "Lifecycle/PopulationLifecycleController.h"
-// #include "Lifecycle/BotLifecycleMgr.h"
 
 // Instance Bot Pool System (Hybrid Warm Pool + Elastic Overflow)
 #include "Lifecycle/Instance/InstanceBotPool.h"
@@ -36,6 +35,12 @@
 #include "Lifecycle/Instance/JITBotFactory.h"
 #include "Lifecycle/Instance/BotTemplateRepository.h"
 #include "Lifecycle/Instance/BotCloneEngine.h"
+#include "Lifecycle/Instance/BotPostLoginConfigurator.h"
+#include "Lifecycle/Instance/QueueStatePoller.h"
+#include "Lifecycle/Instance/QueueShortageSubscriber.h"
+
+// Enterprise-Grade Diagnostics System
+#include "Core/Diagnostics/BotOperationTracker.h"
 
 #include "Session/BotSessionMgr.h"
 #include "Session/BotWorldSessionMgr.h"
@@ -283,6 +288,12 @@ bool PlayerbotModule::Initialize()
     Playerbot::PlayerbotPacketSniffer::Initialize();
     TC_LOG_INFO("server.loading", "Packet Sniffer initialized successfully");
 
+    // Register typed packet handlers for JIT queue systems
+    TC_LOG_INFO("server.loading", "Registering BG/LFG typed packet handlers...");
+    Playerbot::RegisterBattlegroundPacketHandlers();
+    Playerbot::RegisterLFGPacketHandlers();
+    TC_LOG_INFO("server.loading", "BG/LFG typed packet handlers registered");
+
     // Register hooks with TrinityCore
     RegisterHooks();
 
@@ -400,6 +411,17 @@ bool PlayerbotModule::Initialize()
         TC_LOG_INFO("server.loading", "Bot Clone Engine initialized successfully");
     }
 
+    // Initialize Bot Post-Login Configurator (applies level/gear/talents after bot enters world)
+    TC_LOG_INFO("server.loading", "Initializing Bot Post-Login Configurator...");
+    if (!sBotPostLoginConfigurator->Initialize())
+    {
+        TC_LOG_WARN("server.loading", "Bot Post-Login Configurator initialization failed - JIT bots may spawn with incorrect setup");
+    }
+    else
+    {
+        TC_LOG_INFO("server.loading", "Bot Post-Login Configurator initialized successfully");
+    }
+
     // Initialize Instance Bot Pool (warm pool of pre-logged bots)
     TC_LOG_INFO("server.loading", "Initializing Instance Bot Pool...");
     if (!sInstanceBotPool->Initialize())
@@ -421,6 +443,28 @@ bool PlayerbotModule::Initialize()
     else
     {
         TC_LOG_INFO("server.loading", "JIT Bot Factory initialized successfully");
+    }
+
+    // Initialize Queue State Poller (polls TrinityCore queues for shortages)
+    TC_LOG_INFO("server.loading", "Initializing Queue State Poller...");
+    if (!sQueueStatePoller->Initialize())
+    {
+        TC_LOG_WARN("server.loading", "Queue State Poller initialization failed - JIT queue polling disabled");
+    }
+    else
+    {
+        TC_LOG_INFO("server.loading", "Queue State Poller initialized successfully");
+    }
+
+    // Initialize Queue Shortage Subscriber (EventBus-driven JIT triggering)
+    TC_LOG_INFO("server.loading", "Initializing Queue Shortage Subscriber...");
+    if (!sQueueShortageSubscriber->Initialize())
+    {
+        TC_LOG_WARN("server.loading", "Queue Shortage Subscriber initialization failed - EventBus-driven JIT disabled");
+    }
+    else
+    {
+        TC_LOG_INFO("server.loading", "Queue Shortage Subscriber initialized successfully");
     }
 
     // Initialize Instance Bot Orchestrator (master coordinator)
@@ -451,6 +495,15 @@ bool PlayerbotModule::Initialize()
     // Warm the Instance Bot Pool (create and login bots) - deferred to OnWorldLoad
     // Pool warming happens after world is fully loaded to avoid database contention
     TC_LOG_INFO("server.loading", "Instance Bot Pool warming will occur after world load");
+
+    // ==========================================================================
+    // ENTERPRISE-GRADE DIAGNOSTICS SYSTEM
+    // ==========================================================================
+
+    // Initialize Bot Operation Tracker (comprehensive error tracking and metrics)
+    TC_LOG_INFO("server.loading", "Initializing Bot Operation Tracker...");
+    sBotOperationTracker->Initialize();
+    TC_LOG_INFO("server.loading", "Bot Operation Tracker initialized - tracking all bot operations");
 
     // ==========================================================================
 
@@ -500,6 +553,16 @@ void PlayerbotModule::Shutdown()
     sInstanceBotOrchestrator->Shutdown();
     TC_LOG_INFO("server.loading", "Instance Bot Orchestrator shutdown complete");
 
+    // Shutdown Queue Shortage Subscriber (stop EventBus subscriptions)
+    TC_LOG_INFO("server.loading", "Shutting down Queue Shortage Subscriber...");
+    sQueueShortageSubscriber->Shutdown();
+    TC_LOG_INFO("server.loading", "Queue Shortage Subscriber shutdown complete");
+
+    // Shutdown Queue State Poller (stop queue polling)
+    TC_LOG_INFO("server.loading", "Shutting down Queue State Poller...");
+    sQueueStatePoller->Shutdown();
+    TC_LOG_INFO("server.loading", "Queue State Poller shutdown complete");
+
     // Shutdown JIT Bot Factory (stop async creation)
     TC_LOG_INFO("server.loading", "Shutting down JIT Bot Factory...");
     sJITBotFactory->Shutdown();
@@ -515,10 +578,25 @@ void PlayerbotModule::Shutdown()
     sBotCloneEngine->Shutdown();
     TC_LOG_INFO("server.loading", "Bot Clone Engine shutdown complete");
 
+    // Shutdown Bot Post-Login Configurator (clear pending configs)
+    TC_LOG_INFO("server.loading", "Shutting down Bot Post-Login Configurator...");
+    sBotPostLoginConfigurator->Shutdown();
+    TC_LOG_INFO("server.loading", "Bot Post-Login Configurator shutdown complete");
+
     // Shutdown Bot Template Repository
     TC_LOG_INFO("server.loading", "Shutting down Bot Template Repository...");
     sBotTemplateRepository->Shutdown();
     TC_LOG_INFO("server.loading", "Bot Template Repository shutdown complete");
+
+    // ==========================================================================
+    // ENTERPRISE-GRADE DIAGNOSTICS SYSTEM SHUTDOWN
+    // ==========================================================================
+
+    // Shutdown Bot Operation Tracker - print final status report before shutdown
+    TC_LOG_INFO("server.loading", "Shutting down Bot Operation Tracker...");
+    sBotOperationTracker->PrintStatus();  // Print final diagnostics report
+    sBotOperationTracker->Shutdown();
+    TC_LOG_INFO("server.loading", "Bot Operation Tracker shutdown complete");
 
     // ==========================================================================
 
@@ -739,14 +817,20 @@ void PlayerbotModule::OnWorldUpdate(uint32 diff)
     sJITBotFactory->Update(diff);
     auto t15 = std::chrono::high_resolution_clock::now();
     auto jitFactoryTime = std::chrono::duration_cast<std::chrono::microseconds>(t15 - lastTime).count();
+    lastTime = t15;
+
+    // Update Queue State Poller (JIT queue shortage detection)
+    sQueueStatePoller->Update(diff);
+    auto t16 = std::chrono::high_resolution_clock::now();
+    auto queuePollerTime = std::chrono::duration_cast<std::chrono::microseconds>(t16 - lastTime).count();
 
     // Calculate total time
-    auto totalUpdateTime = std::chrono::duration_cast<std::chrono::microseconds>(t15 - timeStart).count();
+    auto totalUpdateTime = std::chrono::duration_cast<std::chrono::microseconds>(t16 - timeStart).count();
 
     // Log if total time exceeds 100ms
     if (totalUpdateTime > 100000) // 100ms in microseconds
     {
-        TC_LOG_WARN("module.playerbot.performance", "PERFORMANCE: OnWorldUpdate took {:.2f}ms - Account:{:.2f}ms, Spawner:{:.2f}ms, SessionMgr:{:.2f}ms, WorldSession:{:.2f}ms, CharDB:{:.2f}ms, GroupEvent:{:.2f}ms, Protection:{:.2f}ms, Retirement:{:.2f}ms, Prediction:{:.2f}ms, Activity:{:.2f}ms, Demand:{:.2f}ms, Lifecycle:{:.2f}ms, InstPool:{:.2f}ms, Orchestrator:{:.2f}ms, JITFactory:{:.2f}ms",
+        TC_LOG_WARN("module.playerbot.performance", "PERFORMANCE: OnWorldUpdate took {:.2f}ms - Account:{:.2f}ms, Spawner:{:.2f}ms, SessionMgr:{:.2f}ms, WorldSession:{:.2f}ms, CharDB:{:.2f}ms, GroupEvent:{:.2f}ms, Protection:{:.2f}ms, Retirement:{:.2f}ms, Prediction:{:.2f}ms, Activity:{:.2f}ms, Demand:{:.2f}ms, Lifecycle:{:.2f}ms, InstPool:{:.2f}ms, Orchestrator:{:.2f}ms, JITFactory:{:.2f}ms, QueuePoller:{:.2f}ms",
             totalUpdateTime / 1000.0f,
             accountTime / 1000.0f,
             spawnerTime / 1000.0f,
@@ -762,7 +846,8 @@ void PlayerbotModule::OnWorldUpdate(uint32 diff)
             lifecycleTime / 1000.0f,
             instancePoolTime / 1000.0f,
             orchestratorTime / 1000.0f,
-            jitFactoryTime / 1000.0f);
+            jitFactoryTime / 1000.0f,
+            queuePollerTime / 1000.0f);
     }
 
     }

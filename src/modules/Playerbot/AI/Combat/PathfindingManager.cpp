@@ -674,14 +674,6 @@ bool PathfindingManager::RequiresJump(const Position& from, const Position& to)
     return heightDiff > 1.0f && heightDiff <= 5.0f;
 }
 
-PathCacheEntry* PathfindingManager::FindCacheEntry(const Position& /*start*/, const Position& /*goal*/)
-{
-    // DEPRECATED: This method is no longer used - LRUCache uses Get() which returns optional<Value>
-    // Callers should use _pathCache.Get(key) directly which returns std::optional<PathCacheEntry>
-    // Keeping this method stub for ABI compatibility, but it always returns nullptr
-    return nullptr;
-}
-
 void PathfindingManager::AddCacheEntry(const PathCacheEntry& entry)
 {
     // LRUCache handles capacity management automatically - no need to check size
@@ -835,8 +827,8 @@ bool PathfindingUtils::CanWalkBetween(const Position& a, const Position& b, Map*
                                 next.GetPositionX() - current.GetPositionX());
 
         float angleDiff = ::std::abs(angle2 - angle1);
-        if (angleDiff > M_PI)
-            angleDiff = 2.0f * M_PI - angleDiff;
+        if (angleDiff > static_cast<float>(M_PI))
+            angleDiff = 2.0f * static_cast<float>(M_PI) - angleDiff;
 
         if (angleDiff > 0.1f)
         {
@@ -864,7 +856,7 @@ Position PathfindingUtils::CalculateFormationPosition(const Position& leaderPos,
 
     for (uint32 i = 0; i < memberCount; ++i)
     {
-        float angle = (2.0f * M_PI * i) / memberCount;
+        float angle = (2.0f * static_cast<float>(M_PI) * i) / memberCount;
         Position pos = CalculateFormationPosition(center, angle, spacing);
         positions.push_back(pos);
     }

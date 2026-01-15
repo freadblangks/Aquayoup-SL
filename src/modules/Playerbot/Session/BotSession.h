@@ -307,6 +307,41 @@ public:
      */
     bool HasPendingObjectUse() const;
 
+    // ========================================================================
+    // THREAD-SAFE LFG PROPOSAL AUTO-ACCEPT (Re-entrant Crash Fix)
+    // ========================================================================
+    // LFGMgr::UpdateProposal() iterates proposal.players map and calls
+    // SendLfgUpdateProposal() for each player. For bots, this triggers
+    // BotSession::SendPacket() which would call UpdateProposal() again
+    // to auto-accept - causing iterator invalidation crash.
+    //
+    // Solution: Queue accepts during packet interception, process on main thread.
+    // ========================================================================
+
+    /**
+     * @brief Queue an LFG proposal accept to be executed on main thread (thread-safe)
+     * @param proposalId The LFG proposal ID to accept
+     *
+     * Called from: SendPacket() when intercepting SMSG_LFG_PROPOSAL_UPDATE
+     * Executed by: Main thread (BotWorldSessionMgr::ProcessAllDeferredPackets)
+     *
+     * This defers UpdateProposal() call to prevent re-entrant iterator crash.
+     */
+    void QueueLfgProposalAccept(uint32 proposalId);
+
+    /**
+     * @brief Process pending LFG proposal accepts on main thread
+     * @return true if any proposal was accepted
+     *
+     * CRITICAL: Must only be called from main thread
+     */
+    bool ProcessPendingLfgProposalAccepts();
+
+    /**
+     * @brief Check if there are pending LFG proposal accepts
+     */
+    bool HasPendingLfgProposalAccepts() const;
+
 private:
     // Helper methods for safe database access
     CharacterDatabasePreparedStatement* GetSafePreparedStatement(CharacterDatabaseStatements statementId, const char* statementName);
@@ -349,8 +384,9 @@ private:
     uint32 _bnetAccountId;
     uint32 _simulatedLatency{50};
 
-    // Player loading state for async operations
-    ObjectGuid m_playerLoading;
+    // NOTE: Player loading state (m_playerLoading) is inherited from WorldSession
+    // BotSession is a friend class so it can access the base class's private member
+    // DO NOT redeclare m_playerLoading here - it shadows the base class and breaks WHO list!
 
     // Thread-safe pending facing target
     // Worker threads set this, main thread processes it
@@ -381,6 +417,14 @@ private:
     // when UpdateProposal() sends SMSG_LFG_PROPOSAL_UPDATE back to all players
     mutable std::mutex _lfgProposalMutex;
     std::unordered_set<uint32> _autoAcceptedProposals;
+
+    // Pending LFG proposal accepts (deferred to main thread to avoid re-entrant crash)
+    // RE-ENTRANT CRASH FIX: UpdateProposal() iterates proposal.players map and calls
+    // SendLfgUpdateProposal() which triggers BotSession::SendPacket(). If SendPacket()
+    // calls UpdateProposal() synchronously, the iterator is invalidated = crash.
+    // Solution: Queue accepts during packet handling, process on main thread later.
+    mutable std::mutex _pendingLfgAcceptsMutex;
+    std::vector<uint32> _pendingLfgProposalAccepts;
 
     // Deleted copy operations
     BotSession(BotSession const&) = delete;

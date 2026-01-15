@@ -17,11 +17,13 @@
 
 #include "LFGBotManager.h"
 #include "Core/PlayerBotHelpers.h"  // GetBotAI, GetGameSystems
+#include "../Core/Diagnostics/BotOperationTracker.h"
 #include "LFGBotSelector.h"
 #include "LFGRoleDetector.h"
 #include "LFGGroupCoordinator.h"
 #include "../Lifecycle/Instance/JITBotFactory.h"
 #include "../Lifecycle/Instance/PoolSlotState.h"
+#include "../Lifecycle/Instance/QueueStatePoller.h"
 #include "Player.h"
 #include "LFGMgr.h"
 #include "LFG.h"
@@ -30,7 +32,11 @@
 #include "World.h"
 #include "Group.h"
 #include "GroupMgr.h"
+#include "DB2Stores.h"  // For ContentTuning level queries
 #include "../Core/PlayerBotHooks.h"
+
+// Use Playerbot namespace for error tracking enums and macros
+using namespace Playerbot;
 
 // Constructor
 LFGBotManager::LFGBotManager()
@@ -115,12 +121,89 @@ void LFGBotManager::Update(uint32 diff)
         return;
 
     _updateAccumulator += diff;
+    _pendingCheckAccumulator += diff;
+
+    // Process pending JIT bots frequently (every 100ms)
+    if (_pendingCheckAccumulator >= PENDING_CHECK_INTERVAL)
+    {
+        ProcessPendingJITBots();
+        _pendingCheckAccumulator = 0;
+    }
 
     // Periodic cleanup every CLEANUP_INTERVAL
     if (_updateAccumulator >= CLEANUP_INTERVAL)
     {
         CleanupStaleAssignments();
         _updateAccumulator = 0;
+    }
+}
+
+void LFGBotManager::ProcessPendingJITBots()
+{
+    if (_pendingJITBots.empty())
+        return;
+
+    std::lock_guard lock(_mutex);
+
+    auto it = _pendingJITBots.begin();
+    while (it != _pendingJITBots.end())
+    {
+        PendingJITBot& pending = *it;
+        pending.retryCount++;
+
+        // Check if bot is now loaded
+        if (Player* bot = ObjectAccessor::FindPlayer(pending.botGuid))
+        {
+            // Bot is loaded! Queue it for LFG
+            uint8 botRole = sLFGRoleDetector->DetectBotRole(bot);
+
+            if (QueueBot(bot, botRole, pending.dungeons))
+            {
+                RegisterBotAssignment(pending.humanPlayerGuid, pending.botGuid, botRole, pending.dungeons);
+                TC_LOG_INFO("playerbot.lfg", "ProcessPendingJITBots: Queued bot {} (level {}) as role {} for player {} after {} retries",
+                    bot->GetName(), bot->GetLevel(), botRole, pending.humanPlayerGuid.ToString(), pending.retryCount);
+            }
+            else
+            {
+                TC_LOG_WARN("playerbot.lfg", "ProcessPendingJITBots: Failed to queue bot {} for player {}",
+                    bot->GetName(), pending.humanPlayerGuid.ToString());
+
+                // Track queue failure (specific error already logged in QueueBot)
+                BOT_TRACK_LFG_ERROR(
+                    LFGQueueErrorCode::JOIN_LFG_FAILED,
+                    fmt::format("JIT bot {} failed to queue after loading for player {}",
+                        bot->GetName(), pending.humanPlayerGuid.ToString()),
+                    pending.botGuid,
+                    pending.humanPlayerGuid,
+                    pending.dungeons.empty() ? 0 : *pending.dungeons.begin());
+            }
+
+            it = _pendingJITBots.erase(it);
+        }
+        else if (pending.retryCount >= MAX_PENDING_RETRIES)
+        {
+            // Too many retries, give up
+            TC_LOG_WARN("playerbot.lfg", "ProcessPendingJITBots: Gave up on bot {} after {} retries ({}ms) - not loaded",
+                pending.botGuid.ToString(), pending.retryCount, pending.retryCount * PENDING_CHECK_INTERVAL);
+
+            // Track this failure for diagnostics
+            BOT_TRACK_LFG_ERROR(
+                LFGQueueErrorCode::JIT_BOT_TIMEOUT,
+                fmt::format("JIT bot {} failed to load after {}ms ({} retries) for player {}",
+                    pending.botGuid.ToString(),
+                    pending.retryCount * PENDING_CHECK_INTERVAL,
+                    pending.retryCount,
+                    pending.humanPlayerGuid.ToString()),
+                pending.botGuid,
+                pending.humanPlayerGuid,
+                pending.dungeons.empty() ? 0 : *pending.dungeons.begin());
+
+            it = _pendingJITBots.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
 }
 
@@ -187,6 +270,16 @@ void LFGBotManager::OnPlayerJoinQueue(Player* player, uint8 playerRole, lfg::Lfg
         TC_LOG_INFO("module.playerbot", "LFGBotManager::OnPlayerJoinQueue - Successfully queued {} bots for player {}",
                     botsQueued, player->GetName());
     }
+
+    // Register dungeons with QueueStatePoller for shortage detection
+    for (uint32 dungeonId : dungeons)
+    {
+        sQueueStatePoller->RegisterActiveLFGQueue(dungeonId);
+    }
+
+    // Trigger immediate poll to detect any remaining shortages
+    // This allows the JIT system to create additional bots if needed
+    sQueueStatePoller->PollLFGQueues();
 }
 
 void LFGBotManager::OnPlayerLeaveQueue(ObjectGuid playerGuid)
@@ -413,23 +506,78 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
     if (!GetDungeonLevelRange(dungeonId, minLevel, maxLevel))
     {
         TC_LOG_ERROR("module.playerbot", "LFGBotManager::PopulateQueue - Could not get level range for dungeon {}", dungeonId);
+        BOT_TRACK_LFG_ERROR(
+            LFGQueueErrorCode::DUNGEON_NOT_FOUND,
+            fmt::format("Could not get level range for dungeon {}", dungeonId),
+            ObjectGuid::Empty,
+            playerGuid,
+            dungeonId);
         return 0;
     }
 
-    TC_LOG_INFO("module.playerbot", "LFGBotManager::PopulateQueue - Dungeon {} requires level {}-{}", dungeonId, minLevel, maxLevel);
+    TC_LOG_INFO("module.playerbot", "LFGBotManager::PopulateQueue - Dungeon {} allows level {}-{}", dungeonId, minLevel, maxLevel);
 
     // Determine what roles the human player has
     Player* humanPlayer = ObjectAccessor::FindPlayer(playerGuid);
     if (!humanPlayer)
     {
         TC_LOG_ERROR("module.playerbot", "LFGBotManager::PopulateQueue - Could not find player {}", playerGuid.ToString());
+        BOT_TRACK_LFG_ERROR(
+            LFGQueueErrorCode::HUMAN_PLAYER_NOT_FOUND,
+            fmt::format("Could not find player {} for LFG queue", playerGuid.ToString()),
+            ObjectGuid::Empty,
+            playerGuid,
+            dungeonId);
         return 0;
     }
+
+    // ========================================================================
+    // CRITICAL: Calculate bot level bracket based on HUMAN PLAYER's level
+    // ========================================================================
+    // Bots must be within the player's level bracket, NOT the dungeon's full range.
+    // LFG typically groups players within ±5 levels of each other.
+    // We clamp to the dungeon's allowed range to ensure bots can enter.
+    uint8 playerLevel = humanPlayer->GetLevel();
+    constexpr uint8 LEVEL_BRACKET_RANGE = 5;  // ±5 levels like standard LFG
+
+    // Calculate bracket around player's level
+    uint8 bracketMinLevel = (playerLevel > LEVEL_BRACKET_RANGE) ? (playerLevel - LEVEL_BRACKET_RANGE) : 1;
+    uint8 bracketMaxLevel = (playerLevel + LEVEL_BRACKET_RANGE < MAX_LEVEL) ? (playerLevel + LEVEL_BRACKET_RANGE) : MAX_LEVEL;
+
+    // Clamp bracket to dungeon's allowed range (bots must be able to enter)
+    uint8 effectiveMinLevel = std::max(bracketMinLevel, minLevel);
+    uint8 effectiveMaxLevel = std::min(bracketMaxLevel, maxLevel);
+
+    // Sanity check: ensure we have a valid range
+    if (effectiveMinLevel > effectiveMaxLevel)
+    {
+        TC_LOG_WARN("module.playerbot", "LFGBotManager::PopulateQueue - Player level {} outside dungeon range {}-{}, expanding bracket",
+                    playerLevel, minLevel, maxLevel);
+        // Player is outside dungeon range - use dungeon's range as fallback
+        effectiveMinLevel = minLevel;
+        effectiveMaxLevel = maxLevel;
+    }
+
+    TC_LOG_INFO("module.playerbot", "LFGBotManager::PopulateQueue - Player level {}, selecting bots in bracket {}-{} (dungeon allows {}-{})",
+                playerLevel, effectiveMinLevel, effectiveMaxLevel, minLevel, maxLevel);
 
     // Calculate exact numbers needed (assuming 5-man dungeon composition)
     uint8 tanksNeeded = 0, healersNeeded = 0, dpsNeeded = 0;
     uint8 humanRole = sLFGMgr->GetRoles(playerGuid);
     CalculateNeededRoles(humanRole, tanksNeeded, healersNeeded, dpsNeeded);
+
+    // Update QueueStatePoller with the needed role counts
+    // This allows the poller to track fill status accurately
+    sQueueStatePoller->SetLFGNeededCounts(dungeonId, tanksNeeded, healersNeeded, dpsNeeded);
+
+    // Also count the human player as filling their primary role
+    // Human is queued with their selected role, so increment that count
+    if (humanRole & lfg::PLAYER_ROLE_TANK)
+        sQueueStatePoller->UpdateLFGRoleCount(dungeonId, lfg::PLAYER_ROLE_TANK, true);
+    else if (humanRole & lfg::PLAYER_ROLE_HEALER)
+        sQueueStatePoller->UpdateLFGRoleCount(dungeonId, lfg::PLAYER_ROLE_HEALER, true);
+    else if (humanRole & lfg::PLAYER_ROLE_DAMAGE)
+        sQueueStatePoller->UpdateLFGRoleCount(dungeonId, lfg::PLAYER_ROLE_DAMAGE, true);
 
     uint32 botsQueued = 0;
     uint32 tanksQueued = 0;
@@ -437,14 +585,15 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
     uint32 dpsQueued = 0;
 
     // ========================================================================
-    // PHASE 1: Try to find existing online bots
+    // PHASE 1: Try to find existing online bots within player's level bracket
     // ========================================================================
 
     // Queue tanks
     if ((neededRoles & lfg::PLAYER_ROLE_TANK) && tanksNeeded > 0)
     {
         // Use static method for system-wide bot discovery (Phase 7 compliant)
-        std::vector<Player*> tanks = LFGBotSelector::FindAvailableTanks(minLevel, maxLevel, tanksNeeded, humanPlayer);
+        // IMPORTANT: Use effectiveMinLevel/effectiveMaxLevel (player's bracket), not dungeon's full range
+        std::vector<Player*> tanks = LFGBotSelector::FindAvailableTanks(effectiveMinLevel, effectiveMaxLevel, tanksNeeded, humanPlayer);
         for (Player* tank : tanks)
         {
             if (QueueBot(tank, lfg::PLAYER_ROLE_TANK, dungeons))
@@ -462,7 +611,8 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
     if ((neededRoles & lfg::PLAYER_ROLE_HEALER) && healersNeeded > 0)
     {
         // Use static method for system-wide bot discovery (Phase 7 compliant)
-        std::vector<Player*> healers = LFGBotSelector::FindAvailableHealers(minLevel, maxLevel, healersNeeded, humanPlayer);
+        // IMPORTANT: Use effectiveMinLevel/effectiveMaxLevel (player's bracket), not dungeon's full range
+        std::vector<Player*> healers = LFGBotSelector::FindAvailableHealers(effectiveMinLevel, effectiveMaxLevel, healersNeeded, humanPlayer);
         for (Player* healer : healers)
         {
             if (QueueBot(healer, lfg::PLAYER_ROLE_HEALER, dungeons))
@@ -480,7 +630,8 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
     if ((neededRoles & lfg::PLAYER_ROLE_DAMAGE) && dpsNeeded > 0)
     {
         // Use static method for system-wide bot discovery (Phase 7 compliant)
-        std::vector<Player*> dps = LFGBotSelector::FindAvailableDPS(minLevel, maxLevel, dpsNeeded, humanPlayer);
+        // IMPORTANT: Use effectiveMinLevel/effectiveMaxLevel (player's bracket), not dungeon's full range
+        std::vector<Player*> dps = LFGBotSelector::FindAvailableDPS(effectiveMinLevel, effectiveMaxLevel, dpsNeeded, humanPlayer);
         for (Player* dpsPlayer : dps)
         {
             if (QueueBot(dpsPlayer, lfg::PLAYER_ROLE_DAMAGE, dungeons))
@@ -533,21 +684,22 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
             TC_LOG_INFO("playerbot.lfg", "LFGBotManager JIT callback - {} bots created for player {}",
                 createdBots.size(), capturedPlayerGuid.ToString());
 
-            // Queue each created bot
-            for (ObjectGuid botGuid : createdBots)
+            // Add bots to pending list - they need time to login before we can queue them
+            // The Update() function will process pending bots once they're fully loaded
             {
-                if (Player* bot = ObjectAccessor::FindPlayer(botGuid))
+                std::lock_guard lock(_mutex);
+                for (ObjectGuid botGuid : createdBots)
                 {
-                    // Detect the bot's role based on spec
-                    uint8 botRole = sLFGRoleDetector->DetectBotRole(bot);
-
-                    if (QueueBot(bot, botRole, capturedDungeons))
-                    {
-                        std::lock_guard lock(_mutex);
-                        RegisterBotAssignment(capturedPlayerGuid, botGuid, botRole, capturedDungeons);
-                        TC_LOG_INFO("playerbot.lfg", "JIT: Queued newly created bot {} (level {}) as role {} for player {}",
-                            bot->GetName(), bot->GetLevel(), botRole, capturedPlayerGuid.ToString());
-                    }
+                    PendingJITBot pending;
+                    pending.botGuid = botGuid;
+                    pending.humanPlayerGuid = capturedPlayerGuid;
+                    pending.dungeons = capturedDungeons;
+                    pending.createdAt = std::chrono::steady_clock::now();
+                    pending.retryCount = 0;
+                    _pendingJITBots.push_back(std::move(pending));
+                    
+                    TC_LOG_INFO("playerbot.lfg", "JIT: Added bot {} to pending queue for player {}",
+                        botGuid.ToString(), capturedPlayerGuid.ToString());
                 }
             }
         };
@@ -557,6 +709,12 @@ uint32 LFGBotManager::PopulateQueue(ObjectGuid playerGuid, uint8 neededRoles, lf
         {
             TC_LOG_ERROR("playerbot.lfg", "LFGBotManager JIT failed for player {}: {}",
                 capturedPlayerGuid.ToString(), error);
+            BOT_TRACK_LFG_ERROR(
+                LFGQueueErrorCode::JIT_BOT_TIMEOUT,
+                fmt::format("JIT bot creation failed for player {}: {}", capturedPlayerGuid.ToString(), error),
+                ObjectGuid::Empty,
+                capturedPlayerGuid,
+                0);
         };
 
         // Callback on progress (optional, just for logging)
@@ -704,6 +862,27 @@ void LFGBotManager::CleanupStaleAssignments()
     }
 }
 
+bool LFGBotManager::QueueJITBot(Player* bot, uint32 dungeonId)
+{
+    if (!bot)
+    {
+        TC_LOG_WARN("module.playerbot.lfg", "LFGBotManager::QueueJITBot - Null bot pointer");
+        return false;
+    }
+
+    // Determine role based on bot's spec
+    uint8 role = sLFGRoleDetector->DetectBotRole(bot);
+
+    // Create dungeon set
+    lfg::LfgDungeonSet dungeons;
+    dungeons.insert(dungeonId);
+
+    TC_LOG_INFO("module.playerbot.lfg", "LFGBotManager::QueueJITBot - Queueing JIT bot {} (role={}) for dungeon {}",
+                bot->GetName(), role, dungeonId);
+
+    return QueueBot(bot, role, dungeons);
+}
+
 void LFGBotManager::CalculateNeededRoles(uint8 humanRoles,
                                           uint8& tanksNeeded, uint8& healersNeeded, uint8& dpsNeeded) const
 {
@@ -754,12 +933,24 @@ bool LFGBotManager::QueueBot(Player* bot, uint8 role, lfg::LfgDungeonSet const& 
     {
         TC_LOG_DEBUG("module.playerbot", "LFGBotManager::QueueBot - Bot {} is level {} (minimum {} required for LFG)",
                      bot->GetName(), bot->GetLevel(), MIN_LFG_LEVEL);
+        BOT_TRACK_LFG_ERROR(
+            LFGQueueErrorCode::ROLE_VALIDATION_FAILED,  // Using role validation as closest error type
+            fmt::format("Bot {} level {} below minimum {} for LFG", bot->GetName(), bot->GetLevel(), MIN_LFG_LEVEL),
+            bot->GetGUID(),
+            ObjectGuid::Empty,
+            dungeons.empty() ? 0 : *dungeons.begin());
         return false;
     }
 
     if (bot->GetGroup())
     {
         TC_LOG_WARN("module.playerbot", "LFGBotManager::QueueBot - Bot {} is already in a group", bot->GetName());
+        BOT_TRACK_LFG_ERROR(
+            LFGQueueErrorCode::BOT_IN_GROUP,
+            fmt::format("Bot {} is already in a group", bot->GetName()),
+            bot->GetGUID(),
+            ObjectGuid::Empty,
+            dungeons.empty() ? 0 : *dungeons.begin());
         return false;
     }
 
@@ -767,6 +958,12 @@ bool LFGBotManager::QueueBot(Player* bot, uint8 role, lfg::LfgDungeonSet const& 
     if (bot->HasAura(lfg::LFG_SPELL_DUNGEON_DESERTER))
     {
         TC_LOG_DEBUG("module.playerbot", "LFGBotManager::QueueBot - Bot {} has deserter debuff", bot->GetName());
+        BOT_TRACK_LFG_ERROR(
+            LFGQueueErrorCode::BOT_HAS_DESERTER,
+            fmt::format("Bot {} has deserter debuff", bot->GetName()),
+            bot->GetGUID(),
+            ObjectGuid::Empty,
+            dungeons.empty() ? 0 : *dungeons.begin());
         return false;
     }
 
@@ -775,6 +972,8 @@ bool LFGBotManager::QueueBot(Player* bot, uint8 role, lfg::LfgDungeonSet const& 
     if (botState == lfg::LFG_STATE_QUEUED || botState == lfg::LFG_STATE_PROPOSAL || botState == lfg::LFG_STATE_ROLECHECK)
     {
         TC_LOG_DEBUG("module.playerbot", "LFGBotManager::QueueBot - Bot {} is already queued (state: {})", bot->GetName(), botState);
+        // Track as info (not error) - this is expected in some race conditions
+        BOT_TRACK_SUCCESS(BotOperationCategory::LFG_QUEUE, "BotAlreadyQueued", bot->GetGUID());
         return false;
     }
 
@@ -782,6 +981,12 @@ bool LFGBotManager::QueueBot(Player* bot, uint8 role, lfg::LfgDungeonSet const& 
     if (!sLFGRoleDetector->CanPerformRole(bot, role))
     {
         TC_LOG_WARN("module.playerbot", "LFGBotManager::QueueBot - Bot {} cannot perform role {}", bot->GetName(), role);
+        BOT_TRACK_LFG_ERROR(
+            LFGQueueErrorCode::ROLE_VALIDATION_FAILED,
+            fmt::format("Bot {} (class {}) cannot perform role {}", bot->GetName(), bot->GetClass(), role),
+            bot->GetGUID(),
+            ObjectGuid::Empty,
+            dungeons.empty() ? 0 : *dungeons.begin());
         return false;
     }
     uint8 validatedRole = role;
@@ -801,6 +1006,16 @@ bool LFGBotManager::QueueBot(Player* bot, uint8 role, lfg::LfgDungeonSet const& 
 
     sLFGMgr->JoinLfg(bot, validatedRole, dungeonsCopy);
 
+    // Update QueueStatePoller role counts so it knows bots are queued
+    // This prevents unnecessary JIT requests for roles that are already filled
+    for (uint32 dungeonId : dungeonsCopy)
+    {
+        sQueueStatePoller->UpdateLFGRoleCount(dungeonId, validatedRole, true);
+    }
+
+    // Track successful queue operation
+    BOT_TRACK_SUCCESS(BotOperationCategory::LFG_QUEUE, "QueueBot", bot->GetGUID());
+
     return true;
 }
 
@@ -811,26 +1026,49 @@ void LFGBotManager::RemoveBotFromQueue(Player* bot)
 
     TC_LOG_DEBUG("module.playerbot", "LFGBotManager::RemoveBotFromQueue - Removing bot {} from LFG queue", bot->GetName());
 
-    sLFGMgr->LeaveLfg(bot->GetGUID());
+    // Get the bot's queue info before removing so we can update role counts
+    // Note: _mutex is already held by caller or this is called from context where we have the info
+    ObjectGuid botGuid = bot->GetGUID();
+    auto itr = _queuedBots.find(botGuid);
+    if (itr != _queuedBots.end())
+    {
+        BotQueueInfo const& info = itr->second;
+        // Decrement role counts for all dungeons this bot was queued for
+        for (uint32 dungeonId : info.dungeons)
+        {
+            sQueueStatePoller->UpdateLFGRoleCount(dungeonId, info.assignedRole, false);
+        }
+    }
+
+    sLFGMgr->LeaveLfg(botGuid);
 }
 
 bool LFGBotManager::GetDungeonLevelRange(uint32 dungeonId, uint8& minLevel, uint8& maxLevel) const
 {
-    // Get dungeon info from LFGMgr
-    uint32 dungeonEntry = sLFGMgr->GetLFGDungeonEntry(dungeonId);
-    if (dungeonEntry == 0)
+    // Access dungeon data directly from DB2 store (LFGMgr::GetLFGDungeon is private)
+    LFGDungeonsEntry const* dungeon = sLFGDungeonsStore.LookupEntry(dungeonId);
+    if (!dungeon)
+    {
+        TC_LOG_ERROR("module.playerbot", "LFGBotManager::GetDungeonLevelRange - Dungeon {} not found in LFGDungeons.db2", dungeonId);
         return false;
+    }
 
-    // TODO: Query actual level requirements from dungeon data
-    // For now, use approximations based on dungeon ID ranges
-    // This should be replaced with actual DBC/DB2 queries
+    // Query ContentTuning for actual level requirements
+    // This is the same method TrinityCore uses in LFGMgr::InitializeLockedDungeons
+    if (Optional<ContentTuningLevels> levels = sDB2Manager.GetContentTuningData(dungeon->ContentTuningID, {}))
+    {
+        minLevel = static_cast<uint8>(std::max<int16>(1, levels->MinLevel));
+        maxLevel = static_cast<uint8>(std::min<int16>(MAX_LEVEL, levels->MaxLevel));
 
-    // Most dungeons are level-appropriate, use player level ±3
-    // This is a simplification - real implementation should query lfg_dungeon_template or DBC
-    minLevel = 1;
-    maxLevel = 60; // Default range
+        TC_LOG_DEBUG("module.playerbot", "LFGBotManager::GetDungeonLevelRange - Dungeon {} '{}' requires level {}-{} (ContentTuning {})",
+                     dungeonId, dungeon->Name[sWorld->GetDefaultDbcLocale()], minLevel, maxLevel, dungeon->ContentTuningID);
+        return true;
+    }
 
-    return true;
+    // ContentTuning not found - this is a data error, fail explicitly
+    TC_LOG_ERROR("module.playerbot", "LFGBotManager::GetDungeonLevelRange - ContentTuning {} not found for dungeon {} '{}'",
+                 dungeon->ContentTuningID, dungeonId, dungeon->Name[sWorld->GetDefaultDbcLocale()]);
+    return false;
 }
 
 void LFGBotManager::RegisterBotAssignment(ObjectGuid humanGuid, ObjectGuid botGuid, uint8 role,
