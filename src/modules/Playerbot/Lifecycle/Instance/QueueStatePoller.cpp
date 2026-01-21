@@ -205,18 +205,24 @@ void QueueStatePoller::UnregisterActiveBGQueue(BattlegroundTypeId bgTypeId, Batt
         static_cast<uint32>(bgTypeId), static_cast<uint32>(bracket));
 }
 
-void QueueStatePoller::RegisterActiveLFGQueue(uint32 dungeonId, uint8 minLevel, uint8 maxLevel)
+void QueueStatePoller::RegisterActiveLFGQueue(uint32 dungeonId, uint8 minLevel, uint8 maxLevel, uint8 humanPlayerLevel)
 {
     std::lock_guard<decltype(_mutex)> lock(_mutex);
 
     _activeLFGQueues.insert(dungeonId);
-    _lfgQueueInfo[dungeonId] = {minLevel, maxLevel};
+    _lfgQueueInfo[dungeonId] = {minLevel, maxLevel, humanPlayerLevel};
 
-    TC_LOG_DEBUG("playerbot.jit", "QueueStatePoller: Registered active LFG queue (dungeon={}, levels={}-{})",
-        dungeonId, minLevel, maxLevel);
+    TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Registered active LFG queue (dungeon={}, levels={}-{}, humanLevel={})",
+        dungeonId, minLevel, maxLevel, humanPlayerLevel);
 
     // Trigger immediate poll
     DoPollLFGQueue(dungeonId, minLevel, maxLevel);
+}
+
+void QueueStatePoller::RegisterActiveLFGQueue(uint32 dungeonId, uint8 minLevel, uint8 maxLevel)
+{
+    // DEPRECATED: Calls new overload with humanPlayerLevel=0 (will use dungeon average as fallback)
+    RegisterActiveLFGQueue(dungeonId, minLevel, maxLevel, 0);
 }
 
 void QueueStatePoller::RegisterActiveLFGQueue(uint32 dungeonId)
@@ -731,46 +737,179 @@ void QueueStatePoller::ProcessLFGShortage(LFGQueueSnapshot const& snapshot)
     uint32 dpsStillNeeded = dpsShort;
 
     // ========================================================================
+    // CRITICAL FIX: Use HUMAN PLAYER'S LEVEL, not dungeon average!
+    // ========================================================================
+    // The human player queued at a specific level. Bots must match that level
+    // so they can group together. Using the dungeon's average level creates
+    // bots at the wrong level (e.g., level 37 for a level 26 player).
+    //
+    // Priority:
+    // 1. Use humanPlayerLevel from _lfgQueueInfo if set (when human queued)
+    // 2. Fall back to dungeon average if no human level tracked (shouldn't happen)
+    // ========================================================================
+    uint32 targetLevel = 0;
+    auto queueInfoIt = _lfgQueueInfo.find(snapshot.dungeonId);
+    if (queueInfoIt != _lfgQueueInfo.end() && queueInfoIt->second.humanPlayerLevel > 0)
+    {
+        targetLevel = queueInfoIt->second.humanPlayerLevel;
+        TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Using HUMAN PLAYER level {} for dungeon {} (dungeon range: {}-{})",
+            targetLevel, snapshot.dungeonId, snapshot.minLevel, snapshot.maxLevel);
+    }
+    else
+    {
+        // Fallback: use dungeon average (this is the old, incorrect behavior)
+        targetLevel = (snapshot.minLevel + snapshot.maxLevel) / 2;
+        TC_LOG_WARN("playerbot.jit", "QueueStatePoller: ⚠️ No human player level found for dungeon {}, using dungeon average {} (SUBOPTIMAL)",
+            snapshot.dungeonId, targetLevel);
+    }
+
+    // ========================================================================
     // STEP 1: TRY WARM POOL FIRST
-    // Warm pool bots are pre-created and ready for instant assignment
-    // Only fall back to JIT if warm pool doesn't have enough bots
+    // The warm pool contains pre-logged-in bots ready for instant assignment.
+    // We try both factions since modern WoW supports cross-faction LFG.
+    // Each bot is queued via LFGBotManager::QueueJITBot() after assignment.
     // ========================================================================
 
-    uint32 avgLevel = (snapshot.minLevel + snapshot.maxLevel) / 2;
+    uint32 tanksFromPool = 0;
+    uint32 healersFromPool = 0;
+    uint32 dpsFromPool = 0;
 
-    // LFG is cross-faction in modern WoW, use Neutral to get bots from any faction
-    std::vector<ObjectGuid> poolBots = sInstanceBotPool->AssignForDungeon(
-        snapshot.dungeonId,
-        avgLevel,
-        Faction::Neutral,  // Cross-faction LFG
-        tanksStillNeeded,
-        healersStillNeeded,
-        dpsStillNeeded
-    );
-
-    if (!poolBots.empty())
+    // Try Alliance pool first
+    if (tanksStillNeeded > 0 || healersStillNeeded > 0 || dpsStillNeeded > 0)
     {
-        TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Got {} bots from warm pool for dungeon {}",
-            poolBots.size(), snapshot.dungeonId);
+        std::vector<ObjectGuid> allianceBots = sInstanceBotPool->AssignForDungeon(
+            snapshot.dungeonId,
+            targetLevel,
+            Faction::Alliance,
+            tanksStillNeeded,
+            healersStillNeeded,
+            dpsStillNeeded
+        );
 
-        // Queue the bots from pool for LFG
-        for (ObjectGuid const& guid : poolBots)
+        if (!allianceBots.empty())
         {
-            if (Player* bot = ObjectAccessor::FindPlayer(guid))
-            {
-                // Determine bot's role and queue for LFG
-                uint8 role = sLFGRoleDetector->DetectRole(bot);
-                sLFGBotManager->QueueBotForDungeon(bot, snapshot.dungeonId, role);
+            TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Got {} Alliance bots from warm pool for dungeon {}",
+                allianceBots.size(), snapshot.dungeonId);
 
-                // Track which roles were filled
-                if (role == lfg::PLAYER_ROLE_TANK && tanksStillNeeded > 0)
-                    --tanksStillNeeded;
-                else if (role == lfg::PLAYER_ROLE_HEALER && healersStillNeeded > 0)
-                    --healersStillNeeded;
-                else if (tanksStillNeeded > 0 || healersStillNeeded > 0 || dpsStillNeeded > 0)
-                    --dpsStillNeeded;  // Default to DPS
+            // Queue each bot for LFG
+            for (ObjectGuid const& botGuid : allianceBots)
+            {
+                if (Player* bot = ObjectAccessor::FindPlayer(botGuid))
+                {
+                    // Detect bot's role for tracking (QueueJITBot also does this internally)
+                    uint8 detectedRole = sLFGRoleDetector->DetectBotRole(bot);
+
+                    // Queue bot via LFGBotManager public API
+                    if (sLFGBotManager->QueueJITBot(bot, snapshot.dungeonId))
+                    {
+                        // Track which role was filled
+                        if ((detectedRole & lfg::PLAYER_ROLE_TANK) && tanksStillNeeded > 0)
+                        {
+                            --tanksStillNeeded;
+                            ++tanksFromPool;
+                        }
+                        else if ((detectedRole & lfg::PLAYER_ROLE_HEALER) && healersStillNeeded > 0)
+                        {
+                            --healersStillNeeded;
+                            ++healersFromPool;
+                        }
+                        else if (dpsStillNeeded > 0)
+                        {
+                            --dpsStillNeeded;
+                            ++dpsFromPool;
+                        }
+
+                        TC_LOG_DEBUG("playerbot.jit", "QueueStatePoller: Alliance bot {} queued for dungeon {} as role {}",
+                            bot->GetName(), snapshot.dungeonId, detectedRole);
+                    }
+                    else
+                    {
+                        TC_LOG_WARN("playerbot.jit", "QueueStatePoller: Failed to queue Alliance bot {} for dungeon {}",
+                            bot->GetName(), snapshot.dungeonId);
+                        // Release bot back to pool since queue failed
+                        sInstanceBotPool->ReleaseBots({botGuid});
+                    }
+                }
+                else
+                {
+                    TC_LOG_WARN("playerbot.jit", "QueueStatePoller: Alliance bot {} not found via ObjectAccessor",
+                        botGuid.ToString());
+                }
             }
         }
+    }
+
+    // Try Horde pool if still need more
+    if (tanksStillNeeded > 0 || healersStillNeeded > 0 || dpsStillNeeded > 0)
+    {
+        std::vector<ObjectGuid> hordeBots = sInstanceBotPool->AssignForDungeon(
+            snapshot.dungeonId,
+            targetLevel,
+            Faction::Horde,
+            tanksStillNeeded,
+            healersStillNeeded,
+            dpsStillNeeded
+        );
+
+        if (!hordeBots.empty())
+        {
+            TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Got {} Horde bots from warm pool for dungeon {}",
+                hordeBots.size(), snapshot.dungeonId);
+
+            // Queue each bot for LFG
+            for (ObjectGuid const& botGuid : hordeBots)
+            {
+                if (Player* bot = ObjectAccessor::FindPlayer(botGuid))
+                {
+                    // Detect bot's role for tracking (QueueJITBot also does this internally)
+                    uint8 detectedRole = sLFGRoleDetector->DetectBotRole(bot);
+
+                    // Queue bot via LFGBotManager public API
+                    if (sLFGBotManager->QueueJITBot(bot, snapshot.dungeonId))
+                    {
+                        // Track which role was filled
+                        if ((detectedRole & lfg::PLAYER_ROLE_TANK) && tanksStillNeeded > 0)
+                        {
+                            --tanksStillNeeded;
+                            ++tanksFromPool;
+                        }
+                        else if ((detectedRole & lfg::PLAYER_ROLE_HEALER) && healersStillNeeded > 0)
+                        {
+                            --healersStillNeeded;
+                            ++healersFromPool;
+                        }
+                        else if (dpsStillNeeded > 0)
+                        {
+                            --dpsStillNeeded;
+                            ++dpsFromPool;
+                        }
+
+                        TC_LOG_DEBUG("playerbot.jit", "QueueStatePoller: Horde bot {} queued for dungeon {} as role {}",
+                            bot->GetName(), snapshot.dungeonId, detectedRole);
+                    }
+                    else
+                    {
+                        TC_LOG_WARN("playerbot.jit", "QueueStatePoller: Failed to queue Horde bot {} for dungeon {}",
+                            bot->GetName(), snapshot.dungeonId);
+                        // Release bot back to pool since queue failed
+                        sInstanceBotPool->ReleaseBots({botGuid});
+                    }
+                }
+                else
+                {
+                    TC_LOG_WARN("playerbot.jit", "QueueStatePoller: Horde bot {} not found via ObjectAccessor",
+                        botGuid.ToString());
+                }
+            }
+        }
+    }
+
+    // Log warm pool results
+    uint32 totalFromPool = tanksFromPool + healersFromPool + dpsFromPool;
+    if (totalFromPool > 0)
+    {
+        TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Warm pool provided T:{}/H:{}/D:{} bots for dungeon {}",
+            tanksFromPool, healersFromPool, dpsFromPool, snapshot.dungeonId);
     }
 
     // If warm pool fully satisfied the demand, we're done
@@ -783,7 +922,8 @@ void QueueStatePoller::ProcessLFGShortage(LFGQueueSnapshot const& snapshot)
 
     // ========================================================================
     // STEP 2: JIT CREATION FOR REMAINING SHORTAGE
-    // Only create bots via JIT if warm pool couldn't satisfy demand
+    // Only create bots via JIT if warm pool couldn't satisfy demand.
+    // JIT bots will be queued after login via BotPostLoginConfigurator.
     // ========================================================================
 
     TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Warm pool insufficient, requesting JIT for T:{}/H:{}/D:{}",
@@ -795,7 +935,7 @@ void QueueStatePoller::ProcessLFGShortage(LFGQueueSnapshot const& snapshot)
     FactoryRequest request;
     request.instanceType = InstanceType::Dungeon;
     request.contentId = snapshot.dungeonId;
-    request.playerLevel = avgLevel;
+    request.playerLevel = targetLevel;
     request.tanksNeeded = tanksStillNeeded;
     request.healersNeeded = healersStillNeeded;
     request.dpsNeeded = dpsStillNeeded;
@@ -808,9 +948,9 @@ void QueueStatePoller::ProcessLFGShortage(LFGQueueSnapshot const& snapshot)
     // because the bots haven't entered the world yet when onComplete fires.
     request.dungeonIdToQueue = snapshot.dungeonId;
 
-    // Optional: Log callback for debugging (bots queue via pendingConfig, not here)
+    // Callback for debugging (bots queue via pendingConfig, not here)
     request.onComplete = [dungeonId = snapshot.dungeonId](std::vector<ObjectGuid> const& botGuids) {
-        TC_LOG_INFO("playerbot.jit", "QueueStatePoller: {} bots created for dungeon {} - they will auto-queue after login",
+        TC_LOG_INFO("playerbot.jit", "QueueStatePoller: {} JIT bots created for dungeon {} - they will auto-queue after login",
             botGuids.size(), dungeonId);
     };
 
