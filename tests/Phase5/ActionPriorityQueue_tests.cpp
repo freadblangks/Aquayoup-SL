@@ -16,10 +16,10 @@
  */
 
 #include "tc_catch2.h"
-#include "modules/Playerbot/AI/Decision/ActionPriorityQueue.h"
-#include "modules/Playerbot/AI/Decision/DecisionFusionSystem.h"
+#include "AI/Decision/ActionPriorityQueue.h"
+#include "AI/Decision/DecisionFusionSystem.h"
 
-using namespace bot::ai;
+using namespace Playerbot::bot::ai;
 
 // Test spell IDs (placeholder values)
 constexpr uint32 SPELL_FIREBALL = 133;
@@ -66,7 +66,7 @@ TEST_CASE("ActionPriorityQueue - Priority Levels", "[Phase5][ActionPriorityQueue
         REQUIRE(static_cast<uint8>(SpellPriority::CRITICAL) > static_cast<uint8>(SpellPriority::HIGH));
         REQUIRE(static_cast<uint8>(SpellPriority::HIGH) > static_cast<uint8>(SpellPriority::MEDIUM));
         REQUIRE(static_cast<uint8>(SpellPriority::MEDIUM) > static_cast<uint8>(SpellPriority::LOW));
-        REQUIRE(static_cast<uint8>(SpellPriority::LOW) > static_cast<uint8>(SpellPriority::OPTIONAL));
+        REQUIRE(static_cast<uint8>(SpellPriority::LOW) > static_cast<uint8>(SpellPriority::OPTIONAL_PRIORITY));
     }
 
     SECTION("Emergency priority has highest value")
