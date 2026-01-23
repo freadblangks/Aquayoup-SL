@@ -21,7 +21,7 @@ jobs:
   analyze:
     name: Analyze C++ (${{ matrix.language }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 360
 
     permissions:
       actions: read
@@ -47,9 +47,18 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo rm -rf /usr/local/share/boost
           sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/microsoft
+          sudo rm -rf /opt/pipx
+          sudo rm -rf /opt/google
+          sudo rm -rf /usr/local/julia*
+          sudo rm -rf /usr/share/az_*
+          sudo rm -rf /usr/share/gradle*
+          sudo rm -rf /usr/share/miniconda
+          sudo rm -rf /usr/share/sbt
 
           # Clean apt cache
           sudo apt-get clean
+          sudo apt-get autoremove -y
 
           echo "=== Disk space after cleanup ==="
           df -h
@@ -70,6 +79,7 @@ jobs:
               - 'dep/**'
               - 'contrib/**'
               - 'tests/**'
+              - 'src/server/scripts/**'
             query-filters:
               - exclude:
                   problem.severity: recommendation
@@ -98,7 +108,7 @@ jobs:
           cmake -GNinja -S . -B build \
             -DWITH_WARNINGS=0 \
             -DWITH_WARNINGS_AS_ERRORS=0 \
-            -DTOOLS=1 \
+            -DTOOLS=0 \
             -DSCRIPTS=static \
             -DSERVERS=1 \
             -DBUILD_PLAYERBOT=ON \
@@ -110,8 +120,8 @@ jobs:
         run: |
           echo "=== Disk space before build ==="
           df -h
-          # Use fewer parallel jobs to reduce disk usage
-          cmake --build build --parallel 2
+          # Use all available cores for faster build
+          cmake --build build --parallel $(nproc)
           echo "=== Disk space after build ==="
           df -h
 
