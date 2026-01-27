@@ -17,6 +17,7 @@
 #include "../Common/CooldownManager.h"
 #include "../Common/RotationHelpers.h"
 #include "../CombatSpecializationTemplates.h"
+#include "../SpellValidation_WoW112.h"
 #include "ObjectGuid.h"
 #include "../../../Spatial/SpatialGridManager.h"
 #include "ObjectAccessor.h"
@@ -47,75 +48,56 @@ using bot::ai::SpellPriority;
 using bot::ai::SpellCategory;
 
 // Note: bot::ai::Action() conflicts with Playerbot::Action, use bot::ai::Action() explicitly
-// WoW 11.2 Havoc Demon Hunter Spell IDs
+// ============================================================================
+// HAVOC DEMON HUNTER SPELL IDs (WoW 11.2 - The War Within)
+// Using centralized spell registry from SpellValidation_WoW112.h
+// Note: Uses enum to maintain compatibility with DemonHunterAI.h and existing code
+// ============================================================================
+
 enum HavocSpells
 {
-    // Core Abilities
-    SPELL_DEMONS_BITE           = 162243,  // Primary fury generator
-    SPELL_CHAOS_STRIKE          = 162794,  // Main fury spender
-    SPELL_ANNIHILATION          = 201427,  // Chaos Strike during Meta
-    SPELL_BLADE_DANCE           = 188499,  // AoE damage
-    SPELL_DEATH_SWEEP           = 210152,  // Blade Dance during Meta
+    // Core Abilities - Using central registry: WoW112Spells::DemonHunter::Havoc
+    SPELL_DEMONS_BITE           = WoW112Spells::DemonHunter::Havoc::DEMONS_BITE,
+    SPELL_CHAOS_STRIKE          = WoW112Spells::DemonHunter::Havoc::CHAOS_STRIKE,
+    SPELL_ANNIHILATION          = WoW112Spells::DemonHunter::Havoc::ANNIHILATION,
+    SPELL_BLADE_DANCE           = WoW112Spells::DemonHunter::Havoc::BLADE_DANCE,
+    SPELL_DEATH_SWEEP           = WoW112Spells::DemonHunter::Havoc::DEATH_SWEEP,
+    SPELL_EYE_BEAM              = WoW112Spells::DemonHunter::Havoc::EYE_BEAM,
+    SPELL_IMMOLATION_AURA       = WoW112Spells::DemonHunter::Havoc::IMMOLATION_AURA,
+    SPELL_FEL_RUSH              = WoW112Spells::DemonHunter::FEL_RUSH,
+    SPELL_VENGEFUL_RETREAT      = WoW112Spells::DemonHunter::VENGEFUL_RETREAT,
 
-    SPELL_EYE_BEAM
-    = 198013,  // Channel AoE + Haste buff
-    SPELL_IMMOLATION_AURA       = 258920,  // AoE damage aura
+    // Major Cooldowns - Using central registry: WoW112Spells::DemonHunter
+    SPELL_METAMORPHOSIS         = WoW112Spells::DemonHunter::METAMORPHOSIS_HAVOC,
+    SPELL_FEL_BARRAGE           = WoW112Spells::DemonHunter::Havoc::FEL_BARRAGE,
+    SPELL_CHAOS_NOVA            = WoW112Spells::DemonHunter::CHAOS_NOVA,
+    SPELL_DARKNESS              = WoW112Spells::DemonHunter::DARKNESS,
+    SPELL_BLUR                  = WoW112Spells::DemonHunter::BLUR,
 
-    SPELL_FEL_RUSH
-    = 195072,  // Gap closer/mobility
-    SPELL_VENGEFUL_RETREAT      = 198793,  // Backward leap + damage
+    // Talents/Passives - Using central registry: WoW112Spells::DemonHunter::Havoc
+    SPELL_DEMONIC               = WoW112Spells::DemonHunter::Havoc::DEMONIC,
+    SPELL_MOMENTUM              = WoW112Spells::DemonHunter::Havoc::MOMENTUM,
+    SPELL_BLIND_FURY            = WoW112Spells::DemonHunter::Havoc::BLIND_FURY,
+    SPELL_FIRST_BLOOD           = WoW112Spells::DemonHunter::Havoc::FIRST_BLOOD,
+    SPELL_TRAIL_OF_RUIN         = WoW112Spells::DemonHunter::Havoc::TRAIL_OF_RUIN,
+    SPELL_CHAOS_CLEAVE          = WoW112Spells::DemonHunter::Havoc::CHAOS_CLEAVE,
+    SPELL_CYCLE_OF_HATRED       = WoW112Spells::DemonHunter::Havoc::CYCLE_OF_HATRED,
 
-    // Major Cooldowns
-    SPELL_METAMORPHOSIS         = 191427,  // Transform for 30 sec
-    SPELL_FEL_BARRAGE          = 258925,  // Heavy AoE burst
-    SPELL_CHAOS_NOVA           = 179057,  // AoE stun
+    // Utility - Using central registry: WoW112Spells::DemonHunter
+    SPELL_DISRUPT               = WoW112Spells::DemonHunter::DISRUPT,
+    SPELL_CONSUME_MAGIC         = WoW112Spells::DemonHunter::CONSUME_MAGIC,
+    SPELL_IMPRISON              = WoW112Spells::DemonHunter::IMPRISON,
+    SPELL_SPECTRAL_SIGHT        = WoW112Spells::DemonHunter::SPECTRAL_SIGHT,
+    SPELL_TORMENT               = WoW112Spells::DemonHunter::Havoc::TORMENT,
 
-    SPELL_DARKNESS
-    = 196718,  // Defensive smoke bomb
-
-    SPELL_BLUR
-    = 198589,  // Dodge + damage reduction
-
-    // Talents/Passives
-
-    SPELL_DEMONIC
-    = 213410,  // Eye Beam triggers Meta
-
-    SPELL_MOMENTUM
-    = 206476,  // Movement abilities buff damage
-    SPELL_BLIND_FURY           = 203550,  // Eye Beam generates more fury
-    SPELL_FIRST_BLOOD          = 206416,  // Blade Dance cost reduction
-    SPELL_TRAIL_OF_RUIN        = 258881,  // Blade Dance DoT
-    SPELL_CHAOS_CLEAVE         = 206475,  // Chaos Strike cleaves
-    SPELL_CYCLE_OF_HATRED      = 258887,  // Meta CD reduction
-
-    // Utility
-
-    SPELL_DISRUPT
-    = 183752,  // Interrupt
-    SPELL_CONSUME_MAGIC        = 278326,  // Offensive dispel
-
-    SPELL_IMPRISON
-    = 217832,  // CC ability
-    SPELL_SPECTRAL_SIGHT       = 188501,  // See through stealth
-
-    SPELL_TORMENT
-    = 281854,  // Taunt (tank affinity)
-
-    // Buffs/Debuffs
-
-    BUFF_MOMENTUM
-    = 208628,  // Momentum damage increase
-    BUFF_FURIOUS_GAZE          = 343312,  // Eye Beam haste buff
-    BUFF_METAMORPHOSIS         = 162264,  // Metamorphosis transformation
-
-    BUFF_PREPARED
-    = 203650,  // Vengeful Retreat buff
-    BUFF_IMMOLATION_AURA       = 258920,  // Immolation Aura active
-    BUFF_BLADE_DANCE           = 188499,  // Blade Dance dodge
-
-    BUFF_BLUR
-    = 198589,  // Blur active
+    // Buffs/Debuffs - Using central registry: WoW112Spells::DemonHunter::Havoc
+    BUFF_MOMENTUM               = WoW112Spells::DemonHunter::Havoc::BUFF_MOMENTUM,
+    BUFF_FURIOUS_GAZE           = WoW112Spells::DemonHunter::Havoc::BUFF_FURIOUS_GAZE,
+    BUFF_METAMORPHOSIS          = WoW112Spells::DemonHunter::Havoc::BUFF_METAMORPHOSIS,
+    BUFF_PREPARED               = WoW112Spells::DemonHunter::Havoc::BUFF_PREPARED,
+    BUFF_IMMOLATION_AURA        = WoW112Spells::DemonHunter::Havoc::IMMOLATION_AURA,
+    BUFF_BLADE_DANCE            = WoW112Spells::DemonHunter::Havoc::BLADE_DANCE,
+    BUFF_BLUR                   = WoW112Spells::DemonHunter::BLUR
 };
 
 // Fury resource type (simple uint32)

@@ -11,6 +11,7 @@
 #define TRINITY_HUNTERPLAYERAI_H
 
 #include "../ClassAI.h"
+#include "../SpellValidation_WoW112.h"
 #include "../../Combat/CombatBehaviorIntegration.h"
 #include "Position.h"
 #include "ObjectGuid.h"
@@ -26,6 +27,16 @@ class Pet;
 
 namespace Playerbot
 {
+
+// Forward declarations for specialization classes (QW-4 FIX)
+class BeastMasteryHunterRefactored;
+class MarksmanshipHunterRefactored;
+class SurvivalHunterRefactored;
+
+// Type aliases for consistency with base naming
+using BeastMasteryHunter = BeastMasteryHunterRefactored;
+using MarksmanshipHunter = MarksmanshipHunterRefactored;
+using SurvivalHunter = SurvivalHunterRefactored;
 
 enum class HunterSpec : uint8
 {
@@ -105,7 +116,7 @@ class HunterAI : public ClassAI
 {
 public:
     explicit HunterAI(Player* bot);
-    ~HunterAI() override = default;
+    ~HunterAI() override;
 
     // Core AI interface
     void UpdateRotation(::Unit* target) override;
@@ -128,6 +139,18 @@ public:
     CombatBehaviorIntegration* GetCombatBehaviors() const { return _combatBehaviors.get(); }
 
 private:
+    // ========================================================================
+    // QW-4 FIX: Per-instance specialization objects
+    // Each bot has its own specialization object initialized with correct bot pointer
+    // ========================================================================
+
+    ::std::unique_ptr<BeastMasteryHunter> _beastMasterySpec;
+    ::std::unique_ptr<MarksmanshipHunter> _marksmanshipSpec;
+    ::std::unique_ptr<SurvivalHunter> _survivalSpec;
+
+    // Delegation to specialization
+    void DelegateToSpecialization(::Unit* target);
+
     // Initialization methods
     void InitializeCombatSystems();
 
@@ -160,7 +183,7 @@ private:
     bool CanPlaceTrap() const;
     bool ShouldPlaceFreezingTrap(::Unit* target) const;
     bool ShouldPlaceExplosiveTrap() const;
-    bool ShouldPlaceSnakeTrap() const;
+    bool ShouldPlaceTarTrap() const;
     void PlaceTrap(uint32 trapSpell, const Position& pos);
     uint32 GetBestTrapForSituation() const;
 
@@ -244,68 +267,55 @@ private:
 
 public:
     // Hunter Spell IDs
+    // Hunter Spell IDs - Using central registry (WoW 11.2)
     enum HunterSpells
     {
         // Shots and Attacks
-        STEADY_SHOT = 56641,
-        ARCANE_SHOT = 3044,
-        MULTI_SHOT = 2643,
-        AIMED_SHOT = 19434,
-        KILL_SHOT = 53351,
-        EXPLOSIVE_SHOT = 53301,
-        SERPENT_STING = 1978,
-        CONCUSSIVE_SHOT = 5116,
+        STEADY_SHOT = WoW112Spells::Hunter::Common::STEADY_SHOT,
+        ARCANE_SHOT = WoW112Spells::Hunter::Common::ARCANE_SHOT,
+        MULTI_SHOT = WoW112Spells::Hunter::Common::MULTI_SHOT,
+        AIMED_SHOT = WoW112Spells::Hunter::Common::AIMED_SHOT,
+        KILL_SHOT = WoW112Spells::Hunter::Common::KILL_SHOT,
+        EXPLOSIVE_SHOT = WoW112Spells::Hunter::Common::EXPLOSIVE_SHOT,
+        SERPENT_STING = WoW112Spells::Hunter::Common::SERPENT_STING,
+        CONCUSSIVE_SHOT = WoW112Spells::Hunter::Common::CONCUSSIVE_SHOT,
 
         // Pet Abilities
-        KILL_COMMAND = 34026,
-        MEND_PET = 136,
-        REVIVE_PET = 982,
-        CALL_PET = 883,
-        MASTER_S_CALL = 53271,
+        KILL_COMMAND = WoW112Spells::Hunter::Common::KILL_COMMAND,
+        MEND_PET = WoW112Spells::Hunter::Common::MEND_PET,
+        REVIVE_PET = WoW112Spells::Hunter::Common::REVIVE_PET,
+        CALL_PET = WoW112Spells::Hunter::Common::CALL_PET,
+        MASTER_S_CALL = WoW112Spells::Hunter::Common::MASTERS_CALL,
 
         // Traps
-        FREEZING_TRAP = 187650,
-        EXPLOSIVE_TRAP = 191433,
-        SNAKE_TRAP = 34600,
+        FREEZING_TRAP = WoW112Spells::Hunter::Common::FREEZING_TRAP,
+        EXPLOSIVE_TRAP = WoW112Spells::Hunter::Common::EXPLOSIVE_TRAP,
+        TAR_TRAP = WoW112Spells::Hunter::Common::TAR_TRAP,
 
         // Defensive/Utility
-        HUNTER_DISENGAGE = 781,
-        FEIGN_DEATH = 5384,
-        DETERRENCE = 19263,
-        EXHILARATION = 109304,
-        WING_CLIP = 2974,
-        SCATTER_SHOT = 19503,
-        COUNTER_SHOT = 147362,
-        SILENCING_SHOT = 34490,
+        HUNTER_DISENGAGE = WoW112Spells::Hunter::Common::DISENGAGE,
+        FEIGN_DEATH = WoW112Spells::Hunter::Common::FEIGN_DEATH,
+        DETERRENCE = WoW112Spells::Hunter::Common::ASPECT_OF_THE_TURTLE, // Renamed to Aspect of the Turtle in 11.2
+        EXHILARATION = WoW112Spells::Hunter::Common::EXHILARATION,
+        SCATTER_SHOT = WoW112Spells::Hunter::Common::SCATTER_SHOT,
+        COUNTER_SHOT = WoW112Spells::Hunter::Common::COUNTER_SHOT,
 
-        // Aspects
-        ASPECT_OF_THE_HAWK = 13165,
-        ASPECT_OF_THE_WILD = 20043,
-        ASPECT_OF_THE_CHEETAH = 5118,
-        ASPECT_OF_THE_TURTLE = 186265,
-        ASPECT_OF_THE_DRAGONHAWK = 61846,
-        ASPECT_OF_THE_PACK = 13159,
-        ASPECT_OF_THE_VIPER = 34074,
+        // Aspects (WoW 11.2 only)
+        ASPECT_OF_THE_WILD = WoW112Spells::Hunter::Common::ASPECT_OF_THE_WILD,
+        ASPECT_OF_THE_CHEETAH = WoW112Spells::Hunter::Common::ASPECT_OF_THE_CHEETAH,
+        ASPECT_OF_THE_TURTLE = WoW112Spells::Hunter::Common::ASPECT_OF_THE_TURTLE,
 
         // Marks/Debuffs
-        HUNTER_S_MARK = 1130,
+        HUNTER_S_MARK = WoW112Spells::Hunter::Common::HUNTERS_MARK,
 
         // Cooldowns
-        RAPID_FIRE = 3045,
-        BESTIAL_WRATH = 19574,
-        TRUESHOT = 288613,
-        BARRAGE = 120360,
-        VOLLEY = 260243,
+        RAPID_FIRE = WoW112Spells::Hunter::Common::RAPID_FIRE,
+        BESTIAL_WRATH = WoW112Spells::Hunter::Common::BESTIAL_WRATH,
+        TRUESHOT = WoW112Spells::Hunter::Common::TRUESHOT,
+        BARRAGE = WoW112Spells::Hunter::Common::BARRAGE,
+        VOLLEY = WoW112Spells::Hunter::Common::VOLLEY,
 
-        // Tracking Abilities (WoW 11.2)
-        TRACK_BEASTS = 1494,
-        TRACK_DEMONS = 19878,
-        TRACK_DRAGONKIN = 19879,
-        TRACK_ELEMENTALS = 19880,
-        TRACK_GIANTS = 19882,
-        TRACK_HUMANOIDS = 19883,
-        TRACK_UNDEAD = 19884,
-        TRACK_HIDDEN = 19885
+        // Note: Tracking spells were removed in WoW 11.2 - no longer supported
     };
 };
 

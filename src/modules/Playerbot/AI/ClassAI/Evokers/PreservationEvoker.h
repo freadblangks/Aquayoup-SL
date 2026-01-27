@@ -14,6 +14,7 @@
 #include "../Common/RotationHelpers.h"
 #include "../CombatSpecializationTemplates.h"
 #include "../ResourceTypes.h"
+#include "../SpellValidation_WoW112.h"
 #include "../../Services/HealingTargetSelector.h"
 #include "Player.h"
 #include "SpellMgr.h"
@@ -41,53 +42,54 @@ using bot::ai::SpellCategory;
 // Note: bot::ai::Action() conflicts with Playerbot::Action, use bot::ai::Action() explicitly
 // ============================================================================
 // PRESERVATION EVOKER SPELL IDs (WoW 11.2 - The War Within)
+// See central registry: WoW112Spells::Evoker and WoW112Spells::Evoker::Preservation
 // ============================================================================
 
 enum PreservationEvokerSpells
 {
     // Direct Heals
-    EMERALD_BLOSSOM      = 355916,  // 3 essence, AoE heal
-    VERDANT_EMBRACE      = 360995,  // 1 essence, single-target heal + teleport
-    LIVING_FLAME_HEAL    = 361509,  // Heal version of Living Flame
+    EMERALD_BLOSSOM      = WoW112Spells::Evoker::EMERALD_BLOSSOM,
+    VERDANT_EMBRACE      = WoW112Spells::Evoker::VERDANT_EMBRACE,
+    LIVING_FLAME_HEAL    = WoW112Spells::Evoker::Preservation::LIVING_FLAME_HEAL,
 
     // Empowered Heals
-    DREAM_BREATH         = 355936,  // 3 essence, empowered (rank 1-4), HoT
-    SPIRIT_BLOOM         = 367226,  // 3 essence, empowered (rank 1-4), smart heal
+    DREAM_BREATH         = WoW112Spells::Evoker::Preservation::DREAM_BREATH,
+    SPIRIT_BLOOM         = WoW112Spells::Evoker::Preservation::SPIRITBLOOM,
 
     // Echo System
-    ECHO                 = 364343,  // Creates healing echo on target
-    REVERSION            = 366155,  // 1 essence, HoT with Echo
+    ECHO                 = WoW112Spells::Evoker::Preservation::ECHO,
+    REVERSION            = WoW112Spells::Evoker::Preservation::REVERSION,
 
     // Major Cooldowns
-    EMERALD_COMMUNION    = 370960,  // 3 min CD, massive AoE heal
-    TEMPORAL_ANOMALY     = 373861,  // 3 min CD, heal after damage taken
-    REWIND               = 363534,  // 2.5 min CD, undo damage
+    EMERALD_COMMUNION    = WoW112Spells::Evoker::Preservation::EMERALD_COMMUNION,
+    TEMPORAL_ANOMALY     = WoW112Spells::Evoker::Preservation::TEMPORAL_ANOMALY,
+    REWIND               = WoW112Spells::Evoker::Preservation::REWIND,
 
     // Utility
-    LIFEBIND             = 373267,  // Link two allies, share healing
-    BLESSING_BRONZE      = 364342,  // CDR on ally
-    TIME_DILATION        = 357170,  // Extend HoTs/buffs
-    STASIS               = 370537,  // Suspend friendly target
-    RESCUE               = 370665,  // Pull ally to you
+    LIFEBIND             = WoW112Spells::Evoker::Preservation::LIFEBIND,
+    BLESSING_BRONZE      = WoW112Spells::Evoker::BLESSING_OF_THE_BRONZE,
+    TIME_DILATION        = WoW112Spells::Evoker::Preservation::TIME_DILATION,
+    STASIS               = WoW112Spells::Evoker::Preservation::STASIS,
+    RESCUE               = WoW112Spells::Evoker::RESCUE,
 
     // Defensive (shared with other Evoker specs)
-    PRES_OBSIDIAN_SCALES = 363916,  // 90 sec CD, damage reduction
-    PRES_RENEWING_BLAZE  = 374348,  // 90 sec CD, self-heal
-    TWIN_GUARDIAN        = 370888,  // Shield another player
+    PRES_OBSIDIAN_SCALES = WoW112Spells::Evoker::OBSIDIAN_SCALES,
+    PRES_RENEWING_BLAZE  = WoW112Spells::Evoker::RENEWING_BLAZE,
+    TWIN_GUARDIAN        = WoW112Spells::Evoker::Preservation::TWIN_GUARDIAN,
 
     // Essence Generation
-    AZURE_STRIKE_PRES    = 362969,  // Generates 2 essence
-    DISINTEGRATE_PRES    = 356995,  // 3 essence, damage for essence gen
+    AZURE_STRIKE_PRES    = WoW112Spells::Evoker::AZURE_STRIKE,
+    DISINTEGRATE_PRES    = WoW112Spells::Evoker::DISINTEGRATE,
 
     // Procs
-    ESSENCE_BURST_PRES   = 369299,  // Free essence spender
-    CALL_OF_YSERA        = 373835,  // Dream Breath proc
+    ESSENCE_BURST_PRES   = WoW112Spells::Evoker::Preservation::ESSENCE_BURST_PRES,
+    CALL_OF_YSERA        = WoW112Spells::Evoker::Preservation::CALL_OF_YSERA,
 
     // Talents
-    FIELD_OF_DREAMS      = 370062,  // Dream Breath AoE larger
-    FLOW_STATE           = 385696,  // Essence regen
-    LIFEFORCE_MENDER     = 376179,  // Healing increase
-    TEMPORAL_COMPRESSION = 362877   // Echo burst heal
+    FIELD_OF_DREAMS      = WoW112Spells::Evoker::Preservation::FIELD_OF_DREAMS,
+    FLOW_STATE           = WoW112Spells::Evoker::Preservation::FLOW_STATE,
+    LIFEFORCE_MENDER     = WoW112Spells::Evoker::Preservation::LIFEFORCE_MENDER,
+    TEMPORAL_COMPRESSION = WoW112Spells::Evoker::Preservation::TEMPORAL_COMPRESSION
 };
 
 // Essence resource (same as Devastation)
@@ -168,10 +170,10 @@ private:
 };
 
 // ============================================================================
-// ECHO SYSTEM
+// ECHO SYSTEM (Preservation-specific, named PresEcho to avoid conflict with EvokerAI::Echo)
 // ============================================================================
 
-struct Echo
+struct PresEcho
 {
     ObjectGuid targetGuid;
     uint32 remainingHeals;
@@ -179,9 +181,9 @@ struct Echo
     uint32 lastHealTime;
     uint32 healInterval;
 
-    Echo() : remainingHeals(0), healAmount(0), lastHealTime(0), healInterval(2000) {}
+    PresEcho() : remainingHeals(0), healAmount(0), lastHealTime(0), healInterval(2000) {}
 
-    Echo(ObjectGuid guid, uint32 heals, uint32 amount)
+    PresEcho(ObjectGuid guid, uint32 heals, uint32 amount)
         : targetGuid(guid), remainingHeals(heals), healAmount(amount), lastHealTime(GameTime::GetGameTimeMS()), healInterval(2000) {}
 
     bool ShouldHeal() const
@@ -225,7 +227,7 @@ public:
     {
         _echoes.erase(
             ::std::remove_if(_echoes.begin(), _echoes.end(),
-                [targetGuid](const Echo& echo) { return echo.targetGuid == targetGuid; }),
+                [targetGuid](const PresEcho& echo) { return echo.targetGuid == targetGuid; }),
             _echoes.end()
         );
     }
@@ -251,7 +253,7 @@ public:
         // Remove expired echoes
         _echoes.erase(
             ::std::remove_if(_echoes.begin(), _echoes.end(),
-                [](const Echo& echo) { return echo.IsExpired(); }),
+                [](const PresEcho& echo) { return echo.IsExpired(); }),
             _echoes.end()
         );
     }
@@ -261,11 +263,11 @@ public:
     [[nodiscard]] bool HasEcho(ObjectGuid targetGuid) const
     {
         return ::std::any_of(_echoes.begin(), _echoes.end(),
-            [targetGuid](const Echo& echo) { return echo.targetGuid == targetGuid; });
+            [targetGuid](const PresEcho& echo) { return echo.targetGuid == targetGuid; });
     }
 
 private:
-    ::std::vector<Echo> _echoes;
+    ::std::vector<PresEcho> _echoes;
     uint32 _maxEchoes;
 };
 

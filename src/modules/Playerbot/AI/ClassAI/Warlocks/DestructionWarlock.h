@@ -25,6 +25,7 @@
 #include "../../Decision/ActionPriorityQueue.h"
 #include "../../Decision/BehaviorTree.h"
 #include "../BotAI.h"
+#include "../SpellValidation_WoW112_Part2.h"
 
 namespace Playerbot
 {
@@ -43,64 +44,65 @@ using bot::ai::SpellCategory;
 // Note: bot::ai::Action() conflicts with Playerbot::Action, use bot::ai::Action() explicitly
 // ============================================================================
 // DESTRUCTION WARLOCK SPELL IDs (WoW 11.2 - The War Within)
+// Central Registry: WoW112Spells::Warlock::Destruction in SpellValidation_WoW112_Part2.h
 // ============================================================================
 
 enum DestructionWarlockSpells
 {
-    // Core Spells
-    CHAOS_BOLT               = 116858,  // 2 shards, heavy direct damage
-    INCINERATE               = 29722,   // Filler, generates shards
-    CONFLAGRATE              = 17962,   // 2 charges, 13 sec CD, generates shards
-    IMMOLATE                 = 348,     // DoT, enables Conflagrate
+    // Core Spells - Using central registry: WoW112Spells::Warlock::Destruction
+    CHAOS_BOLT               = WoW112Spells::Warlock::Destruction::CHAOS_BOLT,
+    INCINERATE               = WoW112Spells::Warlock::Destruction::INCINERATE,
+    CONFLAGRATE              = WoW112Spells::Warlock::Destruction::CONFLAGRATE,
+    IMMOLATE                 = WoW112Spells::Warlock::Destruction::IMMOLATE,
 
-    // AoE Spells
-    RAIN_OF_FIRE             = 5740,    // 3 shards, ground AoE
-    CHANNEL_DEMONFIRE        = 196447,  // Channel, requires Immolate (talent)
-    CATACLYSM                = 152108,  // 30 sec CD, AoE + Immolate (talent)
-    HAVOC                    = 80240,   // 30 sec CD, cleave on 2nd target
+    // AoE Spells - Using central registry: WoW112Spells::Warlock::Destruction
+    RAIN_OF_FIRE             = WoW112Spells::Warlock::Destruction::RAIN_OF_FIRE,
+    CHANNEL_DEMONFIRE        = WoW112Spells::Warlock::Destruction::CHANNEL_DEMONFIRE,
+    CATACLYSM                = WoW112Spells::Warlock::Destruction::CATACLYSM,
+    HAVOC                    = WoW112Spells::Warlock::Destruction::HAVOC,
 
-    // Major Cooldowns
-    SUMMON_INFERNAL          = 1122,    // 3 min CD, summons Infernal (major CD)
-    DARK_SOUL_INSTABILITY    = 113858,  // 2 min CD, crit buff (talent)
-    SOUL_FIRE                = 6353,    // 20 sec CD, strong direct damage (talent)
+    // Major Cooldowns - Using central registry: WoW112Spells::Warlock::Destruction
+    SUMMON_INFERNAL          = WoW112Spells::Warlock::Destruction::SUMMON_INFERNAL,
+    DARK_SOUL_INSTABILITY    = WoW112Spells::Warlock::Destruction::DARK_SOUL_INSTABILITY,
+    SOUL_FIRE                = WoW112Spells::Warlock::Destruction::SOUL_FIRE,
 
-    // Pet Management
-    SUMMON_IMP_DESTRO        = 688,
-    SUMMON_VOIDWALKER_DESTRO = 697,
-    SUMMON_SUCCUBUS_DESTRO   = 712,
-    SUMMON_FELHUNTER_DESTRO  = 691,
-    COMMAND_DEMON_DESTRO     = 119898,
+    // Pet Management - Using central registry: WoW112Spells::Warlock
+    SUMMON_IMP_DESTRO        = WoW112Spells::Warlock::SUMMON_IMP,
+    SUMMON_VOIDWALKER_DESTRO = WoW112Spells::Warlock::SUMMON_VOIDWALKER,
+    SUMMON_SUCCUBUS_DESTRO   = WoW112Spells::Warlock::SUMMON_SUCCUBUS,
+    SUMMON_FELHUNTER_DESTRO  = WoW112Spells::Warlock::SUMMON_FELHUNTER,
+    COMMAND_DEMON_DESTRO     = WoW112Spells::Warlock::COMMAND_DEMON,
 
-    // Utility
-    CURSE_OF_TONGUES_DESTRO  = 1714,    // Casting slow (talent)
-    CURSE_OF_WEAKNESS_DESTRO = 702,     // Reduces physical damage
-    CURSE_OF_EXHAUSTION_DESTRO = 334275,// Movement slow
-    SHADOWBURN               = 17877,   // Execute, generates shards (talent)
-    BACKDRAFT                = 196406,  // Buff: reduces Incinerate cast time
+    // Utility - Using central registry: WoW112Spells::Warlock
+    CURSE_OF_TONGUES_DESTRO  = WoW112Spells::Warlock::CURSE_OF_TONGUES,
+    CURSE_OF_WEAKNESS_DESTRO = WoW112Spells::Warlock::CURSE_OF_WEAKNESS,
+    CURSE_OF_EXHAUSTION_DESTRO = WoW112Spells::Warlock::CURSE_OF_EXHAUSTION,
+    SHADOWBURN               = WoW112Spells::Warlock::Destruction::SHADOWBURN,
+    BACKDRAFT                = WoW112Spells::Warlock::Destruction::BACKDRAFT,
 
-    // Defensives
-    UNENDING_RESOLVE_DESTRO  = 104773,  // 3 min CD, damage reduction
-    DARK_PACT_DESTRO         = 108416,  // 1 min CD, shield (talent)
-    MORTAL_COIL_DESTRO       = 6789,    // Heal + fear (talent)
-    HOWL_OF_TERROR_DESTRO    = 5484,    // AoE fear (talent)
-    FEAR_DESTRO              = 5782,    // CC
-    BANISH_DESTRO            = 710,     // CC (demons/elementals)
-    DEMONIC_CIRCLE_TELEPORT_DESTRO = 48020, // Teleport
-    DEMONIC_GATEWAY_DESTRO   = 111771,  // Portal
-    BURNING_RUSH_DESTRO      = 111400,  // Speed, drains health
+    // Defensives - Using central registry: WoW112Spells::Warlock
+    UNENDING_RESOLVE_DESTRO  = WoW112Spells::Warlock::UNENDING_RESOLVE,
+    DARK_PACT_DESTRO         = WoW112Spells::Warlock::Affliction::DARK_PACT,
+    MORTAL_COIL_DESTRO       = WoW112Spells::Warlock::MORTAL_COIL,
+    HOWL_OF_TERROR_DESTRO    = WoW112Spells::Warlock::HOWL_OF_TERROR,
+    FEAR_DESTRO              = WoW112Spells::Warlock::FEAR,
+    BANISH_DESTRO            = WoW112Spells::Warlock::BANISH,
+    DEMONIC_CIRCLE_TELEPORT_DESTRO = WoW112Spells::Warlock::DEMONIC_CIRCLE_TELEPORT,
+    DEMONIC_GATEWAY_DESTRO   = WoW112Spells::Warlock::DEMONIC_GATEWAY,
+    BURNING_RUSH_DESTRO      = WoW112Spells::Warlock::BURNING_RUSH,
 
-    // Procs and Buffs
-    BACKDRAFT_BUFF           = 117828,  // Buff from Conflagrate
-    REVERSE_ENTROPY          = 205148,  // Buff from Rain of Fire (talent)
-    ERADICATION              = 196412,  // Debuff: increases damage taken (talent)
-    FLASHOVER                = 267115,  // Backdraft on Conflagrate CD end (talent)
+    // Procs and Buffs - Using central registry: WoW112Spells::Warlock::Destruction
+    BACKDRAFT_BUFF           = WoW112Spells::Warlock::Destruction::BACKDRAFT_BUFF,
+    REVERSE_ENTROPY          = WoW112Spells::Warlock::Destruction::REVERSE_ENTROPY,
+    ERADICATION              = WoW112Spells::Warlock::Destruction::ERADICATION,
+    FLASHOVER                = WoW112Spells::Warlock::Destruction::FLASHOVER,
 
-    // Talents
-    ROARING_BLAZE            = 205184,  // Conflagrate buff
-    INTERNAL_COMBUSTION      = 266134,  // Chaos Bolt consumes Immolate
-    FIRE_AND_BRIMSTONE       = 196408,  // Incinerate cleaves
-    INFERNO                  = 270545,  // Rain of Fire stun
-    GRIMOIRE_OF_SUPREMACY    = 266086   // Better pets
+    // Talents - Using central registry: WoW112Spells::Warlock::Destruction
+    ROARING_BLAZE            = WoW112Spells::Warlock::Destruction::ROARING_BLAZE,
+    INTERNAL_COMBUSTION      = WoW112Spells::Warlock::Destruction::INTERNAL_COMBUSTION,
+    FIRE_AND_BRIMSTONE       = WoW112Spells::Warlock::Destruction::FIRE_AND_BRIMSTONE,
+    INFERNO                  = WoW112Spells::Warlock::Destruction::INFERNO,
+    GRIMOIRE_OF_SUPREMACY    = WoW112Spells::Warlock::Destruction::GRIMOIRE_OF_SUPREMACY
 };
 
 // Dual resource type for Destruction Warlock

@@ -68,6 +68,7 @@
 #include "VMapManager.h"
 #include "World.h"
 #include "WorldSession.h"
+#include "../../modules/Playerbot/Core/PlayerBotHooks.h"
 #include <numeric>
 #include <sstream>
 
@@ -3588,6 +3589,13 @@ SpellCastResult Spell::prepare(SpellCastTargets const& targets, AuraEffect const
         if (!(_triggeredCastFlags & TRIGGERED_IGNORE_GCD))
             TriggerGlobalCooldown();
 
+        // PLAYERBOT HOOK: Notify bots of spell cast start (CRITICAL for interrupt coordination)
+        if (Playerbot::PlayerBotHooks::OnSpellCastStart)
+        {
+            Unit* target = m_targets.GetUnitTarget();
+            Playerbot::PlayerBotHooks::OnSpellCastStart(m_caster->ToUnit(), m_spellInfo, target);
+        }
+
         // Call CreatureAI hook OnSpellStart
         if (Creature* caster = m_caster->ToCreature())
             if (caster->IsAIEnabled())
@@ -4467,6 +4475,10 @@ void Spell::finish(SpellCastResult result)
     // Stop Attack for some spells
     if (m_spellInfo->HasAttribute(SPELL_ATTR0_CANCELS_AUTO_ATTACK_COMBAT))
         unitCaster->AttackStop();
+
+    // PLAYERBOT HOOK: Notify bots of successful spell cast completion
+    if (Playerbot::PlayerBotHooks::OnSpellCastSuccess)
+        Playerbot::PlayerBotHooks::OnSpellCastSuccess(unitCaster, m_spellInfo);
 }
 
 template<class T>

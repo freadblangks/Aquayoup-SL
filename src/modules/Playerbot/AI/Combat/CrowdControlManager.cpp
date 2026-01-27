@@ -17,6 +17,9 @@
 #include "Creature.h"
 #include "GameTime.h"
 #include "DBCEnums.h"  // For MAX_EFFECT_MASK
+#include "ObjectAccessor.h"
+#include "Core/Events/CombatEventRouter.h"
+#include "Core/Events/CombatEvent.h"
 #include <algorithm>
 
 namespace Playerbot
@@ -173,6 +176,28 @@ CrowdControlManager::CrowdControlManager(Player* bot)
     : _bot(bot)
     , _lastUpdate(0)
 {
+    // Phase 3: Subscribe to combat events for real-time CC tracking
+    if (CombatEventRouter::Instance().IsInitialized())
+    {
+        CombatEventRouter::Instance().Subscribe(this);
+        _subscribed = true;
+        TC_LOG_DEBUG("playerbots", "CrowdControlManager: Subscribed to CombatEventRouter (event-driven mode)");
+    }
+    else
+    {
+        TC_LOG_DEBUG("playerbots", "CrowdControlManager: Initialized in polling mode (CombatEventRouter not ready)");
+    }
+}
+
+CrowdControlManager::~CrowdControlManager()
+{
+    // Phase 3: Unsubscribe from combat events
+    if (_subscribed && CombatEventRouter::Instance().IsInitialized())
+    {
+        CombatEventRouter::Instance().Unsubscribe(this);
+        _subscribed = false;
+        TC_LOG_DEBUG("playerbots", "CrowdControlManager: Unsubscribed from CombatEventRouter");
+    }
 }
 
 void CrowdControlManager::Update(uint32 diff, const CombatMetrics& metrics)
@@ -180,15 +205,27 @@ void CrowdControlManager::Update(uint32 diff, const CombatMetrics& metrics)
     if (!_bot)
         return;
 
-    _lastUpdate += diff;
+    // ========================================================================
+    // Phase 3 Event-Driven Architecture:
+    // - CC tracking updates moved to event handlers (HandleAuraApplied, etc.)
+    // - Update() only runs maintenance tasks at reduced frequency
+    // ========================================================================
 
-    if (_lastUpdate < UPDATE_INTERVAL)
+    _maintenanceTimer += diff;
+
+    // Run maintenance at reduced frequency (1Hz instead of 2Hz)
+    if (_maintenanceTimer < MAINTENANCE_INTERVAL_MS && !_ccDataDirty)
         return;
 
-    _lastUpdate = 0;
+    _maintenanceTimer = 0;
+    _ccDataDirty = false;
 
-    // Update expired CCs
+    // Update expired CCs (maintenance task)
     UpdateExpiredCCs();
+
+    // Update DR states (maintenance task)
+    uint32 currentTime = GameTime::GetGameTimeMS();
+    UpdateDR(currentTime);
 }
 
 void CrowdControlManager::Reset()
@@ -661,6 +698,407 @@ void CrowdControlManager::UpdateExpiredCCs()
         }
         else
             ++it;
+    }
+}
+
+// ============================================================================
+// DIMINISHING RETURNS (DR) TRACKING - Phase 2 Architecture
+// ============================================================================
+
+// Spell ID to DR Category mapping
+// This is a comprehensive list for WoW 11.x - expand as needed
+DRCategory CrowdControlManager::GetDRCategory(uint32 spellId)
+{
+    // Map commonly used CC spells to their DR categories
+    switch (spellId)
+    {
+        // STUN category
+        case 408:       // Kidney Shot
+        case 853:       // Hammer of Justice
+        case 115750:    // Blinding Light
+        case 108194:    // Asphyxiate
+        case 5211:      // Mighty Bash
+        case 119381:    // Leg Sweep
+        case 91807:     // Shambling Rush
+        case 30283:     // Shadowfury
+        case 109248:    // Binding Shot
+        case 118905:    // Static Charge
+        case 197214:    // Sundering
+        case 200196:    // Holy Word: Chastise
+        case 179057:    // Chaos Nova
+        case 1776:      // Gouge
+            return DRCategory::STUN;
+
+        // INCAPACITATE category
+        case 118:       // Polymorph
+        case 6770:      // Sap
+        case 51514:     // Hex
+        case 20066:     // Repentance
+        case 2637:      // Hibernate
+        case 710:       // Banish
+        case 9484:      // Shackle Undead
+        case 605:       // Mind Control
+        case 115078:    // Paralysis
+        case 187650:    // Freezing Trap
+        case 19386:     // Wyvern Sting
+        case 82691:     // Ring of Frost
+        case 213691:    // Scatter Shot
+        case 217832:    // Imprison
+            return DRCategory::INCAPACITATE;
+
+        // DISORIENT category
+        case 8122:      // Psychic Scream
+        case 2094:      // Blind
+        case 6789:      // Mortal Coil
+        case 99:        // Incapacitating Roar
+        case 31661:     // Dragon's Breath
+        case 207167:    // Blinding Sleet
+            return DRCategory::DISORIENT;
+
+        // FEAR category (Warlock fear specifically)
+        case 5782:      // Fear
+        case 118699:    // Fear (Havoc warlock version)
+        case 130616:    // Fear (Pet)
+            return DRCategory::FEAR;
+
+        // HORROR category
+        case 5484:      // Howl of Terror
+        case 6358:      // Seduction
+            return DRCategory::HORROR;
+
+        // ROOT category
+        case 122:       // Frost Nova
+        case 339:       // Entangling Roots
+        case 102359:    // Mass Entanglement
+        case 116706:    // Disable
+        case 45334:     // Feral Charge Root
+        case 233395:    // Frozen Center
+            return DRCategory::ROOT;
+
+        // SILENCE category
+        case 15487:     // Silence
+        case 78675:     // Solar Beam
+        case 47476:     // Strangulate
+        case 199683:    // Last Word
+            return DRCategory::SILENCE;
+
+        // DISARM category
+        case 236077:    // Disarm
+            return DRCategory::DISARM;
+
+        // KNOCKBACK category
+        case 132469:    // Typhoon
+        case 51490:     // Thunderstorm
+        case 202138:    // Sigil of Chains
+            return DRCategory::KNOCKBACK;
+
+        default:
+            return DRCategory::NONE;
+    }
+}
+
+float CrowdControlManager::GetDRMultiplier(ObjectGuid target, DRCategory category) const
+{
+    if (category == DRCategory::NONE)
+        return 1.0f;
+
+    auto targetIt = _drTracking.find(target);
+    if (targetIt == _drTracking.end())
+        return 1.0f;  // No DR history = full duration
+
+    auto categoryIt = targetIt->second.find(category);
+    if (categoryIt == targetIt->second.end())
+        return 1.0f;  // No DR for this category = full duration
+
+    return categoryIt->second.GetDurationMultiplier();
+}
+
+float CrowdControlManager::GetDRMultiplier(ObjectGuid target, uint32 spellId) const
+{
+    DRCategory category = GetDRCategory(spellId);
+    return GetDRMultiplier(target, category);
+}
+
+bool CrowdControlManager::IsDRImmune(ObjectGuid target, DRCategory category) const
+{
+    if (category == DRCategory::NONE)
+        return false;
+
+    auto targetIt = _drTracking.find(target);
+    if (targetIt == _drTracking.end())
+        return false;  // No DR history = not immune
+
+    auto categoryIt = targetIt->second.find(category);
+    if (categoryIt == targetIt->second.end())
+        return false;  // No DR for this category = not immune
+
+    return categoryIt->second.IsImmune();
+}
+
+bool CrowdControlManager::IsDRImmune(ObjectGuid target, uint32 spellId) const
+{
+    DRCategory category = GetDRCategory(spellId);
+    return IsDRImmune(target, category);
+}
+
+uint8 CrowdControlManager::GetDRStacks(ObjectGuid target, DRCategory category) const
+{
+    if (category == DRCategory::NONE)
+        return 0;
+
+    auto targetIt = _drTracking.find(target);
+    if (targetIt == _drTracking.end())
+        return 0;
+
+    auto categoryIt = targetIt->second.find(category);
+    if (categoryIt == targetIt->second.end())
+        return 0;
+
+    return categoryIt->second.stacks;
+}
+
+void CrowdControlManager::OnCCApplied(ObjectGuid target, uint32 spellId)
+{
+    DRCategory category = GetDRCategory(spellId);
+    OnCCApplied(target, category);
+}
+
+void CrowdControlManager::OnCCApplied(ObjectGuid target, DRCategory category)
+{
+    if (category == DRCategory::NONE)
+        return;
+
+    uint32 currentTime = GameTime::GetGameTimeMS();
+    _drTracking[target][category].Apply(currentTime);
+
+    uint8 stacks = _drTracking[target][category].stacks;
+    TC_LOG_DEBUG("playerbot", "CrowdControlManager: DR applied to {} (category: {}, stacks: {})",
+        target.ToString(), static_cast<uint8>(category), stacks);
+}
+
+void CrowdControlManager::UpdateDR(uint32 currentTime)
+{
+    // Update all DR states and remove expired ones
+    for (auto& targetPair : _drTracking)
+    {
+        for (auto categoryIt = targetPair.second.begin(); categoryIt != targetPair.second.end();)
+        {
+            categoryIt->second.Update(currentTime);
+
+            // Remove if reset to 0 stacks
+            if (categoryIt->second.stacks == 0 && categoryIt->second.lastApplicationTime > 0)
+            {
+                TC_LOG_DEBUG("playerbot", "CrowdControlManager: DR reset for {} (category: {})",
+                    targetPair.first.ToString(), static_cast<uint8>(categoryIt->first));
+                categoryIt = targetPair.second.erase(categoryIt);
+            }
+            else
+            {
+                ++categoryIt;
+            }
+        }
+    }
+
+    // Clean up targets with no DR tracking
+    for (auto targetIt = _drTracking.begin(); targetIt != _drTracking.end();)
+    {
+        if (targetIt->second.empty())
+            targetIt = _drTracking.erase(targetIt);
+        else
+            ++targetIt;
+    }
+}
+
+void CrowdControlManager::ClearDR(ObjectGuid target)
+{
+    _drTracking.erase(target);
+    TC_LOG_DEBUG("playerbot", "CrowdControlManager: Cleared all DR for {}", target.ToString());
+}
+
+uint32 CrowdControlManager::GetExpectedDuration(ObjectGuid target, uint32 spellId, uint32 baseDuration) const
+{
+    float multiplier = GetDRMultiplier(target, spellId);
+    return static_cast<uint32>(baseDuration * multiplier);
+}
+
+// ============================================================================
+// ICombatEventSubscriber Implementation (Phase 3 Event-Driven Architecture)
+// ============================================================================
+
+CombatEventType CrowdControlManager::GetSubscribedEventTypes() const
+{
+    // Subscribe to events relevant for CC tracking:
+    // - AURA_APPLIED: Track when CC auras are applied
+    // - AURA_REMOVED: Track when CC auras are removed/broken
+    // - UNIT_DIED: Clear DR for dead units
+    return CombatEventType::AURA_APPLIED |
+           CombatEventType::AURA_REMOVED |
+           CombatEventType::UNIT_DIED;
+}
+
+bool CrowdControlManager::ShouldReceiveEvent(const CombatEvent& event) const
+{
+    // For aura events, check if it's a CC aura
+    if (event.type == CombatEventType::AURA_APPLIED || event.type == CombatEventType::AURA_REMOVED)
+    {
+        if (event.spellId == 0)
+            return false;
+
+        // Check if this is a CC spell
+        return IsCCAura(event.spellId);
+    }
+
+    // For unit death, always receive to clear DR
+    if (event.type == CombatEventType::UNIT_DIED)
+    {
+        return true;
+    }
+
+    return false;
+}
+
+void CrowdControlManager::OnCombatEvent(const CombatEvent& event)
+{
+    // Route event to appropriate handler based on type
+    switch (event.type)
+    {
+        case CombatEventType::AURA_APPLIED:
+            HandleAuraApplied(event);
+            break;
+
+        case CombatEventType::AURA_REMOVED:
+            HandleAuraRemoved(event);
+            break;
+
+        case CombatEventType::UNIT_DIED:
+            HandleUnitDied(event);
+            break;
+
+        default:
+            // Ignore unhandled event types
+            break;
+    }
+}
+
+void CrowdControlManager::HandleAuraApplied(const CombatEvent& event)
+{
+    // When a CC aura is applied, track it
+    if (!_bot || event.target.IsEmpty() || event.spellId == 0)
+        return;
+
+    // Get CC type from spell
+    CrowdControlType ccType = GetCCTypeFromSpell(event.spellId);
+    if (ccType == CrowdControlType::MAX)
+        return;  // Not a CC spell
+
+    // Find the target unit (use bot as reference for same-map lookup)
+    Unit* target = ObjectAccessor::GetUnit(*_bot, event.target);
+    if (!target)
+        return;
+
+    // Find who applied it (source)
+    Player* appliedBy = nullptr;
+    if (!event.source.IsEmpty())
+    {
+        appliedBy = ObjectAccessor::FindPlayer(event.source);
+    }
+
+    // Get aura duration
+    uint32 duration = event.auraDuration;
+    if (duration == 0)
+        duration = 8000;  // Default 8 second estimate
+
+    // Apply CC tracking
+    ApplyCC(target, ccType, duration, appliedBy, event.spellId);
+
+    // Track DR
+    OnCCApplied(event.target, event.spellId);
+
+    // Mark data as dirty
+    _ccDataDirty = true;
+
+    TC_LOG_DEBUG("playerbot", "CrowdControlManager: Event - CC applied to {} (spell: {})",
+        target->GetName(), event.spellId);
+}
+
+void CrowdControlManager::HandleAuraRemoved(const CombatEvent& event)
+{
+    // When a CC aura is removed, stop tracking it
+    if (!_bot || event.target.IsEmpty() || event.spellId == 0)
+        return;
+
+    // Find the target unit (use bot as reference for same-map lookup)
+    Unit* target = ObjectAccessor::GetUnit(*_bot, event.target);
+    if (!target)
+        return;
+
+    // Check if we're tracking this CC
+    auto it = _activeCCs.find(event.target);
+    if (it != _activeCCs.end() && it->second.spellId == event.spellId)
+    {
+        TC_LOG_DEBUG("playerbot", "CrowdControlManager: Event - CC removed from {} (spell: {})",
+            target->GetName(), event.spellId);
+
+        _activeCCs.erase(it);
+        _ccDataDirty = true;
+    }
+}
+
+void CrowdControlManager::HandleUnitDied(const CombatEvent& event)
+{
+    // When a unit dies, clear all tracking for that unit
+    if (!event.source.IsEmpty())
+    {
+        // Clear DR tracking
+        ClearDR(event.source);
+
+        // Clear active CC tracking
+        _activeCCs.erase(event.source);
+
+        _ccDataDirty = true;
+
+        TC_LOG_DEBUG("playerbots", "CrowdControlManager: Event - Unit died, cleared tracking for {}",
+            event.source.ToString());
+    }
+}
+
+bool CrowdControlManager::IsCCAura(uint32 spellId) const
+{
+    // Check if spell is a known CC spell
+    // Use the DR category as a proxy - if it has a DR category, it's a CC
+    DRCategory category = GetDRCategory(spellId);
+    return category != DRCategory::NONE;
+}
+
+CrowdControlType CrowdControlManager::GetCCTypeFromSpell(uint32 spellId) const
+{
+    // Map spell to CC type based on DR category
+    DRCategory category = GetDRCategory(spellId);
+
+    switch (category)
+    {
+        case DRCategory::STUN:
+            return CrowdControlType::STUN;
+
+        case DRCategory::INCAPACITATE:
+            return CrowdControlType::INCAPACITATE;
+
+        case DRCategory::DISORIENT:
+        case DRCategory::FEAR:
+        case DRCategory::HORROR:
+            return CrowdControlType::DISORIENT;
+
+        case DRCategory::ROOT:
+            return CrowdControlType::ROOT;
+
+        case DRCategory::SILENCE:
+            return CrowdControlType::SILENCE;
+
+        case DRCategory::DISARM:
+            return CrowdControlType::DISARM;
+
+        default:
+            return CrowdControlType::MAX;  // Not a CC
     }
 }
 

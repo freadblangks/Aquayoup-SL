@@ -16,6 +16,7 @@
  */
 
 #include "RoleCoordinator.h"
+#include "../Combat/InterruptCoordinator.h"
 #include "../../Advanced/GroupCoordinator.h"
 #include "../../Session/BotSession.h"
 #include "../../Session/BotSessionManager.h"
@@ -31,6 +32,7 @@
 #include "LFG.h"
 #include "SpellHistory.h"
 #include "SpellMgr.h"
+#include <unordered_set>
 
 namespace Playerbot
 {
@@ -86,7 +88,9 @@ static ::std::vector<ObjectGuid> GetGroupMembersByRole(GroupCoordinator* group, 
                 IGameSystemsManager* gameSystems = botAI->GetGameSystems();
                 if (gameSystems)
                 {
-                    GroupCoordinator* botGroupCoord = gameSystems->GetGroupCoordinator();
+                    // Use static_cast since we know concrete type is GroupCoordinator
+                    // This is needed to access GroupRole enum and GetRole() method
+                    GroupCoordinator* botGroupCoord = static_cast<GroupCoordinator*>(gameSystems->GetGroupCoordinator());
                     if (botGroupCoord)
                     {
                         // Get the bot's assigned role from its own GroupCoordinator
@@ -318,6 +322,14 @@ static uint32 GetGroupCombatDuration(GroupCoordinator* group)
 
 void TankCoordinator::Update(GroupCoordinator* group, uint32 diff)
 {
+    // Legacy method - creates temporary cache for backwards compatibility
+    RoleCache tempCache;
+    tempCache.tanks = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::TANK);
+    UpdateWithCache(group, diff, tempCache);
+}
+
+void TankCoordinator::UpdateWithCache(GroupCoordinator* group, uint32 diff, RoleCache const& cache)
+{
     if (!group)
         return;
 
@@ -327,7 +339,7 @@ void TankCoordinator::Update(GroupCoordinator* group, uint32 diff)
 
     _lastUpdateTime = 0;
 
-    UpdateMainTank(group);
+    UpdateMainTank(group, cache);
     UpdateTankAssignments(group);
     UpdateTauntRotation(group);
 }
@@ -464,10 +476,10 @@ bool TankCoordinator::NeedsTankSwap(ObjectGuid mainTankGuid) const
     return false;
 }
 
-void TankCoordinator::UpdateMainTank(GroupCoordinator* group)
+void TankCoordinator::UpdateMainTank(GroupCoordinator* group, RoleCache const& cache)
 {
-    // Use helper function to get all tanks in the group via TrinityCore Group API
-    ::std::vector<ObjectGuid> tanks = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::TANK);
+    // Use cached tank list - O(1) access instead of O(N) iteration
+    ::std::vector<ObjectGuid> const& tanks = cache.tanks;
 
     if (tanks.empty())
     {
@@ -594,6 +606,15 @@ void TankCoordinator::UpdateTauntRotation(GroupCoordinator* group)
 
 void HealerCoordinator::Update(GroupCoordinator* group, uint32 diff)
 {
+    // Legacy method - creates temporary cache for backwards compatibility
+    RoleCache tempCache;
+    tempCache.healers = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::HEALER);
+    tempCache.tanks = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::TANK);
+    UpdateWithCache(group, diff, tempCache);
+}
+
+void HealerCoordinator::UpdateWithCache(GroupCoordinator* group, uint32 diff, RoleCache const& cache)
+{
     if (!group)
         return;
 
@@ -603,33 +624,31 @@ void HealerCoordinator::Update(GroupCoordinator* group, uint32 diff)
 
     _lastUpdateTime = 0;
 
-    UpdateHealingAssignments(group);
+    UpdateHealingAssignments(group, cache);
     UpdateDispelCoordination(group);
-    UpdateCooldownRotation(group);
-    UpdateManaManagement(group);
+    UpdateCooldownRotation(group, cache);
+    UpdateManaManagement(group, cache);
 }
 
 ObjectGuid HealerCoordinator::GetHealerForTank(ObjectGuid tankGuid) const
 {
-    for (auto const& assignment : _healingAssignments)
-    {
-        if (assignment.targetGuid == tankGuid && assignment.assignmentType == "tank")
-            return assignment.healerGuid;
-    }
+    // O(1) lookup instead of O(N) vector search
+    auto it = _tankToHealer.find(tankGuid);
+    if (it != _tankToHealer.end())
+        return it->second;
 
     return ObjectGuid::Empty;
 }
 
 void HealerCoordinator::AssignHealerToTank(ObjectGuid healerGuid, ObjectGuid tankGuid)
 {
-    // Remove existing assignments for this healer
-    _healingAssignments.erase(
-        ::std::remove_if(_healingAssignments.begin(), _healingAssignments.end(),
-            [healerGuid](HealingAssignment const& assignment) {
-                return assignment.healerGuid == healerGuid;
-            }),
-        _healingAssignments.end()
-    );
+    // Check if this healer already has an assignment and remove old tank mapping
+    auto oldAssignment = _healerToAssignment.find(healerGuid);
+    if (oldAssignment != _healerToAssignment.end())
+    {
+        // Remove old tank → healer mapping
+        _tankToHealer.erase(oldAssignment->second.targetGuid);
+    }
 
     // Create new assignment
     HealingAssignment assignment;
@@ -638,6 +657,18 @@ void HealerCoordinator::AssignHealerToTank(ObjectGuid healerGuid, ObjectGuid tan
     assignment.assignmentType = "tank";
     assignment.priority = 100; // Highest priority
 
+    // Update O(1) lookup maps
+    _healerToAssignment[healerGuid] = assignment;
+    _tankToHealer[tankGuid] = healerGuid;
+
+    // Also maintain vector for iteration (used in GetResurrectionPriority)
+    _healingAssignments.erase(
+        ::std::remove_if(_healingAssignments.begin(), _healingAssignments.end(),
+            [healerGuid](HealingAssignment const& a) {
+                return a.healerGuid == healerGuid;
+            }),
+        _healingAssignments.end()
+    );
     _healingAssignments.push_back(assignment);
 
     TC_LOG_DEBUG("playerbot.coordination", "Assigned healer {} to tank {}",
@@ -694,11 +725,11 @@ void HealerCoordinator::UseHealingCooldown(ObjectGuid healerGuid, ::std::string 
     return priorities;
 }
 
-void HealerCoordinator::UpdateHealingAssignments(GroupCoordinator* group)
+void HealerCoordinator::UpdateHealingAssignments(GroupCoordinator* group, RoleCache const& cache)
 {
-    // Use helper functions to get healers and tanks via TrinityCore Group API
-    ::std::vector<ObjectGuid> healers = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::HEALER);
-    ::std::vector<ObjectGuid> tanks = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::TANK);
+    // Use cached healers and tanks - O(1) access instead of O(N) iteration
+    ::std::vector<ObjectGuid> const& healers = cache.healers;
+    ::std::vector<ObjectGuid> const& tanks = cache.tanks;
 
     if (healers.empty())
         return;
@@ -712,22 +743,15 @@ void HealerCoordinator::UpdateHealingAssignments(GroupCoordinator* group)
 
         ObjectGuid healerGuid = healers[healerIndex];
 
-        // Check if this tank already has a healer assigned
-        bool alreadyAssigned = false;
-        for (auto const& assignment : _healingAssignments)
+        // O(1) check if tank already has healer assigned
+        auto it = _tankToHealer.find(tankGuid);
+        if (it == _tankToHealer.end())
         {
-            if (assignment.targetGuid == tankGuid && assignment.assignmentType == "tank")
-            {
-                alreadyAssigned = true;
-                break;
-            }
-        }
-
-        if (!alreadyAssigned)
-        {
+            // Tank not assigned - assign this healer
             AssignHealerToTank(healerGuid, tankGuid);
             healerIndex++;
         }
+        // else: tank already has healer, skip
     }
 
     // Remaining healers assigned to raid/group healing
@@ -735,22 +759,32 @@ void HealerCoordinator::UpdateHealingAssignments(GroupCoordinator* group)
     {
         ObjectGuid healerGuid = healers[healerIndex];
 
-        // Remove old assignments
-        _healingAssignments.erase(
-            ::std::remove_if(_healingAssignments.begin(), _healingAssignments.end(),
-                [healerGuid](HealingAssignment const& assignment) {
-                    return assignment.healerGuid == healerGuid;
-                }),
-            _healingAssignments.end()
-        );
+        // Check if healer already assigned (O(1) lookup)
+        auto existingAssignment = _healerToAssignment.find(healerGuid);
+        if (existingAssignment != _healerToAssignment.end() &&
+            existingAssignment->second.assignmentType != "raid")
+        {
+            // Already has a non-raid assignment, skip
+            continue;
+        }
 
         // Create raid healing assignment
         HealingAssignment assignment;
         assignment.healerGuid = healerGuid;
-        assignment.targetGuid = ObjectGuid::Empty; // No specific target
+        assignment.targetGuid = ObjectGuid::Empty;
         assignment.assignmentType = "raid";
         assignment.priority = 50;
 
+        _healerToAssignment[healerGuid] = assignment;
+
+        // Also update vector
+        _healingAssignments.erase(
+            ::std::remove_if(_healingAssignments.begin(), _healingAssignments.end(),
+                [healerGuid](HealingAssignment const& a) {
+                    return a.healerGuid == healerGuid;
+                }),
+            _healingAssignments.end()
+        );
         _healingAssignments.push_back(assignment);
     }
 }
@@ -776,7 +810,7 @@ void HealerCoordinator::UpdateDispelCoordination(GroupCoordinator* group)
     }
 }
 
-void HealerCoordinator::UpdateCooldownRotation(GroupCoordinator* group)
+void HealerCoordinator::UpdateCooldownRotation(GroupCoordinator* group, RoleCache const& /*cache*/)
 {
     // Rotate major healing cooldowns among healers
     // Examples: Tranquility, Aura Mastery, Divine Hymn, Revival
@@ -810,10 +844,10 @@ void HealerCoordinator::UpdateCooldownRotation(GroupCoordinator* group)
     }
 }
 
-void HealerCoordinator::UpdateManaManagement(GroupCoordinator* group)
+void HealerCoordinator::UpdateManaManagement(GroupCoordinator* group, RoleCache const& cache)
 {
-    // Get all healers in the group via TrinityCore Group API
-    ::std::vector<ObjectGuid> healers = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::HEALER);
+    // Use cached healers - O(1) access instead of O(N) iteration
+    ::std::vector<ObjectGuid> const& healers = cache.healers;
 
     float totalMana = 0.0f;
     float currentMana = 0.0f;
@@ -901,6 +935,16 @@ bool HealerCoordinator::ShouldConserveMana(ObjectGuid healerGuid) const
 
 void DPSCoordinator::Update(GroupCoordinator* group, uint32 diff)
 {
+    // Legacy method - creates temporary cache for backwards compatibility
+    RoleCache tempCache;
+    tempCache.meleeDPS = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::DPS_MELEE);
+    tempCache.rangedDPS = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::DPS_RANGED);
+    tempCache.tanks = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::TANK);
+    UpdateWithCache(group, diff, tempCache);
+}
+
+void DPSCoordinator::UpdateWithCache(GroupCoordinator* group, uint32 diff, RoleCache const& cache)
+{
     if (!group)
         return;
 
@@ -910,8 +954,8 @@ void DPSCoordinator::Update(GroupCoordinator* group, uint32 diff)
 
     _lastUpdateTime = 0;
 
-    UpdateFocusTarget(group);
-    UpdateInterruptRotation(group);
+    UpdateFocusTarget(group, cache);
+    UpdateInterruptRotation(group, cache);
     UpdateCCAssignments(group);
     UpdateBurstWindows(group);
 }
@@ -927,6 +971,20 @@ void DPSCoordinator::SetFocusTarget(ObjectGuid targetGuid)
 
 ObjectGuid DPSCoordinator::GetNextInterrupter() const
 {
+    // Phase 2 Architecture: Delegate to InterruptCoordinator (single authority)
+    if (_interruptCoordinator)
+    {
+        // InterruptCoordinator manages all interrupt assignments centrally
+        // GetPendingAssignments returns vector of InterruptAssignment structs
+        auto pending = _interruptCoordinator->GetPendingAssignments();
+        if (!pending.empty())
+        {
+            return pending.front().assignedBot; // Return first assigned bot
+        }
+        return ObjectGuid::Empty;
+    }
+
+    // Fallback: Legacy implementation (only used if no InterruptCoordinator set)
     uint32 now = GameTime::GetGameTimeMS();
 
     for (auto const& interrupt : _interruptRotation)
@@ -942,6 +1000,21 @@ ObjectGuid DPSCoordinator::GetNextInterrupter() const
 
 void DPSCoordinator::AssignInterrupt(ObjectGuid dpsGuid, ObjectGuid targetGuid)
 {
+    // Phase 2 Architecture: Delegate to InterruptCoordinator (single authority)
+    if (_interruptCoordinator)
+    {
+        // InterruptCoordinator handles interrupt assignment via OnEnemyCastStart events
+        // Direct assignment is deprecated - interrupts are triggered by cast detection
+        // Simply register the bot as available for interrupts (updates cooldown to ready)
+        _interruptCoordinator->UpdateBotCooldown(dpsGuid, 0); // 0 = ready to interrupt
+
+        TC_LOG_DEBUG("playerbot.coordination",
+            "DPSCoordinator delegated interrupt for {} to InterruptCoordinator (target: {})",
+            dpsGuid.ToString(), targetGuid.ToString());
+        return;
+    }
+
+    // Fallback: Legacy implementation (only used if no InterruptCoordinator set)
     uint32 now = GameTime::GetGameTimeMS();
 
     InterruptAssignment assignment;
@@ -1026,10 +1099,55 @@ bool DPSCoordinator::InBurstWindow() const
     return now < _burstWindowStart + _burstWindowDuration;
 }
 
-void DPSCoordinator::UpdateFocusTarget(GroupCoordinator* group)
+void DPSCoordinator::UpdateFocusTarget(GroupCoordinator* group, RoleCache const& cache)
 {
-    // Use group's focus target via helper function that checks raid markers and tank's target
-    ObjectGuid groupFocus = GetGroupFocusTarget(group);
+    // Use cached tanks for focus target determination
+    ObjectGuid groupFocus = ObjectGuid::Empty;
+
+    Group* trinityGroup = group ? group->GetGroup() : nullptr;
+    if (trinityGroup)
+    {
+        // Check for skull marker (primary kill target)
+        ObjectGuid skullTarget = trinityGroup->GetTargetIcon(7);
+        if (!skullTarget.IsEmpty())
+        {
+            auto it = trinityGroup->GetMembers().begin();
+            if (it != trinityGroup->GetMembers().end())
+            {
+                Unit* target = ObjectAccessor::GetUnit(*it->GetSource(), skullTarget);
+                if (target && target->IsAlive())
+                    groupFocus = skullTarget;
+            }
+        }
+
+        // Fall back to cross marker
+        if (groupFocus.IsEmpty())
+        {
+            ObjectGuid crossTarget = trinityGroup->GetTargetIcon(6);
+            if (!crossTarget.IsEmpty())
+            {
+                auto it = trinityGroup->GetMembers().begin();
+                if (it != trinityGroup->GetMembers().end())
+                {
+                    Unit* target = ObjectAccessor::GetUnit(*it->GetSource(), crossTarget);
+                    if (target && target->IsAlive())
+                        groupFocus = crossTarget;
+                }
+            }
+        }
+
+        // Fall back to main tank's target using cached tanks
+        if (groupFocus.IsEmpty() && !cache.tanks.empty())
+        {
+            Player* mainTank = ObjectAccessor::FindPlayer(cache.tanks[0]);
+            if (mainTank && mainTank->IsInCombat())
+            {
+                Unit* target = mainTank->GetSelectedUnit();
+                if (target && target->IsAlive() && target->IsHostileTo(mainTank))
+                    groupFocus = target->GetGUID();
+            }
+        }
+    }
 
     if (groupFocus != _focusTarget)
     {
@@ -1037,8 +1155,17 @@ void DPSCoordinator::UpdateFocusTarget(GroupCoordinator* group)
     }
 }
 
-void DPSCoordinator::UpdateInterruptRotation(GroupCoordinator* group)
+void DPSCoordinator::UpdateInterruptRotation(GroupCoordinator* group, RoleCache const& cache)
 {
+    // Phase 2 Architecture: Skip when InterruptCoordinator is handling interrupts
+    if (_interruptCoordinator)
+    {
+        // InterruptCoordinator maintains its own interrupt rotation via RegisterBot/UpdateBotCooldown
+        // DPS registration should happen at bot creation/group join, not in periodic updates
+        return;
+    }
+
+    // Fallback: Legacy implementation (only used if no InterruptCoordinator set)
     uint32 now = GameTime::GetGameTimeMS();
 
     // Clean up expired interrupt cooldowns
@@ -1050,28 +1177,38 @@ void DPSCoordinator::UpdateInterruptRotation(GroupCoordinator* group)
         _interruptRotation.end()
     );
 
-    // Rebuild rotation from current DPS via TrinityCore Group API
-    ::std::vector<ObjectGuid> meleeDPS = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::DPS_MELEE);
-    ::std::vector<ObjectGuid> rangedDPS = GetGroupMembersByRole(group, GroupCoordinator::GroupRole::DPS_RANGED);
+    // Use cached DPS lists - O(1) access instead of O(N) iteration
+    ::std::vector<ObjectGuid> const& meleeDPS = cache.meleeDPS;
+    ::std::vector<ObjectGuid> const& rangedDPS = cache.rangedDPS;
 
-    ::std::vector<ObjectGuid> allDPS;
-    allDPS.insert(allDPS.end(), meleeDPS.begin(), meleeDPS.end());
-    allDPS.insert(allDPS.end(), rangedDPS.begin(), rangedDPS.end());
-
-    // Add new DPS to rotation if not already present
-    for (ObjectGuid dpsGuid : allDPS)
+    // Build set of existing DPS in rotation for O(1) lookup
+    ::std::unordered_set<ObjectGuid> existingDPS;
+    existingDPS.reserve(_interruptRotation.size());
+    for (auto const& interrupt : _interruptRotation)
     {
-        bool found = false;
-        for (auto const& interrupt : _interruptRotation)
-        {
-            if (interrupt.dpsGuid == dpsGuid)
-            {
-                found = true;
-                break;
-            }
-        }
+        existingDPS.insert(interrupt.dpsGuid);
+    }
 
-        if (!found)
+    // Add new melee DPS to rotation
+    for (ObjectGuid dpsGuid : meleeDPS)
+    {
+        if (existingDPS.find(dpsGuid) == existingDPS.end())
+        {
+            InterruptAssignment assignment;
+            assignment.dpsGuid = dpsGuid;
+            assignment.targetGuid = ObjectGuid::Empty;
+            assignment.assignedTime = 0;
+            assignment.cooldownExpire = 0; // Ready immediately
+
+            _interruptRotation.push_back(assignment);
+            existingDPS.insert(dpsGuid);
+        }
+    }
+
+    // Add new ranged DPS to rotation
+    for (ObjectGuid dpsGuid : rangedDPS)
+    {
+        if (existingDPS.find(dpsGuid) == existingDPS.end())
         {
             InterruptAssignment assignment;
             assignment.dpsGuid = dpsGuid;
@@ -1139,14 +1276,121 @@ RoleCoordinatorManager::RoleCoordinatorManager()
     _dpsCoordinator = ::std::make_unique<DPSCoordinator>();
 }
 
+void RoleCoordinatorManager::RefreshRoleCache(GroupCoordinator* group)
+{
+    _roleCache.tanks.clear();
+    _roleCache.healers.clear();
+    _roleCache.meleeDPS.clear();
+    _roleCache.rangedDPS.clear();
+
+    if (!group)
+        return;
+
+    Group* trinityGroup = group->GetGroup();
+    if (!trinityGroup)
+        return;
+
+    // Single iteration through all group members - O(N) instead of 4 × O(N)
+    Group::MemberSlotList const& memberSlots = trinityGroup->GetMemberSlots();
+    for (auto const& slot : memberSlots)
+    {
+        Player* member = ObjectAccessor::FindPlayer(slot.guid);
+        if (!member || !member->IsAlive())
+            continue;
+
+        // Determine member's role
+        GroupCoordinator::GroupRole memberRole = GroupCoordinator::GroupRole::UNDEFINED;
+
+        // Check if this is a bot
+        BotSession* botSession = BotSessionManager::GetBotSession(member->GetSession());
+        if (botSession)
+        {
+            BotAI* botAI = botSession->GetAI();
+            if (botAI)
+            {
+                IGameSystemsManager* gameSystems = botAI->GetGameSystems();
+                if (gameSystems)
+                {
+                    GroupCoordinator* botGroupCoord = static_cast<GroupCoordinator*>(gameSystems->GetGroupCoordinator());
+                    if (botGroupCoord)
+                        memberRole = botGroupCoord->GetRole();
+                }
+            }
+        }
+
+        // Fallback to LFG role
+        if (memberRole == GroupCoordinator::GroupRole::UNDEFINED)
+        {
+            uint8 lfgRoles = trinityGroup->GetLfgRoles(member->GetGUID());
+            if (lfgRoles & lfg::PLAYER_ROLE_TANK)
+                memberRole = GroupCoordinator::GroupRole::TANK;
+            else if (lfgRoles & lfg::PLAYER_ROLE_HEALER)
+                memberRole = GroupCoordinator::GroupRole::HEALER;
+            else if (lfgRoles & lfg::PLAYER_ROLE_DAMAGE)
+            {
+                // Determine melee vs ranged from class
+                switch (member->GetClass())
+                {
+                    case CLASS_WARRIOR:
+                    case CLASS_PALADIN:
+                    case CLASS_ROGUE:
+                    case CLASS_DEATH_KNIGHT:
+                    case CLASS_MONK:
+                    case CLASS_DEMON_HUNTER:
+                        memberRole = GroupCoordinator::GroupRole::DPS_MELEE;
+                        break;
+                    default:
+                        memberRole = GroupCoordinator::GroupRole::DPS_RANGED;
+                        break;
+                }
+            }
+        }
+
+        // Sort into appropriate cache
+        switch (memberRole)
+        {
+            case GroupCoordinator::GroupRole::TANK:
+                _roleCache.tanks.push_back(member->GetGUID());
+                break;
+            case GroupCoordinator::GroupRole::HEALER:
+                _roleCache.healers.push_back(member->GetGUID());
+                break;
+            case GroupCoordinator::GroupRole::DPS_MELEE:
+                _roleCache.meleeDPS.push_back(member->GetGUID());
+                break;
+            case GroupCoordinator::GroupRole::DPS_RANGED:
+                _roleCache.rangedDPS.push_back(member->GetGUID());
+                break;
+            default:
+                break;
+        }
+    }
+
+    _roleCache.lastRefreshTime = GameTime::GetGameTimeMS();
+    _roleCache.dirty = false;
+
+    TC_LOG_DEBUG("playerbot.coordination",
+        "RoleCache refreshed: {} tanks, {} healers, {} melee, {} ranged",
+        _roleCache.tanks.size(), _roleCache.healers.size(),
+        _roleCache.meleeDPS.size(), _roleCache.rangedDPS.size());
+}
+
 void RoleCoordinatorManager::Update(GroupCoordinator* group, uint32 diff)
 {
     if (!group)
         return;
 
-    _tankCoordinator->Update(group, diff);
-    _healerCoordinator->Update(group, diff);
-    _dpsCoordinator->Update(group, diff);
+    // Refresh cache once per update cycle if needed - all coordinators share this
+    uint32 now = GameTime::GetGameTimeMS();
+    if (_roleCache.NeedsRefresh(now))
+    {
+        RefreshRoleCache(group);
+    }
+
+    // Use cached roles for all coordinator updates
+    _tankCoordinator->UpdateWithCache(group, diff, _roleCache);
+    _healerCoordinator->UpdateWithCache(group, diff, _roleCache);
+    _dpsCoordinator->UpdateWithCache(group, diff, _roleCache);
 }
 
 } // namespace Coordination
