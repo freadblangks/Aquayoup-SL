@@ -123,6 +123,7 @@ set(PLAYERBOT_CORE_SOURCES
 
     # Core DI Interfaces
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/DI/Interfaces/IObjectiveTracker.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/DI/Interfaces/IRidingManager.h
 
     # Events
     ${CMAKE_CURRENT_SOURCE_DIR}/Events/BotEventData.h
@@ -281,6 +282,19 @@ set(PLAYERBOT_AI_BASE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/ZoneOrchestrator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/ZoneOrchestrator.h
 
+    # AI Coordination - Dungeon
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/DungeonState.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/DungeonCoordinator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/DungeonCoordinator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/TrashPullManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/TrashPullManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/BossEncounterManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/BossEncounterManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/WipeRecoveryManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/WipeRecoveryManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/MythicPlusManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon/MythicPlusManager.cpp
+
     # AI Blackboard
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Blackboard/SharedBlackboard.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Blackboard/SharedBlackboard.h
@@ -292,6 +306,25 @@ set(PLAYERBOT_AI_BASE_SOURCES
     # Specialized AI Factory
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/SpecializedAIFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/ClassAI/SpecializedAIFactory.h
+
+    # AI Coordination - Battleground Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGState.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGSpatialQueryCache.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGSpatialQueryCache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BattlegroundCoordinator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BattlegroundCoordinator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BattlegroundCoordinatorManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BattlegroundCoordinatorManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/ObjectiveManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/ObjectiveManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGRoleManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGRoleManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/FlagCarrierManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/FlagCarrierManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/NodeController.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/NodeController.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGStrategyEngine.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGStrategyEngine.cpp
 
     # AI Coordination - Battleground Scripts
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/IBGScript.h
@@ -599,8 +632,57 @@ set(PLAYERBOT_LIFECYCLE_SOURCES
     # Companion Systems
     ${CMAKE_CURRENT_SOURCE_DIR}/Companion/MountManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Companion/MountManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Companion/RidingManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Companion/RidingManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Companion/BattlePetManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Companion/BattlePetManager.h
+
+    # Humanization System (Phase 3)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Core/ActivityType.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Core/PersonalityProfile.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Core/PersonalityProfile.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Core/HumanizationConfig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Core/HumanizationConfig.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Core/HumanizationManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Core/HumanizationManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Core/ActivityExecutor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Core/ActivityExecutor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Sessions/ActivitySession.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Sessions/ActivitySession.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Sessions/ActivitySessionManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Sessions/ActivitySessionManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Sessions/SessionTransitions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Sessions/SessionTransitions.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Sessions/FishingSessionManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Sessions/FishingSessionManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Activities/CityLifeBehaviorManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Activities/CityLifeBehaviorManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Activities/AFKSimulator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Activities/AFKSimulator.h
+
+    # Achievement System (Phase 3)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Achievements/AchievementManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Achievements/AchievementManager.h
+
+    # GOD_TIER Task 7: Mount Collection System
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Mounts/MountCollectionManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Mounts/MountCollectionManager.h
+
+    # GOD_TIER Task 8: Pet Collection System
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Collections/PetCollectionManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Collections/PetCollectionManager.h
+
+    # GOD_TIER Task 10: Achievement Grinder
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Achievements/AchievementGrinder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Humanization/Achievements/AchievementGrinder.h
+
+    # Reputation System (Phase 3)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Reputation/ReputationGrindManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Reputation/ReputationGrindManager.h
+
+    # Economy System (Phase 3)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Economy/GoldFarmingManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Economy/GoldFarmingManager.h
 
     # Lifecycle Management
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotLifecycleManager.cpp
@@ -787,6 +869,8 @@ set(PLAYERBOT_GAMEPLAY_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/VendorInteractionManager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/FlightMasterManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/FlightMasterManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/InnkeeperInteractionManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Interaction/InnkeeperInteractionManager.h
 
     # Group System
     ${CMAKE_CURRENT_SOURCE_DIR}/Group/GroupInvitationHandler.cpp
@@ -929,7 +1013,7 @@ set(PLAYERBOT_GAMEPLAY_SOURCES
 
 # ============================================================================
 # LIBRARY 8: playerbot-pvp
-# PvP, LFG, Battleground, Arena, Dragonriding, Scripts, Performance
+# PvP, LFG, Battleground, Arena, Dragonriding, Dungeon, Scripts, Performance
 # ============================================================================
 set(PLAYERBOT_PVP_SOURCES
     # PvP Systems
@@ -953,6 +1037,36 @@ set(PLAYERBOT_PVP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/LFG/LFGRoleDetector.h
     ${CMAKE_CURRENT_SOURCE_DIR}/LFG/LFGGroupCoordinator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/LFG/LFGGroupCoordinator.h
+
+    # Dungeon System
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonAutonomyManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonAutonomyManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonBehavior.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonBehavior.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonScript.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonScriptLoader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonScriptLoader.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonScriptMgr.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/DungeonScriptMgr.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/EncounterStrategy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/EncounterStrategy.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/InstanceCoordination.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/InstanceCoordination.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/InstanceFarmingManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/InstanceFarmingManager.h
+
+    # Dungeon Scripts - Vanilla
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/BlackfathomDeepsScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/DeadminesScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/GnomereganScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/RagefireChasmScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/RazorfenDownsScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/RazorfenKraulScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/ScarletMonasteryScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/ShadowfangKeepScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/StockadeScript.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon/Scripts/Vanilla/WailingCavernsScript.cpp
 
     # Dragonriding System
     ${CMAKE_CURRENT_SOURCE_DIR}/Dragonriding/DragonridingDefines.h
@@ -1039,6 +1153,8 @@ set(PLAYERBOT_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/Siege
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/ResourceRace
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/Epic
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Dungeon
+    ${CMAKE_CURRENT_SOURCE_DIR}/Dungeon
     ${CMAKE_SOURCE_DIR}/src/modules/Common
     ${MYSQL_INCLUDE_DIR}
 )

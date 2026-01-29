@@ -37,21 +37,21 @@ void EyeOfTheStormScript::OnLoad(BattlegroundCoordinator* coordinator)
 
     // Register node world states
     RegisterWorldStateMapping(EyeOfTheStorm::WorldStates::FEL_REAVER_ALLIANCE,
-        EyeOfTheStorm::Nodes::FEL_REAVER, ObjectiveState::ALLIANCE_CONTROLLED);
+        EyeOfTheStorm::Nodes::FEL_REAVER, BGObjectiveState::ALLIANCE_CONTROLLED);
     RegisterWorldStateMapping(EyeOfTheStorm::WorldStates::FEL_REAVER_HORDE,
-        EyeOfTheStorm::Nodes::FEL_REAVER, ObjectiveState::HORDE_CONTROLLED);
+        EyeOfTheStorm::Nodes::FEL_REAVER, BGObjectiveState::HORDE_CONTROLLED);
     RegisterWorldStateMapping(EyeOfTheStorm::WorldStates::BLOOD_ELF_ALLIANCE,
-        EyeOfTheStorm::Nodes::BLOOD_ELF, ObjectiveState::ALLIANCE_CONTROLLED);
+        EyeOfTheStorm::Nodes::BLOOD_ELF, BGObjectiveState::ALLIANCE_CONTROLLED);
     RegisterWorldStateMapping(EyeOfTheStorm::WorldStates::BLOOD_ELF_HORDE,
-        EyeOfTheStorm::Nodes::BLOOD_ELF, ObjectiveState::HORDE_CONTROLLED);
+        EyeOfTheStorm::Nodes::BLOOD_ELF, BGObjectiveState::HORDE_CONTROLLED);
     RegisterWorldStateMapping(EyeOfTheStorm::WorldStates::DRAENEI_RUINS_ALLIANCE,
-        EyeOfTheStorm::Nodes::DRAENEI_RUINS, ObjectiveState::ALLIANCE_CONTROLLED);
+        EyeOfTheStorm::Nodes::DRAENEI_RUINS, BGObjectiveState::ALLIANCE_CONTROLLED);
     RegisterWorldStateMapping(EyeOfTheStorm::WorldStates::DRAENEI_RUINS_HORDE,
-        EyeOfTheStorm::Nodes::DRAENEI_RUINS, ObjectiveState::HORDE_CONTROLLED);
+        EyeOfTheStorm::Nodes::DRAENEI_RUINS, BGObjectiveState::HORDE_CONTROLLED);
     RegisterWorldStateMapping(EyeOfTheStorm::WorldStates::MAGE_TOWER_ALLIANCE,
-        EyeOfTheStorm::Nodes::MAGE_TOWER, ObjectiveState::ALLIANCE_CONTROLLED);
+        EyeOfTheStorm::Nodes::MAGE_TOWER, BGObjectiveState::ALLIANCE_CONTROLLED);
     RegisterWorldStateMapping(EyeOfTheStorm::WorldStates::MAGE_TOWER_HORDE,
-        EyeOfTheStorm::Nodes::MAGE_TOWER, ObjectiveState::HORDE_CONTROLLED);
+        EyeOfTheStorm::Nodes::MAGE_TOWER, BGObjectiveState::HORDE_CONTROLLED);
 
     // Reset flag state
     m_flagAtCenter = true;
@@ -176,12 +176,38 @@ std::vector<BGPositionData> EyeOfTheStormScript::GetStrategicPositions() const
         }
     }
 
-    // Center flag area
-    Position flagPos = EyeOfTheStorm::GetCenterFlagPosition();
-    BGPositionData centerFlag("Center Flag", flagPos.GetPositionX(),
-        flagPos.GetPositionY(), flagPos.GetPositionZ(), 0.0f,
-        BGPositionData::PositionType::STRATEGIC_POINT, 0, 9);
-    positions.push_back(centerFlag);
+    // Center flag area defense positions
+    auto centerPositions = EyeOfTheStorm::GetCenterFlagDefensePositions();
+    for (size_t i = 0; i < centerPositions.size(); ++i)
+    {
+        const auto& pos = centerPositions[i];
+        std::string name = "Center Flag " + std::to_string(i + 1);
+        positions.push_back(BGPositionData(name, pos.GetPositionX(), pos.GetPositionY(),
+            pos.GetPositionZ(), pos.GetOrientation(),
+            BGPositionData::PositionType::STRATEGIC_POINT, 0, 9));
+    }
+
+    // Bridge positions (critical EOTS chokepoints!)
+    auto bridgePositions = EyeOfTheStorm::GetBridgePositions();
+    for (size_t i = 0; i < bridgePositions.size(); ++i)
+    {
+        const auto& pos = bridgePositions[i];
+        std::string name = "Bridge " + std::to_string(i + 1);
+        positions.push_back(BGPositionData(name, pos.GetPositionX(), pos.GetPositionY(),
+            pos.GetPositionZ(), pos.GetOrientation(),
+            BGPositionData::PositionType::CHOKEPOINT, 0, 8));
+    }
+
+    // Sniper positions (elevated, good for ranged)
+    auto sniperPositions = EyeOfTheStorm::GetSniperPositions();
+    for (size_t i = 0; i < sniperPositions.size(); ++i)
+    {
+        const auto& pos = sniperPositions[i];
+        std::string name = "Sniper Position " + std::to_string(i + 1);
+        positions.push_back(BGPositionData(name, pos.GetPositionX(), pos.GetPositionY(),
+            pos.GetPositionZ(), pos.GetOrientation(),
+            BGPositionData::PositionType::SNIPER_POSITION, 0, 7));
+    }
 
     return positions;
 }
@@ -230,7 +256,7 @@ std::vector<uint32> EyeOfTheStormScript::GetTickPointsTable() const
 // ============================================================================
 
 bool EyeOfTheStormScript::InterpretWorldState(int32 stateId, int32 value,
-    uint32& outObjectiveId, ObjectiveState& outState) const
+    uint32& outObjectiveId, BGObjectiveState& outState) const
 {
     return TryInterpretFromCache(stateId, value, outObjectiveId, outState);
 }
@@ -405,6 +431,156 @@ ObjectGuid EyeOfTheStormScript::GetBestFlagRunnerCandidate() const
     // Would query coordinator for best candidate
     // Typically: mobile class with survivability
     return ObjectGuid();  // Placeholder
+}
+
+// ============================================================================
+// ENTERPRISE-GRADE FLAG RUNNING AND POSITIONING
+// ============================================================================
+
+std::vector<Position> EyeOfTheStormScript::GetFlagRouteToNode(uint32 nodeId) const
+{
+    return EyeOfTheStorm::GetFlagRouteToNode(nodeId);
+}
+
+std::vector<Position> EyeOfTheStormScript::GetEscortFormation(Position const& fcPosition, uint8 escortCount) const
+{
+    return EyeOfTheStorm::GetEscortFormation(fcPosition, escortCount);
+}
+
+uint32 EyeOfTheStormScript::GetBestFlagCaptureNode(uint32 faction) const
+{
+    auto priorities = EyeOfTheStorm::GetFlagCapturePriority(faction);
+
+    // Find first controlled node in priority order
+    for (uint32 nodeId : priorities)
+    {
+        auto it = m_nodeStates.find(nodeId);
+        if (it != m_nodeStates.end())
+        {
+            bool weControl = (faction == ALLIANCE)
+                ? (it->second == BGObjectiveState::ALLIANCE_CONTROLLED)
+                : (it->second == BGObjectiveState::HORDE_CONTROLLED);
+
+            if (weControl)
+                return nodeId;
+        }
+    }
+
+    // No controlled nodes - flag is less valuable anyway
+    return priorities[0];  // Return closest as fallback
+}
+
+float EyeOfTheStormScript::GetDistanceToCenter(uint32 nodeId) const
+{
+    return EyeOfTheStorm::GetDistanceToCenter(nodeId);
+}
+
+std::vector<Position> EyeOfTheStormScript::GetBridgePositions() const
+{
+    return EyeOfTheStorm::GetBridgePositions();
+}
+
+std::vector<Position> EyeOfTheStormScript::GetSniperPositions() const
+{
+    return EyeOfTheStorm::GetSniperPositions();
+}
+
+std::vector<Position> EyeOfTheStormScript::GetCenterFlagDefensePositions() const
+{
+    return EyeOfTheStorm::GetCenterFlagDefensePositions();
+}
+
+bool EyeOfTheStormScript::IsFlagWorthPursuing() const
+{
+    uint32 faction = m_coordinator ? m_coordinator->GetFaction() : ALLIANCE;
+    uint32 ourNodes = (faction == ALLIANCE) ? m_allianceNodes : m_hordeNodes;
+
+    // Flag is worth it with 2+ nodes (using Strategy constant)
+    if (ourNodes < EyeOfTheStorm::Strategy::MIN_NODES_FOR_FLAG)
+        return false;
+
+    // Especially worth it with 3+ nodes
+    if (ourNodes >= EyeOfTheStorm::Strategy::IDEAL_NODES_FOR_FLAG)
+        return true;
+
+    // 2 nodes - only pursue if flag is available and nearby
+    return m_flagAtCenter;
+}
+
+uint8 EyeOfTheStormScript::GetRecommendedEscortCount() const
+{
+    uint32 faction = m_coordinator ? m_coordinator->GetFaction() : ALLIANCE;
+    uint32 ourNodes = (faction == ALLIANCE) ? m_allianceNodes : m_hordeNodes;
+
+    // With 4 nodes, flag is worth 500 points - protect heavily!
+    if (ourNodes == 4)
+        return EyeOfTheStorm::Strategy::OPTIMAL_FLAG_ESCORT;
+
+    // With 3 nodes, still valuable
+    if (ourNodes >= 3)
+        return EyeOfTheStorm::Strategy::MIN_FLAG_ESCORT + 1;
+
+    return EyeOfTheStorm::Strategy::MIN_FLAG_ESCORT;
+}
+
+// ============================================================================
+// ENHANCED EVENT HANDLING
+// ============================================================================
+
+void EyeOfTheStormScript::OnMatchStart()
+{
+    DominationScriptBase::OnMatchStart();
+
+    TC_LOG_INFO("playerbots.bg.script",
+        "EOTS: Match started! Strategy: secure 2 nodes then contest center flag");
+}
+
+void EyeOfTheStormScript::OnMatchEnd(bool victory)
+{
+    DominationScriptBase::OnMatchEnd(victory);
+
+    TC_LOG_INFO("playerbots.bg.script",
+        "EOTS: Match ended - {}! Flag captures: Alliance={}, Horde={}",
+        victory ? "Victory" : "Defeat",
+        m_allianceFlagCaptures, m_hordeFlagCaptures);
+}
+
+// ============================================================================
+// STRATEGIC NODE ANALYSIS
+// ============================================================================
+
+bool EyeOfTheStormScript::IsStrategicNode(uint32 nodeId) const
+{
+    // Draenei Ruins and Mage Tower are closer to center - strategic importance
+    return nodeId == EyeOfTheStorm::Nodes::DRAENEI_RUINS ||
+           nodeId == EyeOfTheStorm::Nodes::MAGE_TOWER;
+}
+
+uint32 EyeOfTheStormScript::GetNearestNodeToFlag() const
+{
+    float minDist = std::numeric_limits<float>::max();
+    uint32 nearest = 0;
+
+    for (uint32 i = 0; i < EyeOfTheStorm::NODE_COUNT; ++i)
+    {
+        float dist = EyeOfTheStorm::GetDistanceToCenter(i);
+        if (dist < minDist)
+        {
+            minDist = dist;
+            nearest = i;
+        }
+    }
+
+    return nearest;
+}
+
+uint32 EyeOfTheStormScript::GetDefendersNeeded(uint32 nodeId) const
+{
+    // Strategic nodes need more defenders
+    if (IsStrategicNode(nodeId))
+        return EyeOfTheStorm::Strategy::STRATEGIC_NODE_DEFENDERS;
+
+    return EyeOfTheStorm::Strategy::MIN_NODE_DEFENDERS;
 }
 
 } // namespace Playerbot::Coordination::Battleground
