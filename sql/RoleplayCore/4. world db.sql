@@ -364,7 +364,7 @@ REPLACE INTO `spell_script_names` VALUES (215941, 'spell_warl_soul_conduit');
 REPLACE INTO `spell_script_names` VALUES (232670, 'spell_warr_shadowbolt_affliction');
 REPLACE INTO `spell_script_names` VALUES (104318, 'spell_warlock_fel_firebolt_wild_imp');
 
-REPLACE INTO `creature_template` VALUES (99739, 0, 0, 'Wild Imps', '', '', NULL, '', 0, 0, 90, 0, 1, 1.14286, 1, 0, 0, 0, 2000, 1, 1, 4, 0, 0, 0, 0, 0, 3, 0, '', 0, 1, 0, 121, 0, 0, 1, 0, 0, 'npc_pet_warlock_wild_imp', NULL, 53040);
+REPLACE INTO `creature_template` VALUES (55659, 0, 0, 'Wild Imps', '', '', NULL, '', 0, 0, 90, 0, 1, 1.14286, 1, 6, 0, 0, 2000, 1, 1, 4, 0, 0, 0, 0, 0, 3, 0, '', 0, 1, 0, 121, 0, 0, 1, 0, 0, 'npc_pet_warlock_wild_imp', NULL, 64743);
 
 REPLACE INTO `spell_script_names` VALUES (386344, 'spell_warlock_inquisitors_gaze');
 REPLACE INTO `spell_script_names` VALUES (29722, 'spell_warl_incinerate');
@@ -452,7 +452,7 @@ REPLACE INTO `spell_script_names` VALUES (359073, 'spell_evo_eternity_surge');
 -- ----------------------------
 -- Hunter spell fixes
 -- ----------------------------
-REPLACE INTO `areatrigger_create_properties` VALUES (4424, 0, 9170, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 60000, 4, 3, 3, 4, 4, 1, 1, 0, 0, 'at_hun_freezing_trap', 48999);
+REPLACE INTO `areatrigger_create_properties` VALUES (4424, 0, 9170, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 60000, 4, 3, 3, 4, 4, 1, 1, 0, 0, 'at_hunter_freezing_trap', 48999);
 REPLACE INTO `areatrigger_create_properties` VALUES (510, 0, 3678, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 20000, 4, 10, 10, 7, 7, 3, 3, 0, 0, 'at_hun_flare', 40120);
 
 REPLACE INTO `spell_script_names` VALUES (34026, 'spell_hun_kill_command');
@@ -482,6 +482,8 @@ REPLACE INTO `areatrigger_template` VALUES (265163, 0, 0, 0, 0, 0);
 
 REPLACE INTO `areatrigger_create_properties` VALUES (12863, 0, 265163, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 'at_hunter_wildfire_bomb', 0);
 
+REPLACE INTO `spell_script_names` VALUES (3355, 'spell_hunter_freezing_trap_aura');
+
 -- ----------------------------
 -- Rogue spell fixes
 -- ----------------------------
@@ -497,6 +499,8 @@ REPLACE INTO `spell_script_names` VALUES (51723, 'spell_rog_fan_of_knives');
 REPLACE INTO `spell_script_names` VALUES (195457, 'spell_rog_grappling_hook');
 REPLACE INTO `spell_script_names` VALUES (271877, 'spell_rog_blade_rush');
 REPLACE INTO `spell_script_names` VALUES (197835, 'spell_rog_shuriken_storm');
+REPLACE INTO `spell_script_names` VALUES (280719, 'spell_rog_secret_technique');
+REPLACE INTO `spell_script_names` VALUES (91023, 'spell_rog_find_weakness');
 
 -- ----------------------------
 -- Priest spell fixes
@@ -600,6 +604,10 @@ REPLACE INTO `spell_script_names` VALUES (152175, 'spell_monk_whirling_dragon_pu
 REPLACE INTO `spell_script_names` VALUES (192249, 'spell_shaman_generic_summon_elemental');
 REPLACE INTO `spell_script_names` VALUES (198103, 'spell_sha_earth_elemental');
 REPLACE INTO `spell_script_names` VALUES (198067, 'spell_sha_fire_elemental');
+REPLACE INTO `spell_script_names` VALUES (196884, 'spell_sha_feral_lunge');
+REPLACE INTO `spell_script_names` VALUES (51533, 'spell_sha_feral_spirit');
+
+REPLACE INTO `creature_template` VALUES (29264, 0, 0, 'Spirit Wolf', '', NULL, NULL, NULL, 0, 0, 14, 0, 2, 2.14286, 1, 0, 0, 1500, 2000, 1, 1, 1, 0, 2048, 0, 0, 0, 1, 0, '', 0, 0, 0, 191, 0, 0, 1, 0, 64, 'npc_feral_spirit', NULL, 64743);
 
 -- ----------------------------
 -- DH spell fixes

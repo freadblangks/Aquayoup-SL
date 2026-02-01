@@ -135,8 +135,8 @@ SpellCastTargets::SpellCastTargets(Unit* caster, WorldPackets::Spells::SpellCast
             pos->SetOrientation(*spellCastRequest.Target.Orientation);
     }
 
-    for (WorldPackets::Spells::SpellCraftingReagent const& reagent : spellCastRequest.OptionalReagents)
-        ModifiedCraftingReagents[reagent.DataSlotIndex].push_back(reagent);
+    for (WorldPackets::Spells::SpellCraftingReagent const& reagent : spellCastRequest.CraftingReagents)
+        ModifiedCraftingReagents[reagent.Slot].push_back(reagent);
 
     SetPitch(spellCastRequest.MissileTrajectory.Pitch);
     SetSpeed(spellCastRequest.MissileTrajectory.Speed);
@@ -505,7 +505,10 @@ m_spellValue(new SpellValue(m_spellInfo, caster)), _spellEvent(nullptr)
     }
 
     if (Player const* modOwner = caster->GetSpellModOwner())
+    {
         modOwner->ApplySpellMod(info, SpellModOp::Doses, m_spellValue->AuraStackAmount, this);
+        modOwner->ApplySpellMod(info, SpellModOp::MaxTargets, m_spellValue->MaxAffectedTargets, this);
+    }
 
     if (!originalCasterGUID.IsEmpty())
         m_originalCasterGUID = originalCasterGUID;
@@ -9789,4 +9792,22 @@ SpellCastVisual::operator UF::SpellCastVisual() const
 SpellCastVisual::operator WorldPackets::Spells::SpellCastVisual() const
 {
     return { int32(SpellXSpellVisualID), int32(ScriptVisualID) };
+}
+
+SpellPowerCost const* Spell::GetPowerCost(Powers power) const
+{
+    std::vector<SpellPowerCost> const& costs = GetPowerCost();
+    auto c = std::find_if(costs.begin(), costs.end(), [power](SpellPowerCost const& cost) { return cost.Power == power; });
+    if (c != costs.end())
+        return &(*c);
+
+    return nullptr;
+}
+
+int32 Spell::GetUsedComboPoints() const
+{
+    auto cost = GetPowerCost(POWER_COMBO_POINTS);
+    if (!cost)
+        return 0;
+    return cost->Amount;
 }

@@ -90,6 +90,7 @@ void SetupWarbandGroups::Read()
         _worldPacket >> Groups[i].OrderIndex;
         _worldPacket >> Groups[i].WarbandSceneID;
         _worldPacket >> Groups[i].Flags;
+        _worldPacket >> Groups[i].ContentSetID;
 
         uint32 memberCount;
         _worldPacket >> memberCount;
@@ -99,19 +100,15 @@ void SetupWarbandGroups::Read()
         {
             _worldPacket >> Groups[i].Members[j].WarbandScenePlacementID;
             _worldPacket >> Groups[i].Members[j].Type;
+            _worldPacket >> Groups[i].Members[j].ContentSetID;
 
             if (Groups[i].Members[j].Type == 0)
                 _worldPacket >> Groups[i].Members[j].Guid;
         }
 
-        uint8 nameLenDiv2;
-        _worldPacket >> nameLenDiv2;
-
-        uint32 nameLenMod2 = _worldPacket.ReadBits(1);
+        _worldPacket >> SizedString::BitsSize<9>(Groups[i].Name);
         _worldPacket.FlushBits();
-
-        uint32 nameLen = (nameLenDiv2 * 2) + nameLenMod2;
-        Groups[i].Name = _worldPacket.ReadString(nameLen);
+        _worldPacket >> SizedString::Data(Groups[i].Name);
     }
 }
 
@@ -237,13 +234,13 @@ EnumCharactersResult::CharacterInfoBasic::CharacterInfoBasic(Field const* fields
 
 ByteBuffer& operator<<(ByteBuffer& data, EnumCharactersResult::CharacterInfoBasic::VisualItemInfo const& visualItem)
 {
-    data << uint32(visualItem.DisplayID);
-    data << uint8(visualItem.InvType);
-    data << uint32(visualItem.DisplayEnchantID);
-    data << uint8(visualItem.Subclass);
-    data << int32(visualItem.SecondaryItemModifiedAppearanceID);
     data << uint32(visualItem.ItemID);
     data << uint32(visualItem.TransmogrifiedItemID);
+    data << uint8(visualItem.Subclass);
+    data << uint8(visualItem.InvType);
+    data << uint32(visualItem.DisplayID);
+    data << uint32(visualItem.DisplayEnchantID);
+    data << int32(visualItem.SecondaryItemModifiedAppearanceID);
 
     return data;
 }
@@ -288,15 +285,15 @@ ByteBuffer& operator<<(ByteBuffer& data, EnumCharactersResult::CharacterInfoBasi
 
     data << int32(charInfo.TimerunningSeasonID);
     data << uint32(charInfo.OverrideSelectScreenFileDataID);
-    data << uint32(charInfo.Unused1110_1);
+    data << uint32(charInfo.RealmQueue);
 
     for (ChrCustomizationChoice const& customization : charInfo.Customizations)
         data << customization;
 
     data << SizedString::BitsSize<6>(charInfo.Name);
     data << Bits<1>(charInfo.FirstLogin);
-    data << Bits<1>(charInfo.Unused1110_2);
-    data << Bits<1>(charInfo.Unused1110_3);
+    data << Bits<1>(charInfo.RealmInfoFound);
+    data << Bits<1>(charInfo.IsRealmOffline);
 
     data.FlushBits();
 
@@ -352,15 +349,29 @@ ByteBuffer& operator<<(ByteBuffer& data, EnumCharactersResult::RegionwideCharact
     return data;
 }
 
+ByteBuffer& operator<<(ByteBuffer& data, EnumCharactersResult::ClassUnlock const& classUnlock)
+{
+    data << int8(classUnlock.ClassID);
+    data << uint32(classUnlock.AchievementID);
+    data << Bits<1>(classUnlock.HasUnlockedAchievement);
+    data.FlushBits();
+
+    return data;
+}
+
 ByteBuffer& operator<<(ByteBuffer& data, EnumCharactersResult::RaceUnlock const& raceUnlock)
 {
     data << int8(raceUnlock.RaceID);
+    data << Size<uint32>(raceUnlock.ClassUnlocks);
     data << Bits<1>(raceUnlock.HasUnlockedLicense);
     data << Bits<1>(raceUnlock.HasUnlockedAchievement);
     data << Bits<1>(raceUnlock.HasHeritageArmorUnlockAchievement);
     data << Bits<1>(raceUnlock.HideRaceOnClient);
-    data << Bits<1>(raceUnlock.Unused1027);
+    data << Bits<1>(raceUnlock.FactionBalanceDisabled);
     data.FlushBits();
+
+    for (EnumCharactersResult::ClassUnlock const& classUnlock : raceUnlock.ClassUnlocks)
+        data << classUnlock;
 
     return data;
 }
@@ -431,9 +442,9 @@ WorldPacket const* EnumCharactersResult::Write()
     _worldPacket << Bits<1>(IsRestrictedNewPlayer);
     _worldPacket << Bits<1>(IsNewcomerChatCompleted);
     _worldPacket << Bits<1>(IsRestrictedTrial);
-    _worldPacket << Bits<1>(Unused1127);
+    _worldPacket << Bits<1>(IsAccountLapsedPlayer);
     _worldPacket << OptionalInit(ClassDisableMask);
-    _worldPacket << Bits<1>(DontCreateCharacterDisplays);
+    _worldPacket << Bits<1>(ForceCharacterListSort);
     _worldPacket << Size<uint32>(Characters);
     _worldPacket << Size<uint32>(RegionwideCharacters);
     _worldPacket << int32(MaxCharacterLevel);

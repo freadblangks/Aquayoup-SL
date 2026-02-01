@@ -895,49 +895,64 @@ class spell_warl_haunt : public AuraScript
 // 755 - Health Funnel
 class spell_warl_health_funnel : public AuraScript
 {
-    void ApplyEffect(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    bool Load() override
+    {
+        Unit const* caster = GetCaster();
+        if (!caster)
+            return false;
+    }
+
+    void HandleEffectApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         Unit* caster = GetCaster();
         if (!caster)
             return;
 
         Unit* target = GetTarget();
+        
         if (caster->HasAura(SPELL_WARLOCK_IMPROVED_HEALTH_FUNNEL_R2))
             target->CastSpell(target, SPELL_WARLOCK_IMPROVED_HEALTH_FUNNEL_BUFF_R2, true);
         else if (caster->HasAura(SPELL_WARLOCK_IMPROVED_HEALTH_FUNNEL_R1))
             target->CastSpell(target, SPELL_WARLOCK_IMPROVED_HEALTH_FUNNEL_BUFF_R1, true);
     }
 
-    void RemoveEffect(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    void HandleEffectRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         Unit* target = GetTarget();
         target->RemoveAurasDueToSpell(SPELL_WARLOCK_IMPROVED_HEALTH_FUNNEL_BUFF_R1);
         target->RemoveAurasDueToSpell(SPELL_WARLOCK_IMPROVED_HEALTH_FUNNEL_BUFF_R2);
     }
 
-    void OnPeriodic(AuraEffect const* aurEff)
+    void HandlePeriodic(AuraEffect const* aurEff)
     {
         Unit* caster = GetCaster();
-        if (!caster)
+        Unit* target = GetTarget();
+
+        if (!caster || !target)
             return;
-        //! HACK for self damage, is not blizz :/
-        uint32 damage = caster->CountPctFromMaxHealth(aurEff->GetBaseAmount());
 
-        if (Player* modOwner = caster->GetSpellModOwner())
-            modOwner->ApplySpellMod(GetSpellInfo(), SpellModOp::PowerCost0, damage);
+        int32 pct = aurEff->GetAmount(); 
+        uint32 damage = caster->CountPctFromMaxHealth(pct);
 
-        SpellNonMeleeDamage damageInfo(caster, caster, GetSpellInfo(), GetAura()->GetSpellVisual(), GetSpellInfo()->SchoolMask, GetAura()->GetCastId());
+        SpellNonMeleeDamage damageInfo(caster, caster, GetSpellInfo(), GetAura()->GetSpellVisual(), GetSpellInfo()->GetSchoolMask(), GetAura()->GetCastId());
         damageInfo.periodicLog = true;
         damageInfo.damage = damage;
+        
         caster->DealSpellDamage(&damageInfo, false);
         caster->SendSpellNonMeleeDamageLog(&damageInfo);
+        
+        int32 healAmount = int32(damage) * 2;
+
+        HealInfo healInfo(caster, target, healAmount, GetSpellInfo(), GetSpellInfo()->GetSchoolMask());
+
+        caster->HealBySpell(healInfo);
     }
 
     void Register() override
     {
-        OnEffectApply += AuraEffectApplyFn(spell_warl_health_funnel::ApplyEffect, EFFECT_0, SPELL_AURA_OBS_MOD_HEALTH, AURA_EFFECT_HANDLE_REAL);
-        OnEffectRemove += AuraEffectRemoveFn(spell_warl_health_funnel::RemoveEffect, EFFECT_0, SPELL_AURA_OBS_MOD_HEALTH, AURA_EFFECT_HANDLE_REAL);
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_warl_health_funnel::OnPeriodic, EFFECT_0, SPELL_AURA_OBS_MOD_HEALTH);
+        OnEffectApply += AuraEffectApplyFn(spell_warl_health_funnel::HandleEffectApply, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        OnEffectRemove += AuraEffectRemoveFn(spell_warl_health_funnel::HandleEffectRemove, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_warl_health_funnel::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
 
@@ -2115,18 +2130,32 @@ class aura_warl_haunt : public AuraScript
 // Summon Darkglare - 205180
 class spell_warlock_summon_darkglare : public SpellScript
 {
-
     void HandleOnHitTarget(SpellEffIndex /*effIndex*/)
     {
         if (Unit* target = GetHitUnit())
         {
-            Player::AuraEffectList effectList = target->GetAuraEffectsByType(SPELL_AURA_PERIODIC_DAMAGE);
-            /*
-                        // crash here
-                        for (AuraEffect* effect : effectList)
-                            if (Aura* aura = effect->GetBase())
-                                aura->ModDuration(8 * IN_MILLISECONDS);
-            */
+            std::vector<AuraEffect*> effects;
+
+            for (AuraEffect* aurEff : target->GetAuraEffectsByType(SPELL_AURA_PERIODIC_DAMAGE))
+            {
+                if (aurEff)
+                    effects.push_back(aurEff);
+            }
+
+            for (AuraEffect* effect : effects)
+            {
+                if (!effect)
+                    continue;
+
+                Aura* aura = effect->GetBase();
+                if (!aura)
+                    continue;
+
+                if (aura->GetCasterGUID() == GetCaster()->GetGUID())
+                {
+                    aura->SetDuration(aura->GetDuration() + 8 * IN_MILLISECONDS);
+                }
+            }
         }
     }
 
@@ -2137,32 +2166,78 @@ class spell_warlock_summon_darkglare : public SpellScript
 };
 
 // Darkglare - 103673
-class npc_pet_warlock_darkglare : public CreatureScript
+struct npc_pet_warlock_darkglare : public PetAI
 {
-public:
-    npc_pet_warlock_darkglare() : CreatureScript("npc_pet_warlock_darkglare") {}
+    npc_pet_warlock_darkglare(Creature* creature) : PetAI(creature) {}
 
-    struct npc_pet_warlock_darkglare_PetAI : public PetAI
+    void UpdateAI(uint32 diff) override
     {
-        npc_pet_warlock_darkglare_PetAI(Creature* creature) : PetAI(creature) {}
+        PetAI::UpdateAI(diff);
 
-        void UpdateAI(uint32 /*diff*/) override
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        if (me->GetSpellHistory()->HasCooldown(SPELL_WARLOCK_EYE_LASER))
+            return;
+
+        Unit* owner = me->GetOwner();
+        if (!owner)
+            return;
+
+        Unit* target = nullptr;
+
+        ObjectGuid targetGuid = owner->GetTarget();
+        if (!targetGuid.IsEmpty())
         {
-            Unit* owner = me->GetOwner();
-            if (!owner)
-                return;
+            target = ObjectAccessor::GetUnit(*me, targetGuid);
 
-            std::list<Unit*> targets;
-            owner->GetAttackableUnitListInRange(targets, 100.0f);
-            targets.remove_if(Trinity::UnitAuraCheck(false, SPELL_WARLOCK_DOOM, owner->GetGUID()));
-            if (!targets.empty())
-                me->CastSpell(targets.front(), SPELL_WARLOCK_EYE_LASER, CastSpellExtraArgs(TRIGGERED_NONE).SetOriginalCaster(owner->GetGUID()));
+            if (!target || !owner->IsValidAttackTarget(target) || !me->IsWithinDistInMap(target, 100.0f))
+                target = nullptr;
         }
-    };
 
-    CreatureAI* GetAI(Creature* creature) const override
+        if (!target)
+        {
+            std::list<Unit*> targets;
+
+            owner->GetAttackableUnitListInRange(targets, 100.0f);
+
+            if (!targets.empty())
+                target = targets.front();
+        }
+
+        if (target)
+        {
+            me->CastSpell(target, SPELL_WARLOCK_EYE_LASER, true);
+        }
+    }
+};
+
+// 205231 - Eye Laser (Darkglare damage spell)
+class spell_warl_darkglare_eye_laser : public SpellScript
+{
+    void HandleDamage(SpellEffIndex /*effIndex*/)
     {
-        return new npc_pet_warlock_darkglare_PetAI(creature);
+        Unit* caster = GetCaster();
+        Unit* owner = caster->GetOwner();
+
+        if (!owner)
+            return;
+
+        SpellEffectInfo const& effect = GetEffectInfo(EFFECT_0);
+
+        int32 damage = effect.CalcValue(owner);
+
+        float bonusCoefficient = effect.BonusCoefficient;
+        int32 spellPower = owner->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_SHADOW);
+
+        damage += int32(bonusCoefficient * spellPower);
+
+        SetHitDamage(damage);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_warl_darkglare_eye_laser::HandleDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
     }
 };
 
@@ -2364,26 +2439,60 @@ public:
 // Hand of Gul'Dan - 105174
 class spell_warl_hand_of_guldan : public SpellScript
 {
-
     void HandleOnHit()
     {
-        if (Unit* caster = GetCaster())
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+
+        if (!caster || !target)
+            return;
+
+        std::list<Creature*> oldImps;
+        caster->GetCreatureListWithEntryInGrid(oldImps, 55659, 100.0f);
+        for (Creature* imp : oldImps)
         {
-            if (Unit* target = GetHitUnit())
+            if (imp->IsAlive() && imp->GetOwnerGUID() == caster->GetGUID())
+                imp->DespawnOrUnsummon();
+        }
+
+        SpellInfo const* summonSpellInfo = sSpellMgr->GetSpellInfo(SPELL_WARLOCK_WILD_IMP_SUMMON, DIFFICULTY_NONE);
+        if (!summonSpellInfo)
+            return;
+
+        int32 nrofsummons = caster->GetPower(POWER_SOUL_SHARDS);
+
+        if (nrofsummons >= 3)
+            nrofsummons = 3;
+        else if (nrofsummons == 2)
+            nrofsummons = 2;
+        else if (nrofsummons < 1)
+            nrofsummons = 1;
+
+        SpellEffectInfo const& effect = summonSpellInfo->GetEffect(EFFECT_0);
+        uint32 creatureEntry = effect.MiscValue;
+        uint32 propertiesId = effect.MiscValueB;
+        Milliseconds duration = Milliseconds(summonSpellInfo->GetDuration());
+
+        float x = target->GetPositionX();
+        float y = target->GetPositionY();
+        float z = target->GetPositionZ();
+
+        for (int32 i = 0; i < nrofsummons; ++i)
+        {
+            float angle = rand_norm() * 2 * M_PI;
+            float radius = rand_norm() * 4.0f;
+
+            float destX = x + radius * std::cos(angle);
+            float destY = y + radius * std::sin(angle);
+            float destZ = z;
+
+            if (SummonPropertiesEntry const* properties = sSummonPropertiesStore.LookupEntry(propertiesId))
             {
-                int32 nrofsummons = 1;
-                nrofsummons += caster->GetPower(POWER_SOUL_SHARDS);
-                if (nrofsummons > 4)
-                    nrofsummons = 4;
-
-                int8 offsetX[4]{ 0, 0, 1, 1 };
-                int8 offsetY[4]{ 0, 1, 0, 1 };
-
-                for (int i = 0; i < nrofsummons; i++)
-                    caster->CastSpell(Position(target->GetPositionX() + offsetX[i], target->GetPositionY() + offsetY[i], target->GetPositionZ()), 104317, true);
-                caster->CastSpell(target, SPELL_WARLOCK_HAND_OF_GULDAN_DAMAGE, true);
+                caster->GetMap()->SummonCreature(creatureEntry, Position(destX, destY, destZ, 0.0f), properties, duration, caster);
             }
         }
+
+        caster->CastSpell(target, SPELL_WARLOCK_HAND_OF_GULDAN_DAMAGE, true);
     }
 
     void Register() override
@@ -2569,39 +2678,6 @@ public:
             UpdateVictim();
         }
     };
-};
-
-// Eye Laser - 205231
-class spell_warl_eye_laser : public SpellScriptLoader
-{
-public:
-    spell_warl_eye_laser() : SpellScriptLoader("spell_warl_eye_laser") {}
-
-    class spell_warl_eye_laser_SpellScript : public SpellScript
-    {
-
-        void HandleTargets(std::list<WorldObject*>& targets)
-        {
-            Unit* caster = GetOriginalCaster();
-            if (!caster)
-                return;
-            targets.clear();
-            Trinity::AllWorldObjectsInRange check(caster, 100.f);
-            Trinity::WorldObjectListSearcher<Trinity::AllWorldObjectsInRange> search(caster, targets, check);
-            Cell::VisitAllObjects(caster, search, 100.f);
-            targets.remove_if(Trinity::UnitAuraCheck(false, SPELL_WARLOCK_DOOM, caster->GetGUID()));
-        }
-
-        void Register() override
-        {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_warl_eye_laser_SpellScript::HandleTargets, EFFECT_0, TARGET_UNIT_TARGET_ENEMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_warl_eye_laser_SpellScript();
-    }
 };
 
 // 264178 - Demonbolt
@@ -2923,7 +2999,7 @@ public:
     }
 };
 
-// Wild Imp - 99739
+// Wild Imp - 55659
 struct npc_pet_warlock_wild_imp : public PetAI
 {
     npc_pet_warlock_wild_imp(Creature* creature) : PetAI(creature)
@@ -3320,7 +3396,8 @@ void AddSC_warlock_spell_scripts()
     RegisterSpellScript(aura_warl_phantomatic_singularity);
     RegisterSpellScript(aura_warl_haunt);
     RegisterSpellScript(spell_warlock_summon_darkglare);
-    new npc_pet_warlock_darkglare();
+    RegisterCreatureAI(npc_pet_warlock_darkglare);
+    RegisterSpellScript(spell_warl_darkglare_eye_laser);
     new spell_warlock_unending_breath();
     new spell_warl_demonic_gateway();
     new npc_warl_demonic_gateway();
@@ -3328,7 +3405,6 @@ void AddSC_warlock_spell_scripts()
     new spell_warl_hand_of_guldan_damage();
     new spell_warlock_call_dreadstalkers();
     new npc_warlock_dreadstalker();
-    new spell_warl_eye_laser();
     new spell_warlock_demonbolt_new();
     new spell_warl_demonic_calling();
     new spell_warl_implosion();
