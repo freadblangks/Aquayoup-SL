@@ -46,6 +46,10 @@
 #include "Group.h"
 #include "ObjectAccessor.h"
 #include "MotionMaster.h"
+#include "../../../Spatial/SpatialGridManager.h"
+#include "../../../Spatial/DoubleBufferedSpatialGrid.h"
+#include "../../../Core/PlayerBotHelpers.h"
+#include "../../../AI/BotAI.h"
 
 namespace Playerbot
 {
@@ -134,6 +138,54 @@ public:
         DungeonScript::HandleInterruptPriority(player, boss);
     }
 
+    void HandleGroundAvoidance(::Player* player, ::Creature* boss) override
+    {
+        // ENTERPRISE: Use lock-free spatial grid for thread-safe DynamicObject queries
+        // The Stockade has minimal ground effects but using spatial grid for consistency
+        Map* map = player->GetMap();
+        if (map)
+        {
+            DoubleBufferedSpatialGrid* spatialGrid = sSpatialGridManager.GetGrid(map);
+            if (!spatialGrid)
+            {
+                sSpatialGridManager.CreateGrid(map);
+                spatialGrid = sSpatialGridManager.GetGrid(map);
+            }
+
+            if (spatialGrid)
+            {
+                // Query nearby dynamic objects using immutable snapshots (lock-free!)
+                auto dynamicObjectSnapshots = spatialGrid->QueryNearbyDynamicObjects(player->GetPosition(), 15.0f);
+
+                for (auto const& snapshot : dynamicObjectSnapshots)
+                {
+                    if (!snapshot.IsActive())
+                        continue;
+
+                    if (snapshot.casterGuid != boss->GetGUID())
+                        continue;
+
+                    float distance = player->GetExactDist(snapshot.position);
+                    if (distance < 10.0f)
+                    {
+                        if (DynamicObject* dynObj = ObjectAccessor::GetDynamicObject(*player, snapshot.guid))
+                        {
+                            if (IsDangerousGroundEffect(dynObj))
+                            {
+                                TC_LOG_DEBUG("module.playerbot", "StockadeScript: Avoiding ground effect at distance {:.1f}", distance);
+                                MoveAwayFromGroundEffect(player, dynObj);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fall back to generic
+        DungeonScript::HandleGroundAvoidance(player, boss);
+    }
+
     void HandleDispelMechanic(::Player* player, ::Creature* boss) override
     {
         uint32 entry = boss->GetEntry();
@@ -200,7 +252,22 @@ public:
                     float y = player->GetPositionY() + 5.0f * ::std::sin(angle);
                     float z = player->GetPositionZ();
                     TC_LOG_DEBUG("module.playerbot", "StockadeScript: Moving away from Bazil's Smoke Bomb");
-                    player->GetMotionMaster()->MovePoint(0, x, y, z);
+
+                    // Use validated pathfinding for bot players
+                    Position dest(x, y, z, 0.0f);
+                    if (BotAI* ai = GetBotAI(player))
+                    {
+                        if (!ai->MoveTo(dest, true))
+                        {
+                            // Fallback to legacy if validation fails
+                            player->GetMotionMaster()->MovePoint(0, x, y, z);
+                        }
+                    }
+                    else
+                    {
+                        // Non-bot player - use standard movement
+                        player->GetMotionMaster()->MovePoint(0, x, y, z);
+                    }
                     return;
                 }
                 break;

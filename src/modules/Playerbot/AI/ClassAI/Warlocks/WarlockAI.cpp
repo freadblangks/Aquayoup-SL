@@ -11,7 +11,7 @@
 #include "AfflictionWarlock.h"
 #include "DemonologyWarlock.h"
 #include "DestructionWarlock.h"
-#include "../SpellValidation_WoW112_Part2.h"
+#include "../SpellValidation_WoW120_Part2.h"
 #include "GameTime.h"
 #include "../../Combat/CombatBehaviorIntegration.h"
 #include "Player.h"
@@ -46,16 +46,16 @@ namespace Playerbot
 WarlockAI::~WarlockAI() = default;
 
 // ============================================================================
-// Warlock Spell IDs - Using Central SpellValidation Registry (WoW 11.2)
+// Warlock Spell IDs - Using Central SpellValidation Registry (WoW 12.0)
 // ============================================================================
-// All spell IDs sourced from SpellValidation_WoW112_Part2.h to maintain single source of truth
+// All spell IDs sourced from SpellValidation_WoW120_Part2.h to maintain single source of truth
 
 // Namespace aliases for cleaner code
-namespace WarlockSpells = WoW112Spells::Warlock;
-namespace WarlockAffliction = WoW112Spells::Warlock::Affliction;
-namespace WarlockDemonology = WoW112Spells::Warlock::Demonology;
-namespace WarlockDestruction = WoW112Spells::Warlock::Destruction;
-namespace WarlockCommon = WoW112Spells::Warlock::Common;
+namespace WarlockSpells = WoW120Spells::Warlock;
+namespace WarlockAffliction = WoW120Spells::Warlock::Affliction;
+namespace WarlockDemonology = WoW120Spells::Warlock::Demonology;
+namespace WarlockDestruction = WoW120Spells::Warlock::Destruction;
+namespace WarlockCommon = WoW120Spells::Warlock::Common;
 
 // Legacy spell ID aliases for backward compatibility with existing code
 // These map old WARLOCK_ prefixed names to the central registry
@@ -383,7 +383,7 @@ bool WarlockAI::HandleDefensives()
             return true;
     }
 
-// Low health - use moderate defensives (WoW 11.2)
+// Low health - use moderate defensives (WoW 12.0)
     if (healthPct < 40.0f)
     {
         // Dark Pact for shield (Affliction)
@@ -479,7 +479,7 @@ bool WarlockAI::HandlePetManagement()
             return true;
         }
     }
-    // Note: Consume Shadows and Demonic Empowerment removed in WoW 11.2
+    // Note: Consume Shadows and Demonic Empowerment removed in WoW 12.0
 
     // Command pet to attack if idle
     Unit* target = bot->GetVictim();
@@ -510,7 +510,7 @@ bool WarlockAI::SummonPet()
     // ========================================================================
 
     // Check for ANY movement state (even if visually not moving, flags may be set)
-    // Use TrinityCore 11.2 predefined masks for movement detection
+    // Use TrinityCore 12.0 predefined masks for movement detection
     bool hasMovementFlags = bot->HasUnitMovementFlag(MOVEMENTFLAG_MASK_MOVING | MOVEMENTFLAG_MASK_TURNING);
 
     if (bot->isMoving() || hasMovementFlags || bot->HasUnitState(UNIT_STATE_MOVING))
@@ -520,7 +520,7 @@ bool WarlockAI::SummonPet()
         bot->GetMotionMaster()->Clear(MOTION_PRIORITY_NORMAL);
         bot->GetMotionMaster()->MoveIdle();
 
-        // Clear movement flags using TrinityCore 11.2 masks
+        // Clear movement flags using TrinityCore 12.0 masks
         bot->RemoveUnitMovementFlag(MOVEMENTFLAG_MASK_MOVING | MOVEMENTFLAG_MASK_TURNING);
 
         // Clear unit state
@@ -605,7 +605,7 @@ bool WarlockAI::SummonPet()
         // ========================================================================
         // CRITICAL FIX: Basic pet summons do NOT cost soul shards in modern WoW!
         // ========================================================================
-        // In WoW 11.2 (The War Within), Summon Imp/Voidwalker/Succubus/Felhunter
+        // In WoW 12.0 (The War Within), Summon Imp/Voidwalker/Succubus/Felhunter
         // are FREE to cast - they only have a cast time (6 seconds).
         // Soul Shards are ONLY used for combat abilities (Chaos Bolt, etc.).
         // The previous check for "soulShards >= 10" was blocking ALL pet summons!
@@ -737,7 +737,7 @@ bool WarlockAI::HandleAoERotation(Unit* target)
         }
     }
 
-    // Note: Mannoroth's Fury removed in WoW 11.2
+    // Note: Mannoroth's Fury removed in WoW 12.0
 
     return false;
 }
@@ -771,7 +771,7 @@ bool WarlockAI::HandleOffensiveCooldowns(Unit* target)
     }
     else if (static_cast<uint32>(spec) == 266) // Demonology
     {
-        // Summon Demonic Tyrant - main Demonology cooldown in 11.2
+        // Summon Demonic Tyrant - main Demonology cooldown in 12.0
         // Note: Metamorphosis and Dark Soul: Knowledge removed (Metamorphosis is Demon Hunter only)
         constexpr uint32 SUMMON_DEMONIC_TYRANT = WarlockDemonology::SUMMON_DEMONIC_TYRANT;
         if (bot->HasSpell(SUMMON_DEMONIC_TYRANT) && !bot->GetSpellHistory()->HasCooldown(SUMMON_DEMONIC_TYRANT))
@@ -792,7 +792,7 @@ bool WarlockAI::HandleOffensiveCooldowns(Unit* target)
 
     // Summon Infernal/Doomguard
     if (GetNearbyEnemyCount(30.0f) >= 3 || target->GetHealthPct() > 80.0f)    {
-        // Summon Infernal - main offensive cooldown for Destruction (Doomguard removed in 11.2)
+        // Summon Infernal - main offensive cooldown for Destruction (Doomguard removed in 12.0)
         if (bot->HasSpell(WARLOCK_SUMMON_INFERNAL))
         {
             if (!bot->GetSpellHistory()->HasCooldown(WARLOCK_SUMMON_INFERNAL))
@@ -1082,7 +1082,7 @@ bool WarlockAI::ApplyCurse(Unit* target)
     if (!bot)
         return false;
 
-    // Check if target already has a curse (Curse of Elements removed in 11.2)
+    // Check if target already has a curse (Curse of Elements removed in 12.0)
     if (target->HasAura(WARLOCK_CURSE_OF_AGONY) ||
         target->HasAura(WARLOCK_CURSE_OF_TONGUES) || target->HasAura(WARLOCK_CURSE_OF_WEAKNESS) ||
         target->HasAura(WARLOCK_CURSE_OF_EXHAUSTION))
@@ -1091,7 +1091,7 @@ bool WarlockAI::ApplyCurse(Unit* target)
     uint32 curseSpell = 0;
 
     // Choose appropriate curse based on target and situation
-    // Note: Curse of Elements removed in WoW 11.2
+    // Note: Curse of Elements removed in WoW 12.0
     if (target->GetPowerType() == POWER_MANA)
     {
         // Curse of Tongues for casters
@@ -1274,9 +1274,8 @@ bool WarlockAI::UseHealthstone()
             SpellCastTargets targets;
             targets.SetUnitTarget(bot); // Use healthstone on self
 
-            // CRITICAL: Player::CastItemUseSpell accesses misc[0] and misc[1] without null check
-            // Passing nullptr causes ACCESS_VIOLATION crash at Player.cpp:8853
-            int32 misc[2] = { 0, 0 };
+            // WoW 12.0: CastItemUseSpell signature changed to std::array<int32, 3>
+            std::array<int32, 3> misc = { 0, 0, 0 };
             bot->CastItemUseSpell(item, targets, ObjectGuid::Empty, misc);
 
             TC_LOG_DEBUG("playerbot.warlock", "Warlock {} used healthstone {}", bot->GetName(), itemId);
@@ -1500,7 +1499,7 @@ void WarlockAI::OnNonCombatUpdate(uint32 diff)
                 TC_LOG_DEBUG("playerbot.warlock", "Warlock {} healing pet with Health Funnel (out of combat)", bot->GetName());
                 return;
             }
-            // Note: Consume Shadows removed in WoW 11.2
+            // Note: Consume Shadows removed in WoW 12.0
         }
     }
 
@@ -1631,7 +1630,7 @@ void WarlockAI::UpdateWarlockBuffs()
     if (bot->HasUnitState(UNIT_STATE_CASTING))
         return;
 
-    // Note: Demon Armor, Fel Armor, Soul Link, and Dark Intent removed in WoW 11.2
+    // Note: Demon Armor, Fel Armor, Soul Link, and Dark Intent removed in WoW 12.0
     // Warlocks no longer have passive armor buffs - they rely on defensive cooldowns instead
     // Soul Link is now a passive talent, not an active ability
 }
@@ -1865,8 +1864,8 @@ void WarlockAI::ManageWarlockCooldowns()
 
     uint32 spec = static_cast<uint32>(bot->GetPrimarySpecialization());
 
-    // Summon Demonic Tyrant for Demonology (266) - main cooldown in WoW 11.2
-    // Note: Demonic Empowerment and Metamorphosis removed in 11.2
+    // Summon Demonic Tyrant for Demonology (266) - main cooldown in WoW 12.0
+    // Note: Demonic Empowerment and Metamorphosis removed in 12.0
     if (spec == 266)
     {
         constexpr uint32 SUMMON_DEMONIC_TYRANT = WarlockDemonology::SUMMON_DEMONIC_TYRANT;

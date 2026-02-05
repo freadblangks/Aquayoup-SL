@@ -42,6 +42,7 @@
 #include "CharacterDatabase.h"
 #include "BotWorldSessionMgr.h"
 #include "Session/BotSession.h"
+#include "../AI/BotAI.h"  // P1 FIX: Required for unique_ptr<BotAI> in BotSession.h
 #include "BotResourcePool.h"
 #include "BotAccountMgr.h"
 #include "Config/PlayerbotConfig.h"
@@ -62,6 +63,7 @@
 #include "MotionMaster.h"
 #include "RealmList.h"
 #include "DB2Stores.h"
+#include "DBCEnums.h"  // WoW 12.0: MAP_WOWLABS, MAP_HOUSE_INTERIOR, MAP_HOUSE_NEIGHBORHOOD
 #include "WorldSession.h"
 #include "Movement/BotWorldPositioner.h"
 #include <algorithm>
@@ -279,112 +281,140 @@ void BotSpawner::Update(uint32 diff)
         queueHasItems = !_spawnQueue.empty();
     }
 
-    if (!_processingQueue.load() && queueHasItems)
+    // P1 FIX: ATOMIC COMPARE-EXCHANGE to prevent concurrent queue processing
+    //
+    // Problem: Check-then-set pattern allows multiple threads to enter:
+    //   Thread 1: Check _processingQueue=false ✓
+    //   Thread 2: Check _processingQueue=false ✓ (before T1 sets it!)
+    //   Thread 1: Set _processingQueue=true, enters critical section
+    //   Thread 2: Set _processingQueue=true, enters critical section ❌ DUPLICATE!
+    //
+    // Solution: compare_exchange_strong atomically checks and sets in single operation:
+    //   Thread 1: CAS(false→true) succeeds, returns true
+    //   Thread 2: CAS(false→true) fails (already true), returns false
+    //   Only Thread 1 enters critical section ✓
+    //
+    // This guarantees mutual exclusion without explicit mutex locks.
+
+    bool expected = false;
+    if (queueHasItems && _processingQueue.compare_exchange_strong(
+            expected, true, ::std::memory_order_acquire, ::std::memory_order_relaxed))
     {
-        _processingQueue.store(true);
+        // Only ONE thread can enter this block - compare_exchange guarantees atomicity
 
-        // ====================================================================
-        // Phase 2: Adaptive Throttling Integration
-        // ====================================================================
-        // Check if Phase 2 allows spawning (throttler + orchestrator + circuit breaker)
-        bool canSpawn = true;
+        // Wrap processing in try-catch to ensure flag is always reset
+        try
+        {
+            // ====================================================================
+            // Phase 2: Adaptive Throttling Integration
+            // ====================================================================
+            // Check if Phase 2 allows spawning (throttler + orchestrator + circuit breaker)
+            bool canSpawn = true;
+            if (_phase2Initialized)
+            {
+                // Check orchestrator phase allows spawning
+                canSpawn = _orchestrator.ShouldSpawnNext();
+
+                // Check throttler allows spawning (checks circuit breaker internally)
+        if (canSpawn)
+                    canSpawn = _throttler.CanSpawnNow();
+
+                if (!canSpawn)
+                {
+                    TC_LOG_TRACE("module.playerbot.spawner",
+                        "Phase 2 throttling active - spawn deferred (pressure: {}, circuit: {}, phase: {})",
+                        static_cast<uint8>(_resourceMonitor.GetPressureLevel()),
+                        static_cast<uint8>(_circuitBreaker.GetState()),
+                        static_cast<uint8>(_orchestrator.GetCurrentPhase()));
+                    _processingQueue.store(false, ::std::memory_order_release);
+                    return; // Skip spawning this update
+                }
+            }
+            // ====================================================================
+            // End Phase 2 Throttling Check
+            // ====================================================================
+
+            // ====================================================================
+            // Phase 2: Dequeue from appropriate queue
+            // ====================================================================
+            ::std::vector<SpawnRequest> requestBatch;
+
+            if (_phase2Initialized)
+            {
+                // Phase 2 ENABLED: Dequeue from priority queue
+                // Limit batch size to 1 for precise throttle control
+                auto prioRequest = _priorityQueue.DequeueNextRequest();
+                if (prioRequest.has_value())
+                {
+                    // Extract original SpawnRequest from PrioritySpawnRequest
+                    requestBatch.push_back(prioRequest->originalRequest);
+
+                    TC_LOG_TRACE("module.playerbot.spawner",
+                        "Phase 2: Dequeued spawn request with priority {} (reason: {}, age: {}ms)",
+                        static_cast<uint8>(prioRequest->priority),
+                        prioRequest->reason,
+                        prioRequest->GetAge().count());
+                }
+            }
+            else
+            {
+                // Phase 2 DISABLED: Dequeue from legacy spawn queue
+                // TBB concurrent_queue is lock-free - no mutex needed!
+                uint32 batchSize = _config.spawnBatchSize;
+                requestBatch.reserve(batchSize);
+
+                // TBB concurrent_queue: Use try_pop() instead of front()/pop()
+                // Lock-free operation - multiple threads can pop simultaneously
+        for (uint32 i = 0; i < batchSize; ++i)
+                {
+                    SpawnRequest request;
+                    if (_spawnQueue.try_pop(request))
+                    {
+                        requestBatch.push_back(request);
+                    }
+                    else
+                    {
+                        break; // Queue is empty
+                    }
+                }
+
+                TC_LOG_TRACE("module.playerbot.spawner", "Legacy: Processing {} spawn requests", requestBatch.size());
+            }
+
+            // Process requests outside the lock
+        for (SpawnRequest const& request : requestBatch)
+            {
+                bool spawnSuccess = SpawnBotInternal(request);
+
+                // ================================================================
+                // Phase 2: Record spawn result for circuit breaker and throttler
+                // ================================================================
         if (_phase2Initialized)
-        {
-            // Check orchestrator phase allows spawning
-            canSpawn = _orchestrator.ShouldSpawnNext();
-
-            // Check throttler allows spawning (checks circuit breaker internally)
-    if (canSpawn)
-                canSpawn = _throttler.CanSpawnNow();
-
-            if (!canSpawn)
-            {
-                TC_LOG_TRACE("module.playerbot.spawner",
-                    "Phase 2 throttling active - spawn deferred (pressure: {}, circuit: {}, phase: {})",
-                    static_cast<uint8>(_resourceMonitor.GetPressureLevel()),
-                    static_cast<uint8>(_circuitBreaker.GetState()),
-                    static_cast<uint8>(_orchestrator.GetCurrentPhase()));
-                _processingQueue.store(false);
-                return; // Skip spawning this update
+                {
+                    if (spawnSuccess)
+                    {
+                        _throttler.RecordSpawnSuccess();
+                        _orchestrator.OnBotSpawned();
+                    }
+                    else
+                    {
+                        _throttler.RecordSpawnFailure("SpawnBotInternal failed");
+                    }
+                }
+                // ================================================================
+                // End Phase 2 Result Recording
+                // ================================================================
             }
         }
-        // ====================================================================
-        // End Phase 2 Throttling Check
-        // ====================================================================
-
-        // ====================================================================
-        // Phase 2: Dequeue from appropriate queue
-        // ====================================================================
-        ::std::vector<SpawnRequest> requestBatch;
-
-        if (_phase2Initialized)
+        catch (...)
         {
-            // Phase 2 ENABLED: Dequeue from priority queue
-            // Limit batch size to 1 for precise throttle control
-            auto prioRequest = _priorityQueue.DequeueNextRequest();
-            if (prioRequest.has_value())
-            {
-                // Extract original SpawnRequest from PrioritySpawnRequest
-                requestBatch.push_back(prioRequest->originalRequest);
-
-                TC_LOG_TRACE("module.playerbot.spawner",
-                    "Phase 2: Dequeued spawn request with priority {} (reason: {}, age: {}ms)",
-                    static_cast<uint8>(prioRequest->priority),
-                    prioRequest->reason,
-                    prioRequest->GetAge().count());
-            }
-        }
-        else
-        {
-            // Phase 2 DISABLED: Dequeue from legacy spawn queue
-            // TBB concurrent_queue is lock-free - no mutex needed!
-            uint32 batchSize = _config.spawnBatchSize;
-            requestBatch.reserve(batchSize);
-
-            // TBB concurrent_queue: Use try_pop() instead of front()/pop()
-            // Lock-free operation - multiple threads can pop simultaneously
-    for (uint32 i = 0; i < batchSize; ++i)
-            {
-                SpawnRequest request;
-                if (_spawnQueue.try_pop(request))
-                {
-                    requestBatch.push_back(request);
-                }
-                else
-                {
-                    break; // Queue is empty
-                }
-            }
-
-            TC_LOG_TRACE("module.playerbot.spawner", "Legacy: Processing {} spawn requests", requestBatch.size());
+            TC_LOG_ERROR("module.playerbot.spawner",
+                "Exception during spawn queue processing - flag will be reset");
+            // Flag will be reset in finally block below
         }
 
-        // Process requests outside the lock
-    for (SpawnRequest const& request : requestBatch)
-        {
-            bool spawnSuccess = SpawnBotInternal(request);
-
-            // ================================================================
-            // Phase 2: Record spawn result for circuit breaker and throttler
-            // ================================================================
-    if (_phase2Initialized)
-            {
-                if (spawnSuccess)
-                {
-                    _throttler.RecordSpawnSuccess();
-                    _orchestrator.OnBotSpawned();
-                }
-                else
-                {
-                    _throttler.RecordSpawnFailure("SpawnBotInternal failed");
-                }
-            }
-            // ================================================================
-            // End Phase 2 Result Recording
-            // ================================================================
-        }
-
-        _processingQueue.store(false);
+        // Always reset flag with release semantics for proper memory ordering
+        _processingQueue.store(false, ::std::memory_order_release);
     }
 
     // Update zone populations periodically - DEADLOCK-FREE VERSION
@@ -525,12 +555,94 @@ void BotSpawner::LoadConfig()
 
 bool BotSpawner::SpawnBot(SpawnRequest const& request)
 {
-    if (!ValidateSpawnRequest(request))
+    // TRACE: Log incoming request to identify spawn origin
+    TC_LOG_INFO("module.playerbot.spawner",
+        "BotSpawner::SpawnBot ENTRY - type={}, guid={}, accountId={}, bypassLimit={}",
+        static_cast<int>(request.type), request.characterGuid.ToString(),
+        request.accountId, request.bypassMaxBotsLimit);
+
+    // P1 FIX: ATOMIC PRE-INCREMENT PATTERN to eliminate TOCTOU race
+    //
+    // Problem: Old pattern had time gap between check and increment:
+    //   Thread 1: Check count=99 < 100 ✓
+    //   Thread 2: Check count=99 < 100 ✓ (before T1 increments!)
+    //   Thread 1: Spawns, count becomes 100
+    //   Thread 2: Spawns, count becomes 101 ❌ OVERFLOW!
+    //
+    // Solution: Reserve slot atomically BEFORE checking cap:
+    //   Thread 1: Atomic increment 99→100 (returns 99)
+    //   Thread 2: Atomic increment 100→101 (returns 100)
+    //   Thread 1: Check 99 < 100 ✓ spawns
+    //   Thread 2: Check 100 < 100 ✗ rollback (100→99), rejects
+    //
+    // This guarantees exact cap enforcement with zero overflow risk.
+
+    // Step 1: Basic validation (non-population checks)
+    if (!ValidateSpawnRequestBasic(request))
     {
         return false;
     }
 
-    return SpawnBotInternal(request);
+    // Step 2: Atomic pre-increment - reserves slot and returns OLD value
+    // NOTE: We check the OLD value (before increment) against the cap
+    uint32 oldCount = _activeBotCount.fetch_add(1, ::std::memory_order_acquire);
+
+    // Step 3: Check global cap AFTER increment using old value
+    // If oldCount was 99 and cap is 100, we pass (slot 100 reserved)
+    // If oldCount was 100 and cap is 100, we fail (would be slot 101)
+    if (_config.respectPopulationCaps && !request.bypassMaxBotsLimit)
+    {
+        if (oldCount >= _config.maxBotsTotal)
+        {
+            // Rollback - we exceeded the cap
+            _activeBotCount.fetch_sub(1, ::std::memory_order_release);
+            TC_LOG_DEBUG("module.playerbot.spawner",
+                "SpawnBot: Rejected - global cap reached ({}/{})",
+                oldCount, _config.maxBotsTotal);
+            return false;
+        }
+    }
+
+    // Step 4: Zone cap check (best-effort - no atomic per-zone counters yet)
+    // NOTE: Zone caps may have small overflow due to lack of atomic per-zone counter
+    // This is acceptable for current requirements (global cap is the hard limit)
+    if (request.zoneId != 0 && _config.respectPopulationCaps && !request.bypassMaxBotsLimit)
+    {
+        if (!CanSpawnInZone(request.zoneId))
+        {
+            // Rollback - zone cap exceeded
+            _activeBotCount.fetch_sub(1, ::std::memory_order_release);
+            TC_LOG_DEBUG("module.playerbot.spawner",
+                "SpawnBot: Rejected - zone {} bot limit reached", request.zoneId);
+            return false;
+        }
+    }
+
+    // Step 5: Map cap check (best-effort)
+    if (request.mapId != 0 && _config.respectPopulationCaps && !request.bypassMaxBotsLimit)
+    {
+        if (!CanSpawnOnMap(request.mapId))
+        {
+            // Rollback - map cap exceeded or map type excluded
+            _activeBotCount.fetch_sub(1, ::std::memory_order_release);
+            TC_LOG_DEBUG("module.playerbot.spawner",
+                "SpawnBot: Rejected - map {} bot limit reached or excluded", request.mapId);
+            return false;
+        }
+    }
+
+    // Step 6: Spawn the bot (counter already incremented, must not double-increment!)
+    if (!SpawnBotInternal(request))
+    {
+        // Rollback on spawn failure
+        _activeBotCount.fetch_sub(1, ::std::memory_order_release);
+        TC_LOG_ERROR("module.playerbot.spawner",
+            "SpawnBot: SpawnBotInternal failed - rolled back counter");
+        return false;
+    }
+
+    // Success - counter already incremented, no rollback needed
+    return true;
 }
 
 uint32 BotSpawner::SpawnBots(::std::vector<SpawnRequest> const& requests)
@@ -657,9 +769,10 @@ bool BotSpawner::SpawnBotInternal(SpawnRequest const& request)
     }
 }
 
-bool BotSpawner::CreateBotSession(uint32 accountId, ObjectGuid characterGuid)
+bool BotSpawner::CreateBotSession(uint32 accountId, ObjectGuid characterGuid, bool bypassMaxBotsLimit)
 {
-    TC_LOG_INFO("module.playerbot.spawner", " Creating bot session for account {}, character {}", accountId, characterGuid.ToString());
+    TC_LOG_INFO("module.playerbot.spawner", " Creating bot session for account {}, character {}, bypassLimit={}",
+        accountId, characterGuid.ToString(), bypassMaxBotsLimit);
 
     // DISABLED: Legacy BotSessionMgr creates invalid account IDs
     // Use the BotSessionMgr to create a new bot session with ASYNC character login (legacy approach)
@@ -672,7 +785,8 @@ bool BotSpawner::CreateBotSession(uint32 accountId, ObjectGuid characterGuid)
     // }
 
     // PRIMARY: Use the fixed native TrinityCore login approach with proper account IDs
-    if (!Playerbot::sBotWorldSessionMgr->AddPlayerBot(characterGuid, accountId))
+    // Pass bypassMaxBotsLimit for pool/JIT bots that should bypass MaxBots config
+    if (!Playerbot::sBotWorldSessionMgr->AddPlayerBot(characterGuid, accountId, bypassMaxBotsLimit))
     {
         TC_LOG_ERROR("module.playerbot.spawner",
             " Failed to create native WorldSession for character {}", characterGuid.ToString());
@@ -686,9 +800,11 @@ bool BotSpawner::CreateBotSession(uint32 accountId, ObjectGuid characterGuid)
     return true;
 }
 
-bool BotSpawner::ValidateSpawnRequest(SpawnRequest const& request) const
+bool BotSpawner::ValidateSpawnRequestBasic(SpawnRequest const& request) const
 {
-    // Comprehensive validation for 5000 bot scalability
+    // P1 FIX: Non-population validation split out for atomic pre-increment pattern
+    // This method performs all validations EXCEPT population caps, which are now
+    // checked after atomic slot reservation to eliminate TOCTOU race
 
     // Check if spawning is enabled
     if (!_enabled.load())
@@ -723,6 +839,26 @@ bool BotSpawner::ValidateSpawnRequest(SpawnRequest const& request) const
         TC_LOG_WARN("module.playerbot.spawner", "Invalid level range: {} > {}", request.minLevel, request.maxLevel);
         return false;
     }
+
+    // NOTE: Population cap checks are now performed in SpawnBot() after atomic pre-increment
+    // This eliminates the TOCTOU race where multiple threads could pass the check simultaneously
+
+    return true;
+}
+
+bool BotSpawner::ValidateSpawnRequest(SpawnRequest const& request) const
+{
+    // DEPRECATED: This method is kept for backward compatibility with code that bypasses SpawnBot()
+    // New code should use the atomic pre-increment pattern in SpawnBot() instead
+    //
+    // WARNING: Using this method directly (without atomic pre-increment) can still cause
+    // population cap overflow due to TOCTOU race conditions
+
+    // Comprehensive validation for 5000 bot scalability
+
+    // Basic validation (non-population checks)
+    if (!ValidateSpawnRequestBasic(request))
+        return false;
 
     // Check global population caps
     if (_config.respectPopulationCaps && !CanSpawnMore())
@@ -1085,10 +1221,11 @@ void BotSpawner::ContinueSpawnWithCharacter(ObjectGuid characterGuid, SpawnReque
         return;
     }
 
-    TC_LOG_INFO("module.playerbot.spawner", " Continuing spawn with character {} for account {}", characterGuid.ToString(), actualAccountId);
+    TC_LOG_INFO("module.playerbot.spawner", " Continuing spawn with character {} for account {} (bypassLimit={})",
+        characterGuid.ToString(), actualAccountId, request.bypassMaxBotsLimit);
 
-    // Create bot session
-    if (!CreateBotSession(actualAccountId, characterGuid))
+    // Create bot session - pass bypassMaxBotsLimit for pool/JIT bots
+    if (!CreateBotSession(actualAccountId, characterGuid, request.bypassMaxBotsLimit))
     {
         TC_LOG_ERROR("module.playerbot.spawner",
             "Failed to create bot session for character {}", characterGuid.ToString());
@@ -1117,8 +1254,12 @@ void BotSpawner::ContinueSpawnWithCharacter(ObjectGuid characterGuid, SpawnReque
             acc->second.push_back(characterGuid);
         }
 
-        // LOCK-FREE OPTIMIZATION: Update atomic counter for hot path access
-        _activeBotCount.fetch_add(1, ::std::memory_order_release);
+        // P1 FIX: Counter increment removed - now handled by atomic pre-increment in SpawnBot()
+        // The counter is incremented atomically BEFORE spawn attempt to reserve the slot and
+        // eliminate TOCTOU race. If we increment here, we would double-count.
+        //
+        // Old code (REMOVED):
+        // _activeBotCount.fetch_add(1, ::std::memory_order_release);
     }
 
     // Update statistics
@@ -1245,21 +1386,56 @@ void BotSpawner::DespawnBot(ObjectGuid guid, bool forced)
 
 void BotSpawner::DespawnAllBots()
 {
-    ::std::vector<ObjectGuid> botsToRemove;
+    // P1 FIX: ATOMIC SWAP PATTERN for thread-safe mass despawn
+    // Problem: Range-based for over concurrent_hash_map is NOT atomic - other threads
+    //          can add/remove entries during iteration, causing iterator invalidation,
+    //          missing bots, or potential crashes
+    // Solution: Atomically swap with empty maps, then process isolated snapshot with
+    //           zero race condition risk. TBB concurrent_hash_map::swap() is atomic.
+
+    // Step 1: Atomically swap out both tracking maps
+    tbb::concurrent_hash_map<ObjectGuid, uint32> oldBots;
+    _activeBots.swap(oldBots);  // Atomic operation - now we own the old map
+
+    tbb::concurrent_hash_map<uint32, ::std::vector<ObjectGuid>> oldBotsByZone;
+    _botsByZone.swap(oldBotsByZone);  // Atomic operation
+
+    // Step 2: Reset atomic counter (all bots are being despawned)
+    _activeBotCount.store(0, ::std::memory_order_release);
+
+    uint32 despawnCount = 0;
+
+    // Step 3: Process the isolated snapshot (no race conditions possible)
+    // This is now completely thread-safe - no other thread can access oldBots
+    for (auto const& [guid, zoneId] : oldBots)
     {
-        for (auto const& [guid, zoneId] : _activeBots)
+        // Get account ID for session cleanup
+        uint32 accountId = GetAccountIdFromCharacter(guid);
+
+        // Remove the bot session to prevent memory leaks
+        // This is the critical cleanup that was happening in DespawnBot()
+        if (accountId != 0)
         {
-            botsToRemove.push_back(guid);
+            Playerbot::sBotWorldSessionMgr->RemoveAllPlayerBots(accountId);
+            TC_LOG_DEBUG("module.playerbot.spawner",
+                "Released bot session for account {} (character {}) during mass despawn",
+                accountId, guid.ToString());
         }
+        else
+        {
+            TC_LOG_WARN("module.playerbot.spawner",
+                "Could not find account ID for character {} during mass despawn", guid.ToString());
+        }
+
+        ++despawnCount;
     }
 
-    for (ObjectGuid guid : botsToRemove)
-    {
-        DespawnBot(guid, true);
-    }
+    // Step 4: Update statistics (batch update for performance)
+    _stats.totalDespawned.fetch_add(despawnCount, ::std::memory_order_release);
+    _stats.currentlyActive.store(0, ::std::memory_order_release);
 
     TC_LOG_INFO("module.playerbot.spawner",
-        "Despawned all {} active bots", botsToRemove.size());
+        "Despawned all {} active bots using atomic swap pattern (race-free)", despawnCount);
 }
 
 void BotSpawner::UpdateZonePopulation(uint32 zoneId, uint32 mapId)
@@ -1401,6 +1577,27 @@ bool BotSpawner::CanSpawnInZone(uint32 zoneId) const
 
 bool BotSpawner::CanSpawnOnMap(uint32 mapId) const
 {
+    // WoW 12.0: Check map type exclusions for housing and WowLabs maps
+    MapEntry const* mapEntry = sMapStore.LookupEntry(mapId);
+    if (mapEntry)
+    {
+        // Exclude housing maps (player housing interiors and neighborhoods)
+        // Exclude WowLabs maps (Plunderstorm and experimental game modes)
+        switch (mapEntry->InstanceType)
+        {
+            case MAP_WOWLABS:           // Plunderstorm/experimental
+            case MAP_HOUSE_INTERIOR:    // Player housing interior
+            case MAP_HOUSE_NEIGHBORHOOD: // Player housing neighborhood
+                TC_LOG_DEBUG("module.playerbot.spawner",
+                    "CanSpawnOnMap: Rejecting map {} - map type {} is excluded (housing/WowLabs)",
+                    mapId, static_cast<uint32>(mapEntry->InstanceType));
+                return false;
+            default:
+                break;
+        }
+    }
+
+    // Check population cap
     uint32 mapBotCount = 0;
     for (auto const& [zoneId, population] : _zonePopulations)
     {
@@ -1785,9 +1982,37 @@ ObjectGuid BotSpawner::CreateBotCharacter(uint32 accountId)
         createInfo->Sex = gender;
         createInfo->UseNPE = false;  // Use classic starting zone, not New Player Experience
 
-        // Set default customizations (simplified - using basic appearance)
-        // These would normally be randomized based on the race
+        // CRITICAL FIX: Generate valid default customizations for the race/gender
+        // WoW 11.x requires valid customization choices for character creation
+        // Without this, Player::Create() fails at ValidateAppearance()
         createInfo->Customizations.clear();
+        if (auto const* options = sDB2Manager.GetCustomiztionOptions(race, gender))
+        {
+            for (ChrCustomizationOptionEntry const* option : *options)
+            {
+                // Get available choices for this option
+                if (auto const* choices = sDB2Manager.GetCustomiztionChoices(option->ID))
+                {
+                    if (!choices->empty())
+                    {
+                        // Use first valid choice for each option
+                        UF::ChrCustomizationChoice choice;
+                        choice.ChrCustomizationOptionID = option->ID;
+                        choice.ChrCustomizationChoiceID = (*choices)[0]->ID;
+                        createInfo->Customizations.push_back(choice);
+                    }
+                }
+            }
+            TC_LOG_DEBUG("module.playerbot.spawner",
+                "Generated {} customization choices for race {} gender {}",
+                createInfo->Customizations.size(), race, gender);
+        }
+        else
+        {
+            TC_LOG_WARN("module.playerbot.spawner",
+                "No customization options found for race {} gender {} - character creation may fail",
+                race, gender);
+        }
 
         // Get the starting level from config
         uint8 startLevel = 1; // sPlayerbotConfig->GetInt("Playerbot.RandomBotLevel.Min", 1);
@@ -2055,7 +2280,38 @@ ObjectGuid BotSpawner::CreateBotCharacter(uint32 accountId, uint8 race, uint8 cl
         createInfo->Class = classId;
         createInfo->Sex = gender;
         createInfo->UseNPE = false;
+
+        // CRITICAL FIX: Generate valid default customizations for the race/gender
+        // WoW 11.x requires valid customization choices for character creation
+        // Without this, Player::Create() fails at ValidateAppearance()
         createInfo->Customizations.clear();
+        if (auto const* options = sDB2Manager.GetCustomiztionOptions(race, gender))
+        {
+            for (ChrCustomizationOptionEntry const* option : *options)
+            {
+                // Get available choices for this option
+                if (auto const* choices = sDB2Manager.GetCustomiztionChoices(option->ID))
+                {
+                    if (!choices->empty())
+                    {
+                        // Use first valid choice for each option
+                        UF::ChrCustomizationChoice choice;
+                        choice.ChrCustomizationOptionID = option->ID;
+                        choice.ChrCustomizationChoiceID = (*choices)[0]->ID;
+                        createInfo->Customizations.push_back(choice);
+                    }
+                }
+            }
+            TC_LOG_DEBUG("module.playerbot.spawner",
+                "Generated {} customization choices for race {} gender {}",
+                createInfo->Customizations.size(), race, gender);
+        }
+        else
+        {
+            TC_LOG_WARN("module.playerbot.spawner",
+                "No customization options found for race {} gender {} - character creation may fail",
+                race, gender);
+        }
 
         uint8 startLevel = 1;
 

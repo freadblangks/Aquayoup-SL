@@ -90,7 +90,7 @@ bool BaselineRotationManager::QueueSpellCast(Player* bot, uint32 spellId, ::Unit
     {
         if (result.packet)
         {
-            // TrinityCore 11.2: QueuePacket now takes WorldPacket&& instead of WorldPacket*
+            // TrinityCore 12.0: QueuePacket now takes WorldPacket&& instead of WorldPacket*
             session->QueuePacket(std::move(*result.packet));
             TC_LOG_TRACE("playerbot.baseline", "QueueSpellCast: Bot {} queued spell {} on {}",
                          bot->GetName(), spellId, target->GetName());
@@ -294,7 +294,7 @@ bool BaselineRotationManager::HandleAutoSpecialization(Player* bot)
         return false;
 
     // DESIGN NOTE: Specialization System
-    // TrinityCore 11.2 uses ChrSpecialization.db2 for spec definitions.
+    // TrinityCore 12.0 uses ChrSpecialization.db2 for spec definitions.
     // The BotTalentManager handles specialization selection and learning:
     // - BotTalentManager::SelectSpecialization(specId) sets active spec
     // - BotTalentManager::LearnSpecializationSpells() learns spec spells
@@ -432,7 +432,7 @@ bool BaselineRotationManager::TryCastAbility(Player* bot, ::Unit* target, Baseli
         // Without this, the spell cast never happens - the packet is built but never sent.
         if (result.packet && bot->GetSession())
         {
-            // TrinityCore 11.2: QueuePacket now takes WorldPacket&& instead of WorldPacket*
+            // TrinityCore 12.0: QueuePacket now takes WorldPacket&& instead of WorldPacket*
             bot->GetSession()->QueuePacket(std::move(*result.packet));
             TC_LOG_ERROR("playerbot.baseline", "TryCastAbility: QUEUED spell {} packet successfully!",
                          ability.spellId);
@@ -753,7 +753,7 @@ void HunterBaselineRotation::ApplyBuffs(Player* bot)
 void BaselineRotationManager::InitializeRogueBaseline()
 {
     ::std::vector<BaselineAbility> abilities;
-    // WoW 11.2 (The War Within) spell IDs:
+    // WoW 12.0 (The War Within) spell IDs:
     // - Sinister Strike: 193315 (retail), NOT 1752 (classic)
     // - Eviscerate: 196819 (retail)
     abilities.emplace_back(193315, 1, 40, 0, 10.0f, true);  // Sinister Strike (retail)
@@ -780,7 +780,7 @@ void BaselineRotationManager::InitializeDeathKnightBaseline()
 void BaselineRotationManager::InitializeShamanBaseline()
 {
     ::std::vector<BaselineAbility> abilities;
-    // WoW 11.2 (The War Within) spell IDs:
+    // WoW 12.0 (The War Within) spell IDs:
     // - Lightning Bolt: 188196 (retail), NOT 403 (classic)
     // - Primal Strike: 73899 (retail)
     abilities.emplace_back(188196, 1, 0, 0, 10.0f, false);  // Lightning Bolt (retail)
@@ -799,7 +799,7 @@ void BaselineRotationManager::InitializeMageBaseline()
 void BaselineRotationManager::InitializeWarlockBaseline()
 {
     ::std::vector<BaselineAbility> abilities;
-    // WoW 11.2 (The War Within) spell IDs:
+    // WoW 12.0 (The War Within) spell IDs:
     // - Shadow Bolt: 686 (same as classic)
     // - Corruption: 172 (same as classic)
     abilities.emplace_back(686, 1, 0, 0, 10.0f, false);    // Shadow Bolt
@@ -898,7 +898,7 @@ void WarlockBaselineRotation::ApplyBuffs(Player* bot)
     // THREAD-SAFETY FIX (2026-01-16): Use QueueSpellCast instead of bot->CastSpell()
     // ========================================================================
 
-    // Warlock pet spell IDs (WoW 11.2)
+    // Warlock pet spell IDs (WoW 12.0)
     constexpr uint32 SUMMON_IMP = 688;
     constexpr uint32 SUMMON_VOIDWALKER = 697;
 

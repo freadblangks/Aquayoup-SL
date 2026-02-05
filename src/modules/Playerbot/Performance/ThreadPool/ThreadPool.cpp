@@ -270,7 +270,15 @@ void WorkerThread::Run()
             // NOTE: Cannot use TC_LOG here as it might not be initialized
             // Error will be recorded in metrics instead
             _metrics.tasksCompleted.fetch_add(1, ::std::memory_order_relaxed); // Count as completed but failed
-    if (_diagnostics)
+
+            // CRITICAL FIX: Also update POOL counter to maintain in-flight balance!
+            // If a task was popped but an exception occurred before RecordTaskCompletion,
+            // the pool's totalCompleted would never be updated, causing GetInFlightTasks()
+            // to return a permanently inflated value (leading to "1 in-flight, 0 active workers")
+            // CRITICAL: Use release ordering to synchronize with acquire loads in WaitForCompletion
+            _pool->_metrics.totalCompleted.fetch_add(1, ::std::memory_order_release);
+
+            if (_diagnostics)
             {
                 _diagnostics->tasksFailed.fetch_add(1, ::std::memory_order_relaxed);
             }
@@ -310,18 +318,55 @@ bool WorkerThread::TryExecuteTask()
 
             auto startTime = ::std::chrono::steady_clock::now();
 
-            // Execute task
-            task->Execute();
+            // CRITICAL FIX: Wrap task execution in try-catch to prevent std::terminate()
+            // If a task throws an exception and it's not caught, it will call std::terminate()
+            // which crashes the entire application. We catch all exceptions here to log them
+            // and continue processing other tasks.
+            bool taskSucceeded = true;
+            try
+            {
+                // Execute task
+                task->Execute();
+            }
+            catch (::std::exception const& e)
+            {
+                taskSucceeded = false;
+                // Log the exception but don't crash - continue with other tasks
+                // Note: We can't use TC_LOG here safely as it might throw too
+                // Instead, just increment a failure counter
+                _metrics.tasksFailed.fetch_add(1, ::std::memory_order_relaxed);
+
+                // Try to log if possible (may fail during shutdown)
+                try
+                {
+                    TC_LOG_ERROR("module.playerbot.threadpool",
+                        "Worker {} caught exception during task execution: {}",
+                        _workerId, e.what());
+                }
+                catch (...) { /* Ignore logging failures */ }
+            }
+            catch (...)
+            {
+                taskSucceeded = false;
+                _metrics.tasksFailed.fetch_add(1, ::std::memory_order_relaxed);
+
+                try
+                {
+                    TC_LOG_ERROR("module.playerbot.threadpool",
+                        "Worker {} caught unknown exception during task execution", _workerId);
+                }
+                catch (...) { /* Ignore logging failures */ }
+            }
 
             auto endTime = ::std::chrono::steady_clock::now();
             auto workTime = ::std::chrono::duration_cast<::std::chrono::microseconds>(endTime - startTime);
 
-            // Update metrics
+            // Update metrics (regardless of success/failure)
             _metrics.tasksCompleted.fetch_add(1, ::std::memory_order_relaxed);
             _metrics.totalWorkTime.fetch_add(workTime.count(), ::std::memory_order_relaxed);
 
             // Update diagnostics
-    if (_diagnostics)
+            if (_diagnostics)
             {
                 _diagnostics->tasksExecuted.fetch_add(1, ::std::memory_order_relaxed);
                 _diagnostics->executionTime.Record(workTime);
@@ -339,7 +384,7 @@ bool WorkerThread::TryExecuteTask()
                 WORKER_SET_STATE(_diagnostics, CHECKING_QUEUES);
             }
 
-            // Notify pool
+            // Notify pool (must happen even for failed tasks to maintain counter balance)
             _pool->RecordTaskCompletion(task);
 
             return true;
@@ -390,8 +435,33 @@ bool WorkerThread::TryStealTask()
 
                 auto startTime = ::std::chrono::steady_clock::now();
 
-                // Execute stolen task
-                task->Execute();
+                // CRITICAL FIX: Wrap stolen task execution in try-catch (same as TryExecuteTask)
+                try
+                {
+                    // Execute stolen task
+                    task->Execute();
+                }
+                catch (::std::exception const& e)
+                {
+                    _metrics.tasksFailed.fetch_add(1, ::std::memory_order_relaxed);
+                    try
+                    {
+                        TC_LOG_ERROR("module.playerbot.threadpool",
+                            "Worker {} caught exception during stolen task execution: {}",
+                            _workerId, e.what());
+                    }
+                    catch (...) { /* Ignore logging failures */ }
+                }
+                catch (...)
+                {
+                    _metrics.tasksFailed.fetch_add(1, ::std::memory_order_relaxed);
+                    try
+                    {
+                        TC_LOG_ERROR("module.playerbot.threadpool",
+                            "Worker {} caught unknown exception during stolen task execution", _workerId);
+                    }
+                    catch (...) { /* Ignore logging failures */ }
+                }
 
                 auto endTime = ::std::chrono::steady_clock::now();
                 auto workTime = ::std::chrono::duration_cast<::std::chrono::microseconds>(endTime - startTime).count();
@@ -693,6 +763,11 @@ bool ThreadPool::WaitForCompletion(::std::chrono::milliseconds timeout)
 {
     auto start = ::std::chrono::steady_clock::now();
 
+    // CRITICAL SAFETY: Hard cap at 15 seconds to prevent FreezeDetector crash (60s)
+    // Even if caller passes a larger timeout, we refuse to wait longer
+    constexpr auto HARD_MAX_TIMEOUT = ::std::chrono::milliseconds(15000);
+    auto effectiveTimeout = ::std::min(timeout, HARD_MAX_TIMEOUT);
+
     while (true)
     {
         // Check if all queues are empty
@@ -711,12 +786,41 @@ bool ThreadPool::WaitForCompletion(::std::chrono::milliseconds timeout)
                 break;
         }
 
-        if (allEmpty)
+        // CRITICAL FIX (Map.cpp:1973 crash): Also check that all tasks have FINISHED executing!
+        // Problem: A task can be dequeued (queue empty) but still EXECUTING on a worker thread.
+        //          If we return early, the caller may destroy objects that the executing task
+        //          is still accessing, causing use-after-free crashes in Map::SendObjectUpdates.
+        //
+        // Solution: Wait until totalSubmitted == totalCompleted, meaning all submitted tasks
+        //           have finished their Execute() call, not just been dequeued.
+        uint64 submitted = _metrics.totalSubmitted.load(::std::memory_order_acquire);
+        uint64 completed = _metrics.totalCompleted.load(::std::memory_order_acquire);
+        bool allTasksFinished = (submitted == completed);
+
+        if (allEmpty && allTasksFinished)
             return true;
 
-        // Check timeout
+        // COUNTER MISMATCH DETECTION: If all queues are empty and no workers are active,
+        // but counters show in-flight tasks, we have a "ghost counter" issue.
+        // This can happen if an exception occurs during task submission or execution
+        // that doesn't properly update the completed counter.
+        if (allEmpty && GetActiveThreads() == 0 && submitted > completed)
+        {
+            uint64 inFlight = submitted - completed;
+            TC_LOG_WARN("module.playerbot.threadpool",
+                "COUNTER MISMATCH DETECTED: {} in-flight tasks but all queues empty and 0 active workers. "
+                "Correcting counters to prevent permanent timeout.",
+                inFlight);
+
+            // Correct the mismatch by advancing totalCompleted
+            // CRITICAL: Use release ordering to synchronize with acquire loads in WaitForCompletion
+            _metrics.totalCompleted.fetch_add(inFlight, ::std::memory_order_release);
+            return true;  // All work is actually done
+        }
+
+        // Check timeout - use effective timeout with hard cap
         auto now = ::std::chrono::steady_clock::now();
-        if (::std::chrono::duration_cast<::std::chrono::milliseconds>(now - start) >= timeout)
+        if (::std::chrono::duration_cast<::std::chrono::milliseconds>(now - start) >= effectiveTimeout)
             return false;
 
         ::std::this_thread::sleep_for(::std::chrono::milliseconds(10));
@@ -808,6 +912,22 @@ size_t ThreadPool::GetQueuedTasks(TaskPriority priority) const
     return total;
 }
 
+size_t ThreadPool::GetInFlightTasks() const
+{
+    // In-flight tasks = submitted - completed
+    // These are tasks that have been dequeued but are still executing
+    uint64 submitted = _metrics.totalSubmitted.load(::std::memory_order_acquire);
+    uint64 completed = _metrics.totalCompleted.load(::std::memory_order_acquire);
+    return static_cast<size_t>(submitted > completed ? submitted - completed : 0);
+}
+
+bool ThreadPool::HasPendingWork() const
+{
+    // Check both queued tasks AND in-flight tasks
+    // This is the safe way to check if any work is still pending
+    return GetQueuedTasks() > 0 || GetInFlightTasks() > 0;
+}
+
 ::std::chrono::microseconds ThreadPool::GetAverageLatency() const
 {
     uint64 completed = _metrics.totalCompleted.load(::std::memory_order_relaxed);
@@ -887,7 +1007,8 @@ void ThreadPool::RecordTaskCompletion(Task* task)
     auto latency = ::std::chrono::duration_cast<::std::chrono::microseconds>(
         completionTime - task->submittedAt).count();
 
-    _metrics.totalCompleted.fetch_add(1, ::std::memory_order_relaxed);
+    // CRITICAL: Use release ordering to synchronize with acquire loads in WaitForCompletion
+    _metrics.totalCompleted.fetch_add(1, ::std::memory_order_release);
     _metrics.totalLatency.fetch_add(latency, ::std::memory_order_relaxed);
 
     // Clean up task

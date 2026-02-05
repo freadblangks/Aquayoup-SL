@@ -34,6 +34,7 @@
 #include "Movement/UnifiedMovementCoordinator.h"
 #include "../../../Movement/Arbiter/MovementPriorityMapper.h"
 #include "../../BotAI.h"
+#include "Core/PlayerBotHelpers.h"
 #include "UnitAI.h"
 
 namespace Playerbot
@@ -369,7 +370,7 @@ bool HunterAI::HandlePositioning(::Unit* target)
 
                 }
 
-                // Note: Wing Clip was removed in WoW 11.2
+                // Note: Wing Clip was removed in WoW 12.0
                 // Movement will be handled by BotAI movement strategies
 
                 Position optimalPos = _combatBehaviors->GetOptimalPosition();
@@ -1277,7 +1278,7 @@ bool HunterAI::ShouldPlaceTarTrap() const
     if (!CanPlaceTrap())
         return false;
 
-    // Place tar trap for slowing multiple enemies (replaces Snake Trap in WoW 11.2)
+    // Place tar trap for slowing multiple enemies (replaces Snake Trap in WoW 12.0)
     return GetNearbyEnemyCount(10.0f) >= 2;
 }
 
@@ -1297,7 +1298,7 @@ uint32 HunterAI::GetBestTrapForSituation() const
         return FREEZING_TRAP;
     if (ShouldPlaceExplosiveTrap())
         return EXPLOSIVE_TRAP;
-    // TAR_TRAP replaces Snake Trap in WoW 11.2
+    // TAR_TRAP replaces Snake Trap in WoW 12.0
     return TAR_TRAP;
 }
 // Range management implementation
@@ -1401,9 +1402,20 @@ void HunterAI::MaintainRange(::Unit* target)
         }
         else
         {
-            // FALLBACK: Direct MotionMaster if arbiter not available
-
-            _bot->GetMotionMaster()->MovePoint(0, pos);
+            // FALLBACK: Use BotMovementController with validated pathfinding
+            if (BotAI* ai = GetBotAI(_bot))
+            {
+                if (!ai->MoveTo(pos, true))
+                {
+                    // Final fallback to legacy if validation fails
+                    _bot->GetMotionMaster()->MovePoint(0, pos);
+                }
+            }
+            else
+            {
+                // Non-bot player - use standard movement
+                _bot->GetMotionMaster()->MovePoint(0, pos);
+            }
         }
     }
     else if (distance > OPTIMAL_RANGE_MAX)
@@ -1457,13 +1469,13 @@ void HunterAI::ManageAspects()
 
 void HunterAI::UpdateTracking()
 {
-    // Note: Tracking spells were removed in WoW 11.2
+    // Note: Tracking spells were removed in WoW 12.0
     // This function is kept for interface compatibility but does nothing
 }
 
 bool HunterAI::HasAnyAspect()
 {
-    // WoW 11.2 only has these aspects
+    // WoW 12.0 only has these aspects
     return HasAura(ASPECT_OF_THE_WILD) ||
            HasAura(ASPECT_OF_THE_CHEETAH) ||
            HasAura(ASPECT_OF_THE_TURTLE);
@@ -1471,7 +1483,7 @@ bool HunterAI::HasAnyAspect()
 
 uint32 HunterAI::GetCurrentAspect()
 {
-    // WoW 11.2 aspects only
+    // WoW 12.0 aspects only
     if (HasAura(ASPECT_OF_THE_WILD)) return ASPECT_OF_THE_WILD;
     if (HasAura(ASPECT_OF_THE_CHEETAH)) return ASPECT_OF_THE_CHEETAH;
     if (HasAura(ASPECT_OF_THE_TURTLE)) return ASPECT_OF_THE_TURTLE;
@@ -1480,7 +1492,7 @@ uint32 HunterAI::GetCurrentAspect()
 
 void HunterAI::SwitchToCombatAspect()
 {
-    // WoW 11.2: Aspect of the Wild is the primary combat aspect
+    // WoW 12.0: Aspect of the Wild is the primary combat aspect
     if (!HasAura(ASPECT_OF_THE_WILD) && _bot->HasSpell(ASPECT_OF_THE_WILD))
     {
         CastSpell(ASPECT_OF_THE_WILD);
@@ -1490,7 +1502,7 @@ void HunterAI::SwitchToCombatAspect()
 
 void HunterAI::SwitchToMovementAspect()
 {
-    // WoW 11.2: Aspect of the Cheetah is the movement aspect (Aspect of the Pack was removed)
+    // WoW 12.0: Aspect of the Cheetah is the movement aspect (Aspect of the Pack was removed)
     if (!HasAura(ASPECT_OF_THE_CHEETAH) && _bot->HasSpell(ASPECT_OF_THE_CHEETAH))
     {
         CastSpell(ASPECT_OF_THE_CHEETAH);
@@ -1508,7 +1520,7 @@ uint32 HunterAI::GetOptimalAspect() const
 {
     if (_bot->IsInCombat())
     {
-        // WoW 11.2: Aspect of the Wild is the combat aspect
+        // WoW 12.0: Aspect of the Wild is the combat aspect
         // Note: Aspect of the Viper was removed - focus regenerates passively now
         if (_bot->HasSpell(ASPECT_OF_THE_WILD))
             return ASPECT_OF_THE_WILD;

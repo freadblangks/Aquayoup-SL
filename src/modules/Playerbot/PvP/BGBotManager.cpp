@@ -234,32 +234,57 @@ void BGBotManager::OnInvitationReceived(ObjectGuid playerGuid, uint32 bgInstance
 
     auto itr = _queuedBots.find(playerGuid);
     if (itr == _queuedBots.end())
-        return;
+    {
+        // ========================================================================
+        // CRITICAL FIX: Auto-register bots that receive invitations
+        // ========================================================================
+        // Warm pool bots may not be in _queuedBots because they use QueueBotForBG()
+        // instead of QueueBotForBGWithTracking(). However, if a bot receives a BG
+        // invitation, we KNOW it's in the TrinityCore queue and should enter the BG.
+        //
+        // Create a placeholder entry so OnBattlegroundStart() will teleport this bot.
+        // ========================================================================
+        Player* bot = ObjectAccessor::FindPlayer(playerGuid);
+        if (!bot)
+        {
+            TC_LOG_WARN("module.playerbot.bg",
+                "BGBotManager::OnInvitationReceived - Bot {} received invitation but not online, skipping",
+                playerGuid.ToString());
+            return;
+        }
+
+        TC_LOG_INFO("module.playerbot.bg",
+            "BGBotManager::OnInvitationReceived - Auto-registering bot {} for BG {} (was not pre-registered)",
+            bot->GetName(), bgInstanceGuid);
+
+        // Create placeholder queue info with bot's current team
+        _queuedBots[playerGuid] = BotQueueInfo(ObjectGuid::Empty, BATTLEGROUND_TYPE_NONE, bot->GetTeam());
+        itr = _queuedBots.find(playerGuid);
+    }
 
     // Update bot's BG instance
     itr->second.bgInstanceGuid = bgInstanceGuid;
     _bgInstanceBots[bgInstanceGuid].insert(playerGuid);
 
-    // Auto-accept the invitation for bot
-    if (Player* bot = ObjectAccessor::FindPlayer(playerGuid))
-    {
-        TC_LOG_DEBUG("module.playerbot.bg", "BGBotManager::OnInvitationReceived - Bot {} accepting BG invitation",
-                     bot->GetName());
+    // ========================================================================
+    // BOT BG INVITATION ACCEPTANCE
+    // ========================================================================
+    // IMPORTANT: This hook is called from within BattlegroundQueue::InviteGroupToBG
+    // which is iterating over the queue. We MUST NOT modify any queue data structures
+    // here or call functions that do, as this would corrupt the iterator.
+    //
+    // Instead, we just record the invitation. The bot will be teleported when:
+    // 1. OnBattlegroundStart() is called (BG transitions to IN_PROGRESS)
+    // 2. Or via the Update() loop which processes pending teleports
+    // ========================================================================
 
-        // Use BattlegroundMgr to handle the acceptance
-        // The bot will be teleported when the BG starts
-        if (Battleground* bg = sBattlegroundMgr->GetBattleground(bgInstanceGuid, itr->second.bgTypeId))
-        {
-            // Construct the queue type ID for AddPlayer
-            BattlegroundQueueTypeId queueTypeId = BattlegroundMgr::BGQueueTypeId(
-                static_cast<uint16>(itr->second.bgTypeId),
-                BattlegroundQueueIdType::Battleground,
-                false,  // Not rated
-                0       // TeamSize (0 for regular BG)
-            );
-            bg->AddPlayer(bot, queueTypeId);
-        }
-    }
+    // Mark that this bot needs to teleport when the BG is ready
+    itr->second.needsTeleport = true;
+
+    TC_LOG_INFO("module.playerbot.bg",
+        "BGBotManager::OnInvitationReceived - Bot {} invitation recorded for BG {} (will teleport when safe)",
+        ObjectAccessor::FindPlayer(playerGuid) ? ObjectAccessor::FindPlayer(playerGuid)->GetName() : "unknown",
+        bgInstanceGuid);
 }
 
 void BGBotManager::OnBattlegroundStart(Battleground* bg)
@@ -281,11 +306,62 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
     sBGCoordinatorMgr->OnBattlegroundStart(bg);
 
     // =========================================================================
-    // 2. Check team population and fill empty slots
+    // 2. CRITICAL FIX: First teleport bots that already received invitations
+    // =========================================================================
+    // These are bots that queued and received SMSG_BATTLEFIELD_STATUS_NEED_CONFIRMATION
+    // but couldn't teleport until now because the BG map didn't exist yet.
+    uint32 invitedBotsAdded = 0;
+    auto invitedItr = _bgInstanceBots.find(bgInstanceGuid);
+    if (invitedItr != _bgInstanceBots.end())
+    {
+        TC_LOG_INFO("module.playerbot.bg",
+            "BGBotManager::OnBattlegroundStart - Found {} bots with pending invitations for this BG",
+            invitedItr->second.size());
+
+        for (ObjectGuid botGuid : invitedItr->second)
+        {
+            if (Player* bot = ObjectAccessor::FindPlayer(botGuid))
+            {
+                // Check if bot is already in this BG
+                if (bot->GetBattlegroundId() == bgInstanceGuid)
+                {
+                    TC_LOG_DEBUG("module.playerbot.bg",
+                        "BGBotManager::OnBattlegroundStart - Bot {} already in BG", bot->GetName());
+                    continue;
+                }
+
+                // Get bot's team from queue info
+                auto queueItr = _queuedBots.find(botGuid);
+                Team team = (queueItr != _queuedBots.end()) ? queueItr->second.team : bot->GetTeam();
+
+                // Teleport the invited bot into the BG
+                TC_LOG_INFO("module.playerbot.bg",
+                    "BGBotManager::OnBattlegroundStart - Teleporting invited bot {} to BG",
+                    bot->GetName());
+
+                // Set up BG data for the bot
+                BattlegroundQueueTypeId queueTypeId = BattlegroundMgr::BGQueueTypeId(
+                    bgTypeId, BattlegroundQueueIdType::Battleground, false, 0);
+                bot->SetBattlegroundId(bgInstanceGuid, bgTypeId, queueTypeId);
+                bot->SetBGTeam(team);
+
+                // Teleport to battleground
+                BattlegroundMgr::SendToBattleground(bot, bg);
+                ++invitedBotsAdded;
+            }
+        }
+
+        TC_LOG_INFO("module.playerbot.bg",
+            "BGBotManager::OnBattlegroundStart - Teleported {} invited bots to BG",
+            invitedBotsAdded);
+    }
+
+    // =========================================================================
+    // 3. Check team population and fill remaining empty slots
     // =========================================================================
     uint32 targetTeamSize = GetBGTeamSize(bgTypeId);
 
-    // Count players per team
+    // Count players per team (including bots we just teleported)
     uint32 allianceCount = 0;
     uint32 hordeCount = 0;
 
@@ -311,7 +387,7 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
     if (allianceNeeded == 0 && hordeNeeded == 0)
     {
         TC_LOG_DEBUG("module.playerbot.bg",
-            "BGBotManager::OnBattlegroundStart - Teams are full, no bots needed");
+            "BGBotManager::OnBattlegroundStart - Teams are full, no additional bots needed");
         return;
     }
 
@@ -405,6 +481,9 @@ void BGBotManager::OnBattlegroundEnd(Battleground* bg, Team winnerTeam)
         }
         _bgInstanceBots.erase(itr);
     }
+
+    // Cleanup human entry time tracking
+    _bgHumanEntryTime.erase(bgInstanceGuid);
 }
 
 // ============================================================================
@@ -624,7 +703,7 @@ uint32 BGBotManager::GetBGTeamSize(BattlegroundTypeId bgTypeId) const
 
 uint32 BGBotManager::GetBGMinPlayers(BattlegroundTypeId bgTypeId) const
 {
-    // TrinityCore 11.2 uses lower minimums for testing/single-player
+    // TrinityCore 12.0 uses lower minimums for testing/single-player
     // In production this would query BattlegroundTemplate
     switch (bgTypeId)
     {
@@ -713,6 +792,27 @@ bool BGBotManager::QueueBotForBGWithTracking(Player* bot, BattlegroundTypeId bgT
     return true;
 }
 
+ObjectGuid BGBotManager::GetQueuedHumanForBG(BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket) const
+{
+    std::lock_guard lock(_mutex);
+
+    for (auto const& [humanGuid, info] : _humanPlayers)
+    {
+        if (info.bgTypeId == bgTypeId && info.bracket == bracket)
+        {
+            TC_LOG_DEBUG("module.playerbot.bg",
+                "GetQueuedHumanForBG: Found human {} queued for BG type {} bracket {}",
+                humanGuid.ToString(), static_cast<uint32>(bgTypeId), static_cast<uint32>(bracket));
+            return humanGuid;
+        }
+    }
+
+    TC_LOG_DEBUG("module.playerbot.bg",
+        "GetQueuedHumanForBG: No human found queued for BG type {} bracket {}",
+        static_cast<uint32>(bgTypeId), static_cast<uint32>(bracket));
+    return ObjectGuid::Empty;
+}
+
 void BGBotManager::CalculateNeededBots(BattlegroundTypeId bgTypeId, Team humanTeam,
                                         uint32& allianceNeeded, uint32& hordeNeeded) const
 {
@@ -783,7 +883,7 @@ bool BGBotManager::QueueBot(Player* bot, BattlegroundTypeId bgTypeId, Battlegrou
         return false;
     }
 
-    // In 11.2, BGQueueTypeId takes 4 params: (battlemasterListId, type, rated, teamSize)
+    // In 12.0, BGQueueTypeId takes 4 params: (battlemasterListId, type, rated, teamSize)
     // For regular BGs, teamSize is 0
     BattlegroundQueueTypeId bgQueueTypeId = BattlegroundMgr::BGQueueTypeId(
         static_cast<uint16>(bgTypeId),
@@ -960,7 +1060,7 @@ std::vector<Player*> BGBotManager::FindAvailableBots(Team team, uint8 minLevel, 
 
 void BGBotManager::GetBracketLevelRange(BattlegroundBracketId bracket, uint8& minLevel, uint8& maxLevel) const
 {
-    // TrinityCore 11.2 uses level scaling, but we still need ranges for bot selection
+    // TrinityCore 12.0 uses level scaling, but we still need ranges for bot selection
     // These are approximate ranges based on bracket IDs
     switch (bracket)
     {
@@ -970,7 +1070,7 @@ void BGBotManager::GetBracketLevelRange(BattlegroundBracketId bracket, uint8& mi
             break;
         case BG_BRACKET_ID_LAST:
         default:
-            // Max level bracket (11.2 = level 80 cap for The War Within Season 1)
+            // Max level bracket (12.0 = level 80 cap for The War Within Season 1)
             minLevel = 70;
             maxLevel = 80;
             break;
@@ -1156,6 +1256,57 @@ void BGBotManager::ProcessPendingInvitations()
                 TC_LOG_WARN("module.playerbot.bg",
                     "ProcessPendingInvitations - Bot {} invited to BG instance {} but BG not found",
                     bot->GetName(), ginfo.IsInvitedToBGInstanceGUID);
+                continue;
+            }
+
+            // ================================================================
+            // CHECK: Wait for human player to enter BG first
+            // ================================================================
+            // Bots should only teleport after a human has entered the BG and
+            // a delay has passed. This ensures the BG is ready and mimics
+            // natural player behavior.
+            // ================================================================
+            uint32 bgInstanceId = bg->GetInstanceID();
+
+            // Check if any human player is in this BG
+            bool humanInBG = false;
+            for (auto const& playerPair : bg->GetPlayers())
+            {
+                Player* bgPlayer = ObjectAccessor::FindPlayer(playerPair.first);
+                if (bgPlayer && !PlayerBotHooks::IsPlayerBot(bgPlayer))
+                {
+                    humanInBG = true;
+                    break;
+                }
+            }
+
+            if (!humanInBG)
+            {
+                // No human in BG yet - skip for now
+                TC_LOG_DEBUG("module.playerbot.bg",
+                    "ProcessPendingInvitations - Bot {} waiting for human to enter BG {} first",
+                    bot->GetName(), bgInstanceId);
+                continue;
+            }
+
+            // Human is in BG - track entry time if not already
+            auto humanEntryItr = _bgHumanEntryTime.find(bgInstanceId);
+            if (humanEntryItr == _bgHumanEntryTime.end())
+            {
+                _bgHumanEntryTime[bgInstanceId] = GameTime::GetGameTimeMS();
+                humanEntryItr = _bgHumanEntryTime.find(bgInstanceId);
+                TC_LOG_INFO("module.playerbot.bg",
+                    "ProcessPendingInvitations - Human detected in BG {}, bots will teleport in {} seconds",
+                    bgInstanceId, BOT_TELEPORT_DELAY / IN_MILLISECONDS);
+            }
+
+            uint32 timeSinceHumanEntry = GameTime::GetGameTimeMS() - humanEntryItr->second;
+            if (timeSinceHumanEntry < BOT_TELEPORT_DELAY)
+            {
+                // Delay hasn't passed yet - skip for now
+                TC_LOG_DEBUG("module.playerbot.bg",
+                    "ProcessPendingInvitations - Bot {} waiting for teleport delay ({}/{}ms)",
+                    bot->GetName(), timeSinceHumanEntry, BOT_TELEPORT_DELAY);
                 continue;
             }
 

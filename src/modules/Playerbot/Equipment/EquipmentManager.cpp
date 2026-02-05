@@ -819,9 +819,9 @@ void EquipmentManager::AutoEquipBestGear()
     }
 }
 
-IEquipmentManager::ItemComparisonResult EquipmentManager::CompareItems(::Item* currentItem, ::Item* newItem)
+ItemComparisonResult EquipmentManager::CompareItems(::Item* currentItem, ::Item* newItem)
 {
-    IEquipmentManager::ItemComparisonResult result;
+    ItemComparisonResult result;
 
     if (!_bot || !newItem)
         return result;
@@ -1789,7 +1789,7 @@ int32 EquipmentManager::ExtractStatValue(ItemTemplate const* proto, StatType sta
     if (!proto)
         return 0;
 
-    // TrinityCore 11.2 uses ItemMod array for stats
+    // TrinityCore 12.0 uses ItemMod array for stats
     for (uint8 i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
     {
         ItemModType modType = static_cast<ItemModType>(proto->GetStatModifierBonusStat(i));

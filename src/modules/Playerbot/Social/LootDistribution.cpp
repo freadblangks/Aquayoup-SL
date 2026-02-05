@@ -21,6 +21,7 @@
 #include "WorldSession.h"
 #include "ObjectAccessor.h"
 #include "Session/BotSession.h"
+#include "../AI/BotAI.h"  // P1 FIX: Required for unique_ptr<BotAI> in BotSession.h
 #include "Spatial/SpatialGridQueryHelpers.h"
 #include "../Group/GroupMemberResolver.h"
 #include "../Core/Diagnostics/GroupMemberDiagnostics.h"
@@ -1276,7 +1277,7 @@ bool LootDistribution::IsItemForMainSpec(const LootItem& item)
     {
         uint8 playerClass = _bot->GetClass();
 
-        // Armor type restrictions by class (WoW 11.2)
+        // Armor type restrictions by class (WoW 12.0)
         switch (playerClass)
         {
             case CLASS_WARRIOR:
@@ -1452,7 +1453,7 @@ bool LootDistribution::IsItemForMainSpec(const LootItem& item)
     bool hasAgility = false;
     bool hasStrength = false;
 
-    // TrinityCore 11.2: Check item's primary stats
+    // TrinityCore 12.0: Check item's primary stats
     for (uint8 i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
     {
         int32 statType = item.itemTemplate->GetStatModifierBonusStat(i);
@@ -1527,7 +1528,7 @@ bool LootDistribution::IsItemUsefulForOffSpec(const LootItem& item)
     uint8 invType = item.itemTemplate->GetInventoryType();
 
     // Define potential off-specs for each class and check if item is useful
-    // WoW 11.2 class/spec matrix
+    // WoW 12.0 class/spec matrix
     std::vector<ChrSpecialization> possibleOffSpecs;
 
     switch (playerClass)

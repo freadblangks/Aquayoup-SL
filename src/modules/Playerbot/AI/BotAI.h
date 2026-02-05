@@ -19,12 +19,13 @@
 #include "Actions/Action.h"
 #include "Triggers/Trigger.h"
 #include "Strategy/Strategy.h"
-#include "Core/DI/Interfaces/IBotAIFactory.h"
 #include "ObjectCache.h"
 #include "Blackboard/SharedBlackboard.h"
 #include "Core/Events/IEventHandler.h"
 #include "Core/Managers/IGameSystemsManager.h"
 #include "Advanced/GroupCoordinator.h"
+#include "Movement/BotMovement/Core/BotMovementController.h"
+#include "Movement/BotMovement/Core/BotMovementManager.h"
 #include <memory>
 #include <vector>
 #include <string>
@@ -321,6 +322,7 @@ public:
 
     Player* GetBot() const { return _bot; }
     ObjectGuid GetBotGuid() const { return _bot ? _bot->GetGUID() : ObjectGuid::Empty; }
+    ObjectGuid GetCachedBotGuid() const { return _cachedBotGuid; }  // Safe during destructor
 
     // ========================================================================
     // LIFECYCLE MANAGEMENT - Two-Phase AddToWorld Pattern
@@ -383,10 +385,21 @@ public:
     // MOVEMENT CONTROL - Strategy-driven movement
     // ========================================================================
 
+    // Legacy movement methods (keep for backward compatibility)
     void MoveTo(float x, float y, float z);
     void Follow(::Unit* target, float distance = 5.0f);
     void StopMovement();
     bool IsMoving() const;
+
+    // NEW: Movement System Integration - Validated pathfinding
+    BotMovementController* GetMovementController() { return _movementController.get(); }
+    BotMovementController const* GetMovementController() const { return _movementController.get(); }
+
+    // Movement convenience methods with validation
+    bool MoveTo(Position const& dest, bool validated = true);
+    bool MoveToUnit(::Unit* target, float distance = 0.0f);
+    bool IsMovementBlocked() const;
+    bool IsStuck() const;
 
     // ========================================================================
     // GAME SYSTEM MANAGERS - Quest, profession, trade management (Phase 6: Delegation)
@@ -417,19 +430,13 @@ public:
     AuctionManager* GetAuctionManager() { return _gameSystems ? _gameSystems->GetAuctionManager() : nullptr; }
     AuctionManager const* GetAuctionManager() const { return _gameSystems ? _gameSystems->GetAuctionManager() : nullptr; }
 
-    // Returns interface pointer for loose coupling
-    IGroupCoordinator* GetGroupCoordinator() { return _gameSystems ? _gameSystems->GetGroupCoordinator() : nullptr; }
-    IGroupCoordinator const* GetGroupCoordinator() const { return _gameSystems ? _gameSystems->GetGroupCoordinator() : nullptr; }
+    // Returns GroupCoordinator pointer
+    Advanced::GroupCoordinator* GetGroupCoordinator() { return _gameSystems ? _gameSystems->GetGroupCoordinator() : nullptr; }
+    Advanced::GroupCoordinator const* GetGroupCoordinator() const { return _gameSystems ? _gameSystems->GetGroupCoordinator() : nullptr; }
 
-    // Returns concrete type when Advanced features are needed
-    Advanced::GroupCoordinator* GetGroupCoordinatorAdvanced()
-    {
-        return static_cast<Advanced::GroupCoordinator*>(GetGroupCoordinator());
-    }
-    Advanced::GroupCoordinator const* GetGroupCoordinatorAdvanced() const
-    {
-        return static_cast<Advanced::GroupCoordinator const*>(GetGroupCoordinator());
-    }
+    // Alias for backward compatibility
+    Advanced::GroupCoordinator* GetGroupCoordinatorAdvanced() { return GetGroupCoordinator(); }
+    Advanced::GroupCoordinator const* GetGroupCoordinatorAdvanced() const { return GetGroupCoordinator(); }
 
     /**
      * @brief Get Tactical Group Coordinator (Phase 3)
@@ -957,6 +964,7 @@ protected:
 protected:
     // Core components
     Player* _bot;
+    ObjectGuid _cachedBotGuid;  // Cached at construction for safe destructor cleanup
     BotAIState _aiState = BotAIState::SOLO;
     ObjectGuid _currentTarget;
 
@@ -1021,6 +1029,9 @@ protected:
     // ST-1: Adaptive AI Update Throttling - reduces CPU for bots far from human players
     std::unique_ptr<AdaptiveAIUpdateThrottler> _aiUpdateThrottler;
 
+    // Movement System Integration - Validated pathfinding and state machine
+    std::unique_ptr<BotMovementController> _movementController;
+
     // Performance tracking
     mutable PerformanceMetrics _performanceMetrics;
 
@@ -1072,7 +1083,7 @@ public:
 // AI FACTORY - Creates appropriate AI for each class
 // ========================================================================
 
-class TC_GAME_API BotAIFactory final : public IBotAIFactory
+class TC_GAME_API BotAIFactory final
 {
     BotAIFactory() = default;
     ~BotAIFactory() = default;
@@ -1083,23 +1094,23 @@ public:
     static BotAIFactory* instance();
 
     // AI creation
-    std::unique_ptr<BotAI> CreateAI(Player* bot) override;
-    std::unique_ptr<BotAI> CreateClassAI(Player* bot, uint8 classId) override;
-    std::unique_ptr<BotAI> CreateClassAI(Player* bot, uint8 classId, uint8 spec) override;
+    std::unique_ptr<BotAI> CreateAI(Player* bot);
+    std::unique_ptr<BotAI> CreateClassAI(Player* bot, uint8 classId);
+    std::unique_ptr<BotAI> CreateClassAI(Player* bot, uint8 classId, uint8 spec);
 
     // Specialized AI creation
-    std::unique_ptr<BotAI> CreateSpecializedAI(Player* bot, std::string const& type) override;
-    std::unique_ptr<BotAI> CreatePvPAI(Player* bot) override;
-    std::unique_ptr<BotAI> CreatePvEAI(Player* bot) override;
-    std::unique_ptr<BotAI> CreateRaidAI(Player* bot) override;
+    std::unique_ptr<BotAI> CreateSpecializedAI(Player* bot, std::string const& type);
+    std::unique_ptr<BotAI> CreatePvPAI(Player* bot);
+    std::unique_ptr<BotAI> CreatePvEAI(Player* bot);
+    std::unique_ptr<BotAI> CreateRaidAI(Player* bot);
 
     // AI registration
     void RegisterAICreator(std::string const& type,
-                          std::function<std::unique_ptr<BotAI>(Player*)> creator) override;
+                          std::function<std::unique_ptr<BotAI>(Player*)> creator);
 
     // Initialization
-    void InitializeDefaultTriggers(BotAI* ai) override;
-    void InitializeDefaultValues(BotAI* ai) override;
+    void InitializeDefaultTriggers(BotAI* ai);
+    void InitializeDefaultValues(BotAI* ai);
 
 private:
     void InitializeDefaultStrategies(BotAI* ai);

@@ -1739,33 +1739,14 @@ int32 WorldObject::CalcSpellDuration(SpellInfo const* spellInfo, std::vector<Spe
     if (minduration == maxduration)
         return minduration;
 
-    Unit const* unit = ToUnit();
-    if (!unit)
-        return minduration;
-
     if (!powerCosts)
         return minduration;
 
-    // we want only baseline cost here
-    auto itr = std::find_if(spellInfo->PowerCosts.begin(), spellInfo->PowerCosts.end(), [=](SpellPowerEntry const* powerEntry)
-    {
-        return powerEntry && powerEntry->PowerType == POWER_COMBO_POINTS && (!powerEntry->RequiredAuraSpellID || unit->HasAura(powerEntry->RequiredAuraSpellID));
-    });
-
-    if (itr == spellInfo->PowerCosts.end())
-        return minduration;
-
-    auto consumedItr = std::find_if(powerCosts->begin(), powerCosts->end(),
-        [](SpellPowerCost const& consumed) { return consumed.Power == POWER_COMBO_POINTS; });
+    auto consumedItr = std::ranges::find(*powerCosts, POWER_COMBO_POINTS, &SpellPowerCost::Power);
     if (consumedItr == powerCosts->end())
         return minduration;
 
-    int32 baseComboCost = (*itr)->ManaCost + (*itr)->OptionalCost;
-    if (PowerTypeEntry const* powerTypeEntry = sDB2Manager.GetPowerTypeEntry(POWER_COMBO_POINTS))
-        baseComboCost += int32(CalculatePct(powerTypeEntry->MaxBasePower, (*itr)->PowerCostPct + (*itr)->OptionalCostPct));
-
-    float durationPerComboPoint = float(maxduration - minduration) / baseComboCost;
-    return minduration + int32(durationPerComboPoint * consumedItr->Amount);
+    return std::min(minduration + spellInfo->DurationEntry->DurationPerResource * consumedItr->Amount, maxduration);
 }
 
 int32 WorldObject::ModSpellDuration(SpellInfo const* spellInfo, WorldObject const* target, int32 duration, bool positive, uint32 effectMask) const
@@ -3132,13 +3113,27 @@ void WorldObject::BuildUpdate(UpdateDataMapType& data_map)
 
 bool WorldObject::AddToObjectUpdate()
 {
-    GetMap()->AddUpdateObject(this);
+    // SAFETY CHECK: Validate Map pointer to prevent crash in AddUpdateObject
+    // Crash at Map.h:573 (hash set insert) could be caused by corrupted Map pointer
+    Map* map = GetMap();
+    if (!map)
+    {
+        TC_LOG_ERROR("misc", "WorldObject::AddToObjectUpdate called with null map for {}", GetGUID().ToString());
+        return false;
+    }
+    map->AddUpdateObject(this);
     return true;
 }
 
 void WorldObject::RemoveFromObjectUpdate()
 {
-    GetMap()->RemoveUpdateObject(this);
+    Map* map = GetMap();
+    if (!map)
+    {
+        TC_LOG_ERROR("misc", "WorldObject::RemoveFromObjectUpdate called with null map for {}", GetGUID().ToString());
+        return;
+    }
+    map->RemoveUpdateObject(this);
 }
 
 ObjectGuid WorldObject::GetTransGUID() const

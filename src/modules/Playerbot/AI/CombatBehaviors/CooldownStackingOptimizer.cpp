@@ -297,8 +297,8 @@ CooldownStackingOptimizer::BossPhase CooldownStackingOptimizer::DetectBossPhase(
         156598,  // Dark Devastation (WoD raid mechanic)
         260703,  // Bloodlust aura (Legion/BFA)
         386629,  // Soft Enrage (Dragonflight)
-        396094,  // Frothing Venom (11.2 Nerub-ar Palace)
-        439785   // Reactive Toxin (11.2 encounter)
+        396094,  // Frothing Venom (12.0 Nerub-ar Palace)
+        439785   // Reactive Toxin (12.0 encounter)
     };
 
     for (uint32 auraId : BURN_PHASE_INDICATORS)
@@ -1213,7 +1213,7 @@ void CooldownStackingOptimizer::InitializeDeathKnightCooldowns()
 
 void CooldownStackingOptimizer::InitializeMonkCooldowns()
 {
-    // WoW 11.2 Monk cooldowns - full spec support
+    // WoW 12.0 Monk cooldowns - full spec support
 
     // ========== BREWMASTER (Tank) ==========
     // Invoke Niuzao, the Black Ox - Major defensive/DPS cooldown
@@ -1364,7 +1364,7 @@ void CooldownStackingOptimizer::InitializeMonkCooldowns()
 
 void CooldownStackingOptimizer::InitializeDemonHunterCooldowns()
 {
-    // WoW 11.2 Demon Hunter cooldowns - full spec support
+    // WoW 12.0 Demon Hunter cooldowns - full spec support
 
     // ========== HAVOC (DPS) ==========
     // Metamorphosis - Major DPS cooldown

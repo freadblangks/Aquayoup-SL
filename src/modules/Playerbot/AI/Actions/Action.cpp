@@ -10,6 +10,7 @@
 // Combat/ThreatManager.h removed - not used in this file
 #include "Action.h"
 #include "BotAI.h"
+#include "Core/PlayerBotHelpers.h"
 #include "Player.h"
 #include "Unit.h"
 #include "Object.h"
@@ -29,8 +30,8 @@
 #include "DBCEnums.h"
 #include "SharedDefines.h"
 #include "CommonActions.h"
-#include "../ClassAI/SpellValidation_WoW112.h"
-#include "../ClassAI/SpellValidation_WoW112_Part2.h"
+#include "../ClassAI/SpellValidation_WoW120.h"
+#include "../ClassAI/SpellValidation_WoW120_Part2.h"
 
 namespace Playerbot
 {
@@ -144,6 +145,15 @@ bool Action::DoMove(BotAI* ai, float x, float y, float z)
     if (!bot)
         return false;
 
+    Position dest(x, y, z, 0.0f);
+    if (BotAI* ai = GetBotAI(bot))
+    {
+        if (ai->MoveTo(dest, true))
+            return true;
+        // Fallback to legacy if validation fails
+    }
+
+    // Non-bot player or validation failed - use standard movement
     bot->GetMotionMaster()->MovePoint(0, x, y, z);
     return true;
 }
@@ -194,9 +204,8 @@ bool Action::UseItem(BotAI* ai, uint32 itemId, ::Unit* target)
     else
         targets.SetUnitTarget(bot);
 
-    // CRITICAL: Player::CastItemUseSpell accesses misc[0] and misc[1] without null check
-    // Passing nullptr causes ACCESS_VIOLATION crash at Player.cpp:8853
-    int32 misc[2] = { 0, 0 };
+    // WoW 12.0: CastItemUseSpell signature changed to std::array<int32, 3>
+    std::array<int32, 3> misc = { 0, 0, 0 };
     bot->CastItemUseSpell(item, targets, ObjectGuid::Empty, misc);
     return true;
 }
@@ -452,7 +461,7 @@ void ActionFactory::RegisterAction(::std::string const& name,
     ::std::vector<::std::shared_ptr<Action>> actions;
     ChrSpecialization specEnum = static_cast<ChrSpecialization>(spec);
 
-    using namespace WoW112Spells;
+    using namespace WoW120Spells;
 
     switch (classId)
     {
@@ -1120,7 +1129,7 @@ void ActionFactory::RegisterAction(::std::string const& name,
 
 ::std::vector<::std::shared_ptr<Action>> ActionFactory::CreateCombatActions(uint8 classId)
 {
-    using namespace WoW112Spells;
+    using namespace WoW120Spells;
 
     ::std::vector<::std::shared_ptr<Action>> actions;
 

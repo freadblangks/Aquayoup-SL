@@ -63,6 +63,7 @@ class TradeManager;
 class GatheringManager;
 class ProfessionManager;
 class AuctionManager;
+class BankingManager;
 class EquipmentManager;
 class LootDistribution;
 class DeathRecoveryManager;
@@ -73,9 +74,6 @@ class GroupInvitationHandler;
 class ManagerRegistry;
 class HybridAIController;
 class BehaviorPriorityManager;
-
-// IGroupCoordinator interface - no Advanced namespace dependency
-class IGroupCoordinator;
 
 namespace Advanced
 {
@@ -214,6 +212,12 @@ public:
     virtual AuctionManager* GetAuctionManager() const = 0;
 
     /**
+     * @brief Get banking management system
+     * @return Non-owning pointer to BankingManager (owned by facade)
+     */
+    virtual BankingManager* GetBankingManager() const = 0;
+
+    /**
      * @brief Get equipment management system
      * @return Non-owning pointer to EquipmentManager (owned by facade)
      */
@@ -221,13 +225,9 @@ public:
 
     /**
      * @brief Get group coordination system
-     * @return Non-owning pointer to IGroupCoordinator interface (owned by facade)
-     *
-     * NOTE: Returns interface pointer to fix layer violation (Core should not
-     * depend on Advanced). Callers needing Advanced::GroupCoordinator-specific
-     * methods should dynamic_cast or use the concrete implementation directly.
+     * @return Non-owning pointer to GroupCoordinator (owned by facade)
      */
-    virtual IGroupCoordinator* GetGroupCoordinator() const = 0;
+    virtual Advanced::GroupCoordinator* GetGroupCoordinator() const = 0;
 
     /**
      * @brief Get death recovery management system

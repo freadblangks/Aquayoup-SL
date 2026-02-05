@@ -16,7 +16,6 @@
 #include "Social/TradeManager.h"
 #include "Professions/GatheringManager.h"
 #include "Economy/AuctionManager.h"
-#include "Core/DI/Interfaces/IAuctionHouse.h"
 #include "../Actions/Action.h"
 #include "../Triggers/Trigger.h"
 #include "../Values/Value.h"
@@ -25,6 +24,8 @@
 #include "ObjectAccessor.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
+#include "Session/BotSessionManager.h"
+#include "Session/BotSession.h"
 
 namespace Playerbot
 {
@@ -698,6 +699,14 @@ bool SoloStrategy::IsActive(BotAI* ai) const
 {
     if (!ai || !ai->GetBot())
         return false;
+
+    // Instance bots (warm pool, JIT) don't do solo activities like questing/grinding
+    // They're focused on their instance content (BG/Arena/Dungeon/Raid)
+    if (BotSession* session = BotSessionManager::GetBotSession(ai->GetBot()->GetSession()))
+    {
+        if (session->IsInstanceBot())
+            return false;
+    }
 
     bool active = _active;
     bool hasGroup = (ai->GetBot()->GetGroup() != nullptr);

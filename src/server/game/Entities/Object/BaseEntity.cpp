@@ -265,6 +265,8 @@ void BaseEntity::BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags, P
         *data << uint32(0);                                             // RemoveForcesIDs.size()
         *data << uint32(0);                                             // MoveIndex
 
+        *data << float(unit->m_movementInfo.gravityModifier);
+
         //for (std::size_t i = 0; i < RemoveForcesIDs.size(); ++i)
         //    *data << ObjectGuid(RemoveForcesIDs);
 
@@ -634,7 +636,13 @@ UF::UpdateFieldFlag BaseEntity::GetUpdateFieldFlagsFor(Player const* /*target*/)
 
 void BaseEntity::AddToObjectUpdateIfNeeded()
 {
-    if (m_inWorld && !m_objectUpdated)
+    // PLAYERBOT FIX: Also check m_isDestroyedObject to prevent re-adding to _updateObjects
+    // after an object is marked for destruction but before actual deletion.
+    // Race condition: RemovePlayerBot() marks bot for removal, ClearUpdateMask(true) removes
+    // from _updateObjects, but bot AI continues running and modifies properties. Without this
+    // check, property setters would re-add the bot to _updateObjects, creating a dangling
+    // pointer when the bot is finally destroyed.
+    if (m_inWorld && !m_objectUpdated && !m_isDestroyedObject)
         m_objectUpdated = AddToObjectUpdate();
 }
 

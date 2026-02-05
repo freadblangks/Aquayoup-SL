@@ -1292,14 +1292,14 @@ float ResourceCalculator::CalculateManaRegen(Player* player)
     if (!player)
         return 0.0f;
 
-    // WoW 11.2 mana regeneration formula based on intellect and haste
+    // WoW 12.0 mana regeneration formula based on intellect and haste
     // Base mana regen = intellect * coefficient * haste modifier
     float intellect = player->GetStat(STAT_INTELLECT);
     // Base regeneration scales with max mana pool size
     float maxManaScale = player->GetMaxPower(POWER_MANA) > 0 ?
         std::min(1.5f, static_cast<float>(player->GetMaxPower(POWER_MANA)) / 100000.0f) : 1.0f;
 
-    // Base regeneration coefficient (varies by expansion, 11.2 uses ~0.02 per int)
+    // Base regeneration coefficient (varies by expansion, 12.0 uses ~0.02 per int)
     constexpr float INTELLECT_REGEN_COEFFICIENT = 0.02f;
     constexpr float BASE_MANA_REGEN_PER_SECOND = 5.0f;
 
@@ -1311,7 +1311,7 @@ float ResourceCalculator::CalculateManaRegen(Player* player)
     float hasteMultiplier = 1.0f + (hastePct / 100.0f);
     baseRegen *= hasteMultiplier;
 
-    // Apply combat penalty - 11.2 has roughly 50% regen in combat for most specs
+    // Apply combat penalty - 12.0 has roughly 50% regen in combat for most specs
     bool inCombat = player->IsInCombat();
     float combatMultiplier = inCombat ? 0.5f : 1.0f;
 
@@ -1389,7 +1389,7 @@ float ResourceCalculator::CalculateEnergyRegen(Player* player)
     if (!player)
         return 0.0f;
 
-    // WoW 11.2 energy regeneration: base 10/second + haste scaling
+    // WoW 12.0 energy regeneration: base 10/second + haste scaling
     constexpr float BASE_ENERGY_REGEN = 10.0f;
 
     float baseRegen = BASE_ENERGY_REGEN;
@@ -1489,7 +1489,7 @@ float ResourceCalculator::CalculateRageDecay(Player* player)
     if (!player)
         return 0.0f;
 
-    // WoW 11.2 rage decay mechanics
+    // WoW 12.0 rage decay mechanics
     // Rage decays at ~1 rage per second out of combat after a delay
     // No decay while in combat
 
@@ -1945,7 +1945,7 @@ uint32 ResourceCalculator::GetComboPointsFromSpell(uint32 spellId)
             }
         }
 
-        // Note: In WoW 11.2, combo point generation is typically handled
+        // Note: In WoW 12.0, combo point generation is typically handled
         // via SPELL_EFFECT_ENERGIZE rather than aura effects
     }
 

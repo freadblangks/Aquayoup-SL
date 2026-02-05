@@ -8,7 +8,8 @@
  */
 
 #include "PlayerbotGroupScript.h"
-#include "GroupEventBus.h"
+#include "Core/Events/GenericEventBus.h"
+#include "GroupEvents.h"
 #include "Group.h"
 #include "GroupMgr.h"
 #include "Player.h"
@@ -396,10 +397,10 @@ void PlayerbotGroupScript::InitializeGroupState(Group* group, GroupState& state)
 
     // NOTE: Target icon initialization removed - Group::GetTargetIcon() is not accessible
 
-    // Initialize difficulty
-    state.dungeonDifficulty = static_cast<uint8>(group->GetDungeonDifficultyID());
-    state.raidDifficulty = static_cast<uint8>(group->GetRaidDifficultyID());
-    state.legacyRaidDifficulty = static_cast<uint8>(group->GetLegacyRaidDifficultyID());
+    // Initialize difficulty (WoW 12.0: Difficulty is int16)
+    state.dungeonDifficulty = static_cast<int16>(group->GetDungeonDifficultyID());
+    state.raidDifficulty = static_cast<int16>(group->GetRaidDifficultyID());
+    state.legacyRaidDifficulty = static_cast<int16>(group->GetLegacyRaidDifficultyID());
 
     // Initialize raid status
     state.isRaid = group->isRaidGroup();
@@ -417,7 +418,7 @@ void PlayerbotGroupScript::InitializeGroupState(Group* group, GroupState& state)
 
 /*static*/ void PlayerbotGroupScript::PublishEvent(GroupEvent const& event)
 {
-    GroupEventBus::instance()->PublishEvent(event);
+    EventBus<GroupEvent>::instance()->PublishEvent(event);
 }
 
 // ========================================================================

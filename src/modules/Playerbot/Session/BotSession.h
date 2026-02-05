@@ -72,10 +72,10 @@ public:
     virtual ~BotSession();
 
     // === WorldSession Overrides ===
-    void SendPacket(WorldPacket const* packet, bool forced = false) override;
+    void SendPacket(WorldPacket const* packet, bool forced = false);
     // Note: QueuePacket hides WorldSession::QueuePacket (not virtual in base)
     // Bot sessions store packets in their own queue for bot-specific processing
-    void QueuePacket(WorldPacket&& packet);  // TrinityCore 11.2 signature
+    void QueuePacket(WorldPacket&& packet);  // TrinityCore 12.0 signature
     void QueuePacketLegacy(WorldPacket* packet);      // Legacy compatibility (takes ownership)
     bool Update(uint32 diff, PacketFilter& updater);
 
@@ -201,8 +201,23 @@ public:
      */
     uint32 GetIdleDurationMs() const;
 
-    /// Idle timeout for instance bots (60 seconds = 1 minute)
-    static constexpr uint32 INSTANCE_BOT_IDLE_TIMEOUT_MS = 60 * 1000;
+    /**
+     * @brief Get idle timeout for instance bots from configuration
+     * @return Timeout in milliseconds (configurable via Playerbot.Session.IdleTimeout)
+     *
+     * Default: 60000ms (1 minute)
+     * Instance bots auto-logout after this duration when not in queue/group
+     */
+    static uint32 GetInstanceBotIdleTimeout();
+
+    /**
+     * @brief Get queue timeout for instance bots from configuration
+     * @return Timeout in milliseconds (configurable via Playerbot.Session.QueueTimeout)
+     *
+     * Default: 300000ms (5 minutes)
+     * Instance bots logout after waiting in queue this long without content starting
+     */
+    static uint32 GetInstanceBotQueueTimeout();
 
     // Process pending async login operations
     void ProcessPendingLogin();
@@ -211,8 +226,9 @@ public:
     void HandleBotPlayerLogin(BotLoginQueryHolder const& holder);
 
     // AI Integration (public access for GroupInvitationHandler)
-    void SetAI(BotAI* ai) { _ai = ai; }
-    BotAI* GetAI() const { return _ai; }
+    // P1 FIX: Use unique_ptr for automatic memory management (no manual delete needed)
+    void SetAI(::std::unique_ptr<BotAI> ai) { _ai = ::std::move(ai); }
+    BotAI* GetAI() const { return _ai.get(); }  // Return raw pointer for compatibility
 
     // ========================================================================
     // THREAD-SAFE FACING SYSTEM
@@ -439,7 +455,8 @@ private:
     ::std::atomic<LoginState> _loginState{LoginState::NONE};
 
     // Bot AI system
-    BotAI* _ai{nullptr};
+    // P1 FIX: unique_ptr for automatic memory management - no manual delete in destructor
+    ::std::unique_ptr<BotAI> _ai;
 
     // Packet simulation system (Phase 1 refactoring)
     ::std::unique_ptr<BotPacketSimulator> _packetSimulator;
@@ -505,13 +522,24 @@ private:
     /// Whether this bot is an instance bot (JIT or warm pool)
     std::atomic<bool> _isInstanceBot{false};
 
+    /// Time when bot was marked as instance bot (for queue timeout)
+    std::atomic<uint32> _instanceBotStartTime{0};
+
     /// Accumulated idle time in milliseconds
     /// Reset to 0 when bot enters queue or group, incremented when idle
     std::atomic<uint32> _idleAccumulatorMs{0};
 
+    /// Accumulated queue time in milliseconds (time spent waiting in queue without content starting)
+    /// This prevents bots from sitting in queue forever when BG/LFG never pops
+    std::atomic<uint32> _queueAccumulatorMs{0};
+
     /// Whether bot was active (in queue/group) last check
     /// Used to detect transition from active to idle
     std::atomic<bool> _wasActiveLastCheck{true};
+
+    /// Whether bot has ever entered actual instanced content (dungeon/BG/arena)
+    /// Used to distinguish "waiting in queue" from "actually playing"
+    std::atomic<bool> _hasEnteredInstance{false};
 
     // Deleted copy operations
     BotSession(BotSession const&) = delete;

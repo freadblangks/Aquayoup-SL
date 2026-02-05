@@ -33,11 +33,11 @@
 #include "../Common/CooldownManager.h"
 #include "../../BotAI.h"
 
-// TrinityCore 11.2 New Priest Talents
+// TrinityCore 12.0 New Priest Talents
 #include "PriestTalentEnhancements.h"
 
-// Central Spell Registry - See WoW112Spells::Priest namespace
-#include "../SpellValidation_WoW112_Part2.h"
+// Central Spell Registry - See WoW120Spells::Priest namespace
+#include "../SpellValidation_WoW120_Part2.h"
 
 namespace Playerbot
 {
@@ -54,33 +54,33 @@ using bot::ai::SpellPriority;
 using bot::ai::SpellCategory;
 
 // Note: bot::ai::Action() conflicts with Playerbot::Action, use bot::ai::Action() explicitly
-// WoW 11.2 (The War Within) - Shadow Priest Spell IDs
-// Using central registry: WoW112Spells::Priest and WoW112Spells::Priest::Shadow
-constexpr uint32 SHADOW_MIND_BLAST = WoW112Spells::Priest::Shadow::MIND_BLAST_SHADOW;
-constexpr uint32 SHADOW_MIND_FLAY = WoW112Spells::Priest::Shadow::MIND_FLAY;
-constexpr uint32 SHADOW_VAMPIRIC_TOUCH = WoW112Spells::Priest::Shadow::VAMPIRIC_TOUCH;
-constexpr uint32 SHADOW_SHADOW_WORD_PAIN = WoW112Spells::Priest::SHADOW_WORD_PAIN;
-constexpr uint32 SHADOW_DEVOURING_PLAGUE = WoW112Spells::Priest::Shadow::DEVOURING_PLAGUE;
-constexpr uint32 SHADOW_VOID_ERUPTION = WoW112Spells::Priest::Shadow::VOID_ERUPTION;
-constexpr uint32 SHADOW_VOID_BOLT = WoW112Spells::Priest::Shadow::VOID_BOLT;
-constexpr uint32 SHADOW_MIND_SEAR = WoW112Spells::Priest::Shadow::MIND_SEAR;
-constexpr uint32 SHADOW_SHADOW_CRASH = WoW112Spells::Priest::Shadow::SHADOW_CRASH;
-constexpr uint32 SHADOW_VOID_TORRENT = WoW112Spells::Priest::Shadow::VOID_TORRENT;
-constexpr uint32 SHADOW_DARK_ASCENSION = WoW112Spells::Priest::Shadow::DARK_ASCENSION;
-constexpr uint32 SHADOW_MINDGAMES = WoW112Spells::Priest::Shadow::MINDGAMES_SHADOW;
-constexpr uint32 SHADOW_SHADOW_WORD_DEATH = WoW112Spells::Priest::SHADOW_WORD_DEATH;
-constexpr uint32 SHADOW_VAMPIRIC_EMBRACE = WoW112Spells::Priest::Shadow::VAMPIRIC_EMBRACE;
-constexpr uint32 SHADOW_DISPERSION = WoW112Spells::Priest::Shadow::DISPERSION;
-constexpr uint32 SHADOW_FADE = WoW112Spells::Priest::FADE;
-constexpr uint32 SHADOW_DESPERATE_PRAYER = WoW112Spells::Priest::DESPERATE_PRAYER;
-constexpr uint32 SHADOW_POWER_WORD_FORTITUDE = WoW112Spells::Priest::POWER_WORD_FORTITUDE;
-constexpr uint32 SHADOW_SHADOWFORM = WoW112Spells::Priest::Shadow::SHADOWFORM;
+// WoW 12.0 (The War Within) - Shadow Priest Spell IDs
+// Using central registry: WoW120Spells::Priest and WoW120Spells::Priest::Shadow
+constexpr uint32 SHADOW_MIND_BLAST = WoW120Spells::Priest::Shadow::MIND_BLAST_SHADOW;
+constexpr uint32 SHADOW_MIND_FLAY = WoW120Spells::Priest::Shadow::MIND_FLAY;
+constexpr uint32 SHADOW_VAMPIRIC_TOUCH = WoW120Spells::Priest::Shadow::VAMPIRIC_TOUCH;
+constexpr uint32 SHADOW_SHADOW_WORD_PAIN = WoW120Spells::Priest::SHADOW_WORD_PAIN;
+constexpr uint32 SHADOW_DEVOURING_PLAGUE = WoW120Spells::Priest::Shadow::DEVOURING_PLAGUE;
+constexpr uint32 SHADOW_VOID_ERUPTION = WoW120Spells::Priest::Shadow::VOID_ERUPTION;
+constexpr uint32 SHADOW_VOID_BOLT = WoW120Spells::Priest::Shadow::VOID_BOLT;
+constexpr uint32 SHADOW_MIND_SEAR = WoW120Spells::Priest::Shadow::MIND_SEAR;
+constexpr uint32 SHADOW_SHADOW_CRASH = WoW120Spells::Priest::Shadow::SHADOW_CRASH;
+constexpr uint32 SHADOW_VOID_TORRENT = WoW120Spells::Priest::Shadow::VOID_TORRENT;
+constexpr uint32 SHADOW_DARK_ASCENSION = WoW120Spells::Priest::Shadow::DARK_ASCENSION;
+constexpr uint32 SHADOW_MINDGAMES = WoW120Spells::Priest::Shadow::MINDGAMES_SHADOW;
+constexpr uint32 SHADOW_SHADOW_WORD_DEATH = WoW120Spells::Priest::SHADOW_WORD_DEATH;
+constexpr uint32 SHADOW_VAMPIRIC_EMBRACE = WoW120Spells::Priest::Shadow::VAMPIRIC_EMBRACE;
+constexpr uint32 SHADOW_DISPERSION = WoW120Spells::Priest::Shadow::DISPERSION;
+constexpr uint32 SHADOW_FADE = WoW120Spells::Priest::FADE;
+constexpr uint32 SHADOW_DESPERATE_PRAYER = WoW120Spells::Priest::DESPERATE_PRAYER;
+constexpr uint32 SHADOW_POWER_WORD_FORTITUDE = WoW120Spells::Priest::POWER_WORD_FORTITUDE;
+constexpr uint32 SHADOW_SHADOWFORM = WoW120Spells::Priest::Shadow::SHADOWFORM;
 
-// TrinityCore 11.2 Talent Spell IDs
-// Using central registry: WoW112Spells::Priest::Shadow
-constexpr uint32 SHADOW_MINDBENDER = WoW112Spells::Priest::Shadow::MINDBENDER;
-constexpr uint32 SHADOW_SHADOWFIEND = WoW112Spells::Priest::Shadow::SHADOWFIEND_SHADOW;
-constexpr uint32 SHADOW_HALO = WoW112Spells::Priest::Shadow::HALO_SHADOW;
+// TrinityCore 12.0 Talent Spell IDs
+// Using central registry: WoW120Spells::Priest::Shadow
+constexpr uint32 SHADOW_MINDBENDER = WoW120Spells::Priest::Shadow::MINDBENDER;
+constexpr uint32 SHADOW_SHADOWFIEND = WoW120Spells::Priest::Shadow::SHADOWFIEND_SHADOW;
+constexpr uint32 SHADOW_HALO = WoW120Spells::Priest::Shadow::HALO_SHADOW;
 
 // Insanity tracker (Shadow Priest secondary resource - primary is still Mana)
 class InsanityTracker
@@ -289,7 +289,7 @@ public:
         , _insanityTracker()
         , _voidformTracker()
         , _dotTracker()
-        , _talentState(bot)  // NEW: TrinityCore 11.2 talent state
+        , _talentState(bot)  // NEW: TrinityCore 12.0 talent state
         , _darkAscensionActive(false)
         , _darkAscensionEndTime(0)
         , _lastDarkAscensionTime(0)
@@ -416,7 +416,7 @@ private:
     }
 
     // ========================================================================
-    // NEW: TrinityCore 11.2 TALENT-BASED ROTATION ENHANCEMENTS
+    // NEW: TrinityCore 12.0 TALENT-BASED ROTATION ENHANCEMENTS
     // ========================================================================
 
     /**
@@ -665,7 +665,7 @@ private:
         uint32 insanity = _insanityTracker.GetInsanity();
 
         // ====================================================================
-        // NEW: TrinityCore 11.2 TALENT PRIORITY HANDLING
+        // NEW: TrinityCore 12.0 TALENT PRIORITY HANDLING
         // ====================================================================
 
         // Priority 1: Inescapable Torment - extend pet when active
@@ -1246,7 +1246,7 @@ private:
     VoidformTracker _voidformTracker;
     ShadowDoTTracker _dotTracker;
 
-    // NEW: TrinityCore 11.2 Talent State
+    // NEW: TrinityCore 12.0 Talent State
     PriestTalentState _talentState;
 
     bool _darkAscensionActive;
@@ -1257,7 +1257,7 @@ private:
     uint32 _lastMindgamesTime;
     uint32 _lastVampiricEmbraceTime;
 
-    // NEW: TrinityCore 11.2 Cooldown Tracking
+    // NEW: TrinityCore 12.0 Cooldown Tracking
     uint32 _lastMindbenderTime;
     uint32 _lastHaloTime;
 };

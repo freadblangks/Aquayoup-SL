@@ -9,9 +9,9 @@
 
 #include "QuestStrategy.h"
 #include "Core/PlayerBotHelpers.h"  // GetBotAI, GetGameSystems
-#include "Core/DI/Interfaces/IObjectiveTracker.h"  // ObjectivePriority
 #include "../BotAI.h"
 #include "Player.h"
+#include "../../Session/BotSession.h"  // For IsInstanceBot check
 #include "Group.h"
 #include "QuestDef.h"
 #include "ObjectAccessor.h"
@@ -91,6 +91,15 @@ bool QuestStrategy::IsActive(BotAI* ai) const
         return false;
 
     Player* bot = ai->GetBot();
+
+    // CRITICAL: Instance bots should NEVER quest - they exist only for BG/dungeon
+    // This prevents SmartAI thread-safety crashes when accepting quests from worker threads
+    if (BotSession* session = dynamic_cast<BotSession*>(bot->GetSession()))
+    {
+        if (session->IsInstanceBot())
+            return false;
+    }
+
     // NOT active during combat (combat takes priority)
     if (bot->IsInCombat())
         return false;
@@ -107,6 +116,14 @@ float QuestStrategy::GetRelevance(BotAI* ai) const
         return 0.0f;
 
     Player* bot = ai->GetBot();
+
+    // Instance bots should NEVER quest - return 0 relevance
+    if (BotSession* session = dynamic_cast<BotSession*>(bot->GetSession()))
+    {
+        if (session->IsInstanceBot())
+            return 0.0f;
+    }
+
     // Combat has higher priority - return 0 if in combat
     if (bot->IsInCombat())
         return 0.0f;
@@ -321,7 +338,7 @@ void QuestStrategy::ProcessQuestObjectives(BotAI* ai)
     // nullptr if the AI is being accessed from a different context (e.g., worker thread)
     // CRITICAL FIX #2: Check BOTH GameSystems AND ObjectiveTracker for null
     // ObjectiveTracker is NOT created in instance-only mode (JIT bots for BG/LFG)
-    ObjectivePriority priority(0, 0);
+    ObjectivePriority priority(0, 0, 0.0f);
     {
         auto* gameSystems = ai->GetGameSystems();
         auto* tracker = gameSystems ? gameSystems->GetObjectiveTracker() : nullptr;
@@ -2369,18 +2386,18 @@ void QuestStrategy::TurnInQuest(BotAI* ai, uint32 questId)
 ObjectivePriority QuestStrategy::GetCurrentObjective(BotAI* ai) const
 {
     if (!ai || !ai->GetBot())
-        return ObjectivePriority(0, 0);
+        return ObjectivePriority(0, 0, 0.0f);
 
     // CRITICAL FIX: Check BOTH GameSystems AND ObjectiveTracker for null
     // ObjectiveTracker is NOT created in instance-only mode (JIT bots for BG/LFG)
     // This prevents ACCESS_VIOLATION crash when ObjectiveTracker is null or destroyed
     auto* gameSystems = ai->GetGameSystems();
     if (!gameSystems)
-        return ObjectivePriority(0, 0);
+        return ObjectivePriority(0, 0, 0.0f);
 
     auto* tracker = gameSystems->GetObjectiveTracker();
     if (!tracker)
-        return ObjectivePriority(0, 0);
+        return ObjectivePriority(0, 0, 0.0f);
 
     Player* bot = ai->GetBot();
     return tracker->GetHighestPriorityObjective(bot);

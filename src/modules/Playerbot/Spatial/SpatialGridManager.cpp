@@ -11,11 +11,47 @@ namespace Playerbot
 
 void SpatialGridManager::CreateGrid(Map* map)
 {
-    ::std::unique_lock lock(_mutex);  // Exclusive write lock
-
     uint32 mapId = map->GetId();
+
+    // ========================================================================
+    // PERFORMANCE FIX: Double-Checked Locking Pattern
+    // ========================================================================
+    // PROBLEM: 90+ call sites use this pattern:
+    //   if (!GetGrid(map)) { CreateGrid(map); GetGrid(map); }
+    //
+    // When 100 bots enter a map simultaneously:
+    //   - All 100 find grid doesn't exist
+    //   - All 100 call CreateGrid()
+    //   - OLD: All 100 queue on exclusive lock, even though only 1 needs to create
+    //   - NEW: Fast path with shared lock returns immediately if grid exists
+    //
+    // SOLUTION: Check with shared_lock first (non-blocking for readers)
+    //           Only acquire exclusive lock if grid truly needs creation
+    // ========================================================================
+
+    // PHASE 1: Fast path - check if grid already exists (shared lock)
+    {
+        ::std::shared_lock readLock(_mutex);
+        auto it = _grids.find(mapId);
+        if (it != _grids.end())
+        {
+            // Grid exists - check if Map pointer needs updating
+            if (it->second.grid->GetMap() == map)
+            {
+                // Grid exists and Map pointer is correct - nothing to do
+                return;
+            }
+            // Map pointer mismatch - need exclusive lock to update
+            // Fall through to exclusive lock section
+        }
+    }
+
+    // PHASE 2: Grid doesn't exist OR needs Map pointer update - acquire exclusive lock
+    ::std::unique_lock lock(_mutex);
+
     auto now = ::std::chrono::steady_clock::now();
 
+    // Double-check after acquiring exclusive lock (another thread may have created it)
     auto it = _grids.find(mapId);
     if (it != _grids.end())
     {
@@ -86,8 +122,17 @@ DoubleBufferedSpatialGrid* SpatialGridManager::GetGrid(uint32 mapId)
     if (it == _grids.end())
         return nullptr;
 
-    // Update access time (const_cast needed for shared lock access)
-    const_cast<GridInfo&>(it->second).lastAccessTime = ::std::chrono::steady_clock::now();
+    // CRITICAL FIX: Removed lastAccessTime update from GetGrid()
+    // PROBLEM: This was a DATA RACE - writing under shared_lock is unsafe!
+    // Also caused severe performance issues with 100+ bots calling GetGrid
+    // thousands of times per second (each call: acquire lock + chrono::now())
+    //
+    // SOLUTION: lastAccessTime is now only updated when:
+    // - CreateGrid() is called (exclusive lock, grid creation)
+    // - UpdateGrid() is called (from spatial grid update cycle)
+    // - TouchGrid() is explicitly called (rare, for manual keep-alive)
+    //
+    // This eliminates ~1000+ chrono::now() calls per second and fixes the data race.
 
     return it->second.grid.get();
 }
@@ -98,6 +143,80 @@ DoubleBufferedSpatialGrid* SpatialGridManager::GetGrid(Map* map)
         return nullptr;
 
     return GetGrid(map->GetId());
+}
+
+DoubleBufferedSpatialGrid* SpatialGridManager::GetOrCreateGrid(Map* map)
+{
+    if (!map)
+        return nullptr;
+
+    uint32 mapId = map->GetId();
+
+    // ========================================================================
+    // PERFORMANCE OPTIMIZATION: Combined Get + Create with Double-Checked Locking
+    // ========================================================================
+    // This method replaces the common anti-pattern:
+    //   if (!GetGrid(map)) { CreateGrid(map); } return GetGrid(map);
+    //
+    // Benefits:
+    // - Single method call instead of 3
+    // - Single lock acquisition in the common case (grid exists)
+    // - No redundant lookups
+    // - Optimal double-checked locking for creation
+    // ========================================================================
+
+    // PHASE 1: Fast path - check if grid exists with shared lock (concurrent reads OK)
+    {
+        ::std::shared_lock readLock(_mutex);
+        auto it = _grids.find(mapId);
+        if (it != _grids.end())
+        {
+            // Grid exists - check Map pointer
+            if (it->second.grid->GetMap() == map)
+            {
+                // Perfect - return existing grid
+                return it->second.grid.get();
+            }
+            // Map pointer mismatch - need exclusive lock to update (fall through)
+        }
+    }
+
+    // PHASE 2: Grid doesn't exist OR needs Map pointer update - acquire exclusive lock
+    ::std::unique_lock lock(_mutex);
+
+    auto now = ::std::chrono::steady_clock::now();
+
+    // Double-check after acquiring exclusive lock
+    auto it = _grids.find(mapId);
+    if (it != _grids.end())
+    {
+        // Another thread may have created it while we waited
+        if (it->second.grid->GetMap() != map)
+        {
+            TC_LOG_INFO("playerbot.spatial",
+                "GetOrCreateGrid: Updating Map pointer for map {} ({})",
+                mapId, map->GetMapName());
+            it->second.grid->SetMap(map);
+        }
+        it->second.lastAccessTime = now;
+        return it->second.grid.get();
+    }
+
+    // Create new grid with metadata
+    GridInfo info;
+    info.grid = ::std::make_unique<DoubleBufferedSpatialGrid>(map);
+    info.grid->Start();
+    info.lastAccessTime = now;
+    info.creationTime = now;
+
+    auto* gridPtr = info.grid.get();
+    _grids[mapId] = ::std::move(info);
+
+    TC_LOG_INFO("playerbot.spatial",
+        "GetOrCreateGrid: Created grid for map {} ({}) - Total: {}",
+        mapId, map->GetMapName(), _grids.size());
+
+    return gridPtr;
 }
 
 void SpatialGridManager::DestroyAllGrids()
@@ -124,16 +243,30 @@ void SpatialGridManager::DestroyAllGrids()
 
 void SpatialGridManager::UpdateGrid(uint32 mapId)
 {
-    ::std::shared_lock lock(_mutex);  // Shared read lock
+    DoubleBufferedSpatialGrid* grid = nullptr;
 
-    auto it = _grids.find(mapId);
-    if (it == _grids.end())
-        return;  // No grid for this map
+    // Phase 1: Get the grid pointer under shared lock (fast path)
+    {
+        ::std::shared_lock lock(_mutex);
+        auto it = _grids.find(mapId);
+        if (it == _grids.end())
+            return;  // No grid for this map
+        grid = it->second.grid.get();
+    }
 
-    it->second.grid->Update();
+    // Phase 2: Update the grid WITHOUT holding the manager lock
+    // Grid has its own internal locking (try_to_lock pattern)
+    if (grid)
+        grid->Update();
 
-    // Update access time
-    const_cast<GridInfo&>(it->second).lastAccessTime = ::std::chrono::steady_clock::now();
+    // Phase 3: Update access time under exclusive lock (write operation)
+    // This is called infrequently (once per update cycle, not per bot)
+    {
+        ::std::unique_lock lock(_mutex);
+        auto it = _grids.find(mapId);
+        if (it != _grids.end())
+            it->second.lastAccessTime = ::std::chrono::steady_clock::now();
+    }
 }
 
 void SpatialGridManager::UpdateGrid(Map* map)
@@ -298,13 +431,14 @@ void SpatialGridManager::LogMemoryStats() const
 
 void SpatialGridManager::TouchGrid(uint32 mapId)
 {
-    ::std::shared_lock lock(_mutex);  // Shared read lock
+    // CRITICAL FIX: Use exclusive lock for write operation
+    // Previously used shared_lock with const_cast which was a data race
+    ::std::unique_lock lock(_mutex);
 
     auto it = _grids.find(mapId);
     if (it != _grids.end())
     {
-        // Update access time (const_cast needed for shared lock access)
-        const_cast<GridInfo&>(it->second).lastAccessTime = ::std::chrono::steady_clock::now();
+        it->second.lastAccessTime = ::std::chrono::steady_clock::now();
     }
 }
 

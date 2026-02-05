@@ -13,7 +13,7 @@
 #include "RestorationShaman.h"
 #include "../BaselineRotationManager.h"
 #include "../../Combat/CombatBehaviorIntegration.h"
-#include "../SpellValidation_WoW112_Part2.h"  // Central spell registry
+#include "../SpellValidation_WoW120_Part2.h"  // Central spell registry
 #include "Player.h"
 #include "Unit.h"
 #include "Creature.h"
@@ -39,20 +39,20 @@ namespace Playerbot
 {
 
 // ============================================================================
-// WoW 11.2 SPELL ID ALIASES - Using Central Registry
+// WoW 12.0 SPELL ID ALIASES - Using Central Registry
 // ============================================================================
-// Import from SpellValidation_WoW112_Part2.h to avoid hardcoded values
+// Import from SpellValidation_WoW120_Part2.h to avoid hardcoded values
 
-namespace ShamanSpells = WoW112Spells::Shaman;
-namespace ShamanElemental = WoW112Spells::Shaman::Elemental;
-namespace ShamanEnhancement = WoW112Spells::Shaman::Enhancement;
-namespace ShamanRestoration = WoW112Spells::Shaman::Restoration;
-namespace ShamanCommon = WoW112Spells::Shaman::Common;
+namespace ShamanSpells = WoW120Spells::Shaman;
+namespace ShamanElemental = WoW120Spells::Shaman::Elemental;
+namespace ShamanEnhancement = WoW120Spells::Shaman::Enhancement;
+namespace ShamanRestoration = WoW120Spells::Shaman::Restoration;
+namespace ShamanCommon = WoW120Spells::Shaman::Common;
 
-// Totem spell definitions - WoW 11.2 (many totems removed/consolidated)
+// Totem spell definitions - WoW 12.0 (many totems removed/consolidated)
 enum TotemSpells : uint32
 {
-    // Active totems in WoW 11.2
+    // Active totems in WoW 12.0
     SPELL_EARTHBIND_TOTEM          = ShamanCommon::EARTHBIND_TOTEM,        // 2484
     SPELL_TREMOR_TOTEM             = ShamanCommon::TREMOR_TOTEM,           // 8143
     SPELL_HEALING_STREAM_TOTEM     = ShamanCommon::HEALING_STREAM_TOTEM,   // 5394
@@ -71,7 +71,7 @@ enum TotemSpells : uint32
     SPELL_CLOUDBURST_TOTEM         = ShamanRestoration::CLOUDBURST_TOTEM,        // 157153
     SPELL_MANA_TIDE_TOTEM          = ShamanRestoration::MANA_TIDE_TOTEM,         // 16191
 
-    // Legacy totems removed in WoW 11.2 (kept as 0 for compatibility checks)
+    // Legacy totems removed in WoW 12.0 (kept as 0 for compatibility checks)
     SPELL_SEARING_TOTEM            = 0,  // Removed
     SPELL_FIRE_NOVA_TOTEM          = 0,  // Removed
     SPELL_MAGMA_TOTEM              = 0,  // Removed
@@ -94,7 +94,7 @@ enum TotemSpells : uint32
     SPELL_SENTRY_TOTEM             = 0   // Removed
 };
 
-// Shock spell definitions - WoW 11.2
+// Shock spell definitions - WoW 12.0
 enum ShockSpells : uint32
 {
     SPELL_EARTH_SHOCK  = ShamanCommon::EARTH_SHOCK,   // 8042
@@ -103,28 +103,28 @@ enum ShockSpells : uint32
     SPELL_WIND_SHEAR   = ShamanCommon::WIND_SHEAR     // 57994 - Interrupt
 };
 
-// Shield spell definitions - WoW 11.2
+// Shield spell definitions - WoW 12.0
 enum ShieldSpells : uint32
 {
     SPELL_WATER_SHIELD  = ShamanRestoration::WATER_SHIELD,   // 52127
     SPELL_EARTH_SHIELD  = ShamanCommon::EARTH_SHIELD,        // 974
-    // Note: Lightning Shield removed as standalone buff in 11.2
+    // Note: Lightning Shield removed as standalone buff in 12.0
     SPELL_LIGHTNING_SHIELD = 0  // Removed/reworked
 };
 
-// Weapon imbue spell definitions - WoW 11.2
+// Weapon imbue spell definitions - WoW 12.0
 enum WeaponImbues : uint32
 {
     SPELL_FLAMETONGUE_WEAPON = ShamanCommon::FLAMETONGUE_WEAPON, // 318038 (updated ID)
     SPELL_WINDFURY_WEAPON    = ShamanCommon::WINDFURY_WEAPON,    // 33757
 
-    // Legacy weapon imbues removed in WoW 11.2
+    // Legacy weapon imbues removed in WoW 12.0
     SPELL_ROCKBITER_WEAPON   = 0,  // Removed
     SPELL_FROSTBRAND_WEAPON  = 0,  // Removed
     SPELL_EARTHLIVING_WEAPON = 0   // Removed
 };
 
-// Utility spell definitions - WoW 11.2
+// Utility spell definitions - WoW 12.0
 enum UtilitySpells : uint32
 {
     SPELL_PURGE             = ShamanCommon::PURGE,             // 370
@@ -139,14 +139,14 @@ enum UtilitySpells : uint32
     SPELL_REINCARNATION     = ShamanCommon::REINCARNATION,     // 20608
     SPELL_PURIFY_SPIRIT     = ShamanCommon::PURIFY_SPIRIT,     // 77130
 
-    // Legacy utilities (kept for reference but may not exist in 11.2)
+    // Legacy utilities (kept for reference but may not exist in 12.0)
     SPELL_WATER_WALKING     = ShamanSpells::WATER_WALKING,     // 546
     SPELL_ASTRAL_RECALL     = ShamanSpells::ASTRAL_RECALL,     // 556
     SPELL_WATER_BREATHING   = 0,  // Removed/combined with Water Walking
     SPELL_SHAMANISTIC_RAGE  = 0   // Removed (was Enhancement defensive)
 };
 
-// Healing spell definitions - WoW 11.2
+// Healing spell definitions - WoW 12.0
 enum HealingSpells : uint32
 {
     SPELL_HEALING_WAVE       = ShamanCommon::HEALING_WAVE,       // 77472 (updated ID)
@@ -167,7 +167,7 @@ enum HealingSpells : uint32
     SPELL_SPIRIT_LINK         = 0   // Now Spirit Link Totem only
 };
 
-// Damage spell definitions - WoW 11.2
+// Damage spell definitions - WoW 12.0
 enum DamageSpells : uint32
 {
     SPELL_LIGHTNING_BOLT   = ShamanCommon::LIGHTNING_BOLT,   // 188196 (updated ID)
@@ -176,10 +176,10 @@ enum DamageSpells : uint32
     SPELL_EARTHQUAKE       = ShamanCommon::EARTHQUAKE,       // 61882
     SPELL_ELEMENTAL_BLAST  = ShamanCommon::ELEMENTAL_BLAST,  // 117014
     SPELL_LAVA_BEAM        = ShamanElemental::LAVA_BEAM,     // 114074
-    SPELL_THUNDERSTORM     = 0  // 51490 - Removed/reworked in 11.2
+    SPELL_THUNDERSTORM     = 0  // 51490 - Removed/reworked in 12.0
 };
 
-// Enhancement-specific spells - WoW 11.2
+// Enhancement-specific spells - WoW 12.0
 enum EnhancementSpells : uint32
 {
     SPELL_STORMSTRIKE       = ShamanCommon::STORMSTRIKE,              // 17364
@@ -194,7 +194,7 @@ enum EnhancementSpells : uint32
     SPELL_MAELSTROM_WEAPON  = ShamanEnhancement::MAELSTROM_WEAPON     // 187880
 };
 
-// Elemental-specific spells - WoW 11.2
+// Elemental-specific spells - WoW 12.0
 enum ElementalSpells : uint32
 {
     SPELL_ASCENDANCE         = ShamanCommon::ASCENDANCE,              // 114050
@@ -206,11 +206,11 @@ enum ElementalSpells : uint32
     SPELL_TEMPEST            = ShamanElemental::TEMPEST,              // 454009
 
     // Legacy elemental spells
-    SPELL_ELEMENTAL_MASTERY  = 0  // Removed/reworked in 11.2
+    SPELL_ELEMENTAL_MASTERY  = 0  // Removed/reworked in 12.0
 };
 
-// Talent IDs for specialization detection - WoW 11.2
-// Note: Talent detection in 11.2 uses different systems; these are kept for compatibility
+// Talent IDs for specialization detection - WoW 12.0
+// Note: Talent detection in 12.0 uses different systems; these are kept for compatibility
 enum ShamanTalents : uint32
 {
     // Core abilities that indicate spec (used as spell checks, not talent IDs)
@@ -221,7 +221,7 @@ enum ShamanTalents : uint32
     TALENT_LAVA_LASH_TALENT          = ShamanCommon::LAVA_LASH,        // 60103 (Enhancement indicator)
     TALENT_HEALING_RAIN_TALENT       = ShamanCommon::HEALING_RAIN,     // 73920 (Restoration indicator)
 
-    // Legacy talents removed in 11.2
+    // Legacy talents removed in 12.0
     TALENT_ELEMENTAL_FOCUS     = 0,  // Removed
     TALENT_ELEMENTAL_MASTERY   = 0,  // Removed
     TALENT_LIGHTNING_OVERLOAD  = 0,  // Removed (became Mastery)

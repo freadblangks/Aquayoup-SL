@@ -23,6 +23,7 @@
 #include "MapManager.h"
 #include "ObjectAccessor.h"
 #include "Session/BotSession.h"
+#include "../AI/BotAI.h"  // P1 FIX: Required for unique_ptr<BotAI> in BotSession.h
 #include "Spatial/SpatialGridQueryHelpers.h"  // PHASE 2G: For snapshot-based player validation
 #include <algorithm>
 #include <random>
@@ -825,12 +826,12 @@ QuestMetrics DynamicQuestSystem::GetGlobalQuestMetrics()
     for (const auto& metricsPair : _botMetrics)
     {
         const QuestMetrics& botMetrics = metricsPair.second;
-        globalMetrics.questsStarted += botMetrics.questsStarted.load();
-        globalMetrics.questsCompleted += botMetrics.questsCompleted.load();
-        globalMetrics.questsAbandoned += botMetrics.questsAbandoned.load();
-        globalMetrics.questsFailed += botMetrics.questsFailed.load();
-        globalMetrics.experienceGained += botMetrics.experienceGained.load();
-        globalMetrics.goldEarned += botMetrics.goldEarned.load();
+        globalMetrics.questsStarted += botMetrics.questsStarted;
+        globalMetrics.questsCompleted += botMetrics.questsCompleted;
+        globalMetrics.questsAbandoned += botMetrics.questsAbandoned;
+        globalMetrics.questsFailed += botMetrics.questsFailed;
+        globalMetrics.experienceGained += botMetrics.experienceGained;
+        globalMetrics.goldEarned += botMetrics.goldEarned;
     }
 
     return globalMetrics;

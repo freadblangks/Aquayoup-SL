@@ -14,6 +14,8 @@
 
 #include "DominationScriptBase.h"
 #include "TempleOfKotmoguData.h"
+#include "BGPositionDiscovery.h"
+#include <memory>
 
 namespace Playerbot::Coordination::Battleground
 {
@@ -52,46 +54,46 @@ public:
     // IDENTIFICATION
     // ========================================================================
 
-    uint32 GetMapId() const override { return TempleOfKotmogu::MAP_ID; }
-    std::string GetName() const override { return TempleOfKotmogu::BG_NAME; }
-    BGType GetBGType() const override { return BGType::TEMPLE_OF_KOTMOGU; }
-    uint32 GetMaxScore() const override { return TempleOfKotmogu::MAX_SCORE; }
-    uint32 GetMaxDuration() const override { return TempleOfKotmogu::MAX_DURATION; }
-    uint8 GetTeamSize() const override { return TempleOfKotmogu::TEAM_SIZE; }
-    uint32 GetOptimalNodeCount() const override { return 2; }  // 2 orbs is good
+    uint32 GetMapId() const { return TempleOfKotmogu::MAP_ID; }
+    std::string GetName() const { return TempleOfKotmogu::BG_NAME; }
+    BGType GetBGType() const { return BGType::TEMPLE_OF_KOTMOGU; }
+    uint32 GetMaxScore() const { return TempleOfKotmogu::MAX_SCORE; }
+    uint32 GetMaxDuration() const { return TempleOfKotmogu::MAX_DURATION; }
+    uint8 GetTeamSize() const { return TempleOfKotmogu::TEAM_SIZE; }
+    uint32 GetOptimalNodeCount() const { return 2; }  // 2 orbs is good
 
     // ========================================================================
     // LIFECYCLE
     // ========================================================================
 
-    void OnLoad(BattlegroundCoordinator* coordinator) override;
-    void OnMatchStart() override;
-    void OnMatchEnd(bool victory) override;
-    void OnEvent(const BGScriptEventData& event) override;
+    void OnLoad(BattlegroundCoordinator* coordinator);
+    void OnMatchStart();
+    void OnMatchEnd(bool victory);
+    void OnEvent(const BGScriptEventData& event);
 
     // ========================================================================
     // DATA PROVIDERS
     // ========================================================================
 
-    std::vector<BGObjectiveData> GetObjectiveData() const override;
-    std::vector<BGPositionData> GetSpawnPositions(uint32 faction) const override;
-    std::vector<BGPositionData> GetStrategicPositions() const override;
-    std::vector<BGPositionData> GetGraveyardPositions(uint32 faction) const override;
-    std::vector<BGWorldState> GetInitialWorldStates() const override;
+    std::vector<BGObjectiveData> GetObjectiveData() const;
+    std::vector<BGPositionData> GetSpawnPositions(uint32 faction) const;
+    std::vector<BGPositionData> GetStrategicPositions() const;
+    std::vector<BGPositionData> GetGraveyardPositions(uint32 faction) const;
+    std::vector<BGWorldState> GetInitialWorldStates() const;
 
     // ========================================================================
     // WORLD STATE INTERPRETATION
     // ========================================================================
 
-    bool InterpretWorldState(int32 stateId, int32 value, uint32& outObjectiveId, BGObjectiveState& outState) const override;
-    void GetScoreFromWorldStates(const std::map<int32, int32>& states, uint32& allianceScore, uint32& hordeScore) const override;
+    bool InterpretWorldState(int32 stateId, int32 value, uint32& outObjectiveId, BGObjectiveState& outState) const;
+    void GetScoreFromWorldStates(const std::map<int32, int32>& states, uint32& allianceScore, uint32& hordeScore) const;
 
     // ========================================================================
     // STRATEGY & ROLE DISTRIBUTION
     // ========================================================================
 
-    void AdjustStrategy(StrategicDecision& decision, float scoreAdvantage, uint32 controlledCount, uint32 totalObjectives, uint32 timeRemaining) const override;
-    RoleDistribution GetRecommendedRoles(const StrategicDecision& decision, float scoreAdvantage, uint32 timeRemaining) const override;
+    void AdjustStrategy(StrategicDecision& decision, float scoreAdvantage, uint32 controlledCount, uint32 totalObjectives, uint32 timeRemaining) const;
+    RoleDistribution GetRecommendedRoles(const StrategicDecision& decision, float scoreAdvantage, uint32 timeRemaining) const;
 
     // ========================================================================
     // ORB-SPECIFIC METHODS
@@ -160,11 +162,11 @@ protected:
     // BASE CLASS OVERRIDES
     // ========================================================================
 
-    uint32 GetNodeCount() const override { return TempleOfKotmogu::ORB_COUNT; }
-    BGObjectiveData GetNodeData(uint32 nodeIndex) const override;
-    std::vector<uint32> GetTickPointsTable() const override;
-    uint32 GetTickInterval() const override { return TempleOfKotmogu::TICK_INTERVAL; }
-    uint32 GetDefaultCaptureTime() const override { return 0; }  // Orbs are instant pickup
+    uint32 GetNodeCount() const { return TempleOfKotmogu::ORB_COUNT; }
+    BGObjectiveData GetNodeData(uint32 nodeIndex) const;
+    std::vector<uint32> GetTickPointsTable() const;
+    uint32 GetTickInterval() const { return TempleOfKotmogu::TICK_INTERVAL; }
+    uint32 GetDefaultCaptureTime() const { return 0; }  // Orbs are instant pickup
 
 private:
     // ========================================================================
@@ -197,6 +199,41 @@ private:
     std::map<ObjectGuid, uint32> m_playerOrbs;  // player guid -> orbId
     uint32 m_allianceOrbsHeld = 0;
     uint32 m_hordeOrbsHeld = 0;
+
+    // ========================================================================
+    // DYNAMIC POSITION DISCOVERY
+    // ========================================================================
+
+    /**
+     * @brief Dynamic position discovery system
+     *
+     * Discovers actual orb positions from game objects at runtime instead of
+     * relying on hardcoded coordinates which may be wrong for the current map.
+     */
+    std::unique_ptr<BGPositionDiscovery> m_positionDiscovery;
+
+    /**
+     * @brief Cached orb positions (dynamically discovered or fallback to hardcoded)
+     */
+    std::array<Position, TempleOfKotmogu::ORB_COUNT> m_orbPositions;
+
+    /**
+     * @brief Whether dynamic discovery has been completed
+     */
+    bool m_positionsDiscovered = false;
+
+    /**
+     * @brief Initialize dynamic position discovery
+     * @return true if dynamic discovery succeeded
+     */
+    bool InitializePositionDiscovery();
+
+    /**
+     * @brief Get orb position (uses dynamic discovery if available)
+     * @param orbId Orb identifier (0-3)
+     * @return Validated orb position
+     */
+    Position GetDynamicOrbPosition(uint32 orbId) const;
 };
 
 } // namespace Playerbot::Coordination::Battleground

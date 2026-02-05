@@ -21,6 +21,7 @@
 #include "LFGMgr.h"
 #include "Player.h"
 #include "Log.h"
+#include "DB2Stores.h"  // For BattlemasterList DBC lookup (BG player counts)
 
 namespace Playerbot
 {
@@ -438,9 +439,11 @@ void QueueStatePoller::DoPollBGQueue(BattlegroundTypeId bgTypeId, BattlegroundBr
 
     BattlegroundQueue& queue = sBattlegroundMgr->GetBattlegroundQueue(queueTypeId);
 
-    // Read queue counts (READ-ONLY API)
-    uint32 allianceCount = queue.GetPlayersInQueue(TEAM_ALLIANCE);
-    uint32 hordeCount = queue.GetPlayersInQueue(TEAM_HORDE);
+    // Read queue counts using the correct function that counts from m_QueuedGroups
+    // CRITICAL FIX: GetPlayersInQueue() returns from selection pool (matchmaking only)
+    // GetQueuedPlayersCount() returns actual queued players for the specific bracket
+    uint32 allianceCount = queue.GetQueuedPlayersCount(TEAM_ALLIANCE, bracket);
+    uint32 hordeCount = queue.GetQueuedPlayersCount(TEAM_HORDE, bracket);
 
     // Get requirements from template (READ-ONLY)
     BattlegroundTemplate const* bgTemplate = sBattlegroundMgr->GetBattlegroundTemplateByTypeId(bgTypeId);
@@ -453,6 +456,33 @@ void QueueStatePoller::DoPollBGQueue(BattlegroundTypeId bgTypeId, BattlegroundBr
     uint32 minPlayers = bgTemplate->GetMinPlayersPerTeam();
     uint32 maxPlayers = bgTemplate->GetMaxPlayersPerTeam();
 
+    // ========================================================================
+    // FIX: Handle BGs with missing/zero player counts in battleground_template
+    // Many BGs (Temple of Kotmogu, Silvershard Mines, newer Warsong Gulch, etc.)
+    // have MinPlayersPerTeam=0 and MaxPlayersPerTeam=0 in battleground_template.
+    // Fall back to BattlemasterList DBC which has authoritative player counts.
+    // ========================================================================
+    if (maxPlayers == 0)
+    {
+        // Look up from BattlemasterList DBC - this is the authoritative source
+        BattlemasterListEntry const* bgEntry = sBattlemasterListStore.LookupEntry(static_cast<uint32>(bgTypeId));
+        if (bgEntry && bgEntry->MaxPlayers > 0)
+        {
+            // DBC stores total players, we need per-team (divide by 2)
+            maxPlayers = static_cast<uint32>(bgEntry->MaxPlayers) / 2;
+            minPlayers = maxPlayers;  // Use same value - BG won't start until full
+
+            TC_LOG_INFO("playerbot.jit", "QueueStatePoller: BG {} using DBC size {}v{} (total {})",
+                static_cast<uint32>(bgTypeId), maxPlayers, maxPlayers, bgEntry->MaxPlayers);
+        }
+        else
+        {
+            TC_LOG_WARN("playerbot.jit", "QueueStatePoller: BG {} has no player count in template or DBC, skipping",
+                static_cast<uint32>(bgTypeId));
+            return;
+        }
+    }
+
     // Build snapshot
     uint64 key = MakeBGKey(bgTypeId, bracket);
     BGQueueSnapshot& snapshot = _bgSnapshots[key];
@@ -462,13 +492,14 @@ void QueueStatePoller::DoPollBGQueue(BattlegroundTypeId bgTypeId, BattlegroundBr
     snapshot.hordeCount = hordeCount;
     snapshot.minPlayersPerTeam = minPlayers;
     snapshot.maxPlayersPerTeam = maxPlayers;
-    snapshot.allianceShortage = static_cast<int32>(minPlayers) - static_cast<int32>(allianceCount);
-    snapshot.hordeShortage = static_cast<int32>(minPlayers) - static_cast<int32>(hordeCount);
+    // Use maxPlayers for shortage calculation - we want to fill the BG, not just meet minimum
+    snapshot.allianceShortage = static_cast<int32>(maxPlayers) - static_cast<int32>(allianceCount);
+    snapshot.hordeShortage = static_cast<int32>(maxPlayers) - static_cast<int32>(hordeCount);
     snapshot.timestamp = time(nullptr);
 
     TC_LOG_DEBUG("playerbot.jit", "QueueStatePoller: BG Poll - Type={} Bracket={} Alliance={}/{} Horde={}/{} Shortage=A:{}/H:{}",
         static_cast<uint32>(bgTypeId), static_cast<uint32>(bracket),
-        allianceCount, minPlayers, hordeCount, minPlayers,
+        allianceCount, maxPlayers, hordeCount, maxPlayers,
         snapshot.allianceShortage, snapshot.hordeShortage);
 
     // Process shortage if detected
@@ -568,6 +599,24 @@ void QueueStatePoller::ProcessBGShortage(BGQueueSnapshot const& snapshot)
     GetBracketLevelRange(static_cast<PoolBracket>(snapshot.bracketId), minLevel, maxLevel);
     uint32 bracketLevel = (minLevel + maxLevel) / 2;
 
+    // CRITICAL FIX (2026-02-05): Get the human player that triggered this BG queue
+    // This is required for proper BG invitation tracking - warm pool bots need to
+    // use QueueBotForBGWithTracking instead of QueueBotForBG so they appear in
+    // _queuedBots and can auto-accept invitations via ProcessPendingInvitations.
+    ObjectGuid humanPlayerGuid = sBGBotManager->GetQueuedHumanForBG(
+        snapshot.bgTypeId, snapshot.bracketId);
+
+    if (!humanPlayerGuid.IsEmpty())
+    {
+        TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Found human player {} for BG queue tracking",
+            humanPlayerGuid.ToString());
+    }
+    else
+    {
+        TC_LOG_WARN("playerbot.jit", "QueueStatePoller: No human player found for BG type {} bracket {} - bots may not receive invitations",
+            static_cast<uint32>(snapshot.bgTypeId), static_cast<uint32>(snapshot.bracketId));
+    }
+
     if (allianceStillNeeded > 0 || hordeStillNeeded > 0)
     {
         // Try to get bots from the warm pool
@@ -575,7 +624,8 @@ void QueueStatePoller::ProcessBGShortage(BGQueueSnapshot const& snapshot)
             static_cast<uint32>(snapshot.bgTypeId),
             bracketLevel,
             allianceStillNeeded,
-            hordeStillNeeded
+            hordeStillNeeded,
+            humanPlayerGuid  // Pass human GUID for invitation tracking
         );
 
         if (poolAssignment.success)
@@ -586,26 +636,30 @@ void QueueStatePoller::ProcessBGShortage(BGQueueSnapshot const& snapshot)
             TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Got {}/{} Alliance and {}/{} Horde from warm pool",
                 allianceFromPool, allianceStillNeeded, hordeFromPool, hordeStillNeeded);
 
-            // Queue the bots from pool for the BG and MARK AS INSTANCE BOTS
-            // ====================================================================
-            // CRITICAL FIX (2026-01-22): Mark warm pool bots as INSTANCE BOTS!
-            // ====================================================================
-            for (ObjectGuid const& guid : poolAssignment.allianceBots)
-            {
-                if (Player* bot = ObjectAccessor::FindPlayer(guid))
-                {
-                    sBGBotManager->QueueBotForBG(bot, snapshot.bgTypeId, snapshot.bracketId);
-                    sBotWorldSessionMgr->MarkAsInstanceBot(guid);
-                }
-            }
-            for (ObjectGuid const& guid : poolAssignment.hordeBots)
-            {
-                if (Player* bot = ObjectAccessor::FindPlayer(guid))
-                {
-                    sBGBotManager->QueueBotForBG(bot, snapshot.bgTypeId, snapshot.bracketId);
-                    sBotWorldSessionMgr->MarkAsInstanceBot(guid);
-                }
-            }
+            // ========================================================================
+            // WARM POOL BOT BG QUEUEING - HANDLED BY POOL WORKFLOW
+            // ========================================================================
+            // DO NOT try to queue warm pool bots immediately here!
+            //
+            // Warm pool bots are NOT logged in at this point. They exist as database
+            // records and are being logged in asynchronously via WarmUpBot(). The
+            // queueing workflow is:
+            //
+            // 1. AssignForBattleground() -> selects bots from ready index
+            // 2. AssignBot() -> stores contentId and calls WarmUpBot()
+            // 3. WarmUpBot() -> sets pendingConfig.battlegroundIdToQueue and spawns bot
+            // 4. Bot logs in -> BotPostLoginConfigurator::ApplyPendingConfiguration()
+            // 5. ApplyPendingConfiguration() -> calls sBGBotManager->QueueBotForBG()
+            //
+            // Previously, we tried to use ObjectAccessor::FindPlayer() here, but it
+            // returned nullptr because bots weren't logged in yet. This silently
+            // failed and warm pool bots never queued for BG (the "warm bots not work"
+            // bug). JIT bots worked because they're logged in FIRST, then queued.
+            //
+            // The markAsInstanceBot flag is now set via pendingConfig.markAsInstanceBot
+            // in WarmUpBot() and applied by BotPostLoginConfigurator.
+            // ========================================================================
+            TC_LOG_DEBUG("playerbot.jit", "QueueStatePoller: Warm pool bots will queue for BG after login via BotPostLoginConfigurator");
 
             // Update remaining needs
             allianceStillNeeded = allianceStillNeeded > allianceFromPool ? allianceStillNeeded - allianceFromPool : 0;
@@ -659,17 +713,16 @@ void QueueStatePoller::ProcessBGShortage(BGQueueSnapshot const& snapshot)
         request.priority = priority;
         request.createdAt = std::chrono::system_clock::now();
 
-        // Callback to queue the bot for BG after creation
-        request.onComplete = [bgTypeId = snapshot.bgTypeId, bracket = snapshot.bracketId](std::vector<ObjectGuid> const& botGuids) {
-            for (ObjectGuid const& guid : botGuids)
-            {
-                if (Player* bot = ObjectAccessor::FindPlayer(guid))
-                {
-                    sBGBotManager->QueueBotForBG(bot, bgTypeId, bracket);
-                    TC_LOG_DEBUG("playerbot.jit", "QueueStatePoller: JIT Alliance bot {} queued for BG type {}",
-                        guid.ToString(), static_cast<uint32>(bgTypeId));
-                }
-            }
+        // Set BG ID for post-login queueing
+        // The BotPostLoginConfigurator will queue bots AFTER they're fully logged in
+        // This avoids the timing issue where ObjectAccessor::FindPlayer returns nullptr
+        // because the bots haven't entered the world yet when onComplete fires.
+        request.battlegroundIdToQueue = static_cast<uint32>(snapshot.bgTypeId);
+
+        // Callback for debugging (bots queue via BotPostLoginConfigurator, not here)
+        request.onComplete = [bgTypeId = snapshot.bgTypeId](std::vector<ObjectGuid> const& botGuids) {
+            TC_LOG_INFO("playerbot.jit", "QueueStatePoller: {} JIT Alliance bots created for BG {} - they will auto-queue after login",
+                botGuids.size(), static_cast<uint32>(bgTypeId));
         };
 
         uint32 requestId = sJITBotFactory->SubmitRequest(std::move(request));
@@ -692,16 +745,13 @@ void QueueStatePoller::ProcessBGShortage(BGQueueSnapshot const& snapshot)
         request.priority = priority;
         request.createdAt = std::chrono::system_clock::now();
 
-        request.onComplete = [bgTypeId = snapshot.bgTypeId, bracket = snapshot.bracketId](std::vector<ObjectGuid> const& botGuids) {
-            for (ObjectGuid const& guid : botGuids)
-            {
-                if (Player* bot = ObjectAccessor::FindPlayer(guid))
-                {
-                    sBGBotManager->QueueBotForBG(bot, bgTypeId, bracket);
-                    TC_LOG_DEBUG("playerbot.jit", "QueueStatePoller: JIT Horde bot {} queued for BG type {}",
-                        guid.ToString(), static_cast<uint32>(bgTypeId));
-                }
-            }
+        // Set BG ID for post-login queueing (same as Alliance - bracket determined by level)
+        request.battlegroundIdToQueue = static_cast<uint32>(snapshot.bgTypeId);
+
+        // Callback for debugging (bots queue via BotPostLoginConfigurator, not here)
+        request.onComplete = [bgTypeId = snapshot.bgTypeId](std::vector<ObjectGuid> const& botGuids) {
+            TC_LOG_INFO("playerbot.jit", "QueueStatePoller: {} JIT Horde bots created for BG {} - they will auto-queue after login",
+                botGuids.size(), static_cast<uint32>(bgTypeId));
         };
 
         uint32 requestId = sJITBotFactory->SubmitRequest(std::move(request));

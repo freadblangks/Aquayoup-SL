@@ -554,7 +554,7 @@ namespace Playerbot
         else if (formationType == "diamond")
             type = MovementFormationType::DIAMOND;
         else if (formationType == "square" || formationType == "defensive")
-            type = MovementFormationType::BOX;  // BOX is the defensive square formation
+            type = MovementFormationType::DEFENSIVE;  // DEFENSIVE is the defensive square formation
         else if (formationType == "arrow")
             type = MovementFormationType::WEDGE;  // Arrow formation maps to wedge (similar tactical purpose)
         else if (formationType == "line")
@@ -977,7 +977,7 @@ namespace Playerbot
             return false;
         }
 
-        // Note: Race/class validation removed in TrinityCore 11.2
+        // Note: Race/class validation removed in TrinityCore 12.0
         // DB2 now handles this through ChrCustomizationReq and other tables
 
         return true;

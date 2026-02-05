@@ -11,6 +11,9 @@
 #include "BotTemplateRepository.h"
 #include "Equipment/BotGearFactory.h"
 #include "LFG/LFGBotManager.h"
+#include "PvP/BGBotManager.h"
+#include "Session/BotWorldSessionMgr.h"
+#include "BattlegroundMgr.h"
 #include "Player.h"
 #include "Item.h"
 #include "Log.h"
@@ -360,8 +363,81 @@ bool BotPostLoginConfigurator::ApplyPendingConfiguration(Player* player)
         }
     }
 
-    // TODO: Add battleground and arena queueing when needed
-    // if (config.battlegroundIdToQueue > 0) { ... }
+    // Step 8: Queue for battleground if this was a JIT-created bot
+    if (config.battlegroundIdToQueue > 0)
+    {
+        BattlegroundTypeId bgTypeId = static_cast<BattlegroundTypeId>(config.battlegroundIdToQueue);
+        TC_LOG_INFO("module.playerbot.configurator",
+            "Queueing JIT bot {} for battleground {} after configuration",
+            player->GetName(), config.battlegroundIdToQueue);
+
+        // Get the BG template to find the map ID
+        BattlegroundTemplate const* bgTemplate = sBattlegroundMgr->GetBattlegroundTemplateByTypeId(bgTypeId);
+        if (bgTemplate && !bgTemplate->MapIDs.empty())
+        {
+            // Determine bracket from bot's level
+            PVPDifficultyEntry const* bracketEntry = DB2Manager::GetBattlegroundBracketByLevel(
+                bgTemplate->MapIDs.front(), player->GetLevel());
+
+            if (bracketEntry)
+            {
+                BattlegroundBracketId bracketId = bracketEntry->GetBracketId();
+
+                // CRITICAL FIX: Use QueueBotForBGWithTracking to register in _queuedBots
+                // This ensures OnInvitationReceived processes the invitation and bot enters BG
+                // Without this, bots receive invitations but never teleport into the BG
+                if (!config.humanPlayerGuid.IsEmpty())
+                {
+                    if (sBGBotManager->QueueBotForBGWithTracking(player, bgTypeId, bracketId, config.humanPlayerGuid))
+                    {
+                        TC_LOG_INFO("module.playerbot.configurator",
+                            "Successfully queued bot {} for BG {} bracket {} (with tracking for human {})",
+                            player->GetName(), config.battlegroundIdToQueue, static_cast<uint8>(bracketId),
+                            config.humanPlayerGuid.ToString());
+                    }
+                    else
+                    {
+                        TC_LOG_WARN("module.playerbot.configurator",
+                            "Failed to queue bot {} for BG {} with tracking",
+                            player->GetName(), config.battlegroundIdToQueue);
+                    }
+                }
+                else
+                {
+                    // Fallback to non-tracking queue (bot won't auto-accept invitation properly)
+                    TC_LOG_WARN("module.playerbot.configurator",
+                        "No humanPlayerGuid for bot {} - using non-tracking BG queue (invitation handling may fail)",
+                        player->GetName());
+                    if (sBGBotManager->QueueBotForBG(player, bgTypeId, bracketId))
+                    {
+                        TC_LOG_INFO("module.playerbot.configurator",
+                            "Successfully queued bot {} for BG {} bracket {} (WITHOUT tracking)",
+                            player->GetName(), config.battlegroundIdToQueue, static_cast<uint8>(bracketId));
+                    }
+                    else
+                    {
+                        TC_LOG_WARN("module.playerbot.configurator",
+                            "Failed to queue bot {} for BG {}",
+                            player->GetName(), config.battlegroundIdToQueue);
+                    }
+                }
+            }
+            else
+            {
+                TC_LOG_WARN("module.playerbot.configurator",
+                    "Could not determine BG bracket for bot {} (level {}) on map {}",
+                    player->GetName(), player->GetLevel(), bgTemplate->MapIDs.front());
+            }
+        }
+        else
+        {
+            TC_LOG_WARN("module.playerbot.configurator",
+                "Could not find BG template for type {}",
+                config.battlegroundIdToQueue);
+        }
+    }
+
+    // TODO: Add arena queueing when needed
     // if (config.arenaTypeToQueue > 0) { ... }
 
     // Calculate timing
@@ -383,6 +459,19 @@ bool BotPostLoginConfigurator::ApplyPendingConfiguration(Player* player)
         TC_LOG_WARN("module.playerbot.configurator",
             "Partially configured bot {} in {}ms (some steps failed)",
             player->GetName(), durationMs);
+    }
+
+    // Step 9: Mark as instance bot if flagged
+    // CRITICAL FIX (2026-02-03): Instance bot marking must happen AFTER login completes
+    // Previously, MarkAsInstanceBot() was called immediately after AddPlayerBot() in JITBotFactory,
+    // but AddPlayerBot() only queues the spawn - the session doesn't exist yet!
+    // Now we mark the bot here, where the session is guaranteed to exist.
+    if (config.markAsInstanceBot)
+    {
+        sBotWorldSessionMgr->MarkAsInstanceBot(playerGuid);
+        TC_LOG_INFO("module.playerbot.configurator",
+            "Marked bot {} as INSTANCE BOT (idle timeout enabled, restricted behavior)",
+            player->GetName());
     }
 
     // CRITICAL: Add to recently configured set BEFORE removing pending config
@@ -920,7 +1009,7 @@ GearSetTemplate const* BotPostLoginConfigurator::SelectGearSet(BotTemplate const
 }
 
 // ============================================================================
-// SPELL LEARNING VERIFICATION - Modern WoW 11.2 Approach
+// SPELL LEARNING VERIFICATION - Modern WoW 12.0 Approach
 // ============================================================================
 // In modern WoW (since Patch 5.0.4 / MoP 2012), ALL combat spells are learned
 // automatically on level up. Class trainers no longer exist for combat abilities.

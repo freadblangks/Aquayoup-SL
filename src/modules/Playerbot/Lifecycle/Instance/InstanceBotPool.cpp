@@ -17,9 +17,12 @@
 #include "Account/BotAccountMgr.h"
 #include "Config/PlayerbotConfig.h"
 #include "Session/BotWorldSessionMgr.h"
+#include "PvP/BGBotManager.h"
+#include "BattlegroundMgr.h"
 #include "CharacterCache.h"
 #include "DatabaseEnv.h"
 #include "Database/PlayerbotDatabase.h"
+#include "DB2Stores.h"
 #include "Log.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -896,7 +899,8 @@ std::vector<ObjectGuid> InstanceBotPool::AssignForRaid(
 
 BGAssignment InstanceBotPool::AssignForBattleground(
     uint32 bgTypeId, uint32 bracketLevel,
-    uint32 allianceNeeded, uint32 hordeNeeded)
+    uint32 allianceNeeded, uint32 hordeNeeded,
+    ObjectGuid humanPlayerGuid)
 {
     auto startTime = std::chrono::steady_clock::now();
 
@@ -983,11 +987,25 @@ BGAssignment InstanceBotPool::AssignForBattleground(
         }
     }
 
-    // Assign all selected bots
+    // DIAGNOSTIC: Log selection results before assignment
+    TC_LOG_INFO("playerbot.pool", "AssignForBattleground: Selected Alliance={} Horde={} (requested A={} H={}) from bracket {}",
+        result.allianceBots.size(), result.hordeBots.size(), allianceNeeded, hordeNeeded, static_cast<uint32>(bracket));
+
+    // Assign all selected bots - this triggers async login via WarmUpBot
+    // NOTE: Bots will NOT be immediately online after this! They need 1-2 seconds to log in.
+    // CRITICAL: Pass humanPlayerGuid so bots use QueueBotForBGWithTracking for proper invitation handling
     for (ObjectGuid guid : result.allianceBots)
-        AssignBot(guid, 0, bgTypeId, InstanceType::Battleground, bracketLevel);
+    {
+        bool assigned = AssignBot(guid, 0, bgTypeId, InstanceType::Battleground, bracketLevel, humanPlayerGuid);
+        TC_LOG_DEBUG("playerbot.pool", "AssignForBattleground: Alliance bot {} assign result: {} (async login started, tracking human {})",
+            guid.ToString(), assigned, humanPlayerGuid.ToString());
+    }
     for (ObjectGuid guid : result.hordeBots)
-        AssignBot(guid, 0, bgTypeId, InstanceType::Battleground, bracketLevel);
+    {
+        bool assigned = AssignBot(guid, 0, bgTypeId, InstanceType::Battleground, bracketLevel, humanPlayerGuid);
+        TC_LOG_DEBUG("playerbot.pool", "AssignForBattleground: Horde bot {} assign result: {} (async login started, tracking human {})",
+            guid.ToString(), assigned, humanPlayerGuid.ToString());
+    }
 
     // Record timing
     auto endTime = std::chrono::steady_clock::now();
@@ -1594,10 +1612,13 @@ bool InstanceBotPool::WarmUpBot(ObjectGuid botGuid)
     // stayed at level 1 because no pending config was registered.
     // ========================================================================
 
-    // Get slot info (accountId and target level)
+    // Get slot info (accountId, target level, queue info, and human player for BG tracking)
     uint32 accountId = 0;
     uint32 targetLevel = 1;
     uint32 specId = 0;
+    uint32 contentId = 0;
+    InstanceType instanceType = InstanceType::Dungeon;
+    ObjectGuid humanPlayerGuid;  // For BG invitation tracking
     {
         std::shared_lock lock(_slotsMutex);
         auto it = _slots.find(botGuid);
@@ -1610,6 +1631,78 @@ bool InstanceBotPool::WarmUpBot(ObjectGuid botGuid)
         accountId = it->second.accountId;
         targetLevel = it->second.level;  // Level from pool slot metadata
         specId = it->second.specId;
+        // Get queue info set by AssignBot
+        contentId = it->second.currentContentId;
+        instanceType = it->second.currentInstanceType;
+        humanPlayerGuid = it->second.humanPlayerGuid;  // For BG invitation tracking
+    }
+
+    // ========================================================================
+    // CRITICAL FIX (2026-02-03): Handle already-online bots
+    // ========================================================================
+    // If the bot is already logged in, we should NOT try to spawn it again.
+    // Instead, queue it directly for the content (BG/Dungeon/Arena).
+    // Previously, spawn would "fail" and bot would be moved to Maintenance,
+    // causing warm pool bots to never actually join BG queues.
+    // ========================================================================
+    if (Player* existingPlayer = ObjectAccessor::FindPlayer(botGuid))
+    {
+        TC_LOG_INFO("playerbot.pool", "InstanceBotPool::WarmUpBot - Bot {} already online, queueing directly for content {}",
+            botGuid.ToString(), contentId);
+
+        // Mark as instance bot if not already
+        sBotWorldSessionMgr->MarkAsInstanceBot(botGuid);
+
+        // Queue for content based on instance type
+        bool queueSuccess = false;
+        if (contentId > 0)
+        {
+            switch (instanceType)
+            {
+                case InstanceType::Battleground:
+                {
+                    BattlegroundTypeId bgTypeId = static_cast<BattlegroundTypeId>(contentId);
+                    BattlegroundTemplate const* bgTemplate = sBattlegroundMgr->GetBattlegroundTemplateByTypeId(bgTypeId);
+                    if (bgTemplate && !bgTemplate->MapIDs.empty())
+                    {
+                        PVPDifficultyEntry const* bracketEntry = DB2Manager::GetBattlegroundBracketByLevel(
+                            bgTemplate->MapIDs.front(), existingPlayer->GetLevel());
+                        if (bracketEntry)
+                        {
+                            BattlegroundBracketId bracketId = bracketEntry->GetBracketId();
+                            queueSuccess = sBGBotManager->QueueBotForBG(existingPlayer, bgTypeId, bracketId);
+                            TC_LOG_INFO("playerbot.pool", "InstanceBotPool::WarmUpBot - Queued already-online bot {} for BG {} bracket {}: {}",
+                                botGuid.ToString(), contentId, static_cast<uint8>(bracketId), queueSuccess ? "SUCCESS" : "FAILED");
+                        }
+                    }
+                    break;
+                }
+                case InstanceType::Dungeon:
+                    // TODO: Implement direct dungeon queueing for already-online bots
+                    TC_LOG_WARN("playerbot.pool", "InstanceBotPool::WarmUpBot - Direct dungeon queueing not yet implemented for bot {}",
+                        botGuid.ToString());
+                    break;
+                case InstanceType::Arena:
+                    // TODO: Implement direct arena queueing for already-online bots
+                    TC_LOG_WARN("playerbot.pool", "InstanceBotPool::WarmUpBot - Direct arena queueing not yet implemented for bot {}",
+                        botGuid.ToString());
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // Update slot state to Assigned (queued for content)
+        {
+            std::unique_lock lock(_slotsMutex);
+            auto it = _slots.find(botGuid);
+            if (it != _slots.end())
+                it->second.ForceState(PoolSlotState::Assigned);
+        }
+
+        // Call warmup complete with success (bot is already usable)
+        OnBotWarmupComplete(botGuid, true);
+        return true;
     }
 
     // Fallback: Try to get account ID from CharacterCache if not in slot
@@ -1653,11 +1746,44 @@ bool InstanceBotPool::WarmUpBot(ObjectGuid botGuid)
     pendingConfig.specId = specId;
     pendingConfig.targetGearScore = targetLevel * 10;  // Approximate gear score based on level
     pendingConfig.createdAt = std::chrono::steady_clock::now();
+    pendingConfig.humanPlayerGuid = humanPlayerGuid;  // For BG invitation tracking
+
+    // CRITICAL FIX: Set queue info so bot auto-queues for content after login
+    // This fixes the issue where warm pool bots are "assigned" but never actually
+    // queued for BG because they weren't in the world when QueueStatePoller tried
+    // to call ObjectAccessor::FindPlayer()
+    if (contentId > 0)
+    {
+        switch (instanceType)
+        {
+            case InstanceType::Battleground:
+                pendingConfig.battlegroundIdToQueue = contentId;
+                TC_LOG_DEBUG("playerbot.pool", "InstanceBotPool::WarmUpBot - Bot {} will queue for BG {} after login (tracking human {})",
+                    botGuid.ToString(), contentId, humanPlayerGuid.ToString());
+                break;
+            case InstanceType::Dungeon:
+                pendingConfig.dungeonIdToQueue = contentId;
+                TC_LOG_DEBUG("playerbot.pool", "InstanceBotPool::WarmUpBot - Bot {} will queue for dungeon {} after login",
+                    botGuid.ToString(), contentId);
+                break;
+            case InstanceType::Arena:
+                pendingConfig.arenaTypeToQueue = contentId;
+                TC_LOG_DEBUG("playerbot.pool", "InstanceBotPool::WarmUpBot - Bot {} will queue for arena {} after login",
+                    botGuid.ToString(), contentId);
+                break;
+            default:
+                break;
+        }
+    }
+
+    // Mark as instance bot - this will be applied after login by BotPostLoginConfigurator
+    // CRITICAL: This ensures warm pool bots get proper idle timeout and restricted behavior
+    pendingConfig.markAsInstanceBot = true;
 
     sBotPostLoginConfigurator->RegisterPendingConfig(std::move(pendingConfig));
 
-    TC_LOG_INFO("playerbot.pool", "InstanceBotPool::WarmUpBot - Registered pending config for bot {} (level={}, spec={}, gearScore={})",
-        botGuid.ToString(), targetLevel, specId, pendingConfig.targetGearScore);
+    TC_LOG_INFO("playerbot.pool", "InstanceBotPool::WarmUpBot - Registered pending config for bot {} (level={}, spec={}, gearScore={}, contentId={}, type={})",
+        botGuid.ToString(), targetLevel, specId, pendingConfig.targetGearScore, contentId, static_cast<uint8>(instanceType));
 
     // Use BotSpawner to spawn the bot (same flow as regular bots)
     // This uses the proven workflow: SpawnBot -> async character selection -> login
@@ -1665,6 +1791,10 @@ bool InstanceBotPool::WarmUpBot(ObjectGuid botGuid)
     request.type = SpawnRequest::SPECIFIC_CHARACTER;
     request.accountId = accountId;
     request.characterGuid = botGuid;
+    request.bypassMaxBotsLimit = true;  // Pool bots bypass MaxBots limit - they're temporary for BG/dungeon/arena
+
+    TC_LOG_INFO("playerbot.pool", "WarmUpBot - Creating SpawnRequest: type=SPECIFIC_CHARACTER, guid={}, accountId={}, bypassMaxBotsLimit={}",
+        botGuid.ToString(), accountId, request.bypassMaxBotsLimit);
     request.callback = [this, botGuid](bool success, ObjectGuid guid) {
         if (success)
         {
@@ -1832,7 +1962,8 @@ std::vector<ObjectGuid> InstanceBotPool::SelectBots(BotRole role, Faction factio
 }
 
 bool InstanceBotPool::AssignBot(ObjectGuid botGuid, uint32 instanceId,
-                                 uint32 contentId, InstanceType type, uint32 targetLevel)
+                                 uint32 contentId, InstanceType type, uint32 targetLevel,
+                                 ObjectGuid humanPlayerGuid)
 {
     // ========================================================================
     // REFACTORED (2026-01-12): Pool bots login on-demand via BotSpawner
@@ -1841,6 +1972,10 @@ bool InstanceBotPool::AssignBot(ObjectGuid botGuid, uint32 instanceId,
     //
     // FIX (2026-01-15): Store targetLevel in slot so WarmUpBot can register
     // the correct level in pending configuration (not the bracket level).
+    //
+    // FIX (2026-02-05): Store humanPlayerGuid for BG invitation tracking.
+    // This allows WarmUpBot to pass it to BotPendingConfiguration so that
+    // QueueBotForBGWithTracking is used instead of QueueBotForBG.
     // ========================================================================
 
     {
@@ -1854,6 +1989,7 @@ bool InstanceBotPool::AssignBot(ObjectGuid botGuid, uint32 instanceId,
         it->second.currentInstanceId = instanceId;
         it->second.currentContentId = contentId;
         it->second.currentInstanceType = type;
+        it->second.humanPlayerGuid = humanPlayerGuid;  // For BG invitation tracking
 
         // FIX: Update slot.level to target level so WarmUpBot uses correct level
         // for pending configuration. Pool bots are created at bracket midpoint
@@ -2327,7 +2463,12 @@ void InstanceBotPool::SyncToDatabase()
             // Execute any remaining rows
             if (batchCount > 0)
             {
+                // CRITICAL FIX: Include account_id in ON DUPLICATE KEY UPDATE
+                // Previously, if a bot was saved with account_id = 0, it would never
+                // be updated even after WarmUpBot corrected it from CharacterCache.
+                // This caused "No account ID for bot" errors after server restart.
                 query << " ON DUPLICATE KEY UPDATE "
+                      << "`account_id` = VALUES(`account_id`), "
                       << "`slot_state` = VALUES(`slot_state`), "
                       << "`assignment_count` = VALUES(`assignment_count`), "
                       << "`successful_completions` = VALUES(`successful_completions`), "
@@ -2387,6 +2528,7 @@ void InstanceBotPool::LoadFromDatabase()
     uint32 loadedCount = 0;
     uint32 orphanedCount = 0;
     std::vector<uint64> orphanedGuids; // Collect orphaned GUIDs for cleanup
+    std::vector<uint32> accountsToMark; // Collect account IDs to mark as in-use
 
     do
     {
@@ -2410,6 +2552,26 @@ void InstanceBotPool::LoadFromDatabase()
         slot.botGuid = guid;
         slot.accountId = fields[1].GetUInt32();
         slot.botName = fields[2].GetString();
+
+        // CRITICAL FIX: Repair account_id = 0 from CharacterCache
+        // This fixes bots that were previously saved with account_id = 0
+        // The character exists (we checked above), so CharacterCache should have it
+        if (slot.accountId == 0)
+        {
+            CharacterCacheEntry const* charInfo = sCharacterCache->GetCharacterCacheByGuid(guid);
+            if (charInfo && charInfo->AccountId > 0)
+            {
+                slot.accountId = charInfo->AccountId;
+                TC_LOG_INFO("playerbot.pool", "LoadFromDatabase: Repaired account_id for {} from CharacterCache (accountId={})",
+                    guid.ToString(), slot.accountId);
+            }
+            else
+            {
+                // Character cache doesn't have account - this bot won't be able to login
+                TC_LOG_WARN("playerbot.pool", "LoadFromDatabase: Bot {} has account_id=0 and CharacterCache has no account, bot may fail to login",
+                    guid.ToString());
+            }
+        }
 
         // Parse role enum
         std::string roleStr = fields[3].GetString();
@@ -2450,6 +2612,12 @@ void InstanceBotPool::LoadFromDatabase()
         _slots[guid] = slot;
         ++loadedCount;
 
+        // Collect account ID to mark as in-use (prevent zone spawning from using pool bot accounts)
+        if (slot.accountId > 0)
+        {
+            accountsToMark.push_back(slot.accountId);
+        }
+
         TC_LOG_DEBUG("playerbot.pool", "Loaded warm pool bot: {} ({}) Role={} Faction={} Level={}",
             slot.botName, guid.ToString(),
             BotRoleToString(slot.role), FactionToString(slot.faction), slot.level);
@@ -2457,6 +2625,26 @@ void InstanceBotPool::LoadFromDatabase()
     } while (result->NextRow());
 
     lock.unlock();
+
+    // ========================================================================
+    // CRITICAL FIX: Mark pool bot accounts as in-use in BotAccountMgr
+    // This prevents zone-based spawning from acquiring pool bot accounts,
+    // which would cause character selection to find pool bot characters and
+    // spawn them with bypassLimit=false (causing "MAX BOTS LIMIT" errors)
+    // ========================================================================
+    if (!accountsToMark.empty())
+    {
+        uint32 markedCount = 0;
+        for (uint32 accountId : accountsToMark)
+        {
+            if (sBotAccountMgr->MarkAccountInUse(accountId))
+            {
+                ++markedCount;
+            }
+        }
+        TC_LOG_INFO("playerbot.pool", "Marked {} pool bot accounts as in-use in BotAccountMgr",
+            markedCount);
+    }
 
     // Rebuild ready index with loaded bots
     RebuildReadyIndex();
@@ -2660,6 +2848,8 @@ std::vector<ObjectGuid> InstanceBotPool::SelectBotsFromBracket(BotRole role, Fac
         factionIdx >= static_cast<size_t>(Faction::Max) ||
         bracketIdx >= NUM_LEVEL_BRACKETS)
     {
+        TC_LOG_DEBUG("playerbot.pool", "SelectBotsFromBracket: Invalid indices - role={} faction={} bracket={}",
+            roleIdx, factionIdx, bracketIdx);
         return result;
     }
 
@@ -2667,6 +2857,11 @@ std::vector<ObjectGuid> InstanceBotPool::SelectBotsFromBracket(BotRole role, Fac
 
     uint32 available = static_cast<uint32>(bracketBots.size());
     uint32 toSelect = std::min(count, available);
+
+    // DIAGNOSTIC: Log ready index state
+    TC_LOG_INFO("playerbot.pool", "SelectBotsFromBracket: role={} faction={} bracket={} requested={} available={} selecting={}",
+        BotRoleToString(role), FactionToString(faction), static_cast<uint32>(bracket),
+        count, available, toSelect);
 
     for (uint32 i = 0; i < toSelect; ++i)
     {

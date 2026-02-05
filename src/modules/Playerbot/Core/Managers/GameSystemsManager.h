@@ -32,7 +32,9 @@
 #include "Banking/BankingManager.h"
 #include "Equipment/EquipmentManager.h"
 #include "Companion/MountManager.h"
+#include "Companion/RidingManager.h"
 #include "Companion/BattlePetManager.h"
+#include "Humanization/Core/HumanizationManager.h"
 #include "PvP/ArenaAI.h"
 #include "PvP/PvPCombatAI.h"
 #include "Social/AuctionHouse.h"
@@ -129,7 +131,7 @@ class LootDistribution;
  * **Phase 7.1.2 Integration (2025-11-18):**
  * PvPCombatAI converted from singleton to per-bot instance (28th manager)
  */
-class TC_GAME_API GameSystemsManager final : public IGameSystemsManager
+class TC_GAME_API GameSystemsManager final : public IGameSystemsManager 
 {
 public:
     /**
@@ -167,10 +169,12 @@ public:
     ProfessionAuctionBridge* GetProfessionAuctionBridge() const { return _professionAuctionBridge.get(); }
     FarmingCoordinator* GetFarmingCoordinator() const { return _farmingCoordinator.get(); }
     AuctionManager* GetAuctionManager() const override { return _auctionManager.get(); }
-    BankingManager* GetBankingManager() const { return _bankingManager.get(); }
+    BankingManager* GetBankingManager() const override { return _bankingManager.get(); }
     EquipmentManager* GetEquipmentManager() const override { return _equipmentManager.get(); }
     MountManager* GetMountManager() const { return _mountManager.get(); }
+    RidingManager* GetRidingManager() const { return _ridingManager.get(); }
     BattlePetManager* GetBattlePetManager() const { return _battlePetManager.get(); }
+    Humanization::HumanizationManager* GetHumanizationManager() const { return _humanizationManager.get(); }
     ArenaAI* GetArenaAI() const { return _arenaAI.get(); }
     PvPCombatAI* GetPvPCombatAI() const { return _pvpCombatAI.get(); }
     AuctionHouse* GetAuctionHouse() const { return _auctionHouse.get(); }
@@ -179,7 +183,7 @@ public:
     GuildIntegration* GetGuildIntegration() const { return _guildIntegration.get(); }
     LootDistribution* GetLootDistribution() const override { return _lootDistribution.get(); }
     TradeSystem* GetTradeSystem() const { return _tradeSystem.get(); }
-    DynamicQuestSystem* GetDynamicQuestSystem() const { return _dynamicQuestSystem.get(); }
+    DynamicQuestSystem* GetDynamicQuestSystem() const override { return _dynamicQuestSystem.get(); }
     ObjectiveTracker* GetObjectiveTracker() const override { return _objectiveTracker.get(); }
     QuestCompletion* GetQuestCompletion() const override { return _questCompletion.get(); }
     QuestPickup* GetQuestPickup() const override { return _questPickup.get(); }
@@ -199,7 +203,7 @@ public:
     // Note: BotWorldSessionMgr is a global singleton, use sBotWorldSessionMgr macro instead
     // BotWorldSessionMgr* GetBotWorldSessionMgr() const { return _botWorldSessionMgr.get(); }
     BotLifecycleManager* GetBotLifecycleManager() const { return _botLifecycleManager.get(); }
-    IGroupCoordinator* GetGroupCoordinator() const override { return _groupCoordinator.get(); }
+    Advanced::GroupCoordinator* GetGroupCoordinator() const override { return _groupCoordinator.get(); }
     DeathRecoveryManager* GetDeathRecoveryManager() const override { return _deathRecoveryManager.get(); }
     UnifiedMovementCoordinator* GetMovementCoordinator() const override { return _unifiedMovementCoordinator.get(); }
     CombatStateManager* GetCombatStateManager() const override { return _combatStateManager.get(); }
@@ -236,7 +240,9 @@ private:
     std::unique_ptr<BankingManager> _bankingManager;
     std::unique_ptr<EquipmentManager> _equipmentManager;
     std::unique_ptr<MountManager> _mountManager;
+    std::unique_ptr<RidingManager> _ridingManager;
     std::unique_ptr<BattlePetManager> _battlePetManager;
+    std::unique_ptr<Humanization::HumanizationManager> _humanizationManager;
     std::unique_ptr<ArenaAI> _arenaAI;
     std::unique_ptr<PvPCombatAI> _pvpCombatAI;
     std::unique_ptr<AuctionHouse> _auctionHouse;
@@ -301,6 +307,19 @@ private:
     uint32 _professionCheckTimer{0};
     uint32 _bankingCheckTimer{0};
     uint32 _debugLogAccumulator{0};
+
+    // PERFORMANCE FIX: Additional throttle timers to reduce per-tick workload
+    // Many managers were updating EVERY FRAME causing 1000+ operations/second
+    uint32 _mountUpdateTimer{0};           // 200ms - responsive but not every frame
+    uint32 _ridingUpdateTimer{0};          // 5000ms - skill learning is rare
+    uint32 _battlePetUpdateTimer{0};       // 500ms - pet AI doesn't need 60fps
+    uint32 _arenaAIUpdateTimer{0};         // 100ms - fast for PvP responsiveness
+    uint32 _pvpCombatUpdateTimer{0};       // 100ms - fast for PvP responsiveness
+    uint32 _auctionUpdateTimer{0};         // 5000ms - AH operations are slow anyway
+    uint32 _gatheringBridgeTimer{0};       // 2000ms - gathering coordination
+    uint32 _auctionBridgeTimer{0};         // 2000ms - material sourcing
+    uint32 _professionBridgeTimer{0};      // 5000ms - selling/buying materials
+    uint32 _farmingUpdateTimer{0};         // 2000ms - farming coordination
 
     // ========================================================================
     // HELPER METHODS

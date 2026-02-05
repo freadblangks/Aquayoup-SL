@@ -33,6 +33,69 @@
 namespace Playerbot {
 
 // ============================================================================
+// STUCK TASK DETECTION: Track currently executing bot tasks for diagnostics
+// ============================================================================
+namespace {
+    struct ExecutingTask {
+        ObjectGuid guid;
+        ::std::chrono::steady_clock::time_point startTime;
+        ::std::string botName;
+    };
+
+    // Thread-safe registry of currently executing bot tasks
+    ::std::mutex _executingTasksMutex;
+    ::std::unordered_map<ObjectGuid, ExecutingTask> _executingTasks;
+
+    void RegisterTaskStart(ObjectGuid guid, ::std::string const& botName)
+    {
+        ::std::lock_guard lock(_executingTasksMutex);
+        _executingTasks[guid] = { guid, ::std::chrono::steady_clock::now(), botName };
+
+        // DEBUG: Log registration to verify code is being called
+        static uint32 regCount = 0;
+        if (++regCount % 100 == 1)  // Log every 100th registration to avoid spam
+        {
+            TC_LOG_INFO("module.playerbot.session",
+                "RegisterTaskStart: Bot {} (GUID: {}), total tracked: {}",
+                botName, guid.ToString(), _executingTasks.size());
+        }
+    }
+
+    void RegisterTaskEnd(ObjectGuid guid)
+    {
+        ::std::lock_guard lock(_executingTasksMutex);
+        _executingTasks.erase(guid);
+    }
+
+    // Called when timeout occurs to identify stuck tasks
+    void LogStuckTasks(uint32 thresholdMs)
+    {
+        ::std::lock_guard lock(_executingTasksMutex);
+        auto now = ::std::chrono::steady_clock::now();
+
+        size_t totalTracked = _executingTasks.size();
+        size_t stuckCount = 0;
+
+        for (auto const& [guid, task] : _executingTasks)
+        {
+            auto elapsed = ::std::chrono::duration_cast<::std::chrono::milliseconds>(now - task.startTime).count();
+            if (elapsed > thresholdMs)
+            {
+                ++stuckCount;
+                TC_LOG_ERROR("module.playerbot.session",
+                    "STUCK TASK DETECTED: Bot {} (GUID: {}) has been executing for {}ms!",
+                    task.botName, guid.ToString(), elapsed);
+            }
+        }
+
+        // Always log summary for diagnostics
+        TC_LOG_ERROR("module.playerbot.session",
+            "LogStuckTasks: {} tasks tracked, {} stuck (>{} ms)",
+            totalTracked, stuckCount, thresholdMs);
+    }
+} // anonymous namespace
+
+// ============================================================================
 // PHASE A: ThreadPool Integration - Priority Mapping
 // ============================================================================
 
@@ -196,6 +259,10 @@ void BotWorldSessionMgr::Shutdown()
 
 bool BotWorldSessionMgr::AddPlayerBot(ObjectGuid playerGuid, uint32 masterAccountId, bool bypassLimit)
 {
+    // TRACE: Log all AddPlayerBot calls to identify spawn origin
+    TC_LOG_INFO("module.playerbot.session", "?? AddPlayerBot ENTRY - guid={}, accountId={}, bypassLimit={}",
+        playerGuid.ToString(), masterAccountId, bypassLimit);
+
     if (!_enabled.load() || !_initialized.load())
     {
         TC_LOG_ERROR("module.playerbot.session", "?? BotWorldSessionMgr not enabled or initialized");
@@ -335,6 +402,19 @@ void BotWorldSessionMgr::RemovePlayerBot(ObjectGuid playerGuid)
             {
                 TC_LOG_INFO("module.playerbot.session", "Queuing bot for removal (name unavailable)");
             }
+
+            // CRITICAL FIX (Map.cpp:1968 use-after-free crash):
+            // Mark bot as destroyed BEFORE clearing update mask to prevent re-adding to _updateObjects.
+            //
+            // Problem: After ClearUpdateMask(true) removes bot from _updateObjects, bot AI continues
+            // running and may modify properties. Property setters call AddToObjectUpdateIfNeeded()
+            // which re-adds the bot to _updateObjects. When bot is finally destroyed during logout,
+            // MapUpdater worker threads find a dangling pointer -> ACCESS_VIOLATION.
+            //
+            // Solution: Set m_isDestroyedObject=true FIRST. This blocks AddToObjectUpdateIfNeeded()
+            // from ever re-adding the bot to _updateObjects (check added in BaseEntity.cpp).
+            player->SetDestroyedObject(true);
+            TC_LOG_DEBUG("module.playerbot.session", "Marked bot {} as destroyed to prevent _updateObjects re-add", playerGuid.ToString());
 
             // CRITICAL FIX (Cell::Visit crash - CellImpl.h:65):
             // Clear visibility notification flags BEFORE queuing for removal.
@@ -818,10 +898,23 @@ void BotWorldSessionMgr::UpdateSessions(uint32 diff)
         // OPTION 5: Capture weak_ptr for session lifetime detection
         ::std::weak_ptr<BotSession> weakSession = botSession;
 
+        // Capture bot name for stuck task diagnostics (before lambda capture)
+        ::std::string botNameForDiag = botSession->GetPlayer() ? botSession->GetPlayer()->GetName() : guid.ToString();
+
         // Define the update logic (will be used in both parallel and sequential paths)
-        auto updateLogic = [guid, weakSession, diff, currentTime, enterpriseMode, tickCounter, this]()
+        auto updateLogic = [guid, weakSession, diff, currentTime, enterpriseMode, tickCounter, botNameForDiag, this]()
             {
                 TC_LOG_TRACE("playerbot.session.task", "?? TASK START for bot {}", guid.ToString());
+
+                // STUCK TASK DETECTION: Register this task as executing
+                RegisterTaskStart(guid, botNameForDiag);
+
+                // RAII guard to ensure task is always unregistered
+                struct TaskEndGuard {
+                    ObjectGuid _guid;
+                    ~TaskEndGuard() { RegisterTaskEnd(_guid); }
+                } taskGuard{guid};
+
                 // OPTION 5: Check if session still exists (thread-safe with weak_ptr)
                 auto session = weakSession.lock();
                 if (!session)
@@ -1003,36 +1096,76 @@ void BotWorldSessionMgr::UpdateSessions(uint32 diff)
     // CRITICAL: We MUST wait indefinitely - a 50ms timeout is NOT sufficient!
     // If we return while workers are still running, MapUpdater WILL crash on m_procDeep assertion.
     // The timeout approach only deferred logout processing but did NOT prevent the crash.
+    //
+    // CRITICAL FIX (Map.cpp:1973 crash): Must check HasPendingWork() not just GetQueuedTasks()!
+    // Problem: GetQueuedTasks() only checks if tasks are QUEUED. A task can be dequeued
+    //          (queue empty) but STILL EXECUTING on a worker thread. If we only check queues,
+    //          we can proceed while workers still access bot objects → use-after-free crash.
+    // Solution: Use HasPendingWork() which checks both queued AND in-flight (executing) tasks.
     if (useThreadPool)
     {
-        uint32 queuedTasks = Performance::GetThreadPool().GetQueuedTasks();
-        if (queuedTasks > 0)
+        // Check for ANY pending work (queued OR currently executing)
+        if (Performance::GetThreadPool().HasPendingWork())
         {
+            size_t queuedTasks = Performance::GetThreadPool().GetQueuedTasks();
+            size_t inFlightTasks = Performance::GetThreadPool().GetInFlightTasks();
+
             auto startWait = ::std::chrono::steady_clock::now();
 
-            // Wait indefinitely for completion - we CANNOT proceed while workers cast spells
-            // Using max timeout to effectively block until all tasks complete
-            bool completed = Performance::GetThreadPool().WaitForCompletion(::std::chrono::milliseconds(5000));
+            // CRITICAL FIX (FreezeDetector 60s crash): Use much shorter timeouts!
+            // FreezeDetector triggers at 60s. We must leave plenty of buffer for:
+            // - Other World::Update operations after UpdateSessions
+            // - Any unexpected delays
+            // Total wait should be MAX 10 seconds (leaving 50s buffer)
+            constexpr auto INITIAL_WAIT = ::std::chrono::milliseconds(2000);
+            constexpr auto EXTENDED_WAIT = ::std::chrono::milliseconds(8000);
+            constexpr auto MAX_TOTAL_WAIT = ::std::chrono::milliseconds(10000);
+
+            bool completed = Performance::GetThreadPool().WaitForCompletion(INITIAL_WAIT);
 
             auto waitDuration = ::std::chrono::duration_cast<::std::chrono::milliseconds>(
                 ::std::chrono::steady_clock::now() - startWait);
 
+            if (!completed && waitDuration < MAX_TOTAL_WAIT)
+            {
+                // Tasks still running - log and try extended wait
+                TC_LOG_WARN("module.playerbot.session",
+                    "ThreadPool tasks still running after {}ms ({} queued, {} in-flight) - trying extended wait",
+                    waitDuration.count(), queuedTasks, inFlightTasks);
+
+                // STUCK TASK DETECTION: Early warning - log slow tasks
+                LogStuckTasks(1500);  // Log tasks executing for more than 1.5 seconds
+
+                // Calculate remaining time for extended wait
+                auto remaining = MAX_TOTAL_WAIT - waitDuration;
+                auto extendedTimeout = ::std::min(EXTENDED_WAIT, remaining);
+
+                completed = Performance::GetThreadPool().WaitForCompletion(extendedTimeout);
+
+                waitDuration = ::std::chrono::duration_cast<::std::chrono::milliseconds>(
+                    ::std::chrono::steady_clock::now() - startWait);
+            }
+
             if (!completed)
             {
-                // This should rarely happen - log as error if tasks take > 5 seconds
+                // CRITICAL: Still not completed - proceed anyway to prevent FreezeDetector crash
+                size_t finalQueued = Performance::GetThreadPool().GetQueuedTasks();
+                size_t finalInFlight = Performance::GetThreadPool().GetInFlightTasks();
+                size_t activeThreads = Performance::GetThreadPool().GetActiveThreads();
+
                 TC_LOG_ERROR("module.playerbot.session",
-                    "ThreadPool tasks still running after 5000ms ({} queued) - BLOCKING until complete to prevent m_procDeep crash",
-                    queuedTasks);
+                    "ThreadPool wait timeout after {}ms! {} queued, {} in-flight, {} active workers. "
+                    "PROCEEDING to prevent FreezeDetector crash - some bot updates may be incomplete!",
+                    waitDuration.count(), finalQueued, finalInFlight, activeThreads);
 
-                // Force wait without timeout - we CANNOT proceed with running workers
-                Performance::GetThreadPool().WaitForCompletion(::std::chrono::milliseconds::max());
+                // STUCK TASK DETECTION: Log which bots have been executing for too long
+                LogStuckTasks(2000);  // Log tasks executing for more than 2 seconds
+
                 canProcessLogouts = false;
-
-                TC_LOG_WARN("module.playerbot.session", "ThreadPool finally completed after extended wait");
             }
-            else if (waitDuration.count() > 100)
+            else if (waitDuration.count() > 500)
             {
-                // Log if wait was notably long (>100ms)
+                // Log if wait was notably long (>500ms)
                 TC_LOG_DEBUG("module.playerbot.session",
                     "ThreadPool wait took {}ms for {} tasks", waitDuration.count(), queuedTasks);
             }

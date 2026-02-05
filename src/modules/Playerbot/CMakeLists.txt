@@ -311,6 +311,8 @@ set(PLAYERBOT_AI_BASE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGState.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGSpatialQueryCache.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGSpatialQueryCache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGPositionDiscovery.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BGPositionDiscovery.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BattlegroundCoordinator.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BattlegroundCoordinator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/BattlegroundCoordinatorManager.h
@@ -330,6 +332,8 @@ set(PLAYERBOT_AI_BASE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/IBGScript.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/BGScriptRegistry.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/BGScriptRegistry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/BGScriptInit.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/BGScriptInit.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/BGScriptBase.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AI/Coordination/Battleground/Scripts/BGScriptBase.cpp
 
@@ -697,6 +701,8 @@ set(PLAYERBOT_LIFECYCLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/BotLifecycleMgr.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/DeathRecoveryManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/DeathRecoveryManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/CorpseCrashMitigation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/CorpseCrashMitigation.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/ResourceMonitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/ResourceMonitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/SpawnPriorityQueue.cpp
@@ -784,8 +790,8 @@ set(PLAYERBOT_LIFECYCLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/Instance/InstanceBotScripts.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lifecycle/Instance/InstanceBotScripts.h
 
-    # WoW 11.2 Character Creation Data
-    ${CMAKE_CURRENT_SOURCE_DIR}/Data/WoW112CharacterCreation.h
+    # WoW 12.0 Character Creation Data
+    ${CMAKE_CURRENT_SOURCE_DIR}/Data/WoW120CharacterCreation.h
 )
 
 # ============================================================================
