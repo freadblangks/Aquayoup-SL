@@ -54,46 +54,46 @@ public:
     // IDENTIFICATION
     // ========================================================================
 
-    uint32 GetMapId() const { return TempleOfKotmogu::MAP_ID; }
-    std::string GetName() const { return TempleOfKotmogu::BG_NAME; }
-    BGType GetBGType() const { return BGType::TEMPLE_OF_KOTMOGU; }
-    uint32 GetMaxScore() const { return TempleOfKotmogu::MAX_SCORE; }
-    uint32 GetMaxDuration() const { return TempleOfKotmogu::MAX_DURATION; }
-    uint8 GetTeamSize() const { return TempleOfKotmogu::TEAM_SIZE; }
-    uint32 GetOptimalNodeCount() const { return 2; }  // 2 orbs is good
+    uint32 GetMapId() const override { return TempleOfKotmogu::MAP_ID; }
+    std::string GetName() const override { return TempleOfKotmogu::BG_NAME; }
+    BGType GetBGType() const override { return BGType::TEMPLE_OF_KOTMOGU; }
+    uint32 GetMaxScore() const override { return TempleOfKotmogu::MAX_SCORE; }
+    uint32 GetMaxDuration() const override { return TempleOfKotmogu::MAX_DURATION; }
+    uint8 GetTeamSize() const override { return TempleOfKotmogu::TEAM_SIZE; }
+    uint32 GetOptimalNodeCount() const override { return 2; }  // 2 orbs is good
 
     // ========================================================================
     // LIFECYCLE
     // ========================================================================
 
-    void OnLoad(BattlegroundCoordinator* coordinator);
-    void OnMatchStart();
-    void OnMatchEnd(bool victory);
-    void OnEvent(const BGScriptEventData& event);
+    void OnLoad(BattlegroundCoordinator* coordinator) override;
+    void OnMatchStart() override;
+    void OnMatchEnd(bool victory) override;
+    void OnEvent(const BGScriptEventData& event) override;
 
     // ========================================================================
     // DATA PROVIDERS
     // ========================================================================
 
-    std::vector<BGObjectiveData> GetObjectiveData() const;
-    std::vector<BGPositionData> GetSpawnPositions(uint32 faction) const;
-    std::vector<BGPositionData> GetStrategicPositions() const;
-    std::vector<BGPositionData> GetGraveyardPositions(uint32 faction) const;
-    std::vector<BGWorldState> GetInitialWorldStates() const;
+    std::vector<BGObjectiveData> GetObjectiveData() const override;
+    std::vector<BGPositionData> GetSpawnPositions(uint32 faction) const override;
+    std::vector<BGPositionData> GetStrategicPositions() const override;
+    std::vector<BGPositionData> GetGraveyardPositions(uint32 faction) const override;
+    std::vector<BGWorldState> GetInitialWorldStates() const override;
 
     // ========================================================================
     // WORLD STATE INTERPRETATION
     // ========================================================================
 
-    bool InterpretWorldState(int32 stateId, int32 value, uint32& outObjectiveId, BGObjectiveState& outState) const;
-    void GetScoreFromWorldStates(const std::map<int32, int32>& states, uint32& allianceScore, uint32& hordeScore) const;
+    bool InterpretWorldState(int32 stateId, int32 value, uint32& outObjectiveId, BGObjectiveState& outState) const override;
+    void GetScoreFromWorldStates(const std::map<int32, int32>& states, uint32& allianceScore, uint32& hordeScore) const override;
 
     // ========================================================================
     // STRATEGY & ROLE DISTRIBUTION
     // ========================================================================
 
-    void AdjustStrategy(StrategicDecision& decision, float scoreAdvantage, uint32 controlledCount, uint32 totalObjectives, uint32 timeRemaining) const;
-    RoleDistribution GetRecommendedRoles(const StrategicDecision& decision, float scoreAdvantage, uint32 timeRemaining) const;
+    void AdjustStrategy(StrategicDecision& decision, float scoreAdvantage, uint32 controlledCount, uint32 totalObjectives, uint32 timeRemaining) const override;
+    RoleDistribution GetRecommendedRoles(const StrategicDecision& decision, float scoreAdvantage, uint32 timeRemaining) const override;
 
     // ========================================================================
     // ORB-SPECIFIC METHODS
@@ -130,6 +130,13 @@ public:
     std::vector<uint32> GetOrbPriority(uint32 faction) const;
 
     // ========================================================================
+    // RUNTIME BEHAVIOR (lighthouse pattern)
+    // ========================================================================
+
+    /// Execute TOK-specific strategy for a bot (overrides IBGScript)
+    bool ExecuteStrategy(::Player* player) override;
+
+    // ========================================================================
     // ENTERPRISE-GRADE POSITIONING
     // ========================================================================
 
@@ -157,21 +164,43 @@ public:
     /// Get distance from an orb to center
     float GetOrbToCenterDistance(uint32 orbId) const;
 
+    /// Get orb position (uses dynamic discovery if available, falls back to hardcoded)
+    Position GetDynamicOrbPosition(uint32 orbId) const;
+
 protected:
     // ========================================================================
     // BASE CLASS OVERRIDES
     // ========================================================================
 
-    uint32 GetNodeCount() const { return TempleOfKotmogu::ORB_COUNT; }
-    BGObjectiveData GetNodeData(uint32 nodeIndex) const;
-    std::vector<uint32> GetTickPointsTable() const;
-    uint32 GetTickInterval() const { return TempleOfKotmogu::TICK_INTERVAL; }
-    uint32 GetDefaultCaptureTime() const { return 0; }  // Orbs are instant pickup
+    uint32 GetNodeCount() const override { return TempleOfKotmogu::ORB_COUNT; }
+    BGObjectiveData GetNodeData(uint32 nodeIndex) const override;
+    std::vector<uint32> GetTickPointsTable() const override;
+    uint32 GetTickInterval() const override { return TempleOfKotmogu::TICK_INTERVAL; }
+    uint32 GetDefaultCaptureTime() const override { return 0; }  // Orbs are instant pickup
 
 private:
     // ========================================================================
     // HELPER METHODS
     // ========================================================================
+
+    // ========================================================================
+    // RUNTIME BEHAVIOR HELPERS
+    // ========================================================================
+
+    /// Pick up the nearest available orb
+    bool PickupOrb(::Player* player);
+
+    /// Defend nearest friendly orb carrier or patrol center
+    bool DefendOrbCarrier(::Player* player);
+
+    /// Hunt and attack enemy orb carriers
+    bool HuntEnemyOrbCarrier(::Player* player);
+
+    /// Escort nearest friendly orb carrier in formation
+    bool EscortOrbCarrier(::Player* player);
+
+    /// Move orb carrier toward center or hold position
+    bool ExecuteOrbCarrierMovement(::Player* player);
 
     BGObjectiveData GetOrbData(uint32 orbId) const;
 
@@ -191,6 +220,9 @@ private:
     /// Apply phase-specific strategy
     void ApplyPhaseStrategy(StrategicDecision& decision, GamePhase phase, float scoreAdvantage) const;
 
+    /// Phase hysteresis: track last phase to prevent rapid oscillation
+    mutable GamePhase m_lastPhase = GamePhase::OPENING;
+
     // ========================================================================
     // STATE TRACKING
     // ========================================================================
@@ -199,6 +231,36 @@ private:
     std::map<ObjectGuid, uint32> m_playerOrbs;  // player guid -> orbId
     uint32 m_allianceOrbsHeld = 0;
     uint32 m_hordeOrbsHeld = 0;
+
+    /// orbId -> GUID of bot currently moving toward this orb for pickup
+    std::map<uint32, ObjectGuid> m_orbTargeters;
+
+    /// orbId -> GameTimeMS when claim expires (prevents dual pickup race condition)
+    std::map<uint32, uint32> m_orbClaimedUntil;
+
+    /// orbId -> GameTimeMS when search-failed cooldown expires
+    /// When PickupOrb finds 0 GOs at an orb spawn, we mark that orbId as temporarily
+    /// unavailable for 15 seconds. This prevents the infinite loop where bots keep
+    /// re-targeting a "free" orb that has no physical GO (dynamic respawn timing).
+    std::map<uint32, uint32> m_orbSearchFailed;
+
+    /// Pending orb pickup: bot has queued Use() via BotActionMgr and must hold position
+    /// at the orb until the main thread processes the deferred action. Without this,
+    /// the bot moves away on the next worker tick and the GO's CastSpell range check
+    /// fails silently.
+    struct PendingPickup
+    {
+        uint32 orbId;
+        Position orbPosition;
+        uint32 queuedTime;     // GameTimeMS when Use() was queued
+    };
+    std::map<ObjectGuid, PendingPickup> m_pendingOrbPickup;
+
+    /// Timestamp for throttling RefreshOrbState() to once per second
+    uint32 m_lastOrbRefresh = 0;
+
+    /// Scan all BG players for orb auras and rebuild m_orbHolders/m_playerOrbs
+    void RefreshOrbState();
 
     // ========================================================================
     // DYNAMIC POSITION DISCOVERY
@@ -228,12 +290,6 @@ private:
      */
     bool InitializePositionDiscovery();
 
-    /**
-     * @brief Get orb position (uses dynamic discovery if available)
-     * @param orbId Orb identifier (0-3)
-     * @return Validated orb position
-     */
-    Position GetDynamicOrbPosition(uint32 orbId) const;
 };
 
 } // namespace Playerbot::Coordination::Battleground

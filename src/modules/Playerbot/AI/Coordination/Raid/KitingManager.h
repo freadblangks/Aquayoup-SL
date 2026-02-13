@@ -6,7 +6,7 @@
 #pragma once
 
 #include "RaidState.h"
-#include "Core/Events/CombatEventData.h"
+#include "Core/Events/CombatEvent.h"
 #include <vector>
 #include <map>
 
@@ -59,7 +59,7 @@ public:
 
     // Emergency Handling
     void OnKiterDied(ObjectGuid kiter);
-    void OnDeathEvent(const CombatEventData& event);
+    void OnDeathEvent(const CombatEvent& event);
     ObjectGuid FindEmergencyKiter(ObjectGuid target) const;
 
 private:

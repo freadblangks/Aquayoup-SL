@@ -14,6 +14,8 @@
 
 #include "../BGScriptBase.h"
 #include "AshranData.h"
+#include <atomic>
+#include <shared_mutex>
 
 namespace Playerbot::Coordination::Battleground
 {
@@ -63,35 +65,41 @@ public:
     // LIFECYCLE
     // ========================================================================
 
-    void OnLoad(BattlegroundCoordinator* coordinator);
-    void OnMatchStart();
-    void OnMatchEnd(bool victory);
-    void OnUpdate(uint32 diff);
-    void OnEvent(const BGScriptEventData& event);
+    void OnLoad(BattlegroundCoordinator* coordinator) override;
+    void OnMatchStart() override;
+    void OnMatchEnd(bool victory) override;
+    void OnUpdate(uint32 diff) override;
+    void OnEvent(const BGScriptEventData& event) override;
 
     // ========================================================================
     // DATA PROVIDERS
     // ========================================================================
 
-    std::vector<BGObjectiveData> GetObjectiveData() const;
-    std::vector<BGPositionData> GetSpawnPositions(uint32 faction) const;
-    std::vector<BGPositionData> GetStrategicPositions() const;
-    std::vector<BGPositionData> GetGraveyardPositions(uint32 faction) const;
-    std::vector<BGWorldState> GetInitialWorldStates() const;
+    std::vector<BGObjectiveData> GetObjectiveData() const override;
+    std::vector<BGPositionData> GetSpawnPositions(uint32 faction) const override;
+    std::vector<BGPositionData> GetStrategicPositions() const override;
+    std::vector<BGPositionData> GetGraveyardPositions(uint32 faction) const override;
+    std::vector<BGWorldState> GetInitialWorldStates() const override;
 
     // ========================================================================
     // WORLD STATE INTERPRETATION
     // ========================================================================
 
-    bool InterpretWorldState(int32 stateId, int32 value, uint32& outObjectiveId, BGObjectiveState& outState) const;
-    void GetScoreFromWorldStates(const std::map<int32, int32>& states, uint32& allianceScore, uint32& hordeScore) const;
+    bool InterpretWorldState(int32 stateId, int32 value, uint32& outObjectiveId, BGObjectiveState& outState) const override;
+    void GetScoreFromWorldStates(const std::map<int32, int32>& states, uint32& allianceScore, uint32& hordeScore) const override;
 
     // ========================================================================
     // STRATEGY & ROLE DISTRIBUTION
     // ========================================================================
 
-    RoleDistribution GetRecommendedRoles(const StrategicDecision& decision, float scoreAdvantage, uint32 timeRemaining) const;
-    void AdjustStrategy(StrategicDecision& decision, float scoreAdvantage, uint32 controlledCount, uint32 totalObjectives, uint32 timeRemaining) const;
+    RoleDistribution GetRecommendedRoles(const StrategicDecision& decision, float scoreAdvantage, uint32 timeRemaining) const override;
+    void AdjustStrategy(StrategicDecision& decision, float scoreAdvantage, uint32 controlledCount, uint32 totalObjectives, uint32 timeRemaining) const override;
+
+    // ========================================================================
+    // RUNTIME BEHAVIOR
+    // ========================================================================
+
+    bool ExecuteStrategy(::Player* player) override;
 
     // ========================================================================
     // ASHRAN-SPECIFIC METHODS
@@ -211,20 +219,31 @@ private:
     /// Handle event-related updates
     void UpdateEventStatus();
 
+    /// Queue boss NPC attack via BotActionMgr (deferred to main thread)
+    void QueueBossAttack(::Player* bot, uint32 targetFaction);
+
     // ========================================================================
     // STATE TRACKING
     // ========================================================================
 
-    float m_allianceProgress = 0.0f;              // Road position (0 = Alliance base, 1 = Horde base)
-    float m_hordeProgress = 0.0f;                  // Road position (0 = Horde base, 1 = Alliance base)
-    uint32 m_activeEvent = UINT32_MAX;            // Current active side event (UINT32_MAX = none)
-    uint32 m_eventTimer = 0;                       // Time remaining for current event
-    uint32 m_matchStartTime = 0;                   // Timestamp of match start
-    uint32 m_lastRoadUpdate = 0;                   // Last road progress update time
-    uint32 m_lastStrategyUpdate = 0;               // Last strategy evaluation time
+    // Thread-safety: OnUpdate/OnEvent writes (main thread), ExecuteStrategy reads (worker thread)
+    // C++20 std::atomic<float> is supported by MSVC and is lock-free for IEEE754
+    std::atomic<float> m_allianceProgress{0.0f};   // Road position (0 = Alliance base, 1 = Horde base)
+    std::atomic<float> m_hordeProgress{0.0f};      // Road position (0 = Horde base, 1 = Alliance base)
+    std::atomic<uint32> m_activeEvent{UINT32_MAX}; // Current active side event (UINT32_MAX = none)
+    std::atomic<uint32> m_eventTimer{0};           // Time remaining for current event
+    std::atomic<uint32> m_matchStartTime{0};       // Timestamp of match start
+    std::atomic<uint32> m_lastRoadUpdate{0};       // Last road progress update time
+    std::atomic<uint32> m_lastStrategyUpdate{0};   // Last strategy evaluation time
     std::map<uint32, BGObjectiveState> m_controlStates;  // Control point states
-    bool m_trembladeAlive = true;                  // Alliance leader status
-    bool m_volrathAlive = true;                    // Horde leader status
+    mutable std::shared_mutex m_controlStateMutex;
+    std::atomic<bool> m_trembladeAlive{true};      // Alliance leader status
+    std::atomic<bool> m_volrathAlive{true};        // Horde leader status
+
+    // Cached boss GUIDs (resolved on main thread in OnUpdate)
+    ObjectGuid m_trembladeGuid;
+    ObjectGuid m_volrathGuid;
+    std::atomic<bool> m_bossGuidsResolved{false};
 };
 
 } // namespace Playerbot::Coordination::Battleground

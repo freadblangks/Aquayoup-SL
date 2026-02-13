@@ -28,6 +28,7 @@
 #include "../AI/Coordination/Battleground/BattlegroundCoordinatorManager.h"
 #include "../Lifecycle/Instance/InstanceBotHooks.h"
 #include "../Lifecycle/Instance/QueueStatePoller.h"
+#include "ObjectAccessor.h"
 #include "Log.h"
 #include <unordered_set>
 #include <unordered_map>
@@ -123,6 +124,7 @@ public:
 
         _processedPlayers.clear();
         _lastQueueState.clear();
+        _bgNoHumanSince.clear();
     }
 
 private:
@@ -396,13 +398,38 @@ private:
                 sBGBotManager->OnBattlegroundStart(bg);
             }
 
-            // Also handle WAIT_JOIN -> detecting when BG is ready for players
-            // This gives us an early opportunity to ensure bots are queued
+            // Handle WAIT_JOIN (preparation phase) -> populate BG with bots
+            // so they are present when the human player enters during prep
             if (status == STATUS_WAIT_JOIN && lastStatus == STATUS_NONE)
             {
-                TC_LOG_DEBUG("module.playerbot.bg",
-                    "PlayerbotBGScript: Detected new BG {} (instance {}) in WAIT_JOIN status",
+                TC_LOG_INFO("module.playerbot.bg",
+                    "PlayerbotBGScript: BG {} (instance {}) entering prep phase - populating with bots",
                     bg->GetName(), instanceId);
+
+                sBGBotManager->PopulateBattleground(bg);
+            }
+
+            // Detect transition to WAIT_LEAVE (BG just ended)
+            // CRITICAL FIX: Trigger bot cleanup when BG ends to prevent:
+            // 1. Resource leaks (bots lingering on BG map without cleanup)
+            // 2. Dangling pointers in Map::_updateObjects (use-after-free crash)
+            // 3. Pool bots never being released back to the warm pool
+            if (status == STATUS_WAIT_LEAVE && lastStatus == STATUS_IN_PROGRESS)
+            {
+                Team winner = TEAM_OTHER;
+                switch (bg->GetWinner())
+                {
+                    case PVP_TEAM_ALLIANCE: winner = ALLIANCE; break;
+                    case PVP_TEAM_HORDE:    winner = HORDE; break;
+                    default:                winner = TEAM_OTHER; break;
+                }
+
+                TC_LOG_INFO("module.playerbot.bg",
+                    "PlayerbotBGScript: BG {} (instance {}) ended (winner: {}) - triggering bot cleanup",
+                    bg->GetName(), instanceId,
+                    winner == ALLIANCE ? "Alliance" : (winner == HORDE ? "Horde" : "Draw"));
+
+                sBGBotManager->OnBattlegroundEnd(bg, winner);
             }
 
             // Cleanup finished BGs from tracker
@@ -410,6 +437,59 @@ private:
             {
                 // BG is ending
                 _bgStatusTracker.erase(instanceId);
+                _bgNoHumanSince.erase(instanceId);
+            }
+
+            // =========================================================================
+            // CHECK: End BG when no human players remain (with grace period)
+            // =========================================================================
+            if (status == STATUS_IN_PROGRESS)
+            {
+                bool humanFound = false;
+                for (auto const& playerPair : bg->GetPlayers())
+                {
+                    Player* bgPlayer = ObjectAccessor::FindPlayer(playerPair.first);
+                    if (bgPlayer && !PlayerBotHooks::IsPlayerBot(bgPlayer))
+                    {
+                        humanFound = true;
+                        break;
+                    }
+                }
+
+                uint32 now = GameTime::GetGameTimeMS();
+
+                if (!humanFound)
+                {
+                    auto graceIt = _bgNoHumanSince.find(instanceId);
+                    if (graceIt == _bgNoHumanSince.end())
+                    {
+                        // First detection of no humans - start grace timer
+                        _bgNoHumanSince[instanceId] = now;
+                        TC_LOG_INFO("module.playerbot.bg",
+                            "PlayerbotBGScript: No human players in BG {} (instance {}) - starting {}s grace period",
+                            bg->GetName(), instanceId, NO_HUMAN_GRACE_PERIOD / IN_MILLISECONDS);
+                    }
+                    else if (now - graceIt->second >= NO_HUMAN_GRACE_PERIOD)
+                    {
+                        // Grace period expired - end the BG as a draw
+                        TC_LOG_INFO("module.playerbot.bg",
+                            "PlayerbotBGScript: No human players in BG instance {} - ending after {}s grace period",
+                            instanceId, NO_HUMAN_GRACE_PERIOD / IN_MILLISECONDS);
+
+                        // Cleanup bots BEFORE ending the BG to ensure proper removal
+                        sBGBotManager->OnBattlegroundEnd(bg, TEAM_OTHER);
+
+                        bg->EndBattleground(TEAM_OTHER);
+
+                        _bgStatusTracker.erase(instanceId);
+                        _bgNoHumanSince.erase(instanceId);
+                    }
+                }
+                else
+                {
+                    // Human found - clear grace timer if it was running
+                    _bgNoHumanSince.erase(instanceId);
+                }
             }
         }
 
@@ -433,6 +513,7 @@ private:
             for (uint32 key : keysToRemove)
             {
                 _bgStatusTracker.erase(key);
+                _bgNoHumanSince.erase(key);
             }
         }
     }
@@ -476,6 +557,7 @@ private:
     // Configuration
     static constexpr uint32 BG_POLL_INTERVAL = 1000; // 1 second polling interval
     static constexpr uint32 CLEANUP_INTERVAL = 5 * MINUTE * IN_MILLISECONDS;
+    static constexpr uint32 NO_HUMAN_GRACE_PERIOD = 30 * IN_MILLISECONDS; // 30 seconds
 
     // State tracking
     uint32 _updateAccumulator = 0;
@@ -490,6 +572,9 @@ private:
 
     // BG status tracker: instanceId -> last known status
     std::unordered_map<uint32, BattlegroundStatus> _bgStatusTracker;
+
+    // Human-absence grace timer: instanceId -> timestamp when last human was detected absent
+    std::unordered_map<uint32, uint32> _bgNoHumanSince;
 };
 
 void AddSC_PlayerbotBGScript()

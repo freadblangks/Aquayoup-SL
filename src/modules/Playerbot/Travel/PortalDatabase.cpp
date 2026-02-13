@@ -23,14 +23,11 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Log.h"
-#include "Map.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
-#include "PhasingHandler.h"
 #include "Player.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
-#include "TerrainMgr.h"
 #include "Timer.h"
 #include <algorithm>
 
@@ -186,7 +183,9 @@ uint32 PortalDatabase::LoadPortalsFromDB()
             go.position_y,
             go.position_z,
             go.orientation,
-            go.spawntimesecs
+            go.spawntimesecs,
+            go.zoneId,
+            go.areaId
         FROM gameobject_template gt
         INNER JOIN gameobject go ON gt.entry = go.id
         WHERE gt.type IN (22, 10)
@@ -220,6 +219,8 @@ uint32 PortalDatabase::LoadPortalsFromDB()
         float posZ = fields[7].GetFloat();
         float orientation = fields[8].GetFloat();
         int32 spawnTime = fields[9].GetInt32();
+        uint32 zoneId = fields[10].GetUInt16();
+        uint32 areaId = fields[11].GetUInt16();
 
         // Verify spell is a teleport spell
         if (spellId == 0 || !IsTeleportSpell(spellId))
@@ -239,12 +240,12 @@ uint32 PortalDatabase::LoadPortalsFromDB()
         portal.name = std::move(name);
         portal.teleportSpellId = spellId;
 
-        // Source location
+        // Source location — zone/area come directly from the gameobject table,
+        // avoiding expensive TerrainMgr::LoadTerrain() calls during startup
         portal.sourceMapId = mapId;
         portal.sourcePosition.Relocate(posX, posY, posZ, orientation);
-
-        // Determine zone ID (may be 0 if terrain not loaded)
-        portal.sourceZoneId = GetZoneIdForPosition(mapId, portal.sourcePosition);
+        portal.sourceZoneId = zoneId;
+        portal.sourceAreaId = areaId;
 
         // Determine faction and type
         DeterminePortalFaction(portal, entry);
@@ -284,9 +285,6 @@ uint32 PortalDatabase::LoadDestinations()
                 targetPos->GetPositionZ(),
                 targetPos->GetOrientation());
 
-            portal.destinationZoneId = GetZoneIdForPosition(
-                portal.destinationMapId, portal.destinationPosition);
-
             // Get destination name from map entry
             if (MapEntry const* mapEntry = sMapStore.LookupEntry(portal.destinationMapId))
             {
@@ -314,8 +312,6 @@ uint32 PortalDatabase::LoadDestinations()
                         targetPos->GetPositionZ(),
                         targetPos->GetOrientation());
                     portal.spellEffectIndex = effIdx;
-                    portal.destinationZoneId = GetZoneIdForPosition(
-                        portal.destinationMapId, portal.destinationPosition);
 
                     ClassifyPortalType(portal);
                     ++resolved;
@@ -526,13 +522,6 @@ bool PortalDatabase::IsTeleportSpell(uint32 spellId) const
         return true;
 
     return false;
-}
-
-uint32 PortalDatabase::GetZoneIdForPosition(uint32 mapId, Position const& pos) const
-{
-    // Use empty PhaseShift for static lookup
-    PhaseShift emptyPhaseShift;
-    return sTerrainMgr.GetZoneId(emptyPhaseShift, mapId, pos);
 }
 
 // ============================================================================

@@ -11,6 +11,7 @@
 #pragma once
 
 #include "ArenaState.h"
+#include "Core/Events/CombatEvent.h"
 #include "Core/Events/ICombatEventSubscriber.h"
 #include <memory>
 #include <vector>
@@ -40,11 +41,11 @@ class CrowdControlManager;  // From Phase 2 (DR tracking)
  *
  * Subscribes to combat events via ICombatEventSubscriber for reactive decision-making.
  */
-class ArenaCoordinator 
+class ArenaCoordinator : public ICombatEventSubscriber
 {
 public:
     ArenaCoordinator(Battleground* arena, ::std::vector<Player*> team);
-    ~ArenaCoordinator();
+    ~ArenaCoordinator() override;
 
     // ========================================================================
     // LIFECYCLE
@@ -162,12 +163,13 @@ public:
     const ArenaMatchStats& GetMatchStats() const { return _matchStats; }
 
     // ========================================================================
-    // ICOMBATEVENTSUBSCRIBER
+    // COMBAT EVENT INTERFACE
     // ========================================================================
 
-    void OnCombatEvent(const CombatEvent& event);
-    CombatEventType GetSubscribedEventTypes() const;
-    uint8 GetPriority() const override { return 40; }  // High priority for arena
+    void OnCombatEvent(const CombatEvent& event) override;
+    CombatEventType GetSubscribedEventTypes() const override;
+    int32 GetEventPriority() const override { return 40; }  // High priority for arena
+    const char* GetSubscriberName() const override { return "ArenaCoordinator"; }
 
     // ========================================================================
     // SUB-MANAGER ACCESS
@@ -282,6 +284,7 @@ private:
     bool IsEnemy(ObjectGuid guid) const;
     bool IsTeammate(ObjectGuid guid) const;
     Player* GetPlayer(ObjectGuid guid) const;
+    TargetPriority CalculateTargetPriority(const ArenaEnemy& enemy) const;
 
     // ========================================================================
     // COOLDOWN DATABASE

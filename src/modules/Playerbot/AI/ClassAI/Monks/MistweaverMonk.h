@@ -16,6 +16,7 @@
 #include "../CombatSpecializationTemplates.h"
 #include "../ResourceTypes.h"
 #include "../SpellValidation_WoW120.h"
+#include "../HeroTalentDetector.h"
 #include "Player.h"
 #include "SpellMgr.h"
 #include "SpellAuraEffects.h"
@@ -262,6 +263,16 @@ public:
         // Phase 5: Initialize decision systems
         InitializeMistweaverMechanics();
 
+        // Register healing spell efficiency tiers
+        GetEfficiencyManager().RegisterSpell(VIVIFY, HealingSpellTier::VERY_HIGH, "Vivify");
+        GetEfficiencyManager().RegisterSpell(RENEWING_MIST, HealingSpellTier::VERY_HIGH, "Renewing Mist");
+        GetEfficiencyManager().RegisterSpell(ENVELOPING_MIST, HealingSpellTier::HIGH, "Enveloping Mist");
+        GetEfficiencyManager().RegisterSpell(ESSENCE_FONT, HealingSpellTier::MEDIUM, "Essence Font");
+        GetEfficiencyManager().RegisterSpell(LIFE_COCOON, HealingSpellTier::EMERGENCY, "Life Cocoon");
+        GetEfficiencyManager().RegisterSpell(REVIVAL, HealingSpellTier::EMERGENCY, "Revival");
+        GetEfficiencyManager().RegisterSpell(SOOTHING_MIST, HealingSpellTier::VERY_HIGH, "Soothing Mist");
+        GetEfficiencyManager().RegisterSpell(THUNDER_FOCUS_TEA, HealingSpellTier::MEDIUM, "Thunder Focus Tea");
+
         TC_LOG_DEBUG("playerbot", "MistweaverMonkRefactored initialized for bot {}", bot->GetGUID().GetCounter());
     }
 
@@ -277,6 +288,10 @@ public:
         if (!bot)
 
             return;
+
+        // Lazy hero talent detection (once per bot lifetime until respec)
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(bot);
 
         // Update Mistweaver state
         UpdateMistweaverState();
@@ -294,6 +309,49 @@ public:
 protected:
     void ExecuteHealingRotation(const ::std::vector<Unit*>& group)
     {
+        // Hero talent tree rotation branching
+        // Mistweaver has access to: Master of Harmony / Conduit of the Celestials
+        if (_heroTalents.IsTree(HeroTalentTree::MASTER_OF_HARMONY))
+        {
+            // Master of Harmony: Aspect of Harmony accumulates vitality from healing done
+            // Release accumulated vitality as burst healing when group needs it
+            if (this->CanCastSpell(MW_ASPECT_OF_HARMONY, this->GetBot()))
+            {
+                // Use during heavy group damage or when Revival/Yulon are on cooldown
+                uint32 lowHealthCount = 0;
+                for (Unit* member : group)
+                {
+                    if (member->GetHealthPct() < 60.0f)
+                        ++lowHealthCount;
+                }
+                if (lowHealthCount >= 2)
+                {
+                    this->CastSpell(MW_ASPECT_OF_HARMONY, this->GetBot());
+                    return;
+                }
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::CONDUIT_OF_THE_CELESTIALS))
+        {
+            // Conduit of the Celestials: Celestial Conduit channels celestial healing
+            // Coordinate with major healing cooldowns for maximum throughput
+            if (this->CanCastSpell(CELESTIAL_CONDUIT, this->GetBot()))
+            {
+                uint32 injuredCount = 0;
+                for (Unit* member : group)
+                {
+                    if (member->GetHealthPct() < 70.0f)
+                        ++injuredCount;
+                }
+                // Use when multiple group members are injured
+                if (injuredCount >= 3)
+                {
+                    this->CastSpell(CELESTIAL_CONDUIT, this->GetBot());
+                    return;
+                }
+            }
+        }
+
         // Priority 1: Emergency healing
         if (HandleEmergencyHealing(group))
 
@@ -435,7 +493,7 @@ protected:
             }
 
 
-            if (lowHealthCount >= 2 && this->CanCastSpell(THUNDER_FOCUS_TEA, this->GetBot()))
+            if (lowHealthCount >= 2 && IsHealAllowedByMana(THUNDER_FOCUS_TEA) && this->CanCastSpell(THUNDER_FOCUS_TEA, this->GetBot()))
 
             {
 
@@ -539,7 +597,7 @@ protected:
                 ++injuredCount;
         }
 
-        if (injuredCount >= 3 && this->CanCastSpell(ESSENCE_FONT, this->GetBot()))
+        if (injuredCount >= 3 && IsHealAllowedByMana(ESSENCE_FONT) && this->CanCastSpell(ESSENCE_FONT, this->GetBot()))
         {
 
             this->CastSpell(ESSENCE_FONT, this->GetBot());
@@ -562,7 +620,7 @@ protected:
         float healthPct = target->GetHealthPct();
 
         // Priority 1: Enveloping Mist (strong single target HoT)
-        if (healthPct < 70.0f && this->CanCastSpell(ENVELOPING_MIST, target))
+        if (healthPct < 70.0f && IsHealAllowedByMana(ENVELOPING_MIST) && this->CanCastSpell(ENVELOPING_MIST, target))
         {
 
             this->CastSpell(ENVELOPING_MIST, target);
@@ -1281,6 +1339,7 @@ private:
     MistweaverSoothingMistTracker _soothingMistTracker;
     bool _thunderFocusTeaActive;
     uint32 _lastEssenceFontTime;
+    HeroTalentCache _heroTalents;
 };
 
 } // namespace Playerbot

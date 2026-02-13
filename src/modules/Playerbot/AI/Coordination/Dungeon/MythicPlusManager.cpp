@@ -11,7 +11,10 @@
 #include "MythicPlusManager.h"
 #include "DungeonCoordinator.h"
 #include "TrashPullManager.h"
+#include "AI/Coordination/Messaging/BotMessageBus.h"
+#include "AI/Coordination/Messaging/BotMessage.h"
 #include "Player.h"
+#include "Group.h"
 #include "GameTime.h"
 #include "Log.h"
 #include <algorithm>
@@ -298,10 +301,28 @@ void MythicPlusManager::OnAffixTriggered(MythicPlusAffix affix, ObjectGuid sourc
             _quakingActive = true;
             _quakingEndTime = GameTime::GetGameTimeMS() + QUAKING_DURATION_MS;
             TC_LOG_DEBUG("playerbot", "MythicPlusManager: Quaking active for %u ms", QUAKING_DURATION_MS);
+            // Broadcast spread command for quaking
+            if (_coordinator && _coordinator->GetGroup())
+            {
+                Group* group = _coordinator->GetGroup();
+                ObjectGuid groupGuid = group->GetGUID();
+                ObjectGuid leaderGuid = group->GetLeaderGUID();
+                BotMessage msg = BotMessage::CommandSpread(leaderGuid, groupGuid);
+                sBotMessageBus->Publish(msg);
+            }
             break;
 
         case MythicPlusAffix::EXPLOSIVE:
             AddExplosiveOrb(source);
+            // Broadcast focus target for explosive orb
+            if (_coordinator && _coordinator->GetGroup())
+            {
+                Group* group = _coordinator->GetGroup();
+                ObjectGuid groupGuid = group->GetGUID();
+                ObjectGuid leaderGuid = group->GetLeaderGUID();
+                BotMessage msg = BotMessage::CommandFocusTarget(leaderGuid, groupGuid, source);
+                sBotMessageBus->Publish(msg);
+            }
             break;
 
         case MythicPlusAffix::VOLCANIC:
@@ -456,8 +477,9 @@ uint8 MythicPlusManager::GetRecommendedPullSize() const
 
 void MythicPlusManager::LoadForcesTable(uint32 dungeonId)
 {
-    // TODO: Load from database based on dungeon ID
-    // For now, forces table will be populated dynamically
+    // LIMITATION: M+ forces-per-creature data is not available in TrinityCore DB.
+    // Forces values would need a custom `playerbot_mythic_forces` table.
+    // Currently, forces tracking relies on creature kill count as a proxy.
 
     TC_LOG_DEBUG("playerbot", "MythicPlusManager::LoadForcesTable - Loading forces for dungeon %u", dungeonId);
 }

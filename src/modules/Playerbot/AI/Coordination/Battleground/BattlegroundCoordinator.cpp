@@ -18,8 +18,11 @@
 #include "Scripts/BGScriptRegistry.h"
 #include "Scripts/IBGScript.h"
 #include "Core/Events/CombatEventRouter.h"
+#include "AI/Coordination/Messaging/BotMessageBus.h"
+#include "AI/Coordination/Messaging/BotMessage.h"
 #include "Player.h"
 #include "Battleground.h"
+#include "Group.h"
 #include "ObjectAccessor.h"
 #include "GameTime.h"
 #include "Log.h"
@@ -167,6 +170,13 @@ void BattlegroundCoordinator::Initialize()
         bgPlayer.z = bot->GetPositionZ();
 
         _bots.push_back(bgPlayer);
+    }
+
+    // Assign initial roles to all bots
+    if (_roleManager && !_bots.empty())
+    {
+        _roleManager->AssignAllRoles();
+        TC_LOG_INFO("playerbot.bg", "BattlegroundCoordinator: Assigned initial roles to %zu bots", _bots.size());
     }
 
     // Subscribe to combat events
@@ -368,7 +378,20 @@ uint32 BattlegroundCoordinator::GetEnemyControlledObjectiveCount() const
 
 BGRole BattlegroundCoordinator::GetBotRole(ObjectGuid bot) const
 {
-    return _roleManager ? _roleManager->GetRole(bot) : BGRole::UNASSIGNED;
+    if (!_roleManager)
+    {
+        TC_LOG_WARN("playerbot.bg", "BattlegroundCoordinator::GetBotRole - No role manager!");
+        return BGRole::UNASSIGNED;
+    }
+
+    BGRole role = _roleManager->GetRole(bot);
+    if (role == BGRole::UNASSIGNED)
+    {
+        TC_LOG_DEBUG("playerbot.bg",
+            "BattlegroundCoordinator::GetBotRole - Bot {} has UNASSIGNED role (assignments: {})",
+            bot.GetCounter(), _roleManager->GetAssignmentCount());
+    }
+    return role;
 }
 
 void BattlegroundCoordinator::AssignRole(ObjectGuid bot, BGRole role)
@@ -568,6 +591,50 @@ bool BattlegroundCoordinator::ShouldAssist(ObjectGuid bot, ObjectGuid ally) cons
 // PLAYER TRACKING
 // ============================================================================
 
+void BattlegroundCoordinator::AddBot(Player* bot)
+{
+    if (!bot)
+        return;
+
+    ObjectGuid guid = bot->GetGUID();
+
+    // Check for duplicate
+    for (const auto& existing : _bots)
+    {
+        if (existing.guid == guid)
+            return; // Already tracked
+    }
+
+    // Add to managed bots list
+    _managedBots.push_back(bot);
+
+    // Create tracking entry
+    BGPlayer bgPlayer;
+    bgPlayer.guid = guid;
+    bgPlayer.classId = bot->GetClass();
+    bgPlayer.healthPercent = bot->GetHealthPct();
+    bgPlayer.manaPercent = bot->GetPowerPct(POWER_MANA);
+    bgPlayer.isAlive = bot->IsAlive();
+    bgPlayer.x = bot->GetPositionX();
+    bgPlayer.y = bot->GetPositionY();
+    bgPlayer.z = bot->GetPositionZ();
+
+    _bots.push_back(bgPlayer);
+
+    // Assign best-fit role based on class/spec suitability
+    if (_roleManager)
+    {
+        BGRole bestRole = _roleManager->GetBestRole(guid);
+        if (bestRole == BGRole::UNASSIGNED)
+            bestRole = BGRole::ROAMER; // Safe fallback
+        _roleManager->AssignRole(guid, bestRole);
+    }
+
+    TC_LOG_INFO("playerbot.bg",
+        "BattlegroundCoordinator::AddBot - Late-joined bot {} added (total: {})",
+        bot->GetName(), _bots.size());
+}
+
 const BGPlayer* BattlegroundCoordinator::GetBot(ObjectGuid guid) const
 {
     for (const auto& bot : _bots)
@@ -728,6 +795,18 @@ void BattlegroundCoordinator::OnStateEnter(BGState state)
             // Assign initial roles
             if (_roleManager)
                 _roleManager->AssignAllRoles();
+
+            // Broadcast use defensives (opening engagement) via BotMessageBus
+            if (!_bots.empty())
+            {
+                Player* leader = ObjectAccessor::FindPlayer(_bots.front().guid);
+                if (leader && leader->GetGroup())
+                {
+                    ObjectGuid groupGuid = leader->GetGroup()->GetGUID();
+                    BotMessage msg = BotMessage::CommandUseDefensives(leader->GetGUID(), groupGuid);
+                    sBotMessageBus->Publish(msg);
+                }
+            }
             break;
 
         case BGState::VICTORY:
@@ -1167,48 +1246,50 @@ BGPlayerSnapshot const* BattlegroundCoordinator::GetPlayerSnapshot(ObjectGuid gu
 }
 
 ::std::vector<BGPlayerSnapshot const*> BattlegroundCoordinator::QueryNearbyEnemies(
-    Position const& position, float radius) const
+    Position const& position, float radius, uint32 callerFaction) const
 {
     if (_spatialCache)
-        return _spatialCache->QueryNearbyEnemies(position, radius);
+        return _spatialCache->QueryNearbyEnemies(position, radius, callerFaction);
     return {};
 }
 
 ::std::vector<BGPlayerSnapshot const*> BattlegroundCoordinator::QueryNearbyAllies(
-    Position const& position, float radius) const
+    Position const& position, float radius, uint32 callerFaction) const
 {
     if (_spatialCache)
-        return _spatialCache->QueryNearbyAllies(position, radius);
+        return _spatialCache->QueryNearbyAllies(position, radius, callerFaction);
     return {};
 }
 
 BGPlayerSnapshot const* BattlegroundCoordinator::GetNearestEnemy(
-    Position const& position, float maxRadius, float* outDistance) const
+    Position const& position, float maxRadius, uint32 callerFaction,
+    ObjectGuid excludeGuid, float* outDistance) const
 {
     if (_spatialCache)
-        return _spatialCache->GetNearestEnemy(position, maxRadius, outDistance);
+        return _spatialCache->GetNearestEnemy(position, maxRadius, callerFaction, excludeGuid, outDistance);
     return nullptr;
 }
 
 BGPlayerSnapshot const* BattlegroundCoordinator::GetNearestAlly(
-    Position const& position, float maxRadius, ObjectGuid excludeGuid, float* outDistance) const
+    Position const& position, float maxRadius, uint32 callerFaction,
+    ObjectGuid excludeGuid, float* outDistance) const
 {
     if (_spatialCache)
-        return _spatialCache->GetNearestAlly(position, maxRadius, excludeGuid, outDistance);
+        return _spatialCache->GetNearestAlly(position, maxRadius, callerFaction, excludeGuid, outDistance);
     return nullptr;
 }
 
-uint32 BattlegroundCoordinator::CountEnemiesInRadius(Position const& position, float radius) const
+uint32 BattlegroundCoordinator::CountEnemiesInRadius(Position const& position, float radius, uint32 callerFaction) const
 {
     if (_spatialCache)
-        return _spatialCache->CountEnemiesInRadius(position, radius);
+        return _spatialCache->CountEnemiesInRadius(position, radius, callerFaction);
     return 0;
 }
 
-uint32 BattlegroundCoordinator::CountAlliesInRadius(Position const& position, float radius) const
+uint32 BattlegroundCoordinator::CountAlliesInRadius(Position const& position, float radius, uint32 callerFaction) const
 {
     if (_spatialCache)
-        return _spatialCache->CountAlliesInRadius(position, radius);
+        return _spatialCache->CountAlliesInRadius(position, radius, callerFaction);
     return 0;
 }
 

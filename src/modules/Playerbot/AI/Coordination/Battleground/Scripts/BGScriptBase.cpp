@@ -11,8 +11,17 @@
 
 #include "BGScriptBase.h"
 #include "BattlegroundCoordinator.h"
+#include "BattlegroundCoordinatorManager.h"
+#include "BGSpatialQueryCache.h"
+#include "BotActionManager.h"
+#include "ObjectAccessor.h"
+#include "Player.h"
+#include "GameObject.h"
+#include "GameObjectData.h"
 #include "Log.h"
+#include "SharedDefines.h"
 #include "Timer.h"
+#include "../../Movement/BotMovementUtil.h"
 #include <cmath>
 
 namespace Playerbot::Coordination::Battleground
@@ -700,6 +709,215 @@ bool BGScriptBase::TryInterpretFromCache(int32 stateId, int32 value,
     }
 
     return false;
+}
+
+// ============================================================================
+// SHARED RUNTIME BEHAVIOR UTILITIES
+// ============================================================================
+
+void BGScriptBase::EngageTarget(::Player* bot, ::Unit* target)
+{
+    if (!bot || !target || !bot->IsInWorld() || !target->IsAlive())
+        return;
+
+    bot->SetSelection(target->GetGUID());
+    if (!bot->IsInCombat() || bot->GetVictim() != target)
+        bot->Attack(target, true);
+}
+
+::Player* BGScriptBase::FindNearestEnemyPlayer(::Player* bot, float range)
+{
+    if (!bot || !bot->IsInWorld())
+        return nullptr;
+
+    // OPTIMIZATION: Use coordinator spatial cache (O(cells)) when available
+    ::Playerbot::BattlegroundCoordinator* coordinator =
+        sBGCoordinatorMgr->GetCoordinatorForPlayer(bot);
+
+    if (coordinator)
+    {
+        float closestDist = range + 1.0f;
+        auto const* nearestSnapshot = coordinator->GetNearestEnemy(
+            bot->GetPosition(), range, bot->GetBGTeam(), bot->GetGUID(), &closestDist);
+
+        if (nearestSnapshot)
+        {
+            ::Player* enemy = ObjectAccessor::FindPlayer(nearestSnapshot->guid);
+            if (enemy && enemy->IsInWorld() && enemy->IsAlive())
+                return enemy;
+        }
+        return nullptr;
+    }
+
+    // Fallback: Legacy O(n) grid search
+    ::Player* closestEnemy = nullptr;
+    float closestDist = range + 1.0f;
+
+    std::list<::Player*> nearbyPlayers;
+    bot->GetPlayerListInGrid(nearbyPlayers, range);
+
+    for (::Player* nearby : nearbyPlayers)
+    {
+        if (!nearby || !nearby->IsAlive() || !nearby->IsHostileTo(bot))
+            continue;
+
+        float dist = bot->GetExactDist(nearby);
+        if (dist < closestDist)
+        {
+            closestDist = dist;
+            closestEnemy = nearby;
+        }
+    }
+
+    return closestEnemy;
+}
+
+void BGScriptBase::PatrolAroundPosition(::Player* bot, Position const& center,
+                                          float minRadius, float maxRadius)
+{
+    if (!bot || !bot->IsInWorld() || BotMovementUtil::IsMoving(bot))
+        return;
+
+    float angle = frand(0.0f, 2.0f * static_cast<float>(M_PI));
+    float dist = frand(minRadius, maxRadius);
+
+    Position patrolPos;
+    patrolPos.Relocate(
+        center.GetPositionX() + dist * std::cos(angle),
+        center.GetPositionY() + dist * std::sin(angle),
+        center.GetPositionZ()
+    );
+
+    BotMovementUtil::CorrectPositionToGround(bot, patrolPos);
+    BotMovementUtil::MoveToPosition(bot, patrolPos);
+}
+
+// Static member definition for pending interaction tracking
+std::map<ObjectGuid, BGScriptBase::PendingInteraction> BGScriptBase::s_pendingInteractions;
+
+bool BGScriptBase::TryInteractWithGameObject(::Player* bot, uint32 goType, float range,
+                                              bool holdPosition)
+{
+    if (!bot || !bot->IsInWorld())
+        return false;
+
+    // Use phase-ignoring search for dynamically spawned BG objects
+    // This fixes the bug where GetGameObjectListWithEntryInGrid() uses the bot's
+    // PhaseShift and misses dynamically spawned BG objects (orbs, flags, capture points)
+    FindGameObjectOptions options;
+    options.IgnorePhases = true;
+    options.IsSpawned.reset();  // Clear default IsSpawned=true for dynamic GOs
+    options.GameObjectType = static_cast<GameobjectTypes>(goType);
+
+    std::list<GameObject*> goList;
+    bot->GetGameObjectListWithOptionsInGrid(goList, range, options);
+
+    GameObject* bestGo = nullptr;
+    float bestDist = range + 1.0f;
+
+    for (GameObject* go : goList)
+    {
+        if (!go)
+            continue;
+
+        float dist = bot->GetExactDist(go);
+        if (dist < bestDist)
+        {
+            bestDist = dist;
+            bestGo = go;
+        }
+    }
+
+    if (!bestGo)
+        return false;
+
+    // Defer go->Use(bot) to the main thread via BotActionMgr for thread safety.
+    // Worker threads MUST NOT call go->Use() directly as it triggers _UnapplyAura
+    // and other operations that access Map/Grid data unsafely.
+    sBotActionMgr->QueueAction(BotAction::InteractObject(
+        bot->GetGUID(), bestGo->GetGUID(), getMSTime()));
+
+    TC_LOG_DEBUG("playerbots.bg.script",
+        "BGScriptBase: {} queued interaction with GO {} (type {}, dist {:.1f})",
+        bot->GetName(), bestGo->GetEntry(), goType, bestDist);
+
+    // Record pending interaction so the bot holds position until processed
+    if (holdPosition)
+    {
+        PendingInteraction pending;
+        pending.targetGuid = bestGo->GetGUID();
+        pending.holdPosition = bot->GetPosition();
+        pending.queuedTime = getMSTime();
+        s_pendingInteractions[bot->GetGUID()] = pending;
+    }
+
+    return true;
+}
+
+bool BGScriptBase::CheckPendingInteraction(::Player* bot)
+{
+    if (!bot)
+        return false;
+
+    auto it = s_pendingInteractions.find(bot->GetGUID());
+    if (it == s_pendingInteractions.end())
+        return false;
+
+    // Check for timeout (2 seconds)
+    uint32 elapsed = getMSTimeDiff(it->second.queuedTime, getMSTime());
+    if (elapsed > PENDING_INTERACTION_TIMEOUT_MS)
+    {
+        TC_LOG_DEBUG("playerbots.bg.script",
+            "BGScriptBase: {} pending interaction timed out after {}ms",
+            bot->GetName(), elapsed);
+        s_pendingInteractions.erase(it);
+        return false;
+    }
+
+    // Bot should hold position - stay at the interaction point
+    return true;
+}
+
+bool BGScriptBase::EngageTargetWithLeash(::Player* bot, ::Unit* enemy,
+                                          Position const& anchorPos, float leashRadius)
+{
+    if (!bot || !enemy || !bot->IsInWorld() || !enemy->IsAlive())
+        return false;
+
+    // Check if enemy is within leash range of the anchor
+    float enemyDistFromAnchor = enemy->GetExactDist(&anchorPos);
+    float botDistFromAnchor = bot->GetExactDist(&anchorPos);
+
+    if (enemyDistFromAnchor > leashRadius)
+    {
+        // Enemy has left leash range - disengage and return to anchor
+        if (botDistFromAnchor > 5.0f)
+            BotMovementUtil::MoveToPosition(bot, anchorPos);
+
+        TC_LOG_DEBUG("playerbots.bg.script",
+            "BGScriptBase: {} disengaging from enemy (enemy {:.0f}yd from anchor, leash {:.0f}yd)",
+            bot->GetName(), enemyDistFromAnchor, leashRadius);
+        return true;
+    }
+
+    // Enemy is within leash range - engage
+    EngageTarget(bot, enemy);
+
+    float enemyDist = bot->GetExactDist(enemy);
+    if (enemyDist > 5.0f)
+        BotMovementUtil::ChaseTarget(bot, enemy, 5.0f);
+
+    // Safety check: if WE drifted too far from anchor chasing, return
+    botDistFromAnchor = bot->GetExactDist(&anchorPos);
+    if (botDistFromAnchor > leashRadius + 5.0f)
+    {
+        BotMovementUtil::MoveToPosition(bot, anchorPos);
+        TC_LOG_DEBUG("playerbots.bg.script",
+            "BGScriptBase: {} returning to anchor ({:.0f}yd away, leash {:.0f}yd)",
+            bot->GetName(), botDistFromAnchor, leashRadius);
+    }
+
+    return true;
 }
 
 } // namespace Playerbot::Coordination::Battleground

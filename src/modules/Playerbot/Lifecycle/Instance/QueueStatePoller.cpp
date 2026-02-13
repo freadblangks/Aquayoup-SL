@@ -154,6 +154,7 @@ void QueueStatePoller::Shutdown()
     _arenaSnapshots.clear();
     _lastJITTime.clear();
     _lfgQueueInfo.clear();
+    _pendingBGVerifications.clear();
 
     TC_LOG_INFO("playerbot.jit", "QueueStatePoller: Shutdown complete");
 }
@@ -169,6 +170,10 @@ void QueueStatePoller::Update(uint32 diff)
 
     _updateAccumulator = 0;
     ++_pollCount;
+
+    // Process pending BG verifications before polling
+    // This checks if warm pool bots actually queued successfully
+    ProcessPendingBGVerifications();
 
     // Poll all active queues
     PollBGQueues();
@@ -202,6 +207,7 @@ void QueueStatePoller::UnregisterActiveBGQueue(BattlegroundTypeId bgTypeId, Batt
     _activeBGQueues.erase(key);
     _bgSnapshots.erase(key);
     _lastJITTime.erase(key);
+    _pendingBGVerifications.erase(key);
 
     TC_LOG_DEBUG("playerbot.jit", "QueueStatePoller: Unregistered BG queue (type={}, bracket={})",
         static_cast<uint32>(bgTypeId), static_cast<uint32>(bracket));
@@ -383,8 +389,15 @@ void QueueStatePoller::PollBGQueues()
 {
     std::lock_guard<decltype(_mutex)> lock(_mutex);
 
-    for (uint64 key : _activeBGQueues)
+    // Copy the set before iterating - ProcessBGShortage may unregister
+    // satisfied queues during the loop, which would invalidate iterators
+    auto activeQueues = _activeBGQueues;
+    for (uint64 key : activeQueues)
     {
+        // Skip if unregistered during this poll cycle
+        if (_activeBGQueues.find(key) == _activeBGQueues.end())
+            continue;
+
         BattlegroundTypeId bgTypeId = static_cast<BattlegroundTypeId>(key >> 32);
         BattlegroundBracketId bracket = static_cast<BattlegroundBracketId>(key & 0xFFFFFFFF);
         DoPollBGQueue(bgTypeId, bracket);
@@ -464,22 +477,38 @@ void QueueStatePoller::DoPollBGQueue(BattlegroundTypeId bgTypeId, BattlegroundBr
     // ========================================================================
     if (maxPlayers == 0)
     {
-        // Look up from BattlemasterList DBC - this is the authoritative source
-        BattlemasterListEntry const* bgEntry = sBattlemasterListStore.LookupEntry(static_cast<uint32>(bgTypeId));
-        if (bgEntry && bgEntry->MaxPlayers > 0)
+        // Primary fallback: BGBotManager has explicit team sizes for all supported BGs
+        maxPlayers = sBGBotManager->GetBGTeamSize(bgTypeId);
+        if (maxPlayers > 0)
         {
-            // DBC stores total players, we need per-team (divide by 2)
-            maxPlayers = static_cast<uint32>(bgEntry->MaxPlayers) / 2;
-            minPlayers = maxPlayers;  // Use same value - BG won't start until full
-
-            TC_LOG_INFO("playerbot.jit", "QueueStatePoller: BG {} using DBC size {}v{} (total {})",
-                static_cast<uint32>(bgTypeId), maxPlayers, maxPlayers, bgEntry->MaxPlayers);
+            minPlayers = maxPlayers;
+            TC_LOG_INFO("playerbot.jit",
+                "QueueStatePoller: BG {} using BGBotManager team size {}v{}",
+                static_cast<uint32>(bgTypeId), maxPlayers, maxPlayers);
         }
         else
         {
-            TC_LOG_WARN("playerbot.jit", "QueueStatePoller: BG {} has no player count in template or DBC, skipping",
+            // Secondary fallback: BattlemasterList DBC
+            // NOTE: BattlemasterListEntry::MaxPlayers is ALREADY per-team
+            // (GetMaxPlayersPerTeam() returns it directly without division)
+            BattlemasterListEntry const* bgEntry = sBattlemasterListStore.LookupEntry(
                 static_cast<uint32>(bgTypeId));
-            return;
+            if (bgEntry && bgEntry->MaxPlayers > 0)
+            {
+                maxPlayers = static_cast<uint32>(bgEntry->MaxPlayers);
+                minPlayers = maxPlayers;
+
+                TC_LOG_INFO("playerbot.jit",
+                    "QueueStatePoller: BG {} using DBC MaxPlayers={} (per-team)",
+                    static_cast<uint32>(bgTypeId), maxPlayers);
+            }
+            else
+            {
+                TC_LOG_WARN("playerbot.jit",
+                    "QueueStatePoller: BG {} has no player count in template, BGBotManager, or DBC, skipping",
+                    static_cast<uint32>(bgTypeId));
+                return;
+            }
         }
     }
 
@@ -560,6 +589,90 @@ void QueueStatePoller::DoPollArenaQueue(uint8 arenaType, BattlegroundBracketId b
     {
         ProcessArenaShortage(snapshot);
     }
+}
+
+// ============================================================================
+// BG VERIFICATION
+// ============================================================================
+
+void QueueStatePoller::ProcessPendingBGVerifications()
+{
+    std::lock_guard<decltype(_mutex)> lock(_mutex);
+
+    if (_pendingBGVerifications.empty())
+        return;
+
+    auto now = std::chrono::steady_clock::now();
+    std::vector<uint64> completed;
+
+    for (auto& [key, verification] : _pendingBGVerifications)
+    {
+        if (now < verification.verificationTime)
+            continue;
+
+        // Verification time reached - check actual queue counts
+        BattlegroundTypeId bgTypeId = static_cast<BattlegroundTypeId>(key >> 32);
+        BattlegroundBracketId bracket = static_cast<BattlegroundBracketId>(key & 0xFFFFFFFF);
+
+        BattlegroundQueueTypeId queueTypeId = BattlegroundMgr::BGQueueTypeId(
+            static_cast<uint16>(bgTypeId),
+            BattlegroundQueueIdType::Battleground,
+            false, 0);
+
+        if (!BattlegroundMgr::IsValidQueueId(queueTypeId))
+        {
+            TC_LOG_WARN("playerbot.jit",
+                "QueueStatePoller: Verification skipped - invalid queue ID for BG type {}",
+                static_cast<uint32>(bgTypeId));
+            completed.push_back(key);
+            continue;
+        }
+
+        BattlegroundQueue& queue = sBattlegroundMgr->GetBattlegroundQueue(queueTypeId);
+        uint32 allianceCount = queue.GetQueuedPlayersCount(TEAM_ALLIANCE, bracket);
+        uint32 hordeCount = queue.GetQueuedPlayersCount(TEAM_HORDE, bracket);
+
+        BattlegroundTemplate const* bgTemplate = sBattlegroundMgr->GetBattlegroundTemplateByTypeId(bgTypeId);
+        uint32 teamSize = bgTemplate ? bgTemplate->GetMaxPlayersPerTeam() : 0;
+        if (teamSize == 0)
+            teamSize = sBGBotManager->GetBGTeamSize(bgTypeId);
+
+        TC_LOG_INFO("playerbot.jit",
+            "QueueStatePoller: BG verification - Type={} Alliance={}/{} Horde={}/{} (expected warm pool: A:{} H:{})",
+            static_cast<uint32>(bgTypeId), allianceCount, teamSize, hordeCount, teamSize,
+            verification.expectedAlliance, verification.expectedHorde);
+
+        bool allianceSatisfied = (teamSize == 0) || (allianceCount >= teamSize);
+        bool hordeSatisfied = (teamSize == 0) || (hordeCount >= teamSize);
+
+        if (allianceSatisfied && hordeSatisfied)
+        {
+            TC_LOG_INFO("playerbot.jit",
+                "QueueStatePoller: BG verification PASSED - both teams have enough players, queue satisfied");
+            completed.push_back(key);
+        }
+        else
+        {
+            // Not enough bots actually queued - re-register the queue for another poll cycle
+            TC_LOG_WARN("playerbot.jit",
+                "QueueStatePoller: BG verification FAILED - re-registering queue for BG type {} bracket {} "
+                "(Alliance {}/{}, Horde {}/{})",
+                static_cast<uint32>(bgTypeId), static_cast<uint32>(bracket),
+                allianceCount, teamSize, hordeCount, teamSize);
+
+            // Re-register the queue so the next poll cycle detects the shortage
+            // and spawns additional bots (via JIT or warm pool)
+            _activeBGQueues.insert(key);
+
+            // Clear the JIT throttle so the shortage can be re-processed immediately
+            _lastJITTime.erase(key);
+
+            completed.push_back(key);
+        }
+    }
+
+    for (uint64 key : completed)
+        _pendingBGVerifications.erase(key);
 }
 
 // ============================================================================
@@ -672,11 +785,41 @@ void QueueStatePoller::ProcessBGShortage(BGQueueSnapshot const& snapshot)
         }
     }
 
-    // If warm pool fully satisfied the demand, we're done
+    // If warm pool fully satisfied the demand, schedule verification instead of
+    // immediately unregistering. Warm pool bots login asynchronously and some may
+    // fail to queue (e.g. dead bots, deserted bots). We verify after 30s that
+    // enough bots actually entered the queue, and re-poll if not.
     if (allianceStillNeeded == 0 && hordeStillNeeded == 0)
     {
-        TC_LOG_INFO("playerbot.jit", "QueueStatePoller: BG shortage fully satisfied from warm pool");
         RecordJITRequest(key);
+
+        // Check if there's already a pending verification for this key
+        if (_pendingBGVerifications.find(key) != _pendingBGVerifications.end())
+        {
+            TC_LOG_INFO("playerbot.jit",
+                "QueueStatePoller: BG shortage satisfied from warm pool - verification already pending");
+            _activeBGQueues.erase(key);
+            _bgSnapshots.erase(key);
+            return;
+        }
+
+        // Schedule a verification re-poll to confirm bots actually queued
+        BGVerificationEntry verification;
+        verification.verificationTime = std::chrono::steady_clock::now()
+            + std::chrono::seconds(BG_VERIFICATION_DELAY_SECONDS);
+        verification.expectedAlliance = allianceFromPool;
+        verification.expectedHorde = hordeFromPool;
+        _pendingBGVerifications[key] = verification;
+
+        TC_LOG_INFO("playerbot.jit",
+            "QueueStatePoller: BG shortage claimed by warm pool (A:{} H:{}) - "
+            "scheduling verification in {}s instead of immediate unregister",
+            allianceFromPool, hordeFromPool, BG_VERIFICATION_DELAY_SECONDS);
+
+        // Unregister from active polling to prevent over-spawning, but
+        // the verification entry will re-register if bots didn't actually queue
+        _activeBGQueues.erase(key);
+        _bgSnapshots.erase(key);
         return;
     }
 
@@ -765,6 +908,13 @@ void QueueStatePoller::ProcessBGShortage(BGQueueSnapshot const& snapshot)
 
     // Record JIT request time for throttling
     RecordJITRequest(key);
+
+    // Unregister the queue after submitting JIT requests.
+    // JIT bots will login and queue asynchronously. Without this, the poller
+    // re-polls and keeps spawning bots because JIT bots haven't entered the queue yet.
+    _activeBGQueues.erase(key);
+    _bgSnapshots.erase(key);
+    TC_LOG_INFO("playerbot.jit", "QueueStatePoller: BG queue unregistered after JIT submission (bots will queue after login)");
 }
 
 void QueueStatePoller::ProcessLFGShortage(LFGQueueSnapshot const& snapshot)

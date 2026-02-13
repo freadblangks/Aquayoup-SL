@@ -8,8 +8,10 @@
 #include "SeethingShoreScript.h"
 #include "BGScriptRegistry.h"
 #include "BattlegroundCoordinator.h"
+#include "Player.h"
 #include "Log.h"
 #include "Timer.h"
+#include "../../../Movement/BotMovementUtil.h"
 #include <algorithm>
 #include <random>
 
@@ -25,6 +27,7 @@ REGISTER_BG_SCRIPT(SeethingShoreScript, 1803);  // SeethingShore::MAP_ID
 void SeethingShoreScript::OnLoad(BattlegroundCoordinator* coordinator)
 {
     DominationScriptBase::OnLoad(coordinator);
+    InitializeNodeTracking();
 
     TC_LOG_DEBUG("bg.playerbot", "SeethingShoreScript::OnLoad - Initializing enterprise-grade Seething Shore coordination");
 
@@ -126,7 +129,9 @@ void SeethingShoreScript::OnEvent(const BGScriptEventData& event)
         {
             TC_LOG_DEBUG("bg.playerbot", "SeethingShoreScript::OnEvent - Azerite node spawned in zone %u",
                 event.objectiveId);
-            // Node spawning is handled internally
+            // Track as recently spawned for high-priority diversion
+            m_recentlySpawnedNode.zoneId = event.objectiveId;
+            m_recentlySpawnedNode.spawnTime = getMSTime();
             break;
         }
 
@@ -337,8 +342,28 @@ void SeethingShoreScript::AdjustStrategy(StrategicDecision& decision, float scor
 {
     uint32 activeNodes = GetActiveNodeCount();
 
+    // Score-based DESPERATE override with hysteresis
+    // Enter DESPERATE when behind by 30%+ (scoreAdvantage < -0.3), exit when gap narrows to 15%
+    SeethingShorePhase effectivePhase = m_currentPhase;
+    if (m_currentPhase != SeethingShorePhase::OPENING)
+    {
+        if (m_lastPhase == SeethingShorePhase::DESPERATE)
+        {
+            // Already desperate: stay until gap narrows to half threshold
+            if (scoreAdvantage < -0.15f)
+                effectivePhase = SeethingShorePhase::DESPERATE;
+        }
+        else
+        {
+            // Not desperate: enter at full threshold
+            if (scoreAdvantage < -0.30f)
+                effectivePhase = SeethingShorePhase::DESPERATE;
+        }
+    }
+    m_lastPhase = effectivePhase;
+
     // Phase-based strategy adjustment
-    switch (m_currentPhase)
+    switch (effectivePhase)
     {
         case SeethingShorePhase::OPENING:
             ApplyOpeningPhaseStrategy(decision, ALLIANCE);  // Faction-agnostic for now
@@ -871,6 +896,210 @@ std::vector<uint32> SeethingShoreScript::CalculateBestTargetZones(uint32 faction
         prioritized.resize(count);
 
     return prioritized;
+}
+
+// ============================================================================
+// RUNTIME BEHAVIOR - ExecuteStrategy
+// ============================================================================
+
+bool SeethingShoreScript::ExecuteStrategy(::Player* player)
+{
+    if (!player || !player->IsInWorld() || !player->IsAlive())
+        return false;
+
+    // Check pending GO interaction — hold position if waiting for deferred Use()
+    if (CheckPendingInteraction(player))
+        return true;
+
+    // Check defense commitment — bot stays at captured node for the hold timer
+    if (CheckDefenseCommitment(player))
+        return true;
+
+    // Refresh domination node state (throttled internally)
+    RefreshNodeState();
+
+    uint32 faction = player->GetBGTeam();
+
+    // =========================================================================
+    // PRIORITY 0: Nearby contested friendly node needs reinforcement
+    // =========================================================================
+    uint32 reinforceNode = CheckReinforcementNeeded(player, 60.0f);
+    if (reinforceNode != UINT32_MAX)
+    {
+        BGObjectiveData nodeData = GetNodeData(reinforceNode);
+        TC_LOG_DEBUG("playerbots.bg.script",
+            "[SS] {} PRIORITY 0: reinforcing contested node {}",
+            player->GetName(), nodeData.name);
+        DefendNode(player, reinforceNode);
+        return true;
+    }
+
+    // =========================================================================
+    // PRIORITY 1: Nearby active node (<30yd) capturable -> capture
+    // =========================================================================
+    for (const auto& node : m_activeNodes)
+    {
+        if (!node.active)
+            continue;
+
+        float dist = player->GetExactDist(&node.position);
+        if (dist < 30.0f)
+        {
+            // Check if this node is capturable (not already captured by us)
+            if (node.capturedByFaction != faction)
+            {
+                TC_LOG_DEBUG("playerbots.bg.script",
+                    "[SS] {} PRIORITY 1: capturing active node in zone {} (dist={:.0f})",
+                    player->GetName(), SeethingShore::GetZoneName(node.zoneId), dist);
+
+                if (dist < 8.0f)
+                    TryInteractWithGameObject(player, 29 /*GAMEOBJECT_TYPE_CAPTURE_POINT*/, 10.0f);
+                else
+                    BotMovementUtil::MoveToPosition(player, node.position);
+
+                return true;
+            }
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 2: Contested friendly node -> defend
+    // =========================================================================
+    uint32 threatened = FindNearestThreatenedNode(player);
+    if (threatened != UINT32_MAX)
+    {
+        BGObjectiveData nodeData = GetNodeData(threatened);
+        TC_LOG_DEBUG("playerbots.bg.script",
+            "[SS] {} PRIORITY 2: defending contested node {}",
+            player->GetName(), nodeData.name);
+        DefendNode(player, threatened);
+        return true;
+    }
+
+    // =========================================================================
+    // PRIORITY 2.5: Recently spawned node -> nearest 3-4 bots immediately divert
+    // =========================================================================
+    if (m_recentlySpawnedNode.spawnTime > 0 &&
+        getMSTime() - m_recentlySpawnedNode.spawnTime < RECENT_SPAWN_PRIORITY_DURATION)
+    {
+        Position spawnPos = SeethingShore::GetZoneCenter(m_recentlySpawnedNode.zoneId);
+        float distToSpawn = player->GetExactDist(&spawnPos);
+
+        // Nearest 3-4 bots divert (approximated by distance threshold or GUID hash)
+        // Use GUID hash mod 3 to ensure ~30% of team (3 of 10) divert
+        uint32 spawnSlot = player->GetGUID().GetCounter() % 3;
+        if (spawnSlot == 0 || distToSpawn < 50.0f)
+        {
+            TC_LOG_DEBUG("playerbots.bg.script",
+                "[SS] {} PRIORITY 2.5: rushing newly spawned node in zone {} (dist={:.0f})",
+                player->GetName(), SeethingShore::GetZoneName(m_recentlySpawnedNode.zoneId), distToSpawn);
+
+            if (distToSpawn < 8.0f)
+                TryInteractWithGameObject(player, 29 /*GAMEOBJECT_TYPE_CAPTURE_POINT*/, 10.0f);
+            else
+                BotMovementUtil::MoveToPosition(player, spawnPos);
+
+            // Attack enemies near the spawn
+            ::Player* enemy = FindNearestEnemyPlayer(player, 15.0f);
+            if (enemy)
+                EngageTarget(player, enemy);
+
+            return true;
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 3: GUID split: 50% capture nearest active unclaimed node, 50% defend
+    // =========================================================================
+    uint32 dutySlot = player->GetGUID().GetCounter() % 10;
+    auto activeZones = GetActiveZoneIds();
+
+    if (dutySlot < 5 && !activeZones.empty())
+    {
+        // 50% -> capture nearest active unclaimed node
+        Position nearestNode = GetNearestActiveNode(
+            player->GetPositionX(), player->GetPositionY());
+
+        if (nearestNode.GetPositionX() != 0 || nearestNode.GetPositionY() != 0)
+        {
+            float dist = player->GetExactDist(&nearestNode);
+
+            TC_LOG_DEBUG("playerbots.bg.script",
+                "[SS] {} PRIORITY 3: moving to capture active node (dist={:.0f})",
+                player->GetName(), dist);
+
+            if (::Player* enemy = FindNearestEnemyPlayer(player, 15.0f))
+            {
+                EngageTarget(player, enemy);
+            }
+            else if (dist < 8.0f)
+            {
+                TryInteractWithGameObject(player, 29 /*GAMEOBJECT_TYPE_CAPTURE_POINT*/, 10.0f);
+            }
+            else
+            {
+                BotMovementUtil::MoveToPosition(player, nearestNode);
+            }
+            return true;
+        }
+    }
+    else
+    {
+        // 50% -> defend an active node or engage enemies
+        if (::Player* enemy = FindNearestEnemyPlayer(player, 30.0f))
+        {
+            TC_LOG_DEBUG("playerbots.bg.script",
+                "[SS] {} PRIORITY 3: defending - engaging enemy {} (dist={:.0f})",
+                player->GetName(), enemy->GetName(),
+                player->GetExactDist(enemy));
+            EngageTarget(player, enemy);
+            return true;
+        }
+
+        // Defend nearest active node
+        if (!activeZones.empty())
+        {
+            uint32 defZone = activeZones[player->GetGUID().GetCounter() % activeZones.size()];
+            Position zoneCenter = SeethingShore::GetZoneCenter(defZone);
+
+            TC_LOG_DEBUG("playerbots.bg.script",
+                "[SS] {} PRIORITY 3: defending zone {}",
+                player->GetName(), SeethingShore::GetZoneName(defZone));
+            PatrolAroundPosition(player, zoneCenter, 5.0f, 15.0f);
+            return true;
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 4: Fallback -> patrol between active nodes
+    // =========================================================================
+    {
+        if (!activeZones.empty())
+        {
+            // Pick a random active zone based on GUID to spread out
+            uint32 targetZone = activeZones[player->GetGUID().GetCounter() % activeZones.size()];
+            Position zoneCenter = SeethingShore::GetZoneCenter(targetZone);
+
+            TC_LOG_DEBUG("playerbots.bg.script",
+                "[SS] {} PRIORITY 4: patrolling between active nodes (zone {})",
+                player->GetName(), SeethingShore::GetZoneName(targetZone));
+            BotMovementUtil::MoveToPosition(player, zoneCenter);
+            return true;
+        }
+
+        // No active nodes at all - patrol center of map
+        auto chokepoints = GetChokepoints();
+        if (!chokepoints.empty())
+        {
+            uint32 chokeIdx = player->GetGUID().GetCounter() % chokepoints.size();
+            Position chokePos(chokepoints[chokeIdx].x, chokepoints[chokeIdx].y,
+                              chokepoints[chokeIdx].z, 0);
+            PatrolAroundPosition(player, chokePos, 5.0f, 15.0f);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 } // namespace Playerbot::Coordination::Battleground

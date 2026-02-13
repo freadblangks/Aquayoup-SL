@@ -13,6 +13,7 @@
 #pragma once
 
 #include "Define.h"
+#include "AIBudgetTier.h"
 #include "Threading/LockHierarchy.h"
 #include "ObjectGuid.h"
 #include "Player.h"
@@ -53,6 +54,7 @@ class DeathRecoveryManager;
 class UnifiedMovementCoordinator; // Phase 2: Unified Movement System (Week 3 complete)
 class QuestCompletion;            // Quest completion system (Phase 0: Hook integration)
 class CombatStateManager;
+namespace Humanization { class RPGDailyRoutineManager; }
 enum class PlayerBotMovementPriority : uint8;
 
 // Two-Phase AddToWorld Lifecycle Management (Initialization Lifecycle)
@@ -63,6 +65,9 @@ enum class BotInitState : uint8;
 namespace Advanced {
     class TacticalCoordinator;
 }
+
+// Phase 3: Bot-to-bot messaging forward declaration
+struct BotMessage;
 
 // Phase 4: Event structure forward declarations
 struct GroupEvent;
@@ -585,6 +590,81 @@ public:
     Events::EventDispatcher const* GetEventDispatcher() const { return _gameSystems ? _gameSystems->GetEventDispatcher() : nullptr; }
 
     // ========================================================================
+    // SPRINT 3: COMBAT COORDINATION - Cross-bot coordination via claims
+    // ========================================================================
+
+    /**
+     * @brief Get Combat Coordination Integrator
+     * Bridges existing combat managers with BotMessageBus claim system
+     * @return Pointer to CombatCoordinationIntegrator, or nullptr if not initialized
+     */
+    class CombatCoordinationIntegrator* GetCombatCoordinationIntegrator()
+    {
+        return _gameSystems ? _gameSystems->GetCombatCoordinationIntegrator() : nullptr;
+    }
+    class CombatCoordinationIntegrator const* GetCombatCoordinationIntegrator() const
+    {
+        return _gameSystems ? _gameSystems->GetCombatCoordinationIntegrator() : nullptr;
+    }
+
+    /**
+     * @brief Get Dispel Coordinator for dispel rotation (GAP 2 fix)
+     * @return Pointer to DispelCoordinator, or nullptr if not initialized
+     */
+    class DispelCoordinator* GetDispelCoordinator()
+    {
+        return _gameSystems ? _gameSystems->GetDispelCoordinator() : nullptr;
+    }
+    class DispelCoordinator const* GetDispelCoordinator() const
+    {
+        return _gameSystems ? _gameSystems->GetDispelCoordinator() : nullptr;
+    }
+
+    /**
+     * @brief Get Interrupt Rotation Manager
+     * @return Pointer to InterruptRotationManager, or nullptr if not initialized
+     */
+    class InterruptRotationManager* GetInterruptRotationManager()
+    {
+        return _gameSystems ? _gameSystems->GetInterruptRotationManager() : nullptr;
+    }
+    class InterruptRotationManager const* GetInterruptRotationManager() const
+    {
+        return _gameSystems ? _gameSystems->GetInterruptRotationManager() : nullptr;
+    }
+
+    /**
+     * @brief Get Defensive Behavior Manager for external CD coordination (GAP 3 fix)
+     * @return Pointer to DefensiveBehaviorManager, or nullptr if not initialized
+     */
+    class DefensiveBehaviorManager* GetDefensiveBehaviorManager()
+    {
+        return _gameSystems ? _gameSystems->GetDefensiveBehaviorManager() : nullptr;
+    }
+    class DefensiveBehaviorManager const* GetDefensiveBehaviorManager() const
+    {
+        return _gameSystems ? _gameSystems->GetDefensiveBehaviorManager() : nullptr;
+    }
+
+    // ========================================================================
+    // RPG-STATE AI BUDGET TIER - Scope reduction per update
+    // ========================================================================
+
+    /**
+     * @brief Get current AI budget tier
+     * Controls which AI phases run each update based on RPG state.
+     * FULL = all phases, REDUCED = movement+safety, MINIMAL = safety only.
+     * Complements ST-1 throttler (frequency) with scope reduction.
+     */
+    AIBudgetTier GetCurrentBudgetTier() const { return _currentBudgetTier; }
+
+    /**
+     * @brief Called when the AI budget tier changes.
+     * Handles save frequency adjustment (P6) and non-essential cache pruning (P5).
+     */
+    void OnBudgetTierTransition(AIBudgetTier oldTier, AIBudgetTier newTier);
+
+    // ========================================================================
     // ST-1: ADAPTIVE AI UPDATE THROTTLING - Performance optimization
     // ========================================================================
 
@@ -865,6 +945,27 @@ public:
     void HandleEvent(ProfessionEvent const& event) override { OnProfessionEvent(event); }
 
     // ========================================================================
+    // BOT-TO-BOT MESSAGING (Phase 3: Sprint 2 - BotMessageBus)
+    // ========================================================================
+
+    /**
+     * @brief Handle a bot-to-bot message from BotMessageBus
+     *
+     * Called by BotMessageBus::DeliverMessage() when this bot receives
+     * a message from another bot in the same group. Messages include
+     * claims (interrupt/dispel/defensive CD), announcements (CD usage,
+     * death, position), requests (heal, external CD), and commands
+     * (focus target, spread, stack).
+     *
+     * Default implementation delegates to CombatCoordinationIntegrator
+     * if available. ClassAI implementations may override for
+     * class-specific message handling.
+     *
+     * @param message The bot message to handle
+     */
+    virtual void HandleBotMessage(BotMessage const& message);
+
+    // ========================================================================
     // PERFORMANCE METRICS - Monitoring and optimization
     // ========================================================================
 
@@ -1032,6 +1133,9 @@ protected:
     // Movement System Integration - Validated pathfinding and state machine
     std::unique_ptr<BotMovementController> _movementController;
 
+    // RPG Daily Routine - Autonomous daily activity simulation for masterless bots
+    std::unique_ptr<Humanization::RPGDailyRoutineManager> _rpgRoutineManager;
+
     // Performance tracking
     mutable PerformanceMetrics _performanceMetrics;
 
@@ -1064,6 +1168,13 @@ protected:
 
     // Debug tracking
     uint32 _lastDebugLogTime = 0;
+
+    // Cheat effect throttle timer (ms remaining)
+    uint32 _cheatEffectTimer = 0;
+
+    // RPG-State-Based AI Budget System — controls which phases run per update
+    AIBudgetTier _currentBudgetTier = AIBudgetTier::FULL;
+    uint32 _budgetReassessTimer = 0;
 };
 
 // ========================================================================

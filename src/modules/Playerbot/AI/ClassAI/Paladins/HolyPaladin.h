@@ -16,6 +16,7 @@
 #include "../CombatSpecializationTemplates.h"
 #include "../ResourceTypes.h"
 #include "../SpellValidation_WoW120_Part2.h"  // Central spell registry
+#include "../HeroTalentDetector.h"
 #include "Player.h"
 #include "SpellMgr.h"
 #include "SpellAuraEffects.h"
@@ -238,6 +239,16 @@ public:
         // Initialize Phase 5 systems
         InitializeHolyPaladinMechanics();
 
+        // Register healing spell efficiency tiers
+        GetEfficiencyManager().RegisterSpell(HOLY_LIGHT, HealingSpellTier::VERY_HIGH, "Holy Light");
+        GetEfficiencyManager().RegisterSpell(FLASH_OF_LIGHT, HealingSpellTier::HIGH, "Flash of Light");
+        GetEfficiencyManager().RegisterSpell(HOLY_SHOCK, HealingSpellTier::VERY_HIGH, "Holy Shock");
+        GetEfficiencyManager().RegisterSpell(WORD_OF_GLORY, HealingSpellTier::VERY_HIGH, "Word of Glory");
+        GetEfficiencyManager().RegisterSpell(LIGHT_OF_DAWN, HealingSpellTier::MEDIUM, "Light of Dawn");
+        GetEfficiencyManager().RegisterSpell(LAY_ON_HANDS, HealingSpellTier::EMERGENCY, "Lay on Hands");
+        GetEfficiencyManager().RegisterSpell(DIVINE_SHIELD, HealingSpellTier::EMERGENCY, "Divine Shield");
+        GetEfficiencyManager().RegisterSpell(BEACON_OF_LIGHT, HealingSpellTier::VERY_HIGH, "Beacon of Light");
+
         // Note: Do NOT call bot->GetName() here - Player data may not be loaded yet
         TC_LOG_DEBUG("playerbot", "HolyPaladinRefactored created for bot GUID: {}",
             bot ? bot->GetGUID().GetCounter() : 0);
@@ -247,6 +258,10 @@ public:
     {
         if (!this->GetBot())
             return;
+
+        // Lazy hero talent detection (once per bot lifetime until respec)
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(this->GetBot());
 
         // Update Holy Paladin state
         UpdateHolyPaladinState();
@@ -280,6 +295,46 @@ protected:
         Player* bot = this->GetBot();
         Group* group = bot->GetGroup();        // Update beacon targets
         UpdateBeacons(group);
+
+        // Hero talent tree rotation branching
+        // Holy Paladin has access to: Herald of the Sun / Lightsmith
+        if (_heroTalents.IsTree(HeroTalentTree::HERALD_OF_THE_SUN))
+        {
+            // Herald of the Sun: Dawnlight empowers healing with solar energy
+            // Cast Dawnlight on injured allies for HoT effect
+            Unit* dawnlightTarget = SelectHealingTarget(group);
+            if (dawnlightTarget && dawnlightTarget->GetHealthPct() < 80.0f)
+            {
+                if (this->CanCastSpell(WoW120Spells::Paladin::Holy::DAWNLIGHT, dawnlightTarget))
+                {
+                    this->CastSpell(WoW120Spells::Paladin::Holy::DAWNLIGHT, dawnlightTarget);
+                    return;
+                }
+            }
+            // Eternal Flame for sustained healing
+            if (dawnlightTarget && dawnlightTarget->GetHealthPct() < 70.0f)
+            {
+                if (this->CanCastSpell(WoW120Spells::Paladin::Holy::ETERNAL_FLAME, dawnlightTarget))
+                {
+                    this->CastSpell(WoW120Spells::Paladin::Holy::ETERNAL_FLAME, dawnlightTarget);
+                    return;
+                }
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::LIGHTSMITH))
+        {
+            // Lightsmith: Holy Armament creates sacred weapons for allies
+            // Apply Sacred Weapon buff to tank or highest-priority ally
+            Player* tank = GetMainTank(group);
+            if (tank && !tank->HasAura(WoW120Spells::Paladin::Holy::SACRED_WEAPON))
+            {
+                if (this->CanCastSpell(WoW120Spells::Paladin::Holy::HOLY_ARMAMENT, tank))
+                {
+                    this->CastSpell(WoW120Spells::Paladin::Holy::HOLY_ARMAMENT, tank);
+                    return;
+                }
+            }
+        }
 
         // Emergency healing
         if (HandleEmergencyHealing(group))
@@ -363,7 +418,7 @@ protected:
                         }
 
                         // Flash of Light for speed
-                        if (_infusionOfLightActive && this->CanCastSpell(FLASH_OF_LIGHT, member))
+                        if (_infusionOfLightActive && IsHealAllowedByMana(FLASH_OF_LIGHT) && this->CanCastSpell(FLASH_OF_LIGHT, member))
                         {
                             this->CastSpell(FLASH_OF_LIGHT, member);
                             _infusionOfLightActive = false;
@@ -385,7 +440,7 @@ protected:
         if (injuredCount >= 3)
         {
             // Light of Dawn for AoE healing
-            if (this->CanCastSpell(LIGHT_OF_DAWN, this->GetBot()))
+            if (IsHealAllowedByMana(LIGHT_OF_DAWN) && this->CanCastSpell(LIGHT_OF_DAWN, this->GetBot()))
             {
                 this->CastSpell(LIGHT_OF_DAWN, this->GetBot());
                 ConsumeHolyPower(3);
@@ -418,7 +473,7 @@ protected:
         // Critical: Flash of Light
         if (healthPct < 50.0f)
         {
-            if (this->CanCastSpell(FLASH_OF_LIGHT, target))
+            if (IsHealAllowedByMana(FLASH_OF_LIGHT) && this->CanCastSpell(FLASH_OF_LIGHT, target))
             {
                 this->CastSpell(FLASH_OF_LIGHT, target);
                 return;
@@ -1014,6 +1069,7 @@ private:
     uint32 _avengingWrathEndTime;
     bool _infusionOfLightActive;
     uint32 _lastHolyShockTime;
+    HeroTalentCache _heroTalents;
 };
 
 } // namespace Playerbot

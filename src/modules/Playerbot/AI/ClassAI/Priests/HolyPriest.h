@@ -38,6 +38,7 @@
 
 // Central Spell Registry - See WoW120Spells::Priest namespace
 #include "../SpellValidation_WoW120_Part2.h"
+#include "../HeroTalentDetector.h"      // Hero talent tree detection
 
 namespace Playerbot
 {
@@ -275,6 +276,22 @@ public:
         // Initialize Phase 5 systems
         InitializeHolyMechanics();
 
+        // Register healing spell efficiency tiers
+        GetEfficiencyManager().RegisterSpell(HOLY_HEAL, HealingSpellTier::VERY_HIGH, "Heal");
+        GetEfficiencyManager().RegisterSpell(HOLY_RENEW, HealingSpellTier::VERY_HIGH, "Renew");
+        GetEfficiencyManager().RegisterSpell(HOLY_PRAYER_OF_MENDING, HealingSpellTier::VERY_HIGH, "Prayer of Mending");
+        GetEfficiencyManager().RegisterSpell(HOLY_FLASH_HEAL, HealingSpellTier::HIGH, "Flash Heal");
+        GetEfficiencyManager().RegisterSpell(HOLY_CIRCLE_OF_HEALING, HealingSpellTier::HIGH, "Circle of Healing");
+        GetEfficiencyManager().RegisterSpell(HOLY_HOLY_WORD_SERENITY, HealingSpellTier::MEDIUM, "Holy Word: Serenity");
+        GetEfficiencyManager().RegisterSpell(HOLY_PRAYER_OF_HEALING, HealingSpellTier::MEDIUM, "Prayer of Healing");
+        GetEfficiencyManager().RegisterSpell(HOLY_HOLY_WORD_SANCTIFY, HealingSpellTier::LOW, "Holy Word: Sanctify");
+        GetEfficiencyManager().RegisterSpell(HOLY_DIVINE_STAR, HealingSpellTier::MEDIUM, "Divine Star");
+        GetEfficiencyManager().RegisterSpell(HOLY_HALO, HealingSpellTier::LOW, "Halo");
+        GetEfficiencyManager().RegisterSpell(HOLY_GUARDIAN_SPIRIT, HealingSpellTier::EMERGENCY, "Guardian Spirit");
+        GetEfficiencyManager().RegisterSpell(HOLY_DIVINE_HYMN, HealingSpellTier::EMERGENCY, "Divine Hymn");
+        GetEfficiencyManager().RegisterSpell(HOLY_HOLY_WORD_SALVATION, HealingSpellTier::EMERGENCY, "Holy Word: Salvation");
+        GetEfficiencyManager().RegisterSpell(HOLY_DESPERATE_PRAYER, HealingSpellTier::EMERGENCY, "Desperate Prayer");
+
         TC_LOG_DEBUG("playerbot", "HolyPriestRefactored initialized for bot {}", bot->GetGUID().GetCounter());
     }
 
@@ -284,6 +301,30 @@ public:
         if (!target || !bot)
 
             return;
+
+        // Detect hero talents if not yet cached
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(this->GetBot());
+
+        // Hero talent rotation branches
+        if (_heroTalents.IsTree(HeroTalentTree::ORACLE))
+        {
+            // Oracle: Premonition for predictive group healing
+            if (this->CanCastSpell(WoW120Spells::Priest::HolyPriest::POWER_SURGE, this->GetBot()))
+            {
+                this->CastSpell(WoW120Spells::Priest::HolyPriest::POWER_SURGE, this->GetBot());
+                return;
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::ARCHON))
+        {
+            // Archon: Divine Halo for radiant burst healing
+            if (this->CanCastSpell(WoW120Spells::Priest::HolyPriest::DIVINE_HALO, this->GetBot()))
+            {
+                this->CastSpell(WoW120Spells::Priest::HolyPriest::DIVINE_HALO, this->GetBot());
+                return;
+            }
+        }
 
         UpdateHolyState();
 
@@ -994,7 +1035,7 @@ private:
 
     bool HandleDirectHealing(const ::std::vector<Unit*>& group)
     {
-        // Flash Heal for emergency
+        // Flash Heal for emergency (gated by mana efficiency tier)
         for (Unit* member : group)
         {
 
@@ -1002,7 +1043,7 @@ private:
 
             {
 
-                if (this->CanCastSpell(HOLY_FLASH_HEAL, member))
+                if (IsHealAllowedByMana(HOLY_FLASH_HEAL) && this->CanCastSpell(HOLY_FLASH_HEAL, member))
 
                 {
 
@@ -1015,7 +1056,7 @@ private:
             }
         }
 
-        // Heal (efficient single-target)
+        // Heal (efficient single-target - always allowed, VERY_HIGH tier)
         for (Unit* member : group)
         {
 
@@ -1437,6 +1478,9 @@ private:
     uint32 _lastHolyFireTime;
 
     CooldownManager _cooldowns;
+
+    // Hero talent detection cache (refreshed on combat start)
+    HeroTalentCache _heroTalents;
 };
 
 } // namespace Playerbot

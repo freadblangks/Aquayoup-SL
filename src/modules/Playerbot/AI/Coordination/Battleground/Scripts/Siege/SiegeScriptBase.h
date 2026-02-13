@@ -44,16 +44,16 @@ public:
     // Siege specific
     // ========================================================================
 
-    virtual bool HasVehicles() const { return true; }
+    virtual bool HasVehicles() const override { return true; }
     virtual bool IsEpic() const { return GetTeamSize() >= 40; }
-    virtual uint8 GetTeamSize() const = 0; // To be implemented by derived classes
+    virtual uint8 GetTeamSize() const override = 0; // To be implemented by derived classes
 
     // ========================================================================
     // LIFECYCLE
     // ========================================================================
 
-    void OnLoad(BattlegroundCoordinator* coordinator);
-    void OnUpdate(uint32 diff);
+    void OnLoad(BattlegroundCoordinator* coordinator) override;
+    void OnUpdate(uint32 diff) override;
 
     // ========================================================================
     // VEHICLE DATA
@@ -68,14 +68,14 @@ public:
     RoleDistribution GetRecommendedRoles(
         const StrategicDecision& decision,
         float scoreAdvantage,
-        uint32 timeRemaining) const;
+        uint32 timeRemaining) const override;
 
     void AdjustStrategy(StrategicDecision& decision,
         float scoreAdvantage, uint32 controlledCount,
-        uint32 totalObjectives, uint32 timeRemaining) const;
+        uint32 totalObjectives, uint32 timeRemaining) const override;
 
     float CalculateWinProbability(uint32 allianceScore, uint32 hordeScore,
-        uint32 timeRemaining, uint32 objectivesControlled, uint32 faction) const;
+        uint32 timeRemaining, uint32 objectivesControlled, uint32 faction) const override;
 
     // ========================================================================
     // SIEGE-SPECIFIC IMPLEMENTATIONS
@@ -88,8 +88,8 @@ public:
     // EVENT HANDLING
     // ========================================================================
 
-    void OnEvent(const BGScriptEventData& event);
-    void OnMatchStart();
+    void OnEvent(const BGScriptEventData& event) override;
+    void OnMatchStart() override;
 
 protected:
     // ========================================================================
@@ -176,6 +176,19 @@ protected:
     bool ShouldRushBoss() const;
 
     /**
+     * @brief Try to board a nearby vehicle of the given creature entry
+     *
+     * Thread-safe: uses cached vehicle GUIDs (resolved on main thread).
+     * Queues EnterVehicle action via BotActionMgr if a free vehicle is found.
+     *
+     * @param bot The bot player
+     * @param vehicleEntry Creature entry ID of the vehicle (e.g., DEMOLISHER_ENTRY)
+     * @param maxRange Maximum search range from bot position
+     * @return true if a vehicle boarding action was queued
+     */
+    bool TryBoardNearbyVehicle(::Player* bot, uint32 vehicleEntry, float maxRange) const;
+
+    /**
      * @brief Get gate destruction order for optimal attack
      */
     std::vector<uint32> GetGateDestructionOrder(uint32 attackingFaction) const;
@@ -218,6 +231,21 @@ protected:
 
     // Vehicle tracking
     std::map<ObjectGuid, uint32> m_vehicleAssignments;  // bot -> vehicle entry
+
+    // Cached vehicle GUIDs (populated on main thread by OnUpdate, used from worker threads)
+    struct CachedVehicle
+    {
+        ObjectGuid guid;
+        uint32 entry;
+        Position pos;
+        bool hasPassengers;
+    };
+    std::vector<CachedVehicle> m_cachedVehicles;
+    uint32 m_vehicleCacheTimer = 0;
+    static constexpr uint32 VEHICLE_CACHE_INTERVAL = 3000;  // Refresh every 3s
+
+    /// Resolve vehicle GUIDs on main thread
+    void UpdateVehicleCache();
 
 private:
     // Update timers

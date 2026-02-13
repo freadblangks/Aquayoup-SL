@@ -6,7 +6,7 @@
 #pragma once
 
 #include "RaidState.h"
-#include "Core/Events/CombatEventData.h"
+#include "Core/Events/CombatEvent.h"
 #include <vector>
 #include <map>
 
@@ -26,8 +26,8 @@ public:
     // Add Tracking
     void OnAddSpawned(ObjectGuid guid, uint32 creatureId);
     void OnAddDied(ObjectGuid guid);
-    void OnDeathEvent(const CombatEventData& event);
-    void OnDamageEvent(const CombatEventData& event);
+    void OnDeathEvent(const CombatEvent& event);
+    void OnDamageEvent(const CombatEvent& event);
 
     // Priority Management
     void SetAddPriority(ObjectGuid guid, AddPriority priority);

@@ -23,7 +23,6 @@
 #include "Position.h"
 #include "SharedDefines.h"
 #include "Threading/LockHierarchy.h"
-#include <memory>
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
@@ -569,15 +568,6 @@ private:
      * @return true if spell has teleport effect
      */
     bool IsTeleportSpell(uint32 spellId) const;
-
-    /**
-     * @brief Get zone ID for a position
-     *
-     * @param mapId Map ID
-     * @param pos Position
-     * @return Zone ID, or 0 if not found
-     */
-    uint32 GetZoneIdForPosition(uint32 mapId, Position const& pos) const;
 
 private:
     /// Primary storage for all portal data

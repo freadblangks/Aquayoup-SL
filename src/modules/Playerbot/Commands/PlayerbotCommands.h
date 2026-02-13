@@ -91,6 +91,7 @@ namespace Playerbot
         // Configuration commands
         static bool HandleBotConfigCommand(ChatHandler* handler, ::std::string key, ::std::string value);
         static bool HandleBotConfigShowCommand(ChatHandler* handler);
+        static bool HandleBotConfigReloadCommand(ChatHandler* handler);
 
         // Monitoring dashboard commands
         static bool HandleBotMonitorCommand(ChatHandler* handler);
@@ -115,6 +116,12 @@ namespace Playerbot
         static bool HandleBotDungeonEnableCommand(ChatHandler* handler);
         static bool HandleBotDungeonDisableCommand(ChatHandler* handler);
         static bool HandleBotDungeonAggroCommand(ChatHandler* handler, ::std::string level);
+
+        // Cheat commands
+        static bool HandleBotCheatCommand(ChatHandler* handler, ::std::string cheatName);
+        static bool HandleBotCheatListCommand(ChatHandler* handler);
+        static bool HandleBotCheatOffCommand(ChatHandler* handler);
+        static bool HandleBotCheatMultCommand(ChatHandler* handler, ::std::string cheatName, float multiplier);
 
         // Helper methods
         static Player* FindBotByName(::std::string const& name);

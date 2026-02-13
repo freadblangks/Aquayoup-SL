@@ -468,6 +468,9 @@ namespace WorldPackets
         class SetBackpackAutosortDisabled;
         class SetBackpackSellJunkDisabled;
         class SetBankAutosortDisabled;
+        class SetSortBagsRightToLeft;
+        class SetInsertItemsLeftToRight;
+        class SellAllJunkItems;
     }
 
     namespace LFG
@@ -508,6 +511,7 @@ namespace WorldPackets
 
     namespace Misc
     {
+        class SetCurrencyFlags;
         class SetSelection;
         class ViolenceLevel;
         class TimeSyncResponse;
@@ -1335,6 +1339,7 @@ class TC_GAME_API WorldSession
         void HandleSetPvP(WorldPackets::Misc::SetPvP& packet);
         void HandleSetWarMode(WorldPackets::Misc::SetWarMode& packet);
 
+        void HandleSetCurrencyFlags(WorldPackets::Misc::SetCurrencyFlags& packet);
         void HandleSetSelectionOpcode(WorldPackets::Misc::SetSelection& packet);
         void HandleStandStateChangeOpcode(WorldPackets::Misc::StandStateChange& packet);
         void HandleEmoteOpcode(WorldPackets::Chat::EmoteClient& packet);
@@ -1560,6 +1565,9 @@ class TC_GAME_API WorldSession
         void HandleSetBackpackAutosortDisabled(WorldPackets::Item::SetBackpackAutosortDisabled const& setBackpackAutosortDisabled);
         void HandleSetBackpackSellJunkDisabled(WorldPackets::Item::SetBackpackSellJunkDisabled const& setBackpackSellJunkDisabled);
         void HandleSetBankAutosortDisabled(WorldPackets::Item::SetBankAutosortDisabled const& setBankAutosortDisabled);
+        void HandleSetSortBagsRightToLeft(WorldPackets::Item::SetSortBagsRightToLeft const& setSortBagsRightToLeft);
+        void HandleSetInsertItemsLeftToRight(WorldPackets::Item::SetInsertItemsLeftToRight const& setInsertItemsLeftToRight);
+        void HandleSellAllJunkItems(WorldPackets::Item::SellAllJunkItems& sellAllJunkItems);
 
         void HandleAttackSwingOpcode(WorldPackets::Combat::AttackSwing& packet);
         void HandleAttackStopOpcode(WorldPackets::Combat::AttackStop& packet);

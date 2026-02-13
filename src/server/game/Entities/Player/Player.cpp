@@ -7451,6 +7451,21 @@ bool Player::HasCurrency(uint32 id, uint32 amount) const
     return itr != _currencyStorage.end() && itr->second.Quantity >= amount;
 }
 
+void Player::SetCurrencyFlags(uint32 id, CurrencyDbFlags flags)
+{
+    PlayerCurrenciesMap::iterator itr = _currencyStorage.find(id);
+    if (itr == _currencyStorage.end())
+        return;
+
+    CurrencyDbFlags validFlags = flags & CurrencyDbFlags::ClientFlags;
+    if (itr->second.Flags == validFlags)
+        return;
+
+    itr->second.Flags = validFlags;
+    if (itr->second.state != PLAYERCURRENCY_NEW)
+        itr->second.state = PLAYERCURRENCY_CHANGED;
+}
+
 void Player::SetInGuild(ObjectGuid::LowType guildId)
 {
     if (guildId)
@@ -13989,7 +14004,20 @@ void Player::OnGossipSelect(WorldObject* source, int32 gossipOptionId, uint32 me
         case GossipOptionNpc::None:
             break;
         case GossipOptionNpc::Vendor:
-            GetSession()->SendListInventory(guid);
+            PlayerTalkClass->SendCloseGossip();
+            // Send NIOR only; don't send VendorInventory in the same flush.
+            // The client's NIOR case 5 handler queues a UI event that sets
+            // PIM+48 = Merchant(5) and opens MerchantFrame. The frame then
+            // requests vendor data via CMSG_LIST_INVENTORY in a second round-trip,
+            // by which time PIM+48 is set and IsSellAllJunkEnabled works.
+            PlayerTalkClass->GetInteractionData().StartInteraction(guid, PlayerInteractionType::Vendor);
+            {
+                WorldPackets::NPC::NPCInteractionOpenResult npcInteraction;
+                npcInteraction.Npc = guid;
+                npcInteraction.InteractionType = PlayerInteractionType::Merchant;
+                npcInteraction.Success = true;
+                SendDirectMessage(npcInteraction.Write());
+            }
             break;
         case GossipOptionNpc::Taxinode:
             GetSession()->SendTaxiMenu(source->ToCreature());

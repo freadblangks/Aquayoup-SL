@@ -18,6 +18,7 @@
 #define PLAYERBOT_GAME_SYSTEMS_MANAGER_H
 
 #include "IGameSystemsManager.h"
+#include "AI/AIBudgetTier.h"
 #include <memory>
 
 // Manager includes
@@ -71,6 +72,19 @@
 #include "AI/Decision/BehaviorTree.h"
 #include "AI/HybridAIController.h"
 #include "BehaviorPriorityManager.h"
+
+// Sprint 3: Combat Coordination
+#include "AI/Combat/CombatCoordinationIntegrator.h"
+
+// Combat Behaviors managers
+#include "AI/CombatBehaviors/AoEDecisionManager.h"
+#include "AI/CombatBehaviors/CooldownStackingOptimizer.h"
+#include "AI/CombatBehaviors/DefensiveBehaviorManager.h"
+#include "AI/CombatBehaviors/DispelCoordinator.h"
+#include "AI/CombatBehaviors/InterruptRotationManager.h"
+
+// Game Systems
+#include "Game/ConsumableManager.h"
 
 namespace Playerbot
 {
@@ -223,6 +237,25 @@ public:
     HybridAIController* GetHybridAI() const override { return _hybridAI.get(); }
     BehaviorPriorityManager* GetPriorityManager() const override { return _priorityManager.get(); }
 
+    // Sprint 3: Combat Coordination
+    CombatCoordinationIntegrator* GetCombatCoordinationIntegrator() const override { return _combatCoordinationIntegrator.get(); }
+
+    // Combat Behaviors managers
+    AoEDecisionManager* GetAoEDecisionManager() const override { return _aoeDecisionManager.get(); }
+    CooldownStackingOptimizer* GetCooldownStackingOptimizer() const override { return _cooldownStackingOptimizer.get(); }
+    DefensiveBehaviorManager* GetDefensiveBehaviorManager() const override { return _defensiveBehaviorManager.get(); }
+    DispelCoordinator* GetDispelCoordinator() const override { return _dispelCoordinator.get(); }
+    InterruptRotationManager* GetInterruptRotationManager() const override { return _interruptRotationManager.get(); }
+
+    // Game Systems
+    ConsumableManager* GetConsumableManager() const override { return _consumableManager.get(); }
+
+    // ========================================================================
+    // RPG-STATE AI BUDGET TIER - Manager-level scope gating
+    // ========================================================================
+    void SetBudgetTier(AIBudgetTier tier) { _budgetTier = tier; }
+    AIBudgetTier GetBudgetTier() const { return _budgetTier; }
+
 private:
     // ========================================================================
     // MANAGER INSTANCES - All 26 managers owned by facade
@@ -294,6 +327,19 @@ private:
     // Behavior management
     std::unique_ptr<BehaviorPriorityManager> _priorityManager;
 
+    // Sprint 3: Combat Coordination
+    std::unique_ptr<CombatCoordinationIntegrator> _combatCoordinationIntegrator;
+
+    // Combat Behaviors managers
+    std::unique_ptr<AoEDecisionManager> _aoeDecisionManager;
+    std::unique_ptr<CooldownStackingOptimizer> _cooldownStackingOptimizer;
+    std::unique_ptr<DefensiveBehaviorManager> _defensiveBehaviorManager;
+    std::unique_ptr<DispelCoordinator> _dispelCoordinator;
+    std::unique_ptr<InterruptRotationManager> _interruptRotationManager;
+
+    // Game Systems
+    std::unique_ptr<ConsumableManager> _consumableManager;
+
     // ========================================================================
     // INTERNAL STATE
     // ========================================================================
@@ -301,6 +347,7 @@ private:
     Player* _bot;                   // Bot player reference (non-owning)
     BotAI* _botAI;                  // BotAI reference (non-owning, needed for initialization)
     bool _initialized{false};       // Initialization state flag
+    AIBudgetTier _budgetTier{AIBudgetTier::FULL}; // RPG-state budget tier for manager gating
 
     // Update throttling timers (moved from BotAI)
     uint32 _equipmentCheckTimer{0};
@@ -320,6 +367,14 @@ private:
     uint32 _auctionBridgeTimer{0};         // 2000ms - material sourcing
     uint32 _professionBridgeTimer{0};      // 5000ms - selling/buying materials
     uint32 _farmingUpdateTimer{0};         // 2000ms - farming coordination
+
+    // Sprint 3: Combat Coordination throttle timers
+    uint32 _combatCoordTimer{0};           // 100ms - responsive coordination
+    uint32 _dispelTimer{0};                // 200ms - dispel rotation
+    uint32 _interruptTimer{0};             // 100ms - fast interrupt response
+    uint32 _aoeTimer{0};                   // 500ms - target clustering
+    uint32 _cdStackTimer{0};               // 500ms - cooldown optimization
+    uint32 _defenseTimer{0};               // 200ms - defensive coordination
 
     // ========================================================================
     // HELPER METHODS

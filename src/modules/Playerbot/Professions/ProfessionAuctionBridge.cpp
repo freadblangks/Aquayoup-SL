@@ -71,10 +71,8 @@ void ProfessionAuctionBridge::Initialize()
     // Load shared data once (thread-safe via static initialization)
     if (!_sharedDataInitialized)
     {
-        // NOTE: AuctionHouse is now per-bot (Phase 7), removed static storage
-        // Access via: GetGameSystems(_bot)->GetAuctionHouse() in per-instance methods
-        // TODO: Review if any AuctionHouse methods need to be called during initialization
-        // Removed: _auctionHouse = AuctionHouse::instance();
+        // NOTE: AuctionHouse is per-bot (Phase 7). Access via GetGameSystems(_bot)->GetAuctionHouse()
+        // in per-instance methods. No AH calls needed during shared initialization.
         LoadDefaultStockpileConfigs();
         _sharedDataInitialized = true;
         TC_LOG_INFO("playerbot", "ProfessionAuctionBridge::Initialize - Loaded shared data (stockpile configs)");
@@ -779,9 +777,10 @@ bool ProfessionAuctionBridge::IsCraftedItem(uint32 itemId, ProfessionType& outPr
 
     for (ProfessionType profession : productionProfessions)
     {
-        // Get all recipes for this profession - stub implementation
-        // TODO: Access ProfessionManager from GameSystemsManager when we have bot context
-        std::vector<RecipeInfo> recipes; // ProfessionManager requires bot context
+        // LIMITATION: Recipe lookup requires per-bot ProfessionManager context (GameSystemsManager).
+        // This method is called without bot context, so recipe iteration is a no-op.
+        // Enhancement: Pass Player* parameter to enable GameSystems()->GetProfessionManager() lookup.
+        std::vector<RecipeInfo> recipes;
 
         for (const RecipeInfo& recipe : recipes)
         {
@@ -807,9 +806,8 @@ bool ProfessionAuctionBridge::CanAccessAuctionHouse() const
     // 1. Bot must be in a city (safe zone)
     // 2. Or have recently interacted with auction house
 
-    // Check if bot is in a rest area (cities have rest areas)
-    // TODO: Implement proper rest area check via RestMgr
-    // For now, assume bot has access if alive
+    // LIMITATION: Proper rest area check (REST_FLAG_IN_CITY) would restrict to cities only.
+    // Currently assumes bot has access if alive — acceptable for economy simulation.
     if (_bot->IsAlive())
     {
         TC_LOG_DEBUG("playerbots", "ProfessionAuctionBridge: Bot {} has auction access",

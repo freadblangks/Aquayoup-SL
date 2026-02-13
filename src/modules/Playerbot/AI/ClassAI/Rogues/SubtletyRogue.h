@@ -28,6 +28,7 @@
 // Central Spell Registry - See WoW120Spells::Rogue namespace
 #include "../SpellValidation_WoW120.h"
 #include "../SpellValidation_WoW120_Part2.h"
+#include "../HeroTalentDetector.h"      // Hero talent tree detection
 
 namespace Playerbot
 {
@@ -223,6 +224,7 @@ public:
         , _lastBackstabTime(0)
         , _lastShadowstrikeTime(0)
         , _lastEviscerateTime(0)
+        , _shadowTechniquesActive(false)
         , _spellsInitialized(false)
     {
         // CRITICAL: Do NOT call bot->HasSpell() or bot->GetName() in constructor!
@@ -243,6 +245,30 @@ public:
     {
         if (!target || !target->IsAlive() || !target->IsHostileTo(this->GetBot()))
             return;
+
+        // Detect hero talents if not yet cached
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(this->GetBot());
+
+        // Hero talent rotation branches
+        if (_heroTalents.IsTree(HeroTalentTree::DEATHSTALKER))
+        {
+            // Deathstalker: Apply Deathstalker's Mark for amplified finishers
+            if (this->CanCastSpell(WoW120Spells::Rogue::Subtlety::SUB_DEATHSTALKERS_MARK, target))
+            {
+                this->CastSpell(WoW120Spells::Rogue::Subtlety::SUB_DEATHSTALKERS_MARK, target);
+                return;
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::TRICKSTER))
+        {
+            // Trickster: Unseen Blade for burst from stealth/Shadow Dance
+            if (this->CanCastSpell(WoW120Spells::Rogue::Subtlety::SUB_UNSEEN_BLADE, target))
+            {
+                this->CastSpell(WoW120Spells::Rogue::Subtlety::SUB_UNSEEN_BLADE, target);
+                return;
+            }
+        }
 
         // CRITICAL: Deferred spell initialization - bot's spell data must be loaded
         if (!_spellsInitialized && this->GetBot() && this->GetBot()->IsInWorld())
@@ -492,6 +518,26 @@ private:
         {
             _shadowBladesActive = false;
             _shadowBladesEndTime = 0;
+        }
+
+        // Shadow Techniques passive proc: auto-attacks have a chance to
+        // generate an additional combo point and restore 8 energy.
+        // In WoW 12.0, this occurs roughly every 4th auto-attack.
+        // We simulate this by checking the aura and granting the benefit.
+        Player* bot = this->GetBot();
+        if (bot && bot->HasAura(SHADOW_TECHNIQUES_PROC))
+        {
+            if (!_shadowTechniquesActive)
+            {
+                _shadowTechniquesActive = true;
+                // Shadow Techniques grants 1 combo point and 8 energy
+                GenerateComboPoints(1);
+                this->_resource.energy = ::std::min(this->_resource.energy + 8, this->_resource.maxEnergy);
+            }
+        }
+        else
+        {
+            _shadowTechniquesActive = false;
         }
 
         // Regenerate energy (10 per second)
@@ -842,7 +888,11 @@ private:
     uint32 _lastBackstabTime;
     uint32 _lastShadowstrikeTime;
     uint32 _lastEviscerateTime;
+    bool _shadowTechniquesActive;  // Shadow Techniques passive proc tracking
     bool _spellsInitialized;  // Deferred initialization flag
+
+    // Hero talent detection cache (refreshed on combat start)
+    HeroTalentCache _heroTalents;
 };
 
 } // namespace Playerbot

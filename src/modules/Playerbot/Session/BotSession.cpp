@@ -404,8 +404,8 @@ BotSession::BotSession(uint32 bnetAccountId)
     // Create BotSession using regular constructor
     auto session = ::std::make_shared<BotSession>(bnetAccountId);
 
-    // TODO: In future, we could create a BotSocket here and use it to initialize the session
-    // For now, we rely on method overrides to handle the null socket case
+    // NOTE: Bots operate with a null socket. BotSession overrides all socket-dependent
+    // methods (SendPacket, KickPlayer, etc.) to handle the socketless case.
 
     return session;
 }
@@ -551,6 +551,10 @@ void BotSession::SendPacket(WorldPacket const* packet, bool forced)
 
     // Note: forced parameter is not used for bot sessions but required for interface
     (void)forced;
+
+    // Reactive movement ACK: notify simulator of SMSG packets requiring ACK response
+    if (_packetSimulator)
+        _packetSimulator->OnPacketSent(packet->GetOpcode());
 
     // CRITICAL: Intercept party invitation packets for bot handling
     if (packet->GetOpcode() == SMSG_PARTY_INVITE)
@@ -1492,10 +1496,11 @@ bool BotSession::Update(uint32 diff, PacketFilter& updater)
         // SOLUTION: Bot packets (like CMSG_RECLAIM_CORPSE) must be processed on MAIN THREAD or via a thread-safe mechanism.
         //           Current approach is UNSAFE and causes crashes.
         //
-        // TODO: Implement safe packet processing for bots (options below):
-        //       1. Process bot session packets in World::UpdateSessions() on main thread
-        //       2. Use deferred packet queue that main thread processes
-        //       3. Implement resurrection without packet-based approach (direct ResurrectPlayer call)
+        // KNOWN LIMITATION: Bot packet processing thread safety
+        // Options for future fix:
+        //   1. Process bot session packets in World::UpdateSessions() on main thread
+        //   2. Use deferred packet queue that main thread processes
+        //   3. Implement resurrection without packet-based approach (direct ResurrectPlayer call)
         //
         // TEMPORARY: Resurrection is broken but server won't crash from race conditions.
 
@@ -2124,7 +2129,7 @@ void BotSession::HandleBotPlayerLogin(BotLoginQueryHolder const& holder)
             if (sBotPostLoginConfigurator->ApplyPendingConfiguration(pCurrChar.get()))
             {
                 TC_LOG_INFO("module.playerbot.session", "Bot {} post-login configuration applied successfully (Level={}, GS={})",
-                    pCurrChar->GetName(), pCurrChar->GetLevel(), 0); // TODO: Get actual gear score
+                    pCurrChar->GetName(), pCurrChar->GetLevel(), 0); // NOTE: Gear score calculation deferred to post-login systems
             }
             else
             {

@@ -56,7 +56,7 @@ void BGRoleManager::AssignRole(ObjectGuid player, BGRole role)
 
     _assignments[player] = assignment;
 
-    TC_LOG_DEBUG("playerbot", "BGRoleManager: Assigned %s to player",
+    TC_LOG_DEBUG("playerbot", "BGRoleManager: Assigned {} to player",
                  BGRoleToString(role));
 
     UpdateRoleCounts();
@@ -193,10 +193,13 @@ ObjectGuid BGRoleManager::GetBestPlayerForRole(BGRole role) const
 
     for (const auto& bot : _coordinator->GetAliveBots())
     {
-        // Skip players already assigned to high-priority roles
         if (HasRole(bot.guid))
         {
             BGRole currentRole = GetRole(bot.guid);
+            // Skip players already assigned to the target role (prevents infinite loop)
+            if (currentRole == role)
+                continue;
+            // Skip players in high-priority roles that shouldn't be reassigned
             if (currentRole == BGRole::FLAG_CARRIER)
                 continue;
         }
@@ -221,41 +224,77 @@ void BGRoleManager::AssignAllRoles()
     // Clear existing assignments
     _assignments.clear();
 
-    auto bots = _coordinator->GetAliveBots();
+    auto aliveBots = _coordinator->GetAliveBots();
+    auto allBots = _coordinator->GetAllBots();
+
+    TC_LOG_INFO("playerbot.bg", "BGRoleManager::AssignAllRoles - Total bots: {}, Alive bots: {}, Requirements: {}",
+        allBots.size(), aliveBots.size(), _requirements.size());
+
+    // Use all bots if no alive bots (they might not be flagged as alive yet during init)
+    auto& bots = aliveBots.empty() ? allBots : aliveBots;
+
+    if (bots.empty())
+    {
+        TC_LOG_WARN("playerbot.bg", "BGRoleManager::AssignAllRoles - No bots to assign roles to!");
+        return;
+    }
 
     // First pass: Assign healers
+    uint32 healersAssigned = 0;
     for (const auto& bot : bots)
     {
         if (IsHealer(bot.guid))
         {
             AssignRole(bot.guid, BGRole::HEALER_DEFENSE);
+            healersAssigned++;
         }
     }
+    TC_LOG_DEBUG("playerbot.bg", "BGRoleManager: Pass 1 - Assigned {} healers", healersAssigned);
 
     // Second pass: Fill needed roles by suitability
+    // Safety limit: no role should need more iterations than total bot count
+    uint32 maxIterations = static_cast<uint32>(bots.size()) + 1;
     for (const auto& [role, req] : _requirements)
     {
-        while (GetRoleCount(role) < req.idealCount)
+        uint32 assigned = 0;
+        uint32 iterations = 0;
+        while (GetRoleCount(role) < req.idealCount && iterations < maxIterations)
         {
+            ++iterations;
             ObjectGuid best = GetBestPlayerForRole(role);
             if (best.IsEmpty())
+            {
+                TC_LOG_DEBUG("playerbot.bg", "BGRoleManager: No suitable player for role {}", BGRoleToString(role));
                 break;
+            }
 
             AssignRole(best, role);
+            assigned++;
         }
+        if (iterations >= maxIterations)
+        {
+            TC_LOG_WARN("playerbot.bg",
+                "BGRoleManager: Hit iteration limit for role {} (assigned {}/{})",
+                BGRoleToString(role), GetRoleCount(role), req.idealCount);
+        }
+        TC_LOG_DEBUG("playerbot.bg", "BGRoleManager: Pass 2 - Assigned {} players to role {} (need {})",
+            assigned, BGRoleToString(role), req.idealCount);
     }
 
     // Final pass: Assign remaining to roamer
+    uint32 roamersAssigned = 0;
     for (const auto& bot : bots)
     {
         if (!HasRole(bot.guid))
         {
             AssignRole(bot.guid, BGRole::ROAMER);
+            roamersAssigned++;
         }
     }
+    TC_LOG_DEBUG("playerbot.bg", "BGRoleManager: Pass 3 - Assigned {} roamers", roamersAssigned);
 
-    TC_LOG_DEBUG("playerbot", "BGRoleManager: Assigned roles to %zu players",
-                 _assignments.size());
+    TC_LOG_INFO("playerbot.bg", "BGRoleManager: Assigned roles to {} players (healers: {}, roamers: {})",
+                 _assignments.size(), healersAssigned, roamersAssigned);
 }
 
 void BGRoleManager::RebalanceRoles()

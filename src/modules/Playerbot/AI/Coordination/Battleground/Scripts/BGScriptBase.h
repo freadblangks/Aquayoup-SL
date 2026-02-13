@@ -13,7 +13,14 @@
 #define PLAYERBOT_AI_COORDINATION_BG_BGSCRIPTBASE_H
 
 #include "IBGScript.h"
+#include "ObjectGuid.h"
+#include "Position.h"
+#include "Timer.h"
 #include <unordered_map>
+#include <map>
+
+class Player;
+class Unit;
 
 namespace Playerbot::Coordination::Battleground
 {
@@ -34,9 +41,9 @@ public:
     // LIFECYCLE - Default implementations
     // ========================================================================
 
-    void OnLoad(BattlegroundCoordinator* coordinator);
-    void OnUnload();
-    void OnUpdate(uint32 diff);
+    void OnLoad(BattlegroundCoordinator* coordinator) override;
+    void OnUnload() override;
+    void OnUpdate(uint32 diff) override;
 
     // ========================================================================
     // STRATEGY - Default implementations
@@ -45,38 +52,38 @@ public:
     RoleDistribution GetRecommendedRoles(
         const StrategicDecision& decision,
         float scoreAdvantage,
-        uint32 timeRemaining) const;
+        uint32 timeRemaining) const override;
 
     void AdjustStrategy(StrategicDecision& decision,
         float scoreAdvantage, uint32 controlledCount,
-        uint32 totalObjectives, uint32 timeRemaining) const;
+        uint32 totalObjectives, uint32 timeRemaining) const override;
 
     uint8 GetObjectiveAttackPriority(uint32 objectiveId,
-        BGObjectiveState state, uint32 faction) const;
+        BGObjectiveState state, uint32 faction) const override;
 
     uint8 GetObjectiveDefensePriority(uint32 objectiveId,
-        BGObjectiveState state, uint32 faction) const;
+        BGObjectiveState state, uint32 faction) const override;
 
     float CalculateWinProbability(uint32 allianceScore, uint32 hordeScore,
-        uint32 timeRemaining, uint32 objectivesControlled, uint32 faction) const;
+        uint32 timeRemaining, uint32 objectivesControlled, uint32 faction) const override;
 
     BGPhaseInfo::Phase GetMatchPhase(uint32 timeRemaining,
-        uint32 allianceScore, uint32 hordeScore) const;
+        uint32 allianceScore, uint32 hordeScore) const override;
 
     // ========================================================================
     // EVENTS - Default implementations
     // ========================================================================
 
-    void OnEvent(const BGScriptEventData& event);
-    void OnMatchStart();
-    void OnMatchEnd(bool victory);
+    void OnEvent(const BGScriptEventData& event) override;
+    void OnMatchStart() override;
+    void OnMatchEnd(bool victory) override;
 
     // ========================================================================
     // UTILITY - Default implementations
     // ========================================================================
 
     Position GetTacticalPosition(
-        BGPositionData::PositionType positionType, uint32 faction) const;
+        BGPositionData::PositionType positionType, uint32 faction) const override;
 
 protected:
     // ========================================================================
@@ -108,6 +115,75 @@ protected:
      * @brief Calculate distance between two positions (2D)
      */
     static float CalculateDistance2D(float x1, float y1, float x2, float y2);
+
+    // ========================================================================
+    // SHARED RUNTIME BEHAVIOR UTILITIES
+    // ========================================================================
+
+    /**
+     * @brief Canonical target engagement: SetSelection + Attack(true)
+     * Call this whenever a bot should start attacking a target.
+     * Handles the IsInCombat/GetVictim check to avoid redundant Attack() calls.
+     */
+    static void EngageTarget(::Player* bot, ::Unit* target);
+
+    /**
+     * @brief Find the nearest alive enemy player within range
+     * Uses coordinator spatial cache (O(cells)) with legacy O(n) fallback.
+     * @param bot The bot player
+     * @param range Search radius
+     * @return Nearest enemy Player*, or nullptr if none found
+     */
+    static ::Player* FindNearestEnemyPlayer(::Player* bot, float range);
+
+    /**
+     * @brief Random patrol movement around a center position
+     * Only triggers movement if bot is currently idle (not moving).
+     * @param bot The bot player
+     * @param center Center position to patrol around
+     * @param minRadius Minimum patrol radius
+     * @param maxRadius Maximum patrol radius
+     */
+    static void PatrolAroundPosition(::Player* bot, Position const& center,
+                                      float minRadius, float maxRadius);
+
+    /**
+     * @brief Try to interact with a nearby GameObject of a specific type
+     * Uses phase-ignoring search for dynamically spawned BG objects.
+     * Defers go->Use() to the main thread via BotActionMgr for thread safety.
+     * When holdPosition=true, records a pending interaction so the bot holds
+     * position until the deferred action is processed (next server tick).
+     * @param bot The bot player
+     * @param goType The GO type to search for (FLAGSTAND, FLAGDROP, GOOBER, CAPTURE_POINT, etc.)
+     * @param range Search radius
+     * @param holdPosition If true, records pending interaction for hold-position behavior
+     * @return true if a matching GO was found and interaction was queued
+     */
+    static bool TryInteractWithGameObject(::Player* bot, uint32 goType, float range,
+                                           bool holdPosition = true);
+
+    /**
+     * @brief Check if a bot has a pending interaction and should hold position
+     * Call this at the top of ExecuteStrategy() implementations.
+     * Returns true if bot should hold (pending interaction not yet processed).
+     * Clears stale pending interactions older than 2 seconds.
+     * @param bot The bot player
+     * @return true if bot should hold position (do nothing else this tick)
+     */
+    static bool CheckPendingInteraction(::Player* bot);
+
+    /**
+     * @brief Engage a target but stay leashed to an anchor position
+     * If the enemy is within leash range of the anchor, chase and attack.
+     * If the enemy leaves leash range, disengage and return to anchor.
+     * @param bot The bot player
+     * @param enemy The enemy to engage
+     * @param anchorPos The position to stay leashed to (e.g., node flag)
+     * @param leashRadius Max distance from anchor before disengaging
+     * @return true if behavior was executed
+     */
+    static bool EngageTargetWithLeash(::Player* bot, ::Unit* enemy,
+                                       Position const& anchorPos, float leashRadius);
 
     /**
      * @brief Find the nearest objective from a list
@@ -195,6 +271,27 @@ protected:
     std::vector<BGObjectiveData> m_cachedObjectives;
     std::vector<BGPositionData> m_cachedPositions;
     std::vector<BGWorldState> m_cachedWorldStates;
+
+    // ========================================================================
+    // PENDING INTERACTION FRAMEWORK
+    // ========================================================================
+
+    /**
+     * @brief Tracks a deferred GO interaction so the bot holds position
+     * until the main thread processes the queued BotAction.
+     */
+    struct PendingInteraction
+    {
+        ObjectGuid targetGuid;    // The GO we're waiting to interact with
+        Position holdPosition;    // Where the bot should stay
+        uint32 queuedTime = 0;   // When the interaction was queued (getMSTime)
+    };
+
+    // Global pending interaction map: botGuid -> pending state
+    // Static because TryInteractWithGameObject / CheckPendingInteraction are static
+    static std::map<ObjectGuid, PendingInteraction> s_pendingInteractions;
+
+    static constexpr uint32 PENDING_INTERACTION_TIMEOUT_MS = 2000;
 
 private:
     // World state interpretation cache

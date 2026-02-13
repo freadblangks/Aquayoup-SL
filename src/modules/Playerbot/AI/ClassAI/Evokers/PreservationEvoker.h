@@ -15,6 +15,7 @@
 #include "../CombatSpecializationTemplates.h"
 #include "../ResourceTypes.h"
 #include "../SpellValidation_WoW120.h"
+#include "../HeroTalentDetector.h"      // Hero talent tree detection
 #include "../../Services/HealingTargetSelector.h"
 #include "Player.h"
 #include "SpellMgr.h"
@@ -296,6 +297,15 @@ public:
         // Phase 5: Initialize decision systems
         InitializePreservationMechanics();
 
+        // Register healing spell efficiency tiers
+        GetEfficiencyManager().RegisterSpell(LIVING_FLAME_HEAL, HealingSpellTier::VERY_HIGH, "Living Flame");
+        GetEfficiencyManager().RegisterSpell(REVERSION, HealingSpellTier::VERY_HIGH, "Reversion");
+        GetEfficiencyManager().RegisterSpell(EMERALD_BLOSSOM, HealingSpellTier::MEDIUM, "Emerald Blossom");
+        GetEfficiencyManager().RegisterSpell(VERDANT_EMBRACE, HealingSpellTier::HIGH, "Verdant Embrace");
+        GetEfficiencyManager().RegisterSpell(DREAM_BREATH, HealingSpellTier::MEDIUM, "Dream Breath");
+        GetEfficiencyManager().RegisterSpell(SPIRIT_BLOOM, HealingSpellTier::LOW, "Spirit Bloom");
+        GetEfficiencyManager().RegisterSpell(EMERALD_COMMUNION, HealingSpellTier::EMERGENCY, "Emerald Communion");
+
         // Note: Do NOT call bot->GetName() here - Player data may not be loaded yet
         TC_LOG_DEBUG("playerbot", "PreservationEvokerRefactored created for bot GUID: {}",
             bot ? bot->GetGUID().GetCounter() : 0);
@@ -303,6 +313,34 @@ public:
 
     void UpdateRotation(::Unit* target) override
     {
+        if (!target)
+            return;
+
+        // Detect hero talents if not yet cached
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(this->GetBot());
+
+        // Hero talent rotation branches
+        if (_heroTalents.IsTree(HeroTalentTree::CHRONOWARDEN))
+        {
+            // Chronowarden: Temporal Burst for group haste during healing
+            if (this->CanCastSpell(WoW120Spells::Evoker::Preservation::TEMPORAL_BURST, this->GetBot()))
+            {
+                this->CastSpell(WoW120Spells::Evoker::Preservation::TEMPORAL_BURST, this->GetBot());
+                return;
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::FLAMESHAPER))
+        {
+            // Flameshaper: Engulf for damage-healing hybrid
+            if (target && target->IsHostileTo(this->GetBot()) &&
+                this->CanCastSpell(WoW120Spells::Evoker::Preservation::PRES_ENGULF, target))
+            {
+                this->CastSpell(WoW120Spells::Evoker::Preservation::PRES_ENGULF, target);
+                return;
+            }
+        }
+
         // Preservation focuses on healing, not DPS rotation
     }
 
@@ -334,6 +372,16 @@ public:
         ExecuteHealingRotation(group);
     }
 
+    /// Check if Essence Burst proc is active (makes next essence spender free)
+    [[nodiscard]] bool HasEssenceBurstProc() const { return _essenceBurstStacks > 0; }
+
+    /// Consume one stack of Essence Burst
+    void ConsumeEssenceBurst()
+    {
+        if (_essenceBurstStacks > 0)
+            _essenceBurstStacks--;
+    }
+
 protected:
     void ExecuteHealingRotation(const ::std::vector<Unit*>& group)
     {
@@ -343,21 +391,57 @@ protected:
         if (HandleEmergencyHealing(group))
             return;
 
-        // Priority 2: Maintain Echoes
+        // Priority 2: Consume Essence Burst proc on healing spenders (free cast)
+        if (HasEssenceBurstProc())
+        {
+            if (HandleEssenceBurstHealing(group))
+                return;
+        }
+
+        // Priority 3: Maintain Echoes
         if (HandleEchoMaintenance(group))
             return;
 
-        // Priority 3: HoT maintenance
+        // Priority 4: HoT maintenance
         if (essence >= 3 && HandleHoTMaintenance(group))
             return;
 
-        // Priority 4: Direct healing
+        // Priority 5: Direct healing
         if (essence >= 3 && HandleDirectHealing(group))
             return;
 
-        // Priority 5: Generate essence if low
+        // Priority 6: Generate essence if low
         if (essence < 3)
             GenerateEssence();
+    }
+
+    /// Spend Essence Burst proc on an expensive healing spell for free
+    bool HandleEssenceBurstHealing(const ::std::vector<Unit*>& group)
+    {
+        // Find most injured target
+        Unit* target = GetMostInjuredTarget(group);
+        if (!target || target->GetHealthPct() > 90.0f)
+            return false;
+
+        // Emerald Blossom (normally costs 3 essence - best value for free cast)
+        if (target->GetHealthPct() < 80.0f && IsHealAllowedByMana(EMERALD_BLOSSOM) &&
+            this->CanCastSpell(EMERALD_BLOSSOM, this->GetBot()))
+        {
+            this->CastSpell(EMERALD_BLOSSOM, this->GetBot());
+            ConsumeEssenceBurst(); // Free cast - don't consume essence
+            return true;
+        }
+
+        // Verdant Embrace (normally costs 1 essence - good single target heal)
+        if (target->GetHealthPct() < 70.0f && IsHealAllowedByMana(VERDANT_EMBRACE) &&
+            this->CanCastSpell(VERDANT_EMBRACE, target))
+        {
+            this->CastSpell(VERDANT_EMBRACE, target);
+            ConsumeEssenceBurst(); // Free cast
+            return true;
+        }
+
+        return false;
     }
 
     bool HandleEmergencyHealing(const ::std::vector<Unit*>& group)
@@ -378,7 +462,7 @@ protected:
         if (criticalCount >= 1 && this->_resource.essence >= 3)
         {
             Unit* target = GetLowestHealthTarget(group);
-            if (target && this->CanCastSpell(SPIRIT_BLOOM, target))
+            if (target && IsHealAllowedByMana(SPIRIT_BLOOM) && this->CanCastSpell(SPIRIT_BLOOM, target))
             {
                 StartEmpoweredSpell(SPIRIT_BLOOM, EmpowerLevelPres::RANK_3, target);
                 return true;
@@ -425,7 +509,7 @@ protected:
         if (injuredCount >= 3)
         {
             Unit* target = GetMostInjuredTarget(group);
-            if (target && this->CanCastSpell(DREAM_BREATH, target))
+            if (target && IsHealAllowedByMana(DREAM_BREATH) && this->CanCastSpell(DREAM_BREATH, target))
             {
                 StartEmpoweredSpell(DREAM_BREATH, EmpowerLevelPres::RANK_2, target);
                 return true;
@@ -443,7 +527,7 @@ protected:
             if (member && member->GetHealthPct() < 80.0f)
                 injuredCount++;
 
-        if (injuredCount >= 3 && this->CanCastSpell(EMERALD_BLOSSOM, this->GetBot()))
+        if (injuredCount >= 3 && IsHealAllowedByMana(EMERALD_BLOSSOM) && this->CanCastSpell(EMERALD_BLOSSOM, this->GetBot()))
         {
             this->CastSpell(EMERALD_BLOSSOM, this->GetBot());
             this->_resource.Consume(3);
@@ -452,7 +536,7 @@ protected:
 
         // Verdant Embrace for single target
         Unit* target = GetLowestHealthTarget(group);
-        if (target && target->GetHealthPct() < 70.0f && this->CanCastSpell(VERDANT_EMBRACE, target))
+        if (target && target->GetHealthPct() < 70.0f && IsHealAllowedByMana(VERDANT_EMBRACE) && this->CanCastSpell(VERDANT_EMBRACE, target))
         {
             this->CastSpell(VERDANT_EMBRACE, target);
             this->_resource.Consume(1);
@@ -837,6 +921,9 @@ private:
     PreservationEmpowermentTracker _empowermentTracker;
     EchoTracker _echoTracker;
     uint32 _essenceBurstStacks;
+
+    // Hero talent detection cache (refreshed on combat start)
+    HeroTalentCache _heroTalents;
 };
 
 } // namespace Playerbot

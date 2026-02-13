@@ -6,7 +6,7 @@
 #pragma once
 
 #include "RaidState.h"
-#include "Core/Events/CombatEventData.h"
+#include "Core/Events/CombatEvent.h"
 #include <vector>
 #include <map>
 
@@ -43,8 +43,8 @@ public:
     ::std::vector<EncounterMechanic> GetMechanicsForPhase(EncounterPhase phase) const;
 
     // Event Handlers
-    void OnSpellEvent(const CombatEventData& event);
-    void OnAuraEvent(const CombatEventData& event);
+    void OnSpellEvent(const CombatEvent& event);
+    void OnAuraEvent(const CombatEvent& event);
 
     // Timers
     uint32 GetEnrageTimer() const;

@@ -6,7 +6,7 @@
 #pragma once
 
 #include "RaidState.h"
-#include "Core/Events/CombatEventData.h"
+#include "Core/Events/CombatEvent.h"
 #include <vector>
 #include <map>
 
@@ -57,7 +57,7 @@ public:
     void OnPhaseChange(uint8 phase);
 
     // Tracking
-    void OnSpellEvent(const CombatEventData& event);
+    void OnSpellEvent(const CombatEvent& event);
     const ::std::vector<RaidCooldownEntry>& GetAllCooldowns() const { return _cooldowns; }
 
 private:

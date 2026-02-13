@@ -44,14 +44,14 @@ public:
     // Domination specific
     // ========================================================================
 
-    virtual bool IsDomination() const { return true; }
+    bool IsDomination() const override { return true; }
 
     // ========================================================================
     // LIFECYCLE
     // ========================================================================
 
-    void OnLoad(BattlegroundCoordinator* coordinator);
-    void OnUpdate(uint32 diff);
+    void OnLoad(BattlegroundCoordinator* coordinator) override;
+    void OnUpdate(uint32 diff) override;
 
     // ========================================================================
     // STRATEGY - Domination overrides
@@ -60,20 +60,20 @@ public:
     RoleDistribution GetRecommendedRoles(
         const StrategicDecision& decision,
         float scoreAdvantage,
-        uint32 timeRemaining) const;
+        uint32 timeRemaining) const override;
 
     void AdjustStrategy(StrategicDecision& decision,
         float scoreAdvantage, uint32 controlledCount,
-        uint32 totalObjectives, uint32 timeRemaining) const;
+        uint32 totalObjectives, uint32 timeRemaining) const override;
 
     uint8 GetObjectiveAttackPriority(uint32 objectiveId,
-        BGObjectiveState state, uint32 faction) const;
+        BGObjectiveState state, uint32 faction) const override;
 
     uint8 GetObjectiveDefensePriority(uint32 objectiveId,
-        BGObjectiveState state, uint32 faction) const;
+        BGObjectiveState state, uint32 faction) const override;
 
     float CalculateWinProbability(uint32 allianceScore, uint32 hordeScore,
-        uint32 timeRemaining, uint32 objectivesControlled, uint32 faction) const;
+        uint32 timeRemaining, uint32 objectivesControlled, uint32 faction) const override;
 
     // ========================================================================
     // DOMINATION-SPECIFIC IMPLEMENTATIONS
@@ -82,19 +82,19 @@ public:
     /**
      * @brief Get points per tick based on node count
      */
-    uint32 GetTickPoints(uint32 nodeCount) const;
+    uint32 GetTickPoints(uint32 nodeCount) const override;
 
     /**
      * @brief Get optimal node count for guaranteed win
      */
-    uint32 GetOptimalNodeCount() const;
+    uint32 GetOptimalNodeCount() const override;
 
     // ========================================================================
     // EVENT HANDLING
     // ========================================================================
 
-    void OnEvent(const BGScriptEventData& event);
-    void OnMatchStart();
+    void OnEvent(const BGScriptEventData& event) override;
+    void OnMatchStart() override;
 
 protected:
     // ========================================================================
@@ -221,6 +221,149 @@ protected:
     float m_hordeResourceRate = 0.0f;
     uint32 m_projectedAllianceWinTime = 0;
     uint32 m_projectedHordeWinTime = 0;
+
+    /**
+     * @brief Initialize node tracking maps by calling GetNodeCount()/GetNodeData()
+     *
+     * This MUST be called from the derived class's OnLoad() AFTER calling
+     * DominationScriptBase::OnLoad(). We deliberately avoid calling virtual
+     * functions from within DominationScriptBase::OnLoad() because MSVC's
+     * RelWithDebInfo vtable slot resolution can be fragile when the slot is
+     * at the boundary between base and derived vtable regions.
+     */
+    void InitializeNodeTracking();
+
+    // ========================================================================
+    // RUNTIME BEHAVIOR METHODS (for ExecuteStrategy)
+    // ========================================================================
+
+    /**
+     * @brief Refresh node ownership state from tracked m_nodeStates
+     * Throttled to once per second. Updates count fields.
+     */
+    void RefreshNodeState();
+
+    /**
+     * @brief Move to a node and capture it (interact with banner/flag GO)
+     * @param bot The bot player
+     * @param nodeIndex Index into node data array
+     * @return true if behavior was executed
+     */
+    bool CaptureNode(::Player* bot, uint32 nodeIndex);
+
+    /**
+     * @brief Defend a node: patrol nearby, engage enemies, recapture if contested
+     * @param bot The bot player
+     * @param nodeIndex Index into node data array
+     * @return true if behavior was executed
+     */
+    bool DefendNode(::Player* bot, uint32 nodeIndex);
+
+    /**
+     * @brief Find the nearest capturable node (neutral or enemy-controlled)
+     * @param bot The bot player
+     * @return Node index, or UINT32_MAX if none found
+     */
+    uint32 FindNearestCapturableNode(::Player* bot) const;
+
+    /**
+     * @brief Find the nearest friendly node that is under attack (contested)
+     * @param bot The bot player
+     * @return Node index, or UINT32_MAX if none found
+     */
+    uint32 FindNearestThreatenedNode(::Player* bot) const;
+
+    /**
+     * @brief Get the best assault target node for the bot's faction
+     * Considers strategic value, distance, and current defense
+     * @param bot The bot player
+     * @return Node index, or UINT32_MAX if none found
+     */
+    uint32 GetBestAssaultTarget(::Player* bot) const;
+
+    /**
+     * @brief Get number of friendly-controlled nodes for the given player's team
+     */
+    uint32 GetFriendlyNodeCount(::Player* bot) const;
+
+    /**
+     * @brief Get node indices controlled by the bot's faction
+     */
+    std::vector<uint32> GetFriendlyNodes(::Player* bot) const;
+
+    /**
+     * @brief Check if a node state is friendly to the given faction
+     */
+    static bool IsNodeFriendly(BGObjectiveState state, uint32 faction);
+
+    /**
+     * @brief Check if a node state is enemy-controlled for the given faction
+     */
+    static bool IsNodeEnemy(BGObjectiveState state, uint32 faction);
+
+    /**
+     * @brief Check if a node is contested (being captured by either side)
+     */
+    static bool IsNodeContested(BGObjectiveState state);
+
+    uint32 m_lastNodeStateRefresh = 0;
+    static constexpr uint32 NODE_STATE_REFRESH_INTERVAL = 1000;
+
+    // ========================================================================
+    // NODE DEFENSE COMMITMENT
+    // ========================================================================
+
+    /**
+     * @brief After capturing a node, the bot commits to defending it for a period.
+     * Prevents the human-unrealistic "capture and immediately leave" pattern.
+     */
+    struct DefenseCommitment
+    {
+        uint32 nodeIndex;      // Which node to defend
+        uint32 commitTime;     // When commitment started (getMSTime)
+        uint32 durationMs;     // How long to defend (scales by game state)
+    };
+
+    std::map<ObjectGuid, DefenseCommitment> m_nodeDefenseCommitments;
+
+    /**
+     * @brief Record that a bot should defend a node after capturing it
+     * @param botGuid The bot's GUID
+     * @param nodeIndex The captured node
+     */
+    void CommitToDefense(ObjectGuid botGuid, uint32 nodeIndex);
+
+    /**
+     * @brief Check if a bot has an active defense commitment
+     * If so, execute DefendNode for the committed node and return true.
+     * @param bot The bot player
+     * @return true if the bot is under a defense commitment (behavior was handled)
+     */
+    bool CheckDefenseCommitment(::Player* bot);
+
+    /**
+     * @brief Get the defense commitment duration based on current game state
+     * Opening: 10s, Mid-game: 20s, Just lost a node: 30s
+     */
+    uint32 GetDefenseCommitmentDuration() const;
+
+    // ========================================================================
+    // REINFORCEMENT ROUTING ("INC" RESPONSE)
+    // ========================================================================
+
+    /**
+     * @brief Track when each node came under attack for reinforcement priority
+     */
+    std::map<uint32, uint32> m_nodeUnderAttackSince;
+
+    /**
+     * @brief Check if a nearby contested node needs reinforcement
+     * Bots within divert range check for contested nodes with rising priority.
+     * @param bot The bot player
+     * @param maxDivertRange Max distance to divert from current path
+     * @return Node index to reinforce, or UINT32_MAX if none
+     */
+    uint32 CheckReinforcementNeeded(::Player* bot, float maxDivertRange = 80.0f) const;
 
 private:
     // Update timers

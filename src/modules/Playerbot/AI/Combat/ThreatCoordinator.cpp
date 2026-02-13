@@ -23,6 +23,8 @@
 #include "Log.h"
 #include "Core/Events/CombatEventRouter.h"
 #include "Core/Events/CombatEvent.h"
+#include "AI/Coordination/Messaging/BotMessageBus.h"
+#include "AI/Coordination/Messaging/BotMessage.h"
 #include "../../Packets/SpellPacketBuilder.h"  // PHASE 0 WEEK 3: Packet-based spell casting
 #include <algorithm>
 #include <sstream>
@@ -296,6 +298,18 @@ void ThreatCoordinator::InitiateTankSwap(ObjectGuid fromTank, ObjectGuid toTank)
 
     _metrics.tankSwaps++;
 
+    // Announce tank swap via BotMessageBus so other bots can react
+    if (_group)
+    {
+        ObjectGuid groupGuid = _group->GetGUID();
+        if (!groupGuid.IsEmpty() && !_groupStatus.activeTargets.empty())
+        {
+            BotMessage msg = BotMessage::RequestTankSwap(
+                fromTank, groupGuid, _groupStatus.activeTargets[0], 0);
+            sBotMessageBus->Publish(msg);
+        }
+    }
+
     TC_LOG_INFO("playerbots", "ThreatCoordinator: Initiated tank swap from {} to {}",
                 fromTank.ToString(), toTank.ToString());
 }
@@ -327,7 +341,7 @@ bool ThreatCoordinator::ExecuteTaunt(ObjectGuid tankGuid, Unit* target)
     if (aiIt != _botAIs.end() && aiIt->second)
     {
         // Cast the taunt
-        // MIGRATION COMPLETE (2025-10-30): Packet-based threat management
+        // Packet-based threat management via SpellPacketBuilder (thread-safe)
 
         SpellPacketBuilder::BuildOptions options;
 
@@ -386,7 +400,7 @@ bool ThreatCoordinator::ExecuteThreatReduction(ObjectGuid botGuid, float /*reduc
         {
             if (bot->HasSpell(ability.spellId) && !bot->GetSpellHistory()->HasCooldown(ability.spellId))
             {
-                // MIGRATION COMPLETE (2025-10-30): Packet-based threat management
+                // Packet-based threat management via SpellPacketBuilder (thread-safe)
 
                 SpellPacketBuilder::BuildOptions options;
 
@@ -449,7 +463,7 @@ bool ThreatCoordinator::ExecuteThreatTransfer(ObjectGuid fromBot, ObjectGuid toB
         {
             if (from->HasSpell(ability.spellId) && !from->GetSpellHistory()->HasCooldown(ability.spellId))
             {
-                // MIGRATION COMPLETE (2025-10-30): Packet-based threat management
+                // Packet-based threat management via SpellPacketBuilder (thread-safe)
 
                 SpellPacketBuilder::BuildOptions options;
 

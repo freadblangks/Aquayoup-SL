@@ -15,6 +15,7 @@
 #include "../CombatSpecializationTemplates.h"
 #include "../ResourceTypes.h"
 #include "../SpellValidation_WoW120.h"
+#include "../HeroTalentDetector.h"      // Hero talent tree detection
 #include "Player.h"
 #include "SpellMgr.h"
 #include "SpellAuraEffects.h"
@@ -273,6 +274,31 @@ public:
         if (!target || !target->IsAlive() || !target->IsHostileTo(this->GetBot()))
             return;
 
+        // Detect hero talents if not yet cached
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(this->GetBot());
+
+        // Hero talent rotation branches
+        if (_heroTalents.IsTree(HeroTalentTree::FLAMESHAPER))
+        {
+            // Flameshaper: Engulf for empowered fire damage
+            if (this->CanCastSpell(WoW120Spells::Evoker::Devastation::ENGULF, target))
+            {
+                this->CastSpell(WoW120Spells::Evoker::Devastation::ENGULF, target);
+                return;
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::SCALECOMMANDER))
+        {
+            // Scalecommander: Mass Disintegrate when 3+ enemies for cleave
+            if (this->GetEnemiesInRange(25.0f) >= 3 &&
+                this->CanCastSpell(WoW120Spells::Evoker::Devastation::MASS_DISINTEGRATE, target))
+            {
+                this->CastSpell(WoW120Spells::Evoker::Devastation::MASS_DISINTEGRATE, target);
+                return;
+            }
+        }
+
         // Update Devastation state
         UpdateDevastationState();
 
@@ -309,6 +335,22 @@ public:
         HandleEmergencyDefensives();
     }
 
+    /// Check if Essence Burst proc is active (makes next essence spender free)
+    [[nodiscard]] bool HasEssenceBurstProc() const { return _essenceBurstStacks > 0; }
+
+    /// Consume one stack of Essence Burst (called after casting a free spender)
+    void ConsumeEssenceBurst()
+    {
+        if (_essenceBurstStacks > 0)
+            _essenceBurstStacks--;
+    }
+
+    /// Returns the effective essence cost considering Essence Burst proc
+    [[nodiscard]] uint32 GetEffectiveEssenceCost(uint32 baseCost) const
+    {
+        return HasEssenceBurstProc() ? 0 : baseCost;
+    }
+
 protected:
     void ExecuteSingleTargetRotation(::Unit* target)
     {
@@ -328,14 +370,22 @@ protected:
             return;
         }
 
-        // Priority 3: Eternity's Surge (empowered)
+        // Priority 3: Consume Essence Burst proc on Disintegrate (highest priority spender when proc active)
+        if (HasEssenceBurstProc() && this->CanCastSpell(DISINTEGRATE, target))
+        {
+            this->CastSpell(DISINTEGRATE, target);
+            ConsumeEssenceBurst(); // Free cast - don't consume essence
+            return;
+        }
+
+        // Priority 4: Eternity's Surge (empowered)
         if (essence >= 3 && this->CanCastSpell(ETERNITY_SURGE, target))
         {
             StartEmpoweredSpell(ETERNITY_SURGE, EmpowerLevel::RANK_3, target);
             return;
         }
 
-        // Priority 4: Disintegrate channel
+        // Priority 5: Disintegrate channel (normal cost)
         if (essence >= 3 && this->CanCastSpell(DISINTEGRATE, target))
         {
             this->CastSpell(DISINTEGRATE, target);
@@ -343,14 +393,14 @@ protected:
             return;
         }
 
-        // Priority 5: Fire Breath (empowered)
+        // Priority 6: Fire Breath (empowered)
         if (essence >= 3 && this->CanCastSpell(FIRE_BREATH, target))
         {
             StartEmpoweredSpell(FIRE_BREATH, EmpowerLevel::RANK_2, target);
             return;
         }
 
-        // Priority 6: Azure Strike for essence
+        // Priority 7: Azure Strike for essence
         if (essence < 4 && this->CanCastSpell(AZURE_STRIKE, target))
         {
             this->CastSpell(AZURE_STRIKE, target);
@@ -358,7 +408,7 @@ protected:
             return;
         }
 
-        // Priority 7: Living Flame filler
+        // Priority 8: Living Flame filler
         if (this->CanCastSpell(LIVING_FLAME, target))
         {
             this->CastSpell(LIVING_FLAME, target);
@@ -371,14 +421,22 @@ protected:
     {
         uint32 essence = this->_resource.essence;
 
-        // Priority 1: Fire Breath AoE (empowered rank 4)
+        // Priority 1: Consume Essence Burst on Pyre in AoE (free AoE spender)
+        if (HasEssenceBurstProc() && this->CanCastSpell(PYRE, target))
+        {
+            this->CastSpell(PYRE, target);
+            ConsumeEssenceBurst(); // Free cast
+            return;
+        }
+
+        // Priority 2: Fire Breath AoE (empowered rank 4)
         if (essence >= 3 && this->CanCastSpell(FIRE_BREATH, target))
         {
             StartEmpoweredSpell(FIRE_BREATH, EmpowerLevel::RANK_4, target);
             return;
         }
 
-        // Priority 2: Pyre AoE
+        // Priority 3: Pyre AoE (normal cost)
         if (essence >= 2 && this->CanCastSpell(PYRE, target))
         {
             this->CastSpell(PYRE, target);
@@ -413,6 +471,17 @@ protected:
     void ExecuteDragonrageBurst(::Unit* target)
     {
         uint32 essence = this->_resource.essence;
+
+        // Priority 0: Consume Essence Burst during Dragonrage (extremely high value)
+        if (HasEssenceBurstProc())
+        {
+            if (this->CanCastSpell(DISINTEGRATE, target))
+            {
+                this->CastSpell(DISINTEGRATE, target);
+                ConsumeEssenceBurst();
+                return;
+            }
+        }
 
         // Spam empowered spells during Dragonrage
         if (essence >= 3)
@@ -767,6 +836,9 @@ private:
     uint32 _essenceBurstStacks;
     uint32 _lastEternityTime;
     uint32 _lastFireBreathTime;
+
+    // Hero talent detection cache (refreshed on combat start)
+    HeroTalentCache _heroTalents;
 };
 
 } // namespace Playerbot

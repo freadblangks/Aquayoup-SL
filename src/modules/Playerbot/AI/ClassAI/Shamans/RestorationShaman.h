@@ -34,6 +34,7 @@
 // Central Spell Registry - See WoW120Spells::Shaman namespace
 #include "../SpellValidation_WoW120.h"
 #include "../SpellValidation_WoW120_Part2.h"
+#include "../HeroTalentDetector.h"      // Hero talent tree detection
 
 namespace Playerbot
 {
@@ -218,6 +219,51 @@ private:
     uint32 _earthShieldEndTime = 0;
 };
 
+// ============================================================================
+// TIDAL WAVES PROC TRACKER
+// ============================================================================
+// Tidal Waves: Casting Riptide or Chain Heal grants 2 stacks of Tidal Waves.
+// - Healing Wave: 20% cast time reduction
+// - Healing Surge: 40% additional critical strike chance
+// Consumed on next Healing Wave or Healing Surge cast.
+
+constexpr uint32 REST_TIDAL_WAVES = WoW120Spells::Shaman::Restoration::TIDAL_WAVES;
+
+class TidalWavesTracker
+{
+public:
+    TidalWavesTracker() : _stacks(0) {}
+
+    /// Called when Riptide or Chain Heal is cast (generates 2 stacks)
+    void OnRiptideOrChainHealCast() { _stacks = 2; }
+
+    /// Called when Healing Wave or Healing Surge is cast (consumes 1 stack)
+    void ConsumeStack()
+    {
+        if (_stacks > 0)
+            _stacks--;
+    }
+
+    /// Check if Tidal Waves proc is active
+    [[nodiscard]] bool IsActive() const { return _stacks > 0; }
+    [[nodiscard]] uint32 GetStacks() const { return _stacks; }
+
+    /// Sync with actual aura state
+    void Update(Player* bot)
+    {
+        if (!bot)
+            return;
+
+        if (Aura* aura = bot->GetAura(REST_TIDAL_WAVES))
+            _stacks = aura->GetStackAmount();
+        else
+            _stacks = 0;
+    }
+
+private:
+    uint32 _stacks;
+};
+
 class RestorationShamanRefactored : public HealerSpecialization<ManaResource>
 {
 public:
@@ -229,6 +275,7 @@ public:
     explicit RestorationShamanRefactored(Player* bot)        : HealerSpecialization<ManaResource>(bot)
         , _riptideTracker()
         , _earthShieldTracker()
+        , _tidalWavesTracker()
         , _ascendanceActive(false)
         , _ascendanceEndTime(0)
         , _lastAscendanceTime(0)
@@ -256,6 +303,17 @@ public:
         // Phase 5: Initialize decision systems
         InitializeRestorationShamanMechanics();
 
+        // Register healing spell efficiency tiers
+        GetEfficiencyManager().RegisterSpell(REST_HEALING_WAVE, HealingSpellTier::VERY_HIGH, "Healing Wave");
+        GetEfficiencyManager().RegisterSpell(REST_RIPTIDE, HealingSpellTier::VERY_HIGH, "Riptide");
+        GetEfficiencyManager().RegisterSpell(REST_EARTH_SHIELD, HealingSpellTier::VERY_HIGH, "Earth Shield");
+        GetEfficiencyManager().RegisterSpell(REST_HEALING_SURGE, HealingSpellTier::HIGH, "Healing Surge");
+        GetEfficiencyManager().RegisterSpell(REST_CHAIN_HEAL, HealingSpellTier::MEDIUM, "Chain Heal");
+        GetEfficiencyManager().RegisterSpell(REST_HEALING_RAIN, HealingSpellTier::MEDIUM, "Healing Rain");
+        GetEfficiencyManager().RegisterSpell(REST_HEALING_TIDE_TOTEM, HealingSpellTier::EMERGENCY, "Healing Tide Totem");
+        GetEfficiencyManager().RegisterSpell(REST_SPIRIT_LINK_TOTEM, HealingSpellTier::EMERGENCY, "Spirit Link Totem");
+        GetEfficiencyManager().RegisterSpell(REST_WELLSPRING, HealingSpellTier::LOW, "Wellspring");
+
         // SAFETY: GetName() removed from constructor to prevent ACCESS_VIOLATION crash during worker thread bot login
     }
 
@@ -264,6 +322,30 @@ public:
         Player* bot = this->GetBot();
         if (!target || !bot)
             return;
+
+        // Detect hero talents if not yet cached
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(this->GetBot());
+
+        // Hero talent rotation branches
+        if (_heroTalents.IsTree(HeroTalentTree::FARSEER))
+        {
+            // Farseer: Ancestral Swiftness for instant-cast healing
+            if (this->CanCastSpell(WoW120Spells::Shaman::Restoration::RESTO_ANCESTRAL_SWIFTNESS, bot))
+            {
+                this->CastSpell(WoW120Spells::Shaman::Restoration::RESTO_ANCESTRAL_SWIFTNESS, bot);
+                return;
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::TOTEMIC))
+        {
+            // Totemic: Surging Totem for enhanced group healing
+            if (this->CanCastSpell(WoW120Spells::Shaman::Restoration::RESTO_SURGING_TOTEM, bot))
+            {
+                this->CastSpell(WoW120Spells::Shaman::Restoration::RESTO_SURGING_TOTEM, bot);
+                return;
+            }
+        }
 
         UpdateRestorationState();
 
@@ -372,6 +454,7 @@ private:
     // Member variables
     RiptideTracker _riptideTracker;
     EarthShieldTracker _earthShieldTracker;
+    TidalWavesTracker _tidalWavesTracker;
 
     bool _ascendanceActive;
     uint32 _ascendanceEndTime;
@@ -394,6 +477,7 @@ private:
         // ManaResource (uint32) doesn't have Update method - handled by base class
         _riptideTracker.Update(bot);
         _earthShieldTracker.Update(bot);
+        _tidalWavesTracker.Update(bot);
         UpdateCooldownStates();
     }    void UpdateCooldownStates()
     {
@@ -603,6 +687,7 @@ private:
                         {
                             this->CastSpell(REST_RIPTIDE, member);
                             _riptideTracker.ApplyRiptide(member->GetGUID(), 18000);
+                            _tidalWavesTracker.OnRiptideOrChainHealCast(); // Generate Tidal Waves
                             return true;
                         }
                     }
@@ -661,7 +746,7 @@ private:
         if (stackedAlliesCount >= 3 && stackedTarget)
         {
 
-            if (this->CanCastSpell(REST_HEALING_RAIN, stackedTarget))
+            if (IsHealAllowedByMana(REST_HEALING_RAIN) && this->CanCastSpell(REST_HEALING_RAIN, stackedTarget))
 
             {
 
@@ -680,7 +765,7 @@ private:
 
             {
 
-                if (this->CanCastSpell(REST_WELLSPRING, stackedTarget))
+                if (IsHealAllowedByMana(REST_WELLSPRING) && this->CanCastSpell(REST_WELLSPRING, stackedTarget))
 
                 {
 
@@ -714,11 +799,12 @@ private:
 
                 {
 
-                    if (this->CanCastSpell(REST_CHAIN_HEAL, member))
+                    if (IsHealAllowedByMana(REST_CHAIN_HEAL) && this->CanCastSpell(REST_CHAIN_HEAL, member))
 
                     {
 
                         this->CastSpell(REST_CHAIN_HEAL, member);
+                        _tidalWavesTracker.OnRiptideOrChainHealCast(); // Generate Tidal Waves
 
                         return true;
 
@@ -757,47 +843,62 @@ private:
 
     bool HandleDirectHealing(const ::std::vector<Unit*>& group)
     {
-        // Healing Surge for emergency
-        for (Unit* member : group)
+        // Priority 1: Consume Tidal Waves proc on Healing Surge for emergency (40% extra crit)
+        if (_tidalWavesTracker.IsActive())
         {
-
-            if (member && member->GetHealthPct() < 50.0f)
-
+            for (Unit* member : group)
             {
-
-                if (this->CanCastSpell(REST_HEALING_SURGE, member))
-
+                if (member && member->GetHealthPct() < 50.0f)
                 {
-
-                    this->CastSpell(REST_HEALING_SURGE, member);
-
-                    return true;
-
+                    if (IsHealAllowedByMana(REST_HEALING_SURGE) && this->CanCastSpell(REST_HEALING_SURGE, member))
+                    {
+                        this->CastSpell(REST_HEALING_SURGE, member);
+                        _tidalWavesTracker.ConsumeStack();
+                        return true;
+                    }
                 }
+            }
 
+            // Priority 2: Consume Tidal Waves on Healing Wave for faster cast (20% faster)
+            for (Unit* member : group)
+            {
+                if (member && member->GetHealthPct() < 80.0f)
+                {
+                    if (this->CanCastSpell(REST_HEALING_WAVE, member))
+                    {
+                        this->CastSpell(REST_HEALING_WAVE, member);
+                        _tidalWavesTracker.ConsumeStack();
+                        return true;
+                    }
+                }
             }
         }
 
-        // Healing Wave (efficient single-target)
+        // Healing Surge for emergency (without Tidal Waves)
         for (Unit* member : group)
         {
-
-            if (member && member->GetHealthPct() < 80.0f)
-
+            if (member && member->GetHealthPct() < 50.0f)
             {
-
-                if (this->CanCastSpell(REST_HEALING_WAVE, member))
-
+                if (IsHealAllowedByMana(REST_HEALING_SURGE) && this->CanCastSpell(REST_HEALING_SURGE, member))
                 {
-
-                    this->CastSpell(REST_HEALING_WAVE, member);
-
+                    this->CastSpell(REST_HEALING_SURGE, member);
                     return true;
-
                 }
+            }
+        }
 
+        // Healing Wave (efficient single-target, without Tidal Waves)
+        for (Unit* member : group)
+        {
+            if (member && member->GetHealthPct() < 80.0f)
+            {
+                if (this->CanCastSpell(REST_HEALING_WAVE, member))
+                {
+                    this->CastSpell(REST_HEALING_WAVE, member);
+                    return true;
+                }
             }
-            }
+        }
 
         return false;
     }
@@ -820,6 +921,7 @@ private:
                 this->CastSpell(REST_RIPTIDE, bot);
 
                 _riptideTracker.ApplyRiptide(bot->GetGUID(), 18000);
+                _tidalWavesTracker.OnRiptideOrChainHealCast(); // Generate Tidal Waves
 
                 return true;
 
@@ -830,7 +932,7 @@ private:
         if (bot->GetHealthPct() < 60.0f)
         {
 
-            if (this->CanCastSpell(REST_HEALING_SURGE, bot))
+            if (IsHealAllowedByMana(REST_HEALING_SURGE) && this->CanCastSpell(REST_HEALING_SURGE, bot))
 
             {
 
@@ -1692,6 +1794,9 @@ private:
         }
         return members;
     }
+
+    // Hero talent detection cache (refreshed on combat start)
+    HeroTalentCache _heroTalents;
 };
 
 } // namespace Playerbot

@@ -33,6 +33,7 @@
 
 // Central Spell Registry - See WoW120Spells::Druid namespace
 #include "../SpellValidation_WoW120.h"
+#include "../HeroTalentDetector.h"      // Hero talent tree detection
 
 namespace Playerbot
 {
@@ -69,9 +70,36 @@ constexpr uint32 RESTO_INNERVATE = WoW120Spells::Druid::INNERVATE;
 constexpr uint32 RESTO_BARKSKIN = WoW120Spells::Druid::BARKSKIN;
 constexpr uint32 RESTO_RENEWAL = WoW120Spells::Druid::RENEWAL;
 constexpr uint32 RESTO_MOONFIRE = WoW120Spells::Druid::MOONFIRE;
+constexpr uint32 RESTO_CLEARCASTING = WoW120Spells::Druid::Restoration::CLEARCASTING_RESTO;
 
 // Mana resource is defined in CombatSpecializationTemplates.h as uint32
 // No custom ManaResource struct needed - use ManaResource (uint32 typedef)
+
+// ============================================================================
+// CLEARCASTING / OMEN OF CLARITY PROC TRACKER
+// ============================================================================
+// Omen of Clarity: Lifebloom HoT ticks have a chance to grant Clearcasting,
+// making the next Regrowth instant and free. Essential for mana-efficient healing.
+class RestoClearcastingTracker
+{
+public:
+    RestoClearcastingTracker() : _active(false) {}
+
+    [[nodiscard]] bool IsActive() const { return _active; }
+
+    void ConsumeProc() { _active = false; }
+
+    void Update(Player* bot)
+    {
+        if (!bot)
+            return;
+
+        _active = bot->HasAura(RESTO_CLEARCASTING);
+    }
+
+private:
+    bool _active;
+};
 
 // HoT (Heal over Time) tracking system
 class RestorationHoTTracker
@@ -241,9 +269,10 @@ public:
     using Base::CanCastSpell;
     using Base::_resource;
     explicit RestorationDruidRefactored(Player* bot)        : HealerSpecialization<ManaResource>(bot)
-        
+
         , _hotTracker()
         , _swiftmendTracker()
+        , _clearcastingTracker()
         , _treeFormActive(false)
         , _treeFormEndTime(0)
         
@@ -269,6 +298,17 @@ public:
         // Phase 5: Initialize decision systems
         InitializeRestorationMechanics();
 
+        // Register healing spell efficiency tiers
+        GetEfficiencyManager().RegisterSpell(RESTO_REJUVENATION, HealingSpellTier::VERY_HIGH, "Rejuvenation");
+        GetEfficiencyManager().RegisterSpell(RESTO_LIFEBLOOM, HealingSpellTier::VERY_HIGH, "Lifebloom");
+        GetEfficiencyManager().RegisterSpell(RESTO_WILD_GROWTH, HealingSpellTier::MEDIUM, "Wild Growth");
+        GetEfficiencyManager().RegisterSpell(RESTO_REGROWTH, HealingSpellTier::HIGH, "Regrowth");
+        GetEfficiencyManager().RegisterSpell(RESTO_SWIFTMEND, HealingSpellTier::LOW, "Swiftmend");
+        GetEfficiencyManager().RegisterSpell(RESTO_TRANQUILITY, HealingSpellTier::EMERGENCY, "Tranquility");
+        GetEfficiencyManager().RegisterSpell(RESTO_IRONBARK, HealingSpellTier::EMERGENCY, "Ironbark");
+        GetEfficiencyManager().RegisterSpell(RESTO_CENARION_WARD, HealingSpellTier::MEDIUM, "Cenarion Ward");
+        GetEfficiencyManager().RegisterSpell(RESTO_FLOURISH, HealingSpellTier::LOW, "Flourish");
+
         TC_LOG_DEBUG("playerbot", "RestorationDruidRefactored initialized for bot {}", bot->GetGUID().GetCounter());
     }
 
@@ -278,6 +318,35 @@ public:
         if (!bot)
 
             return;
+
+        // Detect hero talents if not yet cached
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(this->GetBot());
+
+        // Hero talent rotation branching
+        // Restoration Druid has access to: Keeper of the Grove / Wildstalker
+        if (_heroTalents.IsTree(HeroTalentTree::KEEPER_OF_THE_GROVE))
+        {
+            // Keeper of the Grove: Grove Guardians summon healing treants
+            if (this->CanCastSpell(WoW120Spells::Druid::Restoration::GROVE_GUARDIANS, bot))
+            {
+                // Summon grove guardians when healing is needed
+                if (bot->GetPowerPct(POWER_MANA) > 20.0f)
+                {
+                    this->CastSpell(WoW120Spells::Druid::Restoration::GROVE_GUARDIANS, bot);
+                    return;
+                }
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::WILDSTALKER))
+        {
+            // Wildstalker: Strategic Infusion enhances HoTs
+            if (this->CanCastSpell(WoW120Spells::Druid::Restoration::STRATEGIC_INFUSION, bot))
+            {
+                this->CastSpell(WoW120Spells::Druid::Restoration::STRATEGIC_INFUSION, bot);
+                return;
+            }
+        }
 
         UpdateRestorationState();
 
@@ -349,6 +418,9 @@ private:
 
             return;
 
+        // Update Clearcasting (Omen of Clarity) proc status
+        _clearcastingTracker.Update(bot);
+
         // _resource is uint32, no Update method - managed by base class
         UpdateCooldownStates();
     }
@@ -384,6 +456,28 @@ private:
         if (HandleEmergencyHealing(group))
 
             return;
+
+        // Priority: Consume Clearcasting proc on Regrowth (free instant Regrowth)
+        if (_clearcastingTracker.IsActive())
+        {
+            // Find most injured group member for free Regrowth
+            Unit* ccTarget = nullptr;
+            float lowestPct = 90.0f;
+            for (Unit* member : group)
+            {
+                if (member && member->GetHealthPct() < lowestPct)
+                {
+                    lowestPct = member->GetHealthPct();
+                    ccTarget = member;
+                }
+            }
+            if (ccTarget && this->CanCastSpell(RESTO_REGROWTH, ccTarget))
+            {
+                this->CastSpell(RESTO_REGROWTH, ccTarget);
+                _clearcastingTracker.ConsumeProc();
+                return; // Free Regrowth - don't waste the proc
+            }
+        }
 
         // Maintain Lifebloom on tank
         if (HandleLifebloom(group))
@@ -596,7 +690,7 @@ private:
 
             Unit* target = GetGroupMemberNeedingHealing(group, 85.0f);
 
-            if (target && this->CanCastSpell(RESTO_WILD_GROWTH, target))
+            if (target && IsHealAllowedByMana(RESTO_WILD_GROWTH) && this->CanCastSpell(RESTO_WILD_GROWTH, target))
 
             {
 
@@ -638,7 +732,7 @@ private:
 
                 {
 
-                    if (this->CanCastSpell(RESTO_SWIFTMEND, member))
+                    if (IsHealAllowedByMana(RESTO_SWIFTMEND) && this->CanCastSpell(RESTO_SWIFTMEND, member))
 
                     {
 
@@ -680,7 +774,7 @@ private:
         if (tank && !_hotTracker.HasCenarionWard(tank->GetGUID()))
         {
 
-            if (this->CanCastSpell(RESTO_CENARION_WARD, tank))
+            if (IsHealAllowedByMana(RESTO_CENARION_WARD) && this->CanCastSpell(RESTO_CENARION_WARD, tank))
 
             {
 
@@ -706,7 +800,7 @@ private:
 
             {
 
-                if (this->CanCastSpell(RESTO_REGROWTH, member))
+                if (IsHealAllowedByMana(RESTO_REGROWTH) && this->CanCastSpell(RESTO_REGROWTH, member))
 
                 {
 
@@ -844,12 +938,16 @@ private:
     // Member variables
     RestorationHoTTracker _hotTracker;
     RestorationSwiftmendTracker _swiftmendTracker;
+    RestoClearcastingTracker _clearcastingTracker;
 
     bool _treeFormActive;
     uint32 _treeFormEndTime;
     uint32 _lastInnervateTime;
     uint32 _lastTranquilityTime = 0;
     CooldownManager _cooldowns;
+
+    // Hero talent detection cache (refreshed on combat start)
+    HeroTalentCache _heroTalents;
 
     // ========================================================================
     // PHASE 5: DECISION SYSTEM INTEGRATION

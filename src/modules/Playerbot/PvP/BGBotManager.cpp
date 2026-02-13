@@ -25,6 +25,8 @@
 #include "GameTime.h"
 #include "DB2Stores.h"
 #include "../Lifecycle/Instance/QueueStatePoller.h"
+#include "../Lifecycle/Instance/InstanceBotPool.h"
+#include "../Lifecycle/Instance/InstanceBotOrchestrator.h"
 
 namespace Playerbot
 {
@@ -130,6 +132,16 @@ void BGBotManager::Update(uint32 diff)
         ProcessPendingInvitations();
         _invitationCheckAccumulator = 0;
     }
+
+    // Population retry (every 5 seconds for up to 2 minutes after BG start)
+    // Handles warm pool bots that were still logging in when OnBattlegroundStart fired
+    _populationRetryAccumulator += diff;
+    if (_populationRetryAccumulator >= POPULATION_RETRY_INTERVAL)
+    {
+        if (!_pendingPopulations.empty())
+            ProcessPendingPopulations();
+        _populationRetryAccumulator = 0;
+    }
 }
 
 // ============================================================================
@@ -185,12 +197,19 @@ void BGBotManager::OnPlayerLeaveQueue(ObjectGuid playerGuid)
 
     std::lock_guard lock(_mutex);
 
+    // Track BG type/bracket for unregistration check
+    BattlegroundTypeId leavingBgType = BATTLEGROUND_TYPE_NONE;
+    BattlegroundBracketId leavingBracket = BG_BRACKET_ID_FIRST;
+
     // Check if this is a human player with assigned bots
     auto humanItr = _humanPlayers.find(playerGuid);
     if (humanItr != _humanPlayers.end())
     {
         TC_LOG_DEBUG("module.playerbot.bg", "BGBotManager::OnPlayerLeaveQueue - Human player left, removing {} bots",
                      humanItr->second.assignedBots.size());
+
+        leavingBgType = humanItr->second.bgTypeId;
+        leavingBracket = humanItr->second.bracket;
 
         for (ObjectGuid botGuid : humanItr->second.assignedBots)
         {
@@ -202,6 +221,29 @@ void BGBotManager::OnPlayerLeaveQueue(ObjectGuid playerGuid)
         }
 
         _humanPlayers.erase(humanItr);
+
+        // =========================================================================
+        // CRITICAL FIX: Check if this was the LAST human for this BG type/bracket
+        // =========================================================================
+        // If no more humans are queued for this BG, stop the QueueStatePoller from
+        // continuing to poll and spawn bots.
+        bool hasOtherHumans = false;
+        for (auto const& [guid, info] : _humanPlayers)
+        {
+            if (info.bgTypeId == leavingBgType && info.bracket == leavingBracket)
+            {
+                hasOtherHumans = true;
+                break;
+            }
+        }
+
+        if (!hasOtherHumans && leavingBgType != BATTLEGROUND_TYPE_NONE)
+        {
+            sQueueStatePoller->UnregisterActiveBGQueue(leavingBgType, leavingBracket);
+            TC_LOG_INFO("module.playerbot.bg",
+                "BGBotManager::OnPlayerLeaveQueue - Last human left BG queue type {} bracket {}, unregistered from QueueStatePoller",
+                static_cast<uint32>(leavingBgType), static_cast<uint32>(leavingBracket));
+        }
     }
     else
     {
@@ -301,22 +343,66 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
                  bgInstanceGuid, bg->GetName());
 
     // =========================================================================
-    // 1. Initialize the BattlegroundCoordinator for this BG
+    // 0. CRITICAL FIX: Unregister queue from QueueStatePoller to stop spawning
     // =========================================================================
-    sBGCoordinatorMgr->OnBattlegroundStart(bg);
+    BattlegroundBracketId bracket = bg->GetBracketId();
+    sQueueStatePoller->UnregisterActiveBGQueue(bgTypeId, bracket);
+    TC_LOG_INFO("module.playerbot.bg",
+        "BGBotManager::OnBattlegroundStart - Unregistered BG queue type {} bracket {} from QueueStatePoller",
+        static_cast<uint32>(bgTypeId), static_cast<uint32>(bracket));
 
     // =========================================================================
-    // 2. CRITICAL FIX: First teleport bots that already received invitations
+    // 1. Populate BG with bots (teleport invited + fill empty slots)
     // =========================================================================
-    // These are bots that queued and received SMSG_BATTLEFIELD_STATUS_NEED_CONFIRMATION
-    // but couldn't teleport until now because the BG map didn't exist yet.
+    // This may have already been called during WAIT_JOIN (prep phase).
+    // PopulateBattleground is safe to call multiple times.
+    PopulateBattlegroundLocked(bg);
+
+    // =========================================================================
+    // 2. Register for population retries during prep phase
+    // =========================================================================
+    // Warm pool bots may still be logging in asynchronously. Register this BG
+    // for periodic population retries so late-arriving bots get teleported in.
+    _pendingPopulations[bgInstanceGuid] = { GameTime::GetGameTimeMS(), bgTypeId };
+    TC_LOG_INFO("module.playerbot.bg",
+        "BGBotManager::OnBattlegroundStart - Registered BG {} for population retries (up to {}s)",
+        bgInstanceGuid, POPULATION_RETRY_MAX_DURATION / IN_MILLISECONDS);
+
+    // =========================================================================
+    // 3. NOW create the BattlegroundCoordinator (all bots are in the BG)
+    // =========================================================================
+    // This MUST be called after all bots have been teleported/added above,
+    // otherwise the coordinator would be created with 0 bots and all bots
+    // would be idle (no roles assigned, no objectives tracked).
+    sBGCoordinatorMgr->OnBattlegroundStart(bg);
+}
+
+void BGBotManager::PopulateBattleground(Battleground* bg)
+{
+    if (!_enabled || !_initialized || !bg)
+        return;
+
+    std::lock_guard lock(_mutex);
+    PopulateBattlegroundLocked(bg);
+}
+
+void BGBotManager::PopulateBattlegroundLocked(Battleground* bg)
+{
+    // NOTE: Caller must hold _mutex
+
+    uint32 bgInstanceGuid = bg->GetInstanceID();
+    BattlegroundTypeId bgTypeId = bg->GetTypeID();
+
+    // =========================================================================
+    // 1. Teleport bots that already received invitations
+    // =========================================================================
     uint32 invitedBotsAdded = 0;
     auto invitedItr = _bgInstanceBots.find(bgInstanceGuid);
     if (invitedItr != _bgInstanceBots.end())
     {
         TC_LOG_INFO("module.playerbot.bg",
-            "BGBotManager::OnBattlegroundStart - Found {} bots with pending invitations for this BG",
-            invitedItr->second.size());
+            "BGBotManager::PopulateBattleground - Found {} bots with pending invitations for BG {}",
+            invitedItr->second.size(), bgInstanceGuid);
 
         for (ObjectGuid botGuid : invitedItr->second)
         {
@@ -324,51 +410,46 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
             {
                 // Check if bot is already in this BG
                 if (bot->GetBattlegroundId() == bgInstanceGuid)
-                {
-                    TC_LOG_DEBUG("module.playerbot.bg",
-                        "BGBotManager::OnBattlegroundStart - Bot {} already in BG", bot->GetName());
                     continue;
-                }
 
                 // Get bot's team from queue info
                 auto queueItr = _queuedBots.find(botGuid);
                 Team team = (queueItr != _queuedBots.end()) ? queueItr->second.team : bot->GetTeam();
 
-                // Teleport the invited bot into the BG
-                TC_LOG_INFO("module.playerbot.bg",
-                    "BGBotManager::OnBattlegroundStart - Teleporting invited bot {} to BG",
-                    bot->GetName());
-
-                // Set up BG data for the bot
+                // Set up BG data and teleport
                 BattlegroundQueueTypeId queueTypeId = BattlegroundMgr::BGQueueTypeId(
                     bgTypeId, BattlegroundQueueIdType::Battleground, false, 0);
                 bot->SetBattlegroundId(bgInstanceGuid, bgTypeId, queueTypeId);
                 bot->SetBGTeam(team);
 
-                // Teleport to battleground
                 BattlegroundMgr::SendToBattleground(bot, bg);
                 ++invitedBotsAdded;
             }
         }
 
-        TC_LOG_INFO("module.playerbot.bg",
-            "BGBotManager::OnBattlegroundStart - Teleported {} invited bots to BG",
-            invitedBotsAdded);
+        if (invitedBotsAdded > 0)
+        {
+            TC_LOG_INFO("module.playerbot.bg",
+                "BGBotManager::PopulateBattleground - Teleported {} invited bots to BG {}",
+                invitedBotsAdded, bgInstanceGuid);
+        }
     }
 
     // =========================================================================
-    // 3. Check team population and fill remaining empty slots
+    // 2. Check team population and fill remaining empty slots
     // =========================================================================
     uint32 targetTeamSize = GetBGTeamSize(bgTypeId);
 
-    // Count players per team (including bots we just teleported)
     uint32 allianceCount = 0;
     uint32 hordeCount = 0;
 
+    // Count players currently in the BG
+    std::unordered_set<ObjectGuid> playersInBG;
     for (auto const& itr : bg->GetPlayers())
     {
         if (Player* player = ObjectAccessor::FindPlayer(itr.first))
         {
+            playersInBG.insert(itr.first);
             if (player->GetBGTeam() == ALLIANCE)
                 ++allianceCount;
             else
@@ -376,24 +457,77 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
         }
     }
 
-    TC_LOG_INFO("module.playerbot.bg",
-        "BGBotManager::OnBattlegroundStart - Current population: Alliance {}/{}, Horde {}/{}",
-        allianceCount, targetTeamSize, hordeCount, targetTeamSize);
+    // Also count bots already dispatched but not yet in bg->GetPlayers()
+    // (async teleport in progress). Without this, we over-spawn because
+    // the population check doesn't see in-transit bots.
+    uint32 inTransitAlliance = 0, inTransitHorde = 0;
+    auto dispatchedItr = _bgInstanceBots.find(bgInstanceGuid);
+    if (dispatchedItr != _bgInstanceBots.end())
+    {
+        for (ObjectGuid botGuid : dispatchedItr->second)
+        {
+            if (playersInBG.count(botGuid))
+                continue; // Already counted above
 
-    // Calculate missing slots
+            if (Player* bot = ObjectAccessor::FindPlayer(botGuid))
+            {
+                // Bot is in the world but on wrong map → teleport failed, don't count as in-transit.
+                // A bot genuinely mid-teleport will have !IsInWorld() (loading screen).
+                if (bot->IsInWorld() && bot->GetMapId() != bg->GetMapId())
+                    continue;
+
+                if (bot->GetBGTeam() == ALLIANCE)
+                    ++inTransitAlliance;
+                else
+                    ++inTransitHorde;
+            }
+        }
+    }
+
+    allianceCount += inTransitAlliance;
+    hordeCount += inTransitHorde;
+
+    TC_LOG_INFO("module.playerbot.bg",
+        "BGBotManager::PopulateBattleground - BG {} population: Alliance {}/{} (in-transit: {}), Horde {}/{} (in-transit: {})",
+        bgInstanceGuid, allianceCount, targetTeamSize, inTransitAlliance, hordeCount, targetTeamSize, inTransitHorde);
+
+    // =========================================================================
+    // 3. Check for OVERPOPULATION and trim excess bots
+    // =========================================================================
+    if (allianceCount > targetTeamSize)
+    {
+        uint32 excess = allianceCount - targetTeamSize;
+        TC_LOG_WARN("module.playerbot.bg",
+            "BGBotManager::PopulateBattleground - BG {} Alliance OVERPOPULATED: {}/{}, trimming {} excess bots",
+            bgInstanceGuid, allianceCount, targetTeamSize, excess);
+        TrimExcessBotsLocked(bg, ALLIANCE, excess);
+    }
+
+    if (hordeCount > targetTeamSize)
+    {
+        uint32 excess = hordeCount - targetTeamSize;
+        TC_LOG_WARN("module.playerbot.bg",
+            "BGBotManager::PopulateBattleground - BG {} Horde OVERPOPULATED: {}/{}, trimming {} excess bots",
+            bgInstanceGuid, hordeCount, targetTeamSize, excess);
+        TrimExcessBotsLocked(bg, HORDE, excess);
+    }
+
+    // =========================================================================
+    // 4. Fill remaining empty slots (under-population)
+    // =========================================================================
     uint32 allianceNeeded = (allianceCount < targetTeamSize) ? (targetTeamSize - allianceCount) : 0;
     uint32 hordeNeeded = (hordeCount < targetTeamSize) ? (targetTeamSize - hordeCount) : 0;
 
     if (allianceNeeded == 0 && hordeNeeded == 0)
     {
         TC_LOG_DEBUG("module.playerbot.bg",
-            "BGBotManager::OnBattlegroundStart - Teams are full, no additional bots needed");
+            "BGBotManager::PopulateBattleground - BG {} teams are full", bgInstanceGuid);
         return;
     }
 
     TC_LOG_INFO("module.playerbot.bg",
-        "BGBotManager::OnBattlegroundStart - Need to fill {} Alliance, {} Horde slots",
-        allianceNeeded, hordeNeeded);
+        "BGBotManager::PopulateBattleground - BG {} needs {} Alliance, {} Horde bots",
+        bgInstanceGuid, allianceNeeded, hordeNeeded);
 
     // Get level range for this BG
     BattlegroundTemplate const* bgTemplate = sBattlegroundMgr->GetBattlegroundTemplateByTypeId(bgTypeId);
@@ -401,9 +535,8 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
 
     if (bgTemplate && !bgTemplate->MapIDs.empty())
     {
-        // Use the BG's actual level range
         PVPDifficultyEntry const* bracketEntry = DB2Manager::GetBattlegroundBracketByLevel(
-            bgTemplate->MapIDs.front(), 80); // Use max level to get the bracket
+            bgTemplate->MapIDs.front(), 80);
         if (bracketEntry)
         {
             minLevel = bracketEntry->MinLevel;
@@ -413,7 +546,6 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
 
     uint32 botsAdded = 0;
 
-    // Queue additional Alliance bots
     if (allianceNeeded > 0)
     {
         std::vector<Player*> allianceBots = FindAvailableBots(ALLIANCE, minLevel, maxLevel, allianceNeeded);
@@ -423,13 +555,12 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
             {
                 ++botsAdded;
                 TC_LOG_DEBUG("module.playerbot.bg",
-                    "BGBotManager::OnBattlegroundStart - Added Alliance bot {} to BG",
-                    bot->GetName());
+                    "BGBotManager::PopulateBattleground - Added Alliance bot {} to BG {}",
+                    bot->GetName(), bgInstanceGuid);
             }
         }
     }
 
-    // Queue additional Horde bots
     if (hordeNeeded > 0)
     {
         std::vector<Player*> hordeBots = FindAvailableBots(HORDE, minLevel, maxLevel, hordeNeeded);
@@ -439,8 +570,8 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
             {
                 ++botsAdded;
                 TC_LOG_DEBUG("module.playerbot.bg",
-                    "BGBotManager::OnBattlegroundStart - Added Horde bot {} to BG",
-                    bot->GetName());
+                    "BGBotManager::PopulateBattleground - Added Horde bot {} to BG {}",
+                    bot->GetName(), bgInstanceGuid);
             }
         }
     }
@@ -448,11 +579,8 @@ void BGBotManager::OnBattlegroundStart(Battleground* bg)
     if (botsAdded > 0)
     {
         TC_LOG_INFO("module.playerbot.bg",
-            "BGBotManager::OnBattlegroundStart - Added {} bots to fill empty slots",
-            botsAdded);
-
-        // Notify coordinator that new bots were added
-        sBGCoordinatorMgr->OnBattlegroundStart(bg);
+            "BGBotManager::PopulateBattleground - Added {} bots to BG {}",
+            botsAdded, bgInstanceGuid);
     }
 }
 
@@ -475,15 +603,41 @@ void BGBotManager::OnBattlegroundEnd(Battleground* bg, Team winnerTeam)
     auto itr = _bgInstanceBots.find(bgInstanceGuid);
     if (itr != _bgInstanceBots.end())
     {
-        for (ObjectGuid botGuid : itr->second)
+        // Collect bot GUIDs before erasing (need them after map cleanup)
+        std::vector<ObjectGuid> bgBots(itr->second.begin(), itr->second.end());
+
+        // Unregister all bot assignments from tracking maps
+        for (ObjectGuid botGuid : bgBots)
         {
             UnregisterBotAssignment(botGuid);
         }
         _bgInstanceBots.erase(itr);
+
+        // Release pool bots and schedule logout for all BG bots
+        for (ObjectGuid botGuid : bgBots)
+        {
+            if (sInstanceBotPool->IsPoolBot(botGuid))
+            {
+                sInstanceBotPool->ReleaseBot(botGuid, true);
+                TC_LOG_DEBUG("module.playerbot.bg",
+                    "BGBotManager::OnBattlegroundEnd - Released pool bot {} from BG {}",
+                    botGuid.ToString(), bgInstanceGuid);
+            }
+
+            sBotWorldSessionMgr->RemovePlayerBot(botGuid);
+        }
+
+        TC_LOG_INFO("module.playerbot.bg",
+            "BGBotManager::OnBattlegroundEnd - Released and logged out {} bots from BG {}",
+            bgBots.size(), bgInstanceGuid);
+
+        // Notify orchestrator that instance has ended
+        sInstanceBotOrchestrator->OnInstanceEnded(bgInstanceGuid);
     }
 
-    // Cleanup human entry time tracking
+    // Cleanup tracking maps
     _bgHumanEntryTime.erase(bgInstanceGuid);
+    _pendingPopulations.erase(bgInstanceGuid);
 }
 
 // ============================================================================
@@ -537,6 +691,22 @@ uint32 BGBotManager::PopulateQueue(ObjectGuid playerGuid, BattlegroundTypeId bgT
         "BGBotManager::PopulateQueue - Looking for bots level {}-{} for bracket {}",
         minLevel, maxLevel, static_cast<uint32>(bracket));
 
+    // CRITICAL FIX: Track human player ALWAYS, BEFORE the bot queuing loop.
+    // Warm pool bots login asynchronously and call GetQueuedHumanForBG() to find
+    // the human GUID for tracking. If we only register after botsQueued > 0,
+    // warm pool bots (which aren't logged in yet) result in botsQueued=0 and
+    // the human never gets registered, breaking invitation tracking for all bots.
+    {
+        auto& humanInfo = _humanPlayers[playerGuid];
+        humanInfo.bgTypeId = bgTypeId;
+        humanInfo.bracket = bracket;
+        humanInfo.team = humanPlayer->GetTeam();
+        TC_LOG_INFO("module.playerbot.bg",
+            "BGBotManager::PopulateQueue - Registered human {} for BG type {} bracket {} (team {})",
+            playerGuid.ToString(), static_cast<uint32>(bgTypeId),
+            static_cast<uint32>(bracket), humanPlayer->GetTeam() == ALLIANCE ? "Alliance" : "Horde");
+    }
+
     uint32 botsQueued = 0;
 
     // Queue Alliance bots
@@ -567,15 +737,6 @@ uint32 BGBotManager::PopulateQueue(ObjectGuid playerGuid, BattlegroundTypeId bgT
                 TC_LOG_DEBUG("module.playerbot.bg", "Queued Horde bot {} for BG", bot->GetName());
             }
         }
-    }
-
-    // Track human player
-    if (botsQueued > 0)
-    {
-        auto& humanInfo = _humanPlayers[playerGuid];
-        humanInfo.bgTypeId = bgTypeId;
-        humanInfo.bracket = bracket;
-        humanInfo.team = humanPlayer->GetTeam();
     }
 
     return botsQueued;
@@ -682,6 +843,8 @@ uint32 BGBotManager::GetBGTeamSize(BattlegroundTypeId bgTypeId) const
     {
         case BATTLEGROUND_WS:  // Warsong Gulch
         case BATTLEGROUND_TP:  // Twin Peaks
+        case BATTLEGROUND_TK:  // Temple of Kotmogu (10v10)
+        case BATTLEGROUND_SM:  // Silvershard Mines (10v10)
             return 10;
         case BATTLEGROUND_AB:  // Arathi Basin
         case BATTLEGROUND_BFG: // Battle for Gilneas
@@ -689,6 +852,7 @@ uint32 BGBotManager::GetBGTeamSize(BattlegroundTypeId bgTypeId) const
         case BATTLEGROUND_AV:  // Alterac Valley
             return 40;
         case BATTLEGROUND_EY:  // Eye of the Storm
+        case BATTLEGROUND_DG:  // Deepwind Gorge
             return 15;
         case BATTLEGROUND_SA:  // Strand of the Ancients
             return 15;
@@ -709,10 +873,13 @@ uint32 BGBotManager::GetBGMinPlayers(BattlegroundTypeId bgTypeId) const
     {
         case BATTLEGROUND_WS:
         case BATTLEGROUND_TP:
+        case BATTLEGROUND_TK:  // Temple of Kotmogu
+        case BATTLEGROUND_SM:  // Silvershard Mines
             return 5; // 5v5 minimum
         case BATTLEGROUND_AB:
         case BATTLEGROUND_BFG:
         case BATTLEGROUND_EY:
+        case BATTLEGROUND_DG:  // Deepwind Gorge
             return 8;
         case BATTLEGROUND_AV:
         case BATTLEGROUND_IC:
@@ -1135,35 +1302,57 @@ void BGBotManager::UnregisterAllBotsForPlayer(ObjectGuid humanGuid)
 bool BGBotManager::IsBotAvailable(Player* bot) const
 {
     if (!bot || !bot->IsInWorld())
+    {
+        TC_LOG_DEBUG("module.playerbot.bg", "IsBotAvailable: Bot is null or not in world");
         return false;
+    }
 
     // Not available if in group
     if (bot->GetGroup())
+    {
+        TC_LOG_DEBUG("module.playerbot.bg", "IsBotAvailable: Bot {} rejected - in group", bot->GetName());
         return false;
+    }
 
     // Not available if in BG
     if (bot->InBattleground())
+    {
+        TC_LOG_DEBUG("module.playerbot.bg", "IsBotAvailable: Bot {} rejected - in battleground", bot->GetName());
         return false;
+    }
 
     // Not available if in arena
     if (bot->InArena())
+    {
+        TC_LOG_DEBUG("module.playerbot.bg", "IsBotAvailable: Bot {} rejected - in arena", bot->GetName());
         return false;
+    }
 
     // Not available if in LFG queue
     // Check via player battleground queue slots
     for (uint8 i = 0; i < PLAYER_MAX_BATTLEGROUND_QUEUES; ++i)
     {
         if (bot->GetBattlegroundQueueTypeId(i) != BATTLEGROUND_QUEUE_NONE)
+        {
+            TC_LOG_DEBUG("module.playerbot.bg", "IsBotAvailable: Bot {} rejected - already in BG queue slot {}",
+                bot->GetName(), i);
             return false;
+        }
     }
 
     // Not available if dead
     if (bot->isDead())
+    {
+        TC_LOG_DEBUG("module.playerbot.bg", "IsBotAvailable: Bot {} rejected - dead", bot->GetName());
         return false;
+    }
 
     // Not available if deserter
     if (bot->HasAura(26013)) // Deserter aura ID
+    {
+        TC_LOG_DEBUG("module.playerbot.bg", "IsBotAvailable: Bot {} rejected - has deserter debuff", bot->GetName());
         return false;
+    }
 
     return true;
 }
@@ -1444,6 +1633,173 @@ bool BGBotManager::AddBotDirectlyToBG(Player* bot, Battleground* bg, Team team)
         team == ALLIANCE ? "Alliance" : "Horde");
 
     return true;
+}
+
+// ============================================================================
+// OVERPOPULATION TRIM
+// ============================================================================
+
+void BGBotManager::TrimExcessBotsLocked(Battleground* bg, Team team, uint32 excessCount)
+{
+    // NOTE: Caller must hold _mutex
+    if (!bg || excessCount == 0)
+        return;
+
+    uint32 bgInstanceGuid = bg->GetInstanceID();
+    std::string teamName = (team == ALLIANCE) ? "Alliance" : "Horde";
+
+    // Collect bot GUIDs on the specified team that we track for this BG
+    auto instanceItr = _bgInstanceBots.find(bgInstanceGuid);
+    if (instanceItr == _bgInstanceBots.end())
+    {
+        TC_LOG_WARN("module.playerbot.bg",
+            "BGBotManager::TrimExcessBots - No tracked bots for BG {}, cannot trim", bgInstanceGuid);
+        return;
+    }
+
+    // Build list of removable bots (only our managed bots, matching team, currently in BG)
+    std::vector<ObjectGuid> removableBots;
+    for (ObjectGuid botGuid : instanceItr->second)
+    {
+        Player* bot = ObjectAccessor::FindPlayer(botGuid);
+        if (!bot)
+            continue;
+
+        // Only remove bots on the overpopulated team
+        if (bot->GetBGTeam() != team)
+            continue;
+
+        // Safety: Only remove actual bot players, never humans
+        if (!sBotWorldSessionMgr->GetPlayerBot(botGuid))
+            continue;
+
+        removableBots.push_back(botGuid);
+    }
+
+    if (removableBots.empty())
+    {
+        TC_LOG_WARN("module.playerbot.bg",
+            "BGBotManager::TrimExcessBots - BG {} {} team overpopulated but no removable bots found",
+            bgInstanceGuid, teamName);
+        return;
+    }
+
+    // Remove excess bots (from the end of the list — most recently iterated)
+    uint32 removed = 0;
+    for (auto it = removableBots.rbegin(); it != removableBots.rend() && removed < excessCount; ++it, ++removed)
+    {
+        ObjectGuid botGuid = *it;
+        Player* bot = ObjectAccessor::FindPlayer(botGuid);
+
+        TC_LOG_INFO("module.playerbot.bg",
+            "BGBotManager::TrimExcessBots - Removing excess {} bot {} from BG {}",
+            teamName, bot ? bot->GetName() : botGuid.ToString(), bgInstanceGuid);
+
+        // Remove from our tracking
+        instanceItr->second.erase(botGuid);
+        UnregisterBotAssignment(botGuid);
+
+        // Release pool bot if applicable
+        if (sInstanceBotPool->IsPoolBot(botGuid))
+            sInstanceBotPool->ReleaseBot(botGuid, true);
+
+        // Queue the bot for removal (async disconnect — safe during map update)
+        sBotWorldSessionMgr->RemovePlayerBot(botGuid);
+    }
+
+    TC_LOG_INFO("module.playerbot.bg",
+        "BGBotManager::TrimExcessBots - Removed {}/{} excess {} bots from BG {}",
+        removed, excessCount, teamName, bgInstanceGuid);
+}
+
+// ============================================================================
+// POPULATION RETRY SYSTEM
+// ============================================================================
+
+void BGBotManager::ProcessPendingPopulations()
+{
+    std::lock_guard lock(_mutex);
+
+    if (_pendingPopulations.empty())
+        return;
+
+    uint32 now = GameTime::GetGameTimeMS();
+    std::vector<uint32> completed;
+
+    for (auto const& [instanceId, popInfo] : _pendingPopulations)
+    {
+        // Stop retrying after max duration
+        if (now - popInfo.startTime > POPULATION_RETRY_MAX_DURATION)
+        {
+            TC_LOG_INFO("module.playerbot.bg",
+                "BGBotManager::ProcessPendingPopulations - BG {} retry timeout ({}s), stopping",
+                instanceId, POPULATION_RETRY_MAX_DURATION / IN_MILLISECONDS);
+            completed.push_back(instanceId);
+            continue;
+        }
+
+        // Find the BG instance
+        Battleground* bg = sBattlegroundMgr->GetBattleground(instanceId, popInfo.bgTypeId);
+        if (!bg || bg->GetStatus() == STATUS_WAIT_LEAVE)
+        {
+            completed.push_back(instanceId);
+            continue;
+        }
+
+        // Check current population
+        uint32 targetSize = GetBGTeamSize(bg->GetTypeID());
+        uint32 allianceCount = 0;
+        uint32 hordeCount = 0;
+
+        for (auto const& [guid, bgPlayer] : bg->GetPlayers())
+        {
+            Player* player = ObjectAccessor::FindPlayer(guid);
+            if (!player)
+                continue;
+            if (player->GetBGTeam() == ALLIANCE)
+                ++allianceCount;
+            else
+                ++hordeCount;
+        }
+
+        // Trim overpopulated teams even when "full"
+        if (allianceCount > targetSize)
+        {
+            uint32 excess = allianceCount - targetSize;
+            TC_LOG_WARN("module.playerbot.bg",
+                "BGBotManager::ProcessPendingPopulations - BG {} Alliance overpopulated ({}/{}), trimming {}",
+                instanceId, allianceCount, targetSize, excess);
+            TrimExcessBotsLocked(bg, ALLIANCE, excess);
+        }
+        if (hordeCount > targetSize)
+        {
+            uint32 excess = hordeCount - targetSize;
+            TC_LOG_WARN("module.playerbot.bg",
+                "BGBotManager::ProcessPendingPopulations - BG {} Horde overpopulated ({}/{}), trimming {}",
+                instanceId, hordeCount, targetSize, excess);
+            TrimExcessBotsLocked(bg, HORDE, excess);
+        }
+
+        // Teams full - no more retries needed
+        if (allianceCount >= targetSize && hordeCount >= targetSize)
+        {
+            TC_LOG_INFO("module.playerbot.bg",
+                "BGBotManager::ProcessPendingPopulations - BG {} teams full (A:{}/{} H:{}/{}), done",
+                instanceId, allianceCount, targetSize, hordeCount, targetSize);
+            completed.push_back(instanceId);
+            continue;
+        }
+
+        // Teams not full - retry population
+        TC_LOG_INFO("module.playerbot.bg",
+            "BGBotManager::ProcessPendingPopulations - BG {} needs more bots (A:{}/{} H:{}/{}), retrying...",
+            instanceId, allianceCount, targetSize, hordeCount, targetSize);
+
+        PopulateBattlegroundLocked(bg);
+    }
+
+    for (uint32 id : completed)
+        _pendingPopulations.erase(id);
 }
 
 } // namespace Playerbot

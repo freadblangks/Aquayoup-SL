@@ -35,6 +35,7 @@
 
 // Central Spell Registry - See WoW120Spells::Priest namespace
 #include "../SpellValidation_WoW120_Part2.h"
+#include "../HeroTalentDetector.h"      // Hero talent tree detection
 
 namespace Playerbot
 {
@@ -243,6 +244,15 @@ public:
         // Initialize Phase 5 systems
         InitializeDisciplineMechanics();
 
+        // Register healing spell efficiency tiers
+        GetEfficiencyManager().RegisterSpell(DISC_POWER_WORD_SHIELD, HealingSpellTier::VERY_HIGH, "Power Word: Shield");
+        GetEfficiencyManager().RegisterSpell(DISC_SHADOW_MEND, HealingSpellTier::HIGH, "Shadow Mend");
+        GetEfficiencyManager().RegisterSpell(DISC_PENANCE, HealingSpellTier::MEDIUM, "Penance");
+        GetEfficiencyManager().RegisterSpell(DISC_POWER_WORD_RADIANCE, HealingSpellTier::LOW, "Power Word: Radiance");
+        GetEfficiencyManager().RegisterSpell(DISC_POWER_WORD_LIFE, HealingSpellTier::MEDIUM, "Power Word: Life");
+        GetEfficiencyManager().RegisterSpell(DISC_PAIN_SUPPRESSION, HealingSpellTier::EMERGENCY, "Pain Suppression");
+        GetEfficiencyManager().RegisterSpell(DISC_BARRIER, HealingSpellTier::EMERGENCY, "Power Word: Barrier");
+
         TC_LOG_DEBUG("playerbot", "DisciplinePriestRefactored initialized for bot {}", this->GetBot()->GetGUID().GetCounter());
     }
 
@@ -252,6 +262,31 @@ public:
         if (!target || !bot)
 
             return;
+
+        // Detect hero talents if not yet cached
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(this->GetBot());
+
+        // Hero talent rotation branches
+        if (_heroTalents.IsTree(HeroTalentTree::ORACLE))
+        {
+            // Oracle: Premonition for predictive healing
+            if (this->CanCastSpell(WoW120Spells::Priest::Discipline::PREMONITION, this->GetBot()))
+            {
+                this->CastSpell(WoW120Spells::Priest::Discipline::PREMONITION, this->GetBot());
+                return;
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::VOIDWEAVER))
+        {
+            // Voidweaver: Void Blast for shadow-enhanced atonement damage
+            if (target && target->IsHostileTo(this->GetBot()) &&
+                this->CanCastSpell(WoW120Spells::Priest::Discipline::VOID_BLAST, target))
+            {
+                this->CastSpell(WoW120Spells::Priest::Discipline::VOID_BLAST, target);
+                return;
+            }
+        }
 
         UpdateDisciplineState();
 
@@ -572,7 +607,7 @@ private:
 
                 {
 
-                    if (this->CanCastSpell(DISC_POWER_WORD_RADIANCE, member))
+                    if (IsHealAllowedByMana(DISC_POWER_WORD_RADIANCE) && this->CanCastSpell(DISC_POWER_WORD_RADIANCE, member))
 
                     {
 
@@ -637,7 +672,7 @@ private:
 
             {
 
-                if (this->CanCastSpell(DISC_SHADOW_MEND, member))
+                if (IsHealAllowedByMana(DISC_SHADOW_MEND) && this->CanCastSpell(DISC_SHADOW_MEND, member))
 
                 {
 
@@ -663,7 +698,7 @@ private:
 
                 {
 
-                    if (this->CanCastSpell(DISC_POWER_WORD_LIFE, member))
+                    if (IsHealAllowedByMana(DISC_POWER_WORD_LIFE) && this->CanCastSpell(DISC_POWER_WORD_LIFE, member))
 
                     {
 
@@ -686,7 +721,7 @@ private:
 
             {
 
-                if (this->CanCastSpell(DISC_PENANCE, member))
+                if (IsHealAllowedByMana(DISC_PENANCE) && this->CanCastSpell(DISC_PENANCE, member))
 
                 {
 
@@ -794,7 +829,7 @@ private:
         if (bot->GetHealthPct() < 60.0f)
         {
 
-            if (this->CanCastSpell(DISC_SHADOW_MEND, bot))
+            if (IsHealAllowedByMana(DISC_SHADOW_MEND) && this->CanCastSpell(DISC_SHADOW_MEND, bot))
 
             {
 
@@ -809,7 +844,7 @@ private:
         if (bot->GetHealthPct() < 70.0f)
         {
 
-            if (this->CanCastSpell(DISC_PENANCE, bot))
+            if (IsHealAllowedByMana(DISC_PENANCE) && this->CanCastSpell(DISC_PENANCE, bot))
 
             {
 
@@ -1784,6 +1819,9 @@ private:
     uint32 _lastPainSuppressionTime;
     uint32 _lastBarrierTime;
     uint32 _lastRaptureTime;
+
+    // Hero talent detection cache (refreshed on combat start)
+    HeroTalentCache _heroTalents;
 };
 
 } // namespace Playerbot

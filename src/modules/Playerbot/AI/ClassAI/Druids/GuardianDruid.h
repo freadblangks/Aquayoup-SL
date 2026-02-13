@@ -33,6 +33,7 @@
 
 // Central Spell Registry - See WoW120Spells::Druid namespace
 #include "../SpellValidation_WoW120.h"
+#include "../HeroTalentDetector.h"      // Hero talent tree detection
 
 namespace Playerbot
 {
@@ -69,6 +70,33 @@ constexpr uint32 GUARDIAN_BRISTLING_FUR = WoW120Spells::Druid::Guardian::BRISTLI
 constexpr uint32 GUARDIAN_RENEWAL = WoW120Spells::Druid::RENEWAL;
 constexpr uint32 GUARDIAN_REGROWTH = WoW120Spells::Druid::REGROWTH;
 constexpr uint32 GUARDIAN_GROWL = WoW120Spells::Druid::Guardian::GROWL;
+
+// Gore Proc Tracker
+// Gore: Thrash, Swipe, and Moonfire have a chance to reset the cooldown of Mangle
+// and to cause it to generate 4 additional Rage. Crucial for Guardian gameplay.
+constexpr uint32 GUARDIAN_GORE = WoW120Spells::Druid::Guardian::GORE;
+
+class GuardianGoreTracker
+{
+public:
+    GuardianGoreTracker() : _goreActive(false) {}
+
+    [[nodiscard]] bool IsActive() const { return _goreActive; }
+
+    void ConsumeProc() { _goreActive = false; }
+
+    void Update(Player* bot)
+    {
+        if (!bot)
+            return;
+
+        // Gore buff check - when active, Mangle CD is reset and generates extra rage
+        _goreActive = bot->HasAura(GUARDIAN_GORE);
+    }
+
+private:
+    bool _goreActive;
+};
 
 // Ironfur stacking tracker
 class GuardianIronfurTracker
@@ -198,7 +226,8 @@ public:
     using Base::GetEnemiesInRange;
     using Base::_resource;
     explicit GuardianDruidRefactored(Player* bot)        : TankSpecialization<RageResource>(bot)
-        
+
+        , _goreTracker()
         , _ironfurTracker()
         , _thrashTracker()
         , _frenziedRegenerationActive(false)
@@ -233,6 +262,31 @@ public:
         if (!target || !bot)
 
             return;
+
+        // Detect hero talents if not yet cached
+        if (!_heroTalents.detected)
+            _heroTalents.Refresh(this->GetBot());
+
+        // Hero talent rotation branching
+        // Guardian Druid has access to: Elune's Chosen / Druid of the Claw
+        if (_heroTalents.IsTree(HeroTalentTree::ELUNES_CHOSEN))
+        {
+            // Elune's Chosen: Lunar Beam Enhanced and Celestial Guardian buffs
+            if (this->CanCastSpell(WoW120Spells::Druid::Guardian::LUNAR_BEAM_ENHANCED, target))
+            {
+                this->CastSpell(WoW120Spells::Druid::Guardian::LUNAR_BEAM_ENHANCED, target);
+                return;
+            }
+        }
+        else if (_heroTalents.IsTree(HeroTalentTree::DRUID_OF_THE_CLAW))
+        {
+            // Druid of the Claw: Ursine Adept empowers bear form abilities
+            if (this->CanCastSpell(WoW120Spells::Druid::Guardian::URSINE_ADEPT, this->GetBot()))
+            {
+                this->CastSpell(WoW120Spells::Druid::Guardian::URSINE_ADEPT, this->GetBot());
+                return;
+            }
+        }
 
         UpdateGuardianState(target);
         MaintainBearForm();
@@ -348,6 +402,7 @@ private:
     void UpdateGuardianState(::Unit* target)
     {
         Player* bot = this->GetBot();
+        _goreTracker.Update(bot);
         _ironfurTracker.Update(bot);
         _thrashTracker.Update(target);
         UpdateCooldownStates();
@@ -487,6 +542,15 @@ private:
                 return;
 
             }
+        }
+
+        // Gore Proc: Mangle CD is reset and generates 4 extra rage - highest priority
+        if (_goreTracker.IsActive() && this->CanCastSpell(GUARDIAN_MANGLE, target))
+        {
+            this->CastSpell(GUARDIAN_MANGLE, target);
+            this->_resource += 14; // Base 10 rage + 4 from Gore proc
+            _goreTracker.ConsumeProc();
+            return;
         }
 
         // Mangle (highest priority - generates rage and threat)
@@ -1222,6 +1286,7 @@ private:
     }
 
     // Member variables
+    GuardianGoreTracker _goreTracker;
     GuardianIronfurTracker _ironfurTracker;
     GuardianThrashTracker _thrashTracker;
 
@@ -1232,6 +1297,9 @@ private:
     uint32 _lastBerserkTime;
     uint32 _lastFrenziedRegenerationTime;
     uint32 _lastTaunt{0}; // Phase 5C: ThreatAssistant integration
+
+    // Hero talent detection cache (refreshed on combat start)
+    HeroTalentCache _heroTalents;
 };
 
 } // namespace Playerbot

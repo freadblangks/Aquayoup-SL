@@ -12,8 +12,14 @@
 #include "IsleOfConquestScript.h"
 #include "BGScriptRegistry.h"
 #include "BattlegroundCoordinator.h"
+#include "BotActionManager.h"
+#include "BGState.h"
+#include "Player.h"
+#include "Creature.h"
+#include "ObjectAccessor.h"
 #include "Timer.h"
 #include "Log.h"
+#include "../../../Movement/BotMovementUtil.h"
 
 namespace Playerbot::Coordination::Battleground
 {
@@ -70,10 +76,11 @@ void IsleOfConquestScript::OnMatchStart()
 {
     SiegeScriptBase::OnMatchStart();
 
-    m_matchStartTime = getMSTime();
-    m_lastStrategyUpdate = m_matchStartTime;
-    m_lastNodeCheck = m_matchStartTime;
-    m_lastVehicleCheck = m_matchStartTime;
+    uint32 now = getMSTime();
+    m_matchStartTime = now;
+    m_lastStrategyUpdate = now;
+    m_lastNodeCheck = now;
+    m_lastVehicleCheck = now;
 
     // Reset all states for fresh match
     for (uint32 i = 0; i < IsleOfConquest::ObjectiveIds::NODE_COUNT; ++i)
@@ -113,8 +120,8 @@ void IsleOfConquestScript::OnMatchEnd(bool victory)
         victory ? "VICTORY" : "DEFEAT", minutes, seconds,
         m_allianceReinforcements, m_hordeReinforcements,
         GetIntactGateCount(ALLIANCE), GetIntactGateCount(HORDE),
-        m_halfordAlive ? "ALIVE" : "DEAD",
-        m_agmarAlive ? "ALIVE" : "DEAD");
+        m_halfordAlive.load() ? "ALIVE" : "DEAD",
+        m_agmarAlive.load() ? "ALIVE" : "DEAD");
 }
 
 void IsleOfConquestScript::OnUpdate(uint32 diff)
@@ -154,6 +161,34 @@ void IsleOfConquestScript::OnUpdate(uint32 diff)
     {
         UpdateVehicleStates();
         m_lastVehicleCheck = now;
+    }
+
+    // Resolve boss GUIDs on main thread (once)
+    if (!m_bossGuidsResolved && m_coordinator)
+    {
+        auto bots = m_coordinator->GetAllBots();
+        if (!bots.empty())
+        {
+            if (::Player* anyBot = ObjectAccessor::FindPlayer(bots.front().guid))
+            {
+                if (::Creature* halford = anyBot->FindNearestCreature(
+                    IsleOfConquest::Bosses::HALFORD_ENTRY, 5000.0f, true))
+                    m_halfordGuid = halford->GetGUID();
+
+                if (::Creature* agmar = anyBot->FindNearestCreature(
+                    IsleOfConquest::Bosses::AGMAR_ENTRY, 5000.0f, true))
+                    m_agmarGuid = agmar->GetGUID();
+
+                if (!m_halfordGuid.IsEmpty() || !m_agmarGuid.IsEmpty())
+                {
+                    m_bossGuidsResolved = true;
+                    TC_LOG_DEBUG("playerbots.bg.script",
+                        "IsleOfConquestScript: Boss GUIDs resolved - Halford={} Agmar={}",
+                        m_halfordGuid.IsEmpty() ? "NOT FOUND" : "OK",
+                        m_agmarGuid.IsEmpty() ? "NOT FOUND" : "OK");
+                }
+            }
+        }
     }
 }
 
@@ -1482,6 +1517,377 @@ uint32 IsleOfConquestScript::GetBestGateTarget(uint32 attackingFaction) const
     }
 
     return 0;  // All gates destroyed
+}
+
+// ============================================================================
+// RUNTIME BEHAVIOR - ExecuteStrategy
+// ============================================================================
+
+bool IsleOfConquestScript::ExecuteStrategy(::Player* player)
+{
+    if (!player || !player->IsInWorld() || !player->IsAlive())
+        return false;
+
+    // Skip if already in a vehicle - vehicle AI handles actions
+    if (player->GetVehicle())
+        return true;
+
+    uint32 faction = player->GetBGTeam();
+    uint32 targetFaction = (faction == ALLIANCE) ? HORDE : ALLIANCE;
+    IOCPhase currentPhase = GetCurrentPhase();
+    uint32 dutySlot = player->GetGUID().GetCounter() % 10;
+
+    // =========================================================================
+    // PRIORITY 1: Enemy nearby -> engage
+    // =========================================================================
+    if (::Player* enemy = FindNearestEnemyPlayer(player, 20.0f))
+    {
+        TC_LOG_DEBUG("playerbots.bg.script",
+            "[IOC] {} P1: engaging enemy {} (dist={:.0f})",
+            player->GetName(), enemy->GetName(),
+            player->GetExactDist(enemy));
+        EngageTarget(player, enemy);
+        return true;
+    }
+
+    // =========================================================================
+    // PRIORITY 2: Nearby capturable node -> capture it
+    // =========================================================================
+    for (uint32 i = 0; i < IsleOfConquest::ObjectiveIds::NODE_COUNT; ++i)
+    {
+        if (IsNodeControlled(i, faction))
+            continue;
+
+        const auto& posData = IsleOfConquest::NodePositions::POSITIONS[i];
+        Position nodePos(posData.x, posData.y, posData.z, 0);
+        float dist = player->GetExactDist(&nodePos);
+
+        if (dist < 30.0f)
+        {
+            TC_LOG_DEBUG("playerbots.bg.script",
+                "[IOC] {} P2: capturing node {} (dist={:.0f})",
+                player->GetName(), IsleOfConquest::GetNodeName(i), dist);
+
+            if (dist < 8.0f)
+                TryInteractWithGameObject(player, 29 /*GAMEOBJECT_TYPE_CAPTURE_POINT*/, 10.0f);
+            else
+                Playerbot::BotMovementUtil::MoveToPosition(player, nodePos);
+
+            return true;
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 3: Phase-based duty
+    // =========================================================================
+    switch (currentPhase)
+    {
+        case IOCPhase::OPENING:
+        case IOCPhase::NODE_CAPTURE:
+        {
+            // Split between capturing nodes based on priority order
+            auto priorities = GetNodePriorityOrder(faction);
+            for (uint32 nodeId : priorities)
+            {
+                if (!IsNodeControlled(nodeId, faction))
+                {
+                    const auto& posData = IsleOfConquest::NodePositions::POSITIONS[nodeId];
+                    Position nodePos(posData.x, posData.y, posData.z, 0);
+
+                    TC_LOG_DEBUG("playerbots.bg.script",
+                        "[IOC] {} P3 (NODE_CAPTURE): moving to {}",
+                        player->GetName(), IsleOfConquest::GetNodeName(nodeId));
+                    Playerbot::BotMovementUtil::MoveToPosition(player, nodePos);
+                    return true;
+                }
+            }
+
+            // All nodes controlled -> defend Workshop or Hangar
+            if (IsWorkshopControlled(faction))
+            {
+                auto defPos = GetNodeDefensePositions(IsleOfConquest::ObjectiveIds::WORKSHOP);
+                if (!defPos.empty())
+                {
+                    uint32 posIdx = player->GetGUID().GetCounter() % defPos.size();
+                    PatrolAroundPosition(player, defPos[posIdx], 3.0f, 10.0f);
+                    return true;
+                }
+            }
+            break;
+        }
+
+        case IOCPhase::VEHICLE_SIEGE:
+        {
+            // Slots 0-2 (30%): try to board siege vehicles
+            if (dutySlot < 3)
+            {
+                // Try Siege Engine first (most powerful), then Demolisher, then Glaive/Catapult
+                uint32 siegeEntry = (faction == ALLIANCE) ?
+                    IsleOfConquest::Vehicles::SIEGE_ENGINE_A :
+                    IsleOfConquest::Vehicles::SIEGE_ENGINE_H;
+
+                if (IsWorkshopControlled(faction))
+                {
+                    if (TryBoardNearbyVehicle(player, siegeEntry, 50.0f) ||
+                        TryBoardNearbyVehicle(player, IsleOfConquest::Vehicles::DEMOLISHER, 50.0f))
+                    {
+                        TC_LOG_DEBUG("playerbots.bg.script",
+                            "[IOC] {} P3 (VEHICLE_SIEGE): boarding Workshop vehicle",
+                            player->GetName());
+                        return true;
+                    }
+                }
+
+                if (IsNodeControlled(IsleOfConquest::ObjectiveIds::DOCKS, faction))
+                {
+                    if (TryBoardNearbyVehicle(player, IsleOfConquest::Vehicles::GLAIVE_THROWER, 50.0f) ||
+                        TryBoardNearbyVehicle(player, IsleOfConquest::Vehicles::CATAPULT, 50.0f))
+                    {
+                        TC_LOG_DEBUG("playerbots.bg.script",
+                            "[IOC] {} P3 (VEHICLE_SIEGE): boarding Docks vehicle",
+                            player->GetName());
+                        return true;
+                    }
+                }
+
+                // No vehicle available - move to vehicle staging area
+                auto stagingPos = GetVehicleStagingPositions(faction);
+                if (!stagingPos.empty())
+                {
+                    uint32 posIdx = player->GetGUID().GetCounter() % stagingPos.size();
+                    Playerbot::BotMovementUtil::MoveToPosition(player, stagingPos[posIdx]);
+                    return true;
+                }
+            }
+
+            // Slots 3-4 (20%): parachute assault if Hangar controlled + gates intact
+            if (dutySlot >= 3 && dutySlot < 5 && ShouldUseParachuteAssault())
+            {
+                auto dropPositions = GetParachuteDropPositions(targetFaction);
+                if (!dropPositions.empty())
+                {
+                    uint32 posIdx = player->GetGUID().GetCounter() % dropPositions.size();
+                    TC_LOG_DEBUG("playerbots.bg.script",
+                        "[IOC] {} P3 (VEHICLE_SIEGE): parachute assault into enemy keep!",
+                        player->GetName());
+                    Playerbot::BotMovementUtil::MoveToPosition(player, dropPositions[posIdx]);
+                    return true;
+                }
+            }
+
+            // Slots 5-9 (50%): infantry escort/assault toward gates
+            {
+                uint32 targetGate = GetBestGateTarget(faction);
+                if (targetGate != 0)
+                {
+                    auto approachPos = GetGateApproachPositions(targetGate);
+                    if (!approachPos.empty())
+                    {
+                        uint32 posIdx = player->GetGUID().GetCounter() % approachPos.size();
+                        TC_LOG_DEBUG("playerbots.bg.script",
+                            "[IOC] {} P3 (VEHICLE_SIEGE): infantry assault gate {}",
+                            player->GetName(), targetGate);
+                        Playerbot::BotMovementUtil::MoveToPosition(player, approachPos[posIdx]);
+                        return true;
+                    }
+                }
+            }
+            break;
+        }
+
+        case IOCPhase::GATE_ASSAULT:
+        {
+            // Slots 0-2 (30%): still try vehicles for remaining gates
+            if (dutySlot < 3)
+            {
+                uint32 siegeEntry = (faction == ALLIANCE) ?
+                    IsleOfConquest::Vehicles::SIEGE_ENGINE_A :
+                    IsleOfConquest::Vehicles::SIEGE_ENGINE_H;
+
+                if (IsWorkshopControlled(faction))
+                {
+                    if (TryBoardNearbyVehicle(player, siegeEntry, 50.0f) ||
+                        TryBoardNearbyVehicle(player, IsleOfConquest::Vehicles::DEMOLISHER, 50.0f))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // Rush enemy gates
+            auto gatePriority = GetGatePriorityOrder(targetFaction);
+            for (uint32 gateId : gatePriority)
+            {
+                if (!IsGateDestroyed(gateId))
+                {
+                    auto approachPos = GetGateApproachPositions(gateId);
+                    if (!approachPos.empty())
+                    {
+                        uint32 posIdx = player->GetGUID().GetCounter() % approachPos.size();
+                        TC_LOG_DEBUG("playerbots.bg.script",
+                            "[IOC] {} P3 (GATE_ASSAULT): approaching gate {}",
+                            player->GetName(), gateId);
+                        Playerbot::BotMovementUtil::MoveToPosition(player, approachPos[posIdx]);
+                        return true;
+                    }
+                }
+            }
+            break;
+        }
+
+        case IOCPhase::BOSS_ASSAULT:
+        {
+            // 90% rush enemy boss
+            if (dutySlot < 9)
+            {
+                // Engage enemy players near boss first
+                if (::Player* enemy = FindNearestEnemyPlayer(player, 30.0f))
+                {
+                    EngageTarget(player, enemy);
+                }
+                else
+                {
+                    // No enemy players - attack the boss NPC
+                    QueueBossAttack(player, targetFaction);
+                }
+
+                // Move to boss raid positions
+                auto raidPositions = GetBossRaidPositions(targetFaction);
+                if (!raidPositions.empty())
+                {
+                    uint32 posIdx = player->GetGUID().GetCounter() % raidPositions.size();
+                    TC_LOG_DEBUG("playerbots.bg.script",
+                        "[IOC] {} P3 (BOSS_ASSAULT): rushing enemy boss!",
+                        player->GetName());
+                    PatrolAroundPosition(player, raidPositions[posIdx], 1.0f, 5.0f);
+                    return true;
+                }
+
+                // Fallback: move to boss position directly
+                Position bossPos = GetBossPosition(targetFaction);
+                Playerbot::BotMovementUtil::MoveToPosition(player, bossPos);
+                return true;
+            }
+            else
+            {
+                // 10% defend our nodes
+                auto priorities = GetNodePriorityOrder(faction);
+                for (uint32 nodeId : priorities)
+                {
+                    if (IsNodeControlled(nodeId, faction))
+                    {
+                        auto defPos = GetNodeDefensePositions(nodeId);
+                        if (!defPos.empty())
+                        {
+                            uint32 posIdx = player->GetGUID().GetCounter() % defPos.size();
+                            PatrolAroundPosition(player, defPos[posIdx], 3.0f, 10.0f);
+                            return true;
+                        }
+                    }
+                }
+            }
+            break;
+        }
+
+        case IOCPhase::DEFENSE:
+        {
+            // Protect our boss - engage any enemy first
+            if (::Player* enemy = FindNearestEnemyPlayer(player, 30.0f))
+            {
+                EngageTarget(player, enemy);
+                return true;
+            }
+
+            // Patrol boss room
+            auto raidPos = GetBossRaidPositions(faction);
+            if (!raidPos.empty())
+            {
+                uint32 posIdx = player->GetGUID().GetCounter() % raidPos.size();
+                TC_LOG_DEBUG("playerbots.bg.script",
+                    "[IOC] {} P3 (DEFENSE): defending our boss",
+                    player->GetName());
+                PatrolAroundPosition(player, raidPos[posIdx], 3.0f, 10.0f);
+                return true;
+            }
+            Position bossPos = GetBossPosition(faction);
+            PatrolAroundPosition(player, bossPos, 5.0f, 15.0f);
+            return true;
+        }
+
+        case IOCPhase::DESPERATE:
+        {
+            // All-in: rush enemy boss if behind, defend if ahead
+            uint32 ourReinf = GetReinforcements(faction);
+            uint32 theirReinf = GetReinforcements(targetFaction);
+
+            if (ourReinf < theirReinf)
+            {
+                // Behind -> boss rush with NPC attack
+                if (::Player* enemy = FindNearestEnemyPlayer(player, 30.0f))
+                {
+                    EngageTarget(player, enemy);
+                }
+                else
+                {
+                    QueueBossAttack(player, targetFaction);
+                }
+
+                Position bossPos = GetBossPosition(targetFaction);
+                TC_LOG_DEBUG("playerbots.bg.script",
+                    "[IOC] {} P3 (DESPERATE): all-in boss rush!",
+                    player->GetName());
+                Playerbot::BotMovementUtil::MoveToPosition(player, bossPos);
+                return true;
+            }
+            else
+            {
+                // Ahead -> defend
+                if (::Player* enemy = FindNearestEnemyPlayer(player, 30.0f))
+                {
+                    EngageTarget(player, enemy);
+                    return true;
+                }
+                Position bossPos = GetBossPosition(faction);
+                PatrolAroundPosition(player, bossPos, 5.0f, 15.0f);
+                return true;
+            }
+        }
+
+        default:
+            break;
+    }
+
+    // =========================================================================
+    // PRIORITY 4: Fallback -> patrol
+    // =========================================================================
+    {
+        auto chokepoints = GetChokepoints();
+        if (!chokepoints.empty())
+        {
+            uint32 chokeIdx = player->GetGUID().GetCounter() % chokepoints.size();
+            TC_LOG_DEBUG("playerbots.bg.script",
+                "[IOC] {} P4: patrolling chokepoint",
+                player->GetName());
+            PatrolAroundPosition(player, chokepoints[chokeIdx], 5.0f, 15.0f);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void IsleOfConquestScript::QueueBossAttack(::Player* bot, uint32 targetFaction)
+{
+    ObjectGuid bossGuid = (targetFaction == ALLIANCE) ? m_halfordGuid : m_agmarGuid;
+    if (bossGuid.IsEmpty())
+        return;
+
+    // Don't re-queue if already attacking this boss
+    if (bot->GetVictim() && bot->GetVictim()->GetGUID() == bossGuid)
+        return;
+
+    sBotActionMgr->QueueAction(Playerbot::BotAction::AttackTarget(
+        bot->GetGUID(), bossGuid, getMSTime()));
 }
 
 } // namespace Playerbot::Coordination::Battleground

@@ -11,7 +11,7 @@
 #pragma once
 
 #include "RaidState.h"
-#include "Core/Events/CombatEventData.h"
+#include "Core/Events/CombatEvent.h"
 #include <vector>
 #include <map>
 
@@ -95,8 +95,8 @@ public:
     void OnTauntSucceeded(ObjectGuid tank, ObjectGuid target);
     void OnTauntFailed(ObjectGuid tank, ObjectGuid target);
 
-    void OnDamageEvent(const CombatEventData& event);
-    void OnAuraEvent(const CombatEventData& event);
+    void OnDamageEvent(const CombatEvent& event);
+    void OnAuraEvent(const CombatEvent& event);
 
     // ========================================================================
     // THREAT MANAGEMENT
