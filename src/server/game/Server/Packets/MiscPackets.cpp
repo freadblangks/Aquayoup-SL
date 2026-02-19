@@ -127,7 +127,7 @@ WorldPacket const* SetCurrency::Write()
 void SetCurrencyFlags::Read()
 {
     _worldPacket >> CurrencyID;
-    _worldPacket >> Flags;
+    _worldPacket >> As<uint8>(Flags);
 }
 
 void SetSelection::Read()
@@ -941,5 +941,10 @@ WorldPacket const* WorldPackets::Misc::ActivateSoulbindFailed::Write()
     _worldPacket << uint8(unk);
 
     return &_worldPacket;
+}
+
+void ChromieTimeSelectExpansion::Read()
+{
+    _worldPacket >> ExpansionID;
 }
 }

@@ -401,14 +401,6 @@ void WorldSession::HandleRequestCemeteryList(WorldPackets::Misc::RequestCemetery
     SendPacket(packet.Write());
 }
 
-void WorldSession::HandleSetCurrencyFlags(WorldPackets::Misc::SetCurrencyFlags& packet)
-{
-    if (!sCurrencyTypesStore.LookupEntry(packet.CurrencyID))
-        return;
-
-    _player->SetCurrencyFlags(packet.CurrencyID, CurrencyDbFlags(packet.Flags));
-}
-
 void WorldSession::HandleSetSelectionOpcode(WorldPackets::Misc::SetSelection& packet)
 {
 #ifndef DISABLE_DRESSNPCS_CORESOUNDS
@@ -1250,6 +1242,11 @@ void WorldSession::HandleQueryCountdownTimer(WorldPackets::Misc::QueryCountdownT
     _player->SendDirectMessage(startTimer.Write());
 }
 
+void WorldSession::HandleSetCurrencyFlags(WorldPackets::Misc::SetCurrencyFlags const& setCurrenctFlags)
+{
+    _player->SetCurrencyFlagsFromClient(setCurrenctFlags.CurrencyID, setCurrenctFlags.Flags);
+}
+
 void WorldSession::HandleOverrideScreenFlash(WorldPackets::Misc::OverrideScreenFlash& overrideScreenFlash)
 {
     _player->SetOverrideScreenFlash(overrideScreenFlash.BlackScreenOrRedScreen);
@@ -1350,4 +1347,27 @@ void WorldSession::HandleSelectFactionOpcode(WorldPackets::Misc::FactionSelect& 
 void WorldSession::HandleActivateSoulbind(WorldPackets::Misc::ActivateSoulbind& /*packet*/)
 {
     // Need IMP
+}
+
+void WorldSession::HandleChromieTimeSelectExpansion(WorldPackets::Misc::ChromieTimeSelectExpansion& chromieTimeSelectExpansion)
+{
+    Player* player = GetPlayer();
+    if (!player)
+        return;
+
+    int32 expansionId = chromieTimeSelectExpansion.ExpansionID;
+
+    // ExpansionID 0 means clearing Chromie Time selection
+    if (expansionId < 0 || expansionId > CURRENT_EXPANSION)
+        return;
+
+    // Set the UiChromieTimeExpansionID update field on ActivePlayerData
+    player->SetUpdateFieldValue(player->m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::UiChromieTimeExpansionID), expansionId);
+
+    // Set the ChromieTimeExpansionMask on PlayerData::CtrOptions
+    uint32 expansionMask = expansionId > 0 ? (1u << expansionId) : 0;
+    player->SetUpdateFieldValue(player->m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::CtrOptions).ModifyValue(&UF::CTROptions::ChromieTimeExpansionMask), expansionMask);
+
+    // Send success response
+    player->SendDirectMessage(WorldPackets::Misc::ChromieTimeSelectExpansionSuccess().Write());
 }
