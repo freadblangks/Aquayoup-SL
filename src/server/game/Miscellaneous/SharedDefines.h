@@ -98,6 +98,7 @@ enum Expansions
     EXPANSION_SHADOWLANDS              = 8,
     EXPANSION_DRAGONFLIGHT             = 9,
     EXPANSION_THE_WAR_WITHIN           = 10,
+    EXPANSION_MIDNIGHT                 = 11,
     MAX_EXPANSIONS,
 
     MAX_ACCOUNT_EXPANSIONS
@@ -131,6 +132,8 @@ constexpr uint32 GetMaxLevelForExpansion(uint32 expansion)
             return 70;
         case EXPANSION_THE_WAR_WITHIN:
             return 80;
+        case EXPANSION_MIDNIGHT:
+            return 90;
         default:
             break;
     }
@@ -856,8 +859,8 @@ enum SpellAttr11 : uint32
     SPELL_ATTR11_UNK15                           = 0x00008000, // TITLE Unknown attribute 15@Attr11
     SPELL_ATTR11_NOT_USABLE_IN_CHALLENGE_MODE    = 0x00010000, // TITLE Not in Mythic+ Mode (Challenge Mode)
     SPELL_ATTR11_UNK17                           = 0x00020000, // TITLE Unknown attribute 17@Attr11
-    SPELL_ATTR11_UNK18                           = 0x00040000, // TITLE Unknown attribute 18@Attr11
-    SPELL_ATTR11_UNK19                           = 0x00080000, // TITLE Unknown attribute 19@Attr11
+    SPELL_ATTR11_IGNORE_CASTER_ABSORB_MODIFIERS                     = 0x00040000, // TITLE Ignore Caster Absorb Modifiers
+    SPELL_ATTR11_IGNORE_TARGET_ABSORB_MODIFIERS                     = 0x00080000, // TITLE Ignore Target Absorb Modifiers
     SPELL_ATTR11_UNK20                           = 0x00100000, // TITLE Unknown attribute 20@Attr11
     SPELL_ATTR11_UNK21                           = 0x00200000, // TITLE Unknown attribute 21@Attr11
     SPELL_ATTR11_UNK22                           = 0x00400000, // TITLE Unknown attribute 22@Attr11
@@ -2903,6 +2906,9 @@ inline constexpr uint64 IMMUNE_TO_MOVEMENT_IMPAIRMENT_AND_LOSS_CONTROL_MASK(\
     (1 << MECHANIC_POLYMORPH) | (1 << MECHANIC_BANISH) | (1 << MECHANIC_SHACKLE) | \
     (1 << MECHANIC_TURN) | (1 << MECHANIC_HORROR) | (1 << MECHANIC_DAZE) | \
     (1 << MECHANIC_SAPPED));
+
+inline constexpr uint64 MECHANIC_LOSS_CONTROL_MASK(\
+    IMMUNE_TO_MOVEMENT_IMPAIRMENT_AND_LOSS_CONTROL_MASK & ~((1 << MECHANIC_SNARE) | (1 << MECHANIC_TURN) | (1 << MECHANIC_DAZE)));
 
 // Spell dispel type
 enum DispelType
@@ -6679,69 +6685,71 @@ enum ResponseCodes
     CHAR_CREATE_TIMEOUT                                    = 47,
     CHAR_CREATE_THROTTLE                                   = 48,
     CHAR_CREATE_ALLIED_RACE_ACHIEVEMENT                    = 49,
-    CHAR_CREATE_CHARACTER_IN_COMMUNITY                     = 50,
-    CHAR_CREATE_NEW_PLAYER                                 = 51,
-    CHAR_CREATE_NAME_RESERVATION_FULL                      = 52,
-    CHAR_CREATE_DRACTHYR_DUPLICATE                         = 53,
-    CHAR_CREATE_DRACTHYR_LEVEL_REQUIREMENT                 = 54,
-    CHAR_CREATE_DEATHKNIGHT_DUPLICATE                      = 55,
-    CHAR_CREATE_DEATHKNIGHT_LEVEL_REQUIREMENT              = 56,
-    CHAR_CREATE_CLASS_TRIAL_NEWCOMER                       = 57,
-    CHAR_CREATE_CLASS_TRIAL_THROTTLE_HOUR                  = 58,
-    CHAR_CREATE_CLASS_TRIAL_THROTTLE_DAY                   = 59,
-    CHAR_CREATE_CLASS_TRIAL_THROTTLE_WEEK                  = 60,
-    CHAR_CREATE_CLASS_TRIAL_THROTTLE_ACCOUNT               = 61,
-    CHAR_CREATE_FACTION_BALANCE                            = 62,
-    CHAR_CREATE_TIMERUNNING                                = 63,
+    CHAR_CREATE_RACECLASS_ACHIEVEMENT                      = 50,
+    CHAR_CREATE_CHARACTER_IN_COMMUNITY                     = 51,
+    CHAR_CREATE_NEW_PLAYER                                 = 52,
+    CHAR_CREATE_NAME_RESERVATION_FULL                      = 53,
+    CHAR_CREATE_DRACTHYR_DUPLICATE                         = 54,
+    CHAR_CREATE_DRACTHYR_LEVEL_REQUIREMENT                 = 55,
+    CHAR_CREATE_DEATHKNIGHT_DUPLICATE                      = 56,
+    CHAR_CREATE_DEATHKNIGHT_LEVEL_REQUIREMENT              = 57,
+    CHAR_CREATE_CLASS_TRIAL_NEWCOMER                       = 58,
+    CHAR_CREATE_CLASS_TRIAL_THROTTLE_HOUR                  = 59,
+    CHAR_CREATE_CLASS_TRIAL_THROTTLE_DAY                   = 60,
+    CHAR_CREATE_CLASS_TRIAL_THROTTLE_WEEK                  = 61,
+    CHAR_CREATE_CLASS_TRIAL_THROTTLE_ACCOUNT               = 62,
+    CHAR_CREATE_FACTION_BALANCE                            = 63,
+    CHAR_CREATE_TIMERUNNING                                = 64,
 
-    CHAR_DELETE_IN_PROGRESS                                = 64,
-    CHAR_DELETE_SUCCESS                                    = 65,
-    CHAR_DELETE_FAILED                                     = 66,
-    CHAR_DELETE_FAILED_CHARACTER_SERVICE_PENDING           = 67,
-    CHAR_DELETE_FAILED_GUILD_LEADER                        = 68,
-    CHAR_DELETE_FAILED_ARENA_CAPTAIN                       = 69,
-    CHAR_DELETE_FAILED_HAS_HEIRLOOM_OR_MAIL                = 70,
-    CHAR_DELETE_FAILED_DEPRECATED1                         = 71,
-    CHAR_DELETE_FAILED_HAS_WOW_TOKEN                       = 72,
-    CHAR_DELETE_FAILED_DEPRECATED2                         = 73,
-    CHAR_DELETE_FAILED_COMMUNITY_OWNER                     = 74,
+    CHAR_DELETE_IN_PROGRESS                                = 65,
+    CHAR_DELETE_SUCCESS                                    = 66,
+    CHAR_DELETE_FAILED                                     = 67,
+    CHAR_DELETE_FAILED_CHARACTER_SERVICE_PENDING           = 68,
+    CHAR_DELETE_FAILED_GUILD_LEADER                        = 69,
+    CHAR_DELETE_FAILED_ARENA_CAPTAIN                       = 70,
+    CHAR_DELETE_FAILED_HAS_HEIRLOOM_OR_MAIL                = 71,
+    CHAR_DELETE_FAILED_DEPRECATED1                         = 72,
+    CHAR_DELETE_FAILED_HAS_WOW_TOKEN                       = 73,
+    CHAR_DELETE_FAILED_DEPRECATED2                         = 74,
+    CHAR_DELETE_FAILED_COMMUNITY_OWNER                     = 75,
+    CHAR_DELETE_FAILED_NEIGHBORHOOD_OWNER                  = 76,
+    CHAR_DELETE_FAILED_HOUSE_OWNER                         = 77,
 
-    CHAR_LOGIN_IN_PROGRESS                                 = 75,
-    CHAR_LOGIN_SUCCESS                                     = 76,
-    CHAR_LOGIN_NO_WORLD                                    = 77,
-    CHAR_LOGIN_DUPLICATE_CHARACTER                         = 78,
-    CHAR_LOGIN_NO_INSTANCES                                = 79,
-    CHAR_LOGIN_FAILED                                      = 80,
-    CHAR_LOGIN_DISABLED                                    = 81,
-    CHAR_LOGIN_NO_CHARACTER                                = 82,
-    CHAR_LOGIN_LOCKED_FOR_TRANSFER                         = 83,
-    CHAR_LOGIN_LOCKED_BY_BILLING                           = 84,
-    CHAR_LOGIN_LOCKED_BY_MOBILE_AH                         = 85,
-    CHAR_LOGIN_TEMPORARY_GM_LOCK                           = 86,
-    CHAR_LOGIN_LOCKED_BY_CHARACTER_UPGRADE                 = 87,
-    CHAR_LOGIN_LOCKED_BY_REVOKED_CHARACTER_UPGRADE         = 88,
-    CHAR_LOGIN_LOCKED_BY_REVOKED_VAS_TRANSACTION           = 89,
-    CHAR_LOGIN_LOCKED_BY_RESTRICTION                       = 90,
-    CHAR_LOGIN_LOCKED_FOR_REALM_PLAYTYPE                   = 91,
+    CHAR_LOGIN_IN_PROGRESS                                 = 78,
+    CHAR_LOGIN_SUCCESS                                     = 79,
+    CHAR_LOGIN_NO_WORLD                                    = 80,
+    CHAR_LOGIN_DUPLICATE_CHARACTER                         = 81,
+    CHAR_LOGIN_NO_INSTANCES                                = 82,
+    CHAR_LOGIN_FAILED                                      = 83,
+    CHAR_LOGIN_DISABLED                                    = 84,
+    CHAR_LOGIN_NO_CHARACTER                                = 85,
+    CHAR_LOGIN_LOCKED_FOR_TRANSFER                         = 86,
+    CHAR_LOGIN_LOCKED_BY_BILLING                           = 87,
+    CHAR_LOGIN_LOCKED_BY_MOBILE_AH                         = 88,
+    CHAR_LOGIN_TEMPORARY_GM_LOCK                           = 89,
+    CHAR_LOGIN_LOCKED_BY_CHARACTER_UPGRADE                 = 90,
+    CHAR_LOGIN_LOCKED_BY_REVOKED_CHARACTER_UPGRADE         = 91,
+    CHAR_LOGIN_LOCKED_BY_REVOKED_VAS_TRANSACTION           = 92,
+    CHAR_LOGIN_LOCKED_BY_RESTRICTION                       = 93,
+    CHAR_LOGIN_LOCKED_FOR_REALM_PLAYTYPE                   = 94,
 
-    CHAR_NAME_SUCCESS                                      = 92,
-    CHAR_NAME_FAILURE                                      = 93,
-    CHAR_NAME_NO_NAME                                      = 94,
-    CHAR_NAME_TOO_SHORT                                    = 95,
-    CHAR_NAME_TOO_LONG                                     = 96,
-    CHAR_NAME_INVALID_CHARACTER                            = 97,
-    CHAR_NAME_MIXED_LANGUAGES                              = 98,
-    CHAR_NAME_PROFANE                                      = 99,
-    CHAR_NAME_RESERVED                                     = 100,
-    CHAR_NAME_INVALID_APOSTROPHE                           = 101,
-    CHAR_NAME_MULTIPLE_APOSTROPHES                         = 102,
-    CHAR_NAME_THREE_CONSECUTIVE                            = 103,
-    CHAR_NAME_INVALID_SPACE                                = 104,
-    CHAR_NAME_CONSECUTIVE_SPACES                           = 105,
-    CHAR_NAME_RUSSIAN_CONSECUTIVE_SILENT_CHARACTERS        = 106,
-    CHAR_NAME_RUSSIAN_SILENT_CHARACTER_AT_BEGINNING_OR_END = 107,
-    CHAR_NAME_DECLENSION_DOESNT_MATCH_BASE_NAME            = 108,
-    CHAR_NAME_SPACES_DISALLOWED                            = 109,
+    CHAR_NAME_SUCCESS                                      = 95,
+    CHAR_NAME_FAILURE                                      = 96,
+    CHAR_NAME_NO_NAME                                      = 97,
+    CHAR_NAME_TOO_SHORT                                    = 98,
+    CHAR_NAME_TOO_LONG                                     = 99,
+    CHAR_NAME_INVALID_CHARACTER                            = 100,
+    CHAR_NAME_MIXED_LANGUAGES                              = 101,
+    CHAR_NAME_PROFANE                                      = 102,
+    CHAR_NAME_RESERVED                                     = 103,
+    CHAR_NAME_INVALID_APOSTROPHE                           = 104,
+    CHAR_NAME_MULTIPLE_APOSTROPHES                         = 105,
+    CHAR_NAME_THREE_CONSECUTIVE                            = 106,
+    CHAR_NAME_INVALID_SPACE                                = 107,
+    CHAR_NAME_CONSECUTIVE_SPACES                           = 108,
+    CHAR_NAME_RUSSIAN_CONSECUTIVE_SILENT_CHARACTERS        = 109,
+    CHAR_NAME_RUSSIAN_SILENT_CHARACTER_AT_BEGINNING_OR_END = 110,
+    CHAR_NAME_DECLENSION_DOESNT_MATCH_BASE_NAME            = 111,
 };
 
 enum CharacterUndeleteResult
