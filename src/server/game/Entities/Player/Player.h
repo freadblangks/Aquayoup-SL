@@ -137,6 +137,13 @@ namespace WorldPackets
         struct TraitConfig;
         struct TraitEntry;
     }
+
+    namespace Transmogrification
+    {
+        struct TransmogOutfitDataInfo;
+        struct TransmogOutfitSituationInfo;
+        struct TransmogOutfitSlotData;
+    }
 }
 
 TC_GAME_API uint32 GetBagSize(Bag const* bag);
@@ -337,7 +344,7 @@ enum ActionButtonType
     ACTION_BUTTON_COMPANION = 0x50,
     ACTION_BUTTON_MOUNT     = 0x60,
     ACTION_BUTTON_ITEM      = 0x80,
-    ACTION_BUTTON_TRANSMOG_OUTFIT = 0x90
+    ACTION_BUTTON_OUTFIT    = 0x90
 };
 
 enum class HonorGainSource : uint8
@@ -557,6 +564,7 @@ enum PlayerLocalFlags
     PLAYER_LOCAL_FLAG_CHARACTER_BANK_DISABLED           = 0x00080000,
     PLAYER_LOCAL_FLAG_CHARACTER_BANK_CONVERSION_FAILED  = 0x00100000,
     PLAYER_LOCAL_FLAG_ACCOUNT_BANK_DISABLED             = 0x00200000,
+    PLAYER_LOCAL_FLAG_FREE_TRANSMOG_CLAIMED             = 0x00400000,
 };
 
 DEFINE_ENUM_FLAG(PlayerLocalFlags);
@@ -595,6 +603,8 @@ enum PlayerExtraFlags
     PLAYER_EXTRA_HAS_RACE_CHANGED           = 0x0200,
     PLAYER_EXTRA_GRANTED_LEVELS_FROM_RAF    = 0x0400,
     PLAYER_EXTRA_LEVEL_BOOSTED              = 0x0800,
+
+    PLAYER_EXTRA_FLAG_FREE_TRANSMOG_CLAIMED = 0x1000,
 };
 
 // 2^n values
@@ -947,6 +957,9 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_ACHIEVEMENTS,
     PLAYER_LOGIN_QUERY_LOAD_CRITERIA_PROGRESS,
     PLAYER_LOGIN_QUERY_LOAD_EQUIPMENT_SETS,
+    PLAYER_LOGIN_QUERY_LOAD_TRANSMOG_OUTFIT,
+    PLAYER_LOGIN_QUERY_LOAD_TRANSMOG_OUTFIT_SITUATION,
+    PLAYER_LOGIN_QUERY_LOAD_TRANSMOG_OUTFIT_SLOT,
     PLAYER_LOGIN_QUERY_LOAD_TRANSMOG_OUTFITS,
     PLAYER_LOGIN_QUERY_LOAD_BG_DATA,
     PLAYER_LOGIN_QUERY_LOAD_GLYPHS,
@@ -1274,6 +1287,8 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SetBeenGrantedLevelsFromRaF() { m_ExtraFlags |= PLAYER_EXTRA_GRANTED_LEVELS_FROM_RAF; }
         bool HasLevelBoosted() const { return (m_ExtraFlags & PLAYER_EXTRA_LEVEL_BOOSTED) != 0; }
         void SetHasLevelBoosted() { m_ExtraFlags |= PLAYER_EXTRA_LEVEL_BOOSTED; }
+        bool HasClaimedFreeTransmog() const { return (m_ExtraFlags & PLAYER_EXTRA_FLAG_FREE_TRANSMOG_CLAIMED) != 0; }
+        void SetHasClaimedFreeTransmog() { m_ExtraFlags |= PLAYER_EXTRA_FLAG_FREE_TRANSMOG_CLAIMED; }
 
         uint32 GetXP() const { return m_activePlayerData->XP; }
         uint32 GetXPForNextLevel() const { return m_activePlayerData->NextLevelXP; }
@@ -1314,10 +1329,15 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SetStableMaster(ObjectGuid stableMaster);
 
         Pet* GetPet() const;
-        Pet* SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float y, float z, float ang, uint32 despwtime, bool* isNew = nullptr);
-        void RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent = false);
+        Pet* SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float y, float z, float ang, uint32 despwtime, bool* isNew = nullptr, bool stampeded = false, bool animalCompanion = false, std::function<void(Pet*, bool)> callback = [](Pet*, bool) {});
+        void RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent = false, bool stampeded = false);
         void DeletePetFromDB(uint32 petNumber);
         void SendTameFailure(PetTameResult result);
+
+        //Animal Companion
+        void SetAnimalCompanion(ObjectGuid guid) { petAnimalCompanionGuid = guid; }
+        ObjectGuid GetAnimalCompanion() { return petAnimalCompanionGuid; }
+        ObjectGuid petAnimalCompanionGuid;
 
         // pet auras
         std::unordered_set<PetAura const*> m_petAuras;
@@ -1571,7 +1591,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void ApplyEquipCooldown(Item* pItem);
         void QuickEquipItem(uint16 pos, Item* pItem);
         void VisualizeItem(uint8 slot, Item* pItem);
-        void SetVisibleItemSlot(uint8 slot, Item* pItem);
+        void SetVisibleItemSlot(uint8 slot, Item const* item);
         Item* BankItem(ItemPosCountVec const& dest, Item* pItem, bool update);
         void RemoveItem(uint8 bag, uint8 slot, bool update);
         void MoveItemFromInventory(uint8 bag, uint8 slot, bool update);
@@ -3046,6 +3066,18 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         bool CanEnableWarModeInArea() const;
         void UpdateWarModeAuras();
 
+        void AddUnlockedTransmogOutfits(std::span<int32 const> transmogOutfitIds);
+        void AddUnlockedTransmogOutfit(int32 transmogOutfitIds) { AddUnlockedTransmogOutfits(std::span(&transmogOutfitIds, 1)); }
+
+        void CreateTransmogOutfit(uint32 id, WorldPackets::Transmogrification::TransmogOutfitDataInfo const& outfitData);
+        void InitializeNewTransmogOutfit(UF::MutableFieldReference<UF::TransmogOutfitData, false> outfit,
+            uint32 id, WorldPackets::Transmogrification::TransmogOutfitDataInfo const& outfitData);
+        bool UpdateTransmogOutfit(uint32 id, WorldPackets::Transmogrification::TransmogOutfitDataInfo const& outfitData);
+        void UpdateTransmogOutfitSituations(uint32 id, bool situationsEnabled, std::span<WorldPackets::Transmogrification::TransmogOutfitSituationInfo const> situations);
+        void UpdateTransmogOutfitSlots(uint32 id, std::span<WorldPackets::Transmogrification::TransmogOutfitSlotData const> slots);
+        void EquipTransmogOutfit(uint32 id, TransmogSituationTrigger trigger, Optional<bool> locked);
+        std::string GetCharacterSelectOutfit() const;
+
         std::string GetDebugInfo() const override;
 
         UF::UpdateField<UF::PlayerData, int32(WowCS::EntityFragment::CGObject), TYPEID_PLAYER> m_playerData;
@@ -3056,8 +3088,6 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         bool CanAcceptAreaSpiritHealFrom(Unit* spiritHealer) const { return spiritHealer->GetGUID() == _areaSpiritHealerGUID; }
         void SendAreaSpiritHealerTime(Unit* spiritHealer) const;
         void SendAreaSpiritHealerTime(ObjectGuid const& spiritHealerGUID, int32 timeLeft) const;
-
-        EquipmentSetContainer const& GetEquipmentSets() const { return _equipmentSets; }
 
     protected:
         // Gamemaster whisper whitelist
@@ -3136,7 +3166,9 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void _LoadDeclinedNames(PreparedQueryResult result);
         void _LoadArenaTeamInfo(PreparedQueryResult result);
         void _LoadEquipmentSets(PreparedQueryResult result);
-        void _LoadTransmogOutfits(PreparedQueryResult result);
+        void _LoadTransmogCustomSets(PreparedQueryResult result);
+        void _LoadTransmogOutfits(PreparedQueryResult setsResult, PreparedQueryResult situationsResult, PreparedQueryResult slotsResult,
+            int32 equippedTransmogOutfitId, bool locked);
         void _LoadBGData(PreparedQueryResult result);
         void _LoadGlyphs(PreparedQueryResult result);
         void _LoadTalents(PreparedQueryResult result);
@@ -3167,6 +3199,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void _SaveSpells(CharacterDatabaseTransaction trans);
         void _SaveStoredAuraTeleportLocations(CharacterDatabaseTransaction trans);
         void _SaveEquipmentSets(CharacterDatabaseTransaction trans);
+        void _SaveTransmogOutfits(CharacterDatabaseTransaction trans);
         void _SaveBGData(CharacterDatabaseTransaction trans);
         void _SaveGlyphs(CharacterDatabaseTransaction trans) const;
         void _SaveTalents(CharacterDatabaseTransaction trans);
@@ -3320,6 +3353,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
 
         std::unique_ptr<Runes> m_runes;
         EquipmentSetContainer _equipmentSets;
+        std::set<uint32> m_changedTransmogOutfits;
 
         bool CanNeverSee(WorldObject const* obj, bool ignorePhaseShift = false) const override;
         bool CanAlwaysSee(WorldObject const* obj) const override;
