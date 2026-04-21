@@ -284,7 +284,7 @@ class spell_warl_absolute_corruption : public SpellScript
         if (Aura const* absoluteCorruption = GetCaster()->GetAura(SPELL_WARLOCK_ABSOLUTE_CORRUPTION))
         {
             Milliseconds duration = GetHitUnit()->IsPvP()
-                ? Seconds(absoluteCorruption->GetSpellInfo()->GetEffect(EFFECT_0).CalcValue())
+                ? Seconds(absoluteCorruption->GetSpellInfo()->GetEffect(EFFECT_0).CalcValueAsInt())
                 : Milliseconds(-1);
 
             GetHitAura()->SetMaxDuration(duration.count());
@@ -428,7 +428,7 @@ class spell_warl_burning_rush : public SpellScript
     {
         Unit* caster = GetCaster();
 
-        if (caster->GetHealthPct() <= float(GetEffectInfo(EFFECT_1).CalcValue(caster)))
+        if (caster->GetHealthPct() <= GetEffectInfo(EFFECT_1).CalcValue(caster))
         {
             SetCustomCastResultMessage(SPELL_CUSTOM_ERROR_YOU_DONT_HAVE_ENOUGH_HEALTH);
             return SPELL_FAILED_CUSTOM_ERROR;
@@ -448,7 +448,7 @@ class spell_warl_burning_rush_aura : public AuraScript
 {
     void PeriodicTick(AuraEffect const* aurEff)
     {
-        if (GetTarget()->GetHealthPct() <= float(aurEff->GetAmount()))
+        if (GetTarget()->GetHealthPct() <= aurEff->GetAmount())
         {
             PreventDefaultAction();
             Remove();
@@ -614,7 +614,7 @@ class spell_warl_chaotic_energies : public AuraScript
         }
 
         // You take ${$s2/3}% reduced damage
-        float damageReductionPct = float(effect1->GetAmount()) / 3;
+        float damageReductionPct = effect1->GetAmount() / 3;
         // plus a random amount of up to ${$s2/3}% additional reduced damage
         damageReductionPct += frand(0.0f, damageReductionPct);
 
@@ -681,13 +681,13 @@ class spell_warl_dark_pact : public AuraScript
         return ValidateSpellEffect({ { spellInfo->Id, EFFECT_1 }, { spellInfo->Id, EFFECT_2 } });
     }
 
-    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& canBeRecalculated)
+    void CalculateAmount(AuraEffect const* /*aurEff*/, SpellEffectValue& amount, bool& canBeRecalculated)
     {
         canBeRecalculated = false;
         if (Unit* caster = GetCaster())
         {
             float extraAmount = caster->SpellBaseDamageBonusDone(GetSpellInfo()->GetSchoolMask()) * 2.5f;
-            int32 absorb = caster->CountPctFromCurHealth(GetEffectInfo(EFFECT_1).CalcValue(caster));
+            uint64 absorb = caster->CountPctFromCurHealth(GetEffectInfo(EFFECT_1).CalcValue(caster));
             caster->SetHealth(caster->GetHealth() - absorb);
             amount = CalculatePct(absorb, GetEffectInfo(EFFECT_2).CalcValue(caster)) + extraAmount;
         }
@@ -1076,7 +1076,7 @@ class spell_warl_perpetual_unstability : public SpellScript
         {
             if (Aura const* unstableAfflictionAura = target->GetAura(GetSpellInfo()->Id, caster->GetGUID()))
             {
-                Milliseconds maxUnstableAfflictionDuration = Seconds(perpetualUnstability->GetAmount());
+                FloatSeconds maxUnstableAfflictionDuration(perpetualUnstability->GetAmount());
                 if (Milliseconds(unstableAfflictionAura->GetDuration()) <= maxUnstableAfflictionDuration)
                     caster->CastSpell(target, SPELL_WARLOCK_PERPETUAL_UNSTABILITY_DAMAGE, CastSpellExtraArgs()
                         .SetTriggerFlags(TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR)
@@ -1329,7 +1329,7 @@ class spell_warl_seed_of_corruption_dummy_aura : public AuraScript
             caster->CastSpell(GetTarget(), SPELL_WARLOCK_SEED_OF_CORRUPTION_DAMAGE, aurEff);
     }
 
-    void CalculateBuffer(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/) const
+    void CalculateBuffer(AuraEffect const* /*aurEff*/, SpellEffectValue& amount, bool& /*canBeRecalculated*/) const
     {
         Unit* caster = GetCaster();
         if (!caster)
@@ -1356,7 +1356,7 @@ class spell_warl_seed_of_corruption_dummy_aura : public AuraScript
         // other seed explosions detonate this instantly, no matter what damage amount is
         if (!damageInfo->GetSpellInfo() || damageInfo->GetSpellInfo()->Id != SPELL_WARLOCK_SEED_OF_CORRUPTION_DAMAGE)
         {
-            int32 amount = aurEff->GetAmount() - damageInfo->GetDamage();
+            SpellEffectValue amount = aurEff->GetAmount() - damageInfo->GetDamage();
             if (amount > 0)
             {
                 aurEff->SetAmount(amount);
@@ -1399,10 +1399,10 @@ class spell_warl_seed_of_corruption_generic : public AuraScript
         if (!damageInfo || !damageInfo->GetDamage())
             return;
 
-        int32 amount = aurEff->GetAmount() - damageInfo->GetDamage();
+        SpellEffectValue amount = aurEff->GetAmount() - damageInfo->GetDamage();
         if (amount > 0)
         {
-            const_cast<AuraEffect*>(aurEff)->SetAmount(amount);
+            aurEff->SetAmount(amount);
             return;
         }
 
@@ -1820,7 +1820,7 @@ class spell_warl_summon_sayaad : public SpellScript
 
     void HandleDummy(SpellEffIndex /*effIndex*/)
     {
-        GetCaster()->CastSpell(nullptr, roll_chance_i(50) ? SPELL_WARLOCK_SUMMON_SUCCUBUS : SPELL_WARLOCK_SUMMON_INCUBUS, TRIGGERED_FULL_MASK);
+        GetCaster()->CastSpell(nullptr, roll_chance(50) ? SPELL_WARLOCK_SUMMON_SUCCUBUS : SPELL_WARLOCK_SUMMON_INCUBUS, TRIGGERED_FULL_MASK);
     }
 
     void Register() override
@@ -1870,7 +1870,7 @@ class spell_warl_unstable_affliction : public AuraScript
         if (!removedEffect)
             return;
 
-        int32 damage = GetEffectInfo(EFFECT_0).CalcValue(caster, nullptr, GetUnitOwner()) / 100.0f * *removedEffect->CalculateEstimatedAmount(caster, removedEffect->GetAmount());
+        SpellEffectValue damage = GetEffectInfo(EFFECT_0).CalcValue(caster, nullptr, GetUnitOwner()) / 100.0 * *removedEffect->CalculateEstimatedAmount(caster, removedEffect->GetAmount());
         caster->CastSpell(dispelInfo->GetDispeller(), SPELL_WARLOCK_UNSTABLE_AFFLICTION_DAMAGE, CastSpellExtraArgs()
             .AddSpellMod(SPELLVALUE_BASE_POINT0, damage)
             .SetTriggerFlags(TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR));
@@ -1938,7 +1938,7 @@ class spell_warl_volatile_agony : public SpellScript
         {
             if (Aura const* agonyAura = target->GetAura(GetSpellInfo()->Id, caster->GetGUID()))
             {
-                Milliseconds maxAgonyDuration = Seconds(volatileAgony->GetAmount());
+                FloatSeconds maxAgonyDuration(volatileAgony->GetAmount());
                 if (Milliseconds(agonyAura->GetDuration()) <= maxAgonyDuration)
                     caster->CastSpell(target, SPELL_WARLOCK_VOLATILE_AGONY_DAMAGE, CastSpellExtraArgs()
                         .SetTriggerFlags(TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR)
@@ -2116,7 +2116,7 @@ class spell_warl_drain_life : public AuraScript
         return _caster != nullptr;
     }
 
-    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
+    void CalculateAmount(AuraEffect const* /*aurEff*/, SpellEffectValue& amount, bool& /*canBeRecalculated*/)
     {
         if (!_caster)
             return;
@@ -2662,7 +2662,7 @@ public:
             {
                 auto effect = aura->GetEffect(0);
 
-                if (roll_chance_i(effect->GetBaseAmount()))
+                if (roll_chance(effect->GetBaseAmount()))
                     caster->CastSpell(caster, SPELL_WARLOCK_CALL_DREADSTALKERS_SUMMON, true);
             }
         }
@@ -2804,7 +2804,7 @@ public:
             Unit* caster = GetCaster();
             if (!caster)
                 return false;
-            if (eventInfo.GetSpellInfo() && (eventInfo.GetSpellInfo()->Id == SPELL_WARLOCK_DEMONBOLT || eventInfo.GetSpellInfo()->Id == SPELL_WARLOCK_SHADOW_BOLT) && roll_chance_i(20))
+            if (eventInfo.GetSpellInfo() && (eventInfo.GetSpellInfo()->Id == SPELL_WARLOCK_DEMONBOLT || eventInfo.GetSpellInfo()->Id == SPELL_WARLOCK_SHADOW_BOLT) && roll_chance(20))
                 caster->CastSpell(caster, SPELL_WARLOCK_DEMONIC_CALLING_TRIGGER, true);
             return false;
         }
@@ -2866,7 +2866,7 @@ public:
                     imp->CastSpell(target, SPELL_WARLOCK_IMPLOSION_JUMP, true);
                     imp->GetMotionMaster()->MoveJump(EVENT_JUMP, *target, 300.f, {}, 1.f);
                     ObjectGuid casterGuid = caster->GetGUID();
-                    caster->GetScheduler().Schedule(500ms, [imp, casterGuid](TaskContext /*context*/)
+                    caster->GetScheduler().Schedule(500ms, [imp, casterGuid](TaskContext& /*context*/)
                     {
                         imp->CastSpell(imp, SPELL_WARLOCK_IMPLOSION_DAMAGE, CastSpellExtraArgs(TRIGGERED_FULL_MASK).SetOriginalCaster(casterGuid));
                         imp->DisappearAndDie();
@@ -2906,7 +2906,7 @@ public:
             if (caster->HasAura(SPELL_WARLOCK_IMPENDING_DOOM))
                 caster->CastSpell(GetTarget(), SPELL_WARLOCK_WILD_IMP_SUMMON, true);
 
-            if (caster->HasAura(SPELL_WARLOCK_DOOM_DOUBLED) && roll_chance_i(25))
+            if (caster->HasAura(SPELL_WARLOCK_DOOM_DOUBLED) && roll_chance(25))
                 GetEffect(EFFECT_0)->SetAmount(aurEff->GetAmount() * 2);
         }
 
@@ -2991,7 +2991,7 @@ public:
             if (!caster)
                 return;
 
-            if (roll_chance_i(GetSpellInfo()->GetEffect(EFFECT_0).BasePoints))
+            if (roll_chance(GetSpellInfo()->GetEffect(EFFECT_0).BasePoints))
                 caster->CastSpell(caster, SPELL_WARLOCK_SOUL_CONDUIT_REFUND, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellBP0(refund));
         }
 
@@ -3704,8 +3704,6 @@ class spell_warl_demonic_art : public AuraScript
 
 class spell_warl_infernal_bolt_empower_aura : public AuraScript
 {
-    PrepareAuraScript(spell_warl_infernal_bolt_empower_aura);
-
     bool CheckProc(ProcEventInfo& eventInfo)
     {
         SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
@@ -3746,8 +3744,6 @@ class spell_warl_infernal_bolt_empower_aura : public AuraScript
 // 433885 - Ruination Entry Aura (overrides spell with Ruination, consumed on Ruination cast)
 class spell_warl_ruination_entry_aura : public AuraScript
 {
-    PrepareAuraScript(spell_warl_ruination_entry_aura);
-
     bool CheckProc(ProcEventInfo& eventInfo)
     {
         SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
@@ -3858,7 +3854,7 @@ struct npc_warl_diabolist_mother_of_chaos : public ScriptedAI
         me->CastSpell(me, SPELL_WARLOCK_DIABOLIST_VISUAL, true);
         
         ObjectGuid ownerGuid = owner->GetGUID();
-        scheduler.Schedule(100ms, [this, ownerGuid](TaskContext /*context*/)
+        scheduler.Schedule(100ms, [this, ownerGuid](TaskContext& /*context*/)
         {
             if (Unit* unitOwner = ObjectAccessor::GetUnit(*me, ownerGuid))
                 unitOwner->CastSpell(unitOwner, SPELL_WARLOCK_INFERNAL_BOLT_EMPOWER, true);
@@ -3916,7 +3912,7 @@ struct npc_warl_avatar_of_destruction_overfiend : public ScriptedAI
             me->SetFacingToObject(target);
             ObjectGuid targetGuid = target->GetGUID();
 
-            scheduler.Schedule(50ms, [this, targetGuid, ownerGuid](TaskContext context)
+            scheduler.Schedule(50ms, [this, targetGuid, ownerGuid](TaskContext& context)
             {
                 if (!me->HasUnitState(UNIT_STATE_CASTING))
                 {
@@ -3969,7 +3965,7 @@ struct npc_warl_diabolist_pit_lord : public ScriptedAI
         me->CastSpell(me, SPELL_WARLOCK_DIABOLIST_VISUAL, true);
 
         ObjectGuid ownerGuid = owner->GetGUID();
-        scheduler.Schedule(100ms, [this, ownerGuid](TaskContext /*context*/)
+        scheduler.Schedule(100ms, [this, ownerGuid](TaskContext& /*context*/)
         {
             if (Unit* unitOwner = ObjectAccessor::GetUnit(*me, ownerGuid))
                 unitOwner->CastSpell(unitOwner, SPELL_WARLOCK_RUINATION_ENTRY_AURA, true);
@@ -4251,7 +4247,7 @@ struct npc_warl_diabolic_imp : public ScriptedAI
         {
             ObjectGuid targetGuid = target->GetGUID();
 
-            scheduler.Schedule(500ms, [this, targetGuid, ownerGuid](TaskContext /*context*/)
+            scheduler.Schedule(500ms, [this, targetGuid, ownerGuid](TaskContext& /*context*/)
             {
                 Unit* target = ObjectAccessor::GetUnit(*me, targetGuid);
                 if (!target || !target->IsAlive())
@@ -4383,7 +4379,7 @@ struct npc_warl_dimensional_rift_unstable_tear : public ScriptedAI
 
             initialized = true;
 
-            scheduler.Schedule(250ms, [this, targetGuid, ownerGuid, counter = 0](TaskContext context) mutable
+            scheduler.Schedule(250ms, [this, targetGuid, ownerGuid, counter = 0](TaskContext& context) mutable
             {
                 if (counter >= 22)
                     return;
@@ -4429,7 +4425,7 @@ struct npc_warl_dimensional_rift_chaos_tear : public ScriptedAI
 
             initialized = true;
 
-            scheduler.Schedule(1500ms, [this, targetGuid, ownerGuid](TaskContext /*context*/)
+            scheduler.Schedule(1500ms, [this, targetGuid, ownerGuid](TaskContext& /*context*/)
             {
                 Unit* target = ObjectAccessor::GetUnit(*me, targetGuid);
                 if (!target || !target->IsAlive())
@@ -4470,7 +4466,7 @@ struct npc_warl_dimensional_rift_shadowy_tear : public ScriptedAI
 
             initialized = true;
 
-            scheduler.Schedule(2000ms, [this, targetGuid, ownerGuid, counter = 0](TaskContext context) mutable
+            scheduler.Schedule(2000ms, [this, targetGuid, ownerGuid, counter = 0](TaskContext& context) mutable
             {
                 if (counter >= 7)
                     return;

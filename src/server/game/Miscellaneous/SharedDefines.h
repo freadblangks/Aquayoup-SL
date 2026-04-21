@@ -902,7 +902,7 @@ enum SpellAttr12 : uint32
     SPELL_ATTR12_UNK18                           = 0x00040000, // TITLE Unknown attribute 18@Attr12
     SPELL_ATTR12_UNK19                           = 0x00080000, // TITLE Unknown attribute 19@Attr12
     SPELL_ATTR12_UNK20                           = 0x00100000, // TITLE Unknown attribute 20@Attr12
-    SPELL_ATTR12_UNK21                           = 0x00200000, // TITLE Unknown attribute 21@Attr12
+    SPELL_ATTR12_USE_FLOAT_VALUES_FOR_SCALING_AMOUNTS               = 0x00200000, // TITLE Use float values for scaling amounts
     SPELL_ATTR12_UNK22                           = 0x00400000, // TITLE Unknown attribute 22@Attr12
     SPELL_ATTR12_START_COOLDOWN_ON_CAST_START    = 0x00800000, // TITLE Trigger Cooldown On Spell Start
     SPELL_ATTR12_IS_GARRISON_BUFF                = 0x01000000, // TITLE Never Learn
@@ -1220,6 +1220,10 @@ enum CharacterFlags4 : int32
     CHARACTER_FLAG_4_NO_NEIGHBORHOOD_INVITES                    = 0x00000080, // Character does not accept neighborhood invites
     CHARACTER_FLAG_4_CHECKED_FOR_2ND_WAVE_ACCOUNT_WIDE_FACTIONS = 0x00000100, // Character has been checked for 2nd wave of account wide factions
     CHARACTER_FLAG_4_WILL_BE_RESURRECTED_IN_HARDCORE            = 0x00000200, // Character will be resurrected overriding hardcore game rule
+    CHARACTER_FLAG_4_USED_MAX_LEVEL_BOOST                       = 0x00000400, // Character used a max level boost and cannot use it again
+    CHARACTER_FLAG_4_DISALLOW_RECENT_ALLIES_TO_SEE_LOCATION     = 0x00000800, // Other players cannot see your character's location if you are in their Recent Allies list
+    CHARACTER_FLAG_4_HAS_ARATHI_RPE                             = 0x00001000, // Character is granted the Arathi teleport option at selection (removed after entering world)
+    CHARACTER_FLAG_4_FREE_TRANSMOG_CLAIMED                      = 0x00002000, // Character has used their first discounted transmog transaction
 };
 
 enum CharacterRestrictionFlags : uint32
@@ -1229,7 +1233,7 @@ enum CharacterRestrictionFlags : uint32
     CHARACTER_RESTRICTION_FLAG_EXPANSION_TRIAL      = 0x00080000,
 };
 
-// Languages.db2 (11.2.5.62687)
+// Languages.db2 (12.0.1.66838)
 enum Language
 {
     LANG_UNIVERSAL            = 0,
@@ -1279,6 +1283,7 @@ enum Language
     LANG_EARTHEN              = 304,
     LANG_NERUBIAN             = 307,
     LANG_TONGUES_OF_SANCTUARY = 308,
+    LANG_HARANI               = 309,
 };
 
 enum TeamId
@@ -5783,7 +5788,7 @@ constexpr uint8 ClassByQuestSort(int32 QuestSort)
     return 0;
 }
 
-// SkillLine.db2 (11.2.5.62687)
+// SkillLine.db2 (12.0.1.66838)
 enum SkillType
 {
     SKILL_NONE                                      = 0,
@@ -6163,7 +6168,25 @@ enum SkillType
     SKILL_LANG_EARTHEN                              = 2884,
     SKILL_SUPPLY_SHIPMENTS                          = 2886,
     SKILL_RACIAL_EARTHEN                            = 2895,
-    SKILL_ALL_WARBANDS                              = 2902
+    SKILL_ALL_WARBANDS                              = 2902,
+    SKILL_MIDNIGHT_ALCHEMY                          = 2906,
+    SKILL_MIDNIGHT_BLACKSMITHING                    = 2907,
+    SKILL_MIDNIGHT_COOKING                          = 2908,
+    SKILL_MIDNIGHT_ENCHANTING                       = 2909,
+    SKILL_MIDNIGHT_ENGINEERING                      = 2910,
+    SKILL_MIDNIGHT_FISHING                          = 2911,
+    SKILL_MIDNIGHT_HERBALISM                        = 2912,
+    SKILL_MIDNIGHT_INSCRIPTION                      = 2913,
+    SKILL_MIDNIGHT_JEWELCRAFTING                    = 2914,
+    SKILL_MIDNIGHT_LEATHERWORKING                   = 2915,
+    SKILL_MIDNIGHT_MINING                           = 2916,
+    SKILL_MIDNIGHT_SKINNING                         = 2917,
+    SKILL_MIDNIGHT_TAILORING                        = 2918,
+    SKILL_RACIAL_HARANIR                            = 2930,
+    SKILL_ALCHEMY_RESEARCH                          = 2950,
+    SKILL_PET_EXOTIC_WHIPTAIL                       = 2961,
+    SKILL_DYE_CRAFTING                              = 2984,
+    SKILL_LANG_HARANI                               = 2987
 };
 
 constexpr SkillType SkillByLockType(LockType locktype)
@@ -6423,6 +6446,8 @@ enum ChatMsg : int32
     CHAT_MSG_GUILD_ITEM_LOOTED                  = 0x40,
     CHAT_MSG_COMMUNITIES_CHANNEL                = 0x41,
     CHAT_MSG_VOICE_TEXT                         = 0x42,
+    CHAT_MSG_PING                               = 0x43,
+    CHAT_MSG_ENCOUNTER_EVENT                    = 0x44,
 
     MAX_CHAT_MSG_TYPE
 };
