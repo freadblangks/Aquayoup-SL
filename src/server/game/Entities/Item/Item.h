@@ -367,10 +367,11 @@ class TC_GAME_API Item : public Object
         uint32 GetQuality() const { return _bonusData.Quality; }
         uint32 GetItemLevel(Player const* owner) const;
         static uint32 GetItemLevel(ItemTemplate const* itemTemplate, BonusData const& bonusData, uint32 level, uint32 fixedLevel,
-            uint32 minItemLevel, uint32 minItemLevelCutoff, uint32 maxItemLevel, bool pvpBonus, uint32 azeriteLevel);
+            uint32 minItemLevel, uint32 minItemLevelCutoff, uint32 maxItemLevel, bool pvpBonus, uint32 azeriteLevel, bool applySquish = true);
         int32 GetRequiredLevel() const;
 		int32 GetItemStatType(uint32 index) const;
         float GetItemStatValue(uint32 index, Player const* owner) const;
+        float GetItemStatValue(uint32 index, uint32 itemLevel) const;
         uint32 GetSocketColor(uint32 index) const { ASSERT(index < MAX_ITEM_PROTO_SOCKETS); return _bonusData.SocketColor[index]; }
         uint32 GetAppearanceModId() const { return m_itemData->ItemAppearanceModID; }
         void SetAppearanceModId(uint32 appearanceModId) { SetUpdateFieldValue(m_values.ModifyValue(&Item::m_itemData).ModifyValue(&UF::ItemData::ItemAppearanceModID), appearanceModId); }

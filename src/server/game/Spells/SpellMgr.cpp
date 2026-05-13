@@ -1753,10 +1753,12 @@ void SpellMgr::LoadSpellProcs()
     count = 0;
     oldMSTime = getMSTime();
 
+    std::unordered_map<std::pair<uint32, Difficulty>, SpellProcEntry> generatedSpellProcMap;
+
     for (SpellInfo const& spellInfo : mSpellInfoMap)
     {
         // Data already present in DB, overwrites default proc
-        if (mSpellProcMap.find({ spellInfo.Id, spellInfo.Difficulty }) != mSpellProcMap.end())
+        if (GetSpellProcEntry(&spellInfo) != nullptr)
             continue;
 
         // Nothing to do if no flags set
@@ -1899,9 +1901,11 @@ void SpellMgr::LoadSpellProcs()
             continue;
         }
 
-        mSpellProcMap[{ spellInfo.Id, spellInfo.Difficulty }] = procEntry;
+        generatedSpellProcMap[{ spellInfo.Id, spellInfo.Difficulty }] = procEntry;
         ++count;
     }
+
+    mSpellProcMap.merge(generatedSpellProcMap);
 
     TC_LOG_INFO("server.loading", ">> Generated spell proc data for {} spells in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
@@ -2322,7 +2326,7 @@ void SpellMgr::LoadSpellAreas()
         spellArea.questEndStatus      = fields[4].GetUInt32();
         spellArea.questEnd            = fields[5].GetUInt32();
         spellArea.auraSpell           = fields[6].GetInt32();
-        spellArea.raceMask.RawValue   = fields[7].GetUInt64();
+        spellArea.raceMask            = { fields[7].GetUInt64() };
         spellArea.gender              = Gender(fields[8].GetUInt8());
         spellArea.flags               = fields[9].GetUInt8();
 
@@ -5078,23 +5082,85 @@ void SpellMgr::LoadSpellInfoCorrections()
 
     //
     // THE WANDERING ISLE SPELLS
-    //
-
-    // Summon Master Li Fei
-    ApplySpellFix({ 102445 }, [](SpellInfo* spellInfo)
-    {
-        ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+    // Summon Pet
+    ApplySpellFix({ 107924 }, [](SpellInfo* spellInfo)
         {
-            spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_DEST_DB);
+            ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
+                {
+                    spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER);
+                });
         });
-    });
+
+    ApplySpellFix({
+        102445, // Summon Master Li Fei
+        102499, // Fire Crash
+        108858, // Summon Tiger Stand
+        }, [](SpellInfo* spellInfo)
+        {
+            ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+                {
+                    spellEffectInfo->TargetA = SpellImplicitTargetInfo(TARGET_DEST_DB);
+                });
+        });
+
+    ApplySpellFix({
+        114710, // Forcecast Summon Amberleaf Troublemaker
+        118032  // Water Spout
+        }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->MaxAffectedTargets = 1;
+        });
+
+    // Summon Lightning
+    ApplySpellFix({ 109062 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->CastTimeEntry = sSpellCastTimesStore.LookupEntry(1);
+        });
 
     // Flame Spout
     ApplySpellFix({ 114685 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->AttributesEx |= SPELL_ATTR1_NO_THREAT;
-        spellInfo->AttributesEx8 |= SPELL_ATTR8_CAN_ATTACK_IMMUNE_PC;
-    });
+        {
+            ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+                {
+                    spellEffectInfo->TargetARadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_1_YARD);
+                });
+
+            spellInfo->AttributesEx |= SPELL_ATTR1_NO_THREAT;
+            spellInfo->AttributesEx8 |= SPELL_ATTR8_CAN_ATTACK_IMMUNE_PC;
+        });
+
+    // Ride Vehicle
+    ApplySpellFix({ 102717 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->RecoveryTime = 0;
+        });
+
+    // Summon Jojo Ironbrow
+    ApplySpellFix({ 108845 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(4); // 120 seconds
+        });
+
+    // Eject Passenger 1
+    ApplySpellFix({ 60603 }, [](SpellInfo* spellInfo)
+        {
+            ApplySpellEffectFix(spellInfo, EFFECT_0, [](SpellEffectInfo* spellEffectInfo)
+                {
+                    spellEffectInfo->BasePoints = 1;
+                });
+        });
+
+    ApplySpellFix({
+        104012, // Break Gong Credit
+        105002, // Summon Hot Air Balloon
+        120344, // Summon Aysa
+        120345, // Summon Jojo
+        120749, // Summon Ji
+        120753  // Summon Garrosh
+        }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(7); // 10yd
+        });
 
     // ENDOF THE WANDERING ISLE SPELLS
     //
@@ -5249,6 +5315,12 @@ void SpellMgr::LoadSpellInfoCorrections()
         });
     });
 
+    // Eradicate, Reap, Cull
+    ApplySpellFix({ 1225826, 1226019, 1245453 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->NegativeEffects[EFFECT_0] = true;
+    });
+
     // Collective Anguish channel hack (triggered by another channel)
     ApplySpellFix({ 391057, 393831 }, [](SpellInfo* spellInfo)
     {
@@ -5396,7 +5468,7 @@ void SpellMgr::LoadSpellInfoImmunities()
             for (std::string_view token : Trinity::Tokenize(fields[4].GetStringView(), ',', false))
             {
                 if (Optional<uint32> effect = Trinity::StringTo<uint32>(token); effect && effect < uint32(TOTAL_SPELL_EFFECTS))
-                    immunities.Effect.push_back(SpellEffectName(*effect));
+                    immunities.Effect.push_back(SpellEffects(*effect));
                 else
                     TC_LOG_ERROR("sql.sql", "Invalid effect type in `Effects` {} for creature immunities {}, skipped", token, id);
             }
@@ -5557,6 +5629,12 @@ void SpellMgr::LoadSpellInfoTargetCaps()
     ApplySpellFix({ 1265579, 1265580, 1265581, 1265582 }, [](SpellInfo* spellInfo)
     {
         spellInfo->_LoadSqrtTargetLimit(5, 0, 1265357, EFFECT_0, {}, {});
+    });
+
+    // Eradicate
+    ApplySpellFix({ 1225827, 1279200 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->_LoadSqrtTargetLimit(5, 0, 1226033, EFFECT_0, {}, {});
     });
 
     TC_LOG_INFO("server.loading", ">> Loaded SpellInfo target caps in {} ms", GetMSTimeDiffToNow(oldMSTime));

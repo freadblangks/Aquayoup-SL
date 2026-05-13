@@ -259,6 +259,14 @@ enum SpellFacingFlags
     SPELL_FACING_FLAG_INFRONT = 0x0001
 };
 
+enum SpellLearnLanguage
+{
+    SPELL_LEARN_LANGUAGE_COMMON = 668,
+    SPELL_LEARN_LANGUAGE_ORCISH = 669,
+    SPELL_LEARN_LANGUAGE_PANDAREN_ALLIANCE = 108130,
+    SPELL_LEARN_LANGUAGE_PANDAREN_HORDE = 108131
+};
+
 enum TriggerCastFlags : uint32
 {
     TRIGGERED_NONE                                  = 0x00000000,   //!< Not triggered
@@ -332,6 +340,15 @@ enum SpellCastTargetFlags : uint32
     TARGET_FLAG_GAMEOBJECT_MASK = TARGET_FLAG_GAMEOBJECT | TARGET_FLAG_GAMEOBJECT_ITEM,
     TARGET_FLAG_CORPSE_MASK = TARGET_FLAG_CORPSE_ALLY | TARGET_FLAG_CORPSE_ENEMY,
     TARGET_FLAG_ITEM_MASK = TARGET_FLAG_TRADE_ITEM | TARGET_FLAG_ITEM | TARGET_FLAG_GAMEOBJECT_ITEM
+};
+
+struct SpellRange
+{
+    float Min = 0.0f;
+    float Max = 0.0f;
+
+    constexpr SpellRange operator*(float mul) const { return { Min * mul, Max * mul }; }
+    bool operator==(SpellRange const&) const = default;
 };
 
 struct TC_GAME_API SpellDestination

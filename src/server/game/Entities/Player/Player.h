@@ -2084,6 +2084,9 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void ApplyTraitEntryChanges(int32 editedConfigId, WorldPackets::Traits::TraitConfig const& newConfig, bool applyTraits, bool consumeCurrencies);
         void RenameTraitConfig(int32 editedConfigId, std::string&& newName);
         void DeleteTraitConfig(int32 deletedConfigId);
+
+        void ShowNeutralPlayerFactionSelectUI();
+
         void AddMoveImpulse(Position direction);
         void ApplyTraitConfig(int32 configId, bool apply);
         void ApplyTraitEntry(int32 traitNodeEntryId, int32 rank, int32 grantedRanks, bool apply);
@@ -2936,15 +2939,10 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         bool IsInWhisperWhiteList(ObjectGuid guid);
         void RemoveFromWhisperWhiteList(ObjectGuid guid) { WhisperList.remove(guid); }
 
-        void ValidateMovementInfo(MovementInfo* mi);
-
         void SendMovementSetCollisionHeight(float height, WorldPackets::Movement::UpdateCollisionHeightReason reason);
 
         bool CanFly() const override { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY); }
         bool CanEnterWater() const override { return true; }
-
-        std::string GetMapAreaAndZoneString() const;
-        std::string GetCoordsMapAreaAndZoneString() const;
 
         // Reagent Bank
         bool IsReagentBankUnlocked() const { return HasPlayerFlagEx(PLAYER_FLAGS_EX_REAGENT_BANK_UNLOCKED); }
@@ -3127,7 +3125,6 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void UpdateTransmogOutfitSituations(uint32 id, bool situationsEnabled, std::span<WorldPackets::Transmogrification::TransmogOutfitSituationInfo const> situations);
         void UpdateTransmogOutfitSlots(uint32 id, std::span<WorldPackets::Transmogrification::TransmogOutfitSlotData const> slots);
         void EquipTransmogOutfit(uint32 id, TransmogSituationTrigger trigger, Optional<bool> locked);
-        std::string GetCharacterSelectOutfit() const;
 
         std::string GetDebugInfo() const override;
 
@@ -3251,6 +3248,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void _SaveStoredAuraTeleportLocations(CharacterDatabaseTransaction trans);
         void _SaveEquipmentSets(CharacterDatabaseTransaction trans);
         void _SaveTransmogOutfits(CharacterDatabaseTransaction trans);
+        void _SaveCharacterSelectOutfit(CharacterDatabaseTransaction trans) const;
         void _SaveBGData(CharacterDatabaseTransaction trans);
         void _SaveGlyphs(CharacterDatabaseTransaction trans) const;
         void _SaveTalents(CharacterDatabaseTransaction trans);
@@ -3517,8 +3515,6 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         bool HasWargameRequest() const { return _wargameRequest != nullptr; }
         WargameRequest* GetWargameRequest() const { return _wargameRequest; }
         WargameRequest* _wargameRequest;
-
-        void ShowNeutralPlayerFactionSelectUI();
 
         // Spell cast request handling
     public:
