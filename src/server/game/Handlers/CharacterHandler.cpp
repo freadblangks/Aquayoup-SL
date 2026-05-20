@@ -369,6 +369,22 @@ bool LoginQueryHolder::Initialize()
     stmt->setUInt64(0, lowGuid);
     res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_BANK_TAB_SETTINGS, stmt);
 
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_PERKS_CURRENCY);
+    stmt->setUInt64(0, lowGuid);
+    res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_PERKS_CURRENCY, stmt);
+
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_PERKS_PURCHASES);
+    stmt->setUInt64(0, lowGuid);
+    res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_PERKS_PURCHASES, stmt);
+
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_PERKS_FROZEN);
+    stmt->setUInt64(0, lowGuid);
+    res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_PERKS_FROZEN, stmt);
+
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_PERKS_MILESTONES);
+    stmt->setUInt64(0, lowGuid);
+    res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_PERKS_MILESTONES, stmt);
+
     return res;
 }
 
@@ -1363,6 +1379,9 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder const& holder)
     SendAccountDataTimes(playerGuid, ALL_ACCOUNT_DATA_CACHE_MASK);
 
     SendFeatureSystemStatus();
+
+    SendPerksAnimToggleKillSwitch();
+    SendPerksProgramActivityUpdate();
 
     // Send MOTD
     {
@@ -3171,4 +3190,24 @@ void WorldSession::SendUndeleteCharacterResponse(CharacterUndeleteResult result,
     response.Result = result;
 
     SendPacket(response.Write());
+}
+
+void WorldSession::HandleConvertTimerunningCharacter(WorldPackets::Character::ConvertTimerunningCharacter& convertTimerunningCharacter)
+{
+    // Look up the target character's current season; verify it belongs to this account.
+    CharacterCacheEntry const* characterInfo = sCharacterCache->GetCharacterCacheByGuid(convertTimerunningCharacter.CharacterGuid);
+    if (!characterInfo || characterInfo->AccountId != GetAccountId())
+        return;
+
+    // Convert: clear `timerunningSeasonId` so the character is no longer flagged as a timerunning alt.
+    // Notify the client of the previous season so the UI can complete its transition flow.
+    // TODO: remove timerunning-specific items (entries 2905, 4579) and post-conversion content tuning.
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_TIMERUNNING_SEASON);
+    stmt->setUInt32(0, 0);
+    stmt->setUInt64(1, convertTimerunningCharacter.CharacterGuid.GetCounter());
+    CharacterDatabase.Execute(stmt);
+
+    WorldPackets::Misc::TimerunningSeasonEnded ended;
+    ended.SeasonID = 0;  // post-conversion: not in any season
+    SendPacket(ended.Write());
 }

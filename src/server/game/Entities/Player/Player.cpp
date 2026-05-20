@@ -102,6 +102,7 @@
 #include "Pet.h"
 #include "PetPackets.h"
 #include "PoolMgr.h"
+#include "PerksProgramMgr.h"
 #include "PetitionMgr.h"
 #include "PhasingHandler.h"
 #include "PlayerChoice.h"
@@ -1476,14 +1477,14 @@ bool Player::TeleportTo(TeleportLocation const& teleportLocation, TeleportToOpti
                 transferPending.TransferSpellID = teleportSpellId;
             if (teleportLocation.TransportGuid.has_value())
             {
-                transferPending.Ship.emplace();
+                WorldPackets::Movement::ShipTransferPending& shipTransferPending = transferPending.Ship.emplace();
                 if (TransportSpawn const* transportSpawn = sTransportMgr->GetTransportSpawn(teleportLocation.TransportGuid->GetCounter()))
                 {
-                    transferPending.Ship->ID = transportSpawn->TransportGameObjectId;
+                    shipTransferPending.ID = transportSpawn->TransportGameObjectId;
                     if (dynamic_cast<Transport*>(GetTransport()))
-                        transferPending.Ship->OriginMapID = GetMapId();
+                        shipTransferPending.OriginMapID = GetMapId();
                     else
-                        transferPending.Ship->OriginMapID = -1;
+                        shipTransferPending.OriginMapID = -1;
                 }
             }
 
@@ -6173,9 +6174,9 @@ void Player::SendActionButtons(uint32 state) const
 {
     WorldPackets::Spells::UpdateActionButtons packet;
 
-    for (auto itr = m_actionButtons.begin(); itr != m_actionButtons.end(); ++itr)
-        if (itr->second.uState != ACTIONBUTTON_DELETED && itr->first < packet.ActionButtons.size())
-            packet.ActionButtons[itr->first] = itr->second.packedData;
+    for (auto const& [i, button] : m_actionButtons)
+        if (button.uState != ACTIONBUTTON_DELETED && i < packet.ActionButtons.size())
+            packet.ActionButtons[i] = button.packedData;
 
     packet.Reason = state;
 
@@ -6571,10 +6572,23 @@ uint8 Player::GetFactionGroupForRace(uint8 race)
 
 void Player::SetChromieTime(int32 expansionId)
 {
+    // Snapshot the pre-change CtrOptions so the SMSG can carry [previous, current].
+    WorldPackets::Misc::CTROptionsBlock previous;
+    previous.ConditionalFlags.assign(m_playerData->CtrOptions->ConditionalFlags.begin(),
+        m_playerData->CtrOptions->ConditionalFlags.end());
+    previous.FactionGroup = m_playerData->CtrOptions->FactionGroup;
+    previous.ChromieTimeExpansionMask = m_playerData->CtrOptions->ChromieTimeExpansionMask;
+
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
         .ModifyValue(&UF::ActivePlayerData::UiChromieTimeExpansionID), expansionId);
 
-    uint32 expansionMask = expansionId > 0 ? (1u << expansionId) : 0;
+    // ChromieTimeExpansionMask comes from the DB2 entry's ExpansionMask, not 1 << id.
+    // Confirmed via 12.0.5 sniff: Pandaria (id=8) -> mask 0x10, Legion (id=10) -> mask 0x40.
+    uint32 expansionMask = 0;
+    if (expansionId > 0)
+        if (UIChromieTimeExpansionInfoEntry const* entry = sUIChromieTimeExpansionInfoStore.LookupEntry(uint32(expansionId)))
+            expansionMask = uint32(entry->ExpansionMask);
+
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
         .ModifyValue(&UF::PlayerData::CtrOptions)
         .ModifyValue(&UF::CTROptions::ChromieTimeExpansionMask), expansionMask);
@@ -6584,9 +6598,9 @@ void Player::SetChromieTime(int32 expansionId)
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
         .ModifyValue(&UF::PlayerData::CtrOptions)
         .ModifyValue(&UF::CTROptions::FactionGroup),
-        GetFactionGroupForRace(GetRace()));
+        expansionId > 0 ? GetFactionGroupForRace(GetRace()) : uint8(0));
 
-    SendCtrOptions();
+    SendCtrOptions(&previous);
     PhasingHandler::OnConditionChange(this);
 }
 
@@ -6609,12 +6623,18 @@ void Player::SetChromieTimeConditionalFlags(bool enabled)
         .ModifyValue(&UF::CTROptions::ConditionalFlags), std::move(conditionalFlags));
 }
 
-void Player::SendCtrOptions() const
+void Player::SendCtrOptions(WorldPackets::Misc::CTROptionsBlock const* previous /*= nullptr*/) const
 {
     WorldPackets::Misc::SetCtrOptions ctrOptions;
-    ctrOptions.ConditionalFlags = m_playerData->CtrOptions->ConditionalFlags;
-    ctrOptions.FactionGroup = m_playerData->CtrOptions->FactionGroup;
-    ctrOptions.ChromieTimeExpansionMask = m_playerData->CtrOptions->ChromieTimeExpansionMask;
+    ctrOptions.Current.ConditionalFlags.assign(m_playerData->CtrOptions->ConditionalFlags.begin(),
+        m_playerData->CtrOptions->ConditionalFlags.end());
+    ctrOptions.Current.FactionGroup = m_playerData->CtrOptions->FactionGroup;
+    ctrOptions.Current.ChromieTimeExpansionMask = m_playerData->CtrOptions->ChromieTimeExpansionMask;
+
+    // Sniffs show retail always sends two blocks: previous + current. With no transition
+    // (e.g. login pulse) both blocks are identical to the current state.
+    ctrOptions.Previous = previous ? *previous : ctrOptions.Current;
+
     SendDirectMessage(ctrOptions.Write());
 }
 
@@ -7196,6 +7216,217 @@ void Player::_SaveCurrency(CharacterDatabaseTransaction trans)
     }
 }
 
+void Player::_LoadPerksCurrency(PreparedQueryResult result)
+{
+    if (result)
+    {
+        Field* fields = result->Fetch();
+        // currency field (index 0) is now ignored - we read from CurrencyID 2032 instead
+        _perksTotalEarned = fields[1].GetInt32();
+        _perksPurchasedCount = fields[2].GetInt32();
+    }
+
+    // Always sync PerksProgramCurrency updatefield from the real currency system (loaded by _LoadCurrency before this)
+    int32 realCurrency = static_cast<int32>(GetCurrencyQuantity(CURRENCY_TRADERS_TENDER));
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PerksProgramCurrency), realCurrency);
+
+    TC_LOG_DEBUG("network", "_LoadPerksCurrency: currency={} (from CurrencyID 2032), totalEarned={}, purchasedCount={}", realCurrency, _perksTotalEarned, _perksPurchasedCount);
+}
+
+void Player::_LoadPerksPurchases(PreparedQueryResult result)
+{
+    _perksPurchases.clear();
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+
+        PerksPurchaseEntry entry;
+        entry.VendorItemID = fields[0].GetInt32();
+        entry.PurchaseTime = fields[1].GetUInt32();
+        entry.Refundable = fields[2].GetUInt8();
+
+        _perksPurchases.push_back(entry);
+    } while (result->NextRow());
+}
+
+void Player::_LoadPerksFrozen(PreparedQueryResult result)
+{
+    _perksFrozenVendorItemID = 0;
+    if (!result)
+        return;
+
+    _perksFrozenVendorItemID = result->Fetch()[0].GetInt32();
+
+    // Set FrozenPerksVendorItem UpdateField with full item data from the manager
+    if (_perksFrozenVendorItemID != 0)
+    {
+        if (PerksProgramVendorItemData const* itemData = sPerksProgramMgr->GetVendorItem(_perksFrozenVendorItemID))
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::FrozenPerksVendorItem), itemData->PacketData);
+    }
+}
+
+void Player::_SavePerksCurrency(CharacterDatabaseTransaction trans)
+{
+    if (!_perksCurrencyDirty)
+        return;
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_PERKS_CURRENCY);
+    stmt->setUInt64(0, GetGUID().GetCounter());
+    stmt->setInt32(1, _perksCurrency);
+    stmt->setInt32(2, _perksTotalEarned);
+    stmt->setInt32(3, _perksPurchasedCount);
+    trans->Append(stmt);
+
+    _perksCurrencyDirty = false;
+}
+
+void Player::_SavePerksFrozen(CharacterDatabaseTransaction trans)
+{
+    if (!_perksFrozenDirty)
+        return;
+
+    if (_perksFrozenVendorItemID != 0)
+    {
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_PERKS_FROZEN);
+        stmt->setUInt64(0, GetGUID().GetCounter());
+        stmt->setInt32(1, _perksFrozenVendorItemID);
+        trans->Append(stmt);
+    }
+    else
+    {
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_PERKS_FROZEN);
+        stmt->setUInt64(0, GetGUID().GetCounter());
+        trans->Append(stmt);
+    }
+
+    _perksFrozenDirty = false;
+}
+
+bool Player::ModifyPerksCurrency(int32 amount)
+{
+    int32 currentAmount = static_cast<int32>(GetCurrencyQuantity(CURRENCY_TRADERS_TENDER));
+
+    if (amount < 0 && currentAmount < -amount)
+        return false;
+
+    // Use the core currency system - this updates character_currencies and sends SetCurrency to client
+    if (amount > 0)
+        AddCurrency(CURRENCY_TRADERS_TENDER, static_cast<uint32>(amount));
+    else
+        RemoveCurrency(CURRENCY_TRADERS_TENDER, -amount);
+
+    // Sync PerksProgramCurrency updatefield so the vendor UI reflects the change
+    int32 newAmount = static_cast<int32>(GetCurrencyQuantity(CURRENCY_TRADERS_TENDER));
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PerksProgramCurrency), newAmount);
+
+    _perksCurrencyDirty = true;
+    return true;
+}
+
+void Player::AddPerksPurchase(int32 vendorItemID, uint32 purchaseTime)
+{
+    PerksPurchaseEntry entry;
+    entry.VendorItemID = vendorItemID;
+    entry.PurchaseTime = purchaseTime;
+    entry.Refundable = 1;
+    _perksPurchases.push_back(entry);
+
+    _perksPurchasedCount++;
+    _perksCurrencyDirty = true;
+
+    // Persist immediately
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_PERKS_PURCHASE);
+    stmt->setUInt64(0, GetGUID().GetCounter());
+    stmt->setInt32(1, vendorItemID);
+    stmt->setUInt32(2, purchaseTime);
+    stmt->setUInt8(3, 1);
+    CharacterDatabase.Execute(stmt);
+}
+
+bool Player::RemovePerksPurchase(int32 vendorItemID)
+{
+    for (auto itr = _perksPurchases.begin(); itr != _perksPurchases.end(); ++itr)
+    {
+        if (itr->VendorItemID == vendorItemID)
+        {
+            _perksPurchases.erase(itr);
+            _perksPurchasedCount = std::max(0, _perksPurchasedCount - 1);
+            _perksCurrencyDirty = true;
+
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_PERKS_PURCHASE);
+            stmt->setUInt64(0, GetGUID().GetCounter());
+            stmt->setInt32(1, vendorItemID);
+            CharacterDatabase.Execute(stmt);
+            return true;
+        }
+    }
+    return false;
+}
+
+void Player::SetPerksFrozenVendorItem(int32 vendorItemID, WorldPackets::PerksProgram::PerksVendorItem const* itemData)
+{
+    _perksFrozenVendorItemID = vendorItemID;
+    _perksFrozenDirty = true;
+
+    // Update FrozenPerksVendorItem UpdateField
+    if (itemData)
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::FrozenPerksVendorItem), *itemData);
+    else
+    {
+        WorldPackets::PerksProgram::PerksVendorItem emptyItem;
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::FrozenPerksVendorItem), emptyItem);
+    }
+}
+
+void Player::_LoadPerksMilestones(PreparedQueryResult result)
+{
+    _completedPerksMilestones.clear();
+    if (!result)
+        return;
+
+    do
+    {
+        _completedPerksMilestones.insert(result->Fetch()[0].GetInt32());
+    } while (result->NextRow());
+}
+
+void Player::_SavePerksMilestones(CharacterDatabaseTransaction trans)
+{
+    if (_completedPerksMilestones.empty())
+        return;
+
+    // Replace the full set each save (small table, safe to do)
+    CharacterDatabasePreparedStatement* delStmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_PERKS_MILESTONES);
+    delStmt->setUInt64(0, GetGUID().GetCounter());
+    trans->Append(delStmt);
+
+    for (int32 activityID : _completedPerksMilestones)
+    {
+        CharacterDatabasePreparedStatement* insStmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_PERKS_MILESTONE);
+        insStmt->setUInt64(0, GetGUID().GetCounter());
+        insStmt->setInt32(1, activityID);
+        trans->Append(insStmt);
+    }
+}
+
+void Player::AddPerksMilestone(int32 activityID)
+{
+    _completedPerksMilestones.insert(activityID);
+}
+
+bool Player::HasPerksMilestone(int32 activityID) const
+{
+    return _completedPerksMilestones.count(activityID) > 0;
+}
+
+std::vector<int32> Player::GetCompletedPerksMilestones() const
+{
+    return std::vector<int32>(_completedPerksMilestones.begin(), _completedPerksMilestones.end());
+}
+
 void Player::SendCurrencies() const
 {
     WorldPackets::Misc::SetupCurrency packet;
@@ -7405,6 +7636,13 @@ void Player::ModifyCurrency(uint32 id, int32 amount, CurrencyGainSource gainSour
     // TODO: FirstCraftOperationID, LastSpendTime & Toasts
 
     SendDirectMessage(packet.Write());
+
+    if (id == CURRENCY_TRADERS_TENDER)
+    {
+        int32 newAmount = static_cast<int32>(itr->second.Quantity);
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PerksProgramCurrency), newAmount);
+        _perksCurrencyDirty = true;
+    }
 }
 
 void Player::AddCurrency(uint32 id, uint32 amount, CurrencyGainSource gainSource/* = CurrencyGainSource::Cheat*/)
@@ -18424,7 +18662,7 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
         // "totalKills, todayKills, yesterdayKills, chosenTitle, watchedFaction, drunk, "
         // "health, power1, power2, power3, power4, power5, power6, power7, power8, power9, power10, instance_id, activeTalentGroup, lootSpecId, exploredZones, knownTitles, actionBars, "
         // "raidDifficulty, legacyRaidDifficulty, fishingSteps, honor, honorLevel, honorRestState, honorRestBonus, numRespecs, "
-        // "personalTabardEmblemStyle, personalTabardEmblemColor, personalTabardBorderStyle, personalTabardBorderColor, personalTabardBackgroundColor, transmogOutfitEquippedId, transmogOutfitLocked, chromieTimeExpansionId "
+        // "personalTabardEmblemStyle, personalTabardEmblemColor, personalTabardBorderStyle, personalTabardBorderColor, personalTabardBackgroundColor, transmogOutfitEquippedId, transmogOutfitLocked, chromieTimeExpansionId, timerunningSeasonId "
         // "FROM characters c LEFT JOIN character_fishingsteps cfs ON c.guid = cfs.guid WHERE c.guid = ?", CONNECTION_ASYNC);
 
         ObjectGuid::LowType guid;
@@ -18505,6 +18743,7 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
         int32 transmogOutfitEquippedId;
         bool transmogOutfitLocked;
         uint8 chromieTimeExpansionId;
+        uint32 timerunningSeasonId;
 
         explicit PlayerLoadData(Field const* fields)
         {
@@ -18589,6 +18828,7 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
             transmogOutfitEquippedId = fields[i++].GetInt32();
             transmogOutfitLocked = fields[i++].GetBool();
             chromieTimeExpansionId = fields[i++].GetUInt8();
+            timerunningSeasonId = fields[i++].GetUInt32();
         }
 
     } fields(result->Fetch());
@@ -18721,19 +18961,27 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
     SetFactionForRace(GetRace());
 
     // Restore Chromie Time state from DB
-    if (fields.chromieTimeExpansionId > 0 && fields.chromieTimeExpansionId <= CURRENT_EXPANSION)
+    if (fields.chromieTimeExpansionId > 0)
     {
-        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
-            .ModifyValue(&UF::ActivePlayerData::UiChromieTimeExpansionID),
-            int32(fields.chromieTimeExpansionId));
+        if (UIChromieTimeExpansionInfoEntry const* entry = sUIChromieTimeExpansionInfoStore.LookupEntry(uint32(fields.chromieTimeExpansionId)))
+        {
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                .ModifyValue(&UF::ActivePlayerData::UiChromieTimeExpansionID),
+                int32(fields.chromieTimeExpansionId));
 
-        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
-            .ModifyValue(&UF::PlayerData::CtrOptions)
-            .ModifyValue(&UF::CTROptions::ChromieTimeExpansionMask),
-            uint32(1u << fields.chromieTimeExpansionId));
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
+                .ModifyValue(&UF::PlayerData::CtrOptions)
+                .ModifyValue(&UF::CTROptions::ChromieTimeExpansionMask),
+                uint32(entry->ExpansionMask));
 
-        SetChromieTimeConditionalFlags(true);
+            SetChromieTimeConditionalFlags(true);
+        }
     }
+
+    if (fields.timerunningSeasonId)
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+            .ModifyValue(&UF::ActivePlayerData::TimerunningSeasonID),
+            int32(fields.timerunningSeasonId));
 
     // Always set FactionGroup on CtrOptions (needed for party sync and content tuning)
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
@@ -18763,6 +19011,10 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
     _LoadGroup(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GROUP));
 
     _LoadCurrency(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CURRENCY));
+    _LoadPerksCurrency(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PERKS_CURRENCY));
+    _LoadPerksPurchases(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PERKS_PURCHASES));
+    _LoadPerksFrozen(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PERKS_FROZEN));
+    _LoadPerksMilestones(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PERKS_MILESTONES));
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::LifetimeHonorableKills), fields.totalKills);
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::TodayHonorableKills), fields.totalKills);
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::YesterdayHonorableKills), fields.yesterdayKills);
@@ -21074,7 +21326,6 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
             stmt->setUInt32(index++, ClientBuild::GetMinorMajorBugfixVersionForBuild(currentRealm->Build));
         else
             stmt->setUInt32(index++, 0);
-        stmt->setUInt8(index++, uint8(m_activePlayerData->UiChromieTimeExpansionID));
 
         stmt->setInt32(index++, m_playerData->PersonalTabard->EmblemStyle);
         stmt->setInt32(index++, m_playerData->PersonalTabard->EmblemColor);
@@ -21083,6 +21334,8 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
         stmt->setInt32(index++, m_playerData->PersonalTabard->BackgroundColor);
         stmt->setInt32(index++, m_activePlayerData->TransmogMetadata->TransmogOutfitID);
         stmt->setBool(index++, m_activePlayerData->TransmogMetadata->Locked);
+        stmt->setUInt8(index++, uint8(m_activePlayerData->UiChromieTimeExpansionID));
+        stmt->setUInt32(index++, uint32(m_activePlayerData->TimerunningSeasonID));
     }
     else
     {
@@ -21226,7 +21479,6 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
             stmt->setUInt32(index++, ClientBuild::GetMinorMajorBugfixVersionForBuild(currentRealm->Build));
         else
             stmt->setUInt32(index++, 0);
-        stmt->setUInt8(index++, uint8(m_activePlayerData->UiChromieTimeExpansionID));
 
         stmt->setInt32(index++, m_playerData->PersonalTabard->EmblemStyle);
         stmt->setInt32(index++, m_playerData->PersonalTabard->EmblemColor);
@@ -21235,6 +21487,8 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
         stmt->setInt32(index++, m_playerData->PersonalTabard->BackgroundColor);
         stmt->setInt32(index++, m_activePlayerData->TransmogMetadata->TransmogOutfitID);
         stmt->setBool(index++, m_activePlayerData->TransmogMetadata->Locked);
+        stmt->setUInt8(index++, uint8(m_activePlayerData->UiChromieTimeExpansionID));
+        stmt->setUInt32(index++, uint32(m_activePlayerData->TimerunningSeasonID));
 
         // Index
         stmt->setUInt64(index, GetGUID().GetCounter());
@@ -21280,6 +21534,9 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
     GetSession()->SaveTutorialsData(trans);                 // changed only while character in game
     _SaveInstanceTimeRestrictions(trans);
     _SaveCurrency(trans);
+    _SavePerksCurrency(trans);
+    _SavePerksFrozen(trans);
+    _SavePerksMilestones(trans);
     _SaveCUFProfiles(trans);
     _SavePlayerData(trans);
     _SaveCharacterBankTabSettings(trans);
@@ -23547,8 +23804,7 @@ void Player::AddSpellMod(SpellModifier* mod, bool apply)
 
                 spellModifier.ModIndex = AsUnderlyingType(mod->op);
 
-                boost::dynamic_bitset<uint32> mask;
-                mask.resize(128);
+                boost::dynamic_bitset<uint32> mask(128, 0);
 
                 boost::from_block_range(
                     &static_cast<SpellModifierByClassMask const*>(mod)->mask[0],
@@ -26164,11 +26420,7 @@ void Player::SendAurasForTarget(Unit* target) const
     update.Auras.reserve(visibleAuras.size());
 
     for (AuraApplication* auraApp : visibleAuras)
-    {
-        WorldPackets::Spells::AuraInfo auraInfo;
-        auraApp->BuildUpdatePacket(auraInfo, false);
-        update.Auras.push_back(auraInfo);
-    }
+        auraApp->BuildUpdatePacket(update.Auras.emplace_back(), false);
 
     SendDirectMessage(update.Write());
 }
@@ -28852,7 +29104,7 @@ void Player::SetEquipmentSet(EquipmentSetInfo::EquipmentSetData const& newEqSet)
     if (newEqSet.Guid != 0)
     {
         // something wrong...
-        EquipmentSetContainer::const_iterator itr = _equipmentSets.find(newEqSet.Guid);
+        auto itr = _equipmentSets.find(newEqSet.Guid);
         if (itr == _equipmentSets.end() || itr->second.Data.Guid != newEqSet.Guid)
         {
             TC_LOG_ERROR("entities.player", "Player::SetEquipmentSet: Player '{}' ({}) tried to save nonexistent equipment set {} (index: {})",

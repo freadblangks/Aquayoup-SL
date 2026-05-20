@@ -45,6 +45,7 @@
 #include "MoveSpline.h"
 #include "CharmInfo.h"
 #include "Object.h"
+#include "ObjectMgr.h"
 #include "PhasingHandler.h"
 #include "zone_gilneas.h"
 
@@ -82,6 +83,7 @@ enum eZoneGilneas
     NPC_GRAYMANE_HORSE_35905                     = 35905,
     NPC_KRENNAN_ARANAS                           = 35907,
     NPC_KING_GREYMANE                            = 35911,
+    NPC_LORD_GODFREY                             = 35906,
     NPC_COMMANDEERED_CANNON                      = 35914,
     NPC_NORTHGATE_REBEL_1                        = 36057,
     NPC_PANICKED_CITIZEN_GATE                    = 44086,
@@ -107,9 +109,12 @@ enum eZoneGilneas
     SPELL_GET_SHOT                               = 67349,
     SPELL_SUMMON_JOSIAH_AVERY                    = 67350,
     SPELL_FORCE_CAST_SUMMON_JOSIAH               = 67352,
+    SPELL_WORGEN_ATTACK_KNOCKBACK                = 42880,
+    SPELL_INSTAKILL_LORNA                        = 67593,
     SPELL_ATTACK_LURKER                          = 67805,
     SPELL_SUMMON_GILNEAN_MASTIFF                 = 67807,
     SPELL_RESCUE_KRENNAN                         = 68219,
+    SPELL_RIDE_VEHICLE_HARDCODED                 = 46598,
     SPELL_FORCECAST_SUMMON_GRAYMANE_HORSE        = 68232,
     SPELL_CANNON_FIRE                            = 68235,
     SPELL_CURSE_OF_THE_WORGEN                    = 68630,
@@ -146,7 +151,10 @@ public:
         if (player->GetQuestStatus(QUEST_THE_REBEL_LORDS_ARSENAL) == QUEST_STATUS_REWARDED)
         {
             if (!player->HasAura(SPELL_PHASE_QUEST_ZONE_SPECIFIC_02))
+            {
                 player->AddAura(SPELL_PHASE_QUEST_ZONE_SPECIFIC_02, player);
+                player->AddAura(SPELL_WORGEN_BITE, player);
+            }
         }
     }
 
@@ -1709,8 +1717,6 @@ public:
                                     creature->AI()->SetGUID(m_playerGUID, PLAYER_GUID);
                                     creature->AI()->DoAction(2);
                                     creature->SetBaseAttackTime(BASE_ATTACK, 3000);
-                                    creature->SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, creature->GetWeaponDamageRange(BASE_ATTACK, MINDAMAGE) * 0.1f);
-                                    creature->SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, creature->GetWeaponDamageRange(BASE_ATTACK, MAXDAMAGE) * 0.1f);
                                 }
                             }
                             else
@@ -1720,8 +1726,6 @@ public:
                                     creature->AI()->SetGUID(m_playerGUID, PLAYER_GUID);
                                     creature->AI()->DoAction(1);
                                     creature->SetBaseAttackTime(BASE_ATTACK, 3000);
-                                    creature->SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, creature->GetWeaponDamageRange(BASE_ATTACK, MINDAMAGE) * 0.1f);
-                                    creature->SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, creature->GetWeaponDamageRange(BASE_ATTACK, MAXDAMAGE) * 0.1f);
                                 }
                             }
                         }
@@ -2406,11 +2410,11 @@ public:
         return new npc_worgen_alpha_35167AI(creature);
     }
 };
-
 /* QUEST - 14154 - By The Skin of His Teeth - END */
 
-/* Phase 4 - QUEST - 14159 - The Rebel Lord's Arsenal - START */
 
+
+/* QUEST - 14159 - The Rebel Lord's Arsenal - START */
 // 35369
 class npc_josiah_avery_35369 : public CreatureScript
 {
@@ -2549,6 +2553,8 @@ public:
         void IsSummonedBy(WorldObject* /*summoner*/) override
         {
             PhasingHandler::AddPhase(me, 171, true);
+            me->SetReactState(REACT_PASSIVE);
+            me->CombatStop();
         }
     };
 
@@ -2566,14 +2572,10 @@ public:
 
     enum eNpc
     {
-        SAY_JOSAIH_AVERY_TRIGGER = 1,
-        ACTION_START_ANIM = 102,
-        EVENTS_ANIM_1,
-        EVENTS_ANIM_2,
-        EVENTS_ANIM_3,
-        EVENTS_ANIM_4,
-        EVENTS_ANIM_5,
-        EVENTS_START_ANIM,
+        SAY_JOSAIH_AVERY_TRIGGER = 0,
+        EVENT_KNOCKBACK = 1,
+        EVENT_SHOOT,
+        EVENT_WHISPER,
     };
 
     struct npc_josiah_avery_trigger_50415AI : public ScriptedAI
@@ -2583,26 +2585,25 @@ public:
         EventMap m_events;
         ObjectGuid m_playerGUID;
         ObjectGuid m_badAveryGUID;
-        ObjectGuid m_lornaGUID;
-
-        void Reset() override
-        {
-            m_playerGUID = ObjectGuid();
-            m_badAveryGUID = ObjectGuid();
-            m_lornaGUID = ObjectGuid();
-            m_events.Reset();
-            me->Relocate(-1792.37f, 1427.35f, 12.46f, 3.152f);
-            me->SetDisplayId(11686);
-        }
 
         void IsSummonedBy(WorldObject* summoner) override
         {
-            if (Player* player = summoner->ToPlayer())
+            PhasingHandler::AddPhase(me, 171, true);
+
+            Player* player = nullptr;
+            if (summoner->IsPlayer())
+                player = summoner->ToPlayer();
+            else
+                player = me->SelectNearestPlayer(30.0f);
+
+            if (player)
             {
-                PhasingHandler::AddPhase(me, 171, true);
                 m_playerGUID = player->GetGUID();
-                m_events.RescheduleEvent(EVENTS_START_ANIM, 100ms);
+                me->SetDisplayId(11686);
+                m_events.ScheduleEvent(EVENT_KNOCKBACK, 500ms);
             }
+
+            me->DespawnOrUnsummon(16000ms);
         }
 
         void UpdateAI(uint32 diff) override
@@ -2613,65 +2614,50 @@ public:
             {
                 switch (eventId)
                 {
-                case EVENTS_START_ANIM:
+                case EVENT_KNOCKBACK:
                 {
                     if (Player* player = ObjectAccessor::GetPlayer(*me, m_playerGUID))
-                        Talk(SAY_JOSAIH_AVERY_TRIGGER, player);
-                    m_events.ScheduleEvent(EVENTS_ANIM_1, 200ms);
-                    break;
-                }
-                case EVENTS_ANIM_1:
-                {
-                    if (Player* player = ObjectAccessor::GetPlayer(*me, m_playerGUID))
-                        if (Creature* badAvery = me->FindNearestCreature(NPC_JOSIAH_AVERY_35370, 25.0f, true))
+                    {
+                        std::list<Creature*> allCreatures;
+                        me->GetCreatureListWithEntryInGrid(allCreatures, NPC_JOSIAH_AVERY_35370, 100.0f);
+                        if (!allCreatures.empty())
                         {
+                            Creature* badAvery = allCreatures.front();
                             m_badAveryGUID = badAvery->GetGUID();
+                            badAvery->SetReactState(REACT_PASSIVE);
+                            badAvery->CombatStop();
                             badAvery->SetOrientation(badAvery->GetAbsoluteAngle(player));
                             badAvery->CastSpell(player, SPELL_COSMETIC_COMBAT_ATTACK, true);
-                            player->GetMotionMaster()->MoveKnockbackFrom(Position(-1791.94f, 1427.29f, 12.4584f), 22.0f, 8.0f, 0.0f);
-                            badAvery->GetThreatManager().ResetAllThreat();
+                            player->GetMotionMaster()->MoveJump(EVENT_CHARGE, Position(-1791.94f, 1427.29f, 12.4584f), 22.0f, 2.0f);
                         }
-                    m_events.ScheduleEvent(EVENTS_ANIM_2, 1200ms);
+                    }
+                    m_events.ScheduleEvent(EVENT_SHOOT, 1200ms);
                     break;
                 }
-                case EVENTS_ANIM_2:
-                {
-                    if (Creature* badAvery = ObjectAccessor::GetCreature(*me, m_badAveryGUID))
-                        badAvery->GetMotionMaster()->MoveJump(EVENT_JUMP, Position(-1791.94f, 1427.29f, 12.4584f), 18.0f, 7.0f);
-                    m_events.ScheduleEvent(EVENTS_ANIM_3, 600ms);
-                    break;
-                }
-                case EVENTS_ANIM_3:
+                case EVENT_SHOOT:
                 {
                     if (Creature* badAvery = ObjectAccessor::GetCreature(*me, m_badAveryGUID))
                     {
-                        if (m_lornaGUID.IsEmpty())
-                            if (Creature* lorna = me->FindNearestCreature(NPC_LORNA_CROWLEY_35378, 60.0f, true))
-                                m_lornaGUID = lorna->GetGUID();
-
-                        if (Creature* lorna = ObjectAccessor::GetCreature(*me, m_lornaGUID))
-                            lorna->CastSpell(badAvery, SPELL_SHOOT, true);
+                        std::list<Creature*> lornaList;
+                        me->GetCreatureListWithEntryInGrid(lornaList, NPC_LORNA_CROWLEY_35378, 100.0f);
+                        if (!lornaList.empty())
+                        {
+                            Creature* lorna = lornaList.front();
+                            lorna->SetOrientation(lorna->GetAbsoluteAngle(badAvery));
+                            lorna->CastSpell(badAvery, SPELL_SHOOT, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_FULL_MASK | TRIGGERED_IGNORE_TARGET_CHECK)));
+                        }
+                        badAvery->CastSpell(badAvery, SPELL_GET_SHOT, true);
+                        me->Kill(me, badAvery);
+                        badAvery->DespawnOrUnsummon(1000ms);
                     }
-                    m_events.ScheduleEvent(EVENTS_ANIM_4, 200ms);
+                    m_events.ScheduleEvent(EVENT_WHISPER, 200ms);
                     break;
                 }
-                case EVENTS_ANIM_4:
+                case EVENT_WHISPER:
                 {
                     if (Player* player = ObjectAccessor::GetPlayer(*me, m_playerGUID))
-                        if (Creature* badAvery = ObjectAccessor::GetCreature(*me, m_badAveryGUID))
-                        {
-                            badAvery->CastSpell(badAvery, SPELL_GET_SHOT, true);
-                            me->Kill(me, badAvery);
-                            badAvery->DespawnOrUnsummon(1000ms);
-                            me->DespawnOrUnsummon(1000ms);
-                        }
-
-                    m_events.ScheduleEvent(EVENTS_ANIM_5, 5000ms);
-                    break;
-                }
-                case EVENTS_ANIM_5:
-                {
-                    me->DespawnOrUnsummon(10ms);
+                        Talk(SAY_JOSAIH_AVERY_TRIGGER, player);
+                    me->DespawnOrUnsummon(1000ms);
                     break;
                 }
                 }
@@ -2684,7 +2670,11 @@ public:
         return new npc_josiah_avery_trigger_50415AI(creature);
     }
 };
+/* QUEST - 14159 - The Rebel Lord's Arsenal - END */
 
+
+
+/* QUEST - 14204 - From the Shadows - START */
 // 35378
 class npc_lorna_crowley_35378 : public CreatureScript
 {
@@ -2751,7 +2741,7 @@ public:
                 m_playerGUID = player->GetGUID();
         }
 
-        void JustDied(Unit* /*killer*/) override // Otherwise, player is stuck with pet corpse they cannot remove from world
+        void JustDied(Unit* /*killer*/) override
         {
             me->DespawnOrUnsummon(1s);
         }
@@ -2818,21 +2808,38 @@ public:
             DoCast(me, SPELL_SHADOWSTALKER_STEALTH);
         }
 
+        void MoveInLineOfSight(Unit*) override {}
+
+        void SpellHit(WorldObject* caster, SpellInfo const* spellInfo) override
+        {
+            if (spellInfo->Id == SPELL_ATTACK_LURKER)
+            {
+                me->RemoveAura(SPELL_SHADOWSTALKER_STEALTH);
+                if (Unit* unit = caster->ToUnit())
+                    AttackStart(unit);
+            }
+        }
+
         void UpdateAI(uint32 diff) override
         {
             if (tSeek <= diff)
             {
-                if ((me->IsAlive()) && (!me->IsInCombat() && (me->GetDistance2d(me->GetHomePosition().GetPositionX(), me->GetHomePosition().GetPositionY()) <= 2.0f)))
-                    if (Player* player = me->SelectNearestPlayer(2.0f))
+                if (me->IsAlive() && !me->IsInCombat() &&
+                    me->GetDistance2d(me->GetHomePosition().GetPositionX(), me->GetHomePosition().GetPositionY()) <= 0.7f)
+                {
+                    if (Player* player = me->SelectNearestPlayer(0.5f))
                     {
                         if (!player->IsInCombat())
                         {
-                            me->AI()->AttackStart(player);
+                            me->RemoveAura(SPELL_SHADOWSTALKER_STEALTH);
+                            AttackStart(player);
                             tSeek = urand(5000, 10000);
                         }
                     }
+                }
             }
-            else tSeek -= diff;
+            else
+                tSeek -= diff;
 
             if (!UpdateVictim())
                 return;
@@ -2853,6 +2860,7 @@ public:
         return new npc_bloodfang_lurker_35463AI(creature);
     }
 };
+/* QUEST - 14204 - From the Shadows - END */
 
 // 35504
 class npc_gilnean_city_guard_35504 : public CreatureScript
@@ -2961,18 +2969,20 @@ class npc_king_genn_greymane_35550 : public CreatureScript
 public:
     npc_king_genn_greymane_35550() : CreatureScript("npc_king_genn_greymane_35550") {}
 
-    enum eNpc
-    {
-        SAY_KING_GENN_GREYMANE = 0,
-        MAX_SUMMONED_RIPPER = 20,
-    };
+        enum eNpc
+        {
+            SAY_DONT_GIVE_UP = 1,
+            SAY_PUSH_THEM_BACK = 2,
+            MAX_SUMMONED_RIPPER = 20,
+            TIMER_WAVE = 60000,
+        };
 
     bool OnQuestAccept(Player* player, Creature* creature, Quest const* quest) override
     {
         if (quest->GetQuestId() == QUEST_SAVE_KRENNAN_ARANAS)
         {
             creature->GetAI()->SetGUID(player->GetGUID(), PLAYER_GUID);
-            player->CastSpell(player, SPELL_GENERIC_QUEST_INVISIBILITY_DETECTION_1);
+            player->AddAura(SPELL_GENERIC_QUEST_INVISIBILITY_DETECTION_1, player);
             creature->CastSpell(player, SPELL_FORCECAST_SUMMON_GRAYMANE_HORSE, true);
         }
         return true;
@@ -2980,35 +2990,26 @@ public:
 
     struct npc_king_genn_greymane_35550AI : public ScriptedAI
     {
-        npc_king_genn_greymane_35550AI(Creature* creature) : ScriptedAI(creature) { Initialize(); }
+        npc_king_genn_greymane_35550AI(Creature* creature) : ScriptedAI(creature) {}
 
-        uint32 tSummon, tSay;
-        bool EventActive, RunOnce;
+        uint32 tSummon;
         uint32 m_counter;
+        uint8 m_sayGroup;
         ObjectGuid m_playerGUID;
-
-        void Initialize()
-        {
-            m_counter = 0;
-        }
 
         void Reset() override
         {
-            tSay = urand(10000, 20000);
-            tSummon = urand(3000, 5000); // How often we spawn
+            tSummon = TIMER_WAVE;
+            m_counter = 0;
+            m_sayGroup = SAY_DONT_GIVE_UP;
         }
 
         void JustSummoned(Creature* summoned) override
         {
-            switch (summoned->GetEntry())
+            if (summoned->GetEntry() == NPC_BLOODFANG_RIPPER_35505)
             {
-                case NPC_BLOODFANG_RIPPER_35505:
-                {
-                    m_counter += 1;
-                    summoned->GetDefaultMovementType();
-                    summoned->SetReactState(REACT_AGGRESSIVE);
-                    break;
-                }
+                m_counter += 1;
+                summoned->SetReactState(REACT_AGGRESSIVE);
             }
         }
 
@@ -3020,66 +3021,33 @@ public:
 
         void SetGUID(ObjectGuid const& guid, int32 id) override
         {
-            switch (id)
-            {
-                case PLAYER_GUID:
-                {
-                    m_playerGUID = guid;
-                    break;
-                }
-            }
+            if (id == PLAYER_GUID)
+                m_playerGUID = guid;
         }
 
         void UpdateAI(uint32 diff) override
         {
-            if (tSay <= diff) // Time for next spawn wave
+            if (tSummon <= diff)
             {
-                Talk(SAY_KING_GENN_GREYMANE);
-                tSay = urand(10000, 20000);
-            }
-            else tSay -= diff;
-
-            if (tSummon <= diff) // Time for next spawn wave
-            {
-                SummonNextWave(); // Activate next spawn wave
-                tSummon = urand(3000, 5000); // Reset our spawn timer
+                Talk(m_sayGroup);
+                m_sayGroup = (m_sayGroup == SAY_DONT_GIVE_UP) ? SAY_PUSH_THEM_BACK : SAY_DONT_GIVE_UP;
+                SummonWave();
+                tSummon = TIMER_WAVE;
             }
             else tSummon -= diff;
         }
 
-        void SummonNextWave()
+        void SummonWave()
         {
-            switch (urand(1, 4))
-            {
-                case 1:
-                {
-                    for (int i = 0; i < 5; i++)
-                        if (m_counter < MAX_SUMMONED_RIPPER)
-                            me->SummonCreature(NPC_BLOODFANG_RIPPER_35505, -1781.173f + irand(-15, 15), 1372.90f + irand(-15, 15), 19.7803f, urand(0, 6), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 15000ms);
-                    break;
-                }
-                case 2:
-                {
-                    for (int i = 0; i < 5; i++)
-                        if (m_counter < MAX_SUMMONED_RIPPER)
-                            me->SummonCreature(NPC_BLOODFANG_RIPPER_35505, -1756.30f + irand(-15, 15), 1380.61f + irand(-15, 15), 19.7652f, urand(0, 6), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 15000ms);
-                    break;
-                }
-                case 3:
-                {
-                    for (int i = 0; i < 5; i++)
-                        if (m_counter < MAX_SUMMONED_RIPPER)
-                            me->SummonCreature(NPC_BLOODFANG_RIPPER_35505, -1739.84f + irand(-15, 15), 1384.87f + irand(-15, 15), 19.841f, urand(0, 6), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 15000ms);
-                    break;
-                }
-                case 4:
-                {
-                    for (int i = 0; i < 5; i++)
-                        if (m_counter < MAX_SUMMONED_RIPPER)
-                            me->SummonCreature(NPC_BLOODFANG_RIPPER_35505, -1781.173f + irand(-15, 15), 1372.90f + irand(-15, 15), 19.7803f, urand(0, 6), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 15000ms);
-                    break;
-                }
-            }
+            if (m_counter >= MAX_SUMMONED_RIPPER)
+                return;
+
+            for (int i = 0; i < 5; i++)
+                me->SummonCreature(NPC_BLOODFANG_RIPPER_35505, -1781.17f + irand(-15, 15), 1372.90f + irand(-15, 15), 19.78f, urand(0, 6), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 15000ms);
+            for (int i = 0; i < 5; i++)
+                me->SummonCreature(NPC_BLOODFANG_RIPPER_35505, -1756.30f + irand(-15, 15), 1380.61f + irand(-15, 15), 19.76f, urand(0, 6), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 15000ms);
+            for (int i = 0; i < 5; i++)
+                me->SummonCreature(NPC_BLOODFANG_RIPPER_35505, -1739.84f + irand(-15, 15), 1384.87f + irand(-15, 15), 19.84f, urand(0, 6), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 15000ms);
         }
     };
 
@@ -3089,155 +3057,149 @@ public:
     }
 };
 
+// 68219 - DBC handles: trigger 68228 (summon 35907 + kill credit), remove aura 49416
+// Script handles: range check (must be near 35753), despawn 35753
+class spell_rescue_krennan_68219 : public SpellScript
+{
+    void HandleCast()
+    {
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
+
+        Player* player = nullptr;
+        if (caster->IsPlayer())
+            player = caster->ToPlayer();
+        else if (caster->IsVehicle())
+            if (Unit* passenger = caster->GetVehicleKit()->GetPassenger(0))
+                player = passenger->ToPlayer();
+
+        if (!player)
+            return;
+
+        player->AreaExploredOrEventHappens(QUEST_SAVE_KRENNAN_ARANAS);
+
+        if (Creature* krennanTree = player->FindNearestCreature(NPC_KRENNAN_ARANAS_TREE, 50.0f, true))
+            krennanTree->DespawnOrUnsummon();
+    }
+
+    void Register() override
+    {
+        OnCast += SpellCastFn(spell_rescue_krennan_68219::HandleCast);
+    }
+};
+
 // 35905
 class npc_king_greymanes_horse_35905 : public CreatureScript
 {
     public:
-        npc_king_greymanes_horse_35905() : CreatureScript("npc_king_greymanes_horse_35905") { }
+        npc_king_greymanes_horse_35905() : CreatureScript("npc_king_greymanes_horse_35905") {}
 
         enum eHorse
         {
-            SAY_KRENNAN_TREE_HELP = 0,
-            SAY_HORSE_HOW_DO_HELP = 1,
-            SAY_KRENNAN_HORSE_THANKS = 2,
-            EVENT_SAY_KRENNAN_HELP = 101,   // krennan 35753 in tree
-            EVENT_STARTING_RESCUE_PART2,
-            EVENT_SAY_KRENNAN_THANKS,
-            EVENT_START_WAYPOINT_MOVEMENT,
-            EVENT_MOVE_TO_NEXT_POINT,
-            WAYPOINT_COMPLETE
+            EVENT_JUMP_TO_KRENNAN = 102,
+            EVENT_RESUME_PATH = 103,
+            EVENT_START_PATH = 104,
+            EVENT_FORCE_WORGEN_ATTACK = 106,
+            PATH_ID = 3590500,
+            PATH_ID_PART2 = 3590501,
         };
 
-        struct WaypointData
+        static WaypointPath const& GetPathPart1()
         {
-            float x, y, z, o;
-        };
+            static WaypointPath path(PATH_ID, {
+                { 0,  -1800.89f, 1407.40f, 19.8611f },
+                { 1,  -1797.47f, 1396.97f, 20.0717f },
+                { 2,  -1788.72f, 1378.22f, 20.0717f },
+                { 3,  -1780.72f, 1368.97f, 20.0717f },
+                { 4,  -1767.47f, 1358.22f, 19.8217f },
+                { 5,  -1746.47f, 1358.72f, 20.0717f },
+                { 6,  -1726.22f, 1354.22f, 19.8217f },
+                { 7,  -1709.06f, 1348.53f, 19.7823f }
+            }, WaypointMoveType::Run);
+            return path;
+        }
 
-        static const std::vector<WaypointData> waypoints;
-
-        struct npc_king_greymanes_horse_35905AI : public ScriptedAI
+        static WaypointPath const& GetPathPart2()
         {
-            npc_king_greymanes_horse_35905AI(Creature* creature) : ScriptedAI(creature)
-            {
-                _currentWaypoint = 0;
-                _isPaused = false;
-            }
+            static WaypointPath path(PATH_ID_PART2, {
+                { 8,  -1676.16f, 1346.19f, 15.1349f },
+                { 9,  -1664.81f, 1345.01f, 15.4850f },
+                { 10, -1662.81f, 1354.51f, 15.4850f },
+                { 11, -1667.31f, 1362.51f, 15.4850f },
+                { 12, -1674.31f, 1363.76f, 15.4850f },
+                { 13, -1686.06f, 1355.01f, 15.4850f },
+                { 14, -1691.06f, 1347.26f, 15.4850f },
+                { 15, -1705.81f, 1350.01f, 19.9850f },
+                { 16, -1731.31f, 1360.01f, 19.9850f },
+                { 17, -1744.81f, 1370.51f, 20.2350f },
+                { 18, -1758.81f, 1389.51f, 19.9850f },
+                { 19, -1768.31f, 1410.01f, 19.9850f },
+                { 20, -1771.56f, 1423.01f, 19.9850f },
+                { 21, -1770.95f, 1430.33f, 19.8351f }
+            }, WaypointMoveType::Run);
+            return path;
+        }
 
-            TaskScheduler _scheduler;
+        struct npc_king_greymanes_horse_35905AI : public NullCreatureAI
+        {
+            npc_king_greymanes_horse_35905AI(Creature* creature) : NullCreatureAI(creature) { }
+
             EventMap m_events;
             ObjectGuid m_playerGUID;
             ObjectGuid m_krennanHorseGUID;
-            ObjectGuid m_krennanTreeGUID;
-            uint32 _currentWaypoint;
-            bool _isPaused;
 
             void Reset() override
             {
                 m_events.Reset();
-                _scheduler.CancelAll();
                 m_playerGUID = ObjectGuid();
                 m_krennanHorseGUID = ObjectGuid();
-                m_krennanTreeGUID = ObjectGuid();
-                _currentWaypoint = 0;
-                _isPaused = false;
-                me->GetMotionMaster()->MoveIdle();
-                m_events.ScheduleEvent(EVENT_SAY_KRENNAN_HELP, 500ms);
             }
 
-            void StartWaypointMovement(ObjectGuid playerGUID)
+            void WaypointReached(uint32 nodeId, uint32 /*pathId*/) override
             {
-                m_playerGUID = playerGUID;
-                _currentWaypoint = 0;
-                _isPaused = false;
-
-                _scheduler.Schedule(1s, [this](TaskContext& /*context*/)
+                switch (nodeId)
+                {
+                case 6:
+                {
+                    if (!m_krennanHorseGUID)
+                        if (Creature* krennan = me->FindNearestCreature(NPC_KRENNAN_ARANAS_TREE, 100.0f, true))
+                            if (Player* player = ObjectAccessor::GetPlayer(*me, m_playerGUID))
+                                krennan->AI()->Talk(0, player);
+                    break;
+                }
+                case 7:
+                {
+                    m_events.ScheduleEvent(EVENT_JUMP_TO_KRENNAN, 1ms);
+                    break;
+                }
+                case 21:
+                {
+                    m_events.CancelEvent(EVENT_FORCE_WORGEN_ATTACK);
+                    if (Player* player = ObjectAccessor::GetPlayer(*me, m_playerGUID))
                     {
-                        MoveToNextPoint();
-                    });
-            }
+                        if (Creature* krennan = ObjectAccessor::GetCreature(*me, m_krennanHorseGUID))
+                        {
+                            krennan->AI()->Talk(0, player);
+                            krennan->SetDisableGravity(false);
+                            krennan->SetHover(false);
+                            krennan->DespawnOrUnsummon(5s);
+                        }
+                        player->RemoveUnitFlag(UNIT_FLAG_IMMUNE_TO_NPC);
 
-            void SetWaypointPaused(bool paused)
-            {
-                _isPaused = paused;
-                if (!paused)
-                    MoveToNextPoint();
-            }
-
-            Player* GetPlayerForWaypoint()
-            {
-                return ObjectAccessor::GetPlayer(*me, m_playerGUID);
-            }
-
-            // ????? ??? ??????????? ? ????????? ?????
-            void MoveToNextPoint()
-            {
-                if (_isPaused || _currentWaypoint >= waypoints.size())
-                    return;
-
-                const WaypointData& wp = waypoints[_currentWaypoint];
-                me->GetMotionMaster()->MovePoint(WAYPOINT_COMPLETE, wp.x, wp.y, wp.z, wp.o);
+                        player->ExitVehicle();
+                    }
+                    me->DespawnOrUnsummon(5s);
+                    break;
+                }
+                }
             }
 
             void MovementInform(uint32 type, uint32 id) override
             {
-                if (type == POINT_MOTION_TYPE && id == WAYPOINT_COMPLETE)
+                if (type == EFFECT_MOTION_TYPE && id == EVENT_JUMP_TO_KRENNAN)
                 {
-                    // ???????????? ???????? ? ?????
-                    HandleWaypointReached(_currentWaypoint);
-
-                    // ???? ?? ?? ?????, ????????? ???????? ? ????????? ?????
-                    if (!_isPaused)
-                    {
-                        _currentWaypoint++;
-                        _scheduler.Schedule(1s, [this](TaskContext& /*context*/)
-                            {
-                                MoveToNextPoint();
-                            });
-                    }
-                }
-                else if (type == EFFECT_MOTION_TYPE && _currentWaypoint == 5)
-                {
-                    // ????????? ?????????? ??????
-                    _currentWaypoint++;
-                    _isPaused = false;
-                    _scheduler.Schedule(1s, [this](TaskContext& /*context*/)
-                        {
-                            MoveToNextPoint();
-                        });
-                }
-            }
-
-            // ?????? WaypointReached ?? EscortAI
-            void HandleWaypointReached(uint32 waypointId)
-            {
-                switch (waypointId)
-                {
-                case 5:
-                {
-                    if (me->GetVehicleKit()->HasEmptySeat(1))
-                    {
-                        _isPaused = true;
-                        me->GetMotionMaster()->MoveJump(EVENT_JUMP, Position(-1679.089f, 1348.42f, 15.31f), 25.0f, 15.0f);
-                        if (Player* player = GetPlayerForWaypoint())
-                        {
-                            Talk(SAY_HORSE_HOW_DO_HELP, player);
-                            player->SetClientControl(me, true);
-                        }
-                    }
-                    break;
-                }
-                case 6:
-                {
-                    if (Player* player = GetPlayerForWaypoint())
-                        player->SetClientControl(me, false);
-                    break;
-                }
-                case 12:
-                {
-                    if (Player* player = GetPlayerForWaypoint())
-                        player->ExitVehicle();
-                    break;
-                }
+                    // Horse landed near tree ? wait for player to press rescue button (spell 68219)
                 }
             }
 
@@ -3250,102 +3212,85 @@ class npc_king_greymanes_horse_35905 : public CreatureScript
                         if (!m_playerGUID)
                         {
                             m_playerGUID = player->GetGUID();
-                            StartWaypointMovement(m_playerGUID);
                             player->SetClientControl(me, false);
+                            player->SetUnitFlag(UNIT_FLAG_IMMUNE_TO_NPC);
+                            me->SetFaction(player->GetFaction());
+                            me->SetReactState(REACT_PASSIVE);
+                            player->AddAura(SPELL_GENERIC_QUEST_INVISIBILITY_DETECTION_1, player);
+                            m_events.ScheduleEvent(EVENT_START_PATH, 500ms);
                         }
                     }
                     else if (who->GetEntry() == NPC_KRENNAN_ARANAS && !m_krennanHorseGUID)
                     {
                         m_krennanHorseGUID = who->GetGUID();
-                        if (Player* player = ObjectAccessor::GetPlayer(*me, m_playerGUID))
-                            player->RemoveAura(SPELL_GENERIC_QUEST_INVISIBILITY_DETECTION_1);
-                        m_events.ScheduleEvent(EVENT_STARTING_RESCUE_PART2, 400ms);
+                        who->SetUnitFlag(UNIT_FLAG_IMMUNE_TO_NPC);
+                        m_events.ScheduleEvent(EVENT_RESUME_PATH, 1ms);
                     }
                 }
-                else if (seatId == 1)
-                {
-                    m_events.ScheduleEvent(EVENT_SAY_KRENNAN_THANKS, 25ms);
-                }
+            }
+
+            void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damagetype*/, SpellInfo const* /*spellInfo*/) override
+            {
+                damage = 0;
             }
 
             void JustDied(Unit* /*killer*/) override
             {
-                if (Player* player = GetPlayerForWaypoint())
+                if (Player* player = ObjectAccessor::GetPlayer(*me, m_playerGUID))
                 {
                     player->FailQuest(QUEST_SAVE_KRENNAN_ARANAS);
                     player->RemoveAura(SPELL_GENERIC_QUEST_INVISIBILITY_DETECTION_1);
+                    player->RemoveUnitFlag(UNIT_FLAG_IMMUNE_TO_NPC);
                 }
             }
 
             void UpdateAI(uint32 diff) override
             {
-                _scheduler.Update(diff);
                 m_events.Update(diff);
 
                 while (uint32 eventId = m_events.ExecuteEvent())
                 {
                     switch (eventId)
                     {
-                    case EVENT_SAY_KRENNAN_HELP:
+                    case EVENT_JUMP_TO_KRENNAN:
                     {
-                        if (!m_krennanTreeGUID)
-                            if (Creature* krennan = me->FindNearestCreature(NPC_KRENNAN_ARANAS_TREE, 100.0f, true))
-                                m_krennanTreeGUID = krennan->GetGUID();
-
-                        if (!m_krennanHorseGUID)
-                        {
-                            if (Creature* krennan = ObjectAccessor::GetCreature(*me, m_krennanTreeGUID))
-                                if (Player* player = ObjectAccessor::GetPlayer(*me, m_playerGUID))
-                                {
-                                    krennan->AI()->Talk(SAY_KRENNAN_TREE_HELP, player);
-                                    m_events.ScheduleEvent(EVENT_SAY_KRENNAN_HELP, 6s, 9s);
-                                    break;
-                                }
-                            m_events.ScheduleEvent(EVENT_SAY_KRENNAN_HELP, 500ms);
-                        }
+                        me->GetMotionMaster()->MoveJump(EVENT_JUMP_TO_KRENNAN, Position(-1676.16f, 1346.19f, 15.1349f), 25.0f, 10.0f);
                         break;
                     }
-                    case EVENT_STARTING_RESCUE_PART2:
+                    case EVENT_RESUME_PATH:
                     {
-                        SetWaypointPaused(false);
+                        me->GetMotionMaster()->MovePath(GetPathPart2(), false);
                         break;
                     }
-                    case EVENT_SAY_KRENNAN_THANKS:
+                    case EVENT_START_PATH:
                     {
-                        if (Creature* krennan = ObjectAccessor::GetCreature(*me, m_krennanHorseGUID))
-                        {
-                            krennan->AI()->Talk(0);
-                            krennan->NearTeleportTo(-1771.03f, 1433.41f, 19.85f, 3.598f);
-                            krennan->GetAI()->DoAction(0);
-                        }
-                        me->DespawnOrUnsummon(25ms);
+                        me->ClearUnitState(UNIT_STATE_ROOT);
+                        me->RemoveUnitMovementFlag(MOVEMENTFLAG_ROOT);
+                        me->GetMotionMaster()->MovePath(GetPathPart1(), false);
+                        m_events.ScheduleEvent(EVENT_FORCE_WORGEN_ATTACK, 2s);
                         break;
+                    }
+                    case EVENT_FORCE_WORGEN_ATTACK:
+                    {
+                        std::list<Creature*> worgens;
+                        me->GetCreatureListWithEntryInGrid(worgens, NPC_BLOODFANG_RIPPER_35505, 30.0f);
+                        for (Creature* worgen : worgens)
+                        {
+                            if (!worgen->IsInCombat() && worgen->IsAlive())
+                                worgen->AI()->AttackStart(me);
+                        }
+                        m_events.Repeat(2s);
+                        break;
+                    }
                     }
                 }
             }
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_king_greymanes_horse_35905AI(creature);
         }
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_king_greymanes_horse_35905AI(creature);
-    }
-};
-
-const std::vector<npc_king_greymanes_horse_35905::WaypointData> npc_king_greymanes_horse_35905::waypoints = {
-    { -1800.63f, 1404.35f, 19.77f, 0.0f },   // 0
-    { -1798.42f, 1409.55f, 19.79f, 0.0f },   // 1
-    { -1790.40f, 1419.52f, 19.53f, 0.0f },   // 2
-    { -1779.77f, 1430.24f, 19.79f, 0.0f },   // 3
-    { -1767.85f, 1430.73f, 19.68f, 0.0f },   // 4
-    { -1745.50f, 1393.67f, 19.78f, 0.0f },   // 5 - jump here
-    { -1720.64f, 1367.78f, 19.68f, 0.0f },   // 6
-    { -1705.76f, 1356.66f, 19.83f, 0.0f },   // 7
-    { -1687.94f, 1353.74f, 19.73f, 0.0f },   // 8
-    { -1685.28f, 1351.58f, 19.73f, 0.0f },   // 9
-    { -1681.12f, 1348.92f, 19.73f, 0.0f },   // 10
-    { -1682.22f, 1347.67f, 19.73f, 0.0f },   // 11
-    { -1771.03f, 1433.41f, 19.85f, 0.0f }    // 12 - last
 };
 
 // 35907
@@ -3473,7 +3418,7 @@ public:
                 Talk(SAY_LORD_GODFREY_P4);
                 player->RemoveAura(SPELL_WORGEN_BITE);
                 me->AddAura(SPELL_INFECTED_BITE, player);
-                player->CastSpell(player, SPELL_GILNEAS_CANNON_CAMERA);
+                me->CastSpell(player, SPELL_GILNEAS_CANNON_CAMERA);
                 player->SaveToDB();
                 if (Creature* cannon = GetClosestCreatureWithEntry(me, NPC_COMMANDEERED_CANNON, 50.0f))
                     cannon->GetAI()->DoAction(ACTION_STARTING_EVENT);
@@ -4590,11 +4535,13 @@ void AddSC_zone_gilneas_city1()
     new npc_lorna_crowley_35378();
     new npc_bloodfang_lurker_35463();
     new npc_gilnean_mastiff_35631();
+
     new npc_lord_godfrey_35906();
     new npc_gilnean_city_guard_35504();
     new npc_king_genn_greymane_35550();
     new npc_king_greymanes_horse_35905();
     new npc_krennan_aranas_35907();
+    new spell_rescue_krennan_68219();
     new npc_commandeered_cannon_35914();
     new npc_bloodfang_stalker_35229();
     new npc_lord_darius_crowley_35552();

@@ -35,6 +35,7 @@
 #include "ItemTemplate.h"
 #include "Log.h"
 #include "Loot.h"
+#include <iostream>
 #include "LootMgr.h"
 #include "MapManager.h"
 #include "MapUtils.h"
@@ -1774,6 +1775,8 @@ void Creature::UpdateLevelDependantStats()
 
     // damage
     float basedamage = GetBaseDamageForLevel(level);
+    float attackTime = GetBaseAttackTime(BASE_ATTACK);
+    CreatureDifficulty const* creatureDifficulty = GetCreatureDifficulty();
 
     float weaponBaseMinDamage = basedamage;
     float weaponBaseMaxDamage = basedamage * 1.5f;
@@ -3266,7 +3269,9 @@ float Creature::GetDamageMultiplierForTarget(WorldObject const* target) const
     uint8 levelForTarget = GetLevelForTarget(target);
     uint32 contentTuningId = GetContentTuningIdForTarget(target);
 
-    return GetBaseDamageForLevel(levelForTarget, contentTuningId) / GetBaseDamageForLevel(GetLevel());
+    float multiplier = GetBaseDamageForLevel(levelForTarget, contentTuningId) / GetBaseDamageForLevel(GetLevel());
+
+    return multiplier;
 }
 
 float Creature::GetBaseArmorForLevel(uint8 level) const
