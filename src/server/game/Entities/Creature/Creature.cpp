@@ -1274,9 +1274,6 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
     LoadCreaturesAddon();
     LoadCreaturesSparringHealth(true);
 
-    //! Need to be called after LoadCreaturesAddon - MOVEMENTFLAG_HOVER is set there
-    m_positionZ += GetHoverOffset();
-
     LastUsedScriptID = GetScriptId();
 
     if (extraData && extraData->displayLock)
@@ -1775,8 +1772,8 @@ void Creature::UpdateLevelDependantStats()
 
     // damage
     float basedamage = GetBaseDamageForLevel(level);
-    float attackTime = GetBaseAttackTime(BASE_ATTACK);
-    CreatureDifficulty const* creatureDifficulty = GetCreatureDifficulty();
+    //float attackTime = GetBaseAttackTime(BASE_ATTACK);
+    //CreatureDifficulty const* creatureDifficulty = GetCreatureDifficulty();
 
     float weaponBaseMinDamage = basedamage;
     float weaponBaseMaxDamage = basedamage * 1.5f;
@@ -2447,7 +2444,10 @@ void Creature::setDeathState(DeathState s)
 
         Motion_Initialize();
         Unit::setDeathState(ALIVE);
-        LoadCreaturesAddon();
+
+        if (!IsPet())
+            LoadCreaturesAddon();
+
         LoadCreaturesSparringHealth();
     }
 }
@@ -3234,7 +3234,7 @@ uint64 Creature::GetMaxHealthByLevel(uint8 level, uint32 contentTuningId) const
     CreatureTemplate const* cInfo = GetCreatureTemplate();
     CreatureDifficulty const* creatureDifficulty = GetCreatureDifficulty();
     double baseHealth = sDB2Manager.EvaluateExpectedStat(ExpectedStatType::CreatureHealth, level, creatureDifficulty->GetHealthScalingExpansion(), contentTuningId, Classes(cInfo->unit_class), 0);
-    return std::max(baseHealth * creatureDifficulty->HealthModifier, 1.0);
+    return std::ceil(baseHealth * creatureDifficulty->HealthModifier);
 }
 
 float Creature::GetHealthMultiplierForTarget(WorldObject const* target) const
@@ -3499,7 +3499,7 @@ void Creature::SetVendor(NPCFlags flags, bool apply)
         if (addFragment)
             m_entityFragments.Add(WowCS::EntityFragment::FVendor_C, IsInWorld(), WowCS::GetRawFragmentData(m_vendorData));
     }
-    else if (m_vendorData)
+    else if (m_vendorData.has_value())
     {
         RemoveNpcFlag(flags);
         RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Creature::m_vendorData, 0).ModifyValue(&UF::VendorData::Flags), AsUnderlyingType(vendorFlags));
@@ -3523,7 +3523,7 @@ void Creature::SetPetitioner(bool apply)
         if (addFragment)
             m_entityFragments.Add(WowCS::EntityFragment::FVendor_C, IsInWorld(), WowCS::GetRawFragmentData(m_vendorData));
     }
-    else if (m_vendorData)
+    else if (m_vendorData.has_value())
     {
         RemoveNpcFlag(UNIT_NPC_FLAG_PETITIONER);
         RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Creature::m_vendorData, 0).ModifyValue(&UF::VendorData::Flags), AsUnderlyingType(VendorDataTypeFlags::Petition));
@@ -4041,11 +4041,13 @@ std::string Creature::GetDebugInfo() const
 
 void Creature::ExitVehicle(Position const* /*exitPosition*/)
 {
+    bool const isInVehicle = GetVehicle();
     Unit::ExitVehicle();
 
-    // if the creature exits a vehicle, set it's home position to the
+    // if alive creature exits a vehicle, set it's home position to the
     // exited position so it won't run away (home) and evade if it's hostile
-    SetHomePosition(GetPosition());
+    if (isInVehicle && IsAlive())
+        SetHomePosition(GetPosition());
 }
 
 void Creature::SetGuid(ObjectGuid const& guid) {

@@ -152,6 +152,7 @@ void AuraApplication::_InitFlags(Unit* caster, uint32 effMask)
     };
 
     if (GetBase()->GetSpellInfo()->HasAttribute(SPELL_ATTR8_AURA_POINTS_ON_CLIENT)
+        || GetBase()->GetSpellInfo()->HasAttribute(SPELL_ATTR8_MASTERY_AFFECTS_POINTS)
         || std::ranges::any_of(GetBase()->GetAuraEffects(), effectNeedsAmount))
         _flags |= AFLAG_SCALABLE;
 }
@@ -1462,11 +1463,6 @@ void Aura::HandleAuraSpecificMods(AuraApplication const* aurApp, Unit* caster, b
             case SPELLFAMILY_GENERIC:
                 switch (GetId())
                 {
-                    case 33572: // Gronn Lord's Grasp, becomes stoned
-                        if (GetStackAmount() >= 5 && !target->HasAura(33652))
-                            target->CastSpell(target, 33652, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
-                                .SetOriginalCastId(GetCastId()));
-                        break;
                     case 50836: //Petrifying Grip, becomes stoned
                         if (GetStackAmount() >= 5 && !target->HasAura(50812))
                             target->CastSpell(target, 50812, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
