@@ -509,9 +509,9 @@ bool Player::Create(ObjectGuid::LowType guidlow, WorldPackets::Character::Charac
     UpdateMaxHealth();                                      // Update max Health (for add bonus from stamina)
     SetFullHealth();
 
-    for (PowerTypeEntry const* powerType : sPowerTypeStore)
-        if (powerType->GetFlags().HasFlag(PowerTypeFlags::SetToMaxOnInitialLogIn))
-            SetFullPower(Powers(powerType->PowerTypeEnum));
+    for (Powers power : GetPowerTypes())
+        if (sDB2Manager.GetPowerTypeEntry(power)->GetFlags().HasFlag(PowerTypeFlags::SetToMaxOnInitialLogIn))
+            SetFullPower(power);
 
     // original spells
     LearnDefaultSkills();
@@ -2303,9 +2303,9 @@ void Player::GiveLevel(uint8 level)
 
     // Only health and mana are set to maximum.
     SetFullHealth();
-    for (PowerTypeEntry const* powerType : sPowerTypeStore)
-        if (powerType->GetFlags().HasFlag(PowerTypeFlags::SetToMaxOnLevelUp))
-            SetFullPower(Powers(powerType->PowerTypeEnum));
+    for (Powers power : GetPowerTypes())
+        if (sDB2Manager.GetPowerTypeEntry(power)->GetFlags().HasFlag(PowerTypeFlags::SetToMaxOnLevelUp))
+            SetFullPower(power);
 
     // update level to hunter/summon pet
     if (Pet* pet = GetPet())
@@ -6534,6 +6534,7 @@ void Player::SetChromieTime(int32 expansionId)
 
     SetChromieTimeConditionalFlags(expansionId > 0);
 
+    // Sniffs show FactionGroup is 0 when chromie is inactive and 3/Alliance (or 5/Horde) when active.
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
         .ModifyValue(&UF::PlayerData::CtrOptions)
         .ModifyValue(&UF::CTROptions::FactionGroup),
@@ -6560,6 +6561,12 @@ void Player::SetChromieTimeConditionalFlags(bool enabled)
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
         .ModifyValue(&UF::PlayerData::CtrOptions)
         .ModifyValue(&UF::CTROptions::ConditionalFlags), std::move(conditionalFlags));
+}
+
+void Player::SetTimerunningSeasonID(uint32 seasonId)
+{
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+        .ModifyValue(&UF::ActivePlayerData::TimerunningSeasonID), int32(seasonId));
 }
 
 void Player::SendCtrOptions(WorldPackets::Misc::CTROptionsBlock const* previous /*= nullptr*/) const
@@ -20866,7 +20873,7 @@ bool Player::Satisfy(AccessRequirement const* ar, uint32 target_map, TransferAbo
                     if (params)
                     {
                         params->Reason = TRANSFER_ABORT_DIFFICULTY;
-                        params->Arg = target_difficulty;
+                        params->Arg = mapDiff->DifficultyID;
                         params->MapDifficultyXConditionId = failedMapDifficultyXCondition;
                     }
                 }
@@ -28348,10 +28355,10 @@ void Player::SetFallInformation(uint32 time, float z)
     m_lastFallZ = z;
 }
 
-void Player::HandleFall(MovementInfo const& movementInfo)
+void Player::HandleFall()
 {
     // calculate total z distance of the fall
-    float z_diff = m_lastFallZ - movementInfo.pos.GetPositionZ();
+    float z_diff = m_lastFallZ - m_movementInfo.pos.GetPositionZ();
     //TC_LOG_DEBUG("misc", "zDiff = {}", z_diff);
 
     //Players with low fall distance, Feather Fall or physical immunity (charges used) are ignored
@@ -28372,8 +28379,8 @@ void Player::HandleFall(MovementInfo const& movementInfo)
             if (GetCommandStatus(CHEAT_GOD))
                 damage = 0;
 
-            float height = movementInfo.pos.m_positionZ;
-            UpdateGroundPositionZ(movementInfo.pos.m_positionX, movementInfo.pos.m_positionY, height);
+            float height = m_movementInfo.pos.m_positionZ;
+            UpdateGroundPositionZ(m_movementInfo.pos.m_positionX, m_movementInfo.pos.m_positionY, height);
 
             damage *= GetTotalAuraMultiplier(SPELL_AURA_MODIFY_FALL_DAMAGE_PCT);
 
@@ -28396,7 +28403,7 @@ void Player::HandleFall(MovementInfo const& movementInfo)
             }
 
             //Z given by moveinfo, LastZ, FallTime, WaterZ, MapZ, Damage, Safefall reduction
-            TC_LOG_DEBUG("entities.player.falldamage", "FALLDAMAGE z={} sz={} pZ={} FallTime={} mZ={} damage={} SF={}\nPlayer debug info:\n{}", movementInfo.pos.GetPositionZ(), height, GetPositionZ(), movementInfo.jump.fallTime, height, damage, safe_fall, GetDebugInfo());
+            TC_LOG_DEBUG("entities.player.falldamage", "FALLDAMAGE z={} sz={} pZ={} FallTime={} mZ={} damage={} SF={}\nPlayer debug info:\n{}", m_movementInfo.pos.GetPositionZ(), height, GetPositionZ(), m_movementInfo.jump.fallTime, height, damage, safe_fall, GetDebugInfo());
         }
     }
 }

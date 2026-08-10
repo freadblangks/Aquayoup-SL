@@ -2492,6 +2492,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         static uint8 GetFactionGroupForRace(uint8 race);
         void SetChromieTime(int32 expansionId);
         void SetChromieTimeConditionalFlags(bool enabled);
+        void SetTimerunningSeasonID(uint32 seasonId);
         void SendCtrOptions(WorldPackets::Misc::CTROptionsBlock const* previous = nullptr) const;
         Team GetTeam() const { return m_team; }
         Team GetNativeTeam() const { return TeamForRace(GetRace()); }
@@ -2743,7 +2744,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         // only changed for direct client control (possess, vehicle etc.), not stuff you control using pet commands
         WorldObject* m_seer;
         void SetFallInformation(uint32 time, float z);
-        void HandleFall(MovementInfo const& movementInfo);
+        void HandleFall();
 
         void SetClientControl(Unit* target, bool allowMove);
 

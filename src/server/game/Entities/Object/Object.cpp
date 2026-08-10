@@ -2896,7 +2896,7 @@ void WorldObject::MovePositionToFirstCollision(Position &pos, float dist, float 
     // Use a detour raycast to get our first collision point
     PathGenerator path(this);
     path.SetUseRaycast(true);
-    path.CalculatePath(destx, desty, destz, false);
+    path.CalculatePath(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), destx, desty, destz, false);
 
     // Check for valid path types before we proceed
     if (!(path.GetPathType() & (PATHFIND_NOPATH | PATHFIND_NOT_USING_PATH | PATHFIND_FARFROMPOLY_START)))
@@ -3205,7 +3205,6 @@ std::list<Creature*> WorldObject::FindAllCreaturesInRange(float range)
 
     CellCoord pair(Trinity::ComputeCellCoord(x, y));
     Cell cell(pair);
-    cell.SetNoCreate();
 
     Trinity::AllCreaturesInRange check(this, range);
     Trinity::CreatureListSearcher<Trinity::AllCreaturesInRange> searcher(this, templist, check);
@@ -3225,7 +3224,6 @@ std::list<Creature*> WorldObject::FindAllUnfriendlyCreaturesInRange(float range)
 
         CellCoord pair(Trinity::ComputeCellCoord(x, y));
         Cell cell(pair);
-        cell.SetNoCreate();
 
         Trinity::AttackableUnitInObjectRangeCheck check(unit, range);
         Trinity::CreatureListSearcher<Trinity::AttackableUnitInObjectRangeCheck> searcher(unit, templist, check);
@@ -3302,7 +3300,6 @@ void WorldObject::GetCreatureListInGrid(Container& creatureList, float maxSearch
 {
     CellCoord pair(Trinity::ComputeCellCoord(this->GetPositionX(), this->GetPositionY()));
     Cell cell(pair);
-    cell.SetNoCreate();
 
     Trinity::AllCreaturesInRange check(this, maxSearchRange);
     Trinity::CreatureListSearcher<Trinity::AllCreaturesInRange> searcher(this, creatureList, check);
