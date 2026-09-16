@@ -22,6 +22,7 @@
 #include "BattlegroundPackets.h"
 #include "CellImpl.h"
 #include "CharmInfo.h"
+#include "CombatPackets.h"
 #include "Common.h"
 #include "Containers.h"
 #include "DB2Stores.h"
@@ -734,6 +735,9 @@ NonDefaultConstructible<pAuraEffectHandler> AuraEffectHandler[TOTAL_AURAS]=
     &AuraEffect::HandleNULL,                                      //659
     &AuraEffect::HandleNULL,                                      //660
     &AuraEffect::HandleNULL,                                      //661 SPELL_AURA_ALTERED_FORM_IN_COMBAT
+    &AuraEffect::HandleNULL,                                      //662
+    &AuraEffect::HandleNULL,                                      //663
+    &AuraEffect::HandleNULL,                                      //664
 };
 
 AuraEffect::AuraEffect(Aura* base, SpellEffectInfo const& spellEfffectInfo, SpellEffectValue const* baseAmount, Unit* caster) :
@@ -2380,6 +2384,19 @@ void AuraEffect::HandleFeignDeath(AuraApplication const* aurApp, uint8 mode, boo
             if (isAffectedByFeignDeath(ref->GetOwner()))
                 ref->ScaleThreat(0.0f);
 
+        bool feignDeathResisted = false;
+        for (auto const& [guid, ref] : target->GetThreatManager().GetThreatenedByMeList())
+        {
+            if (isAffectedByFeignDeath(ref->GetOwner()))
+                ref->ScaleThreat(0.0f);
+            else
+                feignDeathResisted = true;
+        }
+
+        if (feignDeathResisted)
+            if (Player* targetPlayer = target->ToPlayer())
+                targetPlayer->SendDirectMessage(WorldPackets::Combat::FeignDeathResisted().Write());
+
         if (target->GetMap()->IsDungeon()) // feign death does not remove combat in dungeons
         {
             target->AttackStop();
@@ -2830,8 +2847,10 @@ void AuraEffect::HandleAuraMounted(AuraApplication const* aurApp, uint8 mode, bo
             if (MountCapabilityEntry const* mountCapability = sMountCapabilityStore.LookupEntry(GetAmountAsInt()))
             {
                 target->SetFlightCapabilityID(mountCapability->FlightCapabilityID, true);
+                target->SetDriveCapabilityID(mountCapability->DriveCapabilityID, false);
                 target->CastSpell(target, mountCapability->ModSpellAuraID, this);
             }
+
             // Private server: always enable flying for players with riding skills
             if (Player* player = target->ToPlayer())
             {
@@ -2880,8 +2899,14 @@ void AuraEffect::HandleAuraMounted(AuraApplication const* aurApp, uint8 mode, bo
         target->SetCanAdvFly(false);
         target->SetCanDoubleJump(false);
         target->SetFlightCapabilityID(0, true);
+        target->SetDriveCapabilityID(0, true);
         // Remove Vigor aura on dismount
         target->RemoveAura(372773);
+
+        // Dragonriding updates
+        if (target->GetTypeId() == TYPEID_PLAYER && (mode & AURA_EFFECT_HANDLE_REAL))
+            if (GetMiscValue() == 32158 && GetMiscValueB() == 229) // Dragon mounts
+                target->ToPlayer()->UpdateDynamicFlight(apply);
     }
 }
 

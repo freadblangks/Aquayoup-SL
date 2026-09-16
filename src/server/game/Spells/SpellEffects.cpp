@@ -372,7 +372,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectUnused,                                   //274 SPELL_EFFECT_274
     &Spell::EffectUnused,                                   //275 SPELL_EFFECT_275
     &Spell::EffectLearnTransmogIllusion,                    //276 SPELL_EFFECT_LEARN_TRANSMOG_ILLUSION
-    &Spell::EffectNULL,                                     //277 SPELL_EFFECT_SET_CHROMIE_TIME
+    &Spell::EffectSetChromieTime,                           //277 SPELL_EFFECT_SET_CHROMIE_TIME
     &Spell::EffectNULL,                                     //278 SPELL_EFFECT_278
     &Spell::EffectNULL,                                     //279 SPELL_EFFECT_LEARN_GARR_TALENT
     &Spell::EffectUnused,                                   //280 SPELL_EFFECT_280
@@ -451,6 +451,10 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectCreateAreaTrigger,                        //353 SPELL_EFFECT_CREATE_AREATRIGGER_2
     &Spell::EffectNULL,                                     //354 SPELL_EFFECT_SET_NEIGHBORHOOD_INITIATIVE
     &Spell::EffectNULL,                                     //355 SPELL_EFFECT_LEARN_HOUSE_TYPE
+    &Spell::EffectNULL,                                     //356 SPELL_EFFECT_356
+    &Spell::EffectNULL,                                     //357 SPELL_EFFECT_357
+    &Spell::EffectNULL,                                     //358 SPELL_EFFECT_358
+    &Spell::EffectNULL,                                     //359 SPELL_EFFECT_359
 };
 
 void Spell::EffectNULL()
@@ -6128,6 +6132,25 @@ void Spell::EffectSkipCampaign()
         return;
 
     QuestMgr::SkipCampaignForPlayer(effectInfo->MiscValue, target);
+}
+
+void Spell::EffectSetChromieTime()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* target = Object::ToPlayer(unitTarget);
+    if (!target)
+        return;
+
+    // MiscValue is a UiChromieTimeExpansionInfo record id (row SpellIDs 325400..452212 map
+    // 1:1 to rows); validate like the CMSG select path. 0 clears. No sniff shows
+    // spell-driven toggles - semantics inferred from the effect/DB2 pairing (audit R9/i2).
+    int32 expansionId = effectInfo->MiscValue;
+    if (expansionId != 0 && !sUIChromieTimeExpansionInfoStore.LookupEntry(uint32(expansionId)))
+        return;
+
+    target->SetChromieTime(expansionId);
 }
 
 void Spell::EffectSendChatMessage()

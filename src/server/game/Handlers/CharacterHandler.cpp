@@ -301,6 +301,18 @@ bool LoginQueryHolder::Initialize()
     stmt->setUInt64(0, lowGuid);
     res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_SKILLS, stmt);
 
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_RESEARCH_SITE);
+    stmt->setUInt64(0, lowGuid);
+    res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_RESEARCH_SITES, stmt);
+
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_RESEARCH_PROJECT);
+    stmt->setUInt64(0, lowGuid);
+    res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_RESEARCH_PROJECTS, stmt);
+
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_RESEARCH_HISTORY);
+    stmt->setUInt64(0, lowGuid);
+    res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_RESEARCH_HISTORY, stmt);
+
     stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_RANDOMBG);
     stmt->setUInt64(0, lowGuid);
     res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_RANDOM_BG, stmt);
@@ -495,15 +507,30 @@ void WorldSession::HandleCharEnum(CharacterDatabaseQueryHolder const& holder)
         while (result->NextRow() && charEnum.Characters.size() < MAX_CHARACTERS_PER_REALM);
     }
 
-    for (std::pair<uint8 const, RaceUnlockRequirement> const& requirement : sObjectMgr->GetRaceUnlockRequirements())
+    for (RaceClassAvailability const& requirement : sObjectMgr->GetRaceClassRequirements())
     {
-        WorldPackets::Character::EnumCharactersResult::RaceUnlock raceUnlock;
-        raceUnlock.RaceID = requirement.first;
-        raceUnlock.HasUnlockedLicense = GetAccountExpansion() >= requirement.second.Expansion;
-        raceUnlock.HasUnlockedAchievement = requirement.second.AchievementId != 0
+        WorldPackets::Character::EnumCharactersResult::RaceUnlock& raceUnlock = charEnum.RaceUnlockData.emplace_back();
+        raceUnlock.RaceID = requirement.RaceID;
+        raceUnlock.HasUnlockedLicense = GetAccountExpansion() >= requirement.UnlockRequirement.Expansion;
+        raceUnlock.HasUnlockedAchievement = requirement.UnlockRequirement.AchievementId != 0
             && (sWorld->getBoolConfig(CONFIG_CHARACTER_CREATING_DISABLE_ALLIED_RACE_ACHIEVEMENT_REQUIREMENT)
-                /* || HasAccountAchievement(requirement.second.AchievementId)*/);
-        charEnum.RaceUnlockData.push_back(raceUnlock);
+                /* || HasAccountAchievement(requirement.UnlockRequirement.AchievementId)*/);
+        raceUnlock.HasEntitlement = true;
+
+        for (ClassAvailability const& classRequirement : requirement.Classes)
+        {
+            WorldPackets::Character::EnumCharactersResult::ClassUnlock& classUnlock = raceUnlock.ClassUnlocks.emplace_back();
+            classUnlock.ClassID = classRequirement.ClassID;
+            //classUnlock.AchievementID = classRequirement.AchievementId;
+            classUnlock.HasExpansion = GetAccountExpansion() >= classRequirement.AccountExpansionLevel && GetExpansion() >= classRequirement.ActiveExpansionLevel;
+            classUnlock.HasUnlockedAchievement = true/*classRequirement.AchievementId == 0 || HasAccountAchievement(classRequirement.AchievementId)*/;
+            classUnlock.HasEntitlement = true;
+        }
+
+        raceUnlock.DoesNotHaveAvailableClasses = std::ranges::none_of(raceUnlock.ClassUnlocks, [](WorldPackets::Character::EnumCharactersResult::ClassUnlock const& classUnlock)
+        {
+            return classUnlock.HasExpansion && classUnlock.HasUnlockedAchievement && classUnlock.HasEntitlement;
+        });
     }
 
     LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_WARBAND_GROUPS);
@@ -554,15 +581,6 @@ void WorldSession::HandleCharEnum(CharacterDatabaseQueryHolder const& holder)
     }
     else
     {
-        uint64 nextGroupId = 1;
-        LoginDatabasePreparedStatement* maxIdStmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_WARBAND_GROUP_MAX_ID);
-
-        if (PreparedQueryResult maxIdResult = LoginDatabase.Query(maxIdStmt))
-        {
-            Field* fields = maxIdResult->Fetch();
-            nextGroupId = fields[0].GetUInt64() + 1;
-        }
-
         auto const* globalStringEntry = sGlobalStringsStore.LookupEntry(51864);
 
         std::string localizedGroupName = "Favorites"; // Default enUS name
@@ -580,8 +598,11 @@ void WorldSession::HandleCharEnum(CharacterDatabaseQueryHolder const& holder)
             }
         }
 
+        // group ids are scoped to the account (the client picks new ids counting from
+        // the highest id it was sent), and the default group uses the fixed id 1 so a
+        // late-inserting default cannot show up next to a renamed first group
         WorldPackets::Character::WarbandGroup defaultGroup;
-        defaultGroup.GroupID = nextGroupId;
+        defaultGroup.GroupID = 1;
         defaultGroup.OrderIndex = 0;
         defaultGroup.Name = localizedGroupName;
         defaultGroup.WarbandSceneID = 1;
@@ -589,14 +610,10 @@ void WorldSession::HandleCharEnum(CharacterDatabaseQueryHolder const& holder)
 
         charEnum.WarbandGroups.push_back(std::move(defaultGroup));
 
-        LoginDatabasePreparedStatement* insertStmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_ACCOUNT_WARBAND_GROUP);
-        insertStmt->setUInt64(0, nextGroupId);
-        insertStmt->setUInt32(1, GetAccountId());
-        insertStmt->setUInt32(2, sConfigMgr->GetIntDefault("RealmID", 1));
-        insertStmt->setUInt8(3, 0);
-        insertStmt->setString(4, std::string(localizedGroupName));
-        insertStmt->setUInt32(5, 1);
-        insertStmt->setUInt32(6, 1);
+        LoginDatabasePreparedStatement* insertStmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_ACCOUNT_WARBAND_GROUP_DEFAULT);
+        insertStmt->setUInt32(0, GetAccountId());
+        insertStmt->setUInt32(1, sConfigMgr->GetIntDefault("RealmID", 1));
+        insertStmt->setString(2, std::string(localizedGroupName));
         LoginDatabase.Execute(insertStmt);
     }
 
@@ -670,10 +687,12 @@ void WorldSession::HandleSetupWarbandGroups(WorldPackets::Character::SetupWarban
         for (auto const& member : group.Members)
         {
             stmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_ACCOUNT_WARBAND_GROUP_MEMBER);
-            stmt->setUInt64(0, group.GroupID);
-            stmt->setUInt64(1, member.Guid.GetCounter());
-            stmt->setUInt32(2, member.WarbandScenePlacementID);
-            stmt->setUInt32(3, member.Type);
+            stmt->setUInt32(0, accountId);
+            stmt->setUInt32(1, realmId);
+            stmt->setUInt64(2, group.GroupID);
+            stmt->setUInt64(3, member.Guid.GetCounter());
+            stmt->setUInt32(4, member.WarbandScenePlacementID);
+            stmt->setUInt32(5, member.Type);
             trans->Append(stmt);
         }
     }
@@ -1764,12 +1783,30 @@ void WorldSession::SendFeatureSystemStatus()
 
 void WorldSession::HandleSetFactionAtWar(WorldPackets::Character::SetFactionAtWar& packet)
 {
-    GetPlayer()->GetReputationMgr().SetAtWar(packet.FactionIndex, true);
+    ReputationMgr& reputationMgr = GetPlayer()->GetReputationMgr();
+    reputationMgr.SetAtWar(packet.FactionIndex, true);
+
+    if (FactionState const* factionState = reputationMgr.GetState(packet.FactionIndex))
+    {
+        WorldPackets::Character::SetFactionAtWarResult result;
+        result.FactionIndex = factionState->ReputationListID;
+        result.Flags = factionState->Flags.AsUnderlyingType();
+        SendPacket(result.Write());
+    }
 }
 
 void WorldSession::HandleSetFactionNotAtWar(WorldPackets::Character::SetFactionNotAtWar& packet)
 {
-    GetPlayer()->GetReputationMgr().SetAtWar(packet.FactionIndex, false);
+    ReputationMgr& reputationMgr = GetPlayer()->GetReputationMgr();
+    reputationMgr.SetAtWar(packet.FactionIndex, false);
+
+    if (FactionState const* factionState = reputationMgr.GetState(packet.FactionIndex))
+    {
+        WorldPackets::Character::SetFactionAtWarResult result;
+        result.FactionIndex = factionState->ReputationListID;
+        result.Flags = factionState->Flags.AsUnderlyingType();
+        SendPacket(result.Write());
+    }
 }
 
 void WorldSession::HandleTutorialFlag(WorldPackets::Misc::TutorialSetFlag& packet)

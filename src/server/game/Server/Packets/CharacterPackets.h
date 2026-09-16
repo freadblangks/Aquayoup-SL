@@ -245,9 +245,11 @@ namespace WorldPackets
 
             struct ClassUnlock
             {
-               int8 ClassID = 0;
-               bool HasUnlockedAchievement = false;
-               uint32 AchievementID = 0;
+                int8 ClassID = 0;
+                bool HasExpansion = false;
+                bool HasUnlockedAchievement = false;
+                bool HasEntitlement = false;
+                uint32 AchievementID = 0;
             };
 
             struct RaceUnlock
@@ -256,8 +258,10 @@ namespace WorldPackets
                 bool HasUnlockedLicense = false;
                 bool HasUnlockedAchievement = false;
                 bool HasHeritageArmorUnlockAchievement = false;
+                bool HasEntitlement = false;
                 bool HideRaceOnClient = false;
                 bool FactionBalanceDisabled = false;
+                bool DoesNotHaveAvailableClasses = false;
                 std::vector<ClassUnlock> ClassUnlocks;
             };
 
@@ -840,6 +844,17 @@ namespace WorldPackets
             void Read() override;
 
             uint16 FactionIndex = 0;
+        };
+
+        class SetFactionAtWarResult final : public ServerPacket
+        {
+        public:
+            explicit SetFactionAtWarResult() : ServerPacket(SMSG_SET_FACTION_AT_WAR, 4 + 2) {}
+
+            WorldPacket const* Write() override;
+
+            uint32 FactionIndex = 0; // RepListID, see comment above
+            uint16 Flags = 0;        // ReputationFlags; the client reads only AtWar (0x2)
         };
 
         class SetFactionInactive final : public ClientPacket

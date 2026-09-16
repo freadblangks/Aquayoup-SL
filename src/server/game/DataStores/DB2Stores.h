@@ -76,11 +76,13 @@ TC_GAME_API extern DB2Storage<CharTitlesEntry>                      sCharTitlesS
 TC_GAME_API extern DB2Storage<CharacterLoadoutEntry>                sCharacterLoadoutStore;
 TC_GAME_API extern DB2Storage<CharacterLoadoutItemEntry>            sCharacterLoadoutItemStore;
 TC_GAME_API extern DB2Storage<ChatChannelsEntry>                    sChatChannelsStore;
+TC_GAME_API extern DB2Storage<ChatProfanityEntry>                   sChatProfanityStore;
 TC_GAME_API extern DB2Storage<ChrClassesEntry>                      sChrClassesStore;
 TC_GAME_API extern DB2Storage<ChrCustomizationReqEntry>             sChrCustomizationReqStore;
 TC_GAME_API extern DB2Storage<ChrCustomizationOptionEntry>          sChrCustomizationOptionStore;
 TC_GAME_API extern DB2Storage<ChrCustomizationMaterialEntry>        sChrCustomizationMaterialStore;
 TC_GAME_API extern DB2Storage<ChrCustomizationChoiceEntry>          sChrCustomizationChoiceStore;
+TC_GAME_API extern DB2Storage<ChrCustomizationElementEntry>         sChrCustomizationElementStore;
 TC_GAME_API extern DB2Storage<ChrRaceRacialAbilityEntry>            sChrRaceRacialAbilityStore;
 TC_GAME_API extern DB2Storage<ChrRacesEntry>                        sChrRacesStore;
 TC_GAME_API extern DB2Storage<ChrSpecializationEntry>               sChrSpecializationStore;
@@ -110,6 +112,8 @@ TC_GAME_API extern DB2Storage<CreatureDisplayInfoOptionEntry>       sCreatureDis
 TC_GAME_API extern DB2Storage<CurveEntry>                           sCurveStore;
 TC_GAME_API extern DB2Storage<DestructibleModelDataEntry>           sDestructibleModelDataStore;
 TC_GAME_API extern DB2Storage<DifficultyEntry>                      sDifficultyStore;
+TC_GAME_API extern DB2Storage<DriveCapabilityEntry>                 sDriveCapabilityStore;
+TC_GAME_API extern DB2Storage<DriveCapabilityTierEntry>             sDriveCapabilityTierStore;
 TC_GAME_API extern DB2Storage<DungeonEncounterEntry>                sDungeonEncounterStore;
 TC_GAME_API extern DB2Storage<DurabilityCostsEntry>                 sDurabilityCostsStore;
 TC_GAME_API extern DB2Storage<DurabilityQualityEntry>               sDurabilityQualityStore;
@@ -141,6 +145,9 @@ TC_GAME_API extern DB2Storage<GemPropertiesEntry>                   sGemProperti
 TC_GAME_API extern DB2Storage<GlobalStringsEntry>                   sGlobalStringsStore;
 TC_GAME_API extern DB2Storage<GlyphPropertiesEntry>                 sGlyphPropertiesStore;
 TC_GAME_API extern DB2Storage<GossipNPCOptionEntry>                 sGossipNPCOptionStore;
+TC_GAME_API extern DB2Storage<GuildTabardEmblemEntry>               sGuildTabardEmblemStore;
+TC_GAME_API extern DB2Storage<GuildTabardBackgroundEntry>           sGuildTabardBackgroundStore;
+TC_GAME_API extern DB2Storage<GuildTabardBorderEntry>               sGuildTabardBorderStore;
 TC_GAME_API extern DB2Storage<GuildColorBackgroundEntry>            sGuildColorBackgroundStore;
 TC_GAME_API extern DB2Storage<GuildColorBorderEntry>                sGuildColorBorderStore;
 TC_GAME_API extern DB2Storage<GuildColorEmblemEntry>                sGuildColorEmblemStore;
@@ -263,6 +270,7 @@ TC_GAME_API extern DB2Storage<QuestPOIPointEntry>                   sQuestPOIPoi
 TC_GAME_API extern DB2Storage<QuestXPEntry>                         sQuestXPStore;
 TC_GAME_API extern DB2Storage<RandPropPointsEntry>                  sRandPropPointsStore;
 TC_GAME_API extern DB2Storage<ResearchBranchEntry>                  sResearchBranchStore;
+TC_GAME_API extern DB2Storage<ResearchFieldEntry>                   sResearchFieldStore;
 TC_GAME_API extern DB2Storage<ResearchProjectEntry>                 sResearchProjectStore;
 TC_GAME_API extern DB2Storage<ResearchSiteEntry>                    sResearchSiteStore;
 TC_GAME_API extern DB2Storage<RewardPackEntry>                      sRewardPackStore;
