@@ -132,7 +132,7 @@ namespace WorldPackets
             uint32 Flags = 0;    ///< enum WarbandGroupFlags { Collapsed = 1 }
             int32 ContentSetID = 0;
             std::vector<WarbandGroupMember> Members;
-            std::string_view Name;
+            std::string Name;
         };
 
         class EnumCharactersResult final : public ServerPacket
@@ -908,6 +908,57 @@ namespace WorldPackets
             WorldPacket const* Write() override;
 
             int32 Error;
+        };
+
+        class SetupWarbandGroups final : public ClientPacket
+        {
+        public:
+            struct WarbandGroupSetupMember
+            {
+                uint32 WarbandScenePlacementID = 0;
+                int32 Type = 0;
+                int32 ContentSetID = 0;
+                ObjectGuid Guid;
+            };
+
+            struct WarbandGroupSetup
+            {
+                uint64 GroupID = 0;
+                uint8 OrderIndex = 0;
+                uint32 WarbandSceneID = 0;
+                uint32 Flags = 0;
+                int32 ContentSetID = 0;
+                std::vector<WarbandGroupSetupMember> Members;
+                std::string Name;
+            };
+
+            explicit SetupWarbandGroups(WorldPacket&& packet) : ClientPacket(CMSG_SETUP_WARBAND_GROUPS, std::move(packet)) { }
+
+            void Read() override;
+
+            std::vector<WarbandGroupSetup> Groups;
+        };
+
+        class NeutralPlayerFactionSelectResult final : public ServerPacket
+        {
+        public:
+            NeutralPlayerFactionSelectResult() : ServerPacket(SMSG_NEUTRAL_PLAYER_FACTION_SELECT_RESULT, 4 + 1) {}
+
+            WorldPacket const* Write() override;
+
+            uint32 NewRaceID = 0;
+            bool Success = false;
+        };
+
+        class ConvertTimerunningCharacter final : public ClientPacket
+        {
+        public:
+            explicit ConvertTimerunningCharacter(WorldPacket&& packet) : ClientPacket(CMSG_CONVERT_TIMERUNNING_CHARACTER, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid CharacterGuid;
+            uint32 RaceAndFaction = 0;  // packed: low 16 bits = RaceID, high 8 bits = faction sign (see binary sub_7FF75DBB01B0)
         };
     }
 }

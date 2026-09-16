@@ -1108,6 +1108,7 @@ class TC_GAME_API Unit : public WorldObject
         bool isTargetableForAttack(bool checkFakeDeath = true) const;
 
         bool IsInWater() const;
+        bool IsInAir() const;
         bool IsUnderWater() const;
         bool IsOnOceanFloor() const;
         bool isInAccessiblePlaceFor(Creature const* c) const;
@@ -1236,7 +1237,7 @@ class TC_GAME_API Unit : public WorldObject
         Minion* GetFirstMinion() const;
         Unit* GetCharmerOrOwner() const { return IsCharmed() ? GetCharmer() : GetOwner(); }
 
-        void SetMinion(Minion *minion, bool apply);
+        void SetMinion(Minion *minion, bool apply, bool stampeded = false);
         void GetAllMinionsByEntry(std::list<TempSummon*>& Minions, uint32 entry);
         void RemoveAllMinionsByEntry(uint32 entry);
         void SetCharm(Unit* target, bool apply);
@@ -1738,6 +1739,7 @@ class TC_GAME_API Unit : public WorldObject
         float GetAdvFlyingSpeedMax(AdvFlyingRateTypeRange speedType) const { return m_advFlyingSpeed[speedType + 1]; }
         void UpdateAdvFlyingSpeed(AdvFlyingRateTypeSingle speedType, bool clientUpdate);
         void UpdateAdvFlyingSpeed(AdvFlyingRateTypeRange speedType, bool clientUpdate);
+        void CalculateAdvFlyingSpeeds();
 
         void FollowerAdded(AbstractFollower* f);
         void FollowerRemoved(AbstractFollower* f);
@@ -1891,6 +1893,15 @@ class TC_GAME_API Unit : public WorldObject
         std::string GetDebugInfo() const override;
 
         UF::UpdateField<UF::UnitData, int32(WowCS::EntityFragment::CGObject), TYPEID_UNIT> m_unitData;
+
+        // StefalWoW
+        void SendAddImpulse(Position const& direction);
+        int32 GetDriveCapabilityID() const { return m_unitData->DriveCapabilityID; }
+        void SetDriveCapabilityID(int32 driveCapabilityId, bool clientUpdate);
+        float GetAdvFlyingVelocity() const;
+
+        bool IsPlayerOrBot() const;
+        // StefalWoW
 
     protected:
         explicit Unit (bool isWorldObject);
@@ -2060,6 +2071,10 @@ class TC_GAME_API Unit : public WorldObject
         PositionUpdateInfo _positionUpdateInfo;
 
         bool _isCombatDisallowed;
+
+        static constexpr uint32 LEECH_SPELL_ID = 143924;
+        uint32 m_leechAccumulator = 0;
+        uint32 m_leechTimer = 0;
 };
 
 #endif

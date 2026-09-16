@@ -504,6 +504,24 @@ void Unit::Update(uint32 p_time)
     if (HasScheduledAIChange() && (GetTypeId() != TYPEID_PLAYER || (IsCharmed() && GetCharmerGUID().IsCreature())))
         UpdateCharmAI();
     RefreshAI();
+
+    // Lifesteal/Leech - dispatch accumulated heal every 1500ms
+    if (m_leechAccumulator > 0 && IsAlive())
+    {
+        m_leechTimer += p_time;
+        if (m_leechTimer >= 1500)
+        {
+            if (SpellInfo const* leechSpell = sSpellMgr->GetSpellInfo(LEECH_SPELL_ID, DIFFICULTY_NONE))
+            {
+                HealInfo leechHealInfo(this, this, m_leechAccumulator, leechSpell, leechSpell->GetSchoolMask());
+                HealBySpell(leechHealInfo);
+            }
+            m_leechAccumulator = 0;
+            m_leechTimer = 0;
+        }
+    }
+    else
+        m_leechTimer = 0;
 }
 
 void Unit::Heartbeat()
@@ -1186,6 +1204,17 @@ bool Unit::HasBreakableByDamageCrowdControlAura(Unit const* excludeCasterChannel
     // make player victims stand up automatically
     if (victim->GetStandState() && victim->IsPlayer() && damagetype != NODAMAGE && damagetype != DOT)
         victim->SetStandState(UNIT_STAND_STATE_STAND);
+
+    // Lifesteal/Leech - accumulate heal from damage dealt
+    if (attacker && attacker != victim && damageTaken > 0 && damagetype != NODAMAGE && damagetype != SELF_DAMAGE)
+    {
+        if (!spellProto || !spellProto->HasAttribute(SPELL_ATTR13_CANNOT_LIFESTEAL_LEECH))
+        {
+            float lifestealPct = attacker->m_unitData->Lifesteal;
+            if (lifestealPct > 0.0f)
+                attacker->m_leechAccumulator += CalculatePct(damageTaken, lifestealPct);
+        }
+    }
 
     return damageTaken;
 }
@@ -2221,19 +2250,24 @@ void Unit::DoMeleeAttackIfReady()
 
     if (!IsInFeralForm() && haveOffhandWeapon() && isAttackReady(OFF_ATTACK))
     {
-        Optional<AttackSwingErr> autoAttackError = getAutoAttackError();
-        if (!autoAttackError)
+        if (GetAuraEffectsByType(SPELL_AURA_OVERRIDE_AUTOATTACK_WITH_MELEE_SPELL).empty())
         {
-            // prevent base and off attack in same time, delay attack at 0.2 sec
-            if (getAttackTimer(BASE_ATTACK) < ATTACK_DISPLAY_DELAY)
-                setAttackTimer(BASE_ATTACK, ATTACK_DISPLAY_DELAY);
+            Optional<AttackSwingErr> autoAttackError = getAutoAttackError();
+            if (!autoAttackError)
+            {
+                // prevent base and off attack in same time, delay attack at 0.2 sec
+                if (getAttackTimer(BASE_ATTACK) < ATTACK_DISPLAY_DELAY)
+                    setAttackTimer(BASE_ATTACK, ATTACK_DISPLAY_DELAY);
 
-            // do attack
-            AttackerStateUpdate(victim, OFF_ATTACK);
-            resetAttackTimer(OFF_ATTACK);
+                // do attack
+                AttackerStateUpdate(victim, OFF_ATTACK);
+                resetAttackTimer(OFF_ATTACK);
+            }
+            else
+                setAttackTimer(OFF_ATTACK, 100);
         }
         else
-            setAttackTimer(OFF_ATTACK, 100);
+            resetAttackTimer(OFF_ATTACK);
     }
 }
 
@@ -2343,12 +2377,7 @@ void Unit::AttackerStateUpdate(Unit* victim, WeaponAttackType attType, bool extr
         else
         {
             CastSpell(victim, meleeAttackSpellId, true);
-
-            uint32 hitInfo = HITINFO_AFFECTS_VICTIM | HITINFO_NO_ANIMATION;
-            if (attType == OFF_ATTACK)
-                hitInfo |= HITINFO_OFFHAND;
-
-            SendAttackStateUpdate(hitInfo, victim, 0, GetMeleeDamageSchoolMask(), 0, 0, 0, VICTIMSTATE_HIT, 0, 0);
+            _lastDamagedTargetGuid = victim->GetGUID();
         }
     }
 }
@@ -5721,8 +5750,8 @@ void Unit::SetPowerType(Powers power, bool sendUpdate/* = true*/, bool onInit /*
     if (!powerTypeEntry)
         return;
 
-    if (IsCreature() && !powerTypeEntry->GetFlags().HasFlag(PowerTypeFlags::IsUsedByNPCs))
-        return;
+    //if (IsCreature() && !powerTypeEntry->GetFlags().HasFlag(PowerTypeFlags::IsUsedByNPCs))
+    //    return;
 
     SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::DisplayPower), power);
 
@@ -6262,7 +6291,7 @@ Guardian* Unit::GetGuardianPet() const
     return nullptr;
 }
 
-void Unit::SetMinion(Minion *minion, bool apply)
+void Unit::SetMinion(Minion *minion, bool apply, bool stampeded /*= false*/)
 {
     TC_LOG_DEBUG("entities.unit", "SetMinion {} for {}, apply {}", minion->GetEntry(), GetEntry(), apply);
 
@@ -6295,11 +6324,11 @@ void Unit::SetMinion(Minion *minion, bool apply)
         {
             if (Guardian* oldPet = GetGuardianPet())
             {
-                if (oldPet != minion && (oldPet->IsPet() || minion->IsPet() || oldPet->GetEntry() != minion->GetEntry()))
+                if (oldPet != minion && (oldPet->IsPet() || minion->IsPet() || oldPet->GetEntry() != minion->GetEntry()) && !stampeded)
                 {
                     // remove existing minion pet
                     if (Pet* oldPetAsPet = oldPet->ToPet())
-                        oldPetAsPet->Remove(PET_SAVE_NOT_IN_SLOT);
+                        oldPetAsPet->Remove(PET_SAVE_NOT_IN_SLOT, false, oldPetAsPet->IsInStampeded());
                     else
                         oldPet->UnSummon();
                     SetPetGUID(minion->GetGUID());
@@ -6586,6 +6615,18 @@ void Unit::SetCharm(Unit* charm, bool apply)
 
     if (gain)
         healInfo.SetEffectiveHeal(gain > 0 ? static_cast<uint32>(gain) : 0UL);
+
+    // Lifesteal/Leech - accumulate heal from effective healing done
+    if (healer && healer != victim && healInfo.GetEffectiveHeal() > 0)
+    {
+        SpellInfo const* spellInfo = healInfo.GetSpellInfo();
+        if (!spellInfo || !spellInfo->HasAttribute(SPELL_ATTR13_CANNOT_LIFESTEAL_LEECH))
+        {
+            float lifestealPct = healer->m_unitData->Lifesteal;
+            if (lifestealPct > 0.0f)
+                healer->m_leechAccumulator += CalculatePct(healInfo.GetEffectiveHeal(), lifestealPct);
+        }
+    }
 }
 
 bool Unit::IsMagnet() const
@@ -6958,6 +6999,29 @@ float Unit::SpellDamagePctDone(Unit* victim, SpellInfo const* spellProto, Damage
 
     DoneTotalMod *= maxModDamagePercentSchool;
 
+    float unfilteredMasteryMod = GetTotalAuraMultiplier(SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, [spellProto](AuraEffect const* aurEff) -> bool
+        {
+            if (!aurEff->GetSpellInfo()->HasAttribute(SPELL_ATTR8_MASTERY_AFFECTS_POINTS))
+                return false;
+            if (!(aurEff->GetMiscValue() & spellProto->GetSchoolMask()))
+                return false;
+            return true;
+        });
+
+    if (!G3D::fuzzyEq(unfilteredMasteryMod, 1.0f))
+    {
+        float filteredMasteryMod = GetTotalAuraMultiplier(SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, [spellProto](AuraEffect const* aurEff) -> bool
+            {
+                if (!aurEff->GetSpellInfo()->HasAttribute(SPELL_ATTR8_MASTERY_AFFECTS_POINTS))
+                    return false;
+                if (!(aurEff->GetMiscValue() & spellProto->GetSchoolMask()))
+                    return false;
+                return aurEff->IsAffectingSpell(spellProto);
+            });
+
+        DoneTotalMod *= filteredMasteryMod / unfilteredMasteryMod;
+    }
+
     uint32 creatureTypeMask = victim->GetCreatureTypeMask();
 
     DoneTotalMod *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_DONE_VERSUS, creatureTypeMask);
@@ -7131,6 +7195,12 @@ int32 Unit::SpellBaseDamageBonusDone(SpellSchoolMask schoolMask) const
             }
         }
 
+    }
+
+    Creature const* thisCreature = ToCreature();
+    if (thisCreature)
+    {
+        DoneAdvertisedBenefit = thisCreature->GetBotSpellPower();
     }
 
     return DoneAdvertisedBenefit;
@@ -7379,6 +7449,12 @@ int32 Unit::SpellHealingBonusDone(Unit* victim, SpellInfo const* spellProto, int
     int32 DoneAdvertisedBenefit = SpellBaseHealingBonusDone(spellProto->GetSchoolMask());
     // modify spell power by victim's SPELL_AURA_MOD_HEALING auras (eg Amplify/Dampen Magic)
     DoneAdvertisedBenefit += victim->GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_HEALING, spellProto->GetSchoolMask());
+
+    Creature const* thisCreature = ToCreature();
+    if (thisCreature)
+    {
+        DoneAdvertisedBenefit = thisCreature->GetBotSpellPower();
+    }
 
     // Pets just add their bonus damage to their spell damage
     // note that their spell damage is just gain of their own auras
@@ -8361,6 +8437,7 @@ void Unit::Dismount()
     {
         player->EnablePetControlsOnDismount();
         player->ResummonPetTemporaryUnSummonedIfAny();
+        player->ResummonAnimalCompanionIfAny();
         player->ResummonBattlePetTemporaryUnSummonedIfAny();
     }
 }
@@ -8421,7 +8498,9 @@ MountCapabilityEntry const* Unit::GetMountCapability(uint32 mountType) const
         {
             if (mountCapability->Flags & MOUNT_CAPABILITY_FLAG_GROUND && !(mountFlags.HasFlag(AreaMountFlags::AllowGroundMounts)))
                 continue;
-            if (mountCapability->Flags & MOUNT_CAPABILITY_FLAG_FLYING && !(mountFlags.HasFlag(AreaMountFlags::AllowFlyingMounts)))
+            // Allow flying everywhere for players (private server - area flags incomplete in DB2)
+            if (mountCapability->Flags & MOUNT_CAPABILITY_FLAG_FLYING && !(mountFlags.HasFlag(AreaMountFlags::AllowFlyingMounts))
+                && GetTypeId() != TYPEID_PLAYER)
                 continue;
             if (mountCapability->Flags & MOUNT_CAPABILITY_FLAG_FLOAT && !(mountFlags.HasFlag(AreaMountFlags::AllowSurfaceSwimmingMounts)))
                 continue;
@@ -11606,6 +11685,10 @@ void Unit::SetMeleeAnimKitId(uint16 animKitId)
                 sScriptMgr->OnPlayerKilledByCreature(killerCre, killed);
         }
     }
+
+    // Hook for OnPlayerDeath Event (any cause)
+    if (Player* player = victim->ToPlayer())
+        sScriptMgr->OnPlayerDeath(player);
 }
 
 void Unit::SetControlled(bool apply, UnitState state)
@@ -12538,6 +12621,8 @@ float Unit::MeleeSpellMissChance(Unit const* victim, WeaponAttackType attType, S
 
 void Unit::OnPhaseChange()
 {
+    if (Player* player = ToPlayer())
+        sScriptMgr->OnPhaseChange(player);
 }
 
 void Unit::UpdateObjectVisibility(bool forced)
@@ -12617,10 +12702,6 @@ uint32 Unit::GetModelForForm(ShapeshiftForm form, uint32 spellId) const
     // Hardcoded cases
     switch (spellId)
     {
-        case 7090: // Bear Form
-            return 29414;
-        case 35200: // Roc Form
-            return 4877;
         case 24858: // Moonkin Form
         {
             if (HasAura(114301)) // Glyph of Stars
@@ -12639,7 +12720,8 @@ uint32 Unit::GetModelForForm(ShapeshiftForm form, uint32 spellId) const
                     if (ShapeshiftForm(artifactAppearance->OverrideShapeshiftFormID) == form)
                         return artifactAppearance->OverrideShapeshiftDisplayID;
 
-        if (ShapeshiftFormModelData const* formModelData = sDB2Manager.GetShapeshiftFormModelData(GetRace(), player->GetNativeGender(), form))
+        ShapeshiftFormModelData const* formModelData = sDB2Manager.GetShapeshiftFormModelData(GetRace(), form);
+        if (formModelData)
         {
             bool useRandom = false;
             switch (form)
@@ -12676,7 +12758,8 @@ uint32 Unit::GetModelForForm(ShapeshiftForm form, uint32 spellId) const
             }
             else
             {
-                if (uint32 formChoice = player->GetCustomizationChoice(formModelData->OptionID))
+                uint32 formChoice = player->GetCustomizationChoice(formModelData->OptionID);
+                if (formChoice)
                 {
                     auto choiceItr = std::find_if(formModelData->Choices->begin(), formModelData->Choices->end(), [formChoice](ChrCustomizationChoiceEntry const* choice)
                     {
@@ -12684,8 +12767,24 @@ uint32 Unit::GetModelForForm(ShapeshiftForm form, uint32 spellId) const
                     });
 
                     if (choiceItr != formModelData->Choices->end())
-                        if (ChrCustomizationDisplayInfoEntry const* displayInfo = formModelData->Displays[std::distance(formModelData->Choices->begin(), choiceItr)])
+                    {
+                        auto idx = std::distance(formModelData->Choices->begin(), choiceItr);
+                        if (ChrCustomizationDisplayInfoEntry const* displayInfo = formModelData->Displays[idx])
                             return displayInfo->DisplayID;
+                    }
+                }
+                else
+                {
+                    for (std::size_t i = 0; i < formModelData->Choices->size(); ++i)
+                    {
+                        ChrCustomizationReqEntry const* choiceReq = sChrCustomizationReqStore.LookupEntry((*formModelData->Choices)[i]->ChrCustomizationReqID);
+                        if (!choiceReq || player->GetSession()->MeetsChrCustomizationReq(choiceReq, Races(GetRace()), Classes(GetClass()), false,
+                            MakeChrCustomizationChoiceRange(player->m_playerData->Customizations)))
+                        {
+                            if (ChrCustomizationDisplayInfoEntry const* displayInfo = formModelData->Displays[i])
+                                return displayInfo->DisplayID;
+                        }
+                    }
                 }
             }
         }
@@ -12993,7 +13092,10 @@ void Unit::_ExitVehicle(Position const* exitPosition)
     GetMotionMaster()->LaunchMoveSpline(std::move(initializer), EVENT_VEHICLE_EXIT, MOTION_PRIORITY_HIGHEST);
 
     if (player)
+    {
         player->ResummonPetTemporaryUnSummonedIfAny();
+        player->ResummonAnimalCompanionIfAny();
+    }
 
     if (vehicle->GetBase()->HasUnitTypeMask(UNIT_MASK_MINION) && vehicle->GetBase()->GetTypeId() == TYPEID_UNIT)
         if (((Minion*)vehicle->GetBase())->GetOwner() == this)
@@ -14725,3 +14827,100 @@ DeclinedName::DeclinedName(UF::DeclinedNames const& uf)
     for (std::size_t i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
         name[i] = uf.Name[i];
 }
+
+bool Unit::IsPlayerOrBot() const
+{
+    if (IsPlayer())
+        return true;
+
+    if (IsCreature())
+        if (Creature const* c = ToCreature())
+            return c->IsBot();
+
+    return false;
+}
+
+// StefalWoW
+void Unit::SetDriveCapabilityID(int32 driveCapabilityId, bool clientUpdate)
+{
+    if (driveCapabilityId && !sDriveCapabilityStore.HasRecord(driveCapabilityId))
+        return;
+
+    if (GetDriveCapabilityID() == driveCapabilityId)
+        return;
+
+    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::DriveCapabilityID), driveCapabilityId);
+
+    if (driveCapabilityId)
+        AddUnitMovementFlag(MOVEMENTFLAG_CAN_DRIVE);
+    else
+        RemoveUnitMovementFlag(MOVEMENTFLAG_CAN_DRIVE | MOVEMENTFLAG_DRIVING_FORWARD);
+
+    if (!clientUpdate)
+        return;
+
+    if (Player* playerMover = GetPlayerMovingMe())
+    {
+        if (driveCapabilityId)
+        {
+            WorldPackets::Movement::MoveSetCanDrive packet;
+            packet.MoverGUID = GetGUID();
+            packet.SequenceIndex = m_movementCounter++;
+            packet.DriveCapabilityRecID = driveCapabilityId;
+            playerMover->SendDirectMessage(packet.Write());
+        }
+        else
+        {
+            WorldPackets::Movement::MoveUnsetCanDrive packet;
+            packet.MoverGUID = GetGUID();
+            packet.SequenceIndex = m_movementCounter++;
+            playerMover->SendDirectMessage(packet.Write());
+        }
+
+        WorldPackets::Movement::MoveUpdate moveUpdate;
+        moveUpdate.Status = &m_movementInfo;
+        SendMessageToSet(moveUpdate.Write(), playerMover);
+    }
+}
+
+void Unit::SendAddImpulse(Position const& direction)
+{
+    if (Player* playerMover = GetPlayerMovingMe())
+    {
+        WorldPackets::Movement::MoveAddImpulse addImpulse;
+        addImpulse.MoverGUID = GetGUID();
+        addImpulse.SequenceIndex = m_movementCounter++;
+        addImpulse.Direction = direction;
+        playerMover->SendDirectMessage(addImpulse.Write());
+    }
+}
+
+void Unit::CalculateAdvFlyingSpeeds()
+{
+    FlightCapabilityEntry const* flightCapabilityEntry = sFlightCapabilityStore.LookupEntry(GetFlightCapabilityID());
+    if (!flightCapabilityEntry)
+        flightCapabilityEntry = sFlightCapabilityStore.LookupEntry(1);
+
+    ASSERT(flightCapabilityEntry, "Wrong default value for flightCapabilityID");
+
+    m_advFlyingSpeed[ADV_FLYING_DOUBLE_JUMP_VEL_MOD] = flightCapabilityEntry->DoubleJumpVelMod;
+    m_advFlyingSpeed[ADV_FLYING_GLIDE_START_MIN_HEIGHT] = flightCapabilityEntry->GlideStartMinHeight;
+    m_advFlyingSpeed[ADV_FLYING_LAUNCH_SPEED_COEFFICIENT] = flightCapabilityEntry->LaunchSpeedCoefficient;
+    m_advFlyingSpeed[ADV_FLYING_SURFACE_FRICTION] = flightCapabilityEntry->SurfaceFriction;
+}
+
+float Unit::GetAdvFlyingVelocity() const
+{
+    Optional<MovementInfo::AdvFlying> const& advFlying = m_movementInfo.advFlying;
+    if (!advFlying)
+        return .0f;
+
+    return std::sqrt(advFlying->forwardVelocity * advFlying->forwardVelocity + advFlying->upVelocity * advFlying->upVelocity);
+}
+
+bool Unit::IsInAir() const
+{
+    float ground = GetFloorZ();
+    return (G3D::fuzzyGt(GetPositionZ(), ground + GetHoverOffset() + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
+}
+// StefalWoW

@@ -129,7 +129,7 @@ EnumCharactersResult::CharacterInfoBasic::CharacterInfoBasic(Field const* fields
     if (fields[17].GetUInt64())
         Flags |= CHARACTER_FLAG_LOCKED_BY_BILLING;
 
-    if (sWorld->getBoolConfig(CONFIG_DECLINED_NAMES_USED) && !fields[180].GetStringView().empty())
+    if (sWorld->getBoolConfig(CONFIG_DECLINED_NAMES_USED) && !fields[182].GetStringView().empty())
         Flags |= CHARACTER_FLAG_DECLINED;
 
     if (atLoginFlags & AT_LOGIN_CUSTOMIZE)
@@ -183,12 +183,14 @@ EnumCharactersResult::CharacterInfoBasic::CharacterInfoBasic(Field const* fields
     PersonalTabard.BorderStyle = fields[25].GetInt32();
     PersonalTabard.BorderColor = fields[26].GetInt32();
     PersonalTabard.BackgroundColor = fields[27].GetInt32();
+    TimerunningSeasonID = int32(fields[28].GetUInt32());
+    Flags4 = fields[29].GetUInt32();
 
     for (std::size_t slot = 0; slot < VisualItems.size(); ++slot)
     {
         constexpr std::size_t equipmentFieldsPerSlot = 8;
 
-        std::size_t visualBase = 28 + slot * equipmentFieldsPerSlot;
+        std::size_t visualBase = 30 + slot * equipmentFieldsPerSlot;
         VisualItems[slot].ItemID = fields[visualBase + 0].GetUInt32();
         VisualItems[slot].TransmogrifiedItemID = fields[visualBase + 1].GetUInt32();
         VisualItems[slot].Subclass = fields[visualBase + 2].GetUInt8();
@@ -898,4 +900,50 @@ WorldPacket const* PlayerSavePersonalEmblem::Write()
 
     return &_worldPacket;
 }
+
+void ConvertTimerunningCharacter::Read()
+{
+    _worldPacket >> CharacterGuid;
+    _worldPacket >> RaceAndFaction;
 }
+
+void SetupWarbandGroups::Read()
+{
+    _worldPacket >> BitsSize<5>(Groups);
+    _worldPacket.ResetBitPos();
+
+    for (WarbandGroupSetup& group : Groups)
+    {
+        _worldPacket >> group.GroupID;
+        _worldPacket >> group.OrderIndex;
+        _worldPacket >> group.WarbandSceneID;
+        _worldPacket >> group.Flags;
+        _worldPacket >> group.ContentSetID;
+        _worldPacket >> Size<uint32>(group.Members);
+
+        for (WarbandGroupSetupMember& member : group.Members)
+        {
+            _worldPacket >> member.WarbandScenePlacementID;
+            _worldPacket >> member.Type;
+            _worldPacket >> member.ContentSetID;
+            if (member.Type == 0)
+                _worldPacket >> member.Guid;
+        }
+
+        _worldPacket >> SizedString::BitsSize<9>(group.Name);
+        _worldPacket.ResetBitPos();
+
+        _worldPacket >> SizedString::Data(group.Name);
+    }
+}
+
+WorldPacket const* NeutralPlayerFactionSelectResult::Write()
+{
+    _worldPacket << NewRaceID;
+    _worldPacket >> Bits<1>(Success);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+}
+

@@ -18,13 +18,16 @@
 #include "CombatAI.h"
 #include "Containers.h"
 #include "CreatureAIImpl.h"
+#include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "ScriptMgr.h"
+#include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
+#include "PhasingHandler.h"
 #include "SharedDefines.h"
 #include "TemporarySummon.h"
 
@@ -217,6 +220,13 @@ struct npc_westfall_overloaded_harvest_golem : public ScriptedAI
     void JustAppeared() override
     {
         _events.ScheduleEvent(Events::ItsAlive::CheckArea, 1s);
+    }
+
+    void OnCharmed(bool apply) override
+    {
+        // Prevent PossessedAI from replacing this AI
+        if (apply)
+            me->SetControlled(false, UNIT_STATE_POSSESSED);
     }
 
     void PassengerBoarded(Unit* /*passenger*/, int8 /*seatId*/, bool apply) override

@@ -1242,4 +1242,73 @@ WorldPacket const* MoveUpdateRemoveInertia::Write()
 
     return &_worldPacket;
 }
+
+// StefalWoW
+WorldPacket const* MoveAddImpulse::Write()
+{
+    _worldPacket << MoverGUID;
+    _worldPacket << SequenceIndex;
+    _worldPacket << Direction;
+
+    return &_worldPacket;
 }
+
+void MoveAddImpulseAck::Read()
+{
+    _worldPacket >> Ack;
+}
+
+WorldPacket const* MoveUpdateAddImpulse::Write()
+{
+    _worldPacket << *Status;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* MoveSetCanDrive::Write()
+{
+    _worldPacket << MoverGUID;
+    _worldPacket << SequenceIndex;
+    _worldPacket << int32(DriveCapabilityRecID);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* MoveUnsetCanDrive::Write()
+{
+    _worldPacket << MoverGUID;
+    _worldPacket << SequenceIndex;
+
+    return &_worldPacket;
+}
+
+void MoveSetCanDriveAck::Read()
+{
+    _worldPacket >> Ack;
+    _worldPacket >> DriveCapabilityRecID;
+}
+
+void MoveStartDriveForward::Read()
+{
+    _worldPacket >> Status;
+}
+
+WorldPacket const* AdjustSplineDuration::Write()
+{
+    _worldPacket << MoverGUID;
+    _worldPacket << Scale;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Movement::SetAdvFlyingMinMaxSpeeds::Write()
+{
+    _worldPacket << uint32(SequenceIndex);
+    _worldPacket << float(Speed);
+    _worldPacket << float(MaxSpeed);
+
+    return &_worldPacket;
+}
+// StefalWoW
+}
+

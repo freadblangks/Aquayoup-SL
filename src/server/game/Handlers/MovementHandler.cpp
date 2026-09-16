@@ -377,6 +377,7 @@ void WorldSession::HandleMoveWorldportAck()
 
     // resummon pet
     player->ResummonPetTemporaryUnSummonedIfAny();
+    player->ResummonAnimalCompanionIfAny();
     player->ResummonBattlePetTemporaryUnSummonedIfAny();
 
     //lets process all delayed operations on successful teleport
@@ -463,6 +464,7 @@ void WorldSession::HandleMoveTeleportAck(WorldPackets::Movement::MoveTeleportAck
 
     // resummon pet
     GetPlayer()->ResummonPetTemporaryUnSummonedIfAny();
+    GetPlayer()->ResummonAnimalCompanionIfAny();
 
     //lets process all delayed operations on successful teleport
     GetPlayer()->ProcessDelayedOperations();
@@ -1045,3 +1047,38 @@ void WorldSession::ComputeNewClockDelta()
         _player->SetTransportServerTime(int32(_timeSyncClockDelta));
     }
 }
+
+// StefalWoW
+void WorldSession::HandleMoveAddImpulseAck(WorldPackets::Movement::MoveAddImpulseAck& moveAddImpulseAck)
+{
+    Unit* mover = _player->m_unitMovedByMe;
+    ASSERT(mover != nullptr);
+    ValidateMovementInfo(mover, &moveAddImpulseAck.Ack.Status);
+
+    if (moveAddImpulseAck.Ack.Status.guid != mover->GetGUID())
+    {
+        TC_LOG_ERROR("network", "HandleMoveAddImpulseAck: guid error, expected {}, got {}",
+            mover->GetGUID().ToString(), moveAddImpulseAck.Ack.Status.guid.ToString());
+        return;
+    }
+
+    moveAddImpulseAck.Ack.Status.time = AdjustClientMovementTime(moveAddImpulseAck.Ack.Status.time);
+
+    WorldPackets::Movement::MoveUpdateAddImpulse updateAddImpulse;
+    updateAddImpulse.Status = &moveAddImpulseAck.Ack.Status;
+    mover->SendMessageToSet(updateAddImpulse.Write(), false);
+}
+
+void WorldSession::HandleMoveSetCanDriveAck(WorldPackets::Movement::MoveSetCanDriveAck& moveSetCanDriveAck)
+{
+    Unit* mover = _player->m_unitMovedByMe;
+    if (!mover)
+        return;
+    ValidateMovementInfo(mover, &moveSetCanDriveAck.Ack.Status);
+}
+
+void WorldSession::HandleMoveStartDriveForward(WorldPackets::Movement::MoveStartDriveForward& moveStartDriveForward)
+{
+    HandleMovementOpcode(CMSG_MOVE_START_DRIVE_FORWARD, moveStartDriveForward.Status);
+}
+// StefalWoW

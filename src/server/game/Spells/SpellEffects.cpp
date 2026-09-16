@@ -45,6 +45,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
+#include "GroupMgr.h"
 #include "Guild.h"
 #include "InstanceScript.h"
 #include "Item.h"
@@ -141,7 +142,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectUnused,                                   // 49 SPELL_EFFECT_DETECT                   one spell: Detect
     &Spell::EffectTransmitted,                              // 50 SPELL_EFFECT_TRANS_DOOR
     &Spell::EffectUnused,                                   // 51 SPELL_EFFECT_FORCE_CRITICAL_HIT       unused
-    &Spell::EffectNULL,                                     // 52 SPELL_EFFECT_SET_MAX_BATTLE_PET_COUNT
+    &Spell::EffectSetMaxBattlePetCount,                     // 52 SPELL_EFFECT_SET_MAX_BATTLE_PET_COUNT
     &Spell::EffectEnchantItemPerm,                          // 53 SPELL_EFFECT_ENCHANT_ITEM
     &Spell::EffectEnchantItemTmp,                           // 54 SPELL_EFFECT_ENCHANT_ITEM_TEMPORARY
     &Spell::EffectTameCreature,                             // 55 SPELL_EFFECT_TAMECREATURE
@@ -159,7 +160,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectHealMaxHealth,                            // 67 SPELL_EFFECT_HEAL_MAX_HEALTH
     &Spell::EffectInterruptCast,                            // 68 SPELL_EFFECT_INTERRUPT_CAST
     &Spell::EffectDistract,                                 // 69 SPELL_EFFECT_DISTRACT
-    &Spell::EffectNULL,                                     // 70 SPELL_EFFECT_COMPLETE_AND_REWARD_WORLD_QUEST
+    &Spell::EffectCompleteAndRewardWorldQuest,              // 70 SPELL_EFFECT_COMPLETE_AND_REWARD_WORLD_QUEST
     &Spell::EffectPickPocket,                               // 71 SPELL_EFFECT_PICKPOCKET
     &Spell::EffectAddFarsight,                              // 72 SPELL_EFFECT_ADD_FARSIGHT
     &Spell::EffectUntrainTalents,                           // 73 SPELL_EFFECT_UNTRAIN_TALENTS
@@ -180,7 +181,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectGameObjectRepair,                         // 88 SPELL_EFFECT_GAMEOBJECT_REPAIR
     &Spell::EffectGameObjectSetDestructionState,            // 89 SPELL_EFFECT_GAMEOBJECT_SET_DESTRUCTION_STATE
     &Spell::EffectKillCreditPersonal,                       // 90 SPELL_EFFECT_KILL_CREDIT              Kill credit but only for single person
-    &Spell::EffectNULL,                                     // 91 SPELL_EFFECT_THREAT_ALL
+    &Spell::EffectThreatAll,                                // 91 SPELL_EFFECT_THREAT_ALL
     &Spell::EffectEnchantHeldItem,                          // 92 SPELL_EFFECT_ENCHANT_HELD_ITEM
     &Spell::EffectForceDeselect,                            // 93 SPELL_EFFECT_FORCE_DESELECT
     &Spell::EffectSelfResurrect,                            // 94 SPELL_EFFECT_SELF_RESURRECT
@@ -194,9 +195,9 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectDismissPet,                               //102 SPELL_EFFECT_DISMISS_PET
     &Spell::EffectReputation,                               //103 SPELL_EFFECT_REPUTATION
     &Spell::EffectSummonObject,                             //104 SPELL_EFFECT_SUMMON_OBJECT_SLOT1
-    &Spell::EffectNULL,                                     //105 SPELL_EFFECT_SURVEY
+    &Spell::EffectSurvey,                                   //105 SPELL_EFFECT_SURVEY
     &Spell::EffectChangeRaidMarker,                         //106 SPELL_EFFECT_CHANGE_RAID_MARKER
-    &Spell::EffectNULL,                                     //107 SPELL_EFFECT_SHOW_CORPSE_LOOT
+    &Spell::EffectCorpseLoot,                               //107 SPELL_EFFECT_SHOW_CORPSE_LOOT
     &Spell::EffectDispelMechanic,                           //108 SPELL_EFFECT_DISPEL_MECHANIC
     &Spell::EffectResurrectPet,                             //109 SPELL_EFFECT_RESURRECT_PET
     &Spell::EffectDestroyAllTotems,                         //110 SPELL_EFFECT_DESTROY_ALL_TOTEMS
@@ -224,7 +225,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectPlayMusic,                                //132 SPELL_EFFECT_PLAY_MUSIC               sound id in misc value (SoundEntries.dbc)
     &Spell::EffectUnlearnSpecialization,                    //133 SPELL_EFFECT_UNLEARN_SPECIALIZATION   unlearn profession specialization
     &Spell::EffectKillCredit,                               //134 SPELL_EFFECT_KILL_CREDIT              misc value is creature entry
-    &Spell::EffectNULL,                                     //135 SPELL_EFFECT_CALL_PET
+    &Spell::EffectSummonPet,                                //135 SPELL_EFFECT_CALL_PET
     &Spell::EffectHealPct,                                  //136 SPELL_EFFECT_HEAL_PCT
     &Spell::EffectEnergizePct,                              //137 SPELL_EFFECT_ENERGIZE_PCT
     &Spell::EffectLeapBack,                                 //138 SPELL_EFFECT_LEAP_BACK                Leap back
@@ -250,14 +251,14 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectMilling,                                  //158 SPELL_EFFECT_MILLING                  milling
     &Spell::EffectRenamePet,                                //159 SPELL_EFFECT_ALLOW_RENAME_PET         allow rename pet once again
     &Spell::EffectForceCast2,                               //160 SPELL_EFFECT_FORCE_CAST_2
-    &Spell::EffectNULL,                                     //161 SPELL_EFFECT_TALENT_SPEC_COUNT        second talent spec (learn/revert)
+    &Spell::EffectSpecCount,                                //161 SPELL_EFFECT_TALENT_SPEC_COUNT        second talent spec (learn/revert)
     &Spell::EffectActivateSpec,                             //162 SPELL_EFFECT_TALENT_SPEC_SELECT       activate primary/secondary spec
-    &Spell::EffectNULL,                                     //163 SPELL_EFFECT_OBLITERATE_ITEM
+    &Spell::EffectObliterateItem,                           //163 SPELL_EFFECT_OBLITERATE_ITEM
     &Spell::EffectRemoveAura,                               //164 SPELL_EFFECT_REMOVE_AURA
     &Spell::EffectDamageFromMaxHealthPCT,                   //165 SPELL_EFFECT_DAMAGE_FROM_MAX_HEALTH_PCT
     &Spell::EffectGiveCurrency,                             //166 SPELL_EFFECT_GIVE_CURRENCY
     &Spell::EffectUpdatePlayerPhase,                        //167 SPELL_EFFECT_UPDATE_PLAYER_PHASE
-    &Spell::EffectNULL,                                     //168 SPELL_EFFECT_ALLOW_CONTROL_PET
+    &Spell::EffectAllowControlPet,                          //168 SPELL_EFFECT_ALLOW_CONTROL_PET
     &Spell::EffectDestroyItem,                              //169 SPELL_EFFECT_DESTROY_ITEM
     &Spell::EffectUpdateZoneAurasAndPhases,                 //170 SPELL_EFFECT_UPDATE_ZONE_AURAS_AND_PHASES
     &Spell::EffectSummonPersonalGameObject,                 //171 SPELL_EFFECT_SUMMON_PERSONAL_GAMEOBJECT
@@ -266,38 +267,38 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectApplyAura,                                //174 SPELL_EFFECT_APPLY_AURA_ON_PET
     &Spell::EffectNULL,                                     //175 SPELL_EFFECT_175
     &Spell::EffectSanctuary,                                //176 SPELL_EFFECT_SANCTUARY_2
-    &Spell::EffectNULL,                                     //177 SPELL_EFFECT_DESPAWN_PERSISTENT_AREA_AURA
+    &Spell::EffectDespawnPersistentAreaAura,                //177 SPELL_EFFECT_DESPAWN_PERSISTENT_AREA_AURA
     &Spell::EffectUnused,                                   //178 SPELL_EFFECT_178 unused
     &Spell::EffectCreateAreaTrigger,                        //179 SPELL_EFFECT_CREATE_AREATRIGGER
-    &Spell::EffectNULL,                                     //180 SPELL_EFFECT_UPDATE_AREATRIGGER
+    &Spell::EffectUpdateAreatrigger,                       //180 SPELL_EFFECT_UPDATE_AREATRIGGER
     &Spell::EffectRemoveTalent,                             //181 SPELL_EFFECT_REMOVE_TALENT
-    &Spell::EffectNULL,                                     //182 SPELL_EFFECT_DESPAWN_AREATRIGGER
+    &Spell::EffectDespawnAreatrigger,                       //182 SPELL_EFFECT_DESPAWN_AREATRIGGER
     &Spell::EffectNULL,                                     //183 SPELL_EFFECT_183
     &Spell::EffectReputation,                               //184 SPELL_EFFECT_REPUTATION_2
-    &Spell::EffectNULL,                                     //185 SPELL_EFFECT_185
-    &Spell::EffectNULL,                                     //186 SPELL_EFFECT_186
+    &Spell::SendScene,                                      //185 SPELL_EFFECT_185
+    &Spell::SendScene,                                      //186 SPELL_EFFECT_186
     &Spell::EffectNULL,                                     //187 SPELL_EFFECT_RANDOMIZE_ARCHAEOLOGY_DIGSITES
-    &Spell::EffectNULL,                                     //188 SPELL_EFFECT_SUMMON_STABLED_PET_AS_GUARDIAN
-    &Spell::EffectNULL,                                     //189 SPELL_EFFECT_LOOT
-    &Spell::EffectNULL,                                     //190 SPELL_EFFECT_CHANGE_PARTY_MEMBERS
+    &Spell::EffectSummonStabledPetAsGuardian,               //188 SPELL_EFFECT_SUMMON_STABLED_PET_AS_GUARDIAN
+    &Spell::EffectLootWithToast,                            //189 SPELL_EFFECT_LOOT
+    &Spell::EffectJoinOrLeavePlayerParty,                   //190 SPELL_EFFECT_CHANGE_PARTY_MEMBERS
     &Spell::EffectNULL,                                     //191 SPELL_EFFECT_TELEPORT_TO_DIGSITE
     &Spell::EffectUncageBattlePet,                          //192 SPELL_EFFECT_UNCAGE_BATTLEPET
-    &Spell::EffectNULL,                                     //193 SPELL_EFFECT_START_PET_BATTLE
+    &Spell::EffectStartPetBattle,                           //193 SPELL_EFFECT_START_PET_BATTLE
     &Spell::EffectUnused,                                   //194 SPELL_EFFECT_194
     &Spell::EffectPlaySceneScriptPackage,                   //195 SPELL_EFFECT_PLAY_SCENE_SCRIPT_PACKAGE
     &Spell::EffectCreateSceneObject,                        //196 SPELL_EFFECT_CREATE_SCENE_OBJECT
     &Spell::EffectCreatePrivateSceneObject,                 //197 SPELL_EFFECT_CREATE_PERSONAL_SCENE_OBJECT
     &Spell::EffectPlayScene,                                //198 SPELL_EFFECT_PLAY_SCENE
-    &Spell::EffectNULL,                                     //199 SPELL_EFFECT_DESPAWN_SUMMON
+    &Spell::EffectDespawnSummon,                            //199 SPELL_EFFECT_DESPAWN_SUMMON
     &Spell::EffectHealBattlePetPct,                         //200 SPELL_EFFECT_HEAL_BATTLEPET_PCT
     &Spell::EffectEnableBattlePets,                         //201 SPELL_EFFECT_ENABLE_BATTLE_PETS
-    &Spell::EffectUnused,                                   //202 SPELL_EFFECT_APPLY_AREA_AURA_SUMMONS
+    &Spell::EffectApplyAreaAura,                            //202 SPELL_EFFECT_APPLY_AREA_AURA_SUMMONS
     &Spell::EffectRemoveAura,                               //203 SPELL_EFFECT_REMOVE_AURA_2
     &Spell::EffectChangeBattlePetQuality,                   //204 SPELL_EFFECT_CHANGE_BATTLEPET_QUALITY
     &Spell::EffectLaunchQuestChoice,                        //205 SPELL_EFFECT_LAUNCH_QUEST_CHOICE
-    &Spell::EffectNULL,                                     //206 SPELL_EFFECT_ALTER_ITEM
+    &Spell::EffectAlterItem,                                //206 SPELL_EFFECT_ALTER_ITEM
     &Spell::EffectNULL,                                     //207 SPELL_EFFECT_LAUNCH_QUEST_TASK
-    &Spell::EffectNULL,                                     //208 SPELL_EFFECT_SET_REPUTATION
+    &Spell::EffectModReputation,                            //208 SPELL_EFFECT_SET_REPUTATION
     &Spell::EffectUnused,                                   //209 SPELL_EFFECT_209
     &Spell::EffectLearnGarrisonBuilding,                    //210 SPELL_EFFECT_LEARN_GARRISON_BUILDING
     &Spell::EffectNULL,                                     //211 SPELL_EFFECT_LEARN_GARRISON_SPECIALIZATION
@@ -321,13 +322,13 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectNULL,                                     //229 SPELL_EFFECT_SET_FOLLOWER_QUALITY
     &Spell::EffectNULL,                                     //230 SPELL_EFFECT_230
     &Spell::EffectNULL,                                     //231 SPELL_EFFECT_INCREASE_FOLLOWER_EXPERIENCE
-    &Spell::EffectNULL,                                     //232 SPELL_EFFECT_REMOVE_PHASE
+    &Spell::EffectRemovePhase,                              //232 SPELL_EFFECT_REMOVE_PHASE
     &Spell::EffectNULL,                                     //233 SPELL_EFFECT_RANDOMIZE_FOLLOWER_ABILITIES
     &Spell::EffectNULL,                                     //234 SPELL_EFFECT_234
     &Spell::EffectUnused,                                   //235 SPELL_EFFECT_235
     &Spell::EffectGiveExperience,                           //236 SPELL_EFFECT_GIVE_EXPERIENCE
     &Spell::EffectGiveRestedExperience,                     //237 SPELL_EFFECT_GIVE_RESTED_EXPERIENCE_BONUS
-    &Spell::EffectNULL,                                     //238 SPELL_EFFECT_INCREASE_SKILL
+    &Spell::EffectIncreaseSkill,                            //238 SPELL_EFFECT_INCREASE_SKILL
     &Spell::EffectNULL,                                     //239 SPELL_EFFECT_END_GARRISON_BUILDING_CONSTRUCTION
     &Spell::EffectGiveArtifactPower,                        //240 SPELL_EFFECT_GIVE_ARTIFACT_POWER
     &Spell::EffectUnused,                                   //241 SPELL_EFFECT_241
@@ -338,7 +339,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectNULL,                                     //246 SPELL_EFFECT_FINISH_GARRISON_MISSION
     &Spell::EffectNULL,                                     //247 SPELL_EFFECT_ADD_GARRISON_MISSION_SET
     &Spell::EffectNULL,                                     //248 SPELL_EFFECT_FINISH_SHIPMENT
-    &Spell::EffectNULL,                                     //249 SPELL_EFFECT_FORCE_EQUIP_ITEM
+    &Spell::EffectForceEquipItem,                           //249 SPELL_EFFECT_FORCE_EQUIP_ITEM
     &Spell::EffectNULL,                                     //250 SPELL_EFFECT_TAKE_SCREENSHOT
     &Spell::EffectNULL,                                     //251 SPELL_EFFECT_SET_GARRISON_CACHE_SIZE
     &Spell::EffectTeleportUnits,                            //252 SPELL_EFFECT_TELEPORT_UNITS
@@ -349,11 +350,11 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectUnused,                                   //257 SPELL_EFFECT_257
     &Spell::EffectNULL,                                     //258 SPELL_EFFECT_MODIFY_KEYSTONE
     &Spell::EffectRespecAzeriteEmpoweredItem,               //259 SPELL_EFFECT_RESPEC_AZERITE_EMPOWERED_ITEM
-    &Spell::EffectNULL,                                     //260 SPELL_EFFECT_SUMMON_STABLED_PET
-    &Spell::EffectNULL,                                     //261 SPELL_EFFECT_SCRAP_ITEM
+    &Spell::EffectSummonStabledPet,                         //260 SPELL_EFFECT_SUMMON_STABLED_PET
+    &Spell::EffectScrapItem,                                //261 SPELL_EFFECT_SCRAP_ITEM
     &Spell::EffectUnused,                                   //262 SPELL_EFFECT_262
-    &Spell::EffectNULL,                                     //263 SPELL_EFFECT_REPAIR_ITEM
-    &Spell::EffectNULL,                                     //264 SPELL_EFFECT_REMOVE_GEM
+    &Spell::EffectRepairItem,                               //263 SPELL_EFFECT_REPAIR_ITEM
+    &Spell::EffectRemoveGem,                                //264 SPELL_EFFECT_REMOVE_GEM
     &Spell::EffectLearnAzeriteEssencePower,                 //265 SPELL_EFFECT_LEARN_AZERITE_ESSENCE_POWER
     &Spell::EffectNULL,                                     //266 SPELL_EFFECT_SET_ITEM_BONUS_LIST_GROUP_ENTRY
     &Spell::EffectCreatePrivateConversation,                //267 SPELL_EFFECT_CREATE_PRIVATE_CONVERSATION
@@ -361,17 +362,17 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectNULL,                                     //269 SPELL_EFFECT_INCREASE_ITEM_BONUS_LIST_GROUP_STEP
     &Spell::EffectNULL,                                     //270 SPELL_EFFECT_270
     &Spell::EffectUnused,                                   //271 SPELL_EFFECT_APPLY_AREA_AURA_PARTY_NONRANDOM
-    &Spell::EffectNULL,                                     //272 SPELL_EFFECT_SET_COVENANT
+    &Spell::EffectSetCovenant,                              //272 SPELL_EFFECT_SET_COVENANT
     &Spell::EffectNULL,                                     //273 SPELL_EFFECT_CRAFT_RUNEFORGE_LEGENDARY
     &Spell::EffectUnused,                                   //274 SPELL_EFFECT_274
     &Spell::EffectUnused,                                   //275 SPELL_EFFECT_275
     &Spell::EffectLearnTransmogIllusion,                    //276 SPELL_EFFECT_LEARN_TRANSMOG_ILLUSION
-    &Spell::EffectNULL,                                     //277 SPELL_EFFECT_SET_CHROMIE_TIME
+    &Spell::EffectSetChromieTime,                           //277 SPELL_EFFECT_SET_CHROMIE_TIME
     &Spell::EffectNULL,                                     //278 SPELL_EFFECT_278
-    &Spell::EffectNULL,                                     //279 SPELL_EFFECT_LEARN_GARR_TALENT
+    &Spell::EffectLearnGarrTalent,                          //279 SPELL_EFFECT_LEARN_GARR_TALENT
     &Spell::EffectUnused,                                   //280 SPELL_EFFECT_280
-    &Spell::EffectNULL,                                     //281 SPELL_EFFECT_LEARN_SOULBIND_CONDUIT
-    &Spell::EffectNULL,                                     //282 SPELL_EFFECT_CONVERT_ITEMS_TO_CURRENCY
+    &Spell::EffectLearnSoulbindConduit,                     //281 SPELL_EFFECT_LEARN_SOULBIND_CONDUIT
+    &Spell::EffectConvertItemsToCurrency,                   //282 SPELL_EFFECT_CONVERT_ITEMS_TO_CURRENCY
     &Spell::EffectSkipCampaign,                             //283 SPELL_EFFECT_COMPLETE_CAMPAIGN
     &Spell::EffectSendChatMessage,                          //284 SPELL_EFFECT_SEND_CHAT_MESSAGE
     &Spell::EffectNULL,                                     //285 SPELL_EFFECT_MODIFY_KEYSTONE_2
@@ -387,7 +388,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectNULL,                                     //295 SPELL_EFFECT_SALVAGE_ITEM
     &Spell::EffectNULL,                                     //296 SPELL_EFFECT_CRAFT_SALVAGE_ITEM
     &Spell::EffectNULL,                                     //297 SPELL_EFFECT_RECRAFT_ITEM
-    &Spell::EffectNULL,                                     //298 SPELL_EFFECT_CANCEL_ALL_PRIVATE_CONVERSATIONS
+    &Spell::EffectCancelAllPrivateConversations,            //298 SPELL_EFFECT_CANCEL_ALL_PRIVATE_CONVERSATIONS
     &Spell::EffectNULL,                                     //299 SPELL_EFFECT_299
     &Spell::EffectUnused,                                   //300 SPELL_EFFECT_300
     &Spell::EffectNULL,                                     //301 SPELL_EFFECT_CRAFT_ENCHANT
@@ -403,7 +404,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectSkipQuestLine,                            //311 SPELL_EFFECT_SKIP_QUESTLINE
     &Spell::EffectNULL,                                     //312 SPELL_EFFECT_312
     &Spell::EffectNULL,                                     //313 SPELL_EFFECT_CHANGE_ITEM_BONUSES_2
-    &Spell::EffectNULL,                                     //314 SPELL_EFFECT_ADD_SOCKET_BONUS
+    &Spell::EffectAddSocketBonus,                           //314 SPELL_EFFECT_ADD_SOCKET_BONUS
     &Spell::EffectNULL,                                     //315 SPELL_EFFECT_LEARN_TRANSMOG_APPEARANCE_FROM_ITEM_MOD_APPEARANCE_GROUP
     &Spell::EffectKillCreditLabel,                          //316 SPELL_EFFECT_KILL_CREDIT_LABEL_1
     &Spell::EffectKillCreditLabel,                          //317 SPELL_EFFECT_KILL_CREDIT_LABEL_2
@@ -6376,4 +6377,935 @@ void Spell::EffectEquipTransmogOutfit()
     }
 
     target->EquipTransmogOutfit(m_misc.EquipTransmogOutfit.TransmogOutfitId, static_cast<TransmogSituationTrigger>(m_misc.EquipTransmogOutfit.SituationTrigger), locked);
+}
+
+void Spell::EffectSummonStabledPet()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH)
+        return;
+
+    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+
+    if (!player)
+        return;
+
+    // Don't summon if animal companion already exists
+    if (!player->GetAnimalCompanion().IsEmpty())
+        return;
+
+    Pet* mainPet = player->GetPet();
+    if (!mainPet)
+        return;
+
+    auto stable = player->GetPetStable();
+    if (!stable)
+        return;
+
+    // Animal companion is taken from the first stable slot (slot 5)
+    if (!stable->StabledPets[0].has_value())
+        return;
+
+    PetStable::PetInfo const& stabledPet = stable->StabledPets[0].value();
+
+    // Calculate positions: main pet to the left, animal companion to the right
+    float playerX = player->GetPositionX();
+    float playerY = player->GetPositionY();
+    float playerZ = player->GetPositionZ();
+    float orient = player->GetOrientation();
+    float dist = player->GetCombatReach() + 2.0f;
+
+    // Move main pet to the left side of the player
+    float mainAngle = orient - M_PI / 2.0f;
+    mainPet->NearTeleportTo(
+        playerX + dist * cos(mainAngle),
+        playerY + dist * sin(mainAngle),
+        playerZ,
+        mainPet->GetOrientation(),
+        true);
+
+    // Place animal companion on the right side of the player
+    float acAngle = orient + M_PI / 2.0f;
+    float px = playerX + dist * cos(acAngle);
+    float py = playerY + dist * sin(acAngle);
+    float pz = playerZ;
+
+    // Create the animal companion pet
+    Pet* pet = new Pet(player, SUMMON_PET);
+
+    Map* map = player->GetMap();
+    uint32 pet_number = sObjectMgr->GeneratePetNumber();
+
+    if (!pet->Create(map->GenerateLowGuid<HighGuid::Pet>(), map, stabledPet.CreatureId, pet_number))
+    {
+        TC_LOG_ERROR("misc", "Spell::EffectSummonStabledPet: No such creature entry {}", stabledPet.CreatureId);
+        delete pet;
+        return;
+    }
+
+    pet->Relocate(px, py, pz, player->GetOrientation());
+    if (!pet->IsPositionValid())
+    {
+        // Fallback: place next to player
+        player->GetClosePoint(px, py, pz, player->GetCombatReach());
+        pet->Relocate(px, py, pz, player->GetOrientation());
+    }
+
+    PhasingHandler::InheritPhaseShift(pet, player);
+
+    pet->SetCreatorGUID(player->GetGUID());
+    pet->SetFaction(player->GetFaction());
+    pet->ReplaceAllNpcFlags(UNIT_NPC_FLAG_NONE);
+    pet->ReplaceAllNpcFlags2(UNIT_NPC_FLAG_2_NONE);
+    pet->InitStatsForLevel(player->GetLevel());
+
+    // Set the pet's custom name from the stable
+    pet->SetName(stabledPet.Name);
+
+    player->SetMinion(pet, true, true);
+
+    pet->GetCharmInfo()->SetPetNumber(pet_number, true);
+    pet->SetClass(CLASS_MAGE);
+    pet->SetPetExperience(0);
+    pet->SetPetNextLevelExperience(1000);
+    pet->SetFullHealth();
+    pet->SetFullPower(POWER_MANA);
+    pet->SetPetNameTimestamp(uint32(GameTime::GetGameTime()));
+
+    // Stampeded pet: no abilities - set BEFORE AddToMap to prevent SavePetToDB crash
+    pet->SetStampeded(true);
+    pet->SetAnimalCompanion(true);
+    player->SetAnimalCompanion(pet->GetGUID());
+
+    // Inherit behavior from main pet
+    pet->SetReactState(mainPet->GetReactState());
+
+    // Clear all spells and autospells - stamped pet doesn't use its own abilities
+    std::list<uint32> spellsToRemove;
+    for (auto iter : pet->m_spells)
+        spellsToRemove.push_back(iter.first);
+
+    for (uint32 id : spellsToRemove)
+    {
+        auto iter = pet->m_spells.find(id);
+        pet->m_spells.erase(iter);
+    }
+
+    pet->m_autospells.clear();
+    pet->m_Events.KillAllEvents(true);
+
+    SpellInfo const* spellInfo = GetSpellInfo();
+    pet->SetCreatedBySpell(spellInfo->Id);
+
+    if (int32 duration = player->CalcSpellDuration(spellInfo, nullptr))
+        pet->SetDuration(duration);
+
+    map->AddToMap(pet->ToCreature());
+}
+
+void Spell::EffectScrapItem()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!itemTarget)
+        return;
+
+    if (!itemTarget->GetTemplate()->HasFlag(ITEM_FLAG4_SCRAPABLE))
+        return;
+
+    uint32 scrapLootId = itemTarget->GetTemplate()->GetScrappingLootId();
+    if (!scrapLootId)
+        return;
+
+    if (Player* player = GetCaster()->ToPlayer())
+    {
+        player->DestroyItem(itemTarget->GetBagSlot(), itemTarget->GetSlot(), true);
+        player->AutoStoreLoot(scrapLootId, LootTemplates_Scrapping, ItemContext::NONE, false, true);
+    }
+}
+
+void Spell::EffectLootWithToast()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPlayer())
+        return;
+
+    unitTarget->ToPlayer()->AutoStoreLoot(m_spellInfo->Id, LootTemplates_Spell, ItemContext::NONE, false, true, true);
+}
+
+void Spell::EffectForceEquipItem()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (!player)
+        return;
+
+    auto const& item = player->GetItemByEntry(effectInfo->ItemType);
+    if (!item)
+        return;
+
+    return;
+
+    uint16 dest;
+    if (player->CanEquipItem(NULL_SLOT, dest, item, true) == EQUIP_ERR_OK)
+    {
+        player->EquipItem(dest, item, true);
+        player->AutoUnequipOffhandIfNeed();
+    }
+}
+
+void Spell::EffectIncreaseSkill()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget->IsPlayer())
+        return;
+
+    if (effectValue < 0)
+        return;
+
+    uint32 skillid = effectInfo->MiscValue;
+    uint32 limitValue = effectInfo->MiscValueB;
+    uint32 skillValue = unitTarget->ToPlayer()->GetPureSkillValue(skillid);
+    uint32 maxSkillValue = unitTarget->ToPlayer()->GetMaxSkillValue(skillid);
+
+    if (skillValue > maxSkillValue)
+        return;
+
+    if (skillValue > limitValue)
+        return;
+
+    SkillRaceClassInfoEntry const* rcEntry = sDB2Manager.GetSkillRaceClassInfo(skillid, unitTarget->GetRace(), unitTarget->GetClass());
+    if (!rcEntry)
+        return;
+
+    unitTarget->ToPlayer()->SetSkill(skillid, unitTarget->ToPlayer()->GetSkillStep(skillid), skillValue, maxSkillValue);
+}
+
+void Spell::EffectRemovePhase()
+{
+    bool Visibility = false;
+
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    PhasingHandler::RemovePhase(unitTarget->ToPlayer(), effectInfo->MiscValue, Visibility);
+}
+
+void Spell::EffectModReputation()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    Player* player = unitTarget->ToPlayer();
+
+    int32  repChange = GetEffectValueAsInt();
+
+    uint32 factionId = effectInfo->MiscValue;
+
+    FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionId);
+    if (!factionEntry)
+        return;
+
+    repChange = player->CalculateReputationGain(REPUTATION_SOURCE_SPELL, 0, repChange, factionId);
+
+    player->GetReputationMgr().ModifyReputation(factionEntry, repChange);
+}
+
+void Spell::EffectJoinOrLeavePlayerParty()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !m_caster || !unitTarget->IsPlayer())
+        return;
+
+    Player* player = unitTarget->ToPlayer();
+
+    Group* group = player->GetGroup();
+    Creature* creature = m_caster->ToCreature();
+    if (!creature)
+        return;
+
+    if (!group)
+    {
+        group = new Group();
+        group->Create(player);
+        group->ConvertToLFG();
+
+        Difficulty diff = player->GetDungeonDifficultyID();
+        group->SetDungeonDifficultyID(diff);
+
+        sGroupMgr->AddGroup(group);
+    }
+    else if (group->IsMember(creature->GetGUID()))
+        return;
+}
+
+//! Based on SPELL_EFFECT_ACTIVATE_SCENE3 spell 117790
+void Spell::SendScene()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET || !m_caster->IsPlayer())
+        return;
+
+    Position pos;
+    if (m_targets.HasDst())
+        pos = static_cast<Position>(*m_targets.GetDstPos());
+}
+
+void Spell::EffectDespawnAreatrigger()
+{
+    Player* player = GetCaster()->ToPlayer();
+    if (!player)
+        return;
+
+    player->RemoveAllAreaTriggers();
+}
+
+void Spell::EffectSpecCount()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPlayer())
+        return;
+}
+
+void Spell::EffectObliterateItem()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (!player)
+        return;
+
+    Item* item = m_targets.GetItemTarget();
+    if (!item)
+        return;
+
+    ItemTemplate const* itemTemplate = item->GetTemplate();
+    if (!itemTemplate || !(itemTemplate->HasFlag(ITEM_FLAG3_OBLITERATABLE)))
+        return;
+
+    uint32 currencyId = 0;
+    uint32 itemId = 0;
+    uint32 addCount = 0;
+
+    // Quest replace case
+    switch (itemTemplate->GetId())
+    {
+    case 146975: // For quest 46810, 46946
+    case 146976:
+    case 147417:
+        itemId = 146978;
+        addCount = 1;
+        break;
+    case 136352: // For quest 41778
+        itemId = 136351;
+        addCount = 1;
+        break;
+    }
+
+    if (!currencyId && !itemId)
+        return;
+
+    uint32 count = 1;
+    player->DestroyItemCount(item, count, true);
+
+    if (currencyId)
+        player->ModifyCurrency(currencyId, addCount, CurrencyGainSource::Spell, CurrencyDestroyReason::Spell);
+    else if (itemId)
+    {
+        ItemPosCountVec dest;
+        if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, addCount) == EQUIP_ERR_OK)
+        {
+            if (auto newItem = player->StoreNewItem(dest, itemId, true))
+            {
+                player->SendNewItem(newItem, addCount, true, false, true);
+                player->SendDisplayToast(itemId, DisplayToastType::NewItem, false, addCount, DisplayToastMethod::Loot, 0, newItem);
+            }
+        }
+    }
+}
+
+void Spell::EffectCorpseLoot()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget->IsCreature())
+        return;
+    if (!m_caster->IsPlayer())
+        return;
+
+    Creature* creature = unitTarget->ToCreature();
+    if (!creature)
+        return;
+
+    if (!creature->m_loot)
+        return;
+
+    m_caster->ToPlayer()->SendLoot(*creature->m_loot);
+    creature->RemoveUnitFlag(UNIT_FLAG_LOOTING);
+}
+
+void Spell::EffectSetChromieTime()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* target = Object::ToPlayer(unitTarget);
+    if (!target)
+        return;
+
+    // MiscValue is a UiChromieTimeExpansionInfo record id (row SpellIDs 325400..452212 map
+    // 1:1 to rows); validate like the CMSG select path. 0 clears. No sniff shows
+    // spell-driven toggles - semantics inferred from the effect/DB2 pairing (audit R9/i2).
+    int32 expansionId = effectInfo->MiscValue;
+    if (expansionId != 0 && !sUIChromieTimeExpansionInfoStore.LookupEntry(uint32(expansionId)))
+        return;
+
+    target->SetChromieTime(expansionId);
+}
+
+void Spell::EffectSurvey()
+{/*
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    if (!m_caster)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (!player)
+        return;
+
+    uint32 go_id = 0;
+
+    int32 duration;
+
+    duration = 10000;
+
+    if (!go_id)
+    {
+        TC_LOG_ERROR("LOG_FILTER_SPELLS_AURAS", "Spell::EffectSurvey: no go id for x: {} y: {} z: {} map: {}", m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ(), m_caster->GetMapId());
+        return;
+    }
+*/
+}
+
+void Spell::EffectThreatAll()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Unit* unitCaster = GetUnitCasterForEffectHandlers();
+    if (!unitCaster || !unitCaster->IsAlive())
+        return;
+
+    if (!unitTarget || !unitTarget->CanHaveThreatList())
+        return;
+
+    std::vector<ThreatReference*> threatList = unitTarget->GetThreatManager().GetModifiableThreatList();
+    for (ThreatReference* threatRef : threatList)
+    {
+        if (!threatRef)
+            continue;
+
+        Unit* victim = threatRef->GetVictim();
+        if (!victim || victim == unitCaster || !victim->IsAlive() || !victim->CanHaveThreatList())
+            continue;
+
+        victim->GetThreatManager().AddThreat(unitCaster, effectValue, m_spellInfo, true);
+    }
+}
+
+void Spell::EffectCompleteAndRewardWorldQuest()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+        return;
+    Player* player = unitTarget->ToPlayer();
+
+    uint32 questId = effectInfo->MiscValue;
+    if (!questId)
+        return;
+
+    Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+    if (!quest || !quest->IsWorldQuest())
+        return;
+
+    QuestStatus questStatus = player->GetQuestStatus(questId);
+    if (questStatus == QUEST_STATUS_REWARDED)
+        return;
+
+    player->CompleteQuest(questId);
+    player->RewardQuest(quest, LootItemType::Item, 0, player, false);
+}
+
+void Spell::EffectAllowControlPet()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPet())
+        return;
+
+    unitTarget->SetPetFlag(UNIT_PET_FLAG_CAN_BE_ABANDONED);
+}
+
+void Spell::EffectDespawnPersistentAreaAura()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    if (Unit* unitCaster = GetUnitCasterForEffectHandlers())
+        unitCaster->RemoveDynObject(m_spellInfo->Id);
+}
+
+void Spell::EffectDespawnSummon()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsSummon())
+        return;
+
+    if (effectInfo->MiscValue && unitTarget->GetEntry() != uint32(effectInfo->MiscValue))
+        return;
+
+    unitTarget->ToTempSummon()->UnSummon();
+}
+
+void Spell::EffectApplyAreaAura()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!_spellAura || !unitTarget)
+        return;
+
+    ASSERT(unitTarget == _spellAura->GetOwner());
+    _spellAura->_ApplyEffectForTargets(SpellEffIndex(effectInfo->EffectIndex));
+}
+
+void Spell::EffectUpdateAreatrigger()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    Unit* unitCaster = GetUnitCasterForEffectHandlers();
+    if (!unitCaster)
+        return;
+
+    uint32 areaTriggerSpellId = effectInfo->MiscValue ? uint32(effectInfo->MiscValue) : m_spellInfo->Id;
+
+    std::vector<AreaTrigger*> areaTriggers = unitCaster->GetAreaTriggers(areaTriggerSpellId);
+    for (AreaTrigger* areaTrigger : areaTriggers)
+    {
+        if (areaTrigger->IsRemoved())
+            continue;
+
+        int32 newDuration = m_spellInfo->CalcDuration(unitCaster);
+        areaTrigger->SetDuration(newDuration);
+    }
+}
+
+void Spell::EffectSummonStabledPetAsGuardian()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    Unit* unitCaster = GetUnitCasterForEffectHandlers();
+    if (!unitCaster || unitCaster->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    Player* player = unitCaster->ToPlayer();
+
+    PetStable const* stable = player->GetPetStable();
+    if (!stable)
+        return;
+
+    PetStable::PetInfo const* stabledPet = nullptr;
+    for (auto const& petSlot : stable->StabledPets)
+    {
+        if (petSlot.has_value())
+        {
+            stabledPet = &petSlot.value();
+            break;
+        }
+    }
+
+    if (!stabledPet)
+        return;
+
+    uint32 entry = stabledPet->CreatureId;
+    SummonPropertiesEntry const* properties = sSummonPropertiesStore.LookupEntry(effectInfo->MiscValue);
+    if (!properties)
+        properties = sSummonPropertiesStore.LookupEntry(61);
+
+    Milliseconds duration = Milliseconds(m_spellInfo->CalcDuration(m_originalCaster));
+
+    Position pos;
+    if (m_targets.HasDst())
+        pos = destTarget->GetPosition();
+    else
+        pos = player->GetPosition();
+
+    Map* map = player->GetMap();
+    TempSummon* summon = map->SummonCreature(entry, pos, properties, duration, player, m_spellInfo->Id);
+    if (!summon)
+        return;
+
+    if (summon->IsGuardian())
+        static_cast<Guardian*>(summon)->InitStatsForLevel(player->GetLevel());
+
+    ExecuteLogEffectSummonObject(effectInfo->Effect, summon);
+}
+
+void Spell::EffectAlterItem()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+
+    if (!itemTarget)
+        return;
+
+    if (itemTarget->GetOwnerGUID() != player->GetGUID())
+        return;
+
+    uint32 newitemid = effectInfo->ItemType;
+    if (!newitemid)
+        return;
+
+    uint16 pos = itemTarget->GetPos();
+
+    Item* pNewItem = Item::CreateItem(newitemid, 1, itemTarget->GetContext(), player);
+    if (!pNewItem)
+        return;
+
+    for (uint8 j = PERM_ENCHANTMENT_SLOT; j <= TEMP_ENCHANTMENT_SLOT; ++j)
+        if (itemTarget->GetEnchantmentId(EnchantmentSlot(j)))
+            pNewItem->SetEnchantment(EnchantmentSlot(j), itemTarget->GetEnchantmentId(EnchantmentSlot(j)), itemTarget->GetEnchantmentDuration(EnchantmentSlot(j)), itemTarget->GetEnchantmentCharges(EnchantmentSlot(j)));
+
+    if (*itemTarget->m_itemData->Durability < *itemTarget->m_itemData->MaxDurability)
+    {
+        double lossPercent = 1 - *itemTarget->m_itemData->Durability / double(itemTarget->m_itemData->MaxDurability);
+        player->DurabilityLoss(pNewItem, lossPercent);
+    }
+
+    if (player->IsInventoryPos(pos))
+    {
+        ItemPosCountVec dest;
+        InventoryResult msg = player->CanStoreItem(itemTarget->GetBagSlot(), itemTarget->GetSlot(), dest, pNewItem, true);
+        if (msg == EQUIP_ERR_OK)
+        {
+            player->DestroyItem(itemTarget->GetBagSlot(), itemTarget->GetSlot(), true);
+
+            if (itemTarget == m_targets.GetItemTarget())
+                m_targets.SetItemTarget(nullptr);
+
+            itemTarget = nullptr;
+
+            player->StoreItem(dest, pNewItem, true);
+            player->SendNewItem(pNewItem, 1, true, false);
+            player->ItemAddedQuestCheck(newitemid, 1);
+            return;
+        }
+    }
+    else if (player->IsBankPos(pos))
+    {
+        ItemPosCountVec dest;
+        if (player->CanBankItem(itemTarget->GetBagSlot(), itemTarget->GetSlot(), dest, pNewItem, true) == EQUIP_ERR_OK)
+        {
+            player->DestroyItem(itemTarget->GetBagSlot(), itemTarget->GetSlot(), true);
+
+            if (itemTarget == m_targets.GetItemTarget())
+                m_targets.SetItemTarget(nullptr);
+
+            itemTarget = nullptr;
+
+            player->BankItem(dest, pNewItem, true);
+            return;
+        }
+    }
+    else if (player->IsEquipmentPos(pos))
+    {
+        uint16 dest;
+
+        player->DestroyItem(itemTarget->GetBagSlot(), itemTarget->GetSlot(), true);
+
+        InventoryResult msg = player->CanEquipItem(itemTarget->GetSlot(), dest, pNewItem, true);
+
+        if (msg == EQUIP_ERR_OK || msg == EQUIP_ERR_CLIENT_LOCKED_OUT)
+        {
+            if (msg == EQUIP_ERR_CLIENT_LOCKED_OUT)
+                dest = EQUIPMENT_SLOT_MAINHAND;
+
+            if (itemTarget == m_targets.GetItemTarget())
+                m_targets.SetItemTarget(nullptr);
+
+            itemTarget = nullptr;
+
+            player->EquipItem(dest, pNewItem, true);
+            player->AutoUnequipOffhandIfNeed();
+            player->SendNewItem(pNewItem, 1, true, false);
+            player->ItemAddedQuestCheck(newitemid, 1);
+            return;
+        }
+    }
+
+    // fail
+    delete pNewItem;
+}
+
+void Spell::EffectRepairItem()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!itemTarget)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (!player)
+        return;
+
+    if (*itemTarget->m_itemData->MaxDurability > 0 &&
+        *itemTarget->m_itemData->Durability < *itemTarget->m_itemData->MaxDurability)
+    {
+        player->DurabilityRepair(itemTarget->GetPos(), false, 0.f);
+    }
+}
+
+void Spell::EffectRemoveGem()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!itemTarget)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (!player)
+        return;
+
+    bool hasGem = false;
+    for (uint32 slot = 0; slot < MAX_GEM_SOCKETS; ++slot)
+    {
+        UF::SocketedGem const* gem = itemTarget->GetGem(slot);
+        if (!gem || !gem->ItemID)
+            continue;
+
+        hasGem = true;
+
+        EnchantmentSlot enchantSlot = EnchantmentSlot(SOCK_ENCHANTMENT_SLOT + slot);
+        player->ApplyEnchantment(itemTarget, enchantSlot, false);
+        itemTarget->ClearEnchantment(enchantSlot);
+
+        ItemDynamicFieldGems zeroGem = {};
+        itemTarget->SetGem(slot, &zeroGem, 0);
+    }
+
+    if (hasGem)
+    {
+        bool socketBonusActivated = itemTarget->GemsFitSockets();
+        player->ApplyEnchantment(itemTarget, BONUS_ENCHANTMENT_SLOT, false);
+        itemTarget->SetEnchantment(BONUS_ENCHANTMENT_SLOT, socketBonusActivated ? itemTarget->GetTemplate()->GetSocketBonus() : 0, 0, 0, player->GetGUID());
+        player->ApplyEnchantment(itemTarget, BONUS_ENCHANTMENT_SLOT, true);
+
+        itemTarget->SendUpdateSockets();
+    }
+}
+
+void Spell::EffectConvertItemsToCurrency()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    if (!itemTarget)
+        return;
+
+    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (itemTarget->GetOwnerGUID() != player->GetGUID())
+        return;
+
+    int32 currencyId = effectInfo->MiscValue;
+    if (currencyId < 0)
+        return;
+
+    int32 amountPerItem = int32(effectValue);
+    if (amountPerItem <= 0)
+        return;
+
+    uint32 itemCount = itemTarget->GetCount();
+    if (!itemCount)
+        return;
+
+    uint32 totalAmount = uint32(amountPerItem) * itemCount;
+    if (!totalAmount)
+        return;
+
+    ExecuteLogEffectDestroyItem(effectInfo->Effect, itemTarget->GetEntry());
+
+    player->DestroyItemCount(itemTarget, itemCount, true);
+
+    if (currencyId)
+        player->AddCurrency(uint32(currencyId), totalAmount, CurrencyGainSource::Spell);
+    else
+        player->ModifyMoney(totalAmount);
+}
+
+void Spell::EffectCancelAllPrivateConversations()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget)
+        return;
+
+    auto work = [ownerGUID = unitTarget->GetGUID()](Conversation* conversation)
+    {
+        if (conversation->IsPrivateObject() && conversation->GetPrivateObjectOwner() == ownerGUID)
+            conversation->Remove();
+    };
+    Trinity::ConversationWorker worker(unitTarget, work);
+    Cell::VisitGridObjects(unitTarget, worker, 100.0f);
+}
+
+void Spell::EffectAddSocketBonus()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!itemTarget)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (!player)
+        return;
+
+    uint32 socketBonusEnchantId = itemTarget->GetTemplate()->GetSocketBonus();
+    if (!socketBonusEnchantId)
+        return;
+
+    Player* item_owner = itemTarget->GetOwner();
+    if (!item_owner)
+        return;
+
+    if (item_owner != player && player->GetSession()->HasPermission(rbac::RBAC_PERM_LOG_GM_TRADE))
+    {
+        sLog->OutCommand(player->GetSession()->GetAccountId(), "GM {} (Account: {}) enchanting(socket bonus): {} (Entry: {}) for player: {} (Account: {})",
+            player->GetName(), player->GetSession()->GetAccountId(),
+            itemTarget->GetTemplate()->GetDefaultLocaleName(), itemTarget->GetEntry(),
+            item_owner->GetName(), item_owner->GetSession()->GetAccountId());
+    }
+
+    item_owner->ApplyEnchantment(itemTarget, BONUS_ENCHANTMENT_SLOT, false);
+    itemTarget->SetEnchantment(BONUS_ENCHANTMENT_SLOT, socketBonusEnchantId, 0, 0, m_caster->GetGUID());
+    item_owner->ApplyEnchantment(itemTarget, BONUS_ENCHANTMENT_SLOT, true);
+
+    item_owner->RemoveTradeableItem(itemTarget);
+    itemTarget->ClearSoulboundTradeable(item_owner);
+}
+
+void Spell::EffectSetMaxBattlePetCount()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (effectValue <= 0)
+        return;
+
+    if (Player* player = unitTarget->ToPlayer())
+    {
+        TC_LOG_DEBUG("spells", "SPELL_EFFECT_SET_MAX_BATTLE_PET_COUNT: Player {}, Species {}, NewMax {}",
+            player->GetName(), effectInfo->MiscValue, GetEffectValueAsInt());
+    }
+}
+
+void Spell::EffectStartPetBattle()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Unit* caster = GetUnitCasterForEffectHandlers();
+    if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_UNIT)
+        return;
+
+    // TODO: Implement pet battle start when PetBattle system is available
+    TC_LOG_DEBUG("spells", "SPELL_EFFECT_START_PET_BATTLE: Player {}, Target {}",
+        caster->ToPlayer()->GetName(), unitTarget->GetEntry());
+}
+
+void Spell::EffectSetCovenant()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    int32 covenantId = effectInfo->MiscValue;
+    if (covenantId < 0)
+        return;
+
+    // TODO: Implement SetActiveCovenant when covenant system is available
+    TC_LOG_DEBUG("spells", "SPELL_EFFECT_SET_COVENANT: Player {}, Covenant {}", unitTarget->ToPlayer()->GetName(), covenantId);
+}
+
+void Spell::EffectLearnSoulbindConduit()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    int32 conduitId = effectInfo->MiscValue;
+    if (conduitId <= 0)
+        return;
+
+    // TODO: Implement CollectConduit when soulbind system is available
+    TC_LOG_DEBUG("spells", "SPELL_EFFECT_LEARN_SOULBIND_CONDUIT: Player {}, Conduit {}", unitTarget->ToPlayer()->GetName(), conduitId);
+}
+
+void Spell::EffectLearnGarrTalent()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    // TODO: Implement when GarrTalent DB2 stores are available
+    TC_LOG_DEBUG("spells", "SPELL_EFFECT_LEARN_GARR_TALENT: Player {}, Talent {}", unitTarget->ToPlayer()->GetName(), effectInfo->MiscValue);
 }

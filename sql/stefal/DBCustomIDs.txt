@@ -1,0 +1,23 @@
+-- Try to keep the latest used custom ids here
+
+-- Creatures
+SET @CGUID := 900000;
+Last GUID: @CGUID+3313
+
+-- Gameobjects
+SET @OGUID := 900000;
+Last GUID: @OGUID+227
+
+-- Spawn Pools
+SET @POOLID := 900000;
+Last PoolID: @POOLID+23
+
+-- Reference Loot Templates
+Last Entry: 35
+
+-- BFA
+SET @CGUID := 70000000;
+Last GUID: @CGUID+32948
+
+SET @OGUID := 70000000;
+Last GUID: @OGUID+4525

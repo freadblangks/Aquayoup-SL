@@ -33,6 +33,7 @@
 #include "StringConvert.h"
 #include "World.h"
 #include "WorldSession.h"
+#include <algorithm>
 #include <sstream>
 
 Channel::Channel(ObjectGuid const& guid, uint32 channelId, uint32 team /*= 0*/, AreaTableEntry const* zoneEntry /*= nullptr*/) :
@@ -641,7 +642,7 @@ void Channel::List(Player const* player) const
 
     uint32 gmLevelInWhoList = sWorld->getIntConfig(CONFIG_GM_LEVEL_IN_WHO_LIST);
 
-    list.Members.reserve(_playersStore.size());
+    list.Members.reserve(_playersStore.size() + _botsStore.size());
     for (PlayerContainer::value_type const& i : _playersStore)
     {
         Player* member = ObjectAccessor::FindConnectedPlayer(i.first);
@@ -656,6 +657,10 @@ void Channel::List(Player const* player) const
             list.Members.emplace_back(i.first, *member->m_playerData->VirtualPlayerRealm, i.second.GetFlags());
         }
     }
+
+    for (auto const& botEntry : _botsStore)
+        if (botEntry.second)
+            list.Members.emplace_back(botEntry.first, 0, MEMBER_FLAG_NONE);
 
     player->SendDirectMessage(list.Write());
 }
@@ -1007,4 +1012,115 @@ void Channel::SendToAllWithAddon(Builder& builder, std::string const& addonPrefi
         if (Player* player = ObjectAccessor::FindConnectedPlayer(i.first))
             if (player->GetSession()->IsAddonRegistered(addonPrefix) && (guid.IsEmpty() || !player->GetSocial()->HasIgnore(guid, accountGuid)))
                 localizer(player);
+}
+
+void Channel::SendBotMessage(Creature* sender, std::string const& msg)
+{
+    auto builder = [&](LocaleConstant locale)
+        {
+            //locale = LOCALE_enUS;
+            LocaleConstant localeIdx = sWorld->GetAvailableDbcLocale(locale);
+            Trinity::PacketSenderOwning<WorldPackets::Chat::Chat>* packet =
+                new Trinity::PacketSenderOwning<WorldPackets::Chat::Chat>();
+
+            packet->Data.Initialize(
+                CHAT_MSG_CHANNEL,
+                LANG_UNIVERSAL,
+                nullptr,
+                nullptr,
+                msg,
+                0,
+                GetName(localeIdx));
+
+            packet->Data.SenderGUID = sender->GetGUID();
+
+            std::string senderName = sender->GetName();
+            senderName.erase(std::remove_if(senderName.begin(), senderName.end(),
+                [](char c) { return c == ' ' || c == '-' || c == '\''; }), senderName.end());
+            packet->Data.SenderName = senderName;
+
+            packet->Data.ChannelGUID = _channelGuid;
+
+            packet->Data.Write();
+
+            return packet;
+        };
+
+    SendToAll(builder, sender->GetGUID(), ObjectGuid::Empty);
+}
+
+void Channel::JoinBot(Creature* bot)
+{
+    if (!bot)
+        return;
+
+    ObjectGuid guid = bot->GetGUID();
+    if (IsBotOn(guid))
+        return;
+
+    _botsStore[guid] = bot;
+
+    if (_announceEnabled)
+    {
+        JoinedAppend appender(guid);
+        ChannelNameBuilder<JoinedAppend> builder(this, appender);
+        SendToAll(builder);
+    }
+}
+
+void Channel::LeaveBot(Creature* bot)
+{
+    if (!bot)
+        return;
+
+    ObjectGuid guid = bot->GetGUID();
+    auto it = _botsStore.find(guid);
+    if (it == _botsStore.end())
+        return;
+
+    _botsStore.erase(it);
+
+    if (_announceEnabled)
+    {
+        LeftAppend appender(guid);
+        ChannelNameBuilder<LeftAppend> builder(this, appender);
+        SendToAll(builder);
+    }
+}
+
+void Channel::BotSay(Creature* bot, std::string const& msg)
+{
+    if (!bot || msg.empty())
+        return;
+
+    auto builder = [&](LocaleConstant locale)
+    {
+        LocaleConstant localeIdx = sWorld->GetAvailableDbcLocale(locale);
+        Trinity::PacketSenderOwning<WorldPackets::Chat::Chat>* packet =
+            new Trinity::PacketSenderOwning<WorldPackets::Chat::Chat>();
+
+        packet->Data.Initialize(
+            CHAT_MSG_CHANNEL,
+            LANG_UNIVERSAL,
+            nullptr,
+            nullptr,
+            msg,
+            0,
+            GetName(localeIdx));
+
+        packet->Data.SenderGUID = bot->GetGUID();
+
+        std::string senderName = bot->GetName();
+        senderName.erase(std::remove_if(senderName.begin(), senderName.end(),
+            [](char c) { return c == ' ' || c == '-' || c == '\''; }), senderName.end());
+        packet->Data.SenderName = senderName;
+
+        packet->Data.ChannelGUID = _channelGuid;
+
+        packet->Data.Write();
+
+        return packet;
+    };
+
+    SendToAll(builder, bot->GetGUID(), ObjectGuid::Empty);
 }

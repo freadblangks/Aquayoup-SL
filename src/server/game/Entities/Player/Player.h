@@ -29,6 +29,7 @@
 #include "ItemDefines.h"
 #include "ItemEnchantmentMgr.h"
 #include "MapReference.h"
+#include "Opcodes.h"
 #include "PetDefines.h"
 #include "PlayerTaxi.h"
 #include "QuestDef.h"
@@ -48,6 +49,7 @@ struct BattlegroundTemplate;
 struct BonusData;
 struct CharTitlesEntry;
 struct ChatChannelsEntry;
+struct ChrCustomizationOptionEntry;
 struct ChrSpecializationEntry;
 struct CreatureTemplate;
 struct CurrencyTypesEntry;
@@ -125,6 +127,11 @@ namespace WorldPackets
         struct CustomTabardInfo;
     }
 
+    namespace Misc
+    {
+        struct CTROptionsBlock;
+    }
+
     namespace Movement
     {
         enum class UpdateCollisionHeightReason : uint8;
@@ -134,6 +141,11 @@ namespace WorldPackets
     {
         struct TraitConfig;
         struct TraitEntry;
+    }
+
+    namespace PerksProgram
+    {
+        struct PerksVendorItem;
     }
 
     namespace Transmogrification
@@ -405,6 +417,14 @@ enum ReputationSource
 #define ACTION_BUTTON_ACTION(X) (uint64(X) & 0x00FFFFFFFFFFFFFF)
 #define ACTION_BUTTON_TYPE(X)   ((uint64(X) & 0xFF00000000000000) >> 56)
 #define MAX_ACTION_BUTTON_ACTION_VALUE UI64LIT(0xFFFFFFFFFFFFFF)
+
+// StefalWoW
+enum DragonRidingSpells
+{
+    SPELL_DYNAMIC_FLIGHT = 406095,
+    SPELL_DRAGONRIDER_ENERGY = 372771
+};
+// StefalWoW
 
 struct ActionButton
 {
@@ -847,7 +867,7 @@ enum class ItemSearchLocation
     Inventory       = 0x02,
     Bank            = 0x04,
     ReagentBank     = 0x08,
-    AccountBank     = 0x10, // NYI
+    AccountBank     = 0x10,
 
     Default         = Equipment | Inventory,
     Everywhere      = Equipment | Inventory | Bank | ReagentBank
@@ -1024,6 +1044,17 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_DATA_ELEMENTS,
     PLAYER_LOGIN_QUERY_LOAD_DATA_FLAGS,
     PLAYER_LOGIN_QUERY_LOAD_BANK_TAB_SETTINGS,
+    PLAYER_LOGIN_QUERY_LOAD_PERKS_CURRENCY,
+    PLAYER_LOGIN_QUERY_LOAD_PERKS_PURCHASES,
+    PLAYER_LOGIN_QUERY_LOAD_PERKS_FROZEN,
+    PLAYER_LOGIN_QUERY_LOAD_PERKS_MILESTONES,
+    PLAYER_LOGIN_QUERY_LOAD_ACCOUNT_BANK_TAB_SETTINGS,
+    PLAYER_LOGIN_QUERY_LOAD_ACCOUNT_BANK_ITEMS,
+    PLAYER_LOGIN_QUERY_LOAD_ACCOUNT_BANK_COINAGE,
+    PLAYER_LOGIN_QUERY_LOAD_WARBAND_TAXI_MASK,
+    PLAYER_LOGIN_QUERY_LOAD_WARBAND_MAX_LEVEL_COUNT,
+    PLAYER_LOGIN_QUERY_LOAD_ARENA_STATS,
+
     MAX_PLAYER_LOGIN_QUERY
 };
 
@@ -1360,10 +1391,15 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SetStableMaster(ObjectGuid stableMaster);
 
         Pet* GetPet() const;
-        Pet* SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float y, float z, float ang, uint32 despwtime, bool* isNew = nullptr);
-        void RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent = false);
+        Pet* SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float y, float z, float ang, uint32 despwtime, bool* isNew = nullptr, bool stampeded = false, bool animalCompanion = false, std::function<void(Pet*, bool)> callback = [](Pet*, bool) {});
+        void RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent = false, bool stampeded = false);
         void DeletePetFromDB(uint32 petNumber);
         void SendTameFailure(PetTameResult result);
+
+        //Animal Companion
+        void SetAnimalCompanion(ObjectGuid guid) { petAnimalCompanionGuid = guid; }
+        ObjectGuid GetAnimalCompanion() { return petAnimalCompanionGuid; }
+        ObjectGuid petAnimalCompanionGuid;
 
         // pet auras
         std::unordered_set<PetAura const*> m_petAuras;
@@ -1458,6 +1494,16 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
                                     return false;
             }
 
+            if (flag.HasFlag(ItemSearchLocation::AccountBank))
+            {
+                for (uint8 i = ACCOUNT_BANK_SLOT_BAG_START; i < ACCOUNT_BANK_SLOT_BAG_END; ++i)
+                    if (Bag* bag = GetBagByPos(i))
+                        for (uint32 j = 0; j < GetBagSize(bag); ++j)
+                            if (Item* pItem = GetItemInBag(bag, j))
+                                if (callback(pItem) == ItemSearchCallbackResult::Stop)
+                                    return false;
+            }
+
             return true;
         }
 
@@ -1477,6 +1523,10 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         Item* GetUseableItemByPos(uint8 bag, uint8 slot) const;
         Bag*  GetBagByPos(uint8 slot) const;
         std::vector<Item*> GetCraftingReagentItemsToDeposit();
+        std::vector<Item*> GetWarboundItemsToDeposit();
+        std::vector<Item*> GetItemsForBankAutoDeposit(::BankType bank, bool includeReagents) const;
+        static BagSlotFlags GetItemAutoDepositCategory(Item const* item);
+        int8 PickAutoDepositTab(::BankType bank, Item const* item) const;
         Item* GetWeaponForAttack(WeaponAttackType attackType, bool useable = false) const;
         Item* GetShield(bool useable = false) const;
         Item* GetChildItemByGuid(ObjectGuid guid) const;
@@ -1491,7 +1541,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         static bool IsBankPos(uint8 bag, uint8 slot);
         static bool IsChildEquipmentPos(uint16 pos) { return IsChildEquipmentPos(pos >> 8, pos & 255); }
         static bool IsChildEquipmentPos(uint8 bag, uint8 slot);
-        static bool IsAccountBankPos(uint16 pos) { return IsBankPos(pos >> 8, pos & 255); }
+        static bool IsAccountBankPos(uint16 pos) { return IsAccountBankPos(pos >> 8, pos & 255); }
         static bool IsAccountBankPos(uint8 bag, uint8 slot);
         bool IsValidPos(uint16 pos, bool explicit_pos) const { return IsValidPos(pos >> 8, pos & 255, explicit_pos); }
         bool IsValidPos(uint8 bag, uint8 slot, bool explicit_pos) const;
@@ -1504,6 +1554,9 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SetCharacterBankTabCount(uint8 count) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::NumCharacterBankTabs), count); }
         uint8 GetAccountBankTabCount() const { return m_activePlayerData->NumAccountBankTabs; }
         void SetAccountBankTabCount(uint8 count) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::NumAccountBankTabs), count); }
+        uint64 GetAccountBankCoinage() const { return m_activePlayerData->AccountBankCoinage; }
+        void SetAccountBankCoinage(uint64 coinage) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::AccountBankCoinage), coinage); }
+        void ModifyAccountBankCoinage(int64 delta);
         void SetCharacterBankTabSettings(uint32 tabId, std::string const& name, std::string const& icon, std::string const& description, BagSlotFlags depositFlags)
         {
             auto setter = m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::CharacterBankTabSettings, tabId);
@@ -1558,6 +1611,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         InventoryResult CanUnequipItems(uint32 item, uint32 count) const;
         InventoryResult CanUnequipItem(uint16 src, bool swap) const;
         InventoryResult CanBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, Item* pItem, bool swap, bool not_loading = true, bool reagentBankOnly = false) const;
+        InventoryResult CanAccountBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, Item* pItem, bool swap) const;
         InventoryResult CanUseItem(Item* pItem, bool not_loading = true) const;
         bool HasItemTotemCategory(uint32 TotemCategory) const;
         InventoryResult CanUseItem(ItemTemplate const* pItem, bool skipRequiredLevelCheck = false) const;
@@ -1883,6 +1937,8 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDatabaseTransaction trans, bool create = false);
         void SaveInventoryAndGoldToDB(CharacterDatabaseTransaction trans);                    // fast save function for item/money cheating preventing
 
+        static void RemoveRaceGenderModelCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::LowType guid, uint8 race, uint8 gender);
+        static void RemoveShapehiftRaceCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::LowType guid, uint8 oldRace, uint8 newRace);
         static void SaveCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::LowType guid,
             Trinity::IteratorPair<UF::ChrCustomizationChoice const*> customizations);
         static void SavePositionInDB(WorldLocation const& loc, uint16 zoneId, ObjectGuid guid, CharacterDatabaseTransaction trans);
@@ -1907,6 +1963,26 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         bool HasEnoughMoney(uint64 amount) const { return (GetMoney() >= amount); }
         bool HasEnoughMoney(int64 amount) const{ return (amount < 0) || HasEnoughMoney(uint64(amount)); }
         void SetMoney(uint64 value);
+
+        // Perks Program (Trading Post)
+        struct PerksPurchaseEntry
+        {
+            int32 VendorItemID = 0;
+            uint32 PurchaseTime = 0;
+            uint8 Refundable = 1;
+        };
+
+        int32 GetPerksCurrency() const { return static_cast<int32>(GetCurrencyQuantity(CURRENCY_TRADERS_TENDER)); }
+        int32 GetPerksTotalEarned() const { return _perksTotalEarned; }
+        int32 GetPerksPurchasedCount() const { return _perksPurchasedCount; }
+        int32 GetPerksFrozenVendorItemID() const { return _perksFrozenVendorItemID; }
+        std::vector<PerksPurchaseEntry> const& GetPerksPurchases() const { return _perksPurchases; }
+        bool ModifyPerksCurrency(int32 amount);
+        void AddPerksPurchase(int32 vendorItemID, uint32 purchaseTime);
+        void SetPerksFrozenVendorItem(int32 vendorItemID, WorldPackets::PerksProgram::PerksVendorItem const* itemData = nullptr);
+        void AddPerksMilestone(int32 activityID);
+        bool HasPerksMilestone(int32 activityID) const;
+        std::vector<int32> GetCompletedPerksMilestones() const;
 
         RewardedQuestSet const& getRewardedQuests() const { return m_RewardedQuests; }
         QuestStatusMap& getQuestStatusMap() { return m_QuestStatus; }
@@ -1956,6 +2032,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void PossessSpellInitialize();
         void VehicleSpellInitialize();
         void SendRemoveControlBar() const;
+        void SendPetGuids();
         bool HasSpell(uint32 spell) const override;
         bool HasActiveSpell(uint32 spell) const;            // show in spellbook
         SpellInfo const* GetCastSpellInfo(SpellInfo const* spellInfo, TriggerCastFlags& triggerFlag, GetCastSpellInfoContext* context) const override;
@@ -2056,6 +2133,16 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void ApplyTraitEntryChanges(int32 editedConfigId, WorldPackets::Traits::TraitConfig const& newConfig, bool applyTraits, bool consumeCurrencies);
         void RenameTraitConfig(int32 editedConfigId, std::string&& newName);
         void DeleteTraitConfig(int32 deletedConfigId);
+        void AddMoveImpulse(Position direction);
+        // StefalWoW
+        void InitAdvFlying();
+        void SendAdvFlyingSpeed(OpcodeServer opcode, AdvFlyingRateTypeSingle speedType, std::optional<AdvFlyingRateTypeSingle> maxSpeedType = {});
+        void UpdateDynamicFlight(bool apply = false);
+        bool IsInAlliance() const { return m_team == ALLIANCE; }
+        bool IsInHorde() const { return m_team == HORDE; }
+        void InitAdvancedFly();
+        void ShowNeutralPlayerFactionSelectUI();
+        // StefalWoW
         void ApplyTraitConfig(int32 configId, bool apply);
         void ApplyTraitEntry(int32 traitNodeEntryId, int32 rank, int32 grantedRanks, bool apply);
         void SetActiveCombatTraitConfigID(int32 traitConfigId) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::ActiveCombatTraitConfigID), traitConfigId); }
@@ -2176,6 +2263,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         uint32 GetArenaTeamIdInvited() const { return m_ArenaTeamIdInvited; }
         uint32 GetRBGPersonalRating() const { return GetArenaPersonalRating(3); }
         UF::PVPInfo const* GetPvpInfoForBracket(int8 bracket) const;
+        void ModifyArenaRating(int32 mod, uint8 slot, bool won);
 
         Difficulty GetDifficultyID(MapEntry const* mapEntry) const;
         Difficulty GetDungeonDifficultyID() const { return m_dungeonDifficulty; }
@@ -2248,6 +2336,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void UpdateSpellHitChances();
 
         void UpdateSpellCritChance();
+        void UpdateLeechPercentage();
         void UpdateCorruption();
         void UpdateArmorPenetration(int32 amount);
         void UpdateExpertise(WeaponAttackType attType);
@@ -2419,6 +2508,21 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         static Team TeamForRace(uint8 race);
         static TeamId TeamIdForRace(uint8 race);
         static uint8 GetFactionGroupForRace(uint8 race);
+        // Chromie Time level band (retail 12.0.x, audit R10). Entry requires
+        // ChromieTimeMinLevel <= level < ChromieTimeMaxEntryLevel; scaling runs to 80; at
+        // ChromieTimeDeactivationLevel the state is force-cleared (12.0.1 patch note:
+        // threshold moved 61 -> 71 -> 81). The @68887 ShowPlayerConditionIDs carry no level
+        // clause (each is just "already in that timeline" - ModifierTree criteria type 300),
+        // so the entry ceiling is server policy: 70 per retail-parity P3; wiki's 68 is
+        // unconfirmed. The level-80 soft exit (auto-accepted return quest + capital
+        // auto-exit) is NYI: quest id and trigger mechanism are unmined (audit R10 deferral).
+        static constexpr uint8 ChromieTimeMinLevel = 10;
+        static constexpr uint8 ChromieTimeMaxEntryLevel = 70;
+        static constexpr uint8 ChromieTimeDeactivationLevel = 81;
+        void SetChromieTime(int32 expansionId);
+        void SetChromieTimeConditionalFlags(bool enabled);
+        void SetTimerunningSeasonID(uint32 seasonId);
+        void SendCtrOptions(WorldPackets::Misc::CTROptionsBlock const* previous = nullptr) const;
         Team GetTeam() const { return m_team; }
         TeamId GetTeamId() const { return GetTeamIdForTeam(m_team); }
         void SetFactionForRace(uint8 race);
@@ -2691,6 +2795,10 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void SendBindPointUpdate() const;
         void SendPlayerBound(ObjectGuid const& binderGuid, uint32 areaId) const;
 
+        // Delve UpdateField (DelveData on ActivePlayerData)
+        void SetDelveData(int32 mapId, int32 spellId, uint64 lootHistoryInstanceId = 0, int32 field10 = 0);
+        void ClearDelveData();
+
         // Homebind coordinates
         WorldLocation m_homebind;
         uint16 m_homebindAreaId;
@@ -2740,6 +2848,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void EnablePetControlsOnDismount();
         void UnsummonPetTemporaryIfAny();
         void ResummonPetTemporaryUnSummonedIfAny();
+        void ResummonAnimalCompanionIfAny();
         void UnsummonBattlePetTemporaryIfAny(bool onFlyingMount = false);
         void ResummonBattlePetTemporaryUnSummonedIfAny();
         bool IsPetNeedBeTemporaryUnsummoned() const;
@@ -2883,6 +2992,8 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void DeleteGarrison();
         Garrison* GetGarrison() const { return _garrison.get(); }
 
+        uint8 GetWarbandMaxLevelCharCount() const { return _warbandMaxLevelCharCount; }
+
         bool IsAdvancedCombatLoggingEnabled() const { return _advancedCombatLoggingEnabled; }
         void SetAdvancedCombatLogging(bool enabled) { _advancedCombatLoggingEnabled = enabled; }
 
@@ -2939,7 +3050,6 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
             if (markChanged)
                 m_customizationsChanged = true;
 
-            ClearDynamicUpdateFieldValues(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::Customizations));
             for (auto&& customization : customizations)
             {
                 UF::ChrCustomizationChoice& newChoice = AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::Customizations));
@@ -2947,6 +3057,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
                 newChoice.ChrCustomizationChoiceID = customization.ChrCustomizationChoiceID;
             }
         }
+
         void SetPvpTitle(uint8 pvpTitle) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::PvpTitle), pvpTitle); }
         void SetArenaFaction(uint8 arenaFaction) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::ArenaFaction), arenaFaction); }
         void SetVirtualPlayerRealm(uint32 virtualRealmAddress) { SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData).ModifyValue(&UF::PlayerData::VirtualPlayerRealm), virtualRealmAddress); }
@@ -3146,6 +3257,7 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         bool _LoadHomeBind(PreparedQueryResult result);
         void _LoadDeclinedNames(PreparedQueryResult result);
         void _LoadArenaTeamInfo(PreparedQueryResult result);
+        void _LoadArenaStats(PreparedQueryResult result);
         void _LoadEquipmentSets(PreparedQueryResult result);
         void _LoadTransmogCustomSets(PreparedQueryResult result);
         void _LoadTransmogOutfits(PreparedQueryResult setsResult, PreparedQueryResult situationsResult, PreparedQueryResult slotsResult,
@@ -3157,9 +3269,16 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void _LoadTraits(PreparedQueryResult configsResult, PreparedQueryResult entriesResult);
         void _LoadPetStable(uint32 summonedPetNumber, PreparedQueryResult result);
         void _LoadCurrency(PreparedQueryResult result);
+        void _LoadPerksCurrency(PreparedQueryResult result);
+        void _LoadPerksPurchases(PreparedQueryResult result);
+        void _LoadPerksFrozen(PreparedQueryResult result);
+        void _LoadPerksMilestones(PreparedQueryResult result);
         void _LoadCUFProfiles(PreparedQueryResult result);
         void _LoadPlayerData(PreparedQueryResult elementsResult, PreparedQueryResult flagsResult);
         void _LoadCharacterBankTabSettings(PreparedQueryResult result);
+        void _LoadAccountBankTabSettings(PreparedQueryResult result);
+        void _LoadAccountBankItems(PreparedQueryResult result, uint32 timeDiff);
+        void _LoadAccountBankCoinage(PreparedQueryResult result);
 
         /*********************************************************/
         /***                   SAVE SYSTEM                     ***/
@@ -3187,9 +3306,16 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         void _SaveTraits(CharacterDatabaseTransaction trans);
         void _SaveStats(CharacterDatabaseTransaction trans) const;
         void _SaveCurrency(CharacterDatabaseTransaction trans);
+        void _SavePerksCurrency(CharacterDatabaseTransaction trans);
+        void _SavePerksFrozen(CharacterDatabaseTransaction trans);
+        void _SavePerksMilestones(CharacterDatabaseTransaction trans);
         void _SaveCUFProfiles(CharacterDatabaseTransaction trans);
         void _SavePlayerData(CharacterDatabaseTransaction trans);
         void _SaveCharacterBankTabSettings(CharacterDatabaseTransaction trans) const;
+        void _SaveAccountBankTabSettings(CharacterDatabaseTransaction trans) const;
+        void _SaveAccountBankItems(CharacterDatabaseTransaction trans);
+        void _SaveAccountBankCoinage(CharacterDatabaseTransaction trans) const;
+        void _SaveAccountTaxiMask(CharacterDatabaseTransaction trans) const;
 
         /*********************************************************/
         /***              ENVIRONMENTAL SYSTEM                 ***/
@@ -3221,6 +3347,17 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         uint32 m_currentBuybackSlot;
 
         PlayerCurrenciesMap _currencyStorage;
+
+        // Perks Program (Trading Post)
+        int32 _perksCurrency = 0;
+        int32 _perksTotalEarned = 0;
+        int32 _perksPurchasedCount = 0;
+        int32 _perksFrozenVendorItemID = 0;
+        bool _perksCurrencyDirty = false;
+        bool _perksFrozenDirty = false;
+
+        std::vector<PerksPurchaseEntry> _perksPurchases;
+        std::unordered_set<int32> _completedPerksMilestones;
 
         std::vector<Item*> m_itemUpdateQueue;
         bool m_itemUpdateQueueBlocked;
@@ -3402,6 +3539,8 @@ class TC_GAME_API Player final : public Unit, public GridObject<Player>
         uint32 _activeCheats;
 
         std::unique_ptr<Garrison> _garrison;
+
+        uint8 _warbandMaxLevelCharCount = 0;
 
         bool _advancedCombatLoggingEnabled;
 

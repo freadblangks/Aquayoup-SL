@@ -1853,14 +1853,14 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_divine_purpose);
     RegisterSpellScript(spell_pal_divine_shield);
     RegisterSpellScript(spell_pal_divine_steed);
-    RegisterSpellScript(spell_pal_divine_storm);
+    // RegisterSpellScript(spell_pal_divine_storm); // Script has now override in the custom cpp
     RegisterSpellAndAuraScriptPair(spell_pal_eternal_flame, spell_pal_eternal_flame_aura);
-    RegisterSpellAndAuraScriptPair(spell_pal_execution_sentence, spell_pal_execution_sentence_aura);
+    // RegisterSpellAndAuraScriptPair(spell_pal_execution_sentence, spell_pal_execution_sentence_aura); // Moved to Custom_Paladin_Spell_Fixes.cpp
     RegisterSpellScript(spell_pal_eye_for_an_eye);
     RegisterSpellScript(spell_pal_final_verdict);
     RegisterSpellScript(spell_pal_fist_of_justice);
     RegisterSpellScript(spell_pal_glyph_of_holy_light);
-    RegisterSpellScript(spell_pal_grand_crusader);
+    //RegisterSpellScript(spell_pal_grand_crusader); // replaced by spell_pal_grand_crusader_custom in Custom_Paladin_Spell_Fixes.cpp
     RegisterSpellScript(spell_pal_hammer_of_the_righteous);
     RegisterSpellScript(spell_pal_hand_of_sacrifice);
     RegisterSpellScript(spell_pal_infusion_of_light);
@@ -1868,7 +1868,7 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_judgment);
     RegisterSpellScript(spell_pal_justicars_vengeance);
     RegisterSpellScript(spell_pal_holy_prism);
-    RegisterSpellScript(spell_pal_holy_prism_selector);
+    // RegisterSpellScript(spell_pal_holy_prism_selector); // moved to Custom_Paladin_Spell_Fixes.cpp
     RegisterSpellScript(spell_pal_holy_shock);
     RegisterSpellScript(spell_pal_holy_shock_damage_visual);
     RegisterSpellScript(spell_pal_holy_shock_heal_visual);
@@ -1878,7 +1878,7 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_light_s_beacon);
     RegisterSpellScript(spell_pal_light_hammer_init_summon);
     RegisterSpellScript(spell_pal_light_hammer_periodic);
-    RegisterSpellScript(spell_pal_righteous_protector);
+    // RegisterSpellScript(spell_pal_righteous_protector); // moved to Custom_Paladin_Spell_Fixes.cpp
     RegisterSpellScript(spell_pal_righteous_verdict);
     RegisterSpellScript(spell_pal_selfless_healer);
     RegisterSpellScript(spell_pal_shield_of_the_righteous);

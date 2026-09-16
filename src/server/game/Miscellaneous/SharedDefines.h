@@ -106,6 +106,25 @@ enum Expansions
 
 #define CURRENT_EXPANSION EXPANSION_MIDNIGHT
 
+// Chromie Time wire IDs are UIChromieTimeExpansionInfo.ID (DB2 record IDs), NOT the
+// Expansions enum above. Confirmed via 12.0.5 client sniff: Pandaria=8, Legion=10, etc.
+// Use sUIChromieTimeExpansionInfoStore.LookupEntry(id) to validate; the only special
+// value handled at code level is "clear / return to present" = 0.
+
+enum TimerunningSeasons : uint32
+{
+    TIMERUNNING_SEASON_NONE = 0,
+    TIMERUNNING_SEASON_PANDARIA = 1,
+    TIMERUNNING_SEASON_LEGION = 2
+};
+
+// Client Constants.TimerunningConsts (build 68275): "CTR" values interpreted as the
+// ContentTuning record IDs tagging timerunning-only items (ItemSparse.ContentTuningID).
+// Interpretation is fail-safe: if wrong, no item template carries these tunings and
+// conversion simply removes nothing.
+constexpr uint32 CONTENT_TUNING_ID_TIMERUNNING_ITEM = 2905; // TIMERUNNING_ITEM_CTR
+constexpr uint32 CONTENT_TUNING_ID_TIMERUNNING_LEGION_ARTIFACT = 4579; // TIMERUNNING_LEGION_ARTIFACT_CTR
+
 constexpr uint32 GetMaxLevelForExpansion(uint32 expansion)
 {
     switch (expansion)
@@ -922,7 +941,7 @@ enum SpellAttr13 : uint32
     SPELL_ATTR13_UNK5                            = 0x00000020, // TITLE Unknown attribute 5@Attr13
     SPELL_ATTR13_UNK6                            = 0x00000040, // TITLE Unknown attribute 6@Attr13
     SPELL_ATTR13_UNK7                            = 0x00000080, // TITLE Unknown attribute 7@Attr13
-    SPELL_ATTR13_UNK8                            = 0x00000100, // TITLE Unknown attribute 8@Attr13
+    SPELL_ATTR13_CANNOT_LIFESTEAL_LEECH          = 0x00000100, // TITLE Cannot Lifesteal/Leech
     SPELL_ATTR13_UNK9                            = 0x00000200, // TITLE Unknown attribute 9@Attr13
     SPELL_ATTR13_UNK10                           = 0x00000400, // TITLE Unknown attribute 10@Attr13
     SPELL_ATTR13_UNK11                           = 0x00000800, // TITLE Unknown attribute 11@Attr13
@@ -6948,7 +6967,7 @@ enum BattlegroundTypeId : uint32
     BATTLEGROUND_SS_VS_TM       = 789,      // Southshore vs. Tarren Mill
     BATTLEGROUND_SMALL_D        = 803,      // Small Battleground D
     BATTLEGROUND_BRH            = 808,      // Black Rook Hold Arena
-    // 809 = "New Nagrand Arena (Legion)"
+    BATTLEGROUND_NNA            = 809,      // 809 = "New Nagrand Arena (Legion)"
     BATTLEGROUND_AF             = 816,      // Ashamane's Fall
     // 844 = "New Blade's Edge Arena (Legion)"
     BATTLEGROUND_BRAWL_TBG      = 846,      // Brawl - The Battle for Gilneas (Old City Map)
@@ -7015,6 +7034,8 @@ enum BattlegroundTypeId : uint32
     BATTLEGROUND_DOM_DG         = 1037,     // Domination - Deepwind Gorge
     BATTLEGROUND_DOM_DG2        = 1039,     // Domination - Deepwind Gorge
     BATTLEGROUND_ED             = 1041,     // Empyrean Domain
+    BATTLEGROUND_MC3            = 1066,     // Maldraxxus Coliseum
+    BATTLEGROUND_CC3            = 1117,     // Cage of Carnage
 };
 
 #define MAX_BATTLEGROUND_TYPE_ID 845

@@ -58,7 +58,8 @@ LFGDungeonData::LFGDungeonData(LFGDungeonsEntry const* dbc) : id(dbc->ID), name(
 }
 
 LFGMgr::LFGMgr() : m_QueueTimer(0), m_lfgProposalId(1),
-    m_options(sWorld->getIntConfig(CONFIG_LFG_OPTIONSMASK))
+    m_options(sWorld->getIntConfig(CONFIG_LFG_OPTIONSMASK)),
+    m_isSoloLFG(false)
 {
 }
 
@@ -200,7 +201,7 @@ void LFGMgr::LoadLFGDungeons()
         if (!dungeon)
             continue;
 
-        if (!sDB2Manager.GetMapDifficultyData(dungeon->MapID, Difficulty(dungeon->DifficultyID)))
+        if (dungeon->TypeID != LFG_TYPE_RANDOM && !sDB2Manager.GetMapDifficultyData(dungeon->MapID, Difficulty(dungeon->DifficultyID)))
             continue;
 
         switch (dungeon->TypeID)
@@ -1079,7 +1080,7 @@ void LFGMgr::UpdateProposal(uint32 proposalId, ObjectGuid guid, bool accept)
         if (itPlayers->second.accept != LFG_ANSWER_AGREE)   // No answer (-1) or not accepted (0)
             allAnswered = false;
 
-    if (!allAnswered)
+    if (!sLFGMgr->IsSoloLFG() && !allAnswered)
     {
         for (LfgProposalPlayerContainer::const_iterator it = proposal.players.begin(); it != proposal.players.end(); ++it)
             SendLfgUpdateProposal(it->first, proposal);
@@ -1753,23 +1754,38 @@ LfgLockMap LFGMgr::GetLockedDungeons(ObjectGuid guid)
                 return LFG_LOCKSTATUS_RAID_LOCKED;
             if (dungeon->expansion > expansion)
                 return LFG_LOCKSTATUS_INSUFFICIENT_EXPANSION;
-            if (DisableMgr::IsDisabledFor(DISABLE_TYPE_MAP, dungeon->map, player))
-                return LFG_LOCKSTATUS_NOT_IN_SEASON;
-            if (DisableMgr::IsDisabledFor(DISABLE_TYPE_LFG_MAP, dungeon->map, player))
-                return LFG_LOCKSTATUS_RAID_LOCKED;
-            if (sInstanceLockMgr.FindActiveInstanceLock(guid, { dungeon->map, Difficulty(dungeon->difficulty) }))
-                return LFG_LOCKSTATUS_RAID_LOCKED;
-            if (Optional<ContentTuningLevels> levels = sDB2Manager.GetContentTuningData(dungeon->contentTuningId, player->m_playerData->CtrOptions->ConditionalFlags))
+            if (dungeon->map != uint32(-1))
             {
-                if (levels->MinLevel > level)
-                    return LFG_LOCKSTATUS_TOO_LOW_LEVEL;
-                if (levels->MaxLevel < level)
-                    return LFG_LOCKSTATUS_TOO_HIGH_LEVEL;
+                if (DisableMgr::IsDisabledFor(DISABLE_TYPE_MAP, dungeon->map, player))
+                    return LFG_LOCKSTATUS_NOT_IN_SEASON;
+                if (DisableMgr::IsDisabledFor(DISABLE_TYPE_LFG_MAP, dungeon->map, player))
+                    return LFG_LOCKSTATUS_RAID_LOCKED;
+                if (sInstanceLockMgr.FindActiveInstanceLock(guid, { dungeon->map, Difficulty(dungeon->difficulty) }))
+                    return LFG_LOCKSTATUS_RAID_LOCKED;
+            }
+            // Chromie Time timeline filter (retail parity P11): while chromie time is
+            // active the finder only offers dungeons of eras inside the timeline's
+            // ExpansionMask (bits are Expansions enum bits; e.g. Cata mask 0x9 includes
+            // Classic - wago UiChromieTimeExpansionInfo @68887). The exact retail lock
+            // status for this filter is unmined (audit R11 partial deferral).
+            if (uint32 chromieTimeExpansionMask = uint32(player->m_playerData->CtrOptions->ChromieTimeExpansionMask))
+                if (!(chromieTimeExpansionMask & (1u << dungeon->expansion)))
+                    return LFG_LOCKSTATUS_HAS_RESTRICTION;
+            if (!sWorld->getBoolConfig(CONFIG_LFG_IGNORE_LEVEL_REQUIREMENT))
+            {
+                if (Optional<ContentTuningLevels> levels = sDB2Manager.GetContentTuningData(dungeon->contentTuningId, player->m_playerData->CtrOptions->ConditionalFlags))
+                {
+                    if (levels->MinLevel > level)
+                        return LFG_LOCKSTATUS_TOO_LOW_LEVEL;
+                    if (levels->MaxLevel < level)
+                        return LFG_LOCKSTATUS_TOO_HIGH_LEVEL;
+                }
             }
             if (dungeon->seasonal && !IsSeasonActive(dungeon->id))
                 return LFG_LOCKSTATUS_NOT_IN_SEASON;
-            if (dungeon->requiredItemLevel > player->GetAverageItemLevel())
-                return LFG_LOCKSTATUS_TOO_LOW_GEAR_SCORE;
+            if (!sWorld->getBoolConfig(CONFIG_LFG_IGNORE_ITEM_LEVEL_REQUIREMENT))
+                if (dungeon->requiredItemLevel > player->GetAverageItemLevel())
+                    return LFG_LOCKSTATUS_TOO_LOW_GEAR_SCORE;
             if (AccessRequirement const* ar = sObjectMgr->GetAccessRequirement(dungeon->map, Difficulty(dungeon->difficulty)))
             {
                 if (ar->achievement && !player->HasAchieved(ar->achievement))
@@ -2200,7 +2216,7 @@ uint32 LFGMgr::GetLFGDungeonEntry(uint32 id)
     return 0;
 }
 
-LfgDungeonSet LFGMgr::GetRandomAndSeasonalDungeons(uint8 level, uint8 expansion, std::span<uint32 const> contentTuningReplacementConditionMask)
+LfgDungeonSet LFGMgr::GetRandomAndSeasonalDungeons(uint8 level, uint8 expansion, std::span<uint32 const> contentTuningReplacementConditionMask, uint32 chromieTimeExpansionMask /*= 0*/)
 {
     LfgDungeonSet randomDungeons;
     for (lfg::LFGDungeonContainer::const_iterator itr = LfgDungeonStore.begin(); itr != LfgDungeonStore.end(); ++itr)
@@ -2212,6 +2228,11 @@ LfgDungeonSet LFGMgr::GetRandomAndSeasonalDungeons(uint8 level, uint8 expansion,
         if (dungeon.expansion > expansion)
             continue;
 
+        // Chromie Time timeline filter (retail parity P11): only offer random/seasonal
+        // entries of eras inside the active timeline's ExpansionMask (audit R11).
+        if (chromieTimeExpansionMask && !(chromieTimeExpansionMask & (1u << dungeon.expansion)))
+            continue;
+
         if (Optional<ContentTuningLevels> levels = sDB2Manager.GetContentTuningData(dungeon.contentTuningId, contentTuningReplacementConditionMask))
             if (levels->MinLevel > level || level > levels->MaxLevel)
                 continue;
@@ -2219,6 +2240,11 @@ LfgDungeonSet LFGMgr::GetRandomAndSeasonalDungeons(uint8 level, uint8 expansion,
         randomDungeons.insert(dungeon.Entry());
     }
     return randomDungeons;
+}
+
+void LFGMgr::ToggleSoloLFG()
+{
+    m_isSoloLFG = !m_isSoloLFG;
 }
 
 } // namespace lfg

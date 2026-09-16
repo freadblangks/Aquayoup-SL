@@ -2007,6 +2007,11 @@ void ScriptMgr::OnPlayerKilledByCreature(Creature* killer, Player* killed)
     FOREACH_SCRIPT(PlayerScript)->OnPlayerKilledByCreature(killer, killed);
 }
 
+void ScriptMgr::OnPlayerDeath(Player* player)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnPlayerDeath(player);
+}
+
 void ScriptMgr::OnPlayerLevelChanged(Player* player, uint8 oldLevel)
 {
     FOREACH_SCRIPT(PlayerScript)->OnLevelChanged(player, oldLevel);
@@ -2135,6 +2140,11 @@ void ScriptMgr::OnPlayerBindToInstance(Player* player, Difficulty difficulty, ui
 void ScriptMgr::OnPlayerUpdateZone(Player* player, uint32 newZone, uint32 newArea)
 {
     FOREACH_SCRIPT(PlayerScript)->OnUpdateZone(player, newZone, newArea);
+}
+
+void ScriptMgr::OnPhaseChange(Player* player)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnPhaseChange(player);
 }
 
 void ScriptMgr::OnQuestStatusChange(Player* player, uint32 questId)
@@ -2906,6 +2916,10 @@ void PlayerScript::OnPlayerKilledByCreature(Creature* /*killer*/, Player* /*kill
 {
 }
 
+void PlayerScript::OnPlayerDeath(Player* /*player*/)
+{
+}
+
 void PlayerScript::OnLevelChanged(Player* /*player*/, uint8 /*oldLevel*/)
 {
 }
@@ -3007,6 +3021,10 @@ void PlayerScript::OnBindToInstance(Player* /*player*/, Difficulty /*difficulty*
 }
 
 void PlayerScript::OnUpdateZone(Player* /*player*/, uint32 /*newZone*/, uint32 /*newArea*/)
+{
+}
+
+void PlayerScript::OnPhaseChange(Player* /*player*/)
 {
 }
 

@@ -198,6 +198,10 @@ enum WorldBoolConfigs : uint32
     CONFIG_BATTLEGROUNDMAP_LOAD_GRIDS,
     CONFIG_ENABLE_AE_LOOT,
     CONFIG_LOAD_LOCALES,
+    CONFIG_LOG_UNHANDLED_OPCODES,
+    CONFIG_WEEKLY_REWARD_CHESTS_ENABLED,
+    CONFIG_LFG_IGNORE_LEVEL_REQUIREMENT,
+    CONFIG_LFG_IGNORE_ITEM_LEVEL_REQUIREMENT,
     BOOL_CONFIG_VALUE_COUNT
 };
 
@@ -432,6 +436,10 @@ enum WorldIntConfigs : uint32
     CONFIG_VISIBILITY_NOTIFY_PERIOD_INSTANCE,
     CONFIG_VISIBILITY_NOTIFY_PERIOD_BATTLEGROUND,
     CONFIG_VISIBILITY_NOTIFY_PERIOD_ARENA,
+    CONFIG_MYTHIC_PLUS_DISPLAY_SEASON_ID,
+    CONFIG_MYTHIC_PLUS_MILESTONE_SEASON_ID,
+    CONFIG_PVP_SEASON_ID,
+    CONFIG_PLAYER_EXTENDED_BACKPACK_SLOTS,
     INT_CONFIG_VALUE_COUNT
 };
 
@@ -766,6 +774,7 @@ class TC_GAME_API World
         void UpdateAreaDependentAuras();
 
         bool IsBattlePetJournalLockAcquired(ObjectGuid battlenetAccountGuid);
+        bool IsAccountInventoryLockAcquired(ObjectGuid battlenetAccountGuid, WorldSession const* exclude = nullptr);
 
         uint32 GetCleaningFlags() const { return m_CleaningFlags; }
         void SetCleaningFlags(uint32 flags) { m_CleaningFlags = flags; }

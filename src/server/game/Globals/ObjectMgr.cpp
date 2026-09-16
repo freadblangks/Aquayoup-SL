@@ -221,6 +221,7 @@ bool SpellClickInfo::IsFitToRequirements(Unit const* clicker, Unit const* clicke
 ObjectMgr::ObjectMgr():
     _auctionId(1),
     _equipmentSetGuid(1),
+    _warbandGroupId(1),
     _mailId(1),
     _hiPetNumber(1),
     _creatureSpawnId(1),
@@ -3385,7 +3386,7 @@ void ObjectMgr::LoadItemTemplateAddon()
     uint32 oldMSTime = getMSTime();
     uint32 count = 0;
 
-    QueryResult result = WorldDatabase.Query("SELECT Id, FlagsCu, FoodType, MinMoneyLoot, MaxMoneyLoot, SpellPPMChance, RandomBonusListTemplateId, QuestLogItemId FROM item_template_addon");
+    QueryResult result = WorldDatabase.Query("SELECT Id, FlagsCu, FoodType, MinMoneyLoot, MaxMoneyLoot, ScrappingLootId, SpellPPMChance, RandomBonusListTemplateId, QuestLogItemId FROM item_template_addon");
     if (result)
     {
         do
@@ -3410,9 +3411,10 @@ void ObjectMgr::LoadItemTemplateAddon()
             itemTemplate->FoodType = fields[2].GetUInt8();
             itemTemplate->MinMoneyLoot = minMoneyLoot;
             itemTemplate->MaxMoneyLoot = maxMoneyLoot;
-            itemTemplate->SpellPPMRate = fields[5].GetFloat();
-            itemTemplate->RandomBonusListTemplateId = fields[6].GetUInt32();
-            itemTemplate->QuestLogItemId = fields[7].GetInt32();
+            itemTemplate->ScrappingLootId = fields[5].GetUInt32();
+            itemTemplate->SpellPPMRate = fields[6].GetFloat();
+            itemTemplate->RandomBonusListTemplateId = fields[7].GetUInt32();
+            itemTemplate->QuestLogItemId = fields[8].GetInt32();
             ++count;
         } while (result->NextRow());
     }
@@ -7334,6 +7336,10 @@ void ObjectMgr::SetHighestGuids()
     if (result)
         _mailId = (*result)[0].GetUInt64()+1;
 
+    result = CharacterDatabase.Query("SELECT MAX(groupId) FROM character_warband_groups");
+    if (result)
+        _warbandGroupId = (*result)[0].GetUInt64() + 1;
+
     result = CharacterDatabase.Query("SELECT MAX(arenateamid) FROM arena_team");
     if (result)
         sArenaTeamMgr->SetNextArenaTeamId((*result)[0].GetUInt32()+1);
@@ -7392,6 +7398,16 @@ uint64 ObjectMgr::GenerateMailID()
         World::StopNow(ERROR_EXIT_CODE);
     }
     return _mailId++;
+}
+
+uint64 ObjectMgr::GenerateWarbandGroupId()
+{
+    if (_warbandGroupId >= UI64LIT(0xFFFFFFFFFFFFFFFE))
+    {
+        TC_LOG_ERROR("misc", "Warband group id overflow!! Can't continue, shutting down server.");
+        World::StopNow(ERROR_EXIT_CODE);
+    }
+    return _warbandGroupId++;
 }
 
 uint32 ObjectMgr::GeneratePetNumber()
@@ -12031,3 +12047,21 @@ std::string ObjectMgr::GetPhaseName(uint32 phaseId) const
     PhaseNameContainer::const_iterator iter = _phaseNameStore.find(phaseId);
     return iter != _phaseNameStore.end() ? iter->second : "Unknown Name";
 }
+
+ItemScrappingLoot const* ObjectMgr::GetItemScrappingLoot(Item* item) const
+{
+    if (!item)
+        return nullptr;
+
+    uint32 lootId = item->GetTemplate()->ScrappingLootId;
+    if (!lootId)
+        return nullptr;
+
+    for (auto const& entry : _itemScrappingLootStore)
+        if (entry.Id == lootId)
+            return &entry;
+
+    return nullptr;
+}
+
+

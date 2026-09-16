@@ -40,6 +40,7 @@
 #include "Chat.h"
 #include "ChatCommand.h"
 #include "ChatPackets.h"
+#include "ClubFinderMgr.h"
 #include "Config.h"
 #include "Containers.h"
 #include "ConversationDataStore.h"
@@ -78,6 +79,7 @@
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvPMgr.h"
+#include "PerksProgramMgr.h"
 #include "PetitionMgr.h"
 #include "Player.h"
 #include "PlayerDump.h"
@@ -621,6 +623,8 @@ void World::LoadConfigSettings(bool reload)
         { .Name = "AllFlightPaths"sv, .DefaultValue = false, .Index = CONFIG_ALL_TAXI_PATHS },
         { .Name = "InstantFlightPaths"sv, .DefaultValue = false, .Index = CONFIG_INSTANT_TAXI },
         { .Name = "Instance.IgnoreLevel"sv, .DefaultValue = false, .Index = CONFIG_INSTANCE_IGNORE_LEVEL },
+        { .Name = "DungeonFinder.IgnoreLevelRequirement"sv, .DefaultValue = false, .Index = CONFIG_LFG_IGNORE_LEVEL_REQUIREMENT },
+        { .Name = "DungeonFinder.IgnoreItemLevelRequirement"sv, .DefaultValue = false, .Index = CONFIG_LFG_IGNORE_ITEM_LEVEL_REQUIREMENT },
         { .Name = "Instance.IgnoreRaid"sv, .DefaultValue = false, .Index = CONFIG_INSTANCE_IGNORE_RAID },
         { .Name = "CastUnstuck"sv, .DefaultValue = true, .Index = CONFIG_CAST_UNSTUCK },
         { .Name = "GM.AllowInvite"sv, .DefaultValue = false, .Index = CONFIG_ALLOW_GM_GROUP },
@@ -649,6 +653,7 @@ void World::LoadConfigSettings(bool reload)
         { .Name = "Battleground.GiveXPForKills"sv, .DefaultValue = false, .Index = CONFIG_BG_XP_FOR_KILL },
         { .Name = "Arena.QueueAnnouncer.Enable"sv, .DefaultValue = false, .Index = CONFIG_ARENA_QUEUE_ANNOUNCER_ENABLE },
         { .Name = "Arena.ArenaSeason.InProgress"sv, .DefaultValue = false, .Index = CONFIG_ARENA_SEASON_IN_PROGRESS },
+        { .Name = "Season.WeeklyRewardChestsEnabled"sv, .DefaultValue = true, .Index = CONFIG_WEEKLY_REWARD_CHESTS_ENABLED },
         { .Name = "ArenaLog.ExtendedInfo"sv, .DefaultValue = false, .Index = CONFIG_ARENA_LOG_EXTENDED_INFO },
         { .Name = "OffhandCheckAtSpellUnlearn"sv, .DefaultValue = true, .Index = CONFIG_OFFHAND_CHECK_AT_SPELL_UNLEARN },
         { .Name = "Respawn.DynamicEscortNPC"sv, .DefaultValue = false, .Index = CONFIG_RESPAWN_DYNAMIC_ESCORTNPC },
@@ -692,6 +697,7 @@ void World::LoadConfigSettings(bool reload)
         { .Name = "AllowLoggingIPAddressesInDatabase"sv, .DefaultValue = true, .Index = CONFIG_ALLOW_LOGGING_IP_ADDRESSES_IN_DATABASE },
         { .Name = "Loot.EnableAELoot"sv, .DefaultValue = true, .Index = CONFIG_ENABLE_AE_LOOT },
         { .Name = "Load.Locales"sv, .DefaultValue = true, .Index = CONFIG_LOAD_LOCALES },
+        { .Name = "LogUnhandledOpcodes"sv, .DefaultValue = true, .Index = CONFIG_LOG_UNHANDLED_OPCODES },
     } };
 
     static constexpr ConfigOptionLoadDefinitionArray<uint32, INT_CONFIG_VALUE_COUNT> ints =
@@ -825,6 +831,9 @@ void World::LoadConfigSettings(bool reload)
         { .Name = "Arena.RatingDiscardTimer"sv, .DefaultValue = 10 * MINUTE * IN_MILLISECONDS, .Index = CONFIG_ARENA_RATING_DISCARD_TIMER },
         { .Name = "Arena.RatedUpdateTimer"sv, .DefaultValue = 5 * IN_MILLISECONDS, .Index = CONFIG_ARENA_RATED_UPDATE_TIMER },
         { .Name = "Arena.ArenaSeason.ID"sv, .DefaultValue = 32, .Index = CONFIG_ARENA_SEASON_ID },
+        { .Name = "Season.MythicPlusDisplaySeasonID"sv, .DefaultValue = 34, .Index = CONFIG_MYTHIC_PLUS_DISPLAY_SEASON_ID },
+        { .Name = "Season.MythicPlusMilestoneSeasonID"sv, .DefaultValue = 117, .Index = CONFIG_MYTHIC_PLUS_MILESTONE_SEASON_ID },
+        { .Name = "Season.PvpSeasonID"sv, .DefaultValue = 39, .Index = CONFIG_PVP_SEASON_ID },
         { .Name = "Arena.ArenaStartRating"sv, .DefaultValue = 0, .Index = CONFIG_ARENA_START_RATING },
         { .Name = "Arena.ArenaStartPersonalRating"sv, .DefaultValue = 1000, .Index = CONFIG_ARENA_START_PERSONAL_RATING },
         { .Name = "Arena.ArenaStartMatchmakerRating"sv, .DefaultValue = 1500, .Index = CONFIG_ARENA_START_MATCHMAKER_RATING },
@@ -894,6 +903,7 @@ void World::LoadConfigSettings(bool reload)
         { .Name = "BlackMarket.MaxAuctions"sv, .DefaultValue = 12, .Index = CONFIG_BLACKMARKET_MAXAUCTIONS },
         { .Name = "BlackMarket.UpdatePeriod"sv, .DefaultValue = 24, .Index = CONFIG_BLACKMARKET_UPDATE_PERIOD },
         { .Name = "Pvp.FactionBalance.LevelCheckDiff"sv, .DefaultValue = 0, .Index = CONFIG_FACTION_BALANCE_LEVEL_CHECK_DIFF },
+        { .Name = "Player.Extended.BackPackSlots"sv, .DefaultValue = 0, .Index = CONFIG_PLAYER_EXTENDED_BACKPACK_SLOTS },
     } };
 
     static constexpr ConfigOptionLoadDefinitionArray<uint64, INT64_CONFIG_VALUE_COUNT> int64s =
@@ -1795,11 +1805,27 @@ bool World::SetInitialWorldSettings()
         sBlackMarketMgr->LoadAuctions();
     }
 
+    TC_LOG_INFO("server.loading", "Loading Perks Program vendor items...");
+    sPerksProgramMgr->LoadVendorItems();
+
+    TC_LOG_INFO("server.loading", "Loading Perks Program monthly rotation...");
+    sPerksProgramMgr->LoadMonthlyRotation();
+
+    TC_LOG_INFO("server.loading", "Loading Perks Program activity intervals...");
+    sPerksProgramMgr->LoadActivityIntervals();
+    sPerksProgramMgr->BuildCriteriaTreeMap();
+
+    TC_LOG_INFO("server.loading", "Loading Perks Program current activities...");
+    sPerksProgramMgr->LoadCurrentActivities();
+
     TC_LOG_INFO("server.loading", "Loading Guild rewards...");
     sGuildMgr->LoadGuildRewards();
 
     TC_LOG_INFO("server.loading", "Loading Guilds...");
     sGuildMgr->LoadGuilds();
+
+    TC_LOG_INFO("server.loading", "Loading Club Finder data...");
+    sClubFinderMgr->LoadFromDB();
 
     TC_LOG_INFO("server.loading", "Loading ArenaTeams...");
     sArenaTeamMgr->LoadArenaTeams();
@@ -3376,6 +3402,22 @@ bool World::IsBattlePetJournalLockAcquired(ObjectGuid battlenetAccountGuid)
     for (auto&& sessionForBnet : Trinity::Containers::MapEqualRange(m_sessionsByBnetGuid, battlenetAccountGuid))
         if (sessionForBnet.second->GetBattlePetMgr()->HasJournalLock())
             return true;
+
+    return false;
+}
+
+bool World::IsAccountInventoryLockAcquired(ObjectGuid battlenetAccountGuid, WorldSession const* exclude)
+{
+    for (auto&& sessionForBnet : Trinity::Containers::MapEqualRange(m_sessionsByBnetGuid, battlenetAccountGuid))
+    {
+        WorldSession const* session = sessionForBnet.second;
+        if (session == exclude)
+            continue;
+
+        Player const* other = session->GetPlayer();
+        if (other && other->HasPlayerLocalFlag(PLAYER_LOCAL_FLAG_HAS_ACCOUNT_BANK_LOCK))
+            return true;
+    }
 
     return false;
 }

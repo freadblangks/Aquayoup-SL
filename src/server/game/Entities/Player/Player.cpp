@@ -101,6 +101,7 @@
 #include "Pet.h"
 #include "PetPackets.h"
 #include "PoolMgr.h"
+#include "PerksProgramMgr.h"
 #include "PetitionMgr.h"
 #include "PhasingHandler.h"
 #include "PlayerChoice.h"
@@ -1646,6 +1647,19 @@ void Player::Regenerate(Powers power)
     int32 curValue = GetPower(power);
     float addvalue = GetPowerRegen(power) * 0.001f * m_regenTimer;
 
+    // Vigor regen scales with forward velocity during advanced flying
+    if (power == POWER_ALTERNATE_MOUNT && m_movementInfo.HasMovementFlag(MOVEMENTFLAG_ADV_FLYING) && m_movementInfo.advFlying)
+    {
+        if (FlightCapabilityEntry const* flightCapability = sFlightCapabilityStore.LookupEntry(GetFlightCapabilityID()))
+        {
+            if (flightCapability->VigorRegenMaxVelCoefficient > 0.0f && flightCapability->MaxVel > 0.0f)
+            {
+                float velocityPct = std::min(m_movementInfo.advFlying->forwardVelocity / flightCapability->MaxVel, 1.0f);
+                addvalue *= 1.0f + velocityPct * flightCapability->VigorRegenMaxVelCoefficient;
+            }
+        }
+    }
+
     int32 minPower = powerType->MinPower;
     int32 maxPower = GetMaxPower(power);
 
@@ -2292,6 +2306,19 @@ void Player::GiveLevel(uint8 level)
         UpdateCriteria(CriteriaType::GainLevels, level - oldLevel);
     if (IsMaxLevel())
         UpdateCriteria(CriteriaType::ReachMaxLevel);
+
+    // Retail 12.0.x hard-exits Chromie Time at the deactivation level (81): the state is
+    // force-cleared and the player is returned to their faction capital (audit R10/M7;
+    // 12.0.1 patch note moved the threshold 61 -> 71 -> 81). The level-80 soft exit
+    // (auto-accepted return quest + capital auto-exit) is NYI - data unmined, see Player.h.
+    if (level >= ChromieTimeDeactivationLevel && m_activePlayerData->UiChromieTimeExpansionID != 0)
+    {
+        SetChromieTime(0);
+        if (GetTeam() == ALLIANCE)
+            TeleportTo(0, -8833.38f, 628.628f, 94.0066f, 1.06535f); // Stormwind
+        else
+            TeleportTo(1, 1569.97f, -4397.41f, 16.0472f, 0.543025f); // Orgrimmar
+    }
 
     PushQuests();
 
@@ -4176,6 +4203,10 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
             stmt->setUInt64(0, guid);
             trans->Append(stmt);
 
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_WARBAND_MEMBER_BY_GUID);
+            stmt->setUInt64(0, guid);
+            trans->Append(stmt);
+
             sCharacterCache->DeleteCharacterCacheEntry(playerguid, name);
             break;
         }
@@ -5329,7 +5360,9 @@ void Player::UpdateRating(CombatRating cr)
         case CR_SPEED:
         case CR_RESILIENCE_PLAYER_DAMAGE:
         case CR_RESILIENCE_CRIT_TAKEN:
+            break;
         case CR_LIFESTEAL:
+            UpdateLeechPercentage();
             break;
         case CR_HASTE_MELEE:
         case CR_HASTE_RANGED:
@@ -6982,6 +7015,201 @@ void Player::_SaveCurrency(CharacterDatabaseTransaction trans)
 
         itr->second.state = PLAYERCURRENCY_UNCHANGED;
     }
+}
+
+// ----------------------------------------------------------------
+//  Perks Program (Trading Post) - Load / Save / Modify
+// ----------------------------------------------------------------
+
+void Player::_LoadPerksCurrency(PreparedQueryResult result)
+{
+    if (result)
+    {
+        Field* fields = result->Fetch();
+        // currency field (index 0) is now ignored - we read from CurrencyID 2032 instead
+        _perksTotalEarned = fields[1].GetInt32();
+        _perksPurchasedCount = fields[2].GetInt32();
+    }
+
+    // Always sync PerksProgramCurrency updatefield from the real currency system (loaded by _LoadCurrency before this)
+    int32 realCurrency = static_cast<int32>(GetCurrencyQuantity(CURRENCY_TRADERS_TENDER));
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PerksProgramCurrency), realCurrency);
+
+    TC_LOG_DEBUG("network", "_LoadPerksCurrency: currency={} (from CurrencyID 2032), totalEarned={}, purchasedCount={}", realCurrency, _perksTotalEarned, _perksPurchasedCount);
+}
+
+void Player::_LoadPerksPurchases(PreparedQueryResult result)
+{
+    _perksPurchases.clear();
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+
+        PerksPurchaseEntry entry;
+        entry.VendorItemID = fields[0].GetInt32();
+        entry.PurchaseTime = fields[1].GetUInt32();
+        entry.Refundable = fields[2].GetUInt8();
+
+        _perksPurchases.push_back(entry);
+    } while (result->NextRow());
+}
+
+void Player::_LoadPerksFrozen(PreparedQueryResult result)
+{
+    _perksFrozenVendorItemID = 0;
+    if (!result)
+        return;
+
+    _perksFrozenVendorItemID = result->Fetch()[0].GetInt32();
+
+    // Set FrozenPerksVendorItem UpdateField with full item data from the manager
+    if (_perksFrozenVendorItemID != 0)
+    {
+        if (PerksProgramVendorItemData const* itemData = sPerksProgramMgr->GetVendorItem(_perksFrozenVendorItemID))
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::FrozenPerksVendorItem), itemData->PacketData);
+    }
+}
+
+void Player::_SavePerksCurrency(CharacterDatabaseTransaction trans)
+{
+    if (!_perksCurrencyDirty)
+        return;
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_PERKS_CURRENCY);
+    stmt->setUInt64(0, GetGUID().GetCounter());
+    stmt->setInt32(1, _perksCurrency);
+    stmt->setInt32(2, _perksTotalEarned);
+    stmt->setInt32(3, _perksPurchasedCount);
+    trans->Append(stmt);
+
+    _perksCurrencyDirty = false;
+}
+
+void Player::_SavePerksFrozen(CharacterDatabaseTransaction trans)
+{
+    if (!_perksFrozenDirty)
+        return;
+
+    if (_perksFrozenVendorItemID != 0)
+    {
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_PERKS_FROZEN);
+        stmt->setUInt64(0, GetGUID().GetCounter());
+        stmt->setInt32(1, _perksFrozenVendorItemID);
+        trans->Append(stmt);
+    }
+    else
+    {
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_PERKS_FROZEN);
+        stmt->setUInt64(0, GetGUID().GetCounter());
+        trans->Append(stmt);
+    }
+
+    _perksFrozenDirty = false;
+}
+
+bool Player::ModifyPerksCurrency(int32 amount)
+{
+    int32 currentAmount = static_cast<int32>(GetCurrencyQuantity(CURRENCY_TRADERS_TENDER));
+
+    if (amount < 0 && currentAmount < -amount)
+        return false;
+
+    // Use the core currency system - this updates character_currencies and sends SetCurrency to client
+    if (amount > 0)
+        AddCurrency(CURRENCY_TRADERS_TENDER, static_cast<uint32>(amount));
+    else
+        RemoveCurrency(CURRENCY_TRADERS_TENDER, -amount);
+
+    // Sync PerksProgramCurrency updatefield so the vendor UI reflects the change
+    int32 newAmount = static_cast<int32>(GetCurrencyQuantity(CURRENCY_TRADERS_TENDER));
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PerksProgramCurrency), newAmount);
+
+    _perksCurrencyDirty = true;
+    return true;
+}
+
+void Player::AddPerksPurchase(int32 vendorItemID, uint32 purchaseTime)
+{
+    PerksPurchaseEntry entry;
+    entry.VendorItemID = vendorItemID;
+    entry.PurchaseTime = purchaseTime;
+    entry.Refundable = 1;
+    _perksPurchases.push_back(entry);
+
+    _perksPurchasedCount++;
+    _perksCurrencyDirty = true;
+
+    // Persist immediately
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_PERKS_PURCHASE);
+    stmt->setUInt64(0, GetGUID().GetCounter());
+    stmt->setInt32(1, vendorItemID);
+    stmt->setUInt32(2, purchaseTime);
+    stmt->setUInt8(3, 1);
+    CharacterDatabase.Execute(stmt);
+}
+
+void Player::SetPerksFrozenVendorItem(int32 vendorItemID, WorldPackets::PerksProgram::PerksVendorItem const* itemData)
+{
+    _perksFrozenVendorItemID = vendorItemID;
+    _perksFrozenDirty = true;
+
+    // Update FrozenPerksVendorItem UpdateField
+    if (itemData)
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::FrozenPerksVendorItem), *itemData);
+    else
+    {
+        WorldPackets::PerksProgram::PerksVendorItem emptyItem;
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::FrozenPerksVendorItem), emptyItem);
+    }
+}
+
+void Player::_LoadPerksMilestones(PreparedQueryResult result)
+{
+    _completedPerksMilestones.clear();
+    if (!result)
+        return;
+
+    do
+    {
+        _completedPerksMilestones.insert(result->Fetch()[0].GetInt32());
+    } while (result->NextRow());
+}
+
+void Player::_SavePerksMilestones(CharacterDatabaseTransaction trans)
+{
+    if (_completedPerksMilestones.empty())
+        return;
+
+    // Replace the full set each save (small table, safe to do)
+    CharacterDatabasePreparedStatement* delStmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_PERKS_MILESTONES);
+    delStmt->setUInt64(0, GetGUID().GetCounter());
+    trans->Append(delStmt);
+
+    for (int32 activityID : _completedPerksMilestones)
+    {
+        CharacterDatabasePreparedStatement* insStmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_PERKS_MILESTONE);
+        insStmt->setUInt64(0, GetGUID().GetCounter());
+        insStmt->setInt32(1, activityID);
+        trans->Append(insStmt);
+    }
+}
+
+void Player::AddPerksMilestone(int32 activityID)
+{
+    _completedPerksMilestones.insert(activityID);
+}
+
+bool Player::HasPerksMilestone(int32 activityID) const
+{
+    return _completedPerksMilestones.count(activityID) > 0;
+}
+
+std::vector<int32> Player::GetCompletedPerksMilestones() const
+{
+    return std::vector<int32>(_completedPerksMilestones.begin(), _completedPerksMilestones.end());
 }
 
 void Player::SendCurrencies() const
@@ -9541,6 +9769,122 @@ std::vector<Item*> Player::GetCraftingReagentItemsToDeposit()
     return itemList;
 }
 
+std::vector<Item*> Player::GetWarboundItemsToDeposit()
+{
+    std::vector<Item*> itemList;
+    ForEachItem(ItemSearchLocation::Inventory, [&itemList](Item* item)
+    {
+        // Only deposit warbound/BoA items, not character-soulbound
+        if (item->IsAccountBound() || !item->IsSoulBound())
+        {
+            // Skip quest items and bags
+            if (item->GetTemplate()->GetClass() != ITEM_CLASS_QUEST && !item->IsNotEmptyBag())
+                itemList.push_back(item);
+        }
+
+        return ItemSearchCallbackResult::Continue;
+    });
+
+    return itemList;
+}
+
+BagSlotFlags Player::GetItemAutoDepositCategory(Item const* item)
+{
+    ItemTemplate const* proto = item->GetTemplate();
+    if (!proto)
+        return BagSlotFlags::None;
+
+    // Junk takes precedence (ITEM_QUALITY_POOR is grey items the user wants to vendor)
+    if (proto->GetQuality() == ITEM_QUALITY_POOR)
+        return BagSlotFlags::PriorityJunk;
+
+    // Crafting reagents (items flagged USED_IN_A_TRADESKILL) get their own bin
+    if (proto->IsCraftingReagent())
+        return BagSlotFlags::PriorityReagents;
+
+    switch (proto->GetClass())
+    {
+        case ITEM_CLASS_WEAPON:
+        case ITEM_CLASS_ARMOR:
+            return BagSlotFlags::PriorityEquipment;
+        case ITEM_CLASS_CONSUMABLE:
+            return BagSlotFlags::PriorityConsumables;
+        case ITEM_CLASS_TRADE_GOODS:
+            return BagSlotFlags::PriorityTradeGoods;
+        case ITEM_CLASS_QUEST:
+            return BagSlotFlags::PriorityQuestItems;
+        default:
+            return BagSlotFlags::None;
+    }
+}
+
+static constexpr BagSlotFlags AllPriorityFlags =
+BagSlotFlags::PriorityEquipment | BagSlotFlags::PriorityConsumables |
+BagSlotFlags::PriorityTradeGoods | BagSlotFlags::PriorityJunk |
+BagSlotFlags::PriorityQuestItems | BagSlotFlags::PriorityReagents;
+
+int8 Player::PickAutoDepositTab(::BankType bank, Item const* item) const
+{
+    BagSlotFlags itemCategory = GetItemAutoDepositCategory(item);
+
+    auto pick = [&](auto const& tabs) -> int8
+    {
+        int8 fallback = -1;
+        for (std::size_t i = 0; i < tabs.size(); ++i)
+        {
+            BagSlotFlags flags = static_cast<BagSlotFlags>(int32(*tabs[i].DepositFlags));
+
+            // "Cleanup: Ignore this tab" - opt out of auto-deposit entirely
+            if ((flags & BagSlotFlags::DisableAutoSort) != BagSlotFlags::None)
+                continue;
+
+            // First match on the item's specific category wins
+            if (itemCategory != BagSlotFlags::None && (flags & itemCategory) != BagSlotFlags::None)
+                return int8(i);
+
+            // Remember the first tab with no priority filters as a generic fallback
+            if (fallback < 0 && (flags & AllPriorityFlags) == BagSlotFlags::None)
+                fallback = int8(i);
+        }
+        return fallback;
+    };
+
+    return (bank == ::BankType::Account)
+        ? pick(m_activePlayerData->AccountBankTabSettings)
+        : pick(m_activePlayerData->CharacterBankTabSettings);
+}
+
+std::vector<Item*> Player::GetItemsForBankAutoDeposit(::BankType bank, bool includeReagents) const
+{
+    std::vector<Item*> itemList;
+    ForEachItem(ItemSearchLocation::Inventory, [&itemList, bank, includeReagents](Item* item)
+    {
+        ItemTemplate const* proto = item->GetTemplate();
+        if (!proto)
+            return ItemSearchCallbackResult::Continue;
+
+        // Quest items and non-empty bags never auto-deposit
+        if (proto->GetClass() == ITEM_CLASS_QUEST || item->IsNotEmptyBag())
+            return ItemSearchCallbackResult::Continue;
+
+        if (bank == ::BankType::Account)
+        {
+            // Account bank rejects character-soulbound items (only warbound / BoA / unbound allowed)
+            if (item->IsSoulBound() && !item->IsAccountBound())
+                return ItemSearchCallbackResult::Continue;
+
+            // The "Include tradeable reagents" checkbox in the warband bank UI
+            if (!includeReagents && proto->IsCraftingReagent())
+                return ItemSearchCallbackResult::Continue;
+        }
+
+        itemList.push_back(item);
+        return ItemSearchCallbackResult::Continue;
+    });
+
+    return itemList;
+}
+
 Item* Player::GetItemByGuid(ObjectGuid guid) const
 {
     Item* result = nullptr;
@@ -9590,7 +9934,8 @@ Bag* Player::GetBagByPos(uint8 bag) const
 {
     if ((bag >= INVENTORY_SLOT_BAG_START && bag < INVENTORY_SLOT_BAG_END)
         || (bag >= BANK_SLOT_BAG_START && bag < BANK_SLOT_BAG_END)
-        || (bag >= REAGENT_BAG_SLOT_START && bag < REAGENT_BAG_SLOT_END))
+        || (bag >= REAGENT_BAG_SLOT_START && bag < REAGENT_BAG_SLOT_END)
+        || (bag >= ACCOUNT_BANK_SLOT_BAG_START && bag < ACCOUNT_BANK_SLOT_BAG_END))
         if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, bag))
             return item->ToBag();
     return nullptr;
@@ -9720,6 +10065,8 @@ bool Player::IsBagPos(uint16 pos)
         return true;
     if (bag == INVENTORY_SLOT_BAG_0 && (slot >= REAGENT_BAG_SLOT_START && slot < REAGENT_BAG_SLOT_END))
         return true;
+    if (bag == INVENTORY_SLOT_BAG_0 && (slot >= ACCOUNT_BANK_SLOT_BAG_START && slot < ACCOUNT_BANK_SLOT_BAG_END))
+        return true;
     return false;
 }
 
@@ -9728,9 +10075,11 @@ bool Player::IsChildEquipmentPos(uint8 bag, uint8 slot)
     return bag == INVENTORY_SLOT_BAG_0 && (slot >= CHILD_EQUIPMENT_SLOT_START && slot < CHILD_EQUIPMENT_SLOT_END);
 }
 
-bool Player::IsAccountBankPos(uint8 bag, uint8 /*slot*/)
+bool Player::IsAccountBankPos(uint8 bag, uint8 slot)
 {
     if (bag >= ACCOUNT_BANK_SLOT_BAG_START && bag < ACCOUNT_BANK_SLOT_BAG_END)
+        return true;
+    if (bag == INVENTORY_SLOT_BAG_0 && slot >= ACCOUNT_BANK_SLOT_BAG_START && slot < ACCOUNT_BANK_SLOT_BAG_END)
         return true;
     return false;
 }
@@ -9771,11 +10120,16 @@ bool Player::IsValidPos(uint8 bag, uint8 slot, bool explicit_pos) const
         if (slot >= BANK_SLOT_BAG_START && slot < BANK_SLOT_BAG_END)
             return true;
 
+        // account bank bag slots
+        if (slot >= ACCOUNT_BANK_SLOT_BAG_START && slot < ACCOUNT_BANK_SLOT_BAG_END)
+            return true;
+
         return false;
     }
 
     // bag content slots
     // bank bag content slots
+    // account bank bag content slots
     if (Bag* pBag = GetBagByPos(bag))
     {
         // any post selected
@@ -11143,6 +11497,93 @@ InventoryResult Player::CanBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest
     return reagentBankOnly ? EQUIP_ERR_REAGENT_BANK_FULL : EQUIP_ERR_BANK_FULL;
 }
 
+InventoryResult Player::CanAccountBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, Item* pItem, bool swap) const
+{
+    if (!pItem)
+        return swap ? EQUIP_ERR_CANT_SWAP : EQUIP_ERR_ITEM_NOT_FOUND;
+
+    // Check: no character-soulbound items allowed (only warbound/BoA/unbound)
+    if (pItem->IsSoulBound() && !pItem->IsAccountBound())
+        return EQUIP_ERR_NO_SOULBOUND_ITEM_IN_ACCOUNT_BANK;
+
+    // Check: no quest items in account bank
+    if (pItem->GetTemplate()->GetClass() == ITEM_CLASS_QUEST)
+        return EQUIP_ERR_CANT_SWAP;
+
+    uint32 count = pItem->GetCount();
+    ItemTemplate const* pProto = pItem->GetTemplate();
+
+    // Specific slot requested
+    if (bag != NULL_BAG && slot != NULL_SLOT)
+    {
+        if (bag >= ACCOUNT_BANK_SLOT_BAG_START && bag < ACCOUNT_BANK_SLOT_BAG_END)
+        {
+            InventoryResult res = CanStoreItem_InSpecificSlot(bag, slot, dest, pProto, count, swap, pItem);
+            if (res != EQUIP_ERR_OK)
+                return res;
+
+            if (count == 0)
+                return EQUIP_ERR_OK;
+        }
+        return EQUIP_ERR_BANK_FULL;
+    }
+
+    // Specific bag requested
+    if (bag != NULL_BAG && slot == NULL_SLOT)
+    {
+        if (bag >= ACCOUNT_BANK_SLOT_BAG_START && bag < ACCOUNT_BANK_SLOT_BAG_END)
+        {
+            // Account bank tab bags are generic ITEM_SUBCLASS_CONTAINER bags, so
+            // both passes run with non_specialized=true (matching CanBankItem).
+            // First merge with existing stacks (only meaningful for stackables).
+            if (pProto->GetMaxStackSize() != 1)
+            {
+                InventoryResult res = CanStoreItem_InBag(bag, dest, pProto, count, true, true, pItem, NULL_BAG, NULL_SLOT);
+                if (res != EQUIP_ERR_OK)
+                    return res;
+
+                if (count == 0)
+                    return EQUIP_ERR_OK;
+            }
+
+            // Then try empty slots - this must run even when the merge pass returned
+            // EQUIP_ERR_OK without fully placing the stack (no matching stacks found).
+            InventoryResult res = CanStoreItem_InBag(bag, dest, pProto, count, false, true, pItem, NULL_BAG, NULL_SLOT);
+            if (res != EQUIP_ERR_OK)
+                return res;
+
+            if (count == 0)
+                return EQUIP_ERR_OK;
+        }
+        return EQUIP_ERR_BANK_FULL;
+    }
+
+    // No specific bag/slot: search all account bank bags
+    // First pass: try to merge with existing stacks (non_specialized=true - see above)
+    for (uint8 i = ACCOUNT_BANK_SLOT_BAG_START; i < ACCOUNT_BANK_SLOT_BAG_END; i++)
+    {
+        InventoryResult res = CanStoreItem_InBag(i, dest, pProto, count, true, true, pItem, bag, slot);
+        if (res != EQUIP_ERR_OK)
+            continue;
+
+        if (count == 0)
+            return EQUIP_ERR_OK;
+    }
+
+    // Second pass: try empty slots
+    for (uint8 i = ACCOUNT_BANK_SLOT_BAG_START; i < ACCOUNT_BANK_SLOT_BAG_END; i++)
+    {
+        InventoryResult res = CanStoreItem_InBag(i, dest, pProto, count, false, true, pItem, bag, slot);
+        if (res != EQUIP_ERR_OK)
+            continue;
+
+        if (count == 0)
+            return EQUIP_ERR_OK;
+    }
+
+    return EQUIP_ERR_BANK_FULL;
+}
+
 InventoryResult Player::CanUseItem(Item* pItem, bool not_loading) const
 {
     if (pItem)
@@ -11437,6 +11878,9 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
 
         if (pItem->GetBonding() == BIND_ON_ACQUIRE ||
             pItem->GetBonding() == BIND_QUEST ||
+            pItem->GetBonding() == BIND_WOW_ACCOUNT ||
+            pItem->GetBonding() == BIND_BNET_ACCOUNT ||
+            pItem->GetBonding() == BIND_BNET_ACCOUNT_UNTIL_EQUIPPED ||
             (pItem->GetBonding() == BIND_ON_EQUIP && IsBagPos(pos)))
             pItem->SetBinding(true);
 
@@ -11476,6 +11920,9 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
     {
         if (pItem2->GetBonding() == BIND_ON_ACQUIRE ||
             pItem2->GetBonding() == BIND_QUEST ||
+            pItem2->GetBonding() == BIND_WOW_ACCOUNT ||
+            pItem2->GetBonding() == BIND_BNET_ACCOUNT ||
+            pItem2->GetBonding() == BIND_BNET_ACCOUNT_UNTIL_EQUIPPED ||
             (pItem2->GetBonding() == BIND_ON_EQUIP && IsBagPos(pos)))
             pItem2->SetBinding(true);
 
@@ -11898,9 +12345,13 @@ void Player::VisualizeItem(uint8 slot, Item* pItem)
         return;
 
     // check also  BIND_ON_ACQUIRE and BIND_QUEST for .additem or .additemset case by GM (not binded at adding to inventory)
-    if (pItem->GetBonding() == BIND_ON_EQUIP || pItem->GetBonding() == BIND_ON_ACQUIRE || pItem->GetBonding() == BIND_QUEST)
+    if (pItem->GetBonding() == BIND_ON_EQUIP || pItem->GetBonding() == BIND_ON_ACQUIRE || pItem->GetBonding() == BIND_QUEST
+        || pItem->GetBonding() == BIND_WOW_ACCOUNT || pItem->GetBonding() == BIND_BNET_ACCOUNT
+        || pItem->GetBonding() == BIND_BNET_ACCOUNT_UNTIL_EQUIPPED)
     {
         pItem->SetBinding(true);
+        if (pItem->GetBonding() == BIND_BNET_ACCOUNT_UNTIL_EQUIPPED)
+            pItem->ConvertToSoulbound();
         if (IsInWorld())
             GetSession()->GetCollectionMgr()->AddItemAppearance(pItem);
     }
@@ -12698,7 +13149,7 @@ void Player::SwapItem(uint16 src, uint16 dst)
 
             RemoveItem(srcbag, srcslot, true);
             StoreItem(dest, pSrcItem, true);
-            if (IsBankPos(src))
+            if (IsBankPos(src) || IsAccountBankPos(src))
                 ItemAddedQuestCheck(pSrcItem->GetEntry(), pSrcItem->GetCount());
         }
         else if (IsBankPos(dst))
@@ -12714,6 +13165,21 @@ void Player::SwapItem(uint16 src, uint16 dst)
             RemoveItem(srcbag, srcslot, true);
             BankItem(dest, pSrcItem, true);
             ItemRemovedQuestCheck(pSrcItem->GetEntry(), pSrcItem->GetCount());
+        }
+        else if (IsAccountBankPos(dst))
+        {
+            ItemPosCountVec dest;
+            InventoryResult msg = CanAccountBankItem(dstbag, dstslot, dest, pSrcItem, false);
+            if (msg != EQUIP_ERR_OK)
+            {
+                SendEquipError(msg, pSrcItem, nullptr);
+                return;
+            }
+
+            RemoveItem(srcbag, srcslot, true);
+            BankItem(dest, pSrcItem, true);
+            if (!IsBankPos(src) && !IsAccountBankPos(src))
+                ItemRemovedQuestCheck(pSrcItem->GetEntry(), pSrcItem->GetCount());
         }
         else if (IsEquipmentPos(dst))
         {
@@ -12743,6 +13209,8 @@ void Player::SwapItem(uint16 src, uint16 dst)
             msg = CanStoreItem(dstbag, dstslot, sDest, pSrcItem, false);
         else if (IsBankPos(dst))
             msg = CanBankItem(dstbag, dstslot, sDest, pSrcItem, false);
+        else if (IsAccountBankPos(dst))
+            msg = CanAccountBankItem(dstbag, dstslot, sDest, pSrcItem, false);
         else if (IsEquipmentPos(dst))
             msg = CanEquipItem(dstslot, eDest, pSrcItem, false);
         else
@@ -12760,7 +13228,7 @@ void Player::SwapItem(uint16 src, uint16 dst)
 
                 if (IsInventoryPos(dst))
                     StoreItem(sDest, pSrcItem, true);
-                else if (IsBankPos(dst))
+                else if (IsBankPos(dst) || IsAccountBankPos(dst))
                     BankItem(sDest, pSrcItem, true);
                 else if (IsEquipmentPos(dst))
                 {
@@ -12798,6 +13266,8 @@ void Player::SwapItem(uint16 src, uint16 dst)
         msg = CanStoreItem(dstbag, dstslot, sDest, pSrcItem, true);
     else if (IsBankPos(dst))
         msg = CanBankItem(dstbag, dstslot, sDest, pSrcItem, true);
+    else if (IsAccountBankPos(dst))
+        msg = CanAccountBankItem(dstbag, dstslot, sDest, pSrcItem, true);
     else if (IsEquipmentPos(dst))
     {
         msg = CanEquipItem(dstslot, eDest, pSrcItem, true);
@@ -12818,6 +13288,8 @@ void Player::SwapItem(uint16 src, uint16 dst)
         msg = CanStoreItem(srcbag, srcslot, sDest2, pDstItem, true);
     else if (IsBankPos(src))
         msg = CanBankItem(srcbag, srcslot, sDest2, pDstItem, true);
+    else if (IsAccountBankPos(src))
+        msg = CanAccountBankItem(srcbag, srcslot, sDest2, pDstItem, true);
     else if (IsEquipmentPos(src))
     {
         msg = CanEquipItem(srcslot, eDest2, pDstItem, true);
@@ -12908,7 +13380,7 @@ void Player::SwapItem(uint16 src, uint16 dst)
     // add to dest
     if (IsInventoryPos(dst))
         StoreItem(sDest, pSrcItem, true);
-    else if (IsBankPos(dst))
+    else if (IsBankPos(dst) || IsAccountBankPos(dst))
         BankItem(sDest, pSrcItem, true);
     else if (IsEquipmentPos(dst))
     {
@@ -12920,7 +13392,7 @@ void Player::SwapItem(uint16 src, uint16 dst)
     // add to src
     if (IsInventoryPos(src))
         StoreItem(sDest2, pDstItem, true);
-    else if (IsBankPos(src))
+    else if (IsBankPos(src) || IsAccountBankPos(src))
         BankItem(sDest2, pDstItem, true);
     else if (IsEquipmentPos(src))
         EquipItem(eDest2, pDstItem, true);
@@ -13972,6 +14444,7 @@ void Player::PrepareGossipMenu(WorldObject* source, uint32 menuId, bool showQues
                 case GossipOptionNpc::Transmogrify:
                 case GossipOptionNpc::AzeriteRespec:
                 case GossipOptionNpc::PersonalTabardVendor:
+                case GossipOptionNpc::PerksProgramVendor:
                     break;                                         // No checks
                 case GossipOptionNpc::CemeterySelect:
                     canTalk = false;                               // Deprecated
@@ -14159,7 +14632,8 @@ void Player::OnGossipSelect(WorldObject* source, int32 gossipOptionId, uint32 me
             break;
         case GossipOptionNpc::GarrisonRecruitment: // NYI
             break;
-        case GossipOptionNpc::ChromieTimeNpc: // NYI
+        case GossipOptionNpc::ChromieTimeNpc:
+            handled = false;
             break;
         case GossipOptionNpc::RuneforgeLegendaryCrafting: // NYI
             break;
@@ -14170,6 +14644,10 @@ void Player::OnGossipSelect(WorldObject* source, int32 gossipOptionId, uint32 me
         case GossipOptionNpc::ProfessionsCustomerOrder: // NYI
             break;
         case GossipOptionNpc::BarbersChoice: // NYI - unknown if needs sending
+            break;
+        case GossipOptionNpc::PerksProgramVendor:
+            PlayerTalkClass->SendCloseGossip();
+            GetSession()->SendPerksProgramVendorList(guid);
             break;
         default:
             handled = false;
@@ -14965,6 +15443,11 @@ uint32 Player::GetQuestXPReward(Quest const* quest)
     Unit::AuraEffectList const& ModXPPctAuras = GetAuraEffectsByType(SPELL_AURA_MOD_XP_QUEST_PCT);
     for (Unit::AuraEffectList::const_iterator i = ModXPPctAuras.begin(); i != ModXPPctAuras.end(); ++i)
         AddPct(XP, (*i)->GetAmount());
+
+    // Warband alt XP bonus (5% per max-level character on account, max 25%)
+    // TO-DO: check https://www.wowhead.com/spell=430191/warband-mentored-leveling
+    if (uint8 altCount = GetWarbandMaxLevelCharCount())
+        XP += XP * altCount * 5 / 100;
 
     return XP;
 }
@@ -17929,6 +18412,42 @@ void Player::SetHomebind(WorldLocation const& loc, uint32 areaId)
     CharacterDatabase.Execute(stmt);
 }
 
+void Player::SetDelveData(int32 mapId, int32 spellId, uint64 lootHistoryInstanceId, int32 field10)
+{
+    // DelveData is a MapUpdateField<int32, UF::DelveData>, use mapId as the key
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+        .ModifyValue(&UF::ActivePlayerData::DelveData, mapId)
+        .ModifyValue(&UF::DelveData::MapID), mapId);
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+        .ModifyValue(&UF::ActivePlayerData::DelveData, mapId)
+        .ModifyValue(&UF::DelveData::InstanceID), lootHistoryInstanceId);
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+        .ModifyValue(&UF::ActivePlayerData::DelveData, mapId)
+        .ModifyValue(&UF::DelveData::EntranceType), field10);
+    // spellId (tier spell ID) maps to Tier field in the new structure
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+        .ModifyValue(&UF::ActivePlayerData::DelveData, mapId)
+        .ModifyValue(&UF::DelveData::Tier), spellId);
+}
+
+void Player::ClearDelveData()
+{
+    // DelveData is a MapUpdateField<int32, UF::DelveData>
+    // We need to clear all entries, so iterate through the map and remove each entry
+    auto& delveDataMap = m_activePlayerData->DelveData;
+    
+    // Get all keys and remove them
+    std::vector<int32> keysToRemove;
+    for (auto const& [key, value] : delveDataMap)
+        keysToRemove.push_back(key);
+    
+    auto delveDataField = m_values.ModifyValue(&Player::m_activePlayerData)
+        .ModifyValue(&UF::ActivePlayerData::DelveData);
+    
+    for (int32 key : keysToRemove)
+        RemoveMapUpdateFieldValue(delveDataField, key);
+}
+
 void Player::SendBindPointUpdate() const
 {
     WorldPackets::Misc::BindPointUpdate packet;
@@ -17969,7 +18488,8 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
         // "totalKills, todayKills, yesterdayKills, chosenTitle, watchedFaction, drunk, "
         // "health, power1, power2, power3, power4, power5, power6, power7, power8, power9, power10, instance_id, activeTalentGroup, lootSpecId, exploredZones, knownTitles, actionBars, "
         // "raidDifficulty, legacyRaidDifficulty, fishingSteps, honor, honorLevel, honorRestState, honorRestBonus, numRespecs, "
-        // "personalTabardEmblemStyle, personalTabardEmblemColor, personalTabardBorderStyle, personalTabardBorderColor, personalTabardBackgroundColor, transmogOutfitEquippedId, transmogOutfitLocked "
+        // "personalTabardEmblemStyle, personalTabardEmblemColor, personalTabardBorderStyle, personalTabardBorderColor, personalTabardBackgroundColor, transmogOutfitEquippedId, transmogOutfitLocked, "
+        // "chromieTimeExpansionId, timerunningSeasonId "
         // "FROM characters c LEFT JOIN character_fishingsteps cfs ON c.guid = cfs.guid WHERE c.guid = ?", CONNECTION_ASYNC);
 
         ObjectGuid::LowType guid;
@@ -18049,6 +18569,8 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
         int32 personalTabardBackgroundColor;
         int32 transmogOutfitEquippedId;
         bool transmogOutfitLocked;
+        uint8 chromieTimeExpansionId;
+        uint32 timerunningSeasonId;
 
         explicit PlayerLoadData(Field const* fields)
         {
@@ -18132,6 +18654,8 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
             personalTabardBackgroundColor = fields[i++].GetInt32();
             transmogOutfitEquippedId = fields[i++].GetInt32();
             transmogOutfitLocked = fields[i++].GetBool();
+            chromieTimeExpansionId = fields[i++].GetUInt8();
+            timerunningSeasonId = fields[i++].GetUInt32();
         }
 
     } fields(result->Fetch());
@@ -18241,12 +18765,6 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
 
     m_atLoginFlags = fields.at_login;
 
-    if (!GetSession()->ValidateAppearance(Races(GetRace()), Classes(GetClass()), fields.gender, MakeChrCustomizationChoiceRange(customizations)))
-    {
-        TC_LOG_ERROR("entities.player.loading", "Player::LoadFromDB: Player ({}) has wrong Appearance values (Hair/Skin/Color), can't load.", guid.ToString());
-        return false;
-    }
-
     // set which actionbars the client has active - DO NOT REMOVE EVER AGAIN (can be changed though, if it does change fieldwise)
     SetMultiActionBars(fields.actionBars);
 
@@ -18260,6 +18778,38 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
     //Need to call it to initialize m_team (m_team can be calculated from race)
     //Other way is to saves m_team into characters table.
     SetFactionForRace(GetRace());
+
+    // Restore Chromie Time state from DB. A character at or above the deactivation level
+    // restores nothing: the update fields stay zeroed and the next save persists 0, so a
+    // stale DB value (e.g. written before a level-up cleared the state) cannot resurrect
+    // chromie time on login (audit R8/m3, SRV CHR-4; band per audit R10).
+    if (fields.chromieTimeExpansionId > 0 && GetLevel() < ChromieTimeDeactivationLevel)
+    {
+        if (UIChromieTimeExpansionInfoEntry const* entry = sUIChromieTimeExpansionInfoStore.LookupEntry(uint32(fields.chromieTimeExpansionId)))
+        {
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+                .ModifyValue(&UF::ActivePlayerData::UiChromieTimeExpansionID),
+                int32(fields.chromieTimeExpansionId));
+
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
+                .ModifyValue(&UF::PlayerData::CtrOptions)
+                .ModifyValue(&UF::CTROptions::ChromieTimeExpansionMask),
+                uint32(entry->ExpansionMask));
+
+            SetChromieTimeConditionalFlags(true);
+        }
+    }
+
+    if (fields.timerunningSeasonId)
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+            .ModifyValue(&UF::ActivePlayerData::TimerunningSeasonID),
+            int32(fields.timerunningSeasonId));
+
+    // Always set FactionGroup on CtrOptions (needed for party sync and content tuning)
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
+        .ModifyValue(&UF::PlayerData::CtrOptions)
+        .ModifyValue(&UF::CTROptions::FactionGroup),
+        GetFactionGroupForRace(GetRace()));
 
     // load home bind and check in same time class/race pair, it used later for restore broken positions
     if (!_LoadHomeBind(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_HOME_BIND)))
@@ -18283,11 +18833,16 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
     _LoadGroup(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GROUP));
 
     _LoadCurrency(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CURRENCY));
+    _LoadPerksCurrency(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PERKS_CURRENCY));
+    _LoadPerksPurchases(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PERKS_PURCHASES));
+    _LoadPerksFrozen(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PERKS_FROZEN));
+    _LoadPerksMilestones(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PERKS_MILESTONES));
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::LifetimeHonorableKills), fields.totalKills);
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::TodayHonorableKills), fields.totalKills);
     SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::YesterdayHonorableKills), fields.yesterdayKills);
 
     _LoadBGData(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_BG_DATA));
+    _LoadArenaStats(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ARENA_STATS));
 
     GetSession()->SetPlayer(this);
     MapEntry const* mapEntry = sMapStore.LookupEntry(mapId);
@@ -18581,6 +19136,12 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
     if (!m_taxi.LoadTaxiMask(fields.taximask))                   // must be before InitTaxiNodesForLevel
         TC_LOG_WARN("entities.player.loading", "Player::LoadFromDB: Player ({}) has invalid taximask ({}) in DB. Forced partial load.", GetGUID().ToString(), fields.taximask);
 
+    if (PreparedQueryResult warbandTaxiResult = holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_WARBAND_TAXI_MASK))
+    {
+        TaxiMask accountMask = PlayerTaxi::LoadTaxiMaskFromString((*warbandTaxiResult)[0].GetString());
+        m_taxi.MergeAccountTaxiMask(accountMask);
+    }
+
     uint32 extraflags = fields.extra_flags;
 
     _LoadPetStable(fields.summonedPetNumber, holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PET_SLOTS));
@@ -18660,6 +19221,13 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
     _LoadQuestStatusObjectives(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_QUEST_STATUS_OBJECTIVES));
     _LoadQuestStatusObjectiveSpawnTrackings(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_QUEST_STATUS_OBJECTIVES_SPAWN_TRACKING));
     _LoadQuestStatusRewarded(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_QUEST_STATUS_REW));
+
+    if (!GetSession()->ValidateAppearance(Races(GetRace()), Classes(GetClass()), fields.gender, MakeChrCustomizationChoiceRange(customizations)))
+    {
+        TC_LOG_ERROR("entities.player.loading", "Player::LoadFromDB: Player ({}) has wrong Appearance values (Hair/Skin/Color), can't load.", guid.ToString());
+        return false;
+    }
+
     _LoadDailyQuestStatus(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_DAILY_QUEST_STATUS));
     _LoadWeeklyQuestStatus(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_WEEKLY_QUEST_STATUS));
     _LoadSeasonalQuestStatus(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_SEASONAL_QUEST_STATUS));
@@ -18677,7 +19245,12 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
     // must be before inventory (some items required reputation check)
     m_reputationMgr->LoadFromDB(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_REPUTATION));
 
+    if (PreparedQueryResult maxLevelResult = holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_WARBAND_MAX_LEVEL_COUNT))
+        _warbandMaxLevelCharCount = std::min((*maxLevelResult)[0].GetUInt64(), uint64(5));
+
     _LoadCharacterBankTabSettings(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_BANK_TAB_SETTINGS));
+    _LoadAccountBankTabSettings(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ACCOUNT_BANK_TAB_SETTINGS));
+    _LoadAccountBankCoinage(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ACCOUNT_BANK_COINAGE));
 
     _LoadInventory(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_INVENTORY),
         holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ARTIFACTS),
@@ -18686,6 +19259,8 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
         holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_AZERITE_UNLOCKED_ESSENCES),
         holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_AZERITE_EMPOWERED),
         time_diff);
+
+    _LoadAccountBankItems(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ACCOUNT_BANK_ITEMS), time_diff);
 
     // update items with duration and realtime
     UpdateItemDuration(time_diff, true);
@@ -19121,9 +19696,6 @@ void Player::_LoadAuras(PreparedQueryResult auraResult, PreparedQueryResult effe
         }
         while (auraResult->NextRow());
     }
-
-    // TODO: finish dragonriding - this forces old flight mode
-    AddAura(404468, this);
 }
 
 void Player::_LoadGlyphAuras()
@@ -20400,6 +20972,156 @@ void Player::_LoadCharacterBankTabSettings(PreparedQueryResult result)
         AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::CharacterBankTabSettings));
 }
 
+void Player::_LoadAccountBankTabSettings(PreparedQueryResult result)
+{
+    uint8 tabCount = 0;
+
+    if (result)
+    {
+        do
+        {
+            DEFINE_FIELD_ACCESSOR_CACHE_ANONYMOUS(PreparedResultSet, (tabId)(name)(icon)(description)(depositFlags)) fields { *result };
+
+            uint8 tabId = fields.tabId().GetUInt8();
+            if (tabId >= (ACCOUNT_BANK_SLOT_BAG_END - ACCOUNT_BANK_SLOT_BAG_START))
+                continue;
+
+            SetAccountBankTabSettings(tabId, fields.name().GetString(), fields.icon().GetString(),
+                fields.description().GetString(), static_cast<BagSlotFlags>(fields.depositFlags().GetUInt32()));
+
+            if (tabId >= tabCount)
+                tabCount = tabId + 1;
+
+        } while (result->NextRow());
+    }
+
+    // Derive tab count from the rows loaded
+    SetAccountBankTabCount(tabCount);
+
+    while (m_activePlayerData->AccountBankTabSettings.size() < *m_activePlayerData->NumAccountBankTabs)
+        AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::AccountBankTabSettings));
+}
+
+void Player::_LoadAccountBankCoinage(PreparedQueryResult result)
+{
+    if (result)
+        SetAccountBankCoinage((*result)[0].GetUInt64());
+    else
+        SetAccountBankCoinage(0);
+}
+
+void Player::ModifyAccountBankCoinage(int64 delta)
+{
+    int64 current = int64(GetAccountBankCoinage());
+    int64 next = current + delta;
+    if (next < 0)
+        next = 0;
+    if (uint64(next) > MAX_MONEY_AMOUNT)
+        next = int64(MAX_MONEY_AMOUNT);
+    SetAccountBankCoinage(uint64(next));
+}
+
+void Player::_LoadAccountBankItems(PreparedQueryResult result, uint32 timeDiff)
+{
+    //  Same field layout as character_inventory load, but with bag/slot from account_bank_item at the end
+    //  Fields 0-51: item_instance fields (same as _LoadInventory)
+    //  Field 52: abi.bag (tab index 0-4)
+    //  Field 53: abi.slot (slot within tab 0-97)
+
+    // First, ensure all account bank tabs have their bag objects created
+    // This fixes the issue where empty tabs appear but have no slots
+    for (uint8 tabIndex = 0; tabIndex < GetAccountBankTabCount(); ++tabIndex)
+    {
+        uint8 bagSlot = ACCOUNT_BANK_SLOT_BAG_START + tabIndex;
+        Bag* bag = GetBagByPos(bagSlot);
+        if (!bag)
+        {
+            // Create the bag item for this tab if it doesn't exist yet
+            if (Item* bagItem = Item::CreateItem(ITEM_ACCOUNT_BANK_TAB_BAG, 1, ItemContext::NONE, this))
+            {
+                uint16 bagPos = (INVENTORY_SLOT_BAG_0 << 8) | bagSlot;
+                bagItem->SetContainer(nullptr);
+                bagItem->SetSlot(bagSlot);
+                StoreItem(ItemPosCountVec(1, ItemPosCount(bagPos, 1)), bagItem, true);
+                bagItem->SetState(ITEM_UNCHANGED, this);
+                bag = bagItem->ToBag();
+
+                TC_LOG_DEBUG("entities.player", "Player::_LoadAccountBankItems: Created account bank bag for tab {} at slot {}", tabIndex, bagSlot);
+            }
+
+            if (!bag)
+            {
+                TC_LOG_ERROR("entities.player", "Player::_LoadAccountBankItems: Player '{}' ({}) failed to create account bank bag for tab {}.",
+                    GetName(), GetGUID().ToString(), tabIndex);
+                continue;
+            }
+        }
+    }
+
+    if (!result)
+        return;
+
+    uint32 zoneId = GetZoneId();
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+
+    m_itemUpdateQueueBlocked = true;
+    do
+    {
+        Field* fields = result->Fetch();
+        if (Item* item = _LoadItem(trans, zoneId, timeDiff, fields))
+        {
+            uint8 tabIndex = fields[52].GetUInt8();
+            uint8 slot = fields[53].GetUInt8();
+
+            if (tabIndex >= GetAccountBankTabCount())
+            {
+                TC_LOG_ERROR("entities.player", "Player::_LoadAccountBankItems: Player '{}' ({}) has account bank item ({}, entry: {}) in tab {} which exceeds tab count {}. Skipping.",
+                    GetName(), GetGUID().ToString(), item->GetGUID().ToString(), item->GetEntry(), tabIndex, GetAccountBankTabCount());
+                item->DeleteFromDB(trans);
+                delete item;
+                continue;
+            }
+
+            uint8 bagSlot = ACCOUNT_BANK_SLOT_BAG_START + tabIndex;
+
+            // Bag should already exist from the pre-creation loop above
+            Bag* bag = GetBagByPos(bagSlot);
+            if (!bag)
+            {
+                TC_LOG_ERROR("entities.player", "Player::_LoadAccountBankItems: Player '{}' ({}) failed to get account bank bag for tab {} after pre-creation.",
+                    GetName(), GetGUID().ToString(), tabIndex);
+                item->DeleteFromDB(trans);
+                delete item;
+                continue;
+            }
+
+            GetSession()->GetCollectionMgr()->CheckHeirloomUpgrades(item);
+            GetSession()->GetCollectionMgr()->AddItemAppearance(item);
+
+            ItemPosCountVec dest;
+            InventoryResult err = CanStoreItem(bagSlot, slot, dest, item);
+            if (err == EQUIP_ERR_OK)
+            {
+                item = StoreItem(dest, item, true);
+                item->SetState(ITEM_UNCHANGED, this);
+            }
+            else
+            {
+                TC_LOG_ERROR("entities.player", "Player::_LoadAccountBankItems: Player '{}' ({}) has account bank item ({}, entry: {}) which can't be loaded (tab {}, slot {}) by reason {}. Item will be sent by mail.",
+                    GetName(), GetGUID().ToString(), item->GetGUID().ToString(), item->GetEntry(), tabIndex, slot, uint32(err));
+                item->DeleteFromInventoryDB(trans);
+
+                MailDraft draft(GetSession()->GetTrinityString(LANG_NOT_EQUIPPED_ITEM), "There were problems with equipping item(s).");
+                draft.AddItem(item);
+                draft.SendMailTo(trans, this, MailSender(this, MAIL_STATIONERY_GM), MAIL_CHECK_MASK_COPIED);
+            }
+        }
+    } while (result->NextRow());
+
+    m_itemUpdateQueueBlocked = false;
+    CharacterDatabase.CommitTransaction(trans);
+}
+
 /*********************************************************/
 /***                   SAVE SYSTEM                     ***/
 /*********************************************************/
@@ -20572,6 +21294,8 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
         stmt->setInt32(index++, m_playerData->PersonalTabard->BackgroundColor);
         stmt->setInt32(index++, m_activePlayerData->TransmogMetadata->TransmogOutfitID);
         stmt->setBool(index++, m_activePlayerData->TransmogMetadata->Locked);
+        stmt->setUInt8(index++, uint8(m_activePlayerData->UiChromieTimeExpansionID));
+        stmt->setUInt32(index++, uint32(m_activePlayerData->TimerunningSeasonID));
     }
     else
     {
@@ -20723,6 +21447,8 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
         stmt->setInt32(index++, m_playerData->PersonalTabard->BackgroundColor);
         stmt->setInt32(index++, m_activePlayerData->TransmogMetadata->TransmogOutfitID);
         stmt->setBool(index++, m_activePlayerData->TransmogMetadata->Locked);
+        stmt->setUInt8(index++, uint8(m_activePlayerData->UiChromieTimeExpansionID));
+        stmt->setUInt32(index++, uint32(m_activePlayerData->TimerunningSeasonID));
 
         // Index
         stmt->setUInt64(index, GetGUID().GetCounter());
@@ -20768,9 +21494,27 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
     GetSession()->SaveTutorialsData(trans);                 // changed only while character in game
     GetSession()->SaveInstanceTimeRestrictions(trans);
     _SaveCurrency(trans);
+    _SavePerksCurrency(trans);
+    _SavePerksFrozen(trans);
+    _SavePerksMilestones(trans);
     _SaveCUFProfiles(trans);
     _SavePlayerData(trans);
     _SaveCharacterBankTabSettings(trans);
+    _SaveAccountBankTabSettings(trans);
+    _SaveAccountBankItems(trans);
+    _SaveAccountBankCoinage(trans);
+    _SaveAccountTaxiMask(trans);
+
+    for (uint32 i = 0; i < m_activePlayerData->PvpInfo.size(); ++i)
+    {
+        stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_CHARACTER_ARENA_STATS);
+        stmt->setUInt64(0, GetGUID().GetCounter());
+        stmt->setUInt8(1, *m_activePlayerData->PvpInfo[i].Bracket);
+        stmt->setUInt16(2, 0);
+        stmt->setUInt16(3, *m_activePlayerData->PvpInfo[i].Rating);
+        trans->Append(stmt);
+    }
+
     if (_garrison)
         _garrison->SaveToDB(trans);
 
@@ -20822,13 +21566,9 @@ void Player::SaveInventoryAndGoldToDB(CharacterDatabaseTransaction trans)
 template<typename iterator>
 void SavePlayerCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::LowType guid, Trinity::IteratorPair<iterator> customizations)
 {
-    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHARACTER_CUSTOMIZATIONS);
-    stmt->setUInt64(0, guid);
-    trans->Append(stmt);
-
     for (auto&& customization : customizations)
     {
-        stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHARACTER_CUSTOMIZATION);
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHARACTER_CUSTOMIZATION);
         stmt->setUInt64(0, guid);
         stmt->setUInt32(1, customization.ChrCustomizationOptionID);
         stmt->setUInt32(2, customization.ChrCustomizationChoiceID);
@@ -20842,12 +21582,55 @@ void Player::SaveCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::
     SavePlayerCustomizations(trans, guid, customizations);
 }
 
+void Player::RemoveShapehiftRaceCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::LowType guid, uint8 oldRace, uint8 newRace)
+{
+    static constexpr std::array<ShapeshiftForm, 5> shapeshiftForms = { FORM_BEAR_FORM, FORM_CAT_FORM, FORM_TRAVEL_FORM, FORM_FLIGHT_FORM_EPIC, FORM_AQUATIC_FORM };
+    for (auto shapeshiftForm : shapeshiftForms)
+    {
+        if (ShapeshiftFormModelData const* shapeshiftFormModelData = sDB2Manager.GetShapeshiftFormModelData(oldRace, shapeshiftForm))
+        {
+            for (auto const choice : *shapeshiftFormModelData->Choices)
+            {
+                if (ChrCustomizationReqEntry const* customizationReq = sChrCustomizationReqStore.LookupEntry(choice->ChrCustomizationReqID))
+                {
+                    if (!customizationReq->RaceMask.HasRace(newRace))
+                    {
+                        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHARACTER_CUSTOMIZATION_CHOICE);
+                        stmt->setUInt64(0, guid);
+                        stmt->setUInt32(1, choice->ChrCustomizationOptionID);
+                        stmt->setUInt32(2, choice->ID);
+                        trans->Append(stmt);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Player::RemoveRaceGenderModelCustomizations(CharacterDatabaseTransaction trans, ObjectGuid::LowType guid, uint8 race, uint8 gender)
+{
+    if (std::vector<ChrCustomizationOptionEntry const*> const* modelCustomizations = sDB2Manager.GetCustomiztionOptions(race, gender))
+    {
+        for (auto const option : *modelCustomizations)
+        {
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHARACTER_CUSTOMIZATION);
+            stmt->setUInt64(0, guid);
+            stmt->setUInt32(1, option->ID);
+            trans->Append(stmt);
+        }
+    }
+}
+
 void Player::_SaveCustomizations(CharacterDatabaseTransaction trans)
 {
     if (!m_customizationsChanged)
         return;
 
     m_customizationsChanged = false;
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHARACTER_CUSTOMIZATIONS);
+    stmt->setUInt64(0, GetGUID().GetCounter());
+    trans->Append(stmt);
 
     SavePlayerCustomizations(trans, GetGUID().GetCounter(), Trinity::Containers::MakeIteratorPair(m_playerData->Customizations.begin(), m_playerData->Customizations.end()));
 }
@@ -21086,21 +21869,34 @@ void Player::_SaveInventory(CharacterDatabaseTransaction trans)
             }
         }
 
+        // Items stored INSIDE an account bank tab bag are persisted per-Bnet in
+        // _SaveAccountBankItems, so skip the per-character inventory position write
+        // for them. The tab bag itself (sitting in INVENTORY_SLOT_BAG_0 at slots
+        // ACCOUNT_BANK_SLOT_BAG_START..END) is per-character and MUST go through
+        // the normal character_inventory save path so it can be restored on relog.
+        bool isAccountBankItem = container && IsAccountBankPos(INVENTORY_SLOT_BAG_0, container->GetSlot());
+
         switch (item->GetState())
         {
             case ITEM_NEW:
             case ITEM_CHANGED:
-                stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_INVENTORY_ITEM);
-                stmt->setUInt64(0, GetGUID().GetCounter());
-                stmt->setUInt64(1, container ? container->GetGUID().GetCounter() : UI64LIT(0));
-                stmt->setUInt8 (2, item->GetSlot());
-                stmt->setUInt64(3, item->GetGUID().GetCounter());
-                trans->Append(stmt);
+                if (!isAccountBankItem)
+                {
+                    stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_INVENTORY_ITEM);
+                    stmt->setUInt64(0, GetGUID().GetCounter());
+                    stmt->setUInt64(1, container ? container->GetGUID().GetCounter() : UI64LIT(0));
+                    stmt->setUInt8 (2, item->GetSlot());
+                    stmt->setUInt64(3, item->GetGUID().GetCounter());
+                    trans->Append(stmt);
+                }
                 break;
             case ITEM_REMOVED:
-                stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_INVENTORY_BY_ITEM);
-                stmt->setUInt64(0, item->GetGUID().GetCounter());
-                trans->Append(stmt);
+                if (!isAccountBankItem)
+                {
+                    stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_INVENTORY_BY_ITEM);
+                    stmt->setUInt64(0, item->GetGUID().GetCounter());
+                    trans->Append(stmt);
+                }
                 break;
             case ITEM_UNCHANGED:
                 break;
@@ -21717,6 +22513,85 @@ void Player::_SaveCharacterBankTabSettings(CharacterDatabaseTransaction trans) c
     }
 }
 
+void Player::_SaveAccountTaxiMask(CharacterDatabaseTransaction trans) const
+{
+    std::ostringstream ss;
+    ss << m_taxi;
+
+    auto stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_WARBAND_TAXI_MASK);
+    stmt->setUInt32(0, GetSession()->GetBattlenetAccountId());
+    stmt->setString(1, ss.str());
+    trans->Append(stmt);
+}
+
+
+void Player::_SaveAccountBankTabSettings(CharacterDatabaseTransaction trans) const
+{
+    uint32 bnetAccountId = GetSession()->GetBattlenetAccountId();
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_TAB_SETTINGS);
+    stmt->setUInt32(0, bnetAccountId);
+    trans->Append(stmt);
+
+    for (std::size_t i = 0; i < m_activePlayerData->AccountBankTabSettings.size(); ++i)
+    {
+        UF::BankTabSettings const& tabSetting = m_activePlayerData->AccountBankTabSettings[i];
+        stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_ACCOUNT_BANK_TAB_SETTINGS);
+        stmt->setUInt32(0, bnetAccountId);
+        stmt->setUInt8(1, i);
+        stmt->setString(2, *tabSetting.Name);
+        stmt->setString(3, *tabSetting.Icon);
+        stmt->setString(4, *tabSetting.Description);
+        stmt->setInt32(5, *tabSetting.DepositFlags);
+        trans->Append(stmt);
+    }
+}
+
+void Player::_SaveAccountBankCoinage(CharacterDatabaseTransaction trans) const
+{
+    uint32 bnetAccountId = GetSession()->GetBattlenetAccountId();
+    if (!bnetAccountId)
+        return;
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_ACCOUNT_BANK_COINAGE);
+    stmt->setUInt32(0, bnetAccountId);
+    stmt->setUInt64(1, GetAccountBankCoinage());
+    trans->Append(stmt);
+}
+
+void Player::_SaveAccountBankItems(CharacterDatabaseTransaction trans)
+{
+    uint32 bnetAccountId = GetSession()->GetBattlenetAccountId();
+
+    // Delete all account bank item positions - they will be re-inserted below
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEMS_BY_BNET);
+    stmt->setUInt32(0, bnetAccountId);
+    trans->Append(stmt);
+
+    // Re-insert current positions
+    for (uint8 tabIndex = 0; tabIndex < GetAccountBankTabCount(); ++tabIndex)
+    {
+        uint8 bagSlot = ACCOUNT_BANK_SLOT_BAG_START + tabIndex;
+        Bag* bag = GetBagByPos(bagSlot);
+        if (!bag)
+            continue;
+
+        for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
+        {
+            Item* item = bag->GetItemByPos(slot);
+            if (!item)
+                continue;
+
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_ACCOUNT_BANK_ITEM);
+            stmt->setUInt32(0, bnetAccountId);
+            stmt->setUInt8(1, tabIndex);
+            stmt->setUInt8(2, slot);
+            stmt->setUInt64(3, item->GetGUID().GetCounter());
+            trans->Append(stmt);
+        }
+    }
+}
+
 void Player::outDebugValues() const
 {
     Log* log = sLog;
@@ -22049,7 +22924,7 @@ Pet* Player::GetPet() const
     return nullptr;
 }
 
-void Player::RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent)
+void Player::RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent, bool stampeded /*= false*/)
 {
     if (!pet)
         pet = GetPet();
@@ -22100,11 +22975,32 @@ void Player::RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent)
 
     pet->CombatStop();
 
+    if (pet->IsAnimalCompanion())
+        SetAnimalCompanion(ObjectGuid::Empty);
+
     // exit areatriggers before saving to remove auras applied by them
     pet->ExitAllAreaTriggers();
 
+    // Stampeded/animal companion pets are not in PetStable, skip all stable logic
+    if (pet->IsInStampeded() || pet->IsAnimalCompanion())
+    {
+        SetMinion(pet, false, true);
+        pet->AddObjectToRemoveList();
+        pet->m_removed = true;
+
+        if (pet->isControlled())
+        {
+            WorldPackets::Pet::PetSpells petSpellsPacket;
+            SendDirectMessage(petSpellsPacket.Write());
+
+            if (GetGroup())
+                SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET);
+        }
+        return;
+    }
+
     // only if current pet in slot
-    pet->SavePetToDB(mode);
+    pet->SavePetToDB(mode, stampeded);
 
     PetStable::PetInfo const* currentPet = m_petStable->GetCurrentPet();
     ASSERT(currentPet && currentPet->PetNumber == pet->GetCharmInfo()->GetPetNumber());
@@ -22592,6 +23488,14 @@ void Player::SendRemoveControlBar() const
 {
     WorldPackets::Pet::PetSpells packet;
     SendDirectMessage(packet.Write());
+}
+
+void Player::SendPetGuids()
+{
+    WorldPackets::Pet::PetGuids guids;
+    for (Unit* unit : m_Controlled)
+        guids.PetGUIDs.push_back(unit->GetGUID());
+    SendDirectMessage(guids.Write());
 }
 
 int32 Player::IsAffectedBySpellmod(SpellInfo const* spellInfo, SpellModifier const* mod, Spell const* spell)
@@ -23122,6 +24026,79 @@ UF::PVPInfo const* Player::GetPvpInfoForBracket(int8 bracket) const
         return &m_activePlayerData->PvpInfo[index];
 
     return nullptr;
+}
+
+void Player::ModifyArenaRating(int32 mod, uint8 slot, bool won)
+{
+    int32 index = m_activePlayerData->PvpInfo.FindIndexIf([slot](UF::PVPInfo const& pvpInfo)
+    {
+        return pvpInfo.Bracket == int8(slot) && !*pvpInfo.Disqualified;
+    });
+
+    if (index < 0)
+    {
+        AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo));
+        index = m_activePlayerData->PvpInfo.size() - 1;
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, index).ModifyValue(&UF::PVPInfo::Bracket), int8(slot));
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, index).ModifyValue(&UF::PVPInfo::Rating), 1500u);
+    }
+
+    uint32 currentRating = m_activePlayerData->PvpInfo[index].Rating;
+    if (currentRating == 0)
+        currentRating = 1500;
+    int32 newRating = int32(currentRating) + mod;
+    if (newRating < 0)
+        newRating = 0;
+
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, index).ModifyValue(&UF::PVPInfo::Rating), uint32(newRating));
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, index).ModifyValue(&UF::PVPInfo::WeeklyPlayed), uint32(*m_activePlayerData->PvpInfo[index].WeeklyPlayed) + 1);
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, index).ModifyValue(&UF::PVPInfo::SeasonPlayed), uint32(*m_activePlayerData->PvpInfo[index].SeasonPlayed) + 1);
+    if (won)
+    {
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, index).ModifyValue(&UF::PVPInfo::WeeklyWon), uint32(*m_activePlayerData->PvpInfo[index].WeeklyWon) + 1);
+        SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, index).ModifyValue(&UF::PVPInfo::SeasonWon), uint32(*m_activePlayerData->PvpInfo[index].SeasonWon) + 1);
+    }
+}
+
+void Player::_LoadArenaStats(PreparedQueryResult result)
+{
+    // Default ratings for all 3 arena slots (2v2=0, 3v3=1, 5v5=2)
+    uint32 defaultRating[MAX_ARENA_SLOT] = { 1500, 1500, 1500 };
+
+    if (result)
+    {
+        do
+        {
+            Field* fields = result->Fetch();
+            uint8 slot = fields[0].GetUInt8();
+            uint16 rating = fields[2].GetUInt16();
+
+            if (slot < MAX_ARENA_SLOT)
+                defaultRating[slot] = rating;
+
+            AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo));
+            int32 idx = m_activePlayerData->PvpInfo.size() - 1;
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, idx).ModifyValue(&UF::PVPInfo::Bracket), int8(slot));
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, idx).ModifyValue(&UF::PVPInfo::Rating), uint32(rating));
+        } while (result->NextRow());
+    }
+
+    // Create default PVPInfo entries for slots that have no saved data
+    for (uint8 slot = 0; slot < MAX_ARENA_SLOT; ++slot)
+    {
+        int32 index = m_activePlayerData->PvpInfo.FindIndexIf([slot](UF::PVPInfo const& pvpInfo)
+        {
+            return pvpInfo.Bracket == int8(slot) && !*pvpInfo.Disqualified;
+        });
+
+        if (index < 0)
+        {
+            AddDynamicUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo));
+            index = m_activePlayerData->PvpInfo.size() - 1;
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, index).ModifyValue(&UF::PVPInfo::Bracket), int8(slot));
+            SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PvpInfo, index).ModifyValue(&UF::PVPInfo::Rating), defaultRating[slot]);
+        }
+    }
 }
 
 bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc /*= nullptr*/, uint32 spellid /*= 0*/, uint32 preferredMountDisplay /*= 0*/,
@@ -25041,6 +26018,19 @@ void Player::SendInitialPacketsBeforeAddToMap()
     initialSetup.ServerExpansionLevel = sWorld->getIntConfig(CONFIG_EXPANSION);
     SendDirectMessage(initialSetup.Write());
 
+    // Account-wide bank lock: grant to this session if no other session for the same
+    // Bnet account already holds it. Without this flag the client shows the
+    // "The bank is being used by another member of your Warband" prompt.
+    if (!sWorld->IsAccountInventoryLockAcquired(GetSession()->GetBattlenetAccountGUID(), GetSession()))
+        SetPlayerLocalFlag(PLAYER_LOCAL_FLAG_HAS_ACCOUNT_BANK_LOCK);
+
+    // Retail sends SMSG_SET_CTR_OPTIONS during login to every player regardless of chromie
+    // state (captures A/B/C: pulses appear in all 32 non-chromie sessions too - audit M4),
+    // and the first send of a session carries a default-empty Previous block
+    // ([ (0,0,0,[]), current ] - A rec 721 / B 485 / C 469, audit m2).
+    WorldPackets::Misc::CTROptionsBlock emptyPrevious;
+    SendCtrOptions(&emptyPrevious);
+
     SetMovedUnit(this);
 }
 
@@ -25134,6 +26124,17 @@ void Player::SendInitialPacketsAfterAddToMap()
         else
             ClearQuestSharingInfo();
     }
+
+    // StefalWoW
+    // Dragonriding
+    if (HasAura(SPELL_DYNAMIC_FLIGHT))
+    {
+        if (GetPower(POWER_ALTERNATE_MOUNT) < 3)
+            SetPower(POWER_ALTERNATE_MOUNT, 3);
+
+        AddAura(SPELL_DRAGONRIDER_ENERGY, this);
+    }
+    // StefalWoW
 
     GetSceneMgr().TriggerDelayedScenes();
 }
@@ -27979,6 +28980,22 @@ void Player::ResummonPetTemporaryUnSummonedIfAny()
     m_temporaryUnsummonedPetNumber = 0;
 }
 
+void Player::ResummonAnimalCompanionIfAny()
+{
+    if (GetPet() && GetAnimalCompanion().IsEmpty())
+    {
+        Unit::AuraEffectList const& animalCompanion = GetAuraEffectsByType(SPELL_AURA_ANIMAL_COMPANION);
+        for (AuraEffect const* aurEff : animalCompanion)
+        {
+            if (uint32 triggerSpell = aurEff->GetSpellEffectInfo().TriggerSpell)
+            {
+                if (sSpellMgr->GetSpellInfo(triggerSpell, DIFFICULTY_NONE))
+                    CastSpell(this, triggerSpell, true);
+            }
+        }
+    }
+}
+
 void Player::UnsummonBattlePetTemporaryIfAny(bool onFlyingMount /*= false*/)
 {
     Creature* battlepet = GetSummonedBattlePet();
@@ -29403,6 +30420,14 @@ void Player::ApplyTraitConfig(int32 configId, bool apply)
     for (UF::TraitEntry const& traitEntry : traitConfig->Entries)
         if (!apply || TraitMgr::CanApplyTraitNode(*traitConfig, traitEntry))
             ApplyTraitEntry(traitEntry.TraitNodeEntryID, traitEntry.Rank, traitEntry.GrantedRanks, apply);
+
+    // Apply hero talent (SubTree) entries - these are stored separately from regular entries
+    //for (UF::TraitSubTreeCache const& subTree : traitConfig->SubTrees)
+    //{
+    //    if (!apply || subTree.Active)
+    //        for (UF::TraitEntry const& traitEntry : subTree.Entries)
+    //            ApplyTraitEntry(traitEntry.TraitNodeEntryID, traitEntry.Rank, traitEntry.GrantedRanks, apply);
+    //}
 }
 
 void Player::ApplyTraitEntry(int32 traitNodeEntryId, int32 rank, int32 grantedRanks, bool apply)
@@ -29609,13 +30634,19 @@ void Player::AddPetToUpdateFields(PetStable::PetInfo const& pet, PetSaveMode slo
 {
     auto ufStable = m_values.ModifyValue(&Player::m_activePlayerData).ModifyValue(&UF::ActivePlayerData::PetStable, 0);
     auto ufPet = AddDynamicUpdateFieldValue(ufStable.ModifyValue(&UF::StableInfo::Pets));
+
+    uint8 petFlags = flags;
+    if (pet.IsFavorite)
+        petFlags |= PET_STABLE_FAVORITE;
+
     ufPet.ModifyValue(&UF::StablePetInfo::PetSlot).SetValue(slot);
     ufPet.ModifyValue(&UF::StablePetInfo::PetNumber).SetValue(pet.PetNumber);
     ufPet.ModifyValue(&UF::StablePetInfo::CreatureID).SetValue(pet.CreatureId);
     ufPet.ModifyValue(&UF::StablePetInfo::DisplayID).SetValue(pet.DisplayId);
     ufPet.ModifyValue(&UF::StablePetInfo::ExperienceLevel).SetValue(pet.Level);
-    ufPet.ModifyValue(&UF::StablePetInfo::PetFlags).SetValue(flags);
+    ufPet.ModifyValue(&UF::StablePetInfo::PetFlags).SetValue(petFlags);
     ufPet.ModifyValue(&UF::StablePetInfo::Name).SetValue(pet.Name);
+    ufPet.ModifyValue(&UF::StablePetInfo::Specialization).SetValue(pet.SpecializationId);
 }
 
 void Player::SetPetSlot(uint32 petNumber, PetSaveMode dstPetSlot)
@@ -30020,8 +31051,8 @@ void Player::_LoadPetStable(uint32 summonedPetNumber, PreparedQueryResult result
 
     m_petStable = std::make_unique<PetStable>();
 
-    //         0      1        2      3    4           5     6     7        8          9       10      11        12              13       14              15
-    // SELECT id, entry, modelid, level, exp, Reactstate, slot, name, renamed, curhealth, curmana, abdata, savetime, CreatedBySpell, PetType, specialization FROM character_pet WHERE owner = ?
+    //         0      1        2      3    4           5     6     7        8          9       10      11        12              13       14            15        16
+    // SELECT id, entry, modelid, level, exp, Reactstate, slot, name, renamed, curhealth, curmana, abdata, savetime, CreatedBySpell, PetType, specialization, favorite FROM character_pet WHERE owner = ?
     if (result)
     {
 
@@ -30045,6 +31076,7 @@ void Player::_LoadPetStable(uint32 summonedPetNumber, PreparedQueryResult result
             petInfo.CreatedBySpellId = fields[13].GetUInt32();
             petInfo.Type = PetType(fields[14].GetUInt8());
             petInfo.SpecializationId = fields[15].GetUInt16();
+            petInfo.IsFavorite = fields[16].GetBool();
             if (slot >= PET_SAVE_FIRST_ACTIVE_SLOT && slot < PET_SAVE_LAST_ACTIVE_SLOT)
             {
                 m_petStable->ActivePets[slot] = std::move(petInfo);
@@ -30456,11 +31488,13 @@ Guild const* Player::GetGuild() const
     return guildId ? sGuildMgr->GetGuildById(guildId) : nullptr;
 }
 
-Pet* Player::SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float y, float z, float ang, uint32 duration, bool* isNew /*= nullptr*/)
+Pet* Player::SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float y, float z, float ang, uint32 duration, bool* isNew /*= nullptr*/, bool stampeded /*= false*/, bool animalCompanion /*= false*/, std::function<void(Pet*, bool)> callBack /*[](Pet*, bool) {}*/)
 {
     PetStable& petStable = GetOrInitPetStable();
 
     Pet* pet = new Pet(this, SUMMON_PET);
+    pet->SetStampeded(stampeded);
+    pet->SetAnimalCompanion(animalCompanion);
 
     if (pet->LoadPetFromDB(this, entry, 0, false, slot))
     {
@@ -30470,6 +31504,8 @@ Pet* Player::SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float 
         if (isNew)
             *isNew = false;
 
+        callBack(pet, true);
+
         return pet;
     }
 
@@ -30477,6 +31513,7 @@ Pet* Player::SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float 
     if (!entry)
     {
         delete pet;
+        callBack(nullptr, false);
         return nullptr;
     }
 
@@ -30487,6 +31524,7 @@ Pet* Player::SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float 
     {
         TC_LOG_ERROR("misc", "Player::SummonPet: Pet ({}, Entry: {}) not summoned. Suggested coordinates aren't valid (X: {} Y: {})", pet->GetGUID().ToString(), pet->GetEntry(), pet->GetPositionX(), pet->GetPositionY());
         delete pet;
+        callBack(nullptr, false);
         return nullptr;
     }
 
@@ -30498,6 +31536,8 @@ Pet* Player::SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float 
         delete pet;
         return nullptr;
     }
+
+    SendPetGuids();
 
     if (petStable.GetCurrentPet())
         RemovePet(nullptr, PET_SAVE_NOT_IN_SLOT);
@@ -30539,6 +31579,8 @@ Pet* Player::SummonPet(uint32 entry, Optional<PetSaveMode> slot, float x, float 
 
     if (isNew)
         *isNew = true;
+
+    callBack(pet, true);
 
     return pet;
 }
@@ -30628,7 +31670,8 @@ SpellInfo const* Player::GetCastSpellInfo(SpellInfo const* spellInfo, TriggerCas
         for (uint32 spellId : overrides->second)
             if (context->AddSpell(spellId))
                 if (SpellInfo const* newInfo = sSpellMgr->GetSpellInfo(spellId, GetMap()->GetDifficultyID()))
-                    return GetCastSpellInfo(newInfo, triggerFlag, context);
+                    if (!newInfo->IsPassive())
+                        return GetCastSpellInfo(newInfo, triggerFlag, context);
 
     return Unit::GetCastSpellInfo(spellInfo, triggerFlag, context);
 }
@@ -31583,6 +32626,12 @@ void Player::ExecutePendingSpellCastRequest()
 
     // check known spell or raid marker spell (which not requires player to know it)
     SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(_pendingSpellCastRequest->CastRequest.SpellID, GetMap()->GetDifficultyID());
+
+    // Check possible spell cast overrides (must be before HasActiveSpell check so override spells pass the known spell check)
+    auto [overrideSpellInfo, overrideTriggerFlag] = castingUnit->GetCastSpellInfo(spellInfo);
+    spellInfo = overrideSpellInfo;
+    triggerFlag |= overrideTriggerFlag;
+
     Player* plrCaster = castingUnit->ToPlayer();
     if (plrCaster && !plrCaster->HasActiveSpell(spellInfo->Id) && !spellInfo->HasAttribute(SPELL_ATTR8_SKIP_IS_KNOWN_CHECK))
     {
@@ -31607,10 +32656,6 @@ void Player::ExecutePendingSpellCastRequest()
         }
     }
 
-    // Check possible spell cast overrides
-    auto [overrideSpellInfo, overrideTriggerFlag] = castingUnit->GetCastSpellInfo(spellInfo);
-    spellInfo = overrideSpellInfo;
-    triggerFlag |= overrideTriggerFlag;
     if (spellInfo->IsPassive())
     {
         CancelPendingCastRequest();
@@ -31729,7 +32774,9 @@ bool Player::ProcessItemCast(SpellCastRequest& castRequest, SpellCastTargets con
     }
 
     // check also  BIND_ON_ACQUIRE and BIND_QUEST for .additem or .additemset case by GM (not binded at adding to inventory)
-    if (item->GetBonding() == BIND_ON_USE || item->GetBonding() == BIND_ON_ACQUIRE || item->GetBonding() == BIND_QUEST)
+    if (item->GetBonding() == BIND_ON_USE || item->GetBonding() == BIND_ON_ACQUIRE || item->GetBonding() == BIND_QUEST
+        || item->GetBonding() == BIND_WOW_ACCOUNT || item->GetBonding() == BIND_BNET_ACCOUNT
+        || item->GetBonding() == BIND_BNET_ACCOUNT_UNTIL_EQUIPPED)
     {
         if (!item->IsSoulBound())
         {
@@ -31773,4 +32820,165 @@ bool Player::CanExecutePendingSpellCastRequest()
         return false;
 
     return true;
+}
+
+void Player::AddMoveImpulse(Position direction)
+{
+    WorldPackets::Movement::MoveAddImpulse impulse;
+    impulse.MoverGUID = GetGUID();
+    impulse.SequenceIndex = m_movementCounter++;
+    impulse.Direction = direction;
+    SendMessageToSet(impulse.Write(), true);
+}
+
+void Player::InitAdvFlying()
+{
+    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_AIR_FRICTION, ADV_FLYING_AIR_FRICTION);
+    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_MAX_VEL, ADV_FLYING_MAX_VEL);
+    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_LIFT_COEFFICIENT, ADV_FLYING_LIFT_COEFFICIENT);
+    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_DOUBLE_JUMP_VEL_MOD, ADV_FLYING_DOUBLE_JUMP_VEL_MOD);
+    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_GLIDE_START_MIN_HEIGHT, ADV_FLYING_GLIDE_START_MIN_HEIGHT);
+    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_ADD_IMPULSE_MAX_SPEED, ADV_FLYING_ADD_IMPULSE_MAX_SPEED);
+    //// SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_BANKING_RATE, ADV_FLYING_BANKING_RATE_MIN, ADV_FLYING_BANKING_RATE_MAX);
+   //  SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_PITCHING_RATE_DOWN, ADV_FLYING_PITCHING_RATE_DOWN_MIN, ADV_FLYING_PITCHING_RATE_DOWN_MAX);
+    // SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_PITCHING_RATE_UP, ADV_FLYING_PITCHING_RATE_UP_MIN, ADV_FLYING_PITCHING_RATE_UP_MAX);
+    // SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_TURN_VELOCITY_THRESHOLD, ADV_FLYING_TURN_VELOCITY_THRESHOLD_MIN, ADV_FLYING_TURN_VELOCITY_THRESHOLD_MAX);
+    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_SURFACE_FRICTION, ADV_FLYING_SURFACE_FRICTION);
+    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_OVER_MAX_DECELERATION, ADV_FLYING_OVER_MAX_DECELERATION);
+    SendAdvFlyingSpeed(SMSG_MOVE_SET_ADV_FLYING_LAUNCH_SPEED_COEFFICIENT, ADV_FLYING_LAUNCH_SPEED_COEFFICIENT);
+}
+
+void Player::SendAdvFlyingSpeed(OpcodeServer opcode, AdvFlyingRateTypeSingle speedType, std::optional<AdvFlyingRateTypeSingle> maxSpeedType)
+{
+    if (maxSpeedType.has_value() && maxSpeedType.value() != AdvFlyingRateTypeSingle(0))
+        SendDirectMessage(WorldPackets::Movement::SetAdvFlyingMinMaxSpeeds(opcode, m_movementCounter++, GetAdvFlyingSpeed(speedType), GetAdvFlyingSpeed(maxSpeedType.value())).Write());
+    else
+    {
+        WorldPackets::Movement::SetAdvFlyingSpeed packet(opcode);
+        packet.MoverGUID = GetGUID();
+        packet.SequenceIndex = m_movementCounter++;
+        packet.Speed = GetAdvFlyingSpeed(speedType);
+        SendDirectMessage(packet.Write());
+    }
+}
+
+void Player::UpdateDynamicFlight(bool apply)
+{
+    if (apply)
+    {
+        if (!HasAuraType(SPELL_AURA_ADV_FLYING))
+            AddAura(SPELL_DYNAMIC_FLIGHT, this);
+    }
+    else
+    {
+        if (HasAuraType(SPELL_AURA_ADV_FLYING))
+            RemoveAura(SPELL_DYNAMIC_FLIGHT);
+    }
+}
+
+void Player::InitAdvancedFly()
+{
+    FlightCapabilityEntry const* flightCapabilityEntry = sFlightCapabilityStore.LookupEntry(GetFlightCapabilityID());
+    if (!flightCapabilityEntry)
+        return;
+
+    std::vector<std::tuple<OpcodeServer, float, Optional<float>>> advFlyValues = {
+        { SMSG_MOVE_SET_ADV_FLYING_AIR_FRICTION,                flightCapabilityEntry->AirFriction,                 {}                                                  },
+        { SMSG_MOVE_SET_ADV_FLYING_MAX_VEL,                     flightCapabilityEntry->MaxVel,                      {}                                                  },
+        { SMSG_MOVE_SET_ADV_FLYING_LIFT_COEFFICIENT,            flightCapabilityEntry->LiftCoefficient,             {}                                                  },
+        { SMSG_MOVE_SET_ADV_FLYING_DOUBLE_JUMP_VEL_MOD,         flightCapabilityEntry->DoubleJumpVelMod,            {}                                                  },
+        { SMSG_MOVE_SET_ADV_FLYING_GLIDE_START_MIN_HEIGHT,      flightCapabilityEntry->GlideStartMinHeight,         {}                                                  },
+        { SMSG_MOVE_SET_ADV_FLYING_ADD_IMPULSE_MAX_SPEED,       flightCapabilityEntry->AddImpulseMaxSpeed,          {}                                                  },
+        { SMSG_MOVE_SET_ADV_FLYING_BANKING_RATE,                flightCapabilityEntry->BankingRateMin,              flightCapabilityEntry->BankingRateMax               },
+        { SMSG_MOVE_SET_ADV_FLYING_PITCHING_RATE_DOWN,          flightCapabilityEntry->PitchingRateDownMin,         flightCapabilityEntry->PitchingRateDownMax          },
+        { SMSG_MOVE_SET_ADV_FLYING_PITCHING_RATE_UP,            flightCapabilityEntry->PitchingRateUpMin,           flightCapabilityEntry->PitchingRateUpMax            },
+        { SMSG_MOVE_SET_ADV_FLYING_TURN_VELOCITY_THRESHOLD,     flightCapabilityEntry->TurnVelocityThresholdMin,    flightCapabilityEntry->TurnVelocityThresholdMax     },
+        { SMSG_MOVE_SET_ADV_FLYING_SURFACE_FRICTION,            flightCapabilityEntry->SurfaceFriction,             {}                                                  },
+        { SMSG_MOVE_SET_ADV_FLYING_OVER_MAX_DECELERATION,       flightCapabilityEntry->OverMaxDeceleration,         {}                                                  },
+        { SMSG_MOVE_SET_ADV_FLYING_LAUNCH_SPEED_COEFFICIENT,    flightCapabilityEntry->LaunchSpeedCoefficient,      {}                                                  },
+    };
+}
+
+void Player::ShowNeutralPlayerFactionSelectUI()
+{
+    WorldPackets::Misc::FactionSelectUI packet;
+    GetSession()->SendPacket(packet.Write());
+}
+
+void Player::SetChromieTime(int32 expansionId)
+{
+    // Snapshot the pre-change CtrOptions so the SMSG can carry [previous, current].
+    WorldPackets::Misc::CTROptionsBlock previous;
+    previous.ConditionalFlags.assign(m_playerData->CtrOptions->ConditionalFlags.begin(),
+        m_playerData->CtrOptions->ConditionalFlags.end());
+    previous.FactionGroup = m_playerData->CtrOptions->FactionGroup;
+    previous.ChromieTimeExpansionMask = m_playerData->CtrOptions->ChromieTimeExpansionMask;
+
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+        .ModifyValue(&UF::ActivePlayerData::UiChromieTimeExpansionID), expansionId);
+
+    // ChromieTimeExpansionMask comes from the DB2 entry's ExpansionMask, not 1 << id.
+    // Confirmed via 12.0.5 sniff: Pandaria (id=8) -> mask 0x10, Legion (id=10) -> mask 0x40.
+    uint32 expansionMask = 0;
+    if (expansionId > 0)
+        if (UIChromieTimeExpansionInfoEntry const* entry = sUIChromieTimeExpansionInfoStore.LookupEntry(uint32(expansionId)))
+            expansionMask = uint32(entry->ExpansionMask);
+
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
+        .ModifyValue(&UF::PlayerData::CtrOptions)
+        .ModifyValue(&UF::CTROptions::ChromieTimeExpansionMask), expansionMask);
+
+    SetChromieTimeConditionalFlags(expansionId > 0);
+
+    // Retail keeps FactionGroup populated from the player's faction independent of chromie
+    // state and never resets it on deselect (capture A rec 2149: fg 0->3 with mask 0 before
+    // any chromie interaction; equivalents B 2229 / C 1462). Alliance = 3 (Player|Alliance)
+    // is sniff-verified; the Horde value (expected 5 = Player|Horde per FactionTemplate)
+    // is unverified - no Horde 12.0.5+ sniff exists (audit R5 deferral).
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
+        .ModifyValue(&UF::PlayerData::CtrOptions)
+        .ModifyValue(&UF::CTROptions::FactionGroup), GetFactionGroupForRace(GetRace()));
+
+    SendCtrOptions(&previous);
+    PhasingHandler::OnConditionChange(this);
+}
+
+void Player::SetChromieTimeConditionalFlags(bool enabled)
+{
+    // Read current flags, modify, and write back as a whole
+    std::vector<uint32> conditionalFlags(m_playerData->CtrOptions->ConditionalFlags.begin(),
+        m_playerData->CtrOptions->ConditionalFlags.end());
+
+    if (conditionalFlags.empty())
+        conditionalFlags.push_back(0);
+
+    if (enabled)
+        conditionalFlags[0] |= 1;
+    else
+        conditionalFlags[0] &= ~1u;
+
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_playerData)
+        .ModifyValue(&UF::PlayerData::CtrOptions)
+        .ModifyValue(&UF::CTROptions::ConditionalFlags), std::move(conditionalFlags));
+}
+
+void Player::SetTimerunningSeasonID(uint32 seasonId)
+{
+    SetUpdateFieldValue(m_values.ModifyValue(&Player::m_activePlayerData)
+        .ModifyValue(&UF::ActivePlayerData::TimerunningSeasonID), int32(seasonId));
+}
+
+void Player::SendCtrOptions(WorldPackets::Misc::CTROptionsBlock const* previous /*= nullptr*/) const
+{
+    WorldPackets::Misc::SetCtrOptions ctrOptions;
+    ctrOptions.Current.ConditionalFlags.assign(m_playerData->CtrOptions->ConditionalFlags.begin(),
+        m_playerData->CtrOptions->ConditionalFlags.end());
+    ctrOptions.Current.FactionGroup = m_playerData->CtrOptions->FactionGroup;
+    ctrOptions.Current.ChromieTimeExpansionMask = m_playerData->CtrOptions->ChromieTimeExpansionMask;
+
+    // Sniffs show retail always sends two blocks: previous + current. With no transition
+    // (e.g. login pulse) both blocks are identical to the current state.
+    ctrOptions.Previous = previous ? *previous : ctrOptions.Current;
+
+    SendDirectMessage(ctrOptions.Write());
 }

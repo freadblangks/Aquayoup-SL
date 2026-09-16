@@ -512,7 +512,7 @@ NonDefaultConstructible<pAuraEffectHandler> AuraEffectHandler[TOTAL_AURAS]=
     &AuraEffect::HandleNULL,                                      //440 SPELL_AURA_MOD_MULTISTRIKE_DAMAGE
     &AuraEffect::HandleNULL,                                      //441 SPELL_AURA_MOD_MULTISTRIKE_CHANCE
     &AuraEffect::HandleNULL,                                      //442 SPELL_AURA_MOD_READINESS
-    &AuraEffect::HandleNULL,                                      //443 SPELL_AURA_MOD_LEECH
+    &AuraEffect::HandleAuraLeech,                                 //443 SPELL_AURA_MOD_LEECH
     &AuraEffect::HandleNULL,                                      //444
     &AuraEffect::HandleNULL,                                      //445
     &AuraEffect::HandleModAdvFlying,                              //446 SPELL_AURA_ADV_FLYING
@@ -562,7 +562,7 @@ NonDefaultConstructible<pAuraEffectHandler> AuraEffectHandler[TOTAL_AURAS]=
     &AuraEffect::HandleNULL,                                      //490
     &AuraEffect::HandleNoImmediateEffect,                         //491 SPELL_AURA_MOD_HONOR_GAIN_PCT implemented in Player::RewardHonor
     &AuraEffect::HandleNULL,                                      //492
-    &AuraEffect::HandleNULL,                                      //493
+    &AuraEffect::HandleAuraAnimalCompanion,                       //493 SPELL_AURA_ANIMAL_COMPANION
     &AuraEffect::HandleNULL,                                      //494 SPELL_AURA_SET_POWER_POINT_CHARGE
     &AuraEffect::HandleTriggerSpellOnExpire,                      //495 SPELL_AURA_TRIGGER_SPELL_ON_EXPIRE
     &AuraEffect::HandleNULL,                                      //496 SPELL_AURA_ALLOW_CHANGING_EQUIPMENT_IN_TORGHAST
@@ -2063,8 +2063,11 @@ void AuraEffect::HandleAuraModShapeshift(AuraApplication const* aurApp, uint8 mo
         // and also HandleAuraModDisarm is not triggered
         if (!target->CanUseAttackType(BASE_ATTACK))
         {
-            if (Item* pItem = target->ToPlayer()->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
-                target->ToPlayer()->_ApplyWeaponDamage(EQUIPMENT_SLOT_MAINHAND, pItem, apply);
+            if (Player* playerTarget = target->ToPlayer())
+            {
+                if (Item* pItem = playerTarget->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
+                    playerTarget->_ApplyWeaponDamage(EQUIPMENT_SLOT_MAINHAND, pItem, apply);
+            }
         }
     }
 
@@ -2830,7 +2833,28 @@ void AuraEffect::HandleAuraMounted(AuraApplication const* aurApp, uint8 mode, bo
             if (MountCapabilityEntry const* mountCapability = sMountCapabilityStore.LookupEntry(GetAmountAsInt()))
             {
                 target->SetFlightCapabilityID(mountCapability->FlightCapabilityID, true);
+                target->SetDriveCapabilityID(mountCapability->DriveCapabilityID, false);
                 target->CastSpell(target, mountCapability->ModSpellAuraID, this);
+            }
+
+            // Private server: always enable flying for players with riding skills
+            if (Player* player = target->ToPlayer())
+            {
+                if (player->HasSpell(90265) || player->HasSpell(34091) || player->HasSpell(34090))
+                {
+                    target->SetCanFly(true);
+                    if (player->HasAura(404468)) // Steady Flight mode
+                        target->SetCanAdvFly(false);
+                    else // Skyriding mode (default)
+                    {
+                        target->SetCanAdvFly(true);
+                        target->SetCanDoubleJump(true);
+                        target->SetFlightCapabilityID(1, true);
+                        // Cast Vigor aura - required by CasterAuraSpell check for active abilities
+                        if (!player->HasAura(372773))
+                            player->CastSpell(player, 372773, true);
+                    }
+                }
             }
         }
     }
@@ -2854,8 +2878,20 @@ void AuraEffect::HandleAuraMounted(AuraApplication const* aurApp, uint8 mode, bo
             if (MountCapabilityEntry const* mountCapability = sMountCapabilityStore.LookupEntry(GetAmountAsInt()))
                 target->RemoveAurasDueToSpell(mountCapability->ModSpellAuraID, target->GetGUID());
 
+        // Clear all flight flags on dismount
+        target->SetCanFly(false);
+        target->SetCanAdvFly(false);
+        target->SetCanDoubleJump(false);
         target->SetFlightCapabilityID(0, true);
+        target->SetDriveCapabilityID(0, true);
+        // Remove Vigor aura on dismount
+        target->RemoveAura(372773);
     }
+
+    // Dragonriding updates
+    if (target->GetTypeId() == TYPEID_PLAYER && (mode & AURA_EFFECT_HANDLE_REAL))
+        if (GetMiscValue() == 32158 && GetMiscValueB() == 229) // Dragon mounts
+            target->ToPlayer()->UpdateDynamicFlight(apply);
 }
 
 void AuraEffect::HandleAuraAllowFlight(AuraApplication const* aurApp, uint8 mode, bool apply) const
@@ -2985,13 +3021,19 @@ void AuraEffect::HandleAuraCanTurnWhileFalling(AuraApplication const* aurApp, ui
 
 void AuraEffect::HandleModAdvFlying(AuraApplication const* aurApp, uint8 mode, bool apply) const
 {
-    if (!(mode & AURA_EFFECT_HANDLE_SEND_FOR_CLIENT_MASK))
+    if (!(mode & AURA_EFFECT_HANDLE_REAL))
         return;
 
-    Unit* target = aurApp->GetTarget();
-    target->SetCanDoubleJump(apply || target->HasAura(SPELL_DH_DOUBLE_JUMP));
-    target->SetCanFly(apply);
-    target->SetCanAdvFly(apply);
+    Player* player = aurApp->GetTarget()->ToPlayer();
+    if (!player)
+        return;
+
+    player->SetCanDoubleJump(apply || player->HasAura(SPELL_DH_DOUBLE_JUMP));
+    player->SetCanFly(apply);
+    player->SetCanAdvFly(apply);
+
+    if (apply)
+        player->InitAdvFlying();
 }
 
 void AuraEffect::HandleIgnoreMovementForces(AuraApplication const* aurApp, uint8 mode, bool apply) const
@@ -3378,6 +3420,48 @@ void AuraEffect::HandleAuraControlVehicle(AuraApplication const* aurApp, uint8 m
 
         // some SPELL_AURA_CONTROL_VEHICLE auras have a dummy effect on the player - remove them
         caster->RemoveAurasDueToSpell(GetId());
+    }
+}
+
+void AuraEffect::HandleAuraAnimalCompanion(AuraApplication const* /*aurApp*/, uint8 mode, bool apply) const
+{
+    if (!(mode & AURA_EFFECT_HANDLE_CHANGE_AMOUNT_MASK))
+        return;
+
+    Unit* caster = GetCaster();
+    if (!caster)
+        return;
+
+    Player* player = GetCaster()->ToPlayer();
+    if (!player)
+        return;
+
+    if (apply)
+    {
+        if (player->GetPet())
+        {
+            // Refresh pet UI and summon animal companion via trigger spell
+            player->PetSpellInitialize();
+
+            if (uint32 triggerSpell = GetSpellEffectInfo().TriggerSpell)
+                caster->CastSpell(caster, triggerSpell, true);
+        }
+    }
+    else
+    {
+        // Remove animal companion
+        ObjectGuid animalCompanionGuid = player->GetAnimalCompanion();
+        if (!animalCompanionGuid.IsEmpty() && animalCompanionGuid.IsPet())
+        {
+            if (Pet* animalCompanion = ObjectAccessor::GetPet(*player, animalCompanionGuid))
+                player->RemovePet(animalCompanion, PET_SAVE_DISMISS, false, true);
+        }
+
+        player->SetAnimalCompanion(ObjectGuid::Empty);
+
+        // Refresh pet UI for the remaining main pet
+        if (player->GetPet())
+            player->PetSpellInitialize();
     }
 }
 
@@ -6144,7 +6228,8 @@ void AuraEffect::HandleProcTriggerSpellAuraProc(AuraApplication* aurApp, ProcEve
     uint32 triggerSpellId = GetSpellEffectInfo().TriggerSpell;
     if (triggerSpellId == 0)
     {
-        TC_LOG_WARN("spells.aura.effect.nospell", "AuraEffect::HandleProcTriggerSpellAuraProc: Spell {} [EffectIndex: {}] does not have triggered spell.", GetId(), GetEffIndex());
+        if (GetAuraType() != SPELL_AURA_DUMMY)
+            TC_LOG_WARN("spells.aura.effect.nospell", "AuraEffect::HandleProcTriggerSpellAuraProc: Spell {} [EffectIndex: {}] does not have triggered spell.", GetId(), GetEffIndex());
         return;
     }
 
@@ -6487,7 +6572,7 @@ void AuraEffect::HandleBattlegroundPlayerPosition(AuraApplication const* aurApp,
     if (!(mode & AURA_EFFECT_HANDLE_REAL))
         return;
 
-    Player* target = aurApp->GetTarget()->ToPlayer();
+    Unit* target = aurApp->GetTarget();
     if (!target)
         return;
 
@@ -6508,14 +6593,19 @@ void AuraEffect::HandleBattlegroundPlayerPosition(AuraApplication const* aurApp,
                 }
                 else if (gobTemplate->type == GAMEOBJECT_TYPE_FLAGSTAND)
                 {
-                    if (ZoneScript* zonescript = target->FindZoneScript())
-                        zonescript->OnFlagDropped(GetCasterGUID(), target);
+                    if (Player* playerTarget = target->ToPlayer())
+                        if (ZoneScript* zonescript = playerTarget->FindZoneScript())
+                            zonescript->OnFlagDropped(GetCasterGUID(), playerTarget);
                 }
             }
         }
     }
 
-    BattlegroundMap* battlegroundMap = target->GetMap()->ToBattlegroundMap();
+    Player* player = target->ToPlayer();
+    if (!player)
+        return;
+
+    BattlegroundMap* battlegroundMap = player->GetMap()->ToBattlegroundMap();
     if (!battlegroundMap)
         return;
 
@@ -6526,21 +6616,21 @@ void AuraEffect::HandleBattlegroundPlayerPosition(AuraApplication const* aurApp,
     if (apply)
     {
         WorldPackets::Battleground::BattlegroundPlayerPosition playerPosition;
-        playerPosition.Guid = target->GetGUID();
+        playerPosition.Guid = player->GetGUID();
         playerPosition.ArenaSlot = static_cast<int8>(GetMiscValue());
-        playerPosition.Pos = target->GetPosition();
+        playerPosition.Pos = player->GetPosition();
 
         if (GetAuraType() == SPELL_AURA_BATTLEGROUND_PLAYER_POSITION_FACTIONAL)
-            playerPosition.IconID = target->GetEffectiveTeam() == ALLIANCE ? PLAYER_POSITION_ICON_HORDE_FLAG : PLAYER_POSITION_ICON_ALLIANCE_FLAG;
+            playerPosition.IconID = player->GetEffectiveTeam() == ALLIANCE ? PLAYER_POSITION_ICON_HORDE_FLAG : PLAYER_POSITION_ICON_ALLIANCE_FLAG;
         else if (GetAuraType() == SPELL_AURA_BATTLEGROUND_PLAYER_POSITION)
-            playerPosition.IconID = target->GetEffectiveTeam() == ALLIANCE ? PLAYER_POSITION_ICON_ALLIANCE_FLAG : PLAYER_POSITION_ICON_HORDE_FLAG;
+            playerPosition.IconID = player->GetEffectiveTeam() == ALLIANCE ? PLAYER_POSITION_ICON_ALLIANCE_FLAG : PLAYER_POSITION_ICON_HORDE_FLAG;
         else
             TC_LOG_WARN("spell.auras", "Unknown aura effect {} handled by HandleBattlegroundPlayerPosition.", GetAuraType());
 
         bg->AddPlayerPosition(playerPosition);
     }
     else
-        bg->RemovePlayerPosition(target->GetGUID());
+        bg->RemovePlayerPosition(player->GetGUID());
 }
 
 void AuraEffect::HandleStoreTeleportReturnPoint(AuraApplication const* aurApp, uint8 mode, bool apply) const
@@ -6664,6 +6754,45 @@ void AuraEffect::HandleAuraActAsControlZone(AuraApplication const* aurApp, uint8
 
     if (GameObject* controlZone = auraOwner->SummonGameObject(gameobjectTemplate->entry, auraOwner->GetPosition(), QuaternionData::fromEulerAnglesZYX(aurApp->GetTarget()->GetOrientation(), 0.f, 0.f), 24h, GO_SUMMON_TIMED_OR_CORPSE_DESPAWN))
         controlZone->SetSpellId(GetSpellInfo()->Id);
+}
+
+void AuraEffect::HandleAdvFlyModSpeed(AuraApplication const* aurApp, uint8 mode, bool /*apply*/) const
+{
+    if (!(mode & AURA_EFFECT_HANDLE_REAL))
+        return;
+
+    Player* player = aurApp->GetTarget()->ToPlayer();
+    if (!player)
+        return;
+
+    player->CalculateAdvFlyingSpeeds();
+
+    static std::unordered_map<AuraType, std::tuple<OpcodeServer, AdvFlyingRateTypeSingle, std::optional<AdvFlyingRateTypeSingle>>> advFlyMap;
+    if (advFlyMap.empty())
+    {
+        using TupleType = std::tuple<OpcodeServer, AdvFlyingRateTypeSingle, std::optional<AdvFlyingRateTypeSingle>>;
+        advFlyMap[SPELL_AURA_MOD_ADV_FLYING_LIFT_COEF] = TupleType{ SMSG_MOVE_SET_ADV_FLYING_LIFT_COEFFICIENT, AdvFlyingRateTypeSingle(ADV_FLYING_LIFT_COEFFICIENT), std::optional<AdvFlyingRateTypeSingle>(std::nullopt) };
+        advFlyMap[SPELL_AURA_MOD_ADV_FLYING_MAX_VEL] = TupleType{ SMSG_MOVE_SET_ADV_FLYING_MAX_VEL, AdvFlyingRateTypeSingle(ADV_FLYING_MAX_VEL), std::optional<AdvFlyingRateTypeSingle>(std::nullopt) };
+        advFlyMap[SPELL_AURA_MOD_ADV_FLYING_AIR_FRICTION] = TupleType{ SMSG_MOVE_SET_ADV_FLYING_AIR_FRICTION, AdvFlyingRateTypeSingle(ADV_FLYING_AIR_FRICTION), std::optional<AdvFlyingRateTypeSingle>(std::nullopt) };
+        advFlyMap[SPELL_AURA_MOD_ADV_FLYING_ADD_IMPULSE_MAX_SPEED] = TupleType{ SMSG_MOVE_SET_ADV_FLYING_ADD_IMPULSE_MAX_SPEED, AdvFlyingRateTypeSingle(ADV_FLYING_ADD_IMPULSE_MAX_SPEED), std::optional<AdvFlyingRateTypeSingle>(std::nullopt) };
+        advFlyMap[SPELL_AURA_MOD_ADV_FLYING_BANKING_RATE] = TupleType{ SMSG_MOVE_SET_ADV_FLYING_PITCHING_RATE_DOWN, AdvFlyingRateTypeSingle(ADV_FLYING_BANKING_RATE), std::optional<AdvFlyingRateTypeSingle>(AdvFlyingRateTypeSingle(ADV_FLYING_PITCHING_RATE_DOWN)) };
+        advFlyMap[SPELL_AURA_MOD_ADV_FLYING_PITCHING_RATE_DOWN] = TupleType{ SMSG_MOVE_SET_ADV_FLYING_PITCHING_RATE_UP, AdvFlyingRateTypeSingle(ADV_FLYING_PITCHING_RATE_UP), std::optional<AdvFlyingRateTypeSingle>(AdvFlyingRateTypeSingle(ADV_FLYING_PITCHING_RATE_UP)) };
+        advFlyMap[SPELL_AURA_MOD_ADV_FLYING_PITCHING_RATE_UP] = TupleType{ SMSG_MOVE_SET_ADV_FLYING_OVER_MAX_DECELERATION, AdvFlyingRateTypeSingle(ADV_FLYING_OVER_MAX_DECELERATION), std::optional<AdvFlyingRateTypeSingle>(std::nullopt) };
+        advFlyMap[SPELL_AURA_MOD_ADV_FLYING_OVER_MAX_DECELERATION] = TupleType{ SMSG_MOVE_SET_ADV_FLYING_BANKING_RATE, AdvFlyingRateTypeSingle(ADV_FLYING_BANKING_RATE), std::optional<AdvFlyingRateTypeSingle>(AdvFlyingRateTypeSingle(ADV_FLYING_BANKING_RATE)) };
+    }
+
+    auto [opcode, speedType, speedTypeMax] = advFlyMap[GetSpellEffectInfo().ApplyAuraName];
+
+    player->SendAdvFlyingSpeed(opcode, speedType, speedTypeMax);
+}
+
+void AuraEffect::HandleAuraLeech(AuraApplication const* auraApp, uint8 mode, bool /*apply*/) const
+{
+    if (!(mode & AURA_EFFECT_HANDLE_REAL))
+        return;
+
+    if (Player* player = auraApp->GetTarget()->ToPlayer())
+        player->UpdateLeechPercentage();
 }
 
 template TC_GAME_API void AuraEffect::GetTargetList(std::list<Unit*>&) const;
