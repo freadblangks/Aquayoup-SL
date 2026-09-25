@@ -77,6 +77,41 @@ EnumCharacters::EnumCharacters(WorldPacket&& packet) : ClientPacket(std::move(pa
     ASSERT(GetOpcode() == CMSG_ENUM_CHARACTERS || GetOpcode() == CMSG_ENUM_CHARACTERS_DELETED_BY_CLIENT);
 }
 
+void GetAccountCharacterList::Read()
+{
+    _worldPacket >> Token;
+    _worldPacket >> Flags;
+}
+
+WorldPacket const* GetAccountCharacterListResult::Write()
+{
+    _worldPacket << uint32(Token);
+    _worldPacket << Size<uint32>(Characters);
+
+    for (AccountCharacterEntry const& character : Characters)
+    {
+        _worldPacket << character.WowAccount;
+        _worldPacket << character.Guid;
+        _worldPacket << uint32(character.VirtualRealmAddress);
+        _worldPacket << uint8(character.RaceID);
+        _worldPacket << uint8(character.ClassID);
+        _worldPacket << uint8(character.SexID);
+        _worldPacket << uint8(character.ExperienceLevel);
+        _worldPacket << int64(character.LastActiveTime);
+        _worldPacket << int32(character.ContentSetID);
+
+        _worldPacket << SizedString::BitsSize<6>(character.Name);
+        _worldPacket << Bits<3>(0);
+        _worldPacket << SizedString::BitsSize<6>(character.RealmName);
+        _worldPacket.FlushBits();
+
+        _worldPacket << SizedString::Data(character.Name);
+        _worldPacket << SizedString::Data(character.RealmName);
+    }
+
+    return &_worldPacket;
+}
+
 void SetupWarbandGroups::Read()
 {
     uint32 groupCount = _worldPacket.ReadBits(5);
@@ -111,7 +146,56 @@ void SetupWarbandGroups::Read()
     }
 }
 
-EnumCharactersResult::CharacterInfoBasic::CharacterInfoBasic(Field const* fields)
+void GetRegionwideCharacterRestrictionAndMailData::Read()
+{
+    _worldPacket >> Size<uint32>(CharacterGuids);
+
+    for (ObjectGuid& guid : CharacterGuids)
+        _worldPacket >> guid;
+}
+
+WorldPacket const* RegionwideCharacterRestrictionsData::Write()
+{
+    _worldPacket << Size<uint32>(Characters);
+
+    for (RestrictionEntry const& entry : Characters)
+    {
+        _worldPacket << uint8(entry.Flags);
+        _worldPacket << entry.Guid;
+        _worldPacket << uint32(entry.RestrictionID);
+        _worldPacket << uint32(entry.Unk);
+    }
+
+    return &_worldPacket;
+}
+
+WorldPacket const* RegionwideCharacterMailData::Write()
+{
+    _worldPacket << Size<uint32>(Characters);
+
+    for (MailEntry const& entry : Characters)
+    {
+        _worldPacket << uint8(entry.Type);
+        _worldPacket << entry.Guid;
+        _worldPacket << Size<uint32>(entry.MailSenders);
+        _worldPacket << Size<uint32>(entry.MailSenderTypes);
+
+        if (!entry.MailSenderTypes.empty())
+            _worldPacket.append(entry.MailSenderTypes.data(), entry.MailSenderTypes.size());
+
+        for (std::string const& str : entry.MailSenders)
+            _worldPacket << SizedCString::BitsSize<6>(str);
+
+        _worldPacket.FlushBits();
+
+        for (std::string const& str : entry.MailSenders)
+            _worldPacket << SizedCString::Data(str);
+    }
+
+    return &_worldPacket;
+}
+
+EnumCharactersResult::CharacterInfoBasic::CharacterInfoBasic(Field const* fields, uint32 virtualRealmAddress, uint32 homeRealmId)
 {
     //         0                1                2                3                 4                  5
     // "SELECT characters.guid, characters.name, characters.race, characters.class, characters.gender, characters.level, "
@@ -127,8 +211,13 @@ EnumCharactersResult::CharacterInfoBasic::CharacterInfoBasic(Field const* fields
     //  180
     // "character_declinedname.genitive"
 
-    Guid              = ObjectGuid::Create<HighGuid::Player>(fields[0].GetUInt64());
-    VirtualRealmAddress = GetVirtualRealmAddress();
+    // cross-realm entries carry their home realm in the guid, the client identifies characters
+    // by the full guid and the same character must look identical from every realm's list
+    // (subType and arg1 are zero for plain player guids)
+    Guid = homeRealmId
+        ? ObjectGuidFactory::CreatePlayer(homeRealmId, 0, 0, fields[0].GetUInt64())
+        : ObjectGuid::Create<HighGuid::Player>(fields[0].GetUInt64());
+    VirtualRealmAddress = virtualRealmAddress ? virtualRealmAddress : GetVirtualRealmAddress();
     GuildClubMemberID = ::Battlenet::Services::Clubs::CreateClubMemberId(Guid);
     Name              = fields[1].GetStringView();
     RaceID            = fields[2].GetUInt8();
@@ -435,11 +524,11 @@ ByteBuffer& operator<<(ByteBuffer& data, WarbandGroup const& warbandGroup)
     return data;
 }
 
-EnumCharactersResult::CharacterInfo::CharacterInfo(Field const* fields) : Basic(fields)
+EnumCharactersResult::CharacterInfo::CharacterInfo(Field const* fields, uint32 virtualRealmAddress, uint32 homeRealmId) : Basic(fields, virtualRealmAddress, homeRealmId)
 {
 }
 
-EnumCharactersResult::RegionwideCharacterListEntry::RegionwideCharacterListEntry(Field const* fields) : Basic(fields)
+EnumCharactersResult::RegionwideCharacterListEntry::RegionwideCharacterListEntry(Field const* fields, uint32 virtualRealmAddress, uint32 homeRealmId) : Basic(fields, virtualRealmAddress, homeRealmId)
 {
 }
 

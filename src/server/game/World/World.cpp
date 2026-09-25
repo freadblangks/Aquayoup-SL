@@ -604,7 +604,7 @@ void World::LoadConfigSettings(bool reload)
 
     ///- Read the player limit and the Message of the day from the config file
     SetPlayerAmountLimit(sConfigMgr->GetIntDefault("PlayerLimit"sv, 100));
-    SetMotd(sConfigMgr->GetStringDefault("Motd"sv, "Welcome to a Trinity Core Server."sv));
+    SetMotd(sConfigMgr->GetStringDefault("Motd"sv, "Welcome to a TrinityCore Server."sv));
 
     uint32 databaseCacheVersion = m_int_configs[CONFIG_CLIENTCACHE_VERSION];
 
@@ -631,6 +631,7 @@ void World::LoadConfigSettings(bool reload)
         { .Name = "AllowTwoSide.Interaction.Guild"sv, .DefaultValue = false, .Index = CONFIG_ALLOW_TWO_SIDE_INTERACTION_GUILD },
         { .Name = "AllowTwoSide.Interaction.Auction"sv, .DefaultValue = true, .Index = CONFIG_ALLOW_TWO_SIDE_INTERACTION_AUCTION },
         { .Name = "AllowTwoSide.Trade"sv, .DefaultValue = false, .Index = CONFIG_ALLOW_TWO_SIDE_TRADE },
+        { .Name = "ExtendedAccountNameLengthLimit"sv, .DefaultValue = false, .Index = CONFIG_EXTENDED_ACCOUNT_NAME_LENGTH_LIMIT },
         { .Name = "CharacterCreating.DisableAlliedRaceAchievementRequirement"sv, .DefaultValue = false, .Index = CONFIG_CHARACTER_CREATING_DISABLE_ALLIED_RACE_ACHIEVEMENT_REQUIREMENT },
         { .Name = "AllFlightPaths"sv, .DefaultValue = false, .Index = CONFIG_ALL_TAXI_PATHS },
         { .Name = "InstantFlightPaths"sv, .DefaultValue = false, .Index = CONFIG_INSTANT_TAXI },
@@ -841,7 +842,7 @@ void World::LoadConfigSettings(bool reload)
         { .Name = "Arena.RatedUpdateTimer"sv, .DefaultValue = 5 * IN_MILLISECONDS, .Index = CONFIG_ARENA_RATED_UPDATE_TIMER },
         { .Name = "Arena.ArenaSeason.ID"sv, .DefaultValue = 32, .Index = CONFIG_ARENA_SEASON_ID },
         { .Name = "Arena.ArenaStartRating"sv, .DefaultValue = 0, .Index = CONFIG_ARENA_START_RATING },
-        { .Name = "Arena.ArenaStartPersonalRating"sv, .DefaultValue = 1000, .Index = CONFIG_ARENA_START_PERSONAL_RATING },
+        { .Name = "Arena.ArenaStartPersonalRating"sv, .DefaultValue = 0, .Index = CONFIG_ARENA_START_PERSONAL_RATING },
         { .Name = "Arena.ArenaStartMatchmakerRating"sv, .DefaultValue = 1500, .Index = CONFIG_ARENA_START_MATCHMAKER_RATING },
         { .Name = "Creature.PickPocketRefillDelay"sv, .DefaultValue = 10 * MINUTE, .Index = CONFIG_CREATURE_PICKPOCKET_REFILL },
         { .Name = "Creature.MovingStopTimeForPlayer"sv, .DefaultValue = 3 * MINUTE * IN_MILLISECONDS, .Index = CONFIG_CREATURE_STOP_FOR_PLAYER },
@@ -1331,6 +1332,12 @@ bool World::SetInitialWorldSettings()
     uint32 realm_zone = getIntConfig(CONFIG_REALM_ZONE);
 
     LoginDatabase.PExecute("UPDATE realmlist SET icon = {}, timezone = {} WHERE id = '{}'", server_type, realm_zone, sRealmList->GetCurrentRealmId().Realm);      // One-time query
+
+    // realm -> characters schema registry for CharacterSelect.ExtraRealms = "auto": every worldserver
+    // registers itself so sibling realms pick the mapping up without listing each realm manually
+    if (sConfigMgr->GetStringDefault("CharacterSelect.ExtraRealms", "") == "auto")
+        LoginDatabase.PExecute("REPLACE INTO realm_character_schemas (realmId, schemaName) VALUES ({}, '{}')",
+            sRealmList->GetCurrentRealmId().Realm, CharacterDatabase.GetConnectionInfo()->database);
 
     TC_LOG_INFO("server.loading", "Loading GameObject models...");
     if (!LoadGameObjectModelList(m_dataPath))
@@ -3502,6 +3509,22 @@ bool World::IsBattlePetJournalLockAcquired(ObjectGuid battlenetAccountGuid)
     return false;
 }
 
+bool World::IsAccountInventoryLockAcquired(ObjectGuid battlenetAccountGuid, WorldSession const* exclude)
+{
+    for (auto&& sessionForBnet : Trinity::Containers::MapEqualRange(m_sessionsByBnetGuid, battlenetAccountGuid))
+    {
+        WorldSession const* session = sessionForBnet.second;
+        if (session == exclude)
+            continue;
+
+        Player const* other = session->GetPlayer();
+        if (other && other->HasPlayerLocalFlag(PLAYER_LOCAL_FLAG_HAS_ACCOUNT_BANK_LOCK))
+            return true;
+    }
+
+    return false;
+}
+
 bool World::IsPvPRealm() const
 {
     return (getIntConfig(CONFIG_GAME_TYPE) == REALM_TYPE_PVP || getIntConfig(CONFIG_GAME_TYPE) == REALM_TYPE_RPPVP || getIntConfig(CONFIG_GAME_TYPE) == REALM_TYPE_FFA_PVP);
@@ -3623,6 +3646,28 @@ void World::UpdateWarModeRewardValues()
 uint32 GetVirtualRealmAddress()
 {
     return sRealmList->GetCurrentRealmId().GetAddress();
+}
+
+std::vector<RealmRegistryEntry> const& GetRealmRegistry()
+{
+    static std::vector<RealmRegistryEntry> const registry = []
+    {
+        std::vector<RealmRegistryEntry> realms;
+        if (PreparedQueryResult result = LoginDatabase.Query(LoginDatabase.GetPreparedStatement(LOGIN_SEL_REALMLIST)))
+        {
+            do
+            {
+                Field* fields = result->Fetch();
+                uint32 const realmId = fields[0].GetUInt32();
+                uint8 const region = fields[13].GetUInt8();
+                uint8 const battlegroup = fields[14].GetUInt8();
+
+                realms.push_back({ realmId, Battlenet::RealmHandle(region, battlegroup, realmId).GetAddress(), fields[1].GetString() });
+            } while (result->NextRow());
+        }
+        return realms;
+    }();
+    return registry;
 }
 
 CliCommandHolder::CliCommandHolder(void* callbackArg, char const* command, Print zprint, CommandFinished commandFinished)

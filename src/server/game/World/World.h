@@ -200,6 +200,7 @@ enum WorldBoolConfigs : uint32
     CONFIG_RESPAWN_DYNAMIC_ESCORTNPC,
     CONFIG_REGEN_HP_CANNOT_REACH_TARGET_IN_RAID,
     CONFIG_ALLOW_LOGGING_IP_ADDRESSES_IN_DATABASE,
+    CONFIG_EXTENDED_ACCOUNT_NAME_LENGTH_LIMIT,
     CONFIG_CHARACTER_CREATING_DISABLE_ALLIED_RACE_ACHIEVEMENT_REQUIREMENT,
     CONFIG_BATTLEGROUNDMAP_LOAD_GRIDS,
     CONFIG_ENABLE_AE_LOOT,
@@ -775,6 +776,7 @@ class TC_GAME_API World
         void UpdateAreaDependentAuras();
 
         bool IsBattlePetJournalLockAcquired(ObjectGuid battlenetAccountGuid);
+        bool IsAccountInventoryLockAcquired(ObjectGuid battlenetAccountGuid, WorldSession const* exclude);
 
         uint32 GetCleaningFlags() const { return m_CleaningFlags; }
         void SetCleaningFlags(uint32 flags) { m_CleaningFlags = flags; }
@@ -932,6 +934,17 @@ class TC_GAME_API World
 };
 
 TC_GAME_API uint32 GetVirtualRealmAddress();
+
+// Snapshot of the realmlist table taken once on first use: the regionwide character list
+// and the auth realm registry need to know the sibling realms of the connect group
+struct TC_GAME_API RealmRegistryEntry
+{
+    uint32 Id;
+    uint32 Address;
+    std::string Name;
+};
+
+TC_GAME_API std::vector<RealmRegistryEntry> const& GetRealmRegistry();
 
 #define sWorld World::instance()
 

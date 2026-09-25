@@ -52,6 +52,8 @@ enum CharacterDatabaseStatements : uint32
     CHAR_SEL_UNDELETE_ENUM,
     CHAR_SEL_UNDELETE_ENUM_DECLINED_NAME,
     CHAR_SEL_UNDELETE_ENUM_CUSTOMIZATIONS,
+    CHAR_SEL_ACCOUNT_CHARACTERS,
+    CHAR_SEL_ACCOUNT_UNREAD_MAIL,
     CHAR_SEL_FREE_NAME,
     CHAR_SEL_CHAR_ZONE,
     CHAR_SEL_CHAR_POSITION_XYZ,
@@ -694,6 +696,15 @@ enum CharacterDatabaseStatements : uint32
     CHAR_SEL_CHARACTER_BANK_TAB_SETTINGS,
     CHAR_DEL_CHARACTER_BANK_TAB_SETTINGS,
     CHAR_INS_CHARACTER_BANK_TAB_SETTINGS,
+    CHAR_SEL_ACCOUNT_BANK_TAB_SETTINGS,
+    CHAR_DEL_ACCOUNT_BANK_TAB_SETTINGS,
+    CHAR_INS_ACCOUNT_BANK_TAB_SETTINGS,
+    CHAR_SEL_ACCOUNT_BANK_ITEMS,
+    CHAR_REP_ACCOUNT_BANK_ITEM,
+    CHAR_DEL_ACCOUNT_BANK_ITEM,
+    CHAR_DEL_ACCOUNT_BANK_ITEMS_BY_BNET,
+    CHAR_SEL_ACCOUNT_BANK_COINAGE,
+    CHAR_REP_ACCOUNT_BANK_COINAGE,
 
     // Perks Program (Trading Post)
     CHAR_SEL_PERKS_CURRENCY,
@@ -736,5 +747,12 @@ public:
     //- Loads database type specific prepared statements
     void DoPrepareStatements() override;
 };
+
+// The character select list query is reused for cross-realm schemas (see CharacterSelect.ExtraRealms),
+// the tables are qualified with the sibling realm's schema name. realmId is prepended as the first
+// column of every row so the handler can stamp the entry with the right VirtualRealmAddress.
+TC_DATABASE_API std::string GetRegionwideCharacterEnumQuery(std::string const& characterSchema, uint32 realmId, uint32 accountId, bool withDeclinedNames);
+TC_DATABASE_API std::string GetRegionwideCharacterEnumCustomizationsQuery(std::string const& characterSchema, uint32 accountId);
+TC_DATABASE_API std::string GetRegionwideCharacterExistsQuery(std::string const& characterSchema, uint32 accountId, uint64 characterGuid);
 
 #endif

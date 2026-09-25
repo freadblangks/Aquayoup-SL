@@ -831,7 +831,7 @@ class spell_pal_expurgation : public AuraScript
         return ValidateSpellInfo({ SPELL_PALADIN_EXPURGATION });
     }
 
-    void HandleProc(AuraEffect const* /*aurEff*/, ProcEventInfo const& eventInfo) const
+    static void HandleProc(AuraScript const&, AuraEffect const* /*aurEff*/, ProcEventInfo const& eventInfo)
     {
         eventInfo.GetActor()->CastSpell(eventInfo.GetActionTarget(), SPELL_PALADIN_EXPURGATION, TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR);
     }
@@ -1156,7 +1156,7 @@ class spell_pal_judgment_of_justice : public SpellScript
             caster->CastSpell(GetHitUnit(), SPELL_PALADIN_JUDGMENT_OF_JUSTICE, CastSpellExtraArgsInit{
             .TriggerFlags = TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR,
             .TriggeringSpell = GetSpell()
-                });
+        });
     }
 
     void Register() override
@@ -1272,15 +1272,11 @@ private:
 };
 
 // 199422 - Holy Ritual (attached to 6940 - Blessing of Sacrifice and 1022 - Blessing of Protection)
-class spell_pal_holy_ritual : public AuraScript
+class spell_pal_holy_ritual : public SpellScript
 {
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo
-        ({
-            SPELL_PALADIN_HOLY_RITUAL_TALENT,
-            SPELL_PALADIN_HOLY_RITUAL_HEAL
-            });
+        return ValidateSpellInfo({ SPELL_PALADIN_HOLY_RITUAL_TALENT,SPELL_PALADIN_HOLY_RITUAL_HEAL });
     }
 
     bool Load() override
@@ -1288,18 +1284,17 @@ class spell_pal_holy_ritual : public AuraScript
         return GetCaster()->HasAura(SPELL_PALADIN_HOLY_RITUAL_TALENT);
     }
 
-    void HandleHeal(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/) const
+    void HandleHeal(SpellEffIndex /*effIndex*/) const
     {
-        if (Unit* caster = GetCaster())
-            caster->CastSpell(GetTarget(), SPELL_PALADIN_HOLY_RITUAL_HEAL, CastSpellExtraArgsInit{
-                .TriggerFlags = TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR,
-                .TriggeringAura = aurEff
-                });
+        GetCaster()->CastSpell(GetHitUnit(), SPELL_PALADIN_HOLY_RITUAL_HEAL, CastSpellExtraArgsInit{
+            .TriggerFlags = TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_DONT_REPORT_CAST_ERROR,
+            .TriggeringSpell = GetSpell()
+        });
     }
 
     void Register() override
     {
-        AfterEffectApply += AuraEffectApplyFn(spell_pal_holy_ritual::HandleHeal, EFFECT_1, SPELL_AURA_ANY, AURA_EFFECT_HANDLE_REAL);
+        OnEffectHitTarget += SpellEffectFn(spell_pal_holy_ritual::HandleHeal, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
     }
 };
 
@@ -2295,7 +2290,7 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_hand_of_sacrifice);
     RegisterSpellScript(spell_pal_infusion_of_light);
     RegisterSpellScript(spell_pal_moment_of_glory);
-    RegisterSpellScript(spell_pal_judgment); //Modified (need test)
+    RegisterSpellScript(spell_pal_judgment);
     RegisterSpellScript(spell_pal_judgment_of_justice);
     RegisterSpellScript(spell_pal_justicars_vengeance);
     RegisterSpellScript(spell_pal_holy_prism);
