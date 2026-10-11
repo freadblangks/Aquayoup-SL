@@ -3847,6 +3847,9 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
 
     // Convert guid to low GUID for CharacterNameData, but also other methods on success
     ObjectGuid::LowType guid = playerguid.GetCounter();
+    // The house dies with the character on every removal path (final purge after the undelete
+    // window, account unlink); the delete request already handled it, this is idempotent.
+    sHousingMgr.DeleteHouseForOwner(playerguid);
     uint32 charDeleteMethod = sWorld->getIntConfig(CONFIG_CHARDELETE_METHOD);
     CharacterCacheEntry const* characterInfo = sCharacterCache->GetCharacterCacheByGuid(playerguid);
     std::string name;

@@ -935,6 +935,13 @@ static constexpr uint8 HOUSE_DECOR_MODEL_TYPE_WMO = 2; // HouseDecor.ModelType: 
 static constexpr uint32 STARTER_DOOR_DECOR_ID_ALLIANCE = 9144;   // Founders' Front Door (GO 575017)
 static constexpr uint32 STARTER_DOOR_DECOR_ID_HORDE    = 10952;  // Thornwind Front Door (GO 587318)
 
+// HouseRoom.db2 12.1 ships exactly two BASE_ROOM floor plans; a starter house pairs them both.
+static constexpr uint32 BASE_LAYOUT_ROOM_ENTRY = 18;  // "Базовая планировка (сред.)" - starter floor plan, shares the plot geobox WMO
+static constexpr uint32 ENTRY_HALL_ROOM_ENTRY  = 46;  // "Вход" - interior entry hall the front door hangs on
+// The base layout renders broken as an interior room; the starter pairs the entry hall with the
+// small square room instead.
+static constexpr uint32 DEFAULT_VISUAL_ROOM_ENTRY = 1;  // "Маленькая квадратная комната"
+
 // Both starter doors are granted to every house; the placed one anchors the interior entry point.
 inline bool IsStarterDoorDecor(uint32 decorEntryId)
 {

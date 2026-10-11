@@ -199,9 +199,18 @@ public:
         ObjectGuid parentDecorGuid = ObjectGuid::Empty,
         std::vector<ObjectGuid>* movedChildren = nullptr);
     // removedChildren (optional) receives the stacked decor returned to storage along with the item
-    // (guid + acquisition source for its storage entry).
-    HousingResult RemoveDecor(ObjectGuid decorGuid,
-        std::vector<std::pair<ObjectGuid, std::pair<uint8, std::string>>>* removedChildren = nullptr);
+    // (guid, entry id and acquisition source for its storage entry).
+    struct RemovedDecor
+    {
+        ObjectGuid Guid;
+        uint32 DecorEntryId = 0;
+        uint8 SourceType = 0;
+        std::string SourceValue;
+    };
+    HousingResult RemoveDecor(ObjectGuid decorGuid, std::vector<RemovedDecor>* removedChildren = nullptr);
+    // A refunded copy re-enters the account's decor storage under a synthetic GUID of the owner's
+    // band, so a later placement (server- or client-driven) consumes that exact entry.
+    void ReturnStorageEntryToAccount(uint32 decorEntryId, uint8 sourceType, std::string const& sourceValue);
     // Exterior (yard-budget) placements: empty RoomGuid or the plot's base/exterior room identity; every budget path classifies through this.
     static bool IsExteriorDecorPlacement(ObjectGuid roomGuid);
     // Interior origin for interior decor; the owner's position (must stand on the plot) for plot decor.
@@ -233,9 +242,11 @@ public:
     std::vector<Room const*> GetRooms() const;
     Room const* GetRoom(ObjectGuid roomGuid) const;
     ObjectGuid GetBaseRoomGuid() const { return FindBaseRoomGuid(); }
+    // The entry hall the front door hangs on; 12.1's other base floor plan is an ordinary room.
+    ObjectGuid GetEntryHallRoomGuid() const;
     uint32 GetNextRoomSlotIndex() const;
-    // Blueprint imports: drop every room but the base room (their decor must already be removed).
-    void RemoveAllNonBaseRooms();
+    // Blueprint imports: drop every room but the entry hall (their decor must already be removed).
+    void RemoveAllRoomsExceptEntryHall();
     void SetRoomAppearance(ObjectGuid roomGuid, Room const& appearance);
     void ReplaceFixtures(std::vector<Fixture> const& fixtures);
     std::unordered_map<ObjectGuid, Room> const& GetRoomsMap() const { return _rooms; }

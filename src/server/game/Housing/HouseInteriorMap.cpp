@@ -782,6 +782,13 @@ void HouseInteriorMap::DespawnAllRoomMeshObjects()
             RemoveFromMap(mesh, true);
     }
     _decorGuidToObjGuid.clear();
+    _decorAttachParentObj.clear();
+
+    // Companion pets belong to their decor and must not outlive it.
+    for (auto const& [decorGuid, petGuid] : _decorGuidToPetSummon)
+        if (Creature* pet = GetCreature(petGuid))
+            RemoveFromMap(pet, true);
+    _decorGuidToPetSummon.clear();
 
     _roomMeshObjects.clear();
     _roomsSpawned = false;
