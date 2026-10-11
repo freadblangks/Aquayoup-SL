@@ -154,8 +154,7 @@ public:
         if (!object)
             return false;
 
-        /// @todo is it really necessary to add both the real and DB table guid here ?
-        sObjectMgr->AddGameobjectToGrid(ASSERT_NOTNULL(sObjectMgr->GetGameObjectData(spawnId)));
+        sObjectMgr->AddGameobjectToGrid(ASSERT_NOTNULL(object->GetGameObjectData()));
 
         player->SetLastTargetedGO(spawnId);
 
