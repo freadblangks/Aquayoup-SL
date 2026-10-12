@@ -32877,11 +32877,13 @@ Housing* Player::GetHousing() const
         }
     }
 
-    // Inside a house interior: the house of that interior (any character of the account may be in it)
+    // Inside a house interior: the house of that interior (any character of the account may be in it).
+    // When the interior's house is not resolvable on this session, return nothing - falling through to
+    // "own, then the account's first" surfaces an unrelated house (e.g. the sibling's) inside someone
+    // else's interior and poisons CurrentHouse/HouseInfo/interior spawn decisions with it.
     if (IsInWorld())
         if (HouseInteriorMap* interiorMap = dynamic_cast<HouseInteriorMap*>(GetMap()))
-            if (Housing* interiorHousing = GetHousingByOwner(interiorMap->GetOwnerGuid()))
-                return interiorHousing;
+            return GetHousingByOwner(interiorMap->GetOwnerGuid());
 
     // Default: this character's own house, then the account's first
     if (Housing* own = GetHousingByOwner(GetGUID()))
@@ -33030,21 +33032,26 @@ void Player::_LoadAccountHousings()
     if (!owners)
         return;
 
-    do
-    {
-        ObjectGuid::LowType const ownerLow = (*owners)[0].GetUInt64();
-        auto query = [ownerLow](CharacterDatabaseStatements index)
-            {
-                CharacterDatabasePreparedStatement* ownerStmt = CharacterDatabase.GetPreparedStatement(index);
-                ownerStmt->setUInt64(0, ownerLow);
-                return CharacterDatabase.Query(ownerStmt);
-            };
+        do
+        {
+            ObjectGuid::LowType const ownerLow = (*owners)[0].GetUInt64();
+            auto query = [ownerLow](CharacterDatabaseStatements index)
+                {
+                    CharacterDatabasePreparedStatement* ownerStmt = CharacterDatabase.GetPreparedStatement(index);
+                    ownerStmt->setUInt64(0, ownerLow);
+                    return CharacterDatabase.Query(ownerStmt);
+                };
 
-        std::unique_ptr<Housing> housing = std::make_unique<Housing>(this, ObjectGuid::Create<HighGuid::Player>(ownerLow));
-        if (housing->LoadFromDB(query(CHAR_SEL_CHARACTER_HOUSING), query(CHAR_SEL_CHARACTER_HOUSING_DECOR),
-            query(CHAR_SEL_CHARACTER_HOUSING_ROOMS), query(CHAR_SEL_CHARACTER_HOUSING_FIXTURES), query(CHAR_SEL_CHARACTER_HOUSING_CATALOG)))
-            _housings.push_back(std::move(housing));
-    } while (owners->NextRow());
+            std::unique_ptr<Housing> housing = std::make_unique<Housing>(this, ObjectGuid::Create<HighGuid::Player>(ownerLow));
+            bool const loaded = housing->LoadFromDB(query(CHAR_SEL_CHARACTER_HOUSING), query(CHAR_SEL_CHARACTER_HOUSING_DECOR),
+                query(CHAR_SEL_CHARACTER_HOUSING_ROOMS), query(CHAR_SEL_CHARACTER_HOUSING_FIXTURES), query(CHAR_SEL_CHARACTER_HOUSING_CATALOG));
+            // A dropped row here makes IsHouseOwnerAccount fail inside that house's interior for every
+            // sibling - the loader of record must say so.
+            TC_LOG_INFO("housing", "Player::_LoadAccountHousings: {} (account {}) account housing owner {} -> {}",
+                GetGUID().ToString(), GetSession()->GetAccountId(), ownerLow, loaded ? "loaded" : "LoadFromDB FAILED (no character_housing row?)");
+            if (loaded)
+                _housings.push_back(std::move(housing));
+        } while (owners->NextRow());
 }
 
 void Player::_LoadHouseRooms()
