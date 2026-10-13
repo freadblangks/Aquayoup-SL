@@ -4169,6 +4169,75 @@ void Housing::PopulateStarterFixtures()
     }
 }
 
+void Housing::PopulateStarterDecor()
+{
+    if (STARTER_DECOR_SET.empty())
+        return;
+
+    // Starter decor hangs on the entry hall - the anchor room of every starter layout.
+    Room const* entryRoom = GetRoom(GetEntryHallRoomGuid());
+    NeighborhoodMapData const* interior = sHousingMgr.GetNeighborhoodMapDataForWorldMap(HOUSE_INTERIOR_MAP_ID);
+    if (!entryRoom || !interior)
+    {
+        TC_LOG_ERROR("housing", "Housing::PopulateStarterDecor: entry hall or interior map data missing for house {} - skipping",
+            _houseGuid.ToString());
+        return;
+    }
+
+    // Same room positioning as HouseInteriorMap::GetRoomWorldPosition.
+    float const roomX = interior->Origin[0] + float(entryRoom->GridX);
+    float const roomY = interior->Origin[1] + float(entryRoom->GridY);
+    float const roomZ = interior->Origin[2] + float(entryRoom->FloorIndex) * HOUSE_INTERIOR_FLOOR_HEIGHT;
+    float const roomYaw = float(entryRoom->Orientation) * float(M_PI / 2.0);
+    float const cosY = std::cos(roomYaw);
+    float const sinY = std::sin(roomYaw);
+
+    int32 const faction = GetNeighborhoodFaction();
+
+    // The purchase flow already put the StartingQuantity stock into the catalog (NeighborhoodHandler
+    // buy, DECOR_SOURCE_DEFERRED); this only auto-places the entry-hall subset from it, leftovers
+    // stay in the chest, redeemable. Entries with no StartingQuantity (crates/boxes 1994/2549) are
+    // granted one copy on placement miss, so they join the collection like the rest of the set.
+    uint32 placed = 0;
+    for (StarterDecorPlacement const& starter : STARTER_DECOR_SET)
+    {
+        if (starter.Faction != NEIGHBORHOOD_FACTION_NONE && starter.Faction != faction)
+            continue;
+
+        if (!sHousingMgr.GetHouseDecorData(starter.DecorEntry))
+        {
+            TC_LOG_ERROR("housing", "Housing::PopulateStarterDecor: unknown starter decor entry {} for house {}",
+                starter.DecorEntry, _houseGuid.ToString());
+            continue;
+        }
+
+        float const worldX = roomX + starter.OffsetX * cosY - starter.OffsetY * sinY;
+        float const worldY = roomY + starter.OffsetX * sinY + starter.OffsetY * cosY;
+        float const worldZ = roomZ + starter.OffsetZ;
+
+        // Yaw-only quaternion: z = sin(yaw/2), w = cos(yaw/2).
+        float const cz = std::cos(starter.Yaw / 2.0f);
+        float const sz = std::sin(starter.Yaw / 2.0f);
+
+        HousingResult result = PlaceDecor(starter.DecorEntry, worldX, worldY, worldZ, 0.0f, 0.0f, sz, cz, entryRoom->Guid);
+        if (result == HOUSING_RESULT_DECOR_NOT_FOUND_IN_STORAGE)
+        {
+            // Not part of the StartingQuantity grant: add one copy to the collection, then place it.
+            if (AddToCatalog(starter.DecorEntry, DECOR_SOURCE_DEFERRED) == HOUSING_RESULT_SUCCESS)
+                result = PlaceDecor(starter.DecorEntry, worldX, worldY, worldZ, 0.0f, 0.0f, sz, cz, entryRoom->Guid);
+        }
+
+        if (result == HOUSING_RESULT_SUCCESS)
+            ++placed;
+        else
+            TC_LOG_ERROR("housing", "Housing::PopulateStarterDecor: PlaceDecor FAILED for entry {} in house {} - result={} (piece stays in storage)",
+                starter.DecorEntry, _houseGuid.ToString(), result);
+    }
+
+    TC_LOG_DEBUG("housing", "Housing::PopulateStarterDecor: placed {} of {} starter pieces for house {}",
+        placed, uint32(STARTER_DECOR_SET.size()), _houseGuid.ToString());
+}
+
 Housing::Room const* Housing::GetRoom(ObjectGuid roomGuid) const
 {
     auto itr = _rooms.find(roomGuid);

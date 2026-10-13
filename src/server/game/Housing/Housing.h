@@ -47,7 +47,7 @@ inline Position HousingWorldToRoomLocal(Position const& roomWorldPos, Position c
     return Position(cosF * dx + sinF * dy, -sinF * dx + cosF * dy, worldPos.GetPositionZ() - roomWorldPos.GetPositionZ());
 }
 
-// Rotation counterpart of HousingWorldToRoomLocal: the client composes worldRot = roomRot ⊗ localRot.
+// Rotation counterpart of HousingWorldToRoomLocal: the client composes worldRot = roomRot x localRot.
 inline QuaternionData HousingWorldRotationToRoomLocal(float roomWorldYaw, QuaternionData const& worldRot)
 {
     float z, y, x;
@@ -193,6 +193,11 @@ public:
         ObjectGuid parentDecorGuid = ObjectGuid::Empty);
     HousingResult PlaceDecor(uint32 decorEntryId, float x, float y, float z,
         float rotX, float rotY, float rotZ, float rotW, ObjectGuid roomGuid);
+
+    // Auto-place the STARTER_DECOR_SET entry-hall subset from stock the player already owns
+    // (the purchase flow grants the StartingQuantity set); grants nothing, consumes via PlaceDecor.
+    // Called by the buy handler after its catalog grant, never from Create (the stock arrives later).
+    void PopulateStarterDecor();
     // movedChildren (optional) receives the stacked decor transformed along with the moved item.
     HousingResult MoveDecor(ObjectGuid decorGuid, float x, float y, float z,
         float rotX, float rotY, float rotZ, float rotW, float scale = 1.0f,
@@ -447,7 +452,7 @@ private:
     float _houseFacing = 0.0f;
     ObjectGuid _cosmeticOwnerGuid; // Display owner for guild housing
     bool _hasCustomPosition = false;
-    bool _storagePopulated = false; // True after PopulateCatalogStorageEntries() — gates Account entity updates
+    bool _storagePopulated = false; // True after PopulateCatalogStorageEntries() - gates Account entity updates
     bool _photoSharingAuthorized = false; // Per-session photo sharing authorization state
 
     // WeightCost-based budget tracking
