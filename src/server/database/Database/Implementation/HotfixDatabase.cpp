@@ -120,7 +120,7 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
     PREPARE_MAX_ID_STMT(HOTFIX_SEL_HOUSE_DECOR_THEME_SET, "SELECT MAX(ID) + 1 FROM house_decor_theme_set", CONNECTION_SYNCH);
     PREPARE_LOCALE_STMT(HOTFIX_SEL_HOUSE_DECOR_THEME_SET, "SELECT ID, Name_lang FROM house_decor_theme_set_locale WHERE (`VerifiedBuild` > 0) = ? AND locale = ?", CONNECTION_SYNCH);
-    PrepareStatement(HOTFIX_SEL_HOUSE_DECOR, "SELECT Name, InitialRotationX, InitialRotationY, InitialRotationZ, ID, Field_003, GameObjectID, Flags, "
+    PrepareStatement(HOTFIX_SEL_HOUSE_DECOR, "SELECT Name, InitialRotationX, InitialRotationY, InitialRotationZ, ID, GameObjectID, Flags, "
         "Type, ModelType, ModelFileDataID, ThumbnailFileDataID, WeightCost, ItemID, InitialScale, "
         "FirstAcquisitionBonus, OrderIndex, Size, StartingQuantity, UiModelSceneID FROM house_decor"
         " WHERE (`VerifiedBuild` > 0) = ?", CONNECTION_SYNCH);
