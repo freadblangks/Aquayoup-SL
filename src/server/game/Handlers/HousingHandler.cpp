@@ -4515,7 +4515,7 @@ void WorldSession::HandleHousingResetHouse(WorldPackets::Housing::HousingResetHo
 }
 
 // Binds (or clears) a battle pet on a placed decor slot; acknowledged via the account decor storage entity.
-void WorldSession::HandleHousingDecorSetPet(WorldPackets::Housing::HousingDecorSetPet const& housingDecorSetPet)
+void WorldSession::HandleHousingDecorSetBattlePet(WorldPackets::Housing::HousingDecorSetBattlePet const& housingDecorSetBattlePet)
 {
     Player* player = GetPlayer();
     if (!player)
@@ -4530,11 +4530,11 @@ void WorldSession::HandleHousingDecorSetPet(WorldPackets::Housing::HousingDecorS
         return;
 
     // The target decor instance must exist in this house.
-    if (!housing->GetPlacedDecor(housingDecorSetPet.DecorGuid))
+    if (!housing->GetPlacedDecor(housingDecorSetBattlePet.DecorGuid))
         return;
 
     // When binding a pet (non-empty GUID), it must belong to this player's battle-pet journal.
-    ObjectGuid petGuid = housingDecorSetPet.PetGuid;
+    ObjectGuid petGuid = housingDecorSetBattlePet.PetGuid;
     if (!petGuid.IsEmpty())
     {
         BattlePets::BattlePetMgr* petMgr = GetBattlePetMgr();
@@ -4544,7 +4544,7 @@ void WorldSession::HandleHousingDecorSetPet(WorldPackets::Housing::HousingDecorS
         }
     }
 
-    HousingResult result = housing->SetDecorPet(housingDecorSetPet.DecorGuid, petGuid, housingDecorSetPet.Flag);
+    HousingResult result = housing->SetDecorPet(housingDecorSetBattlePet.DecorGuid, petGuid, housingDecorSetBattlePet.Flag);
     if (result == HOUSING_RESULT_SUCCESS)
     {
         // The binding lives in FHousingDecor_C.PetInfo of the decor's visual object.
@@ -4560,9 +4560,9 @@ void WorldSession::HandleHousingDecorSetPet(WorldPackets::Housing::HousingDecorS
             }
 
         if (HouseInteriorMap* interiorMap = dynamic_cast<HouseInteriorMap*>(player->GetMap()))
-            interiorMap->UpdateDecorPet(housingDecorSetPet.DecorGuid, battlePetGuid, creatureId, petName, housingDecorSetPet.Flag);
+            interiorMap->UpdateDecorPet(housingDecorSetBattlePet.DecorGuid, battlePetGuid, creatureId, petName, housingDecorSetBattlePet.Flag);
         else if (HousingMap* housingMap = dynamic_cast<HousingMap*>(player->GetMap()))
-            housingMap->UpdateDecorPet(housingDecorSetPet.DecorGuid, battlePetGuid, creatureId, petName, housingDecorSetPet.Flag);
+            housingMap->UpdateDecorPet(housingDecorSetBattlePet.DecorGuid, battlePetGuid, creatureId, petName, housingDecorSetBattlePet.Flag);
 
         GetBattlenetAccount().SendUpdateToPlayer(player);
     }
