@@ -1086,7 +1086,7 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_SEL_ACTIVE_CHARS_BY_ACCOUNT, "SELECT guid, race, logout_time FROM characters WHERE account = ? AND deleteDate IS NULL AND deleteInfos_Name IS NULL ORDER BY logout_time DESC", CONNECTION_SYNCH);
 }
 
-CharacterDatabaseConnection::CharacterDatabaseConnection(MySQLConnectionInfo& connInfo, ConnectionFlags connectionFlags) : MySQLConnection(connInfo, connectionFlags)
+CharacterDatabaseConnection::CharacterDatabaseConnection(MySQLConnectionInfo const& connInfo, ConnectionFlags connectionFlags) : MySQLConnection(connInfo, connectionFlags)
 {
 }
 
