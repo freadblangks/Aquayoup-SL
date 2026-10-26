@@ -74,7 +74,6 @@ class spell_gen_absorb0_hitlimit1 : public AuraScript
         OnEffectAbsorb += AuraEffectAbsorbFn(spell_gen_absorb0_hitlimit1::Absorb, EFFECT_0);
     }
 };
-
 // 28764 - Adaptive Warding (Frostfire Regalia Set)
 enum AdaptiveWarding
 {
@@ -168,7 +167,6 @@ class spell_gen_allow_cast_from_item_only : public SpellScript
         OnCheckCast += SpellCheckCastFn(spell_gen_allow_cast_from_item_only::CheckRequirement);
     }
 };
-
 enum AnimalBloodPoolSpell
 {
     SPELL_ANIMAL_BLOOD      = 46221,
@@ -374,7 +372,6 @@ class spell_gen_av_drekthar_presence : public AuraScript
         DoCheckAreaTarget += AuraCheckAreaTargetFn(spell_gen_av_drekthar_presence::CheckAreaTarget);
     }
 };
-
 enum GenericBandage
 {
     SPELL_RECENTLY_BANDAGED     = 11196
@@ -535,7 +532,6 @@ class spell_gen_battleground_mercenary_shapeshift : public AuraScript
         AfterEffectRemove += AuraEffectApplyFn(spell_gen_battleground_mercenary_shapeshift::HandleRemove, EFFECT_0, SPELL_AURA_TRANSFORM, AURA_EFFECT_HANDLE_REAL);
     }
 };
-
 // Blood Reserve - 64568
 enum BloodReserve
 {
@@ -576,7 +572,6 @@ class spell_gen_blood_reserve : public AuraScript
         OnEffectProc += AuraEffectProcFn(spell_gen_blood_reserve::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
     }
 };
-
 enum Bonked
 {
     SPELL_BONKED            = 62991,
@@ -608,7 +603,6 @@ class spell_gen_bonked : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_bonked::HandleScript, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 /* DOCUMENTATION: Break-Shield spells
     Break-Shield spells can be classified in three groups:
 
@@ -789,7 +783,6 @@ class spell_gen_cast_target_to_target : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_cast_target_to_target::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum CannibalizeSpells
 {
     SPELL_CANNIBALIZE_TRIGGERED = 20578
@@ -864,7 +857,6 @@ class spell_clear_all : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_clear_all::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum Clone
 {
     SPELL_NIGHTMARE_FIGMENT_MIRROR_IMAGE        = 57528
@@ -892,7 +884,6 @@ class spell_gen_clone : public SpellScript
         }
     }
 };
-
 enum CloneWeaponSpells
 {
     SPELL_COPY_WEAPON_AURA       = 41054,
@@ -1059,7 +1050,6 @@ class spell_gen_consumption : public SpellScript
         CalcDamage += SpellCalcDamageFn(spell_gen_consumption::CalculateDamage);
     }
 };
-
 // 63845 - Create Lance
 enum CreateLanceSpells
 {
@@ -1096,7 +1086,6 @@ class spell_gen_create_lance : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_create_lance::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum DalaranDisguiseSpells
 {
     SPELL_SUNREAVER_DISGUISE_TRIGGER       = 69672,
@@ -1199,7 +1188,6 @@ protected:
         OnProc += AuraProcFn(spell_gen_decay_over_time_aura::Decay);
     }
 };
-
 enum FungalDecay
 {
     // found in sniffs, there is no duration entry we can possibly use
@@ -1230,7 +1218,6 @@ class spell_gen_decay_over_time_fungal_decay : public spell_gen_decay_over_time_
 class spell_gen_decay_over_time_tail_sting : public spell_gen_decay_over_time_aura
 {
 };
-
 enum DefendVisuals
 {
     SPELL_VISUAL_SHIELD_1 = 63130,
@@ -1355,7 +1342,6 @@ class spell_gen_despawn_target : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_despawn_target::HandleDespawn, EFFECT_ALL, SPELL_EFFECT_ANY);
     }
 };
-
 enum DivineStormSpell
 {
     SPELL_DIVINE_STORM      = 53385,
@@ -1384,7 +1370,6 @@ class spell_gen_divine_storm_cd_reset : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_divine_storm_cd_reset::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 enum DreamingGlory
 {
     SPELL_DREAMING_GLORY    = 28694
@@ -1432,7 +1417,6 @@ class spell_gen_ds_flush_knockback : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_ds_flush_knockback::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 // 50051 - Ethereal Pet Aura
 enum EtherealPet
 {
@@ -1536,7 +1520,6 @@ class spell_steal_essence_visual : public AuraScript
         AfterEffectRemove += AuraEffectRemoveFn(spell_steal_essence_visual::HandleRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
-
 enum Feast
 {
     SPELL_GREAT_FEAST                   = 57337,
@@ -1798,7 +1781,6 @@ class spell_gen_feign_death_no_prevent_emotes : public AuraScript
         OnEffectRemove += AuraEffectRemoveFn(spell_gen_feign_death_no_prevent_emotes::OnRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
-
 enum FuriousRage
 {
     EMOTE_FURIOUS_RAGE       = 19415,
@@ -1853,7 +1835,6 @@ class spell_gen_5000_gold : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_5000_gold::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum FishingSpells
 {
     SPELL_FISHING_NO_FISHING_POLE   = 131476,
@@ -1891,7 +1872,6 @@ class spell_gen_fishing : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_fishing::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 enum TransporterBackfires
 {
     SPELL_TRANSPORTER_MALFUNCTION_POLYMORPH     = 23444,
@@ -1960,7 +1940,6 @@ class spell_gen_gift_of_naaru : public AuraScript
         DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_gen_gift_of_naaru::CalculateAmount, EFFECT_0, SPELL_AURA_PERIODIC_HEAL);
     }
 };
-
 enum GnomishTransporter
 {
     SPELL_TRANSPORTER_SUCCESS                   = 23441,
@@ -2080,7 +2059,6 @@ class spell_gen_hate_to_75 : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_hate_to_75::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 enum Interrupt
 {
     SPELL_GEN_THROW_INTERRUPT           = 32747
@@ -2143,7 +2121,6 @@ class spell_gen_increase_stats_buff : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_increase_stats_buff::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 enum GenericLifebloom
 {
     SPELL_TUR_RAGEPAW_LIFEBLOOM_FINAL_HEAL              = 52552,
@@ -2180,7 +2157,6 @@ private:
 
     uint32 _spellId;
 };
-
 /* DOCUMENTATION: Charge spells
     Charge spells can be classified in four groups:
 
@@ -2334,7 +2310,6 @@ class spell_gen_mounted_charge : public SpellScript
             OnEffectHitTarget += SpellEffectFn(spell_gen_mounted_charge::HandleChargeEffect, EFFECT_0, SPELL_EFFECT_CHARGE);
     }
 };
-
 enum MossCoveredFeet
 {
     SPELL_FALL_DOWN = 6869
@@ -2360,7 +2335,6 @@ class spell_gen_moss_covered_feet : public AuraScript
         OnEffectProc += AuraEffectProcFn(spell_gen_moss_covered_feet::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
-
 enum Netherbloom : uint32
 {
     SPELL_NETHERBLOOM_POLLEN_1      = 28703
@@ -2406,7 +2380,6 @@ class spell_gen_netherbloom : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_netherbloom::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum NightmareVine
 {
     SPELL_NIGHTMARE_POLLEN      = 28721
@@ -2456,7 +2429,6 @@ class spell_gen_nitrous_boost : public AuraScript
         OnEffectPeriodic += AuraEffectPeriodicFn(spell_gen_nitrous_boost::PeriodicTick, EFFECT_1, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
-
 enum ObsidianArmor
 {
     SPELL_GEN_OBSIDIAN_ARMOR_HOLY       = 27536,
@@ -2567,7 +2539,6 @@ class spell_gen_oracle_wolvar_reputation : public SpellScript
         OnEffectHit += SpellEffectFn(spell_gen_oracle_wolvar_reputation::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 enum OrcDisguiseSpells
 {
     SPELL_ORC_DISGUISE_TRIGGER       = 45759,
@@ -2605,7 +2576,6 @@ class spell_gen_orc_disguise : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_orc_disguise::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum ParalyticPoison
 {
     SPELL_PARALYSIS = 35202
@@ -2708,7 +2678,6 @@ class spell_gen_proc_charge_drop_only : public AuraScript
         OnProc += AuraProcFn(spell_gen_proc_charge_drop_only::HandleChargeDrop);
     }
 };
-
 enum ParachuteSpells
 {
     SPELL_PARACHUTE         = 45472,
@@ -2742,7 +2711,6 @@ class spell_gen_parachute : public AuraScript
         OnEffectPeriodic += AuraEffectPeriodicFn(spell_gen_parachute::HandleEffectPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
-
 enum PetSummoned
 {
     NPC_DOOMGUARD       = 11859,
@@ -2808,7 +2776,6 @@ class spell_gen_pet_wait : public SpellScript
         OnEffectHit += SpellEffectFn(spell_gen_pet_wait::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum ProfessionResearch
 {
     SPELL_NORTHREND_INSCRIPTION_RESEARCH = 61177
@@ -2856,7 +2823,6 @@ class spell_gen_profession_research : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_profession_research::HandleScript, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum TrinketSpells
 {
     SPELL_PVP_TRINKET_ALLIANCE  = 97403,
@@ -3024,7 +2990,6 @@ class spell_gen_remove_on_full_health_pct : public AuraScript
         OnEffectPeriodic += AuraEffectPeriodicFn(spell_gen_remove_on_full_health_pct::PeriodicTick, EFFECT_2, SPELL_AURA_PERIODIC_DAMAGE_PERCENT);
     }
 };
-
 enum Replenishment
 {
     SPELL_REPLENISHMENT             = 57669,
@@ -3117,7 +3082,6 @@ class spell_gen_revive_self : public SpellScript
         OnEffectHit += SpellEffectFn(spell_gen_revive_self::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 enum RunningWildMountIds
 {
     SPELL_ALTERED_FORM          = 97709
@@ -3205,26 +3169,6 @@ class spell_gen_two_forms : public SpellScript
     }
 };
 
-// 406090 - Calm the Wolf
-class spell_gen_calm_the_wolf : public AuraScript
-{
-    void HandlePeriodic(AuraEffect const* /*aurEff*/)
-    {
-        PreventDefaultAction();
-
-        Unit* target = GetTarget();
-        if (target->IsInCombat())
-            target->CastSpell(target, SPELL_ALTERED_FORM, true);
-        else
-            target->RemoveAurasDueToSpell(SPELL_ALTERED_FORM);
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_gen_calm_the_wolf::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
-    }
-};
-
 class spell_gen_darkflight : public SpellScript
 {
     void TriggerTransform()
@@ -3237,7 +3181,6 @@ class spell_gen_darkflight : public SpellScript
         AfterCast += SpellCastFn(spell_gen_darkflight::TriggerTransform);
     }
 };
-
 enum SeaforiumSpells
 {
     SPELL_PLANT_CHARGES_CREDIT_ACHIEVEMENT  = 60937
@@ -3310,7 +3253,6 @@ class spell_gen_spirit_healer_res : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_spirit_healer_res::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 enum TournamentMountsSpells
 {
     SPELL_LANCE_EQUIPPED     = 62853
@@ -3357,7 +3299,6 @@ class spell_gen_throw_shield : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_throw_shield::HandleScriptEffect, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum MountedDuelSpells
 {
     SPELL_ON_TOURNAMENT_MOUNT = 63034,
@@ -3417,7 +3358,6 @@ class spell_gen_tournament_pennant : public AuraScript
         OnEffectApply += AuraEffectApplyFn(spell_gen_tournament_pennant::HandleApplyEffect, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
     }
 };
-
 enum Teleporting
 {
     AREA_VIOLET_CITADEL_SPIRE   = 4637,
@@ -3486,7 +3426,6 @@ class spell_gen_trigger_exclude_target_aura_spell : public SpellScript
         AfterHit += SpellHitFn(spell_gen_trigger_exclude_target_aura_spell::HandleTrigger);
     }
 };
-
 enum PvPTrinketTriggeredSpells
 {
     SPELL_WILL_OF_THE_FORSAKEN_COOLDOWN_TRIGGER         = 72752,
@@ -3531,7 +3470,6 @@ class spell_pvp_trinket_wotf_shared_cd : public SpellScript
         AfterCast += SpellCastFn(spell_pvp_trinket_wotf_shared_cd::HandleScript);
     }
 };
-
 enum FriendOrFowl
 {
     SPELL_TURKEY_VENGEANCE      = 25285
@@ -3574,7 +3512,6 @@ class spell_gen_turkey_marker : public AuraScript
 
     std::list<uint32> _applyTimes;
 };
-
 enum FoamSword
 {
     ITEM_FOAM_SWORD_GREEN   = 45061,
@@ -3607,7 +3544,6 @@ class spell_gen_upper_deck_create_foam_sword : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_upper_deck_create_foam_sword::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum VampiricTouch
 {
     SPELL_VAMPIRIC_TOUCH_HEAL   = 52724
@@ -3640,7 +3576,6 @@ class spell_gen_vampiric_touch : public AuraScript
         OnEffectProc += AuraEffectProcFn(spell_gen_vampiric_touch::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
-
 enum VehicleScaling
 {
     SPELL_GEAR_SCALING      = 66668
@@ -3686,7 +3621,6 @@ class spell_gen_vehicle_scaling : public AuraScript
         DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_gen_vehicle_scaling::CalculateAmount, EFFECT_2, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT);
     }
 };
-
 enum VendorBarkTrigger
 {
     NPC_AMPHITHEATER_VENDOR     = 30098,
@@ -3722,7 +3656,6 @@ class spell_gen_wg_water : public SpellScript
         OnCheckCast += SpellCheckCastFn(spell_gen_wg_water::CheckCast);
     }
 };
-
 enum WhisperGulchYoggSaronWhisper
 {
     SPELL_YOGG_SARON_WHISPER_DUMMY  = 29072
@@ -3766,7 +3699,6 @@ class spell_gen_whisper_to_controller : public SpellScript
         OnEffectHit += SpellEffectFn(spell_gen_whisper_to_controller::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum WhisperToControllerTexts
 {
     WHISPER_FUTURE_YOU   = 2,
@@ -3881,7 +3813,6 @@ private:
         OnEffectHitTarget += SpellEffectFn(spell_gen_eject_passenger_with_seatId::EjectPassenger, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum GMFreeze
 {
     SPELL_GM_FREEZE = 9454
@@ -3957,7 +3888,6 @@ class spell_gen_stand : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_stand::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum RequiredMixologySpells
 {
     SPELL_MIXOLOGY                      = 53042,
@@ -4243,7 +4173,6 @@ class spell_gen_mixology_bonus : public AuraScript
         DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_gen_mixology_bonus::CalculateAmount, EFFECT_ALL, SPELL_AURA_ANY);
     }
 };
-
 enum LandmineKnockbackAchievement
 {
     SPELL_LANDMINE_KNOCKBACK_ACHIEVEMENT = 57064
@@ -4289,7 +4218,6 @@ class spell_gen_clear_debuffs : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_clear_debuffs::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum PonySpells
 {
     ACHIEV_PONY_UP              = 3736,
@@ -4324,7 +4252,6 @@ class spell_gen_pony_mount_check : public AuraScript
         OnEffectPeriodic += AuraEffectPeriodicFn(spell_gen_pony_mount_check::HandleEffectPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
-
 enum CorruptinPlagueEntrys
 {
     NPC_APEXIS_FLAYER       = 22175,
@@ -4382,7 +4309,6 @@ class spell_corrupting_plague_aura : public AuraScript
         OnEffectPeriodic += AuraEffectPeriodicFn(spell_corrupting_plague_aura::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
-
 enum StasisFieldEntrys
 {
     NPC_DAGGERTAIL_LIZARD    = 22255,
@@ -4438,7 +4364,6 @@ class spell_stasis_field_aura : public AuraScript
         OnEffectPeriodic += AuraEffectPeriodicFn(spell_stasis_field_aura::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
-
 enum SiegeTankControl
 {
     SPELL_SIEGE_TANK_CONTROL = 47963
@@ -4456,7 +4381,6 @@ class spell_gen_vehicle_control_link : public AuraScript
         AfterEffectRemove += AuraEffectRemoveFn(spell_gen_vehicle_control_link::OnRemove, EFFECT_1, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
-
 enum FreezingCircleMisc
 {
     SPELL_FREEZING_CIRCLE_PIT_OF_SARON_NORMAL = 69574,
@@ -4523,7 +4447,6 @@ class spell_gen_charmed_unit_spell_cooldown : public SpellScript
         OnCast += SpellCastFn(spell_gen_charmed_unit_spell_cooldown::HandleCast);
     }
 };
-
 enum CannonBlast
 {
     SPELL_CANNON_BLAST          = 42578,
@@ -4594,7 +4517,6 @@ class spell_gen_anetheron_summon_towering_infernal : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_anetheron_summon_towering_infernal::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 enum KazrogalHellfireMark
 {
     SPELL_MARK_OF_KAZROGAL_HELLFIRE = 189512,
@@ -4662,7 +4584,6 @@ class spell_gen_azgalor_rain_of_fire_hellfire_citadel : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_azgalor_rain_of_fire_hellfire_citadel::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
-
 enum AuraProcRemoveSpells
 {
     SPELL_FACE_RAGE         = 99947,
@@ -4777,7 +4698,6 @@ class spell_gen_war_mode_enlisted : public AuraScript
             DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_gen_war_mode_enlisted::CalcWarModeBonus, EFFECT_ALL, SPELL_AURA_DUMMY);
     }
 };
-
 enum DefenderOfAzerothData
 {
     SPELL_DEATH_GATE_TELEPORT_STORMWIND = 316999,
@@ -4981,7 +4901,6 @@ class spell_gen_mount_check_aura : public AuraScript
         OnEffectPeriodic += AuraEffectPeriodicFn(spell_gen_mount_check_aura::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
-
 enum AncestralCallSpells
 {
     SPELL_RICTUS_OF_THE_LAUGHING_SKULL  = 274739,
@@ -5080,7 +4999,6 @@ class spell_gen_despawn_all_summons_owned_by_caster : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_despawn_all_summons_owned_by_caster::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
-
 enum SkinningLearningSpell
 {
      SPELL_CLASSIC_SKINNING      = 265856,
@@ -5160,7 +5078,6 @@ class spell_gen_skinning : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_gen_skinning::HandleSkinningEffect, EFFECT_0, SPELL_EFFECT_SKINNING);
     }
 };
-
 enum BloodlustExhaustionSpell : uint32
 {
     SPELL_SHAMAN_SATED               = 57724, // Bloodlust
@@ -5335,7 +5252,6 @@ class spell_gen_waiting_to_resurrect : public AuraScript
         AfterEffectRemove += AuraEffectRemoveFn(spell_gen_waiting_to_resurrect::OnRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
-
 enum MajorHealingCooldownSpell
 {
     SPELL_DRUID_TRANQUILITY              = 740,
@@ -5622,7 +5538,6 @@ class spell_gen_saddlechute : public AuraScript
         AfterEffectRemove += AuraEffectApplyFn(spell_gen_saddlechute::TriggerParachute, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
-
 enum SpatialRiftSpells
 {
     SPELL_SPATIAL_RIFT_TELEPORT     = 257034,
@@ -5746,216 +5661,6 @@ class spell_gen_abandon_vehicle : public SpellScript
     }
 };
 
-//Allied Race SpellFix
-
-// Arcane Pulse (Nightborne racial) - 260364
-class spell_arcane_pulse : public SpellScript
-{
-    void HandleDamage(SpellEffIndex /*effIndex*/)
-    {
-        float damage = GetCaster()->GetTotalAttackPowerValue(BASE_ATTACK) * 2.f;
-
-        if (!damage)
-            damage = float(GetCaster()->GetTotalSpellPowerValue(SPELL_SCHOOL_MASK_ALL, false)) * 0.75f;
-
-        SetHitDamage(damage);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_arcane_pulse::HandleDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
-    }
-};
-
-// Light's Judgement - 256893  (Lightforged Draenei Racial)
-class spell_light_judgement : public SpellScript
-{
-
-    void HandleDamage(SpellEffIndex /*effIndex*/)
-    {
-        if (Unit* caster = GetCaster())
-            SetHitDamage(6.25f * caster->m_unitData->AttackPower);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_light_judgement::HandleDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
-    }
-};
-
-//312372
-// 9.0.5
-class spell_back_camp : public SpellScript
-{
-
-    SpellCastResult CheckRequirement()
-    {
-        if (Unit* caster = GetCaster())
-            if (Player* player = caster->ToPlayer())
-                if (!player->GetStoredAuraTeleportLocation(313055))
-                {
-                    SetCustomCastResultMessage(SPELL_CUSTOM_ERROR_YOU_CANNOT_MAKE_YOUR_CAMP_HERE);
-                    return SPELL_FAILED_CUSTOM_ERROR;
-                }
-
-        return SPELL_CAST_OK;
-    }
-
-    void HandleTeleport()
-    {
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-        Player* player = caster->ToPlayer();
-        if (!player)
-            return;
-        player->RemoveMovementImpairingAuras(false);
-
-        // Tente: 292769
-        // Sac: 276247
-        // campfire: 301125
-     //   if (WorldLocation const* dest = player->GetStoredAuraTeleportLocation(GetEffectInfo()->MiscValue))
-        {
-            uint32 spawntm = 300;
-            if (GameObject* tempGob = player->SummonGameObject(292769, *player, QuaternionData::fromEulerAnglesZYX(player->GetOrientation(), 0.0f, 0.0f), Seconds(spawntm)))
-                player->SetLastTargetedGO(tempGob->GetGUID().GetCounter());
-
-            if (GameObject* tempGob = player->SummonGameObject(276247, Position(player->GetPositionX() + 2.0f, player->GetPositionY() + 2.0f, player->GetPositionZ(), player->GetOrientation()), QuaternionData::fromEulerAnglesZYX(player->GetOrientation(), 0.0f, 0.0f), Seconds(spawntm)))
-                player->SetLastTargetedGO(tempGob->GetGUID().GetCounter());
-
-            if (GameObject* tempGob = player->SummonGameObject(301125, Position(player->GetPositionX() + -2.0f, player->GetPositionY() + -2.0f, player->GetPositionZ(), player->GetOrientation()), QuaternionData::fromEulerAnglesZYX(player->GetOrientation(), 0.0f, 0.0f), Seconds(spawntm)))
-                player->SetLastTargetedGO(tempGob->GetGUID().GetCounter());
-        }
-    }
-
-    void Register() override
-    {
-        OnCheckCast += SpellCheckCastFn(spell_back_camp::CheckRequirement);
-        AfterCast += SpellCastFn(spell_back_camp::HandleTeleport);
-    }
-};
-
-//312370
-class spell_make_camp : public SpellScript
-{
-
-    void Oncast()
-    {
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-        float x = caster->GetPositionX();
-        float y = caster->GetPositionY();
-        float z = caster->GetPositionZ();
-        float o = caster->GetOrientation();
-
-        // Tente: 292769
-        // Sac: 276247
-        // campfire: 301125
-        Player* player = caster->ToPlayer();
-        if (!player)
-            return;
-
-        uint32 spawntm = 300;
-        if (GameObject* tempGob = player->SummonGameObject(292769, *player, QuaternionData::fromEulerAnglesZYX(player->GetOrientation(), 0.0f, 0.0f), Seconds(spawntm)))
-            player->SetLastTargetedGO(tempGob->GetGUID().GetCounter());
-
-        if (GameObject* tempGob = player->SummonGameObject(276247, Position(x + 2.0f, y + 2.0f, z, o), QuaternionData::fromEulerAnglesZYX(player->GetOrientation(), 0.0f, 0.0f), Seconds(spawntm)))
-            player->SetLastTargetedGO(tempGob->GetGUID().GetCounter());
-
-        if (GameObject* tempGob = player->SummonGameObject(301125, Position(x + -2.0f, y + -2.0f, z, o), QuaternionData::fromEulerAnglesZYX(player->GetOrientation(), 0.0f, 0.0f), Seconds(spawntm)))
-            player->SetLastTargetedGO(tempGob->GetGUID().GetCounter());
-    }
-
-    void Register()
-    {
-        OnCast += SpellCastFn(spell_make_camp::Oncast);
-    }
-};
-
-//274738
-class spell_maghar_orc_racial_ancestors_call : public SpellScript
-{
-
-    void Oncast()
-    {
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-
-        uint32 RandomStats = urand(0, 3);
-
-        switch (RandomStats)
-        {
-        case 0:
-            //mastery
-            caster->CastSpell(nullptr, 274741, true);
-            break;
-
-        case 1:
-
-            //versatility
-            caster->CastSpell(nullptr, 274742, true);
-            break;
-
-        case 2:
-            //haste
-            caster->CastSpell(nullptr, 274740, true);
-            break;
-
-        case 3:
-            //crit
-            caster->CastSpell(nullptr, 274739, true);
-            break;
-        }
-    }
-
-    void Register() override
-    {
-        OnCast += SpellCastFn(spell_maghar_orc_racial_ancestors_call::Oncast);
-    }
-};
-
-// 83958 - Mobile Banking (Guild)
-class spell_gen_guild_chest : public SpellScript
-{
-    enum GuildChest
-    {
-        SPELL_SUMMON_CHEST_ALLIANCE = 88304,
-        GOB_GUILD_CHEST_ALLIANCE    = 206602,
-
-        SPELL_SUMMON_CHEST_HORDE    = 88306,
-        GOB_GUILD_CHEST_HORDE       = 206603
-    };
-
-    SpellCastResult CheckRequirement()
-    {
-        Unit* caster = GetCaster();
-        if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
-            return SPELL_FAILED_ERROR;
-
-        if (caster->ToPlayer()->GetReputationRank(1168) < REP_FRIENDLY)
-            return SPELL_FAILED_REPUTATION;
-
-        return SPELL_CAST_OK;
-    }
-
-    void HandleScript(SpellEffIndex /*effIndex*/)
-    {
-        Unit* caster = GetCaster();
-        if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
-            return;
-
-        caster->CastSpell(caster, caster->ToPlayer()->GetTeamId() == TEAM_ALLIANCE ? SPELL_SUMMON_CHEST_ALLIANCE : SPELL_SUMMON_CHEST_HORDE, true);
-    }
-
-    void Register()
-    {
-        OnCheckCast += SpellCheckCastFn(spell_gen_guild_chest::CheckRequirement);
-        OnEffectLaunch += SpellEffectFn(spell_gen_guild_chest::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-    }
-};
-
 void AddSC_generic_spell_scripts()
 {
     RegisterSpellScript(spell_gen_absorb0_hitlimit1);
@@ -5973,7 +5678,6 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScriptWithArgs(spell_gen_break_shield, "spell_gen_break_shield");
     RegisterSpellScriptWithArgs(spell_gen_break_shield, "spell_gen_tournament_counterattack");
     RegisterSpellScript(spell_gen_burning_depths_necrolyte_image);
-    RegisterSpellScript(spell_gen_calm_the_wolf);
     RegisterSpellScript(spell_gen_cancel_aura);
     RegisterSpellScript(spell_gen_cast_caster_to_target);
     RegisterSpellScript(spell_gen_cast_target_to_target);
@@ -6154,13 +5858,5 @@ void AddSC_generic_spell_scripts()
 	RegisterSpellScriptWithArgs(spell_gen_no_npc_damage_below_override, "spell_gen_no_npc_damage_below_override_70", 70.0f);
     RegisterSpellScript(spell_gen_abandon_vehicle);
 	
-	//Allied Race Spells
-    RegisterSpellScript(spell_arcane_pulse);
-    RegisterSpellScript(spell_light_judgement);
-    RegisterSpellScript(spell_make_camp);
-    RegisterSpellScript(spell_back_camp);
-    RegisterSpellScript(spell_maghar_orc_racial_ancestors_call);
 
-    //Guild
-    RegisterSpellScript(spell_gen_guild_chest);
 }

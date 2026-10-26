@@ -173,25 +173,11 @@ enum ShamanSpells
     SPELL_SHAMAN_WINDSTRIKE_DAMAGE_MAIN_HAND    = 115357,
     SPELL_SHAMAN_WINDSTRIKE_DAMAGE_OFF_HAND     = 115360,
 
-    SPELL_SHAMAN_PRIMAL_ELEMENTALIST            = 117013,
-    SPELL_SHAMAN_FIRE_ELEMENTAL_SUMMON          = 198067,
-    SPELL_SHAMAN_FIRE_ELEMENTAL_SUMMON_TRIGGERED = 188592,
-    SPELL_SHAMAN_PRIMAL_ELEMENTALIST_FIRE_ELEMENTAL = 118291,
-    SPELL_SHAMAN_EARTH_ELEMENTAL_SUMMON         = 198103,
-    SPELL_SHAMAN_EARTH_ELEMENTAL_SUMMON_TRIGGERED = 188616,
-    SPELL_SHAMAN_PRIMAL_ELEMENTALIST_EARTH_ELEMENTAL_SUMMON = 118323,
-    SPELL_SHAMAN_STORM_ELEMENTAL_SUMMON         = 192249,
-    SPELL_SHAMAN_STORM_ELEMENTAL_SUMMON_TRIGGERED = 157299,
-    SPELL_SHAMAN_PRIMAL_ELEMENTALIST_STORM_ELEMENTAL_SUMMON = 157319,
-    SPELL_SHAMAN_FERAL_SPIRIT_SUMMON            = 228562,
-    SPELL_SHAMAN_FERAL_SPIRIT_ENERGIZE_DUMMY    = 333957,
 };
-
 enum ShamanSpellLabels
 {
     SPELL_LABEL_SHAMAN_WINDFURY_TOTEM           = 1038,
 };
-
 enum MiscNpcs
 {
     NPC_HEALING_RAIN_INVISIBLE_STALKER          = 73400
@@ -3508,143 +3494,6 @@ private:
     int32 _refreshTimer = REFRESH_TIME;
 };
 
-// Summon Fire, Earth & Storm Elemental  - Called By 198067 Fire Elemental, 198103 Earth Elemental, 192249 Storm Elemental
-class spell_sha_generic_summon_elemental : public SpellScript
-{
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo
-        ({
-            SPELL_SHAMAN_PRIMAL_ELEMENTALIST,
-            SPELL_SHAMAN_FIRE_ELEMENTAL_SUMMON,
-            SPELL_SHAMAN_FIRE_ELEMENTAL_SUMMON_TRIGGERED,
-            SPELL_SHAMAN_PRIMAL_ELEMENTALIST_FIRE_ELEMENTAL,
-            SPELL_SHAMAN_EARTH_ELEMENTAL_SUMMON,
-            SPELL_SHAMAN_EARTH_ELEMENTAL_SUMMON_TRIGGERED,
-            SPELL_SHAMAN_PRIMAL_ELEMENTALIST_EARTH_ELEMENTAL_SUMMON,
-            SPELL_SHAMAN_STORM_ELEMENTAL_SUMMON,
-            SPELL_SHAMAN_STORM_ELEMENTAL_SUMMON_TRIGGERED,
-            SPELL_SHAMAN_PRIMAL_ELEMENTALIST_STORM_ELEMENTAL_SUMMON,
-            });
-    }
-    void HandleSummon(SpellEffIndex /*p_EffIndex*/)
-    {
-        uint32 triggerSpell;
-
-        if (Unit* caster = GetCaster())
-        {
-            switch (GetSpellInfo()->Id)
-            {
-            case SPELL_SHAMAN_FIRE_ELEMENTAL_SUMMON:
-                triggerSpell = (caster->HasAura(SPELL_SHAMAN_PRIMAL_ELEMENTALIST)) ? SPELL_SHAMAN_PRIMAL_ELEMENTALIST_FIRE_ELEMENTAL : SPELL_SHAMAN_FIRE_ELEMENTAL_SUMMON_TRIGGERED;
-                break;
-            case SPELL_SHAMAN_EARTH_ELEMENTAL_SUMMON:
-                triggerSpell = (caster->HasAura(SPELL_SHAMAN_PRIMAL_ELEMENTALIST)) ? SPELL_SHAMAN_PRIMAL_ELEMENTALIST_EARTH_ELEMENTAL_SUMMON : SPELL_SHAMAN_EARTH_ELEMENTAL_SUMMON_TRIGGERED;
-                break;
-            case SPELL_SHAMAN_STORM_ELEMENTAL_SUMMON:
-                triggerSpell = (caster->HasAura(SPELL_SHAMAN_PRIMAL_ELEMENTALIST)) ? SPELL_SHAMAN_PRIMAL_ELEMENTALIST_STORM_ELEMENTAL_SUMMON : SPELL_SHAMAN_STORM_ELEMENTAL_SUMMON_TRIGGERED;
-                break;
-            default:
-                triggerSpell = 0;
-                break;
-            }
-
-            if (triggerSpell)
-                caster->CastSpell(caster, triggerSpell, true);
-        }
-    }
-
-    void Register()
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_sha_generic_summon_elemental::HandleSummon, EFFECT_0, SPELL_EFFECT_DUMMY);
-    }
-
-};
-
-// 198103 - Earth Elemental
-class spell_sha_earth_elemental : public SpellScript
-{
-    void HandleSummon(SpellEffIndex /*effIndex*/)
-    {
-        if (Unit* caster = GetCaster())
-            caster->CastSpell(caster, SPELL_SHAMAN_EARTH_ELEMENTAL_SUMMON_TRIGGERED, true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_sha_earth_elemental::HandleSummon, EFFECT_0, SPELL_EFFECT_DUMMY);
-    }
-};
-
-// 198067 - Fire Elemental
-class spell_sha_fire_elemental : public SpellScript
-{
-    void HandleSummon(SpellEffIndex /*effIndex*/)
-    {
-        if (Unit* caster = GetCaster())
-            caster->CastSpell(caster, SPELL_SHAMAN_FIRE_ELEMENTAL_SUMMON_TRIGGERED, true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_sha_fire_elemental::HandleSummon, EFFECT_0, SPELL_EFFECT_DUMMY);
-    }
-};
-
-// 51533 - Feral Spirit
-class spell_sha_feral_spirit : public SpellScript
-{
-    void HandleDummy(SpellEffIndex /*effIndex*/)
-    {
-        Unit* caster = GetCaster();
-
-        caster->CastSpell(GetHitUnit(), SPELL_SHAMAN_FERAL_SPIRIT_SUMMON, true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_sha_feral_spirit::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-    }
-};
-
-// 29264 - Spirit Wolf
-struct npc_feral_spirit : public ScriptedAI
-{
-    npc_feral_spirit(Creature* p_Creature) : ScriptedAI(p_Creature) {}
-
-    void Reset() override
-    {
-        me->SetReactState(REACT_AGGRESSIVE);
-    }
-
-    void IsSummonedBy(WorldObject* summoner) override
-    {
-        if (Unit* owner = summoner->ToUnit())
-        {
-            Unit* target = owner->GetVictim();
-
-            if (!target)
-                target = owner->ToPlayer()->GetSelectedUnit();
-
-            if (target && me->IsValidAttackTarget(target))
-            {
-                me->GetThreatManager().AddThreat(target, 9999999.f);
-                AttackStart(target);
-            }
-        }
-    }
-
-    void DamageDealt(Unit* /*victim*/, uint32& /*damage*/, DamageEffectType /*damageType*/) override
-    {
-        if (TempSummon* tempSum = me->ToTempSummon())
-            if (Unit* owner = tempSum->GetOwner())
-                if (owner->HasAura(SPELL_SHAMAN_FERAL_SPIRIT_ENERGIZE_DUMMY))
-                    if (owner->GetPower(POWER_MAELSTROM) <= 95)
-                        owner->ModifyPower(POWER_MAELSTROM, +5);
-    }
-};
-
 void AddSC_shaman_spell_scripts()
 {
     RegisterSpellScript(spell_sha_aftershock);
@@ -3752,10 +3601,4 @@ void AddSC_shaman_spell_scripts()
     RegisterAreaTriggerAI(areatrigger_sha_arctic_snowstorm);
     RegisterAreaTriggerAI(areatrigger_sha_wind_rush_totem);
 
-    //New
-    RegisterSpellScript(spell_sha_generic_summon_elemental);
-    RegisterSpellScript(spell_sha_earth_elemental);
-    RegisterSpellScript(spell_sha_fire_elemental);
-    RegisterSpellScript(spell_sha_feral_spirit);
-    RegisterCreatureAI(npc_feral_spirit);
 }

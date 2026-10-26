@@ -36,7 +36,7 @@ class spell_housing_neighborhood_charter : public SpellScript
     }
 };
 
-void AddSC_housing_spell_scripts()
+void AddSC_housing_spell_scripts_core_extended()
 {
     RegisterSpellScript(spell_housing_neighborhood_charter);
 }
