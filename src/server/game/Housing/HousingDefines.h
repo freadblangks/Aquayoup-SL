@@ -783,7 +783,6 @@ enum HouseLevelRewardValueType : uint8
     HOUSE_LEVEL_REWARD_FIXTURES         = 3
 };
 
-// Constants
 // Spatial-validation half-extent for decor positions, measured from the placement anchor.
 static constexpr float HOUSING_MAX_DECOR_LOCAL_EXTENT  = 1024.0f;
 // DecorCategory.db2 id 4 "Lighting" (12.0.7 lets Lighting decor be placed outdoors).

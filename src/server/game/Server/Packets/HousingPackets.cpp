@@ -103,9 +103,7 @@ void HousingDecorSetDyeSlots::Read()
 
 void HousingDecorDeleteFromStorage::Read()
 {
-    uint32 count = 0;
-    _worldPacket >> Bits<5>(count);
-    DecorGuids.resize(count);
+    _worldPacket >> BitsSize<5>(DecorGuids);
     for (ObjectGuid& guid : DecorGuids)
         _worldPacket >> guid;
 }
@@ -311,7 +309,7 @@ void HousingSvcsHouseFinderIgnoreNeighborhood::Read()
 
 WorldPacket const* HousingSvcsIgnoreNeighborhoodInviteResponse::Write()
 {
-    _worldPacket.WriteBit(Success);
+    _worldPacket << Bits<1>(Success);
     _worldPacket.FlushBits();
     _worldPacket << NeighborhoodGuid;
 
@@ -382,7 +380,7 @@ WorldPacket const* HouseExteriorLockResponse::Write()
     _worldPacket << FixtureEntityGuid;
     _worldPacket << EditorPlayerGuid;
     _worldPacket << uint8(Result);
-    _worldPacket.WriteBit(Active);
+    _worldPacket << Bits<1>(Active);
     _worldPacket.FlushBits();
 
     return &_worldPacket;
@@ -407,7 +405,7 @@ WorldPacket const* HousingDecorSetEditModeResponse::Write()
 {
     _worldPacket << HouseGuid;
     _worldPacket << BNetAccountGuid;
-    _worldPacket << uint32(AllowedEditor.size());
+    _worldPacket << Size<uint32>(AllowedEditor);
     _worldPacket << uint8(Result);
 
     for (ObjectGuid const& guid : AllowedEditor)
@@ -482,7 +480,7 @@ WorldPacket const* HousingDecorRequestStorageResponse::Write()
 WorldPacket const* HousingDecorAddToHouseChestResponse::Write()
 {
     _worldPacket << uint8(Success ? 0x80 : 0x00);
-    _worldPacket << uint32(DecorGuids.size());
+    _worldPacket << Size<uint32>(DecorGuids);
     for (ObjectGuid const& guid : DecorGuids)
         _worldPacket << guid;
 
@@ -609,7 +607,7 @@ WorldPacket const* HousingRoomUpdateResponse::Write()
 WorldPacket const* HousingRoomSetComponentThemeResponse::Write()
 {
     _worldPacket << RoomGuid;
-    _worldPacket << uint32(OptionIDs.size());
+    _worldPacket << Size<uint32>(OptionIDs);
     _worldPacket << uint32(ThemeSetID);
     _worldPacket << uint8(Result);
     for (uint32 optionID : OptionIDs)
@@ -622,7 +620,7 @@ WorldPacket const* HousingRoomApplyComponentMaterialsResponse::Write()
 {
     // ColorOverride is NOT echoed in the response - only TextureID.
     _worldPacket << RoomGuid;
-    _worldPacket << uint32(OptionIDs.size());
+    _worldPacket << Size<uint32>(OptionIDs);
     _worldPacket << uint32(RoomComponentTextureID);
     _worldPacket << uint8(Result);
     for (uint32 optionID : OptionIDs)
@@ -651,10 +649,9 @@ WorldPacket const* HousingRoomSetCeilingTypeResponse::Write()
     return &_worldPacket;
 }
 
-// Forward declarations for static helpers (defined below)
-static void WriteJamCliHouse(WorldPacket& packet, JamCliHouse const& house);
-static void WriteJamCliHouseFinderNeighborhoodBase(WorldPacket& packet, JamCliHouseFinderNeighborhood const& entry);
-static void WriteJamCliHouseFinderNeighborhood(WorldPacket& packet, JamCliHouseFinderNeighborhood const& entry);
+ByteBuffer& operator<<(ByteBuffer& data, JamCliHouse const& house);
+// Truncated finder form (no ExtraField/ExtraFlags): its two SMSGs serialize a shorter entry than the finder lists.
+static void WriteJamCliHouseFinderNeighborhoodBase(ByteBuffer& data, JamCliHouseFinderNeighborhood const& entry);
 
 WorldPacket const* HousingSvcsNotifyPermissionsFailure::Write()
 {
@@ -723,58 +720,62 @@ ByteBuffer& operator<<(ByteBuffer& data, HouseInfo const& houseInfo)
     return data;
 }
 
-static void WriteJamCliHouse(WorldPacket& packet, JamCliHouse const& house)
+ByteBuffer& operator<<(ByteBuffer& data, JamCliHouse const& house)
 {
-    packet << house.HouseGUID;
-    packet << house.OwnerGUID;
-    packet << house.NeighborhoodGUID;
-    packet << uint8(house.PlotIndex);
-    packet << uint32(house.HouseSettingFlags);
-    packet << uint8(house.HasOptionalField ? 0x80 : 0x00);
+    data << house.HouseGUID;
+    data << house.OwnerGUID;
+    data << house.NeighborhoodGUID;
+    data << uint8(house.PlotIndex);
+    data << uint32(house.HouseSettingFlags);
+    data << uint8(house.HasOptionalField ? 0x80 : 0x00);
     if (house.HasOptionalField)
-        packet << uint64(house.OptionalValue);
+        data << uint64(house.OptionalValue);
+
+    return data;
 }
 
 // Name length counts the NUL terminator.
-static void WriteJamCliHouseFinderNeighborhoodBase(WorldPacket& packet, JamCliHouseFinderNeighborhood const& entry)
+static void WriteJamCliHouseFinderNeighborhoodBase(ByteBuffer& data, JamCliHouseFinderNeighborhood const& entry)
 {
-    packet << entry.NeighborhoodGUID;
-    packet << entry.OwnerGUID;
-    packet << uint64(entry.Field1);
-    packet << uint64(entry.Field2);
-    packet << uint32(entry.Houses.size());
+    data << entry.NeighborhoodGUID;
+    data << entry.OwnerGUID;
+    data << uint64(entry.Field1);
+    data << uint64(entry.Field2);
+    data << Size<uint32>(entry.Houses);
     for (auto const& house : entry.Houses)
-        WriteJamCliHouse(packet, house);
+        data << house;
     uint8 nameLen = static_cast<uint8>(std::min<size_t>(entry.Name.size() + 1, 255));
-    packet << uint8(nameLen);
-    packet << uint8(entry.BoolFlag ? 0x80 : 0x00);
+    data << uint8(nameLen);
+    data << uint8(entry.BoolFlag ? 0x80 : 0x00);
     if (nameLen > 0)
-        packet.append(entry.Name.c_str(), nameLen);
+        data.append(entry.Name.c_str(), nameLen);
 }
 
-static void WriteJamCliHouseFinderNeighborhood(WorldPacket& packet, JamCliHouseFinderNeighborhood const& entry)
+ByteBuffer& operator<<(ByteBuffer& data, JamCliHouseFinderNeighborhood const& entry)
 {
-    WriteJamCliHouseFinderNeighborhoodBase(packet, entry);
-    packet << uint64(entry.ExtraField);
-    packet << uint8(entry.ExtraFlags);
+    WriteJamCliHouseFinderNeighborhoodBase(data, entry);
+    data << uint64(entry.ExtraField);
+    data << uint8(entry.ExtraFlags);
+
+    return data;
 }
 
 WorldPacket const* HousingSvcsGetPlayerHousesInfoResponse::Write()
 {
-    _worldPacket << uint32(Houses.size());
+    _worldPacket << Size<uint32>(Houses);
     _worldPacket << uint8(Result);
     for (auto const& house : Houses)
-        WriteJamCliHouse(_worldPacket, house);
+        _worldPacket << house;
 
     return &_worldPacket;
 }
 
 WorldPacket const* HousingSvcsPlayerViewHousesResponse::Write()
 {
-    _worldPacket << uint32(Houses.size());
+    _worldPacket << Size<uint32>(Houses);
     _worldPacket << uint8(Result);
     for (auto const& house : Houses)
-        WriteJamCliHouse(_worldPacket, house);
+        _worldPacket << house;
 
     return &_worldPacket;
 }
@@ -793,7 +794,7 @@ WorldPacket const* HousingSvcsUpdateHousesLevelFavor::Write()
     _worldPacket << uint8(Result);
     _worldPacket << uint32(ChangeAmount);
     _worldPacket << uint32(Reason);
-    _worldPacket << uint32(Houses.size());
+    _worldPacket << Size<uint32>(Houses);
     for (HouseLevelFavor const& house : Houses)
     {
         _worldPacket << house.BnetAccount;
@@ -811,14 +812,14 @@ WorldPacket const* HousingSvcsUpdateHousesLevelFavor::Write()
 
 WorldPacket const* HousingSvcsGuildAddHouseNotification::Write()
 {
-    WriteJamCliHouse(_worldPacket, House);
+    _worldPacket << House;
 
     return &_worldPacket;
 }
 
 WorldPacket const* HousingSvcsGuildRemoveHouseNotification::Write()
 {
-    WriteJamCliHouse(_worldPacket, House);
+    _worldPacket << House;
 
     return &_worldPacket;
 }
@@ -835,7 +836,7 @@ WorldPacket const* HousingSvcsGuildRenameNeighborhoodNotification::Write()
 
 WorldPacket const* HousingSvcsGuildGetHousingInfoResponse::Write()
 {
-    _worldPacket << uint32(Neighborhoods.size());
+    _worldPacket << Size<uint32>(Neighborhoods);
     for (auto const& entry : Neighborhoods)
         WriteJamCliHouseFinderNeighborhoodBase(_worldPacket, entry);
 
@@ -878,7 +879,7 @@ WorldPacket const* HousingSvcsNeighborhoodOwnershipTransferredResponse::Write()
 
 WorldPacket const* HousingSvcsGetPotentialHouseOwnersResponse::Write()
 {
-    _worldPacket << uint32(PotentialOwners.size());
+    _worldPacket << Size<uint32>(PotentialOwners);
     for (auto const& owner : PotentialOwners)
     {
         _worldPacket << owner.PlayerGuid;
@@ -899,27 +900,27 @@ WorldPacket const* HousingSvcsUpdateHouseSettingsResponse::Write()
     JamCliHouse house = House;
     house.HouseSettingFlags = SettingsFlags;
     _worldPacket << uint8(Result);
-    WriteJamCliHouse(_worldPacket, house);
+    _worldPacket << house;
 
     return &_worldPacket;
 }
 
 WorldPacket const* HousingSvcsGetHouseFinderInfoResponse::Write()
 {
-    _worldPacket.WriteBit(Result != 0);
+    _worldPacket << Bits<1>(Result != 0);
     _worldPacket.FlushBits();
-    _worldPacket << uint32(Entries.size());
+    _worldPacket << Size<uint32>(Entries);
     for (auto const& entry : Entries)
-        WriteJamCliHouseFinderNeighborhood(_worldPacket, entry);
+        _worldPacket << entry;
 
     return &_worldPacket;
 }
 
 WorldPacket const* HousingSvcsGetHouseFinderNeighborhoodResponse::Write()
 {
-    _worldPacket.WriteBit(Result != 0);
+    _worldPacket << Bits<1>(Result != 0);
     _worldPacket.FlushBits();
-    WriteJamCliHouseFinderNeighborhood(_worldPacket, Neighborhood);
+    _worldPacket << Neighborhood;
 
     return &_worldPacket;
 }
@@ -927,9 +928,9 @@ WorldPacket const* HousingSvcsGetHouseFinderNeighborhoodResponse::Write()
 WorldPacket const* HousingSvcsGetBnetFriendNeighborhoodsResponse::Write()
 {
     _worldPacket << uint8(Result);
-    _worldPacket << uint32(Entries.size());
+    _worldPacket << Size<uint32>(Entries);
     for (auto const& entry : Entries)
-        WriteJamCliHouseFinderNeighborhood(_worldPacket, entry);
+        _worldPacket << entry;
 
     return &_worldPacket;
 }
@@ -951,12 +952,14 @@ WorldPacket const* HousingSvcsDeleteAllNeighborhoodInvitesResponse::Write()
     return &_worldPacket;
 }
 
-static void WriteInviteEntry(WorldPacket& packet, InviteEntry const& entry)
+ByteBuffer& operator<<(ByteBuffer& data, InviteEntry const& entry)
 {
-    packet << uint64(entry.Timestamp);
-    packet << entry.PlayerGuid;
-    packet << entry.HouseGuid;
-    packet << uint64(entry.ExtraData);
+    data << uint64(entry.Timestamp);
+    data << entry.PlayerGuid;
+    data << entry.HouseGuid;
+    data << uint64(entry.ExtraData);
+
+    return data;
 }
 
 WorldPacket const* HousingHouseStatusResponse::Write()
@@ -973,7 +976,7 @@ WorldPacket const* HousingHouseStatusResponse::Write()
 
 WorldPacket const* HousingGetCurrentHouseInfoResponse::Write()
 {
-    WriteJamCliHouse(_worldPacket, House);
+    _worldPacket << House;
     _worldPacket << uint8(Result);
 
     return &_worldPacket;
@@ -1011,14 +1014,14 @@ WorldPacket const* HousingResetHouseResponse::Write()
 void AccountCollectionUpdateBase::WriteCollection()
 {
     _worldPacket << uint8(IsIncrementalUpdate ? 0x80 : 0x00);
-    _worldPacket << uint32(IDs.size());
-    _worldPacket << uint32(StateFlags.size());
+    _worldPacket << Size<uint32>(IDs);
+    _worldPacket << Size<uint32>(StateFlags);
 
     for (uint32 id : IDs)
         _worldPacket << uint32(id);
 
     for (bool flag : StateFlags)
-        _worldPacket.WriteBit(flag);
+        _worldPacket << Bits<1>(flag);
     if (!StateFlags.empty())
         _worldPacket.FlushBits();
 }
@@ -1063,7 +1066,7 @@ WorldPacket const* InvalidateNeighborhood::Write()
 
 WorldPacket const* GetDecorRefundListResponse::Write()
 {
-    _worldPacket << uint32(Decors.size());
+    _worldPacket << Size<uint32>(Decors);
     for (auto const& decor : Decors)
     {
         _worldPacket << uint32(decor.DecorID);
@@ -1082,13 +1085,9 @@ void BulkRefund::Read()
 
     uint32 count = 0;
     _worldPacket >> count;
-
-    if (count > MaxRefundableDecor)
-        count = MaxRefundableDecor;
-
-    DecorGUIDs.resize(count);
-    for (uint32 i = 0; i < count; ++i)
-        _worldPacket >> DecorGUIDs[i];
+    DecorGUIDs.resize(std::min(count, MaxRefundableDecor));
+    for (ObjectGuid& guid : DecorGUIDs)
+        _worldPacket >> guid;
 }
 
 WorldPacket const* BulkRefundResponse::Write()
@@ -1100,7 +1099,7 @@ WorldPacket const* BulkRefundResponse::Write()
 
 WorldPacket const* GetAllLicensedDecorQuantitiesResponse::Write()
 {
-    _worldPacket << uint32(Quantities.size());
+    _worldPacket << Size<uint32>(Quantities);
     for (auto const& qty : Quantities)
     {
         _worldPacket << uint32(qty.HouseDecorID);
@@ -1113,7 +1112,7 @@ WorldPacket const* GetAllLicensedDecorQuantitiesResponse::Write()
 
 WorldPacket const* LicensedDecorQuantitiesUpdate::Write()
 {
-    _worldPacket << uint32(Quantities.size());
+    _worldPacket << Size<uint32>(Quantities);
     for (auto const& qty : Quantities)
     {
         _worldPacket << uint32(qty.HouseDecorID);
@@ -1126,7 +1125,7 @@ WorldPacket const* LicensedDecorQuantitiesUpdate::Write()
 
 WorldPacket const* InitiativeServiceStatus::Write()
 {
-    _worldPacket.WriteBit(ServiceEnabled);
+    _worldPacket << Bits<1>(ServiceEnabled);
     _worldPacket.FlushBits();
 
     return &_worldPacket;
@@ -1148,7 +1147,7 @@ WorldPacket const* GetPlayerInitiativeInfoResult::Write()
         _worldPacket << float(CurrentProgress);
         _worldPacket << float(PlayerTotalContribution);
 
-        _worldPacket << uint32(Tasks.size());
+        _worldPacket << Size<uint32>(Tasks);
         for (auto const& task : Tasks)
         {
             _worldPacket << uint32(task.TaskID);
@@ -1162,7 +1161,7 @@ WorldPacket const* GetPlayerInitiativeInfoResult::Write()
 WorldPacket const* GetInitiativeActivityLogResult::Write()
 {
     _worldPacket << NeighborhoodGuid;
-    _worldPacket << uint32(CompletedTasks.size());
+    _worldPacket << Size<uint32>(CompletedTasks);
     for (auto const& entry : CompletedTasks)
     {
         _worldPacket << entry.PlayerGuid;
@@ -1192,7 +1191,7 @@ WorldPacket const* InitiativeComplete::Write()
 
 WorldPacket const* ClearInitiativeTaskCriteriaProgress::Write()
 {
-    _worldPacket << uint32(CriteriaIDs.size());
+    _worldPacket << Size<uint32>(CriteriaIDs);
     for (uint64 id : CriteriaIDs)
         _worldPacket << uint64(id);
 
@@ -1210,7 +1209,7 @@ WorldPacket const* GetInitiativeRewardsResult::Write()
 
 WorldPacket const* InitiativeRewardAvailable::Write()
 {
-    _worldPacket << uint32(RewardGuids.size());
+    _worldPacket << Size<uint32>(RewardGuids);
     for (ObjectGuid const& guid : RewardGuids)
         _worldPacket << guid;
 
@@ -1252,9 +1251,9 @@ WorldPacket const* GuildOthersOwnedHousesResult::Write()
 {
     _worldPacket << uint8(Result);
     _worldPacket << GuildGuid;
-    _worldPacket << uint32(Houses.size());
+    _worldPacket << Size<uint32>(Houses);
     for (auto const& house : Houses)
-        WriteJamCliHouse(_worldPacket, house);
+        _worldPacket << house;
 
     return &_worldPacket;
 }
@@ -1379,7 +1378,7 @@ WorldPacket const* NeighborhoodCharterUpdateResponse::Write()
     _worldPacket << CharterGuid;
     _worldPacket << uint32(MapID);
     _worldPacket << uint32(SignatureCount);
-    _worldPacket << uint32(Signers.size());
+    _worldPacket << Size<uint32>(Signers);
     _worldPacket << uint32(Unknown);
     for (ObjectGuid const& signer : Signers)
         _worldPacket << signer;
@@ -1396,7 +1395,7 @@ WorldPacket const* NeighborhoodCharterOpenUIResponse::Write()
     _worldPacket << CharterGuid;
     _worldPacket << uint32(MapID);
     _worldPacket << uint32(SignatureCount);
-    _worldPacket << uint32(Signers.size());
+    _worldPacket << Size<uint32>(Signers);
     _worldPacket << uint32(Unknown);
     for (ObjectGuid const& signer : Signers)
         _worldPacket << signer;
@@ -1480,7 +1479,7 @@ WorldPacket const* NeighborhoodRemoveSecondaryOwnerResponse::Write()
 
 WorldPacket const* NeighborhoodBuyHouseResponse::Write()
 {
-    WriteJamCliHouse(_worldPacket, House);
+    _worldPacket << House;
     _worldPacket << uint8(Result);
 
     return &_worldPacket;
@@ -1488,7 +1487,7 @@ WorldPacket const* NeighborhoodBuyHouseResponse::Write()
 
 WorldPacket const* NeighborhoodMoveHouseResponse::Write()
 {
-    WriteJamCliHouse(_worldPacket, House);
+    _worldPacket << House;
     _worldPacket << MoveTransactionGuid;
     _worldPacket << uint8(Result);
 
@@ -1510,7 +1509,7 @@ WorldPacket const* NeighborhoodOpenCornerstoneUIResponse::Write()
     _worldPacket << SizedCString::BitsSize<8>(NeighborhoodName);
     _worldPacket << OptionalInit(AlternatePrice);
     _worldPacket << Bits<1>(CanPurchase);
-    _worldPacket.WriteBit(hasExistingHouse);
+    _worldPacket << Bits<1>(hasExistingHouse);
     _worldPacket << Bits<1>(HasResidents);
     _worldPacket << OptionalInit(StatusValue);
     _worldPacket << Bits<1>(IsInitiative);
@@ -1522,7 +1521,7 @@ WorldPacket const* NeighborhoodOpenCornerstoneUIResponse::Write()
         _worldPacket << uint64(*AlternatePrice);
 
     if (hasExistingHouse)
-        WriteJamCliHouse(_worldPacket, *ExistingHouse);
+        _worldPacket << *ExistingHouse;
 
     if (StatusValue)
         _worldPacket << uint32(*StatusValue);
@@ -1558,7 +1557,7 @@ WorldPacket const* NeighborhoodDeclineInvitationResponse::Write()
 WorldPacket const* NeighborhoodPlayerGetInviteResponse::Write()
 {
     _worldPacket << uint8(Result);
-    Housing::WriteInviteEntry(_worldPacket, Entry);
+    _worldPacket << Entry;
 
     return &_worldPacket;
 }
@@ -1566,9 +1565,9 @@ WorldPacket const* NeighborhoodPlayerGetInviteResponse::Write()
 WorldPacket const* NeighborhoodGetInvitesResponse::Write()
 {
     _worldPacket << uint8(Result);
-    _worldPacket << uint32(Invites.size());
+    _worldPacket << Size<uint32>(Invites);
     for (auto const& invite : Invites)
-        Housing::WriteInviteEntry(_worldPacket, invite);
+        _worldPacket << invite;
 
     return &_worldPacket;
 }
@@ -1615,7 +1614,7 @@ WorldPacket const* NeighborhoodGetRosterResponse::Write()
             house.NeighborhoodGUID = GroupNeighborhoodGuid;
             house.PlotIndex = member.PlotIndex;
             house.HouseSettingFlags = member.HouseSettingFlags;
-            Housing::WriteJamCliHouse(_worldPacket, house);
+            _worldPacket << house;
         }
 
         uint8 const nameLen = NeighborhoodName.empty() ? 0 : static_cast<uint8>(std::min<size_t>(NeighborhoodName.size() + 1, 255));
@@ -1625,7 +1624,7 @@ WorldPacket const* NeighborhoodGetRosterResponse::Write()
             _worldPacket.append(reinterpret_cast<uint8 const*>(NeighborhoodName.c_str()), nameLen);
     }
 
-    _worldPacket << uint32(Members.size());
+    _worldPacket << Size<uint32>(Members);
     for (RosterMemberData const& member : Members)
     {
         _worldPacket << member.PlayerGuid;
@@ -1640,7 +1639,7 @@ WorldPacket const* NeighborhoodGetRosterResponse::Write()
 
 WorldPacket const* NeighborhoodRosterResidentUpdate::Write()
 {
-    _worldPacket << uint32(Residents.size());
+    _worldPacket << Size<uint32>(Residents);
     for (ResidentEntry const& resident : Residents)
     {
         _worldPacket << resident.PlayerGuid;

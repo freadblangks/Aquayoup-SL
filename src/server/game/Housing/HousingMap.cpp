@@ -346,7 +346,6 @@ void HousingMap::SpawnPlotGameObjects()
                     exteriorComponentID = static_cast<int32>(fallbackComp);
                 }
             }
-
         }
         else
         {
@@ -1217,7 +1216,6 @@ void SendHousingPostTutorialAuras(Player* player)
         spellGo.LogData.Initialize(player);
         player->SendDirectMessage(spellGo.Write());
     }
-
 }
 
 void HousingMap::SendNeighborhoodMapEntryAuras(Player* player)
@@ -1294,7 +1292,6 @@ void HousingMap::SendNeighborhoodMapEntryAuras(Player* player)
         spellGo.LogData.Initialize(player);
         player->SendDirectMessage(spellGo.Write());
     }
-
 }
 
 void HousingMap::SendPlotEnterSpellPackets(Player* player, uint8 plotIndex)
@@ -1458,7 +1455,6 @@ void HousingMap::SendPlotEnterSpellPackets(Player* player, uint8 plotIndex)
         spellGo.LogData.Initialize(player);
         player->SendDirectMessage(spellGo.Write());
     }
-
 }
 
 void HousingMap::SendPlotLeaveAuraRemoval(Player* player)
@@ -2071,7 +2067,7 @@ void HousingMap::SpawnFullHouseMeshObjects(uint8 plotIndex, Position const& hous
             "— cannot spawn house for plot {}", exteriorComponentID, plotIndex);
     }
 
-    // === HARDCODED FALLBACK ===
+    // Hardcoded fallback
     if (factionRestriction == NEIGHBORHOOD_FACTION_HORDE)
     {
         SpawnHordeHouseMeshObjects(plotIndex, housePos, houseRot, houseGuid,
@@ -2079,7 +2075,7 @@ void HousingMap::SpawnFullHouseMeshObjects(uint8 plotIndex, Position const& hous
         return;
     }
 
-    // === ALLIANCE EXTERIOR (Stucco Small) ===
+    // Alliance exterior (Stucco Small)
     // Root 0: base (comp 141) with door child (comp 1380, hook 2505); root 1: roof (comp 1503) with chimney + window children.
 
     // Spawn root piece 0: Base structure (uses the passed exteriorComponentID, default 141 = Stucco Base)
@@ -2144,7 +2140,7 @@ void HousingMap::SpawnHordeHouseMeshObjects(uint8 plotIndex, Position const& hou
     QuaternionData const& houseRot, ObjectGuid houseGuid,
     int32 /*exteriorComponentID*/, int32 /*houseExteriorWmoDataID*/)
 {
-    // === HORDE EXTERIOR (HouseExteriorWmoDataID=87) ===
+    // Horde exterior (HouseExteriorWmoDataID=87)
     // Root 0: main structure (comp 3811) with door/wall/roof children; root 1: base (comp 1003).
 
     int32 hordeWmoDataID = HORDE_HOUSE_EXTERIOR_WMO_DATA_ID; // 87
@@ -2430,7 +2426,6 @@ void HousingMap::SendPlotMeshObjectsToPlayers(uint8 plotIndex)
         WorldPacket packet;
         updateData.BuildPacket(&packet);
         p->SendDirectMessage(&packet);
-
     }
 }
 
@@ -2480,7 +2475,6 @@ void HousingMap::SendPlotGeometryEntitiesToPlayer(uint8 plotIndex, Player* playe
     WorldPacket packet;
     updateData.BuildPacket(&packet);
     player->SendDirectMessage(&packet);
-
 }
 
 void HousingMap::DespawnAllMeshObjectsForPlot(uint8 plotIndex)
@@ -2551,7 +2545,6 @@ void HousingMap::DespawnSingleMeshObject(uint8 plotIndex, ObjectGuid meshGuid)
         auto& vec = itr->second;
         vec.erase(std::remove(vec.begin(), vec.end(), guid), vec.end());
     }
-
 }
 
 MeshObject* HousingMap::SpawnFixtureAtHook(uint8 plotIndex, uint32 hookID, uint32 componentID,
@@ -2887,7 +2880,7 @@ bool HousingMap::SpawnDecorItem(uint8 plotIndex, Housing::PlacedDecor const& dec
             }
         }
 
-    // ---------- Functional decor branch (real GameObject) ----------
+    // Functional decor branch: a real GameObject
     // Spawn as a real GameObject so the client treats it as interactive; requires a matching gameobject_template.
     if (decorData->GameObjectID > 0)
     {
@@ -2936,7 +2929,7 @@ bool HousingMap::SpawnDecorItem(uint8 plotIndex, Housing::PlacedDecor const& dec
         }
     }
 
-    // ---------- Visual-only branch (MeshObject) ----------
+    // Visual-only branch: a MeshObject
     int32 fileDataID = decorData->ModelFileDataID;
     if (fileDataID <= 0 && decorData->GameObjectID > 0)
     {
@@ -3019,7 +3012,6 @@ void HousingMap::DespawnDecorItem(uint8 plotIndex, ObjectGuid decorGuid)
     plotDecor.erase(std::remove(plotDecor.begin(), plotDecor.end(), objGuid), plotDecor.end());
     _decorGuidToGoGuid.erase(itr);
     _decorGuidToPlotIndex.erase(decorGuid);
-
 }
 
 void HousingMap::DespawnAllDecorForPlot(uint8 plotIndex)
@@ -3054,7 +3046,6 @@ void HousingMap::DespawnAllDecorForPlot(uint8 plotIndex)
 
     itr->second.clear();
     _decorSpawnedPlots.erase(plotIndex);
-
 }
 
 void HousingMap::SpawnAllDecorForPlot(uint8 plotIndex, Housing const* housing)

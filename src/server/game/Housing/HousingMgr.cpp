@@ -339,7 +339,6 @@ void HousingMgr::LoadNeighborhoodPlotData()
         }
     }
 
-    // Build map index
     for (auto const& [id, plot] : _neighborhoodPlotStore)
         _plotsByMap[plot.NeighborhoodMapID].push_back(&plot);
 
@@ -1077,7 +1076,6 @@ void HousingMgr::LoadHouseDecorMaterialData()
         data.TextureBFileDataID = entry->TextureBFileDataID;
     }
 
-    // Build decor material index
     for (auto const& [id, mat] : _houseDecorMaterialStore)
         _materialsByTheme[mat.HouseThemeID].push_back(&mat);
 }
@@ -1106,7 +1104,6 @@ void HousingMgr::LoadHouseLevelRewardInfoData()
         data.IconFileDataID = entry->IconFileDataID;
     }
 
-    // Build level reward index
     for (auto const& [id, reward] : _houseLevelRewardInfoStore)
         _rewardsByLevel[reward.HouseLevelDataID].push_back(&reward);
 

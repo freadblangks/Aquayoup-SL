@@ -27,8 +27,6 @@
 
 namespace WorldPackets::Housing
 {
-    // ===================== CMSG =====================
-
     // ExportBlueprint sends an empty guid; ExportRoomBlueprint sends type Room + the room.
     class HousingBlueprintExport final : public ClientPacket
     {
@@ -93,8 +91,6 @@ namespace WorldPackets::Housing
         uint8 BlueprintType = 0;
         ObjectGuid TargetHouseGuid;
     };
-
-    // ===================== SMSG =====================
 
     // result != 0 -> HOUSING_BLUEPRINT_EXPORT_FAILURE(result), else HOUSING_BLUEPRINT_EXPORT_SUCCESS(shareCode).
     class HousingBlueprintExportResponse final : public ServerPacket

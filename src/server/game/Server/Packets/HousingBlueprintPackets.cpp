@@ -21,7 +21,7 @@
 namespace WorldPackets::Housing
 {
 // The client's senders write a zero length for an empty string (and no bytes); SizedCString::BitsSize would write 1.
-static void WriteCStringSize(WorldPacket& data, std::string const& value, uint32 bits)
+static void WriteCStringSize(ByteBuffer& data, std::string const& value, uint32 bits)
 {
     data.WriteBits(value.empty() ? 0 : uint32(value.size() + 1), bits);
 }
@@ -83,7 +83,7 @@ WorldPacket const* HousingBlueprintExportResponse::Write()
 WorldPacket const* HousingBlueprintCollection::Write()
 {
     _worldPacket << uint8(Result);
-    _worldPacket << uint32(Blueprints.size());
+    _worldPacket << Size<uint32>(Blueprints);
     for (JamHousingBlueprint const& blueprint : Blueprints)
     {
         _worldPacket << uint64(blueprint.ID);
@@ -133,12 +133,12 @@ WorldPacket const* HousingBlueprintImportResponse::Write()
     return &_worldPacket;
 }
 
-static void WriteContentLists(WorldPacket& data, JamBlueprintContentLists const& lists)
+ByteBuffer& operator<<(ByteBuffer& data, JamBlueprintContentLists const& lists)
 {
-    data << uint32(lists.Decor.size());
-    data << uint32(lists.Dyes.size());
-    data << uint32(lists.Rooms.size());
-    data << uint32(lists.Fixtures.size());
+    data << Size<uint32>(lists.Decor);
+    data << Size<uint32>(lists.Dyes);
+    data << Size<uint32>(lists.Rooms);
+    data << Size<uint32>(lists.Fixtures);
     for (auto const& [id, count] : lists.Decor)
         data << uint32(id) << uint32(count);
     for (auto const& [id, count] : lists.Dyes)
@@ -147,14 +147,18 @@ static void WriteContentLists(WorldPacket& data, JamBlueprintContentLists const&
         data << uint32(id);
     for (uint32 id : lists.Fixtures)
         data << uint32(id);
+
+    return data;
 }
 
-static void WriteBudgetEntry(WorldPacket& data, JamBlueprintBudgetEntry const& entry)
+ByteBuffer& operator<<(ByteBuffer& data, JamBlueprintBudgetEntry const& entry)
 {
     data << uint8(entry.BudgetType);
     data << int32(entry.Max);
     data << int32(entry.Current);
     data << int32(entry.Cost);
+
+    return data;
 }
 
 WorldPacket const* HousingBlueprintContents::Write()
@@ -163,18 +167,18 @@ WorldPacket const* HousingBlueprintContents::Write()
     _worldPacket << uint8(BlueprintType);
     _worldPacket << TargetHouseGuid;
     _worldPacket << uint32(UnmetRequirementFlags);
-    WriteContentLists(_worldPacket, Missing);
-    WriteContentLists(_worldPacket, Invalid);
-    _worldPacket << uint32(InteriorBudgets.size());
-    _worldPacket << uint32(ExteriorBudgets.size());
-    for (JamBlueprintBudgetEntry const& entry : InteriorBudgets)
-        WriteBudgetEntry(_worldPacket, entry);
-    for (JamBlueprintBudgetEntry const& entry : ExteriorBudgets)
-        WriteBudgetEntry(_worldPacket, entry);
+    _worldPacket << Missing;
+    _worldPacket << Invalid;
+    _worldPacket << Size<uint32>(InteriorBudgets);
+    _worldPacket << Size<uint32>(ExteriorBudgets);
+    for (JamBlueprintBudgetEntry const& budget : InteriorBudgets)
+        _worldPacket << budget;
+    for (JamBlueprintBudgetEntry const& budget : ExteriorBudgets)
+        _worldPacket << budget;
     _worldPacket << OptionalInit(Contents);
     _worldPacket.FlushBits();
     if (Contents)
-        WriteContentLists(_worldPacket, *Contents);
+        _worldPacket << *Contents;
     WriteCStringSize(_worldPacket, Uuid, 24);
     _worldPacket.FlushBits();
     _worldPacket << SizedCString::Data(Uuid);
@@ -186,22 +190,23 @@ WorldPacket const* HousingHouseBudgetsUpdate::Write()
 {
     // HouseGuid is a convenience prefix so the client can associate the update with a house.
     _worldPacket << HouseGuid;
-    _worldPacket << uint32(InteriorBudgets.size());
-    for (JamHouseBudgetEntry const& e : InteriorBudgets)
+    _worldPacket << Size<uint32>(InteriorBudgets);
+    for (JamHouseBudgetEntry const& entry : InteriorBudgets)
     {
-        _worldPacket << uint32(e.BudgetType);
-        _worldPacket << int32(e.Max);
-        _worldPacket << int32(e.Current);
-        _worldPacket << int32(e.Cost);
+        _worldPacket << uint32(entry.BudgetType);
+        _worldPacket << int32(entry.Max);
+        _worldPacket << int32(entry.Current);
+        _worldPacket << int32(entry.Cost);
     }
-    _worldPacket << uint32(ExteriorBudgets.size());
-    for (JamHouseBudgetEntry const& e : ExteriorBudgets)
+    _worldPacket << Size<uint32>(ExteriorBudgets);
+    for (JamHouseBudgetEntry const& entry : ExteriorBudgets)
     {
-        _worldPacket << uint32(e.BudgetType);
-        _worldPacket << int32(e.Max);
-        _worldPacket << int32(e.Current);
-        _worldPacket << int32(e.Cost);
+        _worldPacket << uint32(entry.BudgetType);
+        _worldPacket << int32(entry.Max);
+        _worldPacket << int32(entry.Current);
+        _worldPacket << int32(entry.Cost);
     }
+
     return &_worldPacket;
 }
 }
