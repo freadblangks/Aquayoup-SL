@@ -1817,7 +1817,11 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     else
         stmt->setNull(index++);
 
-    stmt->setFloat(index++, data.size);
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_EXTRA_DATA);
+    stmt->setUInt64(0, m_spawnId);
+    stmt->setFloat(1, data.size);
     trans->Append(stmt);
 
     WorldDatabase.CommitTransaction(trans);
@@ -2262,6 +2266,10 @@ bool Creature::hasInvolvedQuest(uint32 quest_id) const
 
     // ... and the database
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE);
+    stmt->setUInt64(0, spawnId);
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_EXTRA_DATA);
     stmt->setUInt64(0, spawnId);
     trans->Append(stmt);
 

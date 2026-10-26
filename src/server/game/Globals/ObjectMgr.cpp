@@ -2133,10 +2133,11 @@ void ObjectMgr::LoadCreatures()
     //   11               12            13            14                 15          16           17                18                   19                    20
         "currentwaypoint, curHealthPct, MovementType, spawnDifficulties, eventEntry, poolSpawnId, creature.npcflag, creature.unit_flags, creature.unit_flags2, creature.unit_flags3, "
     //   21                      22                23                   24                       25                   26                    27
-        "creature.phaseUseFlags, creature.phaseid, creature.phasegroup, creature.terrainSwapMap, creature.ScriptName, creature.StringId, creature.size  "
+        "creature.phaseUseFlags, creature.phaseid, creature.phasegroup, creature.terrainSwapMap, creature.ScriptName, creature.StringId, COALESCE(creature_extra_data.size, -1)  "
         "FROM creature "
         "LEFT OUTER JOIN game_event_creature ON creature.guid = game_event_creature.guid "
-        "LEFT OUTER JOIN pool_members ON pool_members.type = 0 AND creature.guid = pool_members.spawnId");
+        "LEFT OUTER JOIN pool_members ON pool_members.type = 0 AND creature.guid = pool_members.spawnId "
+        "LEFT OUTER JOIN creature_extra_data ON creature.guid = creature_extra_data.guid");
 
     if (!result)
     {
@@ -2501,9 +2502,10 @@ void ObjectMgr::LoadGameObjects()
     //   7          8          9          10         11             12            13     14                 15          16
         "rotation0, rotation1, rotation2, rotation3, spawntimesecs, animprogress, state, spawnDifficulties, eventEntry, poolSpawnId, "
     //   17             18       19          20              21          22         23      24
-        "phaseUseFlags, phaseid, phasegroup, terrainSwapMap, ScriptName, StringId, size, visibility  "
+        "phaseUseFlags, phaseid, phasegroup, terrainSwapMap, ScriptName, StringId, COALESCE(gameobject_extra_data.size, -1), COALESCE(gameobject_extra_data.visibility, 150)  "
         "FROM gameobject LEFT OUTER JOIN game_event_gameobject ON gameobject.guid = game_event_gameobject.guid "
-        "LEFT OUTER JOIN pool_members ON pool_members.type = 1 AND gameobject.guid = pool_members.spawnId");
+        "LEFT OUTER JOIN pool_members ON pool_members.type = 1 AND gameobject.guid = pool_members.spawnId "
+        "LEFT OUTER JOIN gameobject_extra_data ON gameobject.guid = gameobject_extra_data.guid");
 
     if (!result)
     {
@@ -9808,7 +9810,9 @@ void ObjectMgr::LoadVendors()
 
     std::set<uint32> skip_vendors;
 
-    QueryResult result = WorldDatabase.Query("SELECT entry, item, maxcount, incrtime, ExtendedCost, OverrideGoldCost, type, BonusListIDs, PlayerConditionID, IgnoreFiltering FROM npc_vendor ORDER BY entry, slot ASC");
+    QueryResult result = WorldDatabase.Query("SELECT npc_vendor.entry, npc_vendor.item, npc_vendor.maxcount, npc_vendor.incrtime, npc_vendor.ExtendedCost, COALESCE(npc_vendor_extra_data.OverrideGoldCost, -1), npc_vendor.type, npc_vendor.BonusListIDs, npc_vendor.PlayerConditionID, npc_vendor.IgnoreFiltering FROM npc_vendor "
+        "LEFT JOIN npc_vendor_extra_data ON npc_vendor_extra_data.entry = npc_vendor.entry AND npc_vendor_extra_data.item = npc_vendor.item AND npc_vendor_extra_data.ExtendedCost = npc_vendor.ExtendedCost AND npc_vendor_extra_data.type = npc_vendor.type "
+        "ORDER BY npc_vendor.entry, npc_vendor.slot ASC");
     if (!result)
     {
         TC_LOG_ERROR("server.loading", ">>  Loaded 0 Vendors. DB table `npc_vendor` is empty!");
@@ -10116,6 +10120,14 @@ bool ObjectMgr::RemoveVendorItem(uint32 entry, uint32 item, uint8 type, bool per
     if (persist)
     {
         WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_NPC_VENDOR);
+
+        stmt->setUInt32(0, entry);
+        stmt->setUInt32(1, item);
+        stmt->setUInt8(2, type);
+
+        WorldDatabase.Execute(stmt);
+
+        stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_NPC_VENDOR_EXTRA_DATA);
 
         stmt->setUInt32(0, entry);
         stmt->setUInt32(1, item);

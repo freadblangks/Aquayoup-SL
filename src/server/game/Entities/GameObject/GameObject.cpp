@@ -2059,8 +2059,13 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
         stmt->setString(index++, stringId);
     else
         stmt->setNull(index++);
-    stmt->setFloat(index++, data.size);
-    stmt->setFloat(index++, GetVisibilityRange());
+
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_GAMEOBJECT_EXTRA_DATA);
+    stmt->setUInt64(0, m_spawnId);
+    stmt->setFloat(1, data.size);
+    stmt->setFloat(2, GetVisibilityRange());
     trans->Append(stmt);
 
     WorldDatabase.CommitTransaction(trans);
@@ -2169,6 +2174,10 @@ bool GameObject::LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap
 
     // ... and the database
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_GAMEOBJECT);
+    stmt->setUInt64(0, spawnId);
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_GAMEOBJECT_EXTRA_DATA);
     stmt->setUInt64(0, spawnId);
     trans->Append(stmt);
 
