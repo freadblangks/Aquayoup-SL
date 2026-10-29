@@ -198,7 +198,7 @@ class spell_darkmoon_firebird_challenge_check_trigger : public AuraScript
 
     void Register() override
     {
-        AfterEffectRemove += AuraEffectRemoveFn(spell_darkmoon_firebird_challenge_check_trigger::HandleRemove, EFFECT_1, SPELL_AURA_MOD_INCREASE_VEHICLE_FLIGHT_SPEED, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_darkmoon_firebird_challenge_check_trigger::HandleRemove, EFFECT_1, SPELL_AURA_MOD_INCREASE_FLIGHT_SPEED, AURA_EFFECT_HANDLE_REAL);
     }
 };
 

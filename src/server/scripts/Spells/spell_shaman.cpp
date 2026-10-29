@@ -176,7 +176,6 @@ enum ShamanSpells
     SPELL_SHAMAN_WINDVEIL                       = 355634
 };
 
-};
 enum ShamanSpellLabels
 {
     SPELL_LABEL_SHAMAN_WINDFURY_TOTEM           = 1038,
