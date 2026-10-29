@@ -99,11 +99,6 @@ std::string GetRegionwideCharacterExistsQuery(std::string const& characterSchema
         + " AND account = " + std::to_string(accountId) + " AND deleteInfos_Name IS NULL";
 }
 
-void CharacterDatabaseConnection::DoPrepareStatements()
-{
-    if (!m_reconnecting)
-        m_stmts.resize(MAX_CHARACTERDATABASE_STATEMENTS);
-
 #define SelectItemInstanceContent "ii.guid, ii.itemEntry, ii.creatorGuid, ii.giftCreatorGuid, ii.count, ii.duration, ii.charges, ii.flags, ii.enchantments, ii.randomBonusListId, " \
         "ii.durability, ii.playedTime, ii.createTime, ii.text, ii.battlePetSpeciesId, ii.battlePetBreedData, ii.battlePetLevel, ii.battlePetDisplayId, ii.context, ii.bonusListIDs, " \
         "iit.itemModifiedAppearanceAllSpecs, iit.itemModifiedAppearanceSpec1, iit.itemModifiedAppearanceSpec2, iit.itemModifiedAppearanceSpec3, iit.itemModifiedAppearanceSpec4, iit.itemModifiedAppearanceSpec5, " \
@@ -111,6 +106,27 @@ void CharacterDatabaseConnection::DoPrepareStatements()
         "iit.secondaryItemModifiedAppearanceAllSpecs, iit.secondaryItemModifiedAppearanceSpec1, iit.secondaryItemModifiedAppearanceSpec2, iit.secondaryItemModifiedAppearanceSpec3, iit.secondaryItemModifiedAppearanceSpec4, iit.secondaryItemModifiedAppearanceSpec5, " \
         "ig.gemItemId1, ig.gemBonuses1, ig.gemContext1, ig.gemScalingLevel1, ig.gemItemId2, ig.gemBonuses2, ig.gemContext2, ig.gemScalingLevel2, ig.gemItemId3, ig.gemBonuses3, ig.gemContext3, ig.gemScalingLevel3, " \
         "im.fixedScalingLevel, im.artifactKnowledgeLevel, im.craftingModifiedStat1, im.craftingModifiedStat2"
+
+std::string GetAccountBankItemsQuery(std::string const& authSchema, uint32 battlenetAccountId)
+{
+    // the warband bank slot map lives in the auth database, the item rows were pulled into this
+    // realm's database by the login migration before this query runs
+    std::string query = "SELECT " SelectItemInstanceContent ", abi.bag, abi.slot FROM `" + authSchema + "`.account_bank_item abi "
+        "JOIN item_instance ii ON abi.item = ii.guid "
+        "LEFT JOIN item_instance_gems ig ON ii.guid = ig.itemGuid "
+        "LEFT JOIN item_instance_transmog iit ON ii.guid = iit.itemGuid "
+        "LEFT JOIN item_instance_modifiers im ON ii.guid = im.itemGuid "
+        "WHERE abi.battlenetAccountId = " + std::to_string(battlenetAccountId) + " ORDER BY abi.bag ASC, abi.slot ASC";
+    return query;
+}
+
+void CharacterDatabaseConnection::DoPrepareStatements()
+{
+    if (!m_reconnecting)
+        m_stmts.resize(MAX_CHARACTERDATABASE_STATEMENTS);
+
+    PrepareStatement(CHAR_SEL_AUCTIONHOUSE_COUNT_ITEM, "SELECT COUNT(*) FROM auction_items ai INNER JOIN item_instance ii ON ii.guid = ai.itemGuid WHERE ii.itemEntry = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_AUCTIONHOUSE_ITEM_BY_ENTRY, "SELECT ai.itemGuid, c.guid, c.account, c.name FROM auctionhouse ah INNER JOIN auction_items ai ON ah.id = ai.auctionId INNER JOIN characters c ON c.guid = ah.owner INNER JOIN item_instance ii ON ii.guid = ai.itemGuid WHERE ii.itemEntry = ? LIMIT ?", CONNECTION_SYNCH);
 
     PrepareStatement(CHAR_DEL_POOL_QUEST_SAVE, "DELETE FROM pool_quest_save WHERE pool_id = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_POOL_QUEST_SAVE, "INSERT INTO pool_quest_save (pool_id, quest_id) VALUES (?, ?)", CONNECTION_ASYNC);
@@ -184,7 +200,7 @@ void CharacterDatabaseConnection::DoPrepareStatements()
 
     PrepareStatement(CHAR_SEL_CHARACTER_CUSTOMIZATIONS, "SELECT chrCustomizationOptionID, chrCustomizationChoiceID FROM character_customizations WHERE guid = ? ORDER BY chrCustomizationOptionID", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_GROUP_MEMBER, "SELECT guid FROM group_member WHERE memberGuid = ?", CONNECTION_BOTH);
-    PrepareStatement(CHAR_SEL_CHARACTER_AURAS, "SELECT casterGuid, itemGuid, spell, effectMask, recalculateMask, difficulty, stackCount, maxDuration, remainTime, remainCharges, castItemId, castItemLevel FROM character_aura WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHARACTER_AURAS, "SELECT casterGuid, itemGuid, spell, effectMask, recalculateMask, difficulty, stackCount, maxDuration, remainTime, remainCharges, castItemId, castItemLevel, dstLocationMapId, dstLocationX, dstLocationY, dstLocationZ, dstLocationO FROM character_aura WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_AURA_EFFECTS, "SELECT casterGuid, itemGuid, spell, effectMask, effectIndex, amount, baseAmount FROM character_aura_effect WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_SPELL, "SELECT spell, active, disabled FROM character_spell WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_SPELL_FAVORITES, "SELECT spell FROM character_spell_favorite WHERE guid = ?", CONNECTION_ASYNC);
@@ -465,8 +481,8 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_DEL_TRANSMOG_OUTFIT_SLOT, "DELETE FROM character_transmog_outfit_slot WHERE guid = ? AND transmogOutfitId = ?", CONNECTION_ASYNC);
 
     // Auras
-    PrepareStatement(CHAR_INS_AURA, "INSERT INTO character_aura (guid, casterGuid, itemGuid, spell, effectMask, recalculateMask, difficulty, stackCount, maxDuration, remainTime, remainCharges, castItemId, castItemLevel) "
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_INS_AURA, "INSERT INTO character_aura (guid, casterGuid, itemGuid, spell, effectMask, recalculateMask, difficulty, stackCount, maxDuration, remainTime, remainCharges, castItemId, castItemLevel, dstLocationMapId, dstLocationX, dstLocationY, dstLocationZ, dstLocationO) "
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_AURA_EFFECT, "INSERT INTO character_aura_effect (guid, casterGuid, itemGuid, spell, effectMask, effectIndex, amount, baseAmount) "
                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
 
@@ -665,6 +681,7 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_SEL_CHAR_RACE_OR_FACTION_CHANGE_INFOS, "SELECT c.at_login, c.knownTitles, gm.guid, c.map FROM characters c LEFT JOIN group_member gm ON c.guid = gm.memberGuid WHERE c.guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHAR_COD_ITEM_MAIL, "SELECT id, messageType, mailTemplateId, sender, subject, body, money, has_items FROM mail WHERE receiver = ? AND has_items <> 0 AND cod <> 0", CONNECTION_SYNCH);
     PrepareStatement(CHAR_SEL_CHAR_SOCIAL, "SELECT DISTINCT guid FROM character_social WHERE friend = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_CHARACTER_SOCIAL_FLAGS, "SELECT flags FROM character_social WHERE guid = ? AND friend = ?", CONNECTION_SYNCH);
     PrepareStatement(CHAR_SEL_CHAR_OLD_CHARS, "SELECT guid, deleteInfos_Account FROM characters WHERE deleteDate IS NOT NULL AND deleteDate < ?", CONNECTION_SYNCH);
     PrepareStatement(CHAR_SEL_MAIL, "SELECT id, messageType, sender, receiver, subject, body, expire_time, deliver_time, money, cod, checked, stationery, mailTemplateId FROM mail WHERE receiver = ? ORDER BY id DESC", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_AURA_FROZEN, "DELETE FROM character_aura WHERE spell = 9454 AND guid = ?", CONNECTION_ASYNC);
@@ -824,7 +841,7 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_DEL_CHAR_PET_DECLINEDNAME_BY_OWNER, "DELETE FROM character_pet_declinedname WHERE owner = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_PET_DECLINEDNAME, "DELETE FROM character_pet_declinedname WHERE id = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_CHAR_PET_DECLINEDNAME, "INSERT INTO character_pet_declinedname (id, owner, genitive, dative, accusative, instrumental, prepositional) VALUES (?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_SEL_PET_AURA, "SELECT casterGuid, spell, effectMask, recalculateMask, difficulty, stackCount, maxDuration, remainTime, remainCharges FROM pet_aura WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_PET_AURA, "SELECT casterGuid, spell, effectMask, recalculateMask, difficulty, stackCount, maxDuration, remainTime, remainCharges, dstLocationMapId, dstLocationX, dstLocationY, dstLocationZ, dstLocationO FROM pet_aura WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_PET_AURA_EFFECT, "SELECT casterGuid, spell, effectMask, effectIndex, amount, baseAmount FROM pet_aura_effect WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_PET_SPELL, "SELECT spell, active FROM pet_spell WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_PET_SPELL_COOLDOWN, "SELECT spell, time, categoryId, categoryEnd FROM pet_spell_cooldown WHERE guid = ? AND time > UNIX_TIMESTAMP()", CONNECTION_ASYNC);
@@ -839,8 +856,8 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_INS_PET_SPELL_CHARGES, "INSERT INTO pet_spell_charges (guid, categoryId, rechargeStart, rechargeEnd) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_PET_SPELL_BY_SPELL, "DELETE FROM pet_spell WHERE guid = ? and spell = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_PET_SPELL, "INSERT INTO pet_spell (guid, spell, active) VALUES (?, ?, ?)", CONNECTION_BOTH);
-    PrepareStatement(CHAR_INS_PET_AURA, "INSERT INTO pet_aura (guid, casterGuid, spell, effectMask, recalculateMask, difficulty, stackCount, maxDuration, remainTime, remainCharges) "
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_BOTH);
+    PrepareStatement(CHAR_INS_PET_AURA, "INSERT INTO pet_aura (guid, casterGuid, spell, effectMask, recalculateMask, difficulty, stackCount, maxDuration, remainTime, remainCharges, dstLocationMapId, dstLocationX, dstLocationY, dstLocationZ, dstLocationO) "
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_BOTH);
     PrepareStatement(CHAR_INS_PET_AURA_EFFECT, "INSERT INTO pet_aura_effect (guid, casterGuid, spell, effectMask, effectIndex, amount, baseAmount) "
                      "VALUES (?, ?, ?, ?, ?, ?, ?)", CONNECTION_BOTH);
     PrepareStatement(CHAR_SEL_CHAR_PETS, "SELECT id, entry, modelid, level, exp, Reactstate, slot, name, renamed, curhealth, curmana, abdata, savetime, CreatedBySpell, PetType, specialization, favorite FROM character_pet WHERE owner = ?", CONNECTION_ASYNC);
@@ -895,7 +912,7 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_SEL_CHARACTER_AURA_STORED_LOCATIONS, "SELECT Spell, MapId, PositionX, PositionY, PositionZ, Orientation FROM character_aura_stored_location WHERE Guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHARACTER_AURA_STORED_LOCATIONS_BY_GUID, "DELETE FROM character_aura_stored_location WHERE Guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHARACTER_AURA_STORED_LOCATION, "DELETE FROM character_aura_stored_location WHERE Guid = ? AND Spell = ?", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_INS_CHARACTER_AURA_STORED_LOCATION, "INSERT INTO character_aura_stored_location (Guid, Spell, MapId, PositionX, PositionY, PositionZ, Orientation) "
+    PrepareStatement(CHAR_INS_CHARACTER_AURA_STORED_LOCATION, "REPLACE INTO character_aura_stored_location (Guid, Spell, MapId, PositionX, PositionY, PositionZ, Orientation) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
 
     // War mode
@@ -920,15 +937,6 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_INS_PLAYER_DATA_FLAGS_CHARACTER, "INSERT INTO character_player_data_flag (characterGuid, storageIndex, mask) VALUES (?, ?, ?)", CONNECTION_ASYNC);
 
     PrepareStatement(CHAR_SEL_CHARACTER_BANK_TAB_SETTINGS, "SELECT tabId, name, icon, description, depositFlags FROM character_bank_tab_settings WHERE characterGuid = ?", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_SEL_ACCOUNT_BANK_TAB_SETTINGS, "SELECT tabId, name, icon, description, depositFlags FROM account_bank_tab_settings WHERE battlenetAccountId = ?", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_DEL_ACCOUNT_BANK_TAB_SETTINGS, "DELETE FROM account_bank_tab_settings WHERE battlenetAccountId = ?", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_INS_ACCOUNT_BANK_TAB_SETTINGS, "INSERT INTO account_bank_tab_settings (battlenetAccountId, tabId, name, icon, description, depositFlags) VALUES (?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_SEL_ACCOUNT_BANK_ITEMS, "SELECT " SelectItemInstanceContent ", abi.bag, abi.slot FROM account_bank_item abi JOIN item_instance ii ON abi.item = ii.guid LEFT JOIN item_instance_gems ig ON ii.guid = ig.itemGuid LEFT JOIN item_instance_transmog iit ON ii.guid = iit.itemGuid LEFT JOIN item_instance_modifiers im ON ii.guid = im.itemGuid WHERE abi.battlenetAccountId = ? ORDER BY abi.bag ASC, abi.slot ASC", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_REP_ACCOUNT_BANK_ITEM, "REPLACE INTO account_bank_item (battlenetAccountId, bag, slot, item) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_DEL_ACCOUNT_BANK_ITEM, "DELETE FROM account_bank_item WHERE battlenetAccountId = ? AND item = ?", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_DEL_ACCOUNT_BANK_ITEMS_BY_BNET, "DELETE FROM account_bank_item WHERE battlenetAccountId = ?", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_SEL_ACCOUNT_BANK_COINAGE, "SELECT coinage FROM account_bank_coinage WHERE battlenetAccountId = ?", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_REP_ACCOUNT_BANK_COINAGE, "REPLACE INTO account_bank_coinage (battlenetAccountId, coinage) VALUES (?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHARACTER_BANK_TAB_SETTINGS, "DELETE FROM character_bank_tab_settings WHERE characterGuid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_CHARACTER_BANK_TAB_SETTINGS, "INSERT INTO character_bank_tab_settings (characterGuid, tabId, name, icon, description, depositFlags) VALUES (?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
 
@@ -963,9 +971,122 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_REP_CLUB_MENTION_VIEW_MARKER, "REPLACE INTO club_mention_view_marker (memberGuid, lastViewTime) VALUES (?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_CLUB_MEMBER_MENTION, "INSERT IGNORE INTO club_member_mention (clubId, streamId, memberGuid, epoch, position, authorGuid, authorAccountId, createdTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CLUB_MEMBER_MENTION, "DELETE FROM club_member_mention WHERE memberGuid = ? AND epoch = ? AND position = ?", CONNECTION_ASYNC);
+
+    // Housing
+    PrepareStatement(CHAR_SEL_CHARACTER_HOUSING, "SELECT houseId, neighborhoodGuid, plotIndex, houseLevel, favor, settingsFlags, exteriorLocked, houseSize, houseType, createTime, posX, posY, posZ, facing, houseName, houseDescription FROM character_housing WHERE guid = ?", CONNECTION_BOTH);
+    PrepareStatement(CHAR_INS_CHARACTER_HOUSING, "INSERT INTO character_housing (guid, houseId, neighborhoodGuid, plotIndex, houseLevel, favor, settingsFlags, exteriorLocked, houseSize, houseType, createTime, posX, posY, posZ, facing, houseName, houseDescription) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UNIX_TIMESTAMP(), ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHARACTER_HOUSING, "DELETE FROM character_housing WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHARACTER_HOUSING_DECOR, "SELECT id, houseDecorId, posX, posY, posZ, rotX, rotY, rotZ, rotW, scale, dyeSlot0, dyeSlot1, dyeSlot2, roomGuid, locked, placementTime, sourceType, sourceValue, petGuid, petFlag, parentDecorGuid FROM character_housing_decor WHERE ownerGuid = ?", CONNECTION_BOTH);
+    PrepareStatement(CHAR_INS_CHARACTER_HOUSING_DECOR, "INSERT INTO character_housing_decor (ownerGuid, id, houseDecorId, posX, posY, posZ, rotX, rotY, rotZ, rotW, scale, dyeSlot0, dyeSlot1, dyeSlot2, roomGuid, locked, placementTime, sourceType, sourceValue, petGuid, petFlag, parentDecorGuid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHARACTER_HOUSING_DECOR, "DELETE FROM character_housing_decor WHERE ownerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHARACTER_HOUSING_ROOMS, "SELECT id, houseRoomId, slotIndex, gridX, gridY, floorIndex, orientation, mirrored, themeId, wallTextureId, floorTextureId, ceilingTextureId, colorOverride, doorTypeId, doorSlot, ceilingTypeId, ceilingSlot, wallThemeId, floorThemeId, ceilingThemeId, doorTypes, componentStyles FROM character_housing_rooms WHERE ownerGuid = ?", CONNECTION_BOTH);
+    PrepareStatement(CHAR_INS_CHARACTER_HOUSING_ROOMS, "INSERT INTO character_housing_rooms (ownerGuid, id, houseRoomId, slotIndex, gridX, gridY, floorIndex, orientation, mirrored, themeId, wallTextureId, floorTextureId, ceilingTextureId, colorOverride, doorTypeId, doorSlot, ceilingTypeId, ceilingSlot, wallThemeId, floorThemeId, ceilingThemeId, doorTypes, componentStyles) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHARACTER_HOUSING_ROOMS, "DELETE FROM character_housing_rooms WHERE ownerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHARACTER_HOUSING_FIXTURES, "SELECT fixturePointId, fixtureOptionId FROM character_housing_fixtures WHERE ownerGuid = ?", CONNECTION_BOTH);
+    PrepareStatement(CHAR_INS_CHARACTER_HOUSING_FIXTURES, "INSERT INTO character_housing_fixtures (ownerGuid, fixturePointId, fixtureOptionId) VALUES (?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHARACTER_HOUSING_FIXTURES, "DELETE FROM character_housing_fixtures WHERE ownerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHARACTER_HOUSING_CATALOG, "SELECT houseDecorId, quantity, sourceType, sourceValue FROM character_housing_catalog WHERE ownerGuid = ?", CONNECTION_BOTH);
+    PrepareStatement(CHAR_INS_CHARACTER_HOUSING_CATALOG, "INSERT INTO character_housing_catalog (ownerGuid, houseDecorId, quantity, sourceType, sourceValue) VALUES (?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHARACTER_HOUSING_CATALOG, "DELETE FROM character_housing_catalog WHERE ownerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_SETTINGS, "UPDATE character_housing SET settingsFlags = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_EXTERIOR_LOCKED, "UPDATE character_housing SET exteriorLocked = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_HOUSE_SIZE, "UPDATE character_housing SET houseSize = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_HOUSE_TYPE, "UPDATE character_housing SET houseType = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_POSITION, "UPDATE character_housing SET posX = ?, posY = ?, posZ = ?, facing = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_DECOR_POSITION, "UPDATE character_housing_decor SET posX = ?, posY = ?, posZ = ?, rotX = ?, rotY = ?, rotZ = ?, rotW = ?, scale = ? WHERE ownerGuid = ? AND id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_DECOR_DYES, "UPDATE character_housing_decor SET dyeSlot0 = ?, dyeSlot1 = ?, dyeSlot2 = ? WHERE ownerGuid = ? AND id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_DECOR_LOCKED, "UPDATE character_housing_decor SET locked = ? WHERE ownerGuid = ? AND id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_DECOR_PET, "UPDATE character_housing_decor SET petGuid = ?, petFlag = ? WHERE ownerGuid = ? AND id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_DECOR_PARENT, "UPDATE character_housing_decor SET parentDecorGuid = ? WHERE ownerGuid = ? AND id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHARACTER_HOUSING_IGNORED_NEIGHBORHOOD, "SELECT neighborhoodGuid FROM character_housing_ignored_neighborhood WHERE ownerGuid = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_CHARACTER_HOUSING_IGNORED_NEIGHBORHOOD, "INSERT IGNORE INTO character_housing_ignored_neighborhood (ownerGuid, neighborhoodGuid) VALUES (?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHARACTER_HOUSING_IGNORED_NEIGHBORHOOD, "DELETE FROM character_housing_ignored_neighborhood WHERE ownerGuid = ? AND neighborhoodGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_ACCOUNT_HOUSING_BLUEPRINTS, "SELECT id, uuid, bnetAccountId, exporterGuid, name, type, flags, createTime, content FROM account_housing_blueprint", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_ACCOUNT_HOUSING_BLUEPRINT, "INSERT INTO account_housing_blueprint (id, uuid, bnetAccountId, exporterGuid, name, type, flags, createTime, content) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_ACCOUNT_HOUSING_BLUEPRINT_NAME, "UPDATE account_housing_blueprint SET name = ? WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_ACCOUNT_HOUSING_BLUEPRINT, "DELETE FROM account_housing_blueprint WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_ACCOUNT_HOUSING_ROOMS, "SELECT roomId FROM account_housing_room WHERE bnetAccountId = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_ACCOUNT_HOUSING_OWNERS, "SELECT ch.guid FROM character_housing ch JOIN characters c ON c.guid = ch.guid WHERE c.account = ? AND ch.guid <> ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_ACCOUNT_HOUSING_ROOM, "INSERT IGNORE INTO account_housing_room (bnetAccountId, roomId) VALUES (?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_ACCOUNT_HOUSING_HOUSE_TYPES, "SELECT houseExteriorWmoDataId FROM account_housing_house_type WHERE bnetAccountId = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_ACCOUNT_HOUSING_HOUSE_TYPE, "INSERT IGNORE INTO account_housing_house_type (bnetAccountId, houseExteriorWmoDataId) VALUES (?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_OWNER, "UPDATE character_housing SET guid = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_DECOR_OWNER, "UPDATE character_housing_decor SET ownerGuid = ? WHERE ownerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_ROOMS_OWNER, "UPDATE character_housing_rooms SET ownerGuid = ? WHERE ownerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_FIXTURES_OWNER, "UPDATE character_housing_fixtures SET ownerGuid = ? WHERE ownerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_CATALOG_OWNER, "UPDATE character_housing_catalog SET ownerGuid = ? WHERE ownerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_NEIGHBORHOOD_MEMBER_PLAYER, "UPDATE neighborhood_members SET playerGuid = ? WHERE neighborhoodGuid = ? AND playerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_ROOM, "UPDATE character_housing_rooms SET slotIndex = ?, gridX = ?, gridY = ?, floorIndex = ?, orientation = ?, mirrored = ?, themeId = ?, wallTextureId = ?, floorTextureId = ?, ceilingTextureId = ?, colorOverride = ?, doorTypeId = ?, doorSlot = ?, ceilingTypeId = ?, ceilingSlot = ?, wallThemeId = ?, floorThemeId = ?, ceilingThemeId = ?, doorTypes = ?, componentStyles = ? WHERE ownerGuid = ? AND id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_FIXTURE, "UPDATE character_housing_fixtures SET fixtureOptionId = ? WHERE ownerGuid = ? AND fixturePointId = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHARACTER_HOUSING_FIXTURE_SINGLE, "DELETE FROM character_housing_fixtures WHERE ownerGuid = ? AND fixturePointId = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_REP_CHARACTER_HOUSING_CATALOG, "REPLACE INTO character_housing_catalog (ownerGuid, houseDecorId, quantity, sourceType, sourceValue) VALUES (?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_CATALOG_COUNT, "UPDATE character_housing_catalog SET quantity = ? WHERE ownerGuid = ? AND houseDecorId = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHARACTER_HOUSING_DECOR_SINGLE, "DELETE FROM character_housing_decor WHERE ownerGuid = ? AND id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_NAME_DESC, "UPDATE character_housing SET houseName = ?, houseDescription = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHARACTER_HOUSING_LEVEL_FAVOR, "UPDATE character_housing SET houseLevel = ?, favor = ? WHERE guid = ?", CONNECTION_ASYNC);
+
+    // Neighborhoods
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD, "SELECT guid, name, neighborhoodMapId, ownerGuid, factionRestriction, isPublic, createTime, guildId FROM neighborhoods WHERE guid = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_NEIGHBORHOOD, "INSERT INTO neighborhoods (guid, name, neighborhoodMapId, ownerGuid, factionRestriction, isPublic, createTime, guildId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_BOTH);
+    PrepareStatement(CHAR_REP_NEIGHBORHOOD, "REPLACE INTO neighborhoods (guid, name, neighborhoodMapId, ownerGuid, factionRestriction, isPublic, createTime, guildId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_NEIGHBORHOOD_PUBLIC, "UPDATE neighborhoods SET isPublic = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_NEIGHBORHOOD_OWNER, "UPDATE neighborhoods SET ownerGuid = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHARACTER_GUID_RACE_BY_NAME, "SELECT guid, race FROM characters WHERE name = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_UPD_NEIGHBORHOOD_NAME, "UPDATE neighborhoods SET name = ? WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_NEIGHBORHOOD, "DELETE FROM neighborhoods WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD_MEMBERS, "SELECT nm.playerGuid, nm.role, nm.joinTime, nm.plotIndex, ch.houseId, c.account, ch.houseLevel, ch.favor, ch.houseName, ch.houseType, ch.settingsFlags, ch.posX, ch.posY, ch.posZ, ch.facing FROM neighborhood_members nm LEFT JOIN character_housing ch ON nm.playerGuid = ch.guid LEFT JOIN characters c ON nm.playerGuid = c.guid WHERE nm.neighborhoodGuid = ?", CONNECTION_SYNCH);
+    // Owner-keyed batch fetches of member housing data, joined to neighborhood_members
+    // so every occupied plot renders at neighborhood init even when the owner is offline
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD_MEMBER_FIXTURES, "SELECT f.ownerGuid, f.fixturePointId, f.fixtureOptionId FROM character_housing_fixtures f INNER JOIN neighborhood_members nm ON nm.playerGuid = f.ownerGuid WHERE nm.neighborhoodGuid = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD_MEMBER_DECOR, "SELECT d.id, d.ownerGuid, d.houseDecorId, d.posX, d.posY, d.posZ, d.rotX, d.rotY, d.rotZ, d.rotW, d.scale, d.dyeSlot0, d.dyeSlot1, d.dyeSlot2, d.roomGuid, d.locked, d.placementTime, d.sourceType, d.sourceValue FROM character_housing_decor d INNER JOIN neighborhood_members nm ON nm.playerGuid = d.ownerGuid WHERE nm.neighborhoodGuid = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD_MEMBER_ROOMS, "SELECT r.ownerGuid, r.id, r.houseRoomId, r.slotIndex, r.gridX, r.gridY, r.floorIndex, r.orientation, r.mirrored, r.themeId, r.wallTextureId, r.floorTextureId, r.ceilingTextureId, r.colorOverride, r.doorTypeId, r.doorSlot, r.ceilingTypeId, r.ceilingSlot, r.wallThemeId, r.floorThemeId, r.ceilingThemeId, r.doorTypes, r.componentStyles FROM character_housing_rooms r INNER JOIN neighborhood_members nm ON nm.playerGuid = r.ownerGuid WHERE nm.neighborhoodGuid = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_NEIGHBORHOOD_MEMBER, "INSERT INTO neighborhood_members (neighborhoodGuid, playerGuid, role, joinTime, plotIndex) VALUES (?, ?, ?, ?, ?)", CONNECTION_BOTH);
+    PrepareStatement(CHAR_DEL_NEIGHBORHOOD_MEMBERS, "DELETE FROM neighborhood_members WHERE neighborhoodGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_NEIGHBORHOOD_MEMBER, "DELETE FROM neighborhood_members WHERE neighborhoodGuid = ? AND playerGuid = ?", CONNECTION_BOTH);
+    PrepareStatement(CHAR_UPD_NEIGHBORHOOD_MEMBER_PLOT, "UPDATE neighborhood_members SET plotIndex = ? WHERE neighborhoodGuid = ? AND playerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_NEIGHBORHOOD_MEMBER_ROLE, "UPDATE neighborhood_members SET role = ? WHERE neighborhoodGuid = ? AND playerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD_INVITES, "SELECT inviteeGuid, inviterGuid, inviteTime FROM neighborhood_invites WHERE neighborhoodGuid = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_NEIGHBORHOOD_INVITE, "INSERT INTO neighborhood_invites (neighborhoodGuid, inviteeGuid, inviterGuid, inviteTime) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_NEIGHBORHOOD_INVITES, "DELETE FROM neighborhood_invites WHERE neighborhoodGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_NEIGHBORHOOD_INVITE, "DELETE FROM neighborhood_invites WHERE neighborhoodGuid = ? AND inviteeGuid = ?", CONNECTION_ASYNC);
+
+    // Neighborhood Charters
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD_CHARTER, "SELECT id, creatorGuid, name, neighborhoodMapId, factionFlags, isGuild, createTime FROM neighborhood_charters WHERE id = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD_CHARTER_SIGNATURES, "SELECT signerGuid FROM neighborhood_charter_signatures WHERE charterId = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_REP_NEIGHBORHOOD_CHARTER, "REPLACE INTO neighborhood_charters (id, creatorGuid, name, neighborhoodMapId, factionFlags, isGuild, createTime) VALUES (?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_NEIGHBORHOOD_CHARTER, "DELETE FROM neighborhood_charters WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_INS_NEIGHBORHOOD_CHARTER_SIGNATURE, "INSERT INTO neighborhood_charter_signatures (charterId, signerGuid, signTime) VALUES (?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_NEIGHBORHOOD_CHARTER_SIGNATURES, "DELETE FROM neighborhood_charter_signatures WHERE charterId = ?", CONNECTION_ASYNC);
+
+    // Neighborhood Initiatives
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD_INITIATIVES, "SELECT id, neighborhoodGuid, initiativeId, startTime, progress, completed FROM neighborhood_initiatives WHERE neighborhoodGuid = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_NEIGHBORHOOD_INITIATIVE, "SELECT id, neighborhoodGuid, initiativeId, startTime, progress, completed FROM neighborhood_initiatives WHERE id = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_NEIGHBORHOOD_INITIATIVE, "INSERT INTO neighborhood_initiatives (neighborhoodGuid, initiativeId, startTime, progress, completed) VALUES (?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_NEIGHBORHOOD_INITIATIVE, "UPDATE neighborhood_initiatives SET progress = ?, completed = ? WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_NEIGHBORHOOD_INITIATIVE, "DELETE FROM neighborhood_initiatives WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_NEIGHBORHOOD_INITIATIVES, "DELETE FROM neighborhood_initiatives WHERE neighborhoodGuid = ?", CONNECTION_ASYNC);
+
+    // Neighborhood Initiative Task Progress
+    PrepareStatement(CHAR_SEL_INITIATIVE_TASK_PROGRESS, "SELECT taskId, progress, status FROM neighborhood_initiative_task_progress WHERE initiativeDbId = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_REP_INITIATIVE_TASK_PROGRESS, "REPLACE INTO neighborhood_initiative_task_progress (initiativeDbId, taskId, progress, status) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+
+    // Neighborhood Initiative Milestones
+    PrepareStatement(CHAR_SEL_INITIATIVE_MILESTONES, "SELECT milestoneIndex, reached, reachedTime FROM neighborhood_initiative_milestones WHERE initiativeDbId = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_REP_INITIATIVE_MILESTONE, "REPLACE INTO neighborhood_initiative_milestones (initiativeDbId, milestoneIndex, reached, reachedTime) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+
+    // Neighborhood Initiative Reward Claims
+    PrepareStatement(CHAR_SEL_INITIATIVE_REWARD_CLAIMS, "SELECT milestoneIndex, playerGuid, claimTime FROM neighborhood_initiative_reward_claims WHERE initiativeDbId = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_INITIATIVE_REWARD_CLAIM_PLAYER, "SELECT milestoneIndex FROM neighborhood_initiative_reward_claims WHERE initiativeDbId = ? AND playerGuid = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_INITIATIVE_REWARD_CLAIM, "INSERT IGNORE INTO neighborhood_initiative_reward_claims (initiativeDbId, milestoneIndex, playerGuid, claimTime) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+
+    // Neighborhood Initiative Contributions
+    PrepareStatement(CHAR_INS_INITIATIVE_CONTRIBUTION, "INSERT INTO neighborhood_initiative_contributions (initiativeDbId, playerGuid, taskId, amount, lastUpdated) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE amount = amount + VALUES(amount), lastUpdated = VALUES(lastUpdated)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_INITIATIVE_CONTRIBUTIONS, "SELECT playerGuid, taskId, amount, lastUpdated FROM neighborhood_initiative_contributions WHERE initiativeDbId = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_PLAYER_INITIATIVE_FAVOR, "SELECT COALESCE(SUM(amount), 0) FROM neighborhood_initiative_contributions WHERE initiativeDbId = ? AND playerGuid = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_ACTIVE_CHARS_BY_ACCOUNT, "SELECT guid, race, logout_time FROM characters WHERE account = ? AND deleteDate IS NULL AND deleteInfos_Name IS NULL ORDER BY logout_time DESC", CONNECTION_SYNCH);
 }
 
-CharacterDatabaseConnection::CharacterDatabaseConnection(MySQLConnectionInfo& connInfo, ConnectionFlags connectionFlags) : MySQLConnection(connInfo, connectionFlags)
+CharacterDatabaseConnection::CharacterDatabaseConnection(MySQLConnectionInfo const& connInfo, ConnectionFlags connectionFlags) : MySQLConnection(connInfo, connectionFlags)
 {
 }
 

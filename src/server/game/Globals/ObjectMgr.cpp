@@ -2133,10 +2133,11 @@ void ObjectMgr::LoadCreatures()
     //   11               12            13            14                 15          16           17                18                   19                    20
         "currentwaypoint, curHealthPct, MovementType, spawnDifficulties, eventEntry, poolSpawnId, creature.npcflag, creature.unit_flags, creature.unit_flags2, creature.unit_flags3, "
     //   21                      22                23                   24                       25                   26                    27
-        "creature.phaseUseFlags, creature.phaseid, creature.phasegroup, creature.terrainSwapMap, creature.ScriptName, creature.StringId, creature.size  "
+        "creature.phaseUseFlags, creature.phaseid, creature.phasegroup, creature.terrainSwapMap, creature.ScriptName, creature.StringId, COALESCE(creature_extra_data.size, -1)  "
         "FROM creature "
         "LEFT OUTER JOIN game_event_creature ON creature.guid = game_event_creature.guid "
-        "LEFT OUTER JOIN pool_members ON pool_members.type = 0 AND creature.guid = pool_members.spawnId");
+        "LEFT OUTER JOIN pool_members ON pool_members.type = 0 AND creature.guid = pool_members.spawnId "
+        "LEFT OUTER JOIN creature_extra_data ON creature.guid = creature_extra_data.guid");
 
     if (!result)
     {
@@ -2501,9 +2502,10 @@ void ObjectMgr::LoadGameObjects()
     //   7          8          9          10         11             12            13     14                 15          16
         "rotation0, rotation1, rotation2, rotation3, spawntimesecs, animprogress, state, spawnDifficulties, eventEntry, poolSpawnId, "
     //   17             18       19          20              21          22         23      24
-        "phaseUseFlags, phaseid, phasegroup, terrainSwapMap, ScriptName, StringId, size, visibility  "
+        "phaseUseFlags, phaseid, phasegroup, terrainSwapMap, ScriptName, StringId, COALESCE(gameobject_extra_data.size, -1), COALESCE(gameobject_extra_data.visibility, 150)  "
         "FROM gameobject LEFT OUTER JOIN game_event_gameobject ON gameobject.guid = game_event_gameobject.guid "
-        "LEFT OUTER JOIN pool_members ON pool_members.type = 1 AND gameobject.guid = pool_members.spawnId");
+        "LEFT OUTER JOIN pool_members ON pool_members.type = 1 AND gameobject.guid = pool_members.spawnId "
+        "LEFT OUTER JOIN gameobject_extra_data ON gameobject.guid = gameobject_extra_data.guid");
 
     if (!result)
     {
@@ -2712,7 +2714,7 @@ void ObjectMgr::LoadGameObjects()
         if (!data.rotation.isUnit())
         {
             TC_LOG_ERROR("sql.sql", "Table `gameobject` has gameobject (GUID: {} Entry: {}) with invalid rotation quaternion (non-unit), defaulting to orientation on Z axis only", guid, data.id);
-            data.rotation = QuaternionData::fromEulerAnglesZYX(data.spawnPoint.GetOrientation(), 0.0f, 0.0f);
+            data.rotation = QuaternionData::fromOrientation(data.spawnPoint.GetOrientation());
         }
 
         if (sWorld->getBoolConfig(CONFIG_CALCULATE_GAMEOBJECT_ZONE_AREA_DATA))
@@ -3702,6 +3704,49 @@ void ObjectMgr::LoadVehicleSeatAddon()
     } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded {} Vehicle Seat Addon entries in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+void ObjectMgr::LoadSummonPropertiesAddon()
+{
+    uint32 oldMSTime = getMSTime();
+
+    QueryResult result = WorldDatabase.Query("SELECT SummonPropertiesId, EffectValueType from summon_properties_addon");
+
+    if (!result)
+    {
+        TC_LOG_INFO("server.loading", ">> Loaded 0 summon properties addon entries. DB table `summon_properties_addon` is empty.");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+
+        uint32 summonPropertiesId = fields[0].GetUInt32();
+        SummonPropertiesEffectValueType parameter = static_cast<SummonPropertiesEffectValueType>(fields[1].GetUInt8());
+
+        // Ensure the parameter is within defined bounds
+        if (parameter == SummonPropertiesEffectValueType::None || parameter > SummonPropertiesEffectValueType::NumUnitsFailIfLess1)
+        {
+            TC_LOG_ERROR("sql.sql", "Invalid EffectValueType speficied for SummonPropertiesId: {} in `summon_properties_addon`, skipped.", summonPropertiesId);
+            continue;
+        }
+
+        // Ensure that the spell exists
+        SummonPropertiesEntry const* summonPropertiesEntry = sSummonPropertiesStore.LookupEntry(summonPropertiesId);
+        if (!summonPropertiesEntry)
+        {
+            TC_LOG_ERROR("sql.sql", "SummonPropertiesId: {} in `summon_properties_addon` does not exist in DB2 files, skipped.", summonPropertiesId);
+            continue;
+        }
+
+        _summonPropertiesAddonStore[summonPropertiesId] = parameter;
+        ++count;
+
+    } while (result->NextRow());
+
+    TC_LOG_INFO("server.loading", ">> Loaded {} SummonProperties addon records in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
 }
 
 void ObjectMgr::LoadPetLevelInfo()
@@ -7056,7 +7101,7 @@ AreaTriggerTeleport const* ObjectMgr::GetAreaTrigger(uint32 trigger) const
 
 AccessRequirement const* ObjectMgr::GetAccessRequirement(uint32 mapid, Difficulty difficulty) const
 {
-    return Trinity::Containers::MapGetValuePtr(_accessRequirementStore, MAKE_PAIR64(mapid, difficulty));
+    return Trinity::Containers::MapGetValuePtr(_accessRequirementStore, { mapid, difficulty });
 }
 
 bool ObjectMgr::AddGraveyardLink(uint32 id, uint32 zoneId, uint32 team, bool persist /*= true*/)
@@ -7216,9 +7261,7 @@ void ObjectMgr::LoadAccessRequirements()
             continue;
         }
 
-        uint64 requirement_ID = MAKE_PAIR64(mapid, difficulty);
-
-        AccessRequirement* ar = &_accessRequirementStore[requirement_ID];
+        AccessRequirement* ar = &_accessRequirementStore[{ mapid, difficulty }];
         ar->levelMin            = fields[2].GetUInt8();
         ar->levelMax            = fields[3].GetUInt8();
         ar->item                = fields[4].GetUInt32();
@@ -9767,7 +9810,9 @@ void ObjectMgr::LoadVendors()
 
     std::set<uint32> skip_vendors;
 
-    QueryResult result = WorldDatabase.Query("SELECT entry, item, maxcount, incrtime, ExtendedCost, OverrideGoldCost, type, BonusListIDs, PlayerConditionID, IgnoreFiltering FROM npc_vendor ORDER BY entry, slot ASC");
+    QueryResult result = WorldDatabase.Query("SELECT npc_vendor.entry, npc_vendor.item, npc_vendor.maxcount, npc_vendor.incrtime, npc_vendor.ExtendedCost, COALESCE(npc_vendor_extra_data.OverrideGoldCost, -1), npc_vendor.type, npc_vendor.BonusListIDs, npc_vendor.PlayerConditionID, npc_vendor.IgnoreFiltering FROM npc_vendor "
+        "LEFT JOIN npc_vendor_extra_data ON npc_vendor_extra_data.entry = npc_vendor.entry AND npc_vendor_extra_data.item = npc_vendor.item AND npc_vendor_extra_data.ExtendedCost = npc_vendor.ExtendedCost AND npc_vendor_extra_data.type = npc_vendor.type "
+        "ORDER BY npc_vendor.entry, npc_vendor.slot ASC");
     if (!result)
     {
         TC_LOG_ERROR("server.loading", ">>  Loaded 0 Vendors. DB table `npc_vendor` is empty!");
@@ -10075,6 +10120,14 @@ bool ObjectMgr::RemoveVendorItem(uint32 entry, uint32 item, uint8 type, bool per
     if (persist)
     {
         WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_NPC_VENDOR);
+
+        stmt->setUInt32(0, entry);
+        stmt->setUInt32(1, item);
+        stmt->setUInt8(2, type);
+
+        WorldDatabase.Execute(stmt);
+
+        stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_NPC_VENDOR_EXTRA_DATA);
 
         stmt->setUInt32(0, entry);
         stmt->setUInt32(1, item);
@@ -10825,6 +10878,18 @@ VehicleAccessoryList const* ObjectMgr::GetVehicleAccessoryList(Vehicle* veh) con
 PlayerInfo const* ObjectMgr::GetPlayerInfo(uint32 race, uint32 class_) const
 {
     return Trinity::Containers::MapGetValuePtr(_playerInfo, { Races(race), Classes(class_) });
+}
+
+/// Returns the value type which determines how the effect value of a SPELL_EFFECT_SUMMON spell effect is interpreted by a SummonProperties record
+/// @param summonPropertiesId The SummonProperties db2 record Id of the database entry
+/// @return The effect value type for the given summon property record, None when no database entry has been set
+SummonPropertiesEffectValueType ObjectMgr::GetSummonPropertiesEffectValueType(uint32 summonPropertiesId) const
+{
+    auto itr = _summonPropertiesAddonStore.find(summonPropertiesId);
+    if (itr == _summonPropertiesAddonStore.end())
+        return SummonPropertiesEffectValueType::None;
+
+    return itr->second;
 }
 
 void ObjectMgr::LoadRaceAndClassExpansionRequirements()

@@ -29,6 +29,8 @@
 #include "GameTime.h"
 #include "Garrison.h"
 #include "Group.h"
+#include "Housing.h"
+#include "InitiativeManager.h"
 #include "InstanceScript.h"
 #include "Item.h"
 #include "ItemBonusMgr.h"
@@ -505,6 +507,10 @@ void CriteriaHandler::UpdateCriteria(Criteria const* criteria, uint64 miscValue1
         if (!data->Meets(referencePlayer, ref, uint32(miscValue1), uint32(miscValue2)))
             return;
 
+    // Housing initiative hook: notify InitiativeManager when validated criteria fires
+    if (referencePlayer)
+        sInitiativeManager.OnCriteriaProgress(referencePlayer, criteria->ID);
+
     switch (CriteriaType(criteria->Entry->Type))
     {
         // std. case: increment at 1
@@ -570,6 +576,9 @@ void CriteriaHandler::UpdateCriteria(Criteria const* criteria, uint64 miscValue1
         case CriteriaType::SellItemsToVendors:
         case CriteriaType::ReachMaxLevel:
         case CriteriaType::LearnTaxiNode:
+        case CriteriaType::PlaceDecor:
+        case CriteriaType::RemoveDecor:
+        case CriteriaType::CollectUniqueDecor:
             SetCriteriaProgress(criteria, 1, referencePlayer, PROGRESS_ACCUMULATE);
             break;
         // std case: increment at miscValue1
@@ -697,6 +706,8 @@ void CriteriaHandler::UpdateCriteria(Criteria const* criteria, uint64 miscValue1
         case CriteriaType::LeaveArea:
         case CriteriaType::RecruitGarrisonFollower:
         case CriteriaType::LearnHeirloom:
+        case CriteriaType::LearnToy:
+        case CriteriaType::LearnTransmog:
         case CriteriaType::ActivelyReachLevel:
         case CriteriaType::CollectTransmogSetFromGroup:
         case CriteriaType::EnterTopLevelArea:
@@ -794,6 +805,14 @@ void CriteriaHandler::UpdateCriteria(Criteria const* criteria, uint64 miscValue1
         case CriteriaType::GuildAttainedLevel:
             SetCriteriaProgress(criteria, miscValue1, referencePlayer);
             break;
+        case CriteriaType::LearnAnyToy:
+        {
+            if (miscValue1)
+                SetCriteriaProgress(criteria, 1, referencePlayer, PROGRESS_ACCUMULATE);
+            else // login
+                SetCriteriaProgress(criteria, referencePlayer->GetSession()->GetCollectionMgr()->GetAccountToys().size(), referencePlayer, PROGRESS_HIGHEST);
+            break;
+        }
         case CriteriaType::BankTabPurchased:
             switch (BankType(criteria->Entry->Asset.BankType))
             {
@@ -871,8 +890,6 @@ void CriteriaHandler::UpdateCriteria(Criteria const* criteria, uint64 miscValue1
         case CriteriaType::CollectGarrisonShipment:
         case CriteriaType::ItemLevelChangedForGarrisonFollower:
         case CriteriaType::LevelChangedForGarrisonFollower:
-        case CriteriaType::LearnToy:
-        case CriteriaType::LearnAnyToy:
         case CriteriaType::CompleteInternalCriteria:
         case CriteriaType::CompleteAnyChallengeMode:
         case CriteriaType::KilledAllUnitsInSpawnRegion:
@@ -899,7 +916,6 @@ void CriteriaHandler::UpdateCriteria(Criteria const* criteria, uint64 miscValue1
         case CriteriaType::SocketAnySoulbindConduit:
         case CriteriaType::ObtainAnyItemWithCurrencyValue:
         case CriteriaType::EarnExpansionLevel:
-        case CriteriaType::LearnTransmog:
         default:
             break;                          // Not implemented yet :(
     }
@@ -1278,6 +1294,9 @@ bool CriteriaHandler::IsCompletedCriteria(Criteria const* criteria, uint64 requi
         case CriteriaType::PlaceGarrisonBuilding:
         case CriteriaType::LearnHeirloom:
         case CriteriaType::LearnAnyHeirloom:
+        case CriteriaType::LearnToy:
+        case CriteriaType::LearnAnyToy:
+        case CriteriaType::LearnTransmog:
         case CriteriaType::EarnArtifactXP:
         case CriteriaType::AnyArtifactPowerRankPurchased:
         case CriteriaType::LearnAnyTransmogInSlot:
@@ -1593,8 +1612,23 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
         case CriteriaType::LootItem:
         case CriteriaType::EquipItem:
         case CriteriaType::LearnHeirloom:
-            if (!miscValue1 || uint32(criteria->Entry->Asset.ItemID )!= miscValue1)
+            if (!miscValue1 || uint32(criteria->Entry->Asset.ItemID) != miscValue1)
                 return false;
+            break;
+        case CriteriaType::LearnToy:
+            if (uint32(criteria->Entry->Asset.ItemID) != miscValue1)
+                if (miscValue1 || !referencePlayer->GetSession()->GetCollectionMgr()->HasToy(criteria->Entry->Asset.ItemID))
+                    return false;
+            break;
+        case CriteriaType::LearnTransmog:
+            if (uint32(criteria->Entry->Asset.ItemModifiedAppearanceID) != miscValue1)
+            {
+                if (miscValue1)
+                    return false;
+                auto [hasAppearance, isTemporary] = referencePlayer->GetSession()->GetCollectionMgr()->HasItemAppearance(criteria->Entry->Asset.ItemModifiedAppearanceID);
+                if (!hasAppearance || isTemporary)
+                    return false;
+            }
             break;
         case CriteriaType::RevealWorldMapOverlay:
         {
@@ -1757,6 +1791,13 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
             break;
         case CriteriaType::LearnTaxiNode:
             if (miscValue1 != uint32(criteria->Entry->Asset.TaxiNodesID))
+                return false;
+            break;
+        // No asset - the ModifierTree discriminates, but it needs a real HouseDecor entry in miscValue1.
+        case CriteriaType::PlaceDecor:
+        case CriteriaType::RemoveDecor:
+        case CriteriaType::CollectUniqueDecor:
+            if (!miscValue1)
                 return false;
             break;
         default:
@@ -4083,6 +4124,18 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
             if (!referencePlayer->GetGuildId())
                 return false;
             break;
+        case ModifierTreeType::PlayerHousesCountEqualOrGreaterThan: // 419
+            if (referencePlayer->GetAllHousings().size() < reqValue)
+                return false;
+            break;
+        case ModifierTreeType::ItemHasInventoryType: // 364
+        {
+            // miscValue1 is the item id (like MinimumItemLevel)
+            ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(uint32(miscValue1));
+            if (!itemTemplate || itemTemplate->GetInventoryType() != reqValue)
+                return false;
+            break;
+        }
         case ModifierTreeType::PlayerMoneyIsRelOp: // 417
             switch (reqValue)
             {
@@ -4644,6 +4697,7 @@ inline bool IsCriteriaTypeStoredByAsset(CriteriaType type)
         case CriteriaType::LearnTradeskillSkillLine:
         case CriteriaType::DefeatDungeonEncounter:
         case CriteriaType::LearnToy:
+        case CriteriaType::LearnTransmog:
         case CriteriaType::LearnAnyTransmog:
         case CriteriaType::FindResearchObject:
             return true;
@@ -5079,9 +5133,9 @@ std::span<CriteriaType const> CriteriaMgr::GetRetroactivelyUpdateableCriteriaTyp
         //CriteriaType::AcquireGarrison, /*NYI*/
         //CriteriaType::LearnGarrisonBlueprint, /*NYI*/
         //CriteriaType::LearnGarrisonSpecialization, /*NYI*/
-        //CriteriaType::LearnToy, /*NYI*/ // Learn Toy "{Item}"
-        //CriteriaType::LearnAnyToy, /*NYI*/ // Learn Any Toy
-        //CriteriaType::LearnTransmog, /*NYI*/
+        CriteriaType::LearnToy,
+        CriteriaType::LearnAnyToy,
+        CriteriaType::LearnTransmog,
         CriteriaType::HonorLevelIncrease,
         //CriteriaType::AccountHonorLevelReached, /*NYI*/
         CriteriaType::ReachMaxLevel,

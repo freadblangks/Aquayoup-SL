@@ -41,6 +41,7 @@ enum WorldDatabaseStatements : uint32
     WORLD_DEL_GAME_TELE,
     WORLD_INS_NPC_VENDOR,
     WORLD_DEL_NPC_VENDOR,
+    WORLD_DEL_NPC_VENDOR_EXTRA_DATA,
     WORLD_SEL_NPC_VENDOR_REF,
     WORLD_UPD_CREATURE_MOVEMENT_TYPE,
     WORLD_UPD_CREATURE_FACTION,
@@ -77,6 +78,10 @@ enum WorldDatabaseStatements : uint32
     WORLD_DEL_GAME_EVENT_CREATURE,
     WORLD_DEL_GAME_EVENT_MODEL_EQUIP,
     WORLD_INS_GAMEOBJECT,
+    WORLD_REP_CREATURE_EXTRA_DATA,
+    WORLD_DEL_CREATURE_EXTRA_DATA,
+    WORLD_REP_GAMEOBJECT_EXTRA_DATA,
+    WORLD_DEL_GAMEOBJECT_EXTRA_DATA,
     WORLD_SEL_DISABLES,
     WORLD_INS_DISABLES,
     WORLD_DEL_DISABLES,
@@ -128,7 +133,7 @@ class TC_DATABASE_API WorldDatabaseConnection : public MySQLConnection
 public:
     typedef WorldDatabaseStatements Statements;
 
-    WorldDatabaseConnection(MySQLConnectionInfo& connInfo, ConnectionFlags connectionFlags);
+    WorldDatabaseConnection(MySQLConnectionInfo const& connInfo, ConnectionFlags connectionFlags);
     ~WorldDatabaseConnection();
 
     //- Loads database type specific prepared statements

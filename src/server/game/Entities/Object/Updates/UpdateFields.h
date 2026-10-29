@@ -673,7 +673,7 @@ struct PlayerData : public IsUpdateFieldStructureTag, public HasChangesMask<326>
     static void AppendAllowedFieldsMaskForFlag(Mask& allowedMaskForTarget, EnumFlag<UpdateFieldFlag> fieldVisibilityFlags);
     static void FilterDisallowedFieldsMaskForFlag(Mask& changesMask, EnumFlag<UpdateFieldFlag> fieldVisibilityFlags);
     void ClearChangesMask();
-    bool IsQuestLogChangesMaskSkipped() const { return false; } // bandwidth savings aren't worth the cpu time
+    bool IsPartyMemberChangesMaskSkipped() const { return false; }
 };
 
 struct SkillInfo : public IsUpdateFieldStructureTag, public HasChangesMask<2101>
@@ -1971,6 +1971,7 @@ struct HousingDoorData : public IsUpdateFieldStructureTag, public HasChangesMask
     void ClearChangesMask();
 };
 
+// 12.0.7 dropped the trailing int32 FloorIndex from this fragment; the floor is server-side only, do not re-add it.
 struct HousingRoomData : public IsUpdateFieldStructureTag, public HasChangesMask<6>
 {
     DynamicUpdateField<ObjectGuid, 0, 1> MeshObjects;
@@ -2276,6 +2277,7 @@ struct PlayerInitiativeComponentData : public IsUpdateFieldStructureTag, public 
     static void AppendAllowedFieldsMaskForFlag(Mask& allowedMaskForTarget, EnumFlag<UpdateFieldFlag> fieldVisibilityFlags);
     static void FilterDisallowedFieldsMaskForFlag(Mask& changesMask, EnumFlag<UpdateFieldFlag> fieldVisibilityFlags);
     void ClearChangesMask();
+    bool IsOwnerChangesMaskSkipped() const { return false; }
 };
 
 }

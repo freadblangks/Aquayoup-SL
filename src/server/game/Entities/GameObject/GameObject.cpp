@@ -31,6 +31,7 @@
 #include "GameObjectAI.h"
 #include "GameObjectModel.h"
 #include "GameObjectPackets.h"
+#include "NPCPackets.h"
 #include "GameTime.h"
 #include "GossipDef.h"
 #include "GridNotifiersImpl.h"
@@ -125,12 +126,18 @@ bool QuaternionData::isUnit() const
 
 void QuaternionData::toEulerAnglesZYX(float& Z, float& Y, float& X) const
 {
-    G3D::Matrix3(G3D::Quat(x, y, z, w)).toEulerAnglesZYX(Z, Y, X);
+    G3D::Quat(x, y, z, w).toYPRAngles(Z, Y, X);
 }
 
 QuaternionData QuaternionData::fromEulerAnglesZYX(float Z, float Y, float X)
 {
-    G3D::Quat quat(G3D::Matrix3::fromEulerAnglesZYX(Z, Y, X));
+    G3D::Quat quat = G3D::Quat::fromYPRAngles(Z, Y, X);
+    return QuaternionData(quat.x, quat.y, quat.z, quat.w);
+}
+
+QuaternionData QuaternionData::fromOrientation(float orientation)
+{
+    G3D::Quat quat = G3D::Quat::fromAxisAngleRotation(G3D::Vector3::unitZ(), orientation);
     return QuaternionData(quat.x, quat.y, quat.z, quat.w);
 }
 
@@ -996,7 +1003,7 @@ void GameObject::RemoveFromWorld()
     }
 }
 
-bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit, bool dynamic, ObjectGuid::LowType spawnid, float size /*= -1*/, float visibility)
+bool GameObject::Create(uint32 entry, Map* map, InitialPhaseShift const& phaseShift, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit, bool dynamic, ObjectGuid::LowType spawnid, float size /*= -1*/, float visibility)
 {
     ASSERT(map);
     SetMap(map);
@@ -1013,6 +1020,7 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
     if (!dynamic)
         SetRespawnCompatibilityMode();
 
+    PhasingHandler::InitPhaseShift(this, phaseShift);
     UpdatePositionData();
 
     SetZoneScript();
@@ -1255,7 +1263,7 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
 
     if (uint32 linkedEntry = GetGOInfo()->GetLinkedGameObjectEntry())
     {
-        if (GameObject* linkedGo = GameObject::CreateGameObject(linkedEntry, map, pos, rotation, 255, GO_STATE_READY))
+        if (GameObject* linkedGo = GameObject::CreateGameObject(linkedEntry, map, pos, rotation, phaseShift, 255, GO_STATE_READY))
         {
             SetLinkedTrap(linkedGo);
             if (!map->AddToMap(linkedGo))
@@ -1284,14 +1292,14 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
     return true;
 }
 
-GameObject* GameObject::CreateGameObject(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit /*= 0*/, float size /*= -1.0f*/)
+GameObject* GameObject::CreateGameObject(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, InitialPhaseShift const& phaseShift, uint32 animProgress, GOState goState, uint32 artKit /*= 0*/, float size /*= -1.0f*/)
 {
     GameObjectTemplate const* goInfo = sObjectMgr->GetGameObjectTemplate(entry);
     if (!goInfo)
         return nullptr;
 
     GameObject* go = new GameObject();
-    if (!go->Create(entry, map, pos, rotation, animProgress, goState, artKit, false, 0, size))
+    if (!go->Create(entry, map, phaseShift, pos, rotation, animProgress, goState, artKit, false, 0, size))
     {
         delete go;
         return nullptr;
@@ -2051,8 +2059,13 @@ void GameObject::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiff
         stmt->setString(index++, stringId);
     else
         stmt->setNull(index++);
-    stmt->setFloat(index++, data.size);
-    stmt->setFloat(index++, GetVisibilityRange());
+
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_GAMEOBJECT_EXTRA_DATA);
+    stmt->setUInt64(0, m_spawnId);
+    stmt->setFloat(1, data.size);
+    stmt->setFloat(2, GetVisibilityRange());
     trans->Append(stmt);
 
     WorldDatabase.CommitTransaction(trans);
@@ -2078,11 +2091,8 @@ bool GameObject::LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap
 
     m_spawnId = spawnId;
     m_respawnCompatibilityMode = ((data->spawnGroupData->flags & SPAWNGROUP_FLAG_COMPATIBILITY_MODE) != 0);
-    if (!Create(entry, map, data->spawnPoint, data->rotation, animprogress, go_state, artKit, !m_respawnCompatibilityMode, spawnId, size, visibility))
+    if (!Create(entry, map, InitialPhaseShift(data), data->spawnPoint, data->rotation, animprogress, go_state, artKit, !m_respawnCompatibilityMode, spawnId, size, visibility))
         return false;
-
-    PhasingHandler::InitDbPhaseShift(GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
-    PhasingHandler::InitDbVisibleMapId(GetPhaseShift(), data->terrainSwapMap);
 
     // Set StateWorldEffectsQuestObjectiveID if there is only one linked objective for this gameobject
     if (data && data->spawnTrackingQuestObjectives.size() == 1)
@@ -2164,6 +2174,10 @@ bool GameObject::LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap
 
     // ... and the database
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_GAMEOBJECT);
+    stmt->setUInt64(0, spawnId);
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_GAMEOBJECT_EXTRA_DATA);
     stmt->setUInt64(0, spawnId);
     trans->Append(stmt);
 
@@ -3523,26 +3537,61 @@ void GameObject::Use(Unit* user, bool ignoreCastInProgress /*= false*/)
             if (!player)
                 return;
 
-            WorldPackets::GameObject::GameObjectInteraction gameObjectUILink;
-            gameObjectUILink.ObjectGUID = GetGUID();
-            switch (GetGOInfo()->UILink.UILinkType)
+            // per-plot cornerstone GOs have spell=0 in their template; fall back to the conversation trigger spell
+            constexpr uint32 CornerstoneInteractionType = 70;
+            constexpr uint32 CornerstoneConversationSpellId = 1266097; // [DNT] Trigger Convo for Unowned Plot
+
+            GameObjectTemplate const* goInfo = GetGOInfo();
+
+            TC_LOG_DEBUG("housing", "GameObject::Use(GAMEOBJECT_TYPE_UI_LINK): entry={} guid={} "
+                "UILinkType={} PlayerInteractionType={} spell={} player={}",
+                GetEntry(), GetGUID().ToString(),
+                goInfo->UILink.UILinkType,
+                goInfo->UILink.PlayerInteractionType,
+                goInfo->UILink.spell,
+                player->GetGUID().ToString());
+
+            if (goInfo->UILink.PlayerInteractionType)
             {
-                case 0:
-                    gameObjectUILink.InteractionType = PlayerInteractionType::AdventureJournal;
-                    break;
-                case 1:
-                    gameObjectUILink.InteractionType = PlayerInteractionType::ObliterumForge;
-                    break;
-                case 2:
-                    gameObjectUILink.InteractionType = PlayerInteractionType::ScrappingMachine;
-                    break;
-                case 3:
-                    gameObjectUILink.InteractionType = PlayerInteractionType::ItemInteraction;
-                    break;
-                default:
-                    break;
+                WorldPackets::NPC::NPCInteractionOpenResult npcInteraction;
+                npcInteraction.Npc = GetGUID();
+                npcInteraction.InteractionType = static_cast<PlayerInteractionType>(goInfo->UILink.PlayerInteractionType);
+                npcInteraction.Success = true;
+                player->SendDirectMessage(npcInteraction.Write());
+
+                uint32 spellId = goInfo->UILink.spell;
+                if (!spellId && goInfo->UILink.PlayerInteractionType == CornerstoneInteractionType)
+                    spellId = CornerstoneConversationSpellId;
+
+                if (spellId)
+                {
+                    TC_LOG_DEBUG("housing", "GameObject::Use(GAMEOBJECT_TYPE_UI_LINK): casting spell {} on player", spellId);
+                    player->CastSpell(player, spellId, true);
+                }
             }
-            player->SendDirectMessage(gameObjectUILink.Write());
+            else
+            {
+                WorldPackets::GameObject::GameObjectInteraction gameObjectUILink;
+                gameObjectUILink.ObjectGUID = GetGUID();
+                switch (goInfo->UILink.UILinkType)
+                {
+                    case 0:
+                        gameObjectUILink.InteractionType = PlayerInteractionType::AdventureJournal;
+                        break;
+                    case 1:
+                        gameObjectUILink.InteractionType = PlayerInteractionType::ObliterumForge;
+                        break;
+                    case 2:
+                        gameObjectUILink.InteractionType = PlayerInteractionType::ScrappingMachine;
+                        break;
+                    case 3:
+                        gameObjectUILink.InteractionType = PlayerInteractionType::ItemInteraction;
+                        break;
+                    default:
+                        break;
+                }
+                player->SendDirectMessage(gameObjectUILink.Write());
+            }
             return;
         }
         case GAMEOBJECT_TYPE_GATHERING_NODE:                //50
@@ -3806,7 +3855,7 @@ void GameObject::SetParentRotation(QuaternionData const& rotation)
 
 void GameObject::SetLocalRotationAngles(float z_rot, float y_rot, float x_rot)
 {
-    G3D::Quat quat(G3D::Matrix3::fromEulerAnglesZYX(z_rot, y_rot, x_rot));
+    QuaternionData quat = QuaternionData::fromEulerAnglesZYX(z_rot, y_rot, x_rot);
     SetLocalRotation(quat.x, quat.y, quat.z, quat.w);
 }
 
@@ -3822,7 +3871,7 @@ QuaternionData GameObject::GetWorldRotation() const
 
         G3D::Quat resultRotation = localRotationQuat * worldRotationQuat;
 
-        return QuaternionData(resultRotation.x, resultRotation.y, resultRotation.z, resultRotation.w);
+        localRotation = { resultRotation.x, resultRotation.y, resultRotation.z, resultRotation.w };
     }
     return localRotation;
 }
@@ -4309,7 +4358,126 @@ void GameObject::ValuesUpdateForPlayerWithMaskSender::operator()(Player const* p
 void GameObject::ClearValuesChangesMask()
 {
     m_values.ClearChangesMask(&GameObject::m_gameObjectData);
+    m_values.ClearChangesMask(&GameObject::m_housingCornerstoneData);
+    m_values.ClearChangesMask(&GameObject::m_mirroredPositionData);
     WorldObject::ClearValuesChangesMask();
+}
+
+void GameObject::InitHousingCornerstoneData(uint64 cost, int32 plotIndex)
+{
+    if (m_housingCornerstoneData.has_value())
+        return;
+
+    auto cornerstoneData = m_values.ModifyValue(&GameObject::m_housingCornerstoneData, 0);
+    SetUpdateFieldValue(cornerstoneData.ModifyValue(&UF::HousingCornerstoneData::Cost), cost);
+    SetUpdateFieldValue(cornerstoneData.ModifyValue(&UF::HousingCornerstoneData::PlotIndex), plotIndex);
+
+    m_entityFragments.Add(WowCS::EntityFragment::FJamHousingCornerstone_C, IsInWorld(),
+        WowCS::GetRawFragmentData(m_housingCornerstoneData));
+
+    TC_LOG_DEBUG("housing", "GameObject::InitHousingCornerstoneData: entry={} guid={} cost={} plotIndex={} "
+        "isInWorld={} fragmentCount={} updateableCount={}",
+        GetEntry(), GetGUID().ToString(), cost, plotIndex,
+        IsInWorld(), m_entityFragments.Count, m_entityFragments.UpdateableCount);
+}
+
+void GameObject::InitHousingDecorData(ObjectGuid decorGuid, ObjectGuid houseGuid,
+    uint8 flags, ObjectGuid attachParent /*= ObjectGuid::Empty*/,
+    uint8 sourceType /*= 0*/, std::string sourceValue /*= {}*/)
+{
+    if (m_housingDecorData.has_value())
+        return;
+
+    auto decorData = m_values.ModifyValue(&Object::m_housingDecorData, 0);
+    SetUpdateFieldValue(decorData.ModifyValue(&UF::HousingDecorData::DecorGUID), decorGuid);
+    SetUpdateFieldValue(decorData.ModifyValue(&UF::HousingDecorData::AttachParentGUID), attachParent);
+    SetUpdateFieldValue(decorData.ModifyValue(&UF::HousingDecorData::Flags), flags);
+    SetUpdateFieldValue(decorData.ModifyValue(&UF::HousingDecorData::TargetGameObjectGUID), GetGUID());
+
+    auto persistedRef = decorData.ModifyValue(&UF::HousingDecorData::PersistedData, 0);
+    SetUpdateFieldValue(persistedRef.ModifyValue(&UF::DecorStoragePersistedData::HouseGUID), houseGuid);
+    SetUpdateFieldValue(persistedRef.ModifyValue(&UF::DecorStoragePersistedData::SourceType), sourceType);
+    if (!sourceValue.empty())
+        SetUpdateFieldValue(persistedRef.ModifyValue(&UF::DecorStoragePersistedData::SourceValue), std::move(sourceValue));
+
+    m_entityFragments.Add(WowCS::EntityFragment::FHousingDecor_C, IsInWorld(),
+        WowCS::GetRawFragmentData(m_housingDecorData));
+
+    // marks the GO as a housing-decor proxy (chair/chest/mailbox/etc. placed as decor)
+    m_entityFragments.Add(WowCS::EntityFragment::Tag_HousingDecorProxyGameObject, IsInWorld());
+
+    TC_LOG_DEBUG("housing", "GameObject::InitHousingDecorData: entry={} goGuid={} decorGuid={} houseGuid={} flags={} "
+        "isInWorld={} fragmentCount={}",
+        GetEntry(), GetGUID().ToString(), decorGuid.ToString(), houseGuid.ToString(), flags,
+        IsInWorld(), m_entityFragments.Count);
+}
+
+void GameObject::SetHousingDecorAttachParent(ObjectGuid attachParent)
+{
+    auto posData = m_values.ModifyValue(&GameObject::m_mirroredPositionData)
+        .ModifyValue(&UF::MirroredPositionData::PositionData);
+    SetUpdateFieldValue(posData.ModifyValue(&UF::MirroredMeshObjectData::AttachParentGUID), attachParent);
+}
+
+void GameObject::InitHousingDecorMirroredPosition(Position const& localPos, QuaternionData const& localRot,
+    float localScale, ObjectGuid attachParent, uint8 attachFlags /*= 3*/)
+{
+    auto posData = m_values.ModifyValue(&GameObject::m_mirroredPositionData)
+        .ModifyValue(&UF::MirroredPositionData::PositionData);
+    SetUpdateFieldValue(posData.ModifyValue(&UF::MirroredMeshObjectData::AttachParentGUID), attachParent);
+    SetUpdateFieldValue(posData.ModifyValue(&UF::MirroredMeshObjectData::PositionLocalSpace),
+        TaggedPosition<Position::XYZ>(localPos.GetPositionX(), localPos.GetPositionY(), localPos.GetPositionZ()));
+    SetUpdateFieldValue(posData.ModifyValue(&UF::MirroredMeshObjectData::RotationLocalSpace), localRot);
+    SetUpdateFieldValue(posData.ModifyValue(&UF::MirroredMeshObjectData::ScaleLocalSpace), localScale);
+    SetUpdateFieldValue(posData.ModifyValue(&UF::MirroredMeshObjectData::AttachmentFlags), attachFlags);
+
+    m_entityFragments.Add(WowCS::EntityFragment::FMirroredPositionData_C, IsInWorld(),
+        WowCS::GetRawFragmentData(m_mirroredPositionData));
+
+    TC_LOG_DEBUG("housing", "GameObject::InitHousingDecorMirroredPosition: entry={} goGuid={} "
+        "localPos=({:.2f},{:.2f},{:.2f}) attachParent={} attachFlags={}",
+        GetEntry(), GetGUID().ToString(),
+        localPos.GetPositionX(), localPos.GetPositionY(), localPos.GetPositionZ(),
+        attachParent.ToString(), attachFlags);
+}
+
+void GameObject::UpdateHousingDecorMirroredTransform(Position const& localPos, QuaternionData const& localRot, float localScale)
+{
+    auto posData = m_values.ModifyValue(&GameObject::m_mirroredPositionData)
+        .ModifyValue(&UF::MirroredPositionData::PositionData);
+    SetUpdateFieldValue(posData.ModifyValue(&UF::MirroredMeshObjectData::PositionLocalSpace),
+        TaggedPosition<Position::XYZ>(localPos.GetPositionX(), localPos.GetPositionY(), localPos.GetPositionZ()));
+    SetUpdateFieldValue(posData.ModifyValue(&UF::MirroredMeshObjectData::RotationLocalSpace), localRot);
+    SetUpdateFieldValue(posData.ModifyValue(&UF::MirroredMeshObjectData::ScaleLocalSpace), localScale);
+}
+
+void GameObject::InitHousingFixtureData(ObjectGuid houseGuid, int32 exteriorComponentID, int32 houseExteriorWmoDataID,
+    uint8 exteriorComponentType /*= 9*/, uint8 houseSize /*= 2*/, int32 exteriorComponentHookID /*= -1*/)
+{
+    if (m_housingFixtureData.has_value())
+        return;
+
+    auto fixtureData = m_values.ModifyValue(&Object::m_housingFixtureData, 0);
+    SetUpdateFieldValue(fixtureData.ModifyValue(&UF::HousingFixtureData::ExteriorComponentID), exteriorComponentID);
+    SetUpdateFieldValue(fixtureData.ModifyValue(&UF::HousingFixtureData::HouseExteriorWmoDataID), houseExteriorWmoDataID);
+    SetUpdateFieldValue(fixtureData.ModifyValue(&UF::HousingFixtureData::ExteriorComponentHookID), exteriorComponentHookID);
+    SetUpdateFieldValue(fixtureData.ModifyValue(&UF::HousingFixtureData::HouseGUID), houseGuid);
+    // must be a Housing-type GUID - the client crashes on other non-null GUID types here
+    SetUpdateFieldValue(fixtureData.ModifyValue(&UF::HousingFixtureData::Guid), houseGuid);
+    SetUpdateFieldValue(fixtureData.ModifyValue(&UF::HousingFixtureData::ExteriorComponentType), exteriorComponentType);
+    SetUpdateFieldValue(fixtureData.ModifyValue(&UF::HousingFixtureData::Field_59), uint8(1)); // always 1
+    SetUpdateFieldValue(fixtureData.ModifyValue(&UF::HousingFixtureData::Size), houseSize);
+
+    m_entityFragments.Add(WowCS::EntityFragment::FHousingFixture_C, IsInWorld(),
+        WowCS::GetRawFragmentData(m_housingFixtureData));
+
+    TC_LOG_DEBUG("housing", "GameObject::InitHousingFixtureData: entry={} goGuid={} houseGuid={} "
+        "exteriorComponentID={} wmoDataID={} hookID={} componentType={} size={} field59=1 "
+        "isInWorld={} fragmentCount={}",
+        GetEntry(), GetGUID().ToString(), houseGuid.ToString(),
+        exteriorComponentID, houseExteriorWmoDataID, exteriorComponentHookID,
+        exteriorComponentType, houseSize,
+        IsInWorld(), m_entityFragments.Count);
 }
 
 std::span<uint32 const> GameObject::GetPauseTimes() const

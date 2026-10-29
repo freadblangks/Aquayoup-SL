@@ -468,6 +468,14 @@ class TC_GAME_API Spell
         void EffectSetPlayerDataFlagAccount();
         void EffectSetPlayerDataFlagCharacter();
         void EffectEquipTransmogOutfit();
+        void EffectGiveHouseLevel();
+        void EffectCollectHousingDecor();
+        void EffectLearnHouseRoom();
+        void EffectLearnHouseExteriorComponent();
+        void EffectLearnHouseType();
+        void EffectLearnHouseTheme();
+        void EffectLearnHouseRoomComponentTexture();
+        void EffectSetNeighborhoodInitiative();
 
         //NEW
         void EffectApplyAreaAura();
@@ -729,6 +737,7 @@ class TC_GAME_API Spell
         Optional<int32> GetPowerTypeCostAmount(Powers power) const;
 
         bool UpdatePointers();                              // must be used at call Spell code after time delay (non triggered spell cast/update spell call/etc)
+        void UpdateOriginalCasterPointer();
 
         void CleanupTargetList();
 

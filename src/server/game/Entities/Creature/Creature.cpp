@@ -702,6 +702,7 @@ bool Creature::InitEntry(uint32 entry, CreatureData const* data /*= nullptr*/)
     SetName(creatureInfo->Name);                              // at normal entry always
 
     SetModCastingSpeed(1.0f);
+    SetModCastingSpeedNeg(1.0f);
     SetModSpellHaste(1.0f);
     SetModHaste(1.0f);
     SetModRangedHaste(1.0f);
@@ -1286,18 +1287,13 @@ void Creature::Motion_Initialize()
     GetMotionMaster()->Initialize();
 }
 
-bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Position const& pos, CreatureData const* data /*= nullptr*/, uint32 vehId /*= 0*/, bool dynamic)
+bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, InitialPhaseShift const& phaseShift, uint32 entry, Position const& pos, CreatureData const* data /*= nullptr*/, uint32 vehId /*= 0*/, bool dynamic)
 {
     ASSERT(map);
     SetMap(map);
-
     auto extraData = sRoleplay->GetCreatureExtraData(GetSpawnId());
 
-    if (data)
-    {
-        PhasingHandler::InitDbPhaseShift(GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
-        PhasingHandler::InitDbVisibleMapId(GetPhaseShift(), data->terrainSwapMap);
-    }
+    PhasingHandler::InitPhaseShift(this, phaseShift);
 
     // Set if this creature can handle dynamic spawns
     if (!dynamic)
@@ -1403,7 +1399,7 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, Posit
     return true;
 }
 
-Creature* Creature::CreateCreature(uint32 entry, Map* map, Position const& pos, uint32 vehId /*= 0*/)
+Creature* Creature::CreateCreature(uint32 entry, Map* map, Position const& pos, InitialPhaseShift const& phaseShift, uint32 vehId /*= 0*/)
 {
     CreatureTemplate const* cInfo = sObjectMgr->GetCreatureTemplate(entry);
     if (!cInfo)
@@ -1416,7 +1412,7 @@ Creature* Creature::CreateCreature(uint32 entry, Map* map, Position const& pos, 
         lowGuid = map->GenerateLowGuid<HighGuid::Creature>();
 
     Creature* creature = new Creature();
-    if (!creature->Create(lowGuid, map, entry, pos, nullptr, vehId))
+    if (!creature->Create(lowGuid, map, phaseShift, entry, pos, nullptr, vehId))
     {
         delete creature;
         return nullptr;
@@ -1821,7 +1817,11 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     else
         stmt->setNull(index++);
 
-    stmt->setFloat(index++, data.size);
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_EXTRA_DATA);
+    stmt->setUInt64(0, m_spawnId);
+    stmt->setFloat(1, data.size);
     trans->Append(stmt);
 
     WorldDatabase.CommitTransaction(trans);
@@ -2121,7 +2121,7 @@ bool Creature::LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap, 
     m_wanderDistance = data->wander_distance;
     m_respawnDelay = data->spawntimesecs;
 
-    if (!Create(map->GenerateLowGuid<HighGuid::Creature>(), map, data->id, data->spawnPoint, data, 0U , !m_respawnCompatibilityMode))
+    if (!Create(map->GenerateLowGuid<HighGuid::Creature>(), map, InitialPhaseShift(data), data->id, data->spawnPoint, data, 0U, !m_respawnCompatibilityMode))
         return false;
 
     //We should set first home position, because then AI calls home movement
@@ -2266,6 +2266,10 @@ bool Creature::hasInvolvedQuest(uint32 quest_id) const
 
     // ... and the database
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE);
+    stmt->setUInt64(0, spawnId);
+    trans->Append(stmt);
+
+    stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_EXTRA_DATA);
     stmt->setUInt64(0, spawnId);
     trans->Append(stmt);
 

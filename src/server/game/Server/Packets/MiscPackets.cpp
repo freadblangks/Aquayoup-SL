@@ -461,7 +461,7 @@ WorldPacket const* EnableBarberShop::Write()
 
 ByteBuffer& operator<<(ByteBuffer& data, PhaseShiftDataPhase const& phaseShiftDataPhase)
 {
-    data << uint32(phaseShiftDataPhase.PhaseFlags);
+    data << uint8(phaseShiftDataPhase.PhaseFlags);
     data << uint16(phaseShiftDataPhase.Id);
 
     return data;
@@ -994,6 +994,19 @@ WorldPacket const* AccountStoreFrontUpdate::Write()
     _worldPacket << StoreFrontID;
     _worldPacket << Result;
     _worldPacket << Unknown;
+    return &_worldPacket;
+}
+
+WorldPacket const* DisplayWorldText::Write()
+{
+    _worldPacket << Guid;
+    _worldPacket << uint32(Arg1);
+    _worldPacket << uint32(Arg2);
+    _worldPacket << SizedString::BitsSize<12>(Text);
+    _worldPacket.FlushBits();
+
+    _worldPacket << SizedString::Data(Text);
+
     return &_worldPacket;
 }
 }

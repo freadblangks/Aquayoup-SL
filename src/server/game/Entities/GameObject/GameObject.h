@@ -32,6 +32,7 @@ class OPvPCapturePoint;
 class Transport;
 class TransportBase;
 class Unit;
+struct InitialPhaseShift;
 struct Loot;
 struct TransportAnimation;
 enum SpellTargetCheckTypes : uint8;
@@ -201,9 +202,9 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void CleanupsBeforeDelete(bool finalCleanup = true) override;
 
     private:
-        bool Create(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit, bool dynamic, ObjectGuid::LowType spawnid, float size = -1.0f, float visibility = SIZE_OF_GRIDS);
+        bool Create(uint32 entry, Map* map, InitialPhaseShift const& phaseShift, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit, bool dynamic, ObjectGuid::LowType spawnid, float size = -1.0f, float visibility = SIZE_OF_GRIDS);
     public:
-        static GameObject* CreateGameObject(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, uint32 animProgress, GOState goState, uint32 artKit = 0, float size = -1.0f);
+        static GameObject* CreateGameObject(uint32 entry, Map* map, Position const& pos, QuaternionData const& rotation, InitialPhaseShift const& phaseShift, uint32 animProgress, GOState goState, uint32 artKit = 0, float size = -1.0f);
         static GameObject* CreateGameObjectFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap = true);
 
         void Update(uint32 diff) override;
@@ -462,6 +463,35 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void HandleCustomTypeCommand(GameObjectTypeBase::CustomCommand const& command) const;
 
         UF::UpdateField<UF::GameObjectData, int32(WowCS::EntityFragment::CGObject), TYPEID_GAMEOBJECT> m_gameObjectData;
+
+        // Housing cornerstone fragment (only set on cornerstone GameObjects)
+        UF::OptionalUpdateField<UF::HousingCornerstoneData, int32(WowCS::EntityFragment::FJamHousingCornerstone_C), 0> m_housingCornerstoneData;
+        void InitHousingCornerstoneData(uint64 cost, int32 plotIndex);
+        // -1 when this GO is not a cornerstone (all plots share one Cornerstone GO entry)
+        int32 GetHousingCornerstonePlotIndex() const
+        {
+            return m_housingCornerstoneData.has_value() ? m_housingCornerstoneData->PlotIndex : -1;
+        }
+
+        // Housing decor fragment (only set on decor item GameObjects)
+        void InitHousingDecorData(ObjectGuid decorGuid, ObjectGuid houseGuid,
+            uint8 flags, ObjectGuid attachParent = ObjectGuid::Empty,
+            uint8 sourceType = 0, std::string sourceValue = {});
+
+        // decor mirrored position (FMirroredPositionData_C); localPos is the offset from attachParent
+        void InitHousingDecorMirroredPosition(Position const& localPos, QuaternionData const& localRot,
+            float localScale, ObjectGuid attachParent, uint8 attachFlags = 3);
+        // Moves decor already carrying FMirroredPositionData_C (the local transform is what the client renders).
+        void UpdateHousingDecorMirroredTransform(Position const& localPos, QuaternionData const& localRot, float localScale);
+        ObjectGuid GetHousingDecorAttachParent() const { return m_mirroredPositionData->PositionData->AttachParentGUID; }
+        void SetHousingDecorAttachParent(ObjectGuid attachParent);
+
+        UF::UpdateField<UF::MirroredPositionData, int32(WowCS::EntityFragment::FMirroredPositionData_C), 0> m_mirroredPositionData;
+
+        // Housing fixture fragment (only set on house structure GameObjects).
+        // ExteriorComponentType: 9=Base, 10=Roof, 11=Door, 12=Window, 13=RoofDetail, 14=RoofWindow, 15=Tower, 16=Chimney
+        void InitHousingFixtureData(ObjectGuid houseGuid, int32 exteriorComponentID, int32 houseExteriorWmoDataID,
+            uint8 exteriorComponentType = 9, uint8 houseSize = 2, int32 exteriorComponentHookID = -1);
 
         TeamId GetControllingTeam() const;
 

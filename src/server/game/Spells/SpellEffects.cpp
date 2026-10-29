@@ -16,6 +16,7 @@
  */
 
 #include "Spell.h"
+#include "Account.h"
 #include "AccountMgr.h"
 #include "AreaTrigger.h"
 #include "AzeriteEmpoweredItem.h"
@@ -47,6 +48,9 @@
 #include "GridNotifiersImpl.h"
 #include "Group.h"
 #include "Guild.h"
+#include "Housing.h"
+#include "HousingMgr.h"
+#include "HousingPackets.h"
 #include "InstanceScript.h"
 #include "Item.h"
 #include "Language.h"
@@ -57,6 +61,8 @@
 #include "MiscPackets.h"
 #include "MotionMaster.h"
 #include "MoveSpline.h"
+#include "Neighborhood.h"
+#include "NeighborhoodMgr.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvPMgr.h"
@@ -65,6 +71,7 @@
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "QuestMgr.h"
+#include "RealmList.h"
 #include "ReputationMgr.h"
 #ifdef ELUNA
 #include "LuaEngine.h"
@@ -419,7 +426,7 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectNULL,                                     //321 SPELL_EFFECT_321
     &Spell::EffectNULL,                                     //322 SPELL_EFFECT_322
     &Spell::EffectNULL,                                     //323 SPELL_EFFECT_323
-    &Spell::EffectNULL,                                     //324 SPELL_EFFECT_324
+    &Spell::EffectCollectHousingDecor,                       //324 SPELL_EFFECT_COLLECT_HOUSING_DECOR
     &Spell::EffectNULL,                                     //325 SPELL_EFFECT_325
     &Spell::EffectNULL,                                     //326 SPELL_EFFECT_326
     &Spell::EffectNULL,                                     //327 SPELL_EFFECT_327
@@ -443,18 +450,19 @@ NonDefaultConstructible<SpellEffectHandlerFn> SpellEffectHandlers[TOTAL_SPELL_EF
     &Spell::EffectNULL,                                     //345 SPELL_EFFECT_ASSIST_ACTION
     &Spell::EffectNULL,                                     //346 SPELL_EFFECT_346
     &Spell::EffectEquipTransmogOutfit,                      //347 SPELL_EFFECT_EQUIP_TRANSMOG_OUTFIT
-    &Spell::EffectNULL,                                     //348 SPELL_EFFECT_GIVE_HOUSE_LEVEL
-    &Spell::EffectNULL,                                     //349 SPELL_EFFECT_LEARN_HOUSE_ROOM
-    &Spell::EffectNULL,                                     //350 SPELL_EFFECT_LEARN_HOUSE_EXTERIOR_COMPONENT
-    &Spell::EffectNULL,                                     //351 SPELL_EFFECT_LEARN_HOUSE_THEME
-    &Spell::EffectNULL,                                     //352 SPELL_EFFECT_LEARN_HOUSE_ROOM_COMPONENT_TEXTURE
+    &Spell::EffectGiveHouseLevel,                            //348 SPELL_EFFECT_GIVE_HOUSE_LEVEL
+    &Spell::EffectLearnHouseRoom,                            //349 SPELL_EFFECT_LEARN_HOUSE_ROOM
+    &Spell::EffectLearnHouseExteriorComponent,               //350 SPELL_EFFECT_LEARN_HOUSE_EXTERIOR_COMPONENT
+    &Spell::EffectLearnHouseTheme,                           //351 SPELL_EFFECT_LEARN_HOUSE_THEME
+    &Spell::EffectLearnHouseRoomComponentTexture,            //352 SPELL_EFFECT_LEARN_HOUSE_ROOM_COMPONENT_TEXTURE
     &Spell::EffectCreateAreaTrigger,                        //353 SPELL_EFFECT_CREATE_AREATRIGGER_2
-    &Spell::EffectNULL,                                     //354 SPELL_EFFECT_SET_NEIGHBORHOOD_INITIATIVE
-    &Spell::EffectNULL,                                     //355 SPELL_EFFECT_LEARN_HOUSE_TYPE
+    &Spell::EffectSetNeighborhoodInitiative,                 //354 SPELL_EFFECT_SET_NEIGHBORHOOD_INITIATIVE
+    &Spell::EffectLearnHouseType,                            //355 SPELL_EFFECT_LEARN_HOUSE_TYPE
     &Spell::EffectNULL,                                     //356 SPELL_EFFECT_356
     &Spell::EffectNULL,                                     //357 SPELL_EFFECT_357
     &Spell::EffectNULL,                                     //358 SPELL_EFFECT_358
     &Spell::EffectNULL,                                     //359 SPELL_EFFECT_359
+    &Spell::EffectNULL,                                     //360 SPELL_EFFECT_360
 };
 
 void Spell::EffectNULL()
@@ -1122,8 +1130,17 @@ void Spell::EffectTeleportUnitsWithVisualLoadingScreen()
     }
 
     if (effectInfo->MiscValueB)
+    {
         if (Player* playerTarget = unitTarget->ToPlayer())
-            playerTarget->SendDirectMessage(WorldPackets::Spells::SpellVisualLoadScreen(effectInfo->MiscValueB, Milliseconds(effectInfo->MiscValue)).Write());
+        {
+            WorldPackets::Spells::SpellVisualLoadScreen spellVisualLoadScreen;
+            spellVisualLoadScreen.SpellVisualKitID = effectInfo->MiscValueB;
+            spellVisualLoadScreen.Duration = Milliseconds(effectInfo->MiscValue);
+            spellVisualLoadScreen.IsTransfer = targetDest.Location.GetMapId() != playerTarget->GetMapId()
+                || (targetDest.InstanceId && *targetDest.InstanceId != playerTarget->GetInstanceId());
+            playerTarget->SendDirectMessage(spellVisualLoadScreen.Write());
+        }
+    }
 
     TeleportToOptions options = GetTeleportOptions(m_caster, unitTarget, m_destTargets[effectInfo->EffectIndex]);
     unitTarget->m_Events.AddEventAtOffset(new DelayedSpellTeleportEvent(unitTarget, targetDest, options, m_spellInfo->Id),
@@ -1899,6 +1916,43 @@ void Spell::EffectProficiency()
     }
 }
 
+// A safeguard variable against possible wrong set SummonPropertiesEffectValueType
+static constexpr uint32 MaxNumSummons = 50;
+
+static bool ValidateEffectValueParameters(uint32 spellId, uint32 summonPropertiesId, uint32 numSummons, Optional<int8> vehicleSeatId, Optional<uint32> rideVehicleSpellId)
+{
+    // A safeguard check to shield the player against accidentally crashing the server when the summonproperty effect value types
+    // NumUnitsMin1 or NumUnitsFailIfLess1 were set incorrectly
+    if (numSummons > MaxNumSummons)
+    {
+        TC_LOG_ERROR("spells", "EffectSummonType: EffectValueType for SummonPropertiesId {} in table `summon_properties_addon` "
+                       "would result in an high amount of summoned units ({}) for spell Id {}. Possible wrong EffectValueType chosen in database.",
+                       summonPropertiesId, numSummons, spellId);
+        return false;
+    }
+
+    // Check for a correct vehicle seat
+    if (vehicleSeatId && (*vehicleSeatId < -1 || *vehicleSeatId > MAX_VEHICLE_SEATS))
+    {
+        TC_LOG_ERROR("spells", "EffectSummonType: EffectValueType for SummonPropertiesId {} in table `summon_properties_addon` "
+                               "resulted in an invalid vehicle seatId ({}) for spell Id {}. Possible wrong EffectValueType chosen in database.",
+                               summonPropertiesId, *vehicleSeatId, spellId);
+        return false;
+    }
+
+    // Check for a valid ride vehicle spell Id
+    if (rideVehicleSpellId && !sSpellMgr->GetSpellInfo(*rideVehicleSpellId, DIFFICULTY_NONE))
+    {
+        TC_LOG_ERROR("spells", "EffectSummonType: EffectValueType for SummonPropertiesId {} in table `summon_properties_addon` "
+                               "resulted in an unknown ride vehicle spell Id ({}) for spell Id {}. Possible wrong EffectValueType chosen in database or missing serverside spell.",
+                               summonPropertiesId, *rideVehicleSpellId, spellId);
+
+        return false;
+    }
+
+    return true;
+}
+
 void Spell::EffectSummonType()
 {
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
@@ -1940,36 +1994,35 @@ void Spell::EffectSummonType()
 
     TempSummon* summon = nullptr;
 
-    // determine how many units should be summoned
-    uint32 numSummons;
-
-    // some spells need to summon many units, for those spells number of summons is stored in effect value
-    // however so far noone found a generic check to find all of those (there's no related data in summonproperties.dbc
-    // and in spell attributes, possibly we need to add a table for those)
-    // so here's a list of MiscValueB values, which is currently most generic check
-    switch (effectInfo->MiscValueB)
+    // determine how many units should be summoned and how to mount a summoned vehicle
+    uint32 numSummons = 1;
+    Optional<uint32> rideVehicleSpellId;
+    Optional<int8> vehicleSeatId;
+    SummonPropertiesEffectValueType effectValueType = sObjectMgr->GetSummonPropertiesEffectValueType(effectInfo->MiscValueB);
+    switch (effectValueType)
     {
-        case 64:
-        case 61:
-        case 1101:
-        case 66:
-        case 648:
-        case 2301:
-        case 1061:
-        case 1261:
-        case 629:
-        case 181:
-        case 715:
-        case 1562:
-        case 833:
-        case 1161:
-        case 713:
-            numSummons = std::max(GetEffectValueAsInt(), 1);
+        case SummonPropertiesEffectValueType::NumUnitsMin1:
+            numSummons = std::max(1, GetEffectValueAsInt());
+            break;
+        case SummonPropertiesEffectValueType::NumUnitsFailIfLess1:
+            if (GetEffectValueAsInt() < 1)
+                return;
+            numSummons = GetEffectValueAsInt();
+            break;
+        case SummonPropertiesEffectValueType::RideSpell:
+            rideVehicleSpellId = GetEffectValueAsInt();
+            break;
+        case SummonPropertiesEffectValueType::SeatNumber:
+            rideVehicleSpellId = VEHICLE_SPELL_RIDE_HARDCODED;
+            vehicleSeatId = GetEffectValueAsInt();
             break;
         default:
-            numSummons = 1;
             break;
     }
+
+    // Ensure that the parsed effect value types are valid
+    if (!ValidateEffectValueParameters(m_spellInfo->Id, effectInfo->MiscValueB, numSummons, vehicleSeatId, rideVehicleSpellId))
+        return;
 
     switch (properties->Control)
     {
@@ -2084,32 +2137,11 @@ void Spell::EffectSummonType()
             if (!unitCaster)
                 return;
 
-            // Summoning spells (usually triggered by npc_spellclick) that spawn a vehicle and that cause the clicker
-            // to cast a ride vehicle spell on the summoned unit.
             summon = unitCaster->GetMap()->SummonCreature(entry, *destTarget, properties, duration, unitCaster, m_spellInfo->Id, 0, privateObjectOwner);
-            if (!summon || !summon->IsVehicle())
-                return;
-
-            // The spell that this effect will trigger. It has SPELL_AURA_CONTROL_VEHICLE
-            uint32 spellId = VEHICLE_SPELL_RIDE_HARDCODED;
-            SpellEffectValue basePoints = effectInfo->CalcValue();
-            if (basePoints > MAX_VEHICLE_SEATS)
-            {
-                SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(basePoints, GetCastDifficulty());
-                if (spellInfo && spellInfo->HasAura(SPELL_AURA_CONTROL_VEHICLE))
-                    spellId = spellInfo->Id;
-            }
-
-            CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-            args.SetTriggeringSpell(this);
-
-            // if we have small value, it indicates seat position
-            if (basePoints > 0 && basePoints < MAX_VEHICLE_SEATS)
-                args.AddSpellMod(SPELLVALUE_BASE_POINT0, basePoints);
-
-            unitCaster->CastSpell(summon, spellId, args);
             break;
         }
+        default:
+            break;
     }
 
     if (summon)
@@ -2117,6 +2149,19 @@ void Spell::EffectSummonType()
         summon->SetCreatorGUID(caster->GetGUID());
         ExecuteLogEffectSummonObject(effectInfo->Effect, summon);
         CallScriptOnSummonHandlers(summon);
+
+        // The summon properties effect value is either a ride vehicle spell or specified a vehicle seat to enter
+        // We execute the ride vehicle cast after setting the creatorGUID so that certain unit target types may find the caster
+        if (unitCaster && rideVehicleSpellId)
+        {
+            CastSpellExtraArgs args = CastSpellExtraArgs(TRIGGERED_FULL_MASK);
+            args.SetTriggeringSpell(this);
+
+            if (vehicleSeatId.has_value())
+                args.AddSpellBP0(*vehicleSeatId);
+
+            unitCaster->CastSpell(summon, *rideVehicleSpellId, args);
+        }
     }
 }
 
@@ -3070,12 +3115,10 @@ void Spell::EffectSummonObjectWild()
 
     Map* map = target->GetMap();
     Position pos = Position(x, y, z, o);
-    QuaternionData rot = QuaternionData::fromEulerAnglesZYX(o, 0.f, 0.f);
-    GameObject* go = GameObject::CreateGameObject(effectInfo->MiscValue, map, pos, rot, 255, GO_STATE_READY);
+    QuaternionData rot = QuaternionData::fromOrientation(o);
+    GameObject* go = GameObject::CreateGameObject(effectInfo->MiscValue, map, pos, rot, InitialPhaseShift(m_caster), 255, GO_STATE_READY);
     if (!go)
         return;
-
-    PhasingHandler::InheritPhaseShift(go, m_caster);
 
     int32 duration = m_spellInfo->CalcDuration(m_caster);
 
@@ -3089,8 +3132,6 @@ void Spell::EffectSummonObjectWild()
 
     if (GameObject* linkedTrap = go->GetLinkedTrap())
     {
-        PhasingHandler::InheritPhaseShift(linkedTrap, m_caster);
-
         linkedTrap->SetRespawnTime(duration > 0 ? duration / IN_MILLISECONDS : 0);
         linkedTrap->SetSpellId(m_spellInfo->Id);
 
@@ -3333,13 +3374,11 @@ void Spell::EffectDuel()
         caster->GetPositionZ(),
         caster->GetOrientation()
     };
-    QuaternionData rot = QuaternionData::fromEulerAnglesZYX(pos.GetOrientation(), 0.f, 0.f);
+    QuaternionData rot = QuaternionData::fromOrientation(pos.GetOrientation());
 
-    GameObject* go = GameObject::CreateGameObject(effectInfo->MiscValue, map, pos, rot, 0, GO_STATE_READY);
+    GameObject* go = GameObject::CreateGameObject(effectInfo->MiscValue, map, pos, rot, InitialPhaseShift(m_caster), 0, GO_STATE_READY);
     if (!go)
         return;
-
-    PhasingHandler::InheritPhaseShift(go, caster);
 
     go->SetFaction(caster->GetFaction());
     go->SetLevel(caster->GetLevel() + 1);
@@ -3684,13 +3723,11 @@ void Spell::EffectSummonObject()
 
     Map* map = m_caster->GetMap();
     Position pos = Position(x, y, z, o);
-    QuaternionData rot = QuaternionData::fromEulerAnglesZYX(o, 0.f, 0.f);
+    QuaternionData rot = QuaternionData::fromOrientation(o);
 
-    GameObject* go = GameObject::CreateGameObject(effectInfo->MiscValue, map, pos, rot, 255, GO_STATE_READY);
+    GameObject* go = GameObject::CreateGameObject(effectInfo->MiscValue, map, pos, rot, InitialPhaseShift(m_caster), 255, GO_STATE_READY);
     if (!go)
         return;
-
-    PhasingHandler::InheritPhaseShift(go, m_caster);
 
     go->SetFaction(unitCaster->GetFaction());
     go->SetLevel(unitCaster->GetLevel());
@@ -4556,13 +4593,12 @@ void Spell::EffectTransmitted()
         unitCaster->GetPosition(fx, fy, fz, fo);
 
     Position pos = { fx, fy, fz, fo };
-    QuaternionData rot = QuaternionData::fromEulerAnglesZYX(fo, 0.f, 0.f);
+    QuaternionData rot = QuaternionData::fromOrientation(fo);
 
-    GameObject* go = GameObject::CreateGameObject(name_id, cMap, pos, rot, 255, GO_STATE_READY);
+    GameObject* go = GameObject::CreateGameObject(name_id, cMap, pos, rot, InitialPhaseShift(m_caster), 255, GO_STATE_READY);
     if (!go)
         return;
 
-    PhasingHandler::InheritPhaseShift(go, m_caster);
     int32 duration = m_spellInfo->CalcDuration(m_caster);
 
     switch (goinfo->type)
@@ -4624,8 +4660,6 @@ void Spell::EffectTransmitted()
 
     if (GameObject* linkedTrap = go->GetLinkedTrap())
     {
-        PhasingHandler::InheritPhaseShift(linkedTrap, m_caster);
-
         linkedTrap->SetRespawnTime(duration > 0 ? duration / IN_MILLISECONDS : 0);
         //linkedTrap->SetLevel(unitCaster->getLevel());
         linkedTrap->SetSpellId(m_spellInfo->Id);
@@ -5405,16 +5439,14 @@ void Spell::EffectSummonPersonalGameObject()
 
     Map* map = m_caster->GetMap();
     Position pos = Position(x, y, z, o);
-    QuaternionData rot = QuaternionData::fromEulerAnglesZYX(o, 0.f, 0.f);
-    GameObject* go = GameObject::CreateGameObject(goId, map, pos, rot, 255, GO_STATE_READY);
+    QuaternionData rot = QuaternionData::fromOrientation(o);
+    GameObject* go = GameObject::CreateGameObject(goId, map, pos, rot, InitialPhaseShift(m_caster), 255, GO_STATE_READY);
 
     if (!go)
     {
         TC_LOG_WARN("spells", "SpellEffect Failed to summon personal gameobject. SpellId {}, effect {}", m_spellInfo->Id, effectInfo->EffectIndex);
         return;
     }
-
-    PhasingHandler::InheritPhaseShift(go, m_caster);
 
     int32 duration = m_spellInfo->CalcDuration(m_caster);
 
@@ -5428,8 +5460,6 @@ void Spell::EffectSummonPersonalGameObject()
 
     if (GameObject* linkedTrap = go->GetLinkedTrap())
     {
-        PhasingHandler::InheritPhaseShift(linkedTrap, m_caster);
-
         linkedTrap->SetRespawnTime(duration > 0 ? duration / IN_MILLISECONDS : 0);
         linkedTrap->SetSpellId(m_spellInfo->Id);
 
@@ -7011,4 +7041,285 @@ void Spell::EffectSummonStabledPet()
         pet->SetDuration(duration);
 
     map->AddToMap(pet->ToCreature());
+}
+
+void Spell::EffectGiveHouseLevel()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = Object::ToPlayer(unitTarget);
+    if (!player)
+        return;
+
+    Housing* housing = player->GetHousing();
+    if (!housing)
+        return;
+
+    uint32 levelsToAdd = std::max(GetEffectValueAsInt(), 1);
+
+    TC_LOG_DEBUG("spells", "Spell::EffectGiveHouseLevel: Adding {} level(s) to house for player {} (house {}, current level {})",
+        levelsToAdd, player->GetName(), housing->GetHouseGuid().ToString(), housing->GetLevel());
+
+    housing->AddLevel(levelsToAdd);
+}
+
+void Spell::EffectCollectHousingDecor()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = Object::ToPlayer(unitTarget);
+    if (!player)
+        return;
+
+    Housing* housing = player->GetHousing();
+    if (!housing)
+        return;
+
+    uint32 decorEntryId = effectInfo->MiscValue;
+    if (!decorEntryId)
+        return;
+
+    HouseDecorData const* decorData = sHousingMgr.GetHouseDecorData(decorEntryId);
+    if (!decorData)
+    {
+        TC_LOG_ERROR("spells", "Spell::EffectCollectHousingDecor: Invalid HouseDecor ID {} from spell {}",
+            decorEntryId, m_spellInfo->Id);
+        return;
+    }
+
+    HousingResult result = housing->AddToCatalog(decorEntryId, DECOR_SOURCE_SPELL,
+        std::to_string(m_spellInfo->Id));
+
+    if (result != HOUSING_RESULT_SUCCESS)
+    {
+        TC_LOG_ERROR("spells", "Spell::EffectCollectHousingDecor: AddToCatalog failed (result={}) for decor {} spell {}",
+            uint32(result), decorEntryId, m_spellInfo->Id);
+        return;
+    }
+
+    // No HousingFirstTimeDecorAcquisition here: the client would later redeem a duplicate from it; the copy ships as a storage instance.
+
+    // If the Account entity's FHousingStorage_C has already been populated (player opened
+    // edit mode), add the new catalog entry directly and send a VALUES_UPDATE so the client's
+    // decor list refreshes without requiring a relog or mode toggle.
+    if (housing->IsStoragePopulated())
+    {
+        Housing::CatalogEntry const* catEntry = nullptr;
+        for (Housing::CatalogEntry const* entry : housing->GetCatalogEntries())
+        {
+            if (entry->DecorEntryId == decorEntryId)
+            {
+                catEntry = entry;
+                break;
+            }
+        }
+        if (catEntry)
+        {
+            // Generate a unique GUID for the new storage entry (same scheme as PopulateCatalogStorageEntries)
+            uint64 catalogGuidBase = player->GetGUID().GetCounter() * 100000;
+            uint32 storageIdx = catEntry->Count > 0 ? catEntry->Count - 1 : 0;
+            uint64 uniqueId = catalogGuidBase + decorEntryId * 100 + storageIdx;
+            ObjectGuid catalogDecorGuid = ObjectGuid::Create<HighGuid::Housing>(
+                /*subType*/ 1,
+                /*arg1*/ sRealmList->GetCurrentRealmId().Realm,
+                /*arg2*/ decorEntryId,
+                uniqueId);
+
+            Battlenet::Account& account = player->GetSession()->GetBattlenetAccount();
+            account.SetHousingDecorStorageEntry(catalogDecorGuid, ObjectGuid::Empty,
+                catEntry->SourceType, catEntry->SourceValue);
+            account.SendUpdateToPlayer(player);
+        }
+    }
+
+    TC_LOG_DEBUG("spells", "Spell::EffectCollectHousingDecor: Player {} learned decor '{}' (ID: {}) from spell {}",
+        player->GetName(), decorData->Name, decorEntryId, m_spellInfo->Id);
+}
+
+void Spell::EffectLearnHouseRoom()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = Object::ToPlayer(unitTarget);
+    if (!player)
+        return;
+
+    Housing* housing = player->GetHousing();
+    if (!housing)
+        return;
+
+    uint32 houseRoomId = effectInfo->MiscValue;
+    if (!houseRoomId)
+        return;
+
+    HouseRoomData const* roomData = sHousingMgr.GetHouseRoomData(houseRoomId);
+    if (!roomData)
+    {
+        TC_LOG_ERROR("spells", "Spell::EffectLearnHouseRoom: Invalid HouseRoom ID {} from spell {}",
+            houseRoomId, m_spellInfo->Id);
+        return;
+    }
+
+    TC_LOG_DEBUG("spells", "Spell::EffectLearnHouseRoom: Player {} learned house room '{}' (ID: {})",
+        player->GetName(), roomData->Name, houseRoomId);
+
+    player->LearnHouseRoom(houseRoomId);
+}
+
+void Spell::EffectLearnHouseExteriorComponent()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = Object::ToPlayer(unitTarget);
+    if (!player)
+        return;
+
+    Housing* housing = player->GetHousing();
+    if (!housing)
+        return;
+
+    uint32 exteriorComponentId = effectInfo->MiscValue;
+    if (!exteriorComponentId)
+        return;
+
+    TC_LOG_DEBUG("spells", "Spell::EffectLearnHouseExteriorComponent: Player {} learned exterior component ID {} from spell {}",
+        player->GetName(), exteriorComponentId, m_spellInfo->Id);
+
+    // Send collection update to the client
+    WorldPackets::Housing::AccountExteriorFixtureCollectionUpdate collectionUpdate;
+    collectionUpdate.AddSingle(exteriorComponentId);
+    player->SendDirectMessage(collectionUpdate.Write());
+}
+
+void Spell::EffectLearnHouseType()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = Object::ToPlayer(unitTarget);
+    if (!player)
+        return;
+
+    uint32 houseExteriorWmoDataId = effectInfo->MiscValue;
+    if (!sHousingMgr.GetHouseExteriorWmoData(houseExteriorWmoDataId))
+    {
+        TC_LOG_ERROR("spells", "Spell::EffectLearnHouseType: Invalid HouseExteriorWmoData ID {} from spell {}",
+            houseExteriorWmoDataId, m_spellInfo->Id);
+        return;
+    }
+
+    TC_LOG_DEBUG("spells", "Spell::EffectLearnHouseType: Player {} learned house type {} from spell {}",
+        player->GetName(), houseExteriorWmoDataId, m_spellInfo->Id);
+
+    player->LearnHouseType(houseExteriorWmoDataId);
+}
+
+void Spell::EffectLearnHouseTheme()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = Object::ToPlayer(unitTarget);
+    if (!player)
+        return;
+
+    Housing* housing = player->GetHousing();
+    if (!housing)
+        return;
+
+    uint32 houseThemeId = effectInfo->MiscValue;
+    if (!houseThemeId)
+        return;
+
+    HouseThemeData const* themeData = sHousingMgr.GetHouseThemeData(houseThemeId);
+    if (!themeData)
+    {
+        TC_LOG_ERROR("spells", "Spell::EffectLearnHouseTheme: Invalid HouseTheme ID {} from spell {}",
+            houseThemeId, m_spellInfo->Id);
+        return;
+    }
+
+    TC_LOG_DEBUG("spells", "Spell::EffectLearnHouseTheme: Player {} learned house theme '{}' (ID: {})",
+        player->GetName(), themeData->Name, houseThemeId);
+
+    // Send collection update to the client
+    WorldPackets::Housing::AccountRoomThemeCollectionUpdate collectionUpdate;
+    collectionUpdate.AddSingle(houseThemeId);
+    player->SendDirectMessage(collectionUpdate.Write());
+}
+
+void Spell::EffectLearnHouseRoomComponentTexture()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = Object::ToPlayer(unitTarget);
+    if (!player)
+        return;
+
+    Housing* housing = player->GetHousing();
+    if (!housing)
+        return;
+
+    uint32 textureId = effectInfo->MiscValue;
+    if (!textureId)
+        return;
+
+    TC_LOG_DEBUG("spells", "Spell::EffectLearnHouseRoomComponentTexture: Player {} learned room component texture ID {} from spell {}",
+        player->GetName(), textureId, m_spellInfo->Id);
+
+    // Send collection update to the client (texture = material in the collection system)
+    WorldPackets::Housing::AccountRoomMaterialCollectionUpdate collectionUpdate;
+    collectionUpdate.AddSingle(textureId);
+    player->SendDirectMessage(collectionUpdate.Write());
+}
+
+void Spell::EffectSetNeighborhoodInitiative()
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = Object::ToPlayer(unitTarget);
+    if (!player)
+        return;
+
+    Housing* housing = player->GetHousing();
+    if (!housing)
+        return;
+
+    uint32 initiativeId = effectInfo->MiscValue;
+    if (!initiativeId)
+        return;
+
+    NeighborhoodInitiativeData const* initiativeData = sHousingMgr.GetNeighborhoodInitiativeData(initiativeId);
+    if (!initiativeData)
+    {
+        TC_LOG_ERROR("spells", "Spell::EffectSetNeighborhoodInitiative: Invalid NeighborhoodInitiative ID {} from spell {}",
+            initiativeId, m_spellInfo->Id);
+        return;
+    }
+
+    ObjectGuid neighborhoodGuid = housing->GetNeighborhoodGuid();
+    Neighborhood* neighborhood = sNeighborhoodMgr.GetNeighborhood(neighborhoodGuid);
+    if (!neighborhood)
+    {
+        TC_LOG_ERROR("spells", "Spell::EffectSetNeighborhoodInitiative: Player {} has no valid neighborhood (guid: {})",
+            player->GetName(), neighborhoodGuid.ToString());
+        return;
+    }
+
+    // Only the neighborhood owner or managers should be able to set initiatives
+    if (!neighborhood->IsOwner(player->GetGUID()) && !neighborhood->IsManager(player->GetGUID()))
+    {
+        TC_LOG_DEBUG("spells", "Spell::EffectSetNeighborhoodInitiative: Player {} is not owner/manager of neighborhood {}",
+            player->GetName(), neighborhoodGuid.ToString());
+        return;
+    }
+
+    TC_LOG_DEBUG("spells", "Spell::EffectSetNeighborhoodInitiative: Player {} set initiative '{}' (ID: {}) on neighborhood {}",
+        player->GetName(), initiativeData->Name, initiativeId, neighborhoodGuid.ToString());
 }

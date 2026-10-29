@@ -274,14 +274,15 @@ enum class BattlemasterType : int32
 
 enum class BattlemasterListFlags : uint32
 {
-    InternalOnly                = 0x01,
-    RatedOnly                   = 0x02, // Only set for rated battlegrounds
-    ObsoleteDoNotList           = 0x04,
-    ShowInWarGames              = 0x08,
-    ShowInPvpBattlegroundList   = 0x10,
-    IsBrawl                     = 0x20,
-    IsFactional                 = 0x40,
-    IsEpic                      = 0x80
+    InternalOnly                = 0x0001,
+    RatedOnly                   = 0x0002, // Only set for rated battlegrounds
+    IsSoloShuffle               = 0x0004,
+    ShowInWarGames              = 0x0008,
+    ShowInPvpBattlegroundList   = 0x0010,
+    IsBrawl                     = 0x0020,
+    IsFactional                 = 0x0040,
+    IsEpic                      = 0x0080,
+    IsSoloRBG                   = 0x0200
 };
 
 DEFINE_ENUM_FLAG(BattlemasterListFlags);
@@ -731,14 +732,14 @@ enum class CriteriaType : int16
     CollectGarrisonShipment                        = 182, /*NYI*/ // Garrison Shipment of type "{CharShipmentContainer}" collected
     ItemLevelChangedForGarrisonFollower            = 183, /*NYI*/ // Garrison Follower: Item Level Changed
     LevelChangedForGarrisonFollower                = 184, /*NYI*/ // Garrison Follower: Level Changed
-    LearnToy                                       = 185, /*NYI*/ // Learn Toy "{Item}"
-    LearnAnyToy                                    = 186, /*NYI*/ // Learn Any Toy
+    LearnToy                                       = 185, // Learn Toy "{Item}"
+    LearnAnyToy                                    = 186, // Learn Any Toy
     QualityUpgradedForGarrisonFollower             = 187, /*NYI*/ // Garrison Follower: Quality Upgraded
     LearnHeirloom                                  = 188, // Learn Heirloom "{Item}"
     LearnAnyHeirloom                               = 189, // Learn Any Heirloom
     EarnArtifactXP                                 = 190, // Earn Artifact XP
     AnyArtifactPowerRankPurchased                  = 191, // Artifact Power Ranks Purchased
-    LearnTransmog                                  = 192, /*NYI*/ // Learn Transmog "{ItemModifiedAppearance}"
+    LearnTransmog                                  = 192, // Learn Transmog "{ItemModifiedAppearance}"
     LearnAnyTransmog                               = 193, // Learn Any Transmog
     HonorLevelIncrease                             = 194, // (Player) honor level increase
     PrestigeLevelIncrease                          = 195, /*NYI*/ // (Player) prestige level increase
@@ -800,9 +801,9 @@ enum class CriteriaType : int16
     ReachRenownLevel                               = 261,
     LearnTaxiNode                                  = 262,
 
-    PlaceDecor                                     = 270, /*NYI*/ // Place any decor
-    RemoveDecor                                    = 271, /*NYI*/ // Remove any decor
-    CollectUniqueDecor                             = 272, /*NYI*/ // Collect Unique Decor
+    PlaceDecor                                     = 270, // Place any decor
+    RemoveDecor                                    = 271, // Remove any decor
+    CollectUniqueDecor                             = 272, // Collect Unique Decor
 
     Count                                          = 284
 };
@@ -2061,7 +2062,7 @@ enum class ModifierTreeType : int32
     ItemHasContext                                                      = 361, /*NYI*/ // Item has {ItemContext}
     ItemHasItemLevelBetween                                             = 362, /*NYI*/ // Item has item level between {#Min} and {#Max}
     ItemHasContentTuningID                                              = 363, /*NYI*/ // Item has {ContentTuning} (modifier 28)
-    ItemHasInventoryType                                                = 364, /*NYI*/ // Item has inventory type
+    ItemHasInventoryType                                                = 364, // Item has inventory type
     ItemWasCraftedWithReagentInSlot                                     = 365, /*NYI*/ // Item was crafted with reagent item {Item} in slot {ModifiedCraftingReagentSlot}
     PlayerHasCompletedDungeonEncounterInDifficulty                      = 366, // Player has completed {DungeonEncounter} on {Difficulty}
     PlayerCurrencyIsRelOpFromMax                                        = 367, /*NYI*/ // Player {CurrencyTypes} is {RelOp} {#Amount} from currency limit
@@ -2102,7 +2103,7 @@ enum class ModifierTreeType : int32
 
     PlayerMoneyIsRelOp                                                  = 417, // Player money is {RelOp} {#Amount}
 
-    PlayerHousesCountEqualOrGreaterThan                                 = 419, /*NYI*/ // Player has at least {#Amount} houses
+    PlayerHousesCountEqualOrGreaterThan                                 = 419, // Player has at least {#Amount} houses
 };
 
 enum class ModifierTreeOperator : int8
@@ -2304,23 +2305,29 @@ enum class PlayerInteractionType : int32
     GuildRename                         = 76,
     OpenNeighborhoodCharterConfirmation = 77,
     OpenHouseFinder                     = 78,
-    PlaceholderType79                   = 79,
+    TieredEntrance                      = 79,
+    RewardsShop                         = 80,
 };
 
-enum class PowerTypeFlags : int16
+enum class PowerTypeFlags : int32
 {
-    StopRegenWhileCasting         = 0x0001, // NYI
-    UseRegenInterrupt             = 0x0002,
-    FillFractionalPowerOnEnergize = 0x0008, // NYI
-    NoClientPrediction            = 0x0010, // NYI
-    UnitsUseDefaultPowerOnInit    = 0x0020,
-    NotSetToDefaultOnResurrect    = 0x0040, // NYI
-    IsUsedByNPCs                  = 0x0080,
-    ContinueRegenWhileFatigued    = 0x0200, // NYI
-    RegenAffectedByHaste          = 0x0400, // NYI
-    SetToMaxOnLevelUp             = 0x1000,
-    SetToMaxOnInitialLogIn        = 0x2000,
-    AllowCostModsForPlayers       = 0x4000  // NYI
+    StopRegenWhileCasting               = 0x00000001, // NYI
+    UseRegenInterrupt                   = 0x00000002,
+    ClearFractionalPowerOnLeaveCombat   = 0x00000004, // NYI (unused)
+    FillFractionalPowerOnEnergize       = 0x00000008, // NYI
+    NoClientPrediction                  = 0x00000010, // clientside
+    UnitsUseDefaultPowerOnInit          = 0x00000020,
+    NotSetToDefaultOnResurrect          = 0x00000040,
+    IsUsedByNPCs                        = 0x00000080,
+    CostHiddenOnTooltip                 = 0x00000100, // clientside
+    ContinueRegenWhileFatigued          = 0x00000200, // NYI
+    RegenAffectedByHaste                = 0x00000400,
+    SetToDefaultAfterRegenInterrupt     = 0x00000800, // NYI (unused)
+    SetToMaxOnLevelUp                   = 0x00001000,
+    SetToMaxOnInitialLogIn              = 0x00002000,
+    SetToMaxOnResurrect                 = 0x00004000,
+    AlwaysSecret                        = 0x00008000, // clientside
+    NeverSecret                         = 0x00010000  // clientside
 };
 
 DEFINE_ENUM_FLAG(PowerTypeFlags);
@@ -3291,6 +3298,18 @@ enum WorldStateExpressionFunctions
     WSE_FUNCTION_TIME_EVENT_PASSED,
 
     WSE_FUNCTION_MAX,
+};
+
+enum class SummonPropertiesEffectValueType: uint8
+{
+    None                = 0,
+    Health              = 1, // NYI
+    NumUnitsMin1        = 2, // Implemented in Spell::EffectSummonType
+    SeatNumber          = 3, // Implemented in Spell::EffectSummonType
+    RideSpell           = 4, // Implemented in Spell::EffectSummonType
+    CreatureLevel       = 5, // NYI
+    MaxSummonsTotemSlot = 6, // NYI
+    NumUnitsFailIfLess1 = 7  // Implemented in Spell::EffectSummonType
 };
 
 enum ModifiedCraftingReagentType : uint32

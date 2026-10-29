@@ -518,14 +518,7 @@ m_spellValue(new SpellValue(m_spellInfo, caster)), _spellEvent(nullptr)
     else
         m_originalCasterGUID = m_caster->GetGUID();
 
-    if (m_originalCasterGUID == m_caster->GetGUID())
-        m_originalCaster = m_caster->ToUnit();
-    else
-    {
-        m_originalCaster = ObjectAccessor::GetUnit(*m_caster, m_originalCasterGUID);
-        if (m_originalCaster && !m_originalCaster->IsInWorld())
-            m_originalCaster = nullptr;
-    }
+    UpdateOriginalCasterPointer();
 
     m_spellState = SPELL_STATE_NULL;
     _triggeredCastFlags = triggerFlags;
@@ -767,7 +760,7 @@ void Spell::SelectSpellTargets()
                             case TARGET_SELECT_CATEGORY_NEARBY:
                             case TARGET_SELECT_CATEGORY_CONE:
                             case TARGET_SELECT_CATEGORY_AREA:
-                            case TARGET_SELECT_CATEGORY_LINE:
+                            case TARGET_SELECT_CATEGORY_RECT:
                                 return true;
                             default:
                                 break;
@@ -973,7 +966,7 @@ void Spell::SelectEffectImplicitTargets(SpellEffectInfo const& spellEffectInfo, 
 
             SelectImplicitTrajTargets(spellEffectInfo, targetType);
             break;
-        case TARGET_SELECT_CATEGORY_LINE:
+        case TARGET_SELECT_CATEGORY_RECT:
             SelectImplicitLineTargets(spellEffectInfo, targetType, targetIndex, effectMask);
             break;
         case TARGET_SELECT_CATEGORY_DEFAULT:
@@ -1973,6 +1966,7 @@ void Spell::SelectImplicitLineTargets(SpellEffectInfo const& spellEffectInfo, Sp
     SpellTargetObjectTypes objectType = targetType.GetObjectType();
     SpellTargetCheckTypes selectionType = targetType.GetCheckType();
     Position const* dst = nullptr;
+    SpellRange radius = spellEffectInfo.CalcRadius(m_caster, targetIndex) * m_spellValue->RadiusMod;
     switch (targetType.GetReferenceType())
     {
         case TARGET_REFERENCE_TYPE_SRC:
@@ -1980,6 +1974,7 @@ void Spell::SelectImplicitLineTargets(SpellEffectInfo const& spellEffectInfo, Sp
             break;
         case TARGET_REFERENCE_TYPE_DEST:
             dst = m_targets.GetDstPos();
+            radius.Max = std::min(radius.Max, m_caster->GetExactDist2d(dst));
             break;
         case TARGET_REFERENCE_TYPE_CASTER:
             dst = m_caster;
@@ -1993,11 +1988,10 @@ void Spell::SelectImplicitLineTargets(SpellEffectInfo const& spellEffectInfo, Sp
     }
 
     ConditionContainer* condList = spellEffectInfo.ImplicitTargetConditions.get();
-    SpellRange radius = spellEffectInfo.CalcRadius(m_caster, targetIndex) * m_spellValue->RadiusMod;
 
     if (uint32 containerTypeMask = GetSearcherTypeMask(m_spellInfo, spellEffectInfo, objectType, condList))
     {
-        Trinity::WorldObjectSpellLineTargetCheck check(m_caster, dst, m_spellInfo->Width ? m_spellInfo->Width : m_caster->GetCombatReach(), radius, m_caster, m_spellInfo, selectionType, condList, objectType);
+        Trinity::WorldObjectSpellLineTargetCheck check(m_caster, dst, m_spellInfo->Width ? m_spellInfo->Width / 2.0f : m_caster->GetCombatReach(), radius, m_caster, m_spellInfo, selectionType, condList, objectType);
         Trinity::WorldObjectListSearcher<Trinity::WorldObjectSpellLineTargetCheck> searcher(m_caster, targets, check, containerTypeMask);
         SearchTargets<Trinity::WorldObjectListSearcher<Trinity::WorldObjectSpellLineTargetCheck>>(searcher, containerTypeMask, m_caster, m_caster, radius.Max);
 
@@ -3255,6 +3249,9 @@ void Spell::DoSpellEffectHit(Unit* unit, SpellEffectInfo const& spellEffectInfo,
                     .SetStackAmount(m_spellValue->AuraStackAmount)
                     .SetSpellVisual(m_SpellVisual);
 
+                if (m_targets.HasDst())
+                    createInfo.SetDst(m_targets.GetDstPos());
+
                 if (Aura* aura = Aura::TryRefreshStackOrCreate(createInfo, false))
                 {
                     hitInfo.HitAura = aura->ToUnitAura();
@@ -3479,7 +3476,7 @@ SpellCastResult Spell::prepare(SpellCastTargets const& targets, AuraEffect const
     }
 
     // Prevent casting at cast another spell (ServerSide check)
-    if (!(_triggeredCastFlags & TRIGGERED_IGNORE_CAST_IN_PROGRESS) && m_caster->ToUnit() && m_caster->ToUnit()->IsNonMeleeSpellCast(false, true, true, m_spellInfo->Id == 75))
+    if (!(_triggeredCastFlags & TRIGGERED_IGNORE_CAST_IN_PROGRESS) && m_caster->ToUnit() && m_caster->ToUnit()->IsNonMeleeSpellCast(false, true, true, m_spellInfo->IsAutoShot()))
     {
         SendCastResult(SPELL_FAILED_SPELL_IN_PROGRESS);
         finish(SPELL_FAILED_SPELL_IN_PROGRESS);
@@ -3662,6 +3659,9 @@ void Spell::cancel(SpellCastResult result /*= SPELL_FAILED_INTERRUPTED*/, Option
     SetReferencedFromCurrent(false);
     if (m_selfContainer && *m_selfContainer == this)
         *m_selfContainer = nullptr;
+
+    // update original caster pointer to prevent access to non-existed already object (grid unload)
+    UpdateOriginalCasterPointer();
 
     // originalcaster handles gameobjects/dynobjects for gob caster
     if (m_originalCaster)
@@ -4756,11 +4756,7 @@ void Spell::SendSpellStart()
             castData.RemainingRunes->Start = m_runesState; // runes state before
             castData.RemainingRunes->Count = player->GetRunesState(); // runes state after
             for (uint8 i = 0; i < player->GetMaxPower(POWER_RUNES); ++i)
-            {
-                // float casts ensure the division is performed on floats as we need float result
-                float baseCd = float(player->GetRuneBaseCooldown());
-                castData.RemainingRunes->Cooldowns.push_back((baseCd - float(player->GetRuneCooldown(i))) / baseCd * 255); // rune cooldown passed
-            }
+                castData.RemainingRunes->Cooldowns.push_back(player->GetRuneCooldown(i) * 255.0f); // rune cooldown passed
         }
         else
         {
@@ -4859,11 +4855,7 @@ void Spell::SendSpellGo()
         castData.RemainingRunes->Start = m_runesState; // runes state before
         castData.RemainingRunes->Count = player->GetRunesState(); // runes state after
         for (uint8 i = 0; i < player->GetMaxPower(POWER_RUNES); ++i)
-        {
-            // float casts ensure the division is performed on floats as we need float result
-            float baseCd = float(player->GetRuneBaseCooldown());
-            castData.RemainingRunes->Cooldowns.push_back((baseCd - float(player->GetRuneCooldown(i))) / baseCd * 255); // rune cooldown passed
-        }
+            castData.RemainingRunes->Cooldowns.push_back(player->GetRuneCooldown(i) * 255.0f); // rune cooldown passed
     }
 
     if (castFlags & CAST_FLAG_ADJUST_MISSILE)
@@ -5572,11 +5564,7 @@ SpellCastResult Spell::CheckRuneCost() const
     if (player->GetClass() != CLASS_DEATH_KNIGHT)
         return SPELL_CAST_OK;
 
-    int32 readyRunes = 0;
-    for (int32 i = 0; i < player->GetMaxPower(POWER_RUNES); ++i)
-        if (player->GetRuneCooldown(i) == 0)
-            ++readyRunes;
-
+    int32 readyRunes = std::popcount(player->GetRunesState());
     if (readyRunes < runeCost)
         return SPELL_FAILED_NO_POWER;                       // not sure if result code is correct
 
@@ -5599,11 +5587,11 @@ void Spell::TakeRunePower(bool didHit)
         return totalCost + (cost.Power == POWER_RUNES ? cost.Amount : 0);
     });
 
-    for (int32 i = 0; i < player->GetMaxPower(POWER_RUNES); ++i)
+    for (int32 i = 0; i < player->GetMaxPower(POWER_RUNES) && runeCost > 0; ++i)
     {
-        if (!player->GetRuneCooldown(i) && runeCost > 0)
+        if (m_runesState & (1u << i))
         {
-            player->SetRuneCooldown(i, player->GetRuneBaseCooldown());
+            player->SetRuneCooldown(i, 0.0f);
             --runeCost;
         }
     }
@@ -5619,7 +5607,7 @@ void Spell::RefundRunePower()
     // restore old rune state
     for (int32 i = 0; i < player->GetMaxPower(POWER_RUNES); ++i)
         if (m_runesState & (1 << i))
-            player->SetRuneCooldown(i, 0);
+            player->SetRuneCooldown(i, 1.0f);
 }
 
 void Spell::TakeReagents()
@@ -8112,7 +8100,7 @@ Optional<int32> Spell::GetPowerTypeCostAmount(Powers power) const
     return itr->Amount;
 }
 
-bool Spell::UpdatePointers()
+void Spell::UpdateOriginalCasterPointer()
 {
     if (m_originalCasterGUID == m_caster->GetGUID())
         m_originalCaster = m_caster->ToUnit();
@@ -8122,6 +8110,11 @@ bool Spell::UpdatePointers()
         if (m_originalCaster && !m_originalCaster->IsInWorld())
             m_originalCaster = nullptr;
     }
+}
+
+bool Spell::UpdatePointers()
+{
+    UpdateOriginalCasterPointer();
 
     if (!m_focusObjectGUID.IsEmpty())
         focusObject = ObjectAccessor::GetGameObject(*m_caster, m_focusObjectGUID);
@@ -8243,7 +8236,7 @@ bool Spell::CheckEffectTarget(Unit const* target, SpellEffectInfo const& spellEf
             if (target->GetGUID() != corpse->GetOwnerGUID())
                 return false;
 
-            if (!corpse->HasDynamicFlag(CORPSE_DYNFLAG_LOOTABLE))
+            if (!corpse->HasCorpseFlag(CORPSE_FLAG_SKINNABLE))
                 return false;
 
             if (!IsWithinLOS(m_caster, corpse, true, VMAP::ModelIgnoreFlags::M2))
@@ -9548,7 +9541,7 @@ bool WorldObjectSpellLineTargetCheck::operator()(WorldObject* target) const
     if (!_position.HasInLine(target, target->GetCombatReach(), _lineWidth))
         return false;
 
-    return WorldObjectSpellTargetCheck::operator ()(target);
+    return WorldObjectSpellAreaTargetCheck::operator ()(target);
 }
 
 void SelectRandomInjuredTargets(std::list<WorldObject*>& targets, size_t maxTargets, bool prioritizePlayers, Unit const* prioritizeGroupMembersOf /*= nullptr*/)

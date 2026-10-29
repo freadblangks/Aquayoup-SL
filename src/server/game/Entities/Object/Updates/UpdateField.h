@@ -270,6 +270,9 @@ namespace UF
 
         MapUpdateFieldSetter(std::unordered_map<K, V>& values) : _values(values) { }
 
+        // Read side for reconciliation passes; writes must go through the friend functions.
+        std::unordered_map<K, V> const& GetValues() const { return _values; }
+
     private:
         bool RemoveKey(K const& key)
         {
@@ -288,6 +291,9 @@ namespace UF
     template<typename T>
     struct SetUpdateFieldSetter
     {
+        template<typename F>
+        friend bool InsertSetUpdateFieldValue(SetUpdateFieldSetter<F>& setter, std::type_identity_t<F> const& key);
+
         template<typename F>
         friend bool RemoveSetUpdateFieldValue(SetUpdateFieldSetter<F>& setter, std::type_identity_t<F> const& key);
 

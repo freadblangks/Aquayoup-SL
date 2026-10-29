@@ -186,6 +186,7 @@ enum LoginDatabaseStatements : uint32
     LOGIN_INS_ACCOUNT_WARBAND_GROUP,
     LOGIN_INS_ACCOUNT_WARBAND_GROUP_DEFAULT,
     LOGIN_DEL_ACCOUNT_WARBAND_GROUPS,
+    LOGIN_DEL_ACCOUNT_WARBAND_MEMBER,
     LOGIN_SEL_ACCOUNT_WARBAND_GROUP_MEMBERS,
     LOGIN_INS_ACCOUNT_WARBAND_GROUP_MEMBER,
 
@@ -201,6 +202,14 @@ enum LoginDatabaseStatements : uint32
     LOGIN_SEL_ACCOUNT_REALM_TRANSFER,
     LOGIN_DEL_ACCOUNT_REALM_TRANSFER,
     LOGIN_SEL_ACCOUNT_REALM_HANDOFF,
+    LOGIN_SEL_ACCOUNT_BANK_ITEM_SOURCES,
+    LOGIN_SEL_ACCOUNT_BANK_TAB_SETTINGS,
+    LOGIN_DEL_ACCOUNT_BANK_TAB_SETTINGS,
+    LOGIN_INS_ACCOUNT_BANK_TAB_SETTINGS,
+    LOGIN_SEL_ACCOUNT_BANK_COINAGE,
+    LOGIN_DEL_ACCOUNT_BANK_ITEMS_BY_BNET,
+    LOGIN_REP_ACCOUNT_BANK_ITEM,
+    LOGIN_REP_ACCOUNT_BANK_COINAGE,
 
     MAX_LOGINDATABASE_STATEMENTS
 };
@@ -210,7 +219,7 @@ class TC_DATABASE_API LoginDatabaseConnection : public MySQLConnection
 public:
     typedef LoginDatabaseStatements Statements;
 
-    LoginDatabaseConnection(MySQLConnectionInfo& connInfo, ConnectionFlags connectionFlags);
+    LoginDatabaseConnection(MySQLConnectionInfo const& connInfo, ConnectionFlags connectionFlags);
     ~LoginDatabaseConnection();
 
     //- Loads database type specific prepared statements
